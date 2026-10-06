@@ -12,6 +12,7 @@
  */
 import { fmt } from "../archetypes/document";
 import type { SceneDocument } from "../types";
+import { buildChemicalThermodynamicsScene, claimsChemicalThermodynamics } from "./chemicalThermodynamics";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
 import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity } from "./sceneKit";
 
@@ -62,7 +63,7 @@ function classifyThermoStem(stem: string): ThermoKind | null {
   }
   if (
     hasDeltaH && hasDeltaS &&
-    /spontaneous|δg\s*=\s*δh|temperature\s+(?:above|below|at|beyond)\s+which|(?:equilibrium|transition|minimum|threshold)\s+temperature|at\s+what\s+temperature|δg\b.*\b(?:zero|negative|positive)|feasible/.test(stem)
+    /spontaneous|spontaneity|δg\s*=\s*δh|temperature\s+(?:above|below|at|beyond)\s+which|(?:equilibrium|transition|minimum|threshold)\s+temperature|at\s+what\s+temperature|δg\b.*\b(?:zero|negative|positive)|δg\b|feasible/.test(stem)
   ) {
     return "gibbs";
   }
@@ -82,6 +83,7 @@ function classifyThermoStem(stem: string): ThermoKind | null {
 
 /** True when this family should draw for the stem. Include vetoes. */
 export function isThermoGraphStem(question: string): boolean {
+  if (claimsChemicalThermodynamics(question)) return true;
   return classifyThermoStem(chemStem(question)) !== null;
 }
 
@@ -496,6 +498,14 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
 
 /* ---------------------------------------------------------------- gibbs */
 
+/** A stated absolute temperature, such as "at 298 K". Nonpositive values are rejected by the caller. */
+function statedKelvin(stem: string): number | null {
+  const match = /\bat\s+(\d+(?:\.\d+)?)\s*k\b/.exec(stem);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
 function buildGibbs(question: string, stem: string, quantities: ChemPlanQuantity[]): SceneDocument | null {
   const planH = planQuantity(quantities, ["dH", "delta_H", "deltaH", "enthalpy", "ΔH"]);
   const planS = planQuantity(quantities, ["dS", "delta_S", "deltaS", "entropy", "ΔS"]);
@@ -506,6 +516,12 @@ function buildGibbs(question: string, stem: string, quantities: ChemPlanQuantity
     ? (quantities.find((quantity) => /^(?:ds|delta_?s)$/i.test(quantity.id))?.unit?.toLowerCase().startsWith("kj") ? planS : planS / 1000)
     : stemS ? (stemS.unit === "kJ" ? stemS.value : stemS.value / 1000) : null;
   if (dH === null || dSkJ === null || dH === 0 || dSkJ === 0) return null;
+  const at = statedKelvin(stem);
+  if (at !== null && !(at > 0)) return null;
+  const dgAt = at === null ? null : dH - at * dSkJ;
+  const perMole = /kj\s*\/\s*mol|j\s*\/\s*\(?\s*mol|per\s+mol|mol(?:−|-|–)?1/.test(stem);
+  const dgUnit = perMole ? "kJ/mol" : "kJ";
+  const dgText = dgAt === null ? null : `ΔG=${dgAt.toFixed(1)} ${dgUnit}`;
   const tEq = dH / dSkJ;
   const sign = Math.sign(dH);
   const hText = `ΔH = ${signed(dH)} kJ/mol`;
@@ -525,27 +541,31 @@ function buildGibbs(question: string, stem: string, quantities: ChemPlanQuantity
     s.labelled("t_eq");
     s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText.length <= 16 ? hText : `ΔH = ${signed(dH)} kJ`);
     s.labelled("h_intercept");
-    proveOnCurve(c, "zero_at_teq", "gibbs_line", 5, 0);
-    proveOnCurve(c, "intercept_is_dh", "gibbs_line", 0, 3 * sign);
-    s.assert("root_teq", "root", ["gibbs_line"], { x: 5 });
     const spontaneousRight = sign > 0;
     c.text("spont", { x: spontaneousRight ? 7 : 2.4, y: spontaneousRight ? 0.8 : -0.8 }, "spontaneous", "region name");
     c.text("nonspont", { x: spontaneousRight ? 2.4 : 7, y: spontaneousRight ? -0.8 : 0.8 }, "not spontaneous", "region name");
     s.quantity("T_eq", "T_eq", tEq, "K");
     s.quantity("dH", "ΔH", dH, "kJ/mol");
     s.quantity("dS", "ΔS", dSkJ * 1000, "J/K/mol");
-    const caption = `${hText}, ${sText}. ΔG = ΔH ${MINUS} TΔS is zero at T = ΔH/ΔS = ${fmt(tEq)} K and is negative (spontaneous) ${spontaneousRight ? "above" : "below"} that temperature.`;
+    if (dgText && dgText.length <= 16) c.text("dg_at", { x: 4.2, y: 3.15 }, dgText, "calculated Gibbs energy");
+    if (dgAt !== null) s.quantity("dG", "ΔG", dgAt, dgUnit);
+    c.text("schematic_l", { x: 1.7, y: 2.7 }, "schematic", "the line is not an energy scale");
+    c.text("scale_l", { x: 1.7, y: 1.85 }, "not a kJ scale", "vertical axis is not kJ");
+    const caption = `${hText}, ${sText}. ΔG = ΔH ${MINUS} TΔS is zero at T = ΔH/ΔS = ${fmt(tEq)} K and is negative (spontaneous) ${spontaneousRight ? "above" : "below"} that temperature. The line is schematic: the crossover sits at a fixed display position, and the vertical scale is not kJ.${dgText ? ` At ${fmt(at!)} K the calculated value is ${dgText}.` : ""}`;
     return c.build({ caption });
   }
   s.curve("gibbs_line", `${num(3 * sign)}*(1+x/8)`, 0, 8, "ΔG line", "ΔG = ΔH − TΔS", 33);
   s.labelled("gibbs_line");
   s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText.length <= 16 ? hText : `ΔH = ${signed(dH)} kJ`);
   s.labelled("h_intercept");
-  proveOnCurve(c, "intercept_is_dh", "gibbs_line", 0, 3 * sign);
   c.text("region", { x: 4.5, y: sign > 0 ? -0.8 : 0.8 }, sign < 0 ? "ΔG < 0 at all T" : "ΔG > 0 at all T", "region name");
+  if (dgText && dgText.length <= 16) c.text("dg_at", { x: 4.2, y: 2.7 }, dgText, "calculated Gibbs energy");
+  if (dgAt !== null) s.quantity("dG", "ΔG", dgAt, dgUnit);
+  c.text("schematic_l", { x: 7.1, y: 3.15 }, "schematic", "the line is not an energy scale");
+  c.text("scale_l", { x: 7.1, y: 2.35 }, "not a kJ scale", "vertical axis is not kJ");
   s.quantity("dH", "ΔH", dH, "kJ/mol");
   s.quantity("dS", "ΔS", dSkJ * 1000, "J/K/mol");
-  const caption = `${hText}, ${sText}. ΔH and ΔS have opposite signs, so ΔG = ΔH ${MINUS} TΔS never changes sign: the reaction is ${sign < 0 ? "spontaneous" : "non spontaneous"} at every temperature.`;
+  const caption = `${hText}, ${sText}. ΔH and ΔS have opposite signs, so ΔG = ΔH ${MINUS} TΔS never changes sign: the reaction is ${sign < 0 ? "spontaneous" : "non spontaneous"} at every temperature. The line is schematic: the vertical scale is not kJ.${dgText ? ` At ${fmt(at!)} K the calculated value is ${dgText}.` : ""}`;
   return c.build({ caption });
 }
 
@@ -642,8 +662,8 @@ function buildBornHaber(question: string, stem: string, quantities: ChemPlanQuan
     latticeValue = lattice ?? formationValue - upward;
     steps = [sub!, ie!, halfDiss!, eg!, latticeValue];
   } else {
-    // Qualitative ladder in NaCl proportions, symbolic labels only.
-    steps = [108, 496, 121, -349, -787];
+    // Equal steps. Missing energies stay symbolic; NaCl magnitudes are not borrowed.
+    steps = [1, 1, 1, -1, -1];
   }
   const energies = [0];
   steps.forEach((step) => energies.push(energies[energies.length - 1]! + step));
@@ -664,9 +684,14 @@ function buildBornHaber(question: string, stem: string, quantities: ChemPlanQuan
     `${metal}^(+)+${halogen}^(-)(g)`,
     `${metal}${halogen}(s)`,
   ];
+  const shown = (value: number | null, symbol: string): string => {
+    if (value === null) return symbol;
+    const text = `${symbol}=${fmt(value)}`;
+    return text.length <= 16 ? text : symbol;
+  };
   const stepNames = closes
     ? [`ΔH_sub = ${fmt(steps[0]!)}`, `IE = ${fmt(steps[1]!)}`, `½ΔH_diss = ${fmt(steps[2]!)}`, `ΔH_eg = ${signed(steps[3]!)}`, `U = ${signed(steps[4]!)} kJ`]
-    : ["ΔH_sub", "IE_1", "½ΔH_diss", "ΔH_eg", "ΔH_lattice"];
+    : [shown(sub, "ΔH_sub"), shown(ie, "IE_1"), shown(halfDiss, "½ΔH_diss"), shown(eg, "ΔH_eg"), shown(lattice, "ΔH_lattice")];
   const levelIds: string[] = [];
   for (let index = 0; index < 5; index += 1) {
     const id = `level_${index}`;
@@ -693,7 +718,7 @@ function buildBornHaber(question: string, stem: string, quantities: ChemPlanQuan
   const cycle = `ΔH_f = ΔH_sub + IE + ½ΔH_diss + ΔH_eg + U`;
   const caption = closes
     ? `${cycle}: ${signed(formationValue!)} = ${fmt(steps[0]!)} + ${fmt(steps[1]!)} + ${fmt(steps[2]!)} + (${signed(steps[3]!)}) + U, so ${lattice !== null ? `ΔH_f = ${signed(formationValue!)}` : `U = ${signed(latticeValue!)}`} kJ/mol.${egNegated ? ` The electron gain step releases energy, so it is taken as ${signed(steps[3]!)} kJ/mol.` : ""} Heights are to scale in kJ/mol.`
-    : `${cycle}. Rising arrows cost energy (sublimation, ionisation, half the ${halogen}_2 bond); the electron gain and the lattice step release it. Heights are qualitative because the stem does not close the cycle numerically.`;
+    : `${cycle}. Rising arrows cost energy (sublimation, ionisation, half the ${halogen}_2 bond); the electron gain and the lattice step release it. Stated numbers are labelled. Missing numbers stay symbols. Heights are equal steps, not measured energies and not NaCl values.`;
   return c.build({ caption });
 }
 
@@ -784,6 +809,7 @@ function buildMaxwell(question: string, stem: string): SceneDocument {
 
 /** The figure, or null when the stem does not ground it. */
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);
   const stem = chemStem(question);
   const kind = classifyThermoStem(stem);
   if (!kind) return null;
