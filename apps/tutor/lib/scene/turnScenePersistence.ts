@@ -32,6 +32,7 @@ import {
 import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
+import { hasNumericOnlyPayload, numericOnlyAuthority } from "./numericOnlyAuthority";
 import { rawStoredTurnSourceIssues } from "@/lib/scene/storedSceneSource";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
@@ -126,7 +127,13 @@ export async function canonicalizeTurnSceneMetadata(
     const teachingCommands = canonicalizeTeachingCommands(metadata.segments, null, codeLesson);
     if (!teachingCommands.ok) return teachingCommands;
     const retryRequired = metadata.visualStatus === "retry_required";
-    const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
+    const numericSubmitted = hasNumericOnlyPayload(metadata.sceneArtifacts);
+    const numeric = numericOnlyAuthority(metadata.sceneArtifacts, question);
+    const solver = numeric && isRecord(metadata.sceneArtifacts)
+      ? await canonicalSolverArtifacts({ ...numeric }, numeric.turnPlan, question) : null;
+    const retainedNumeric = numeric && solver?.ok && solver.solverAuthority?.status === "verified"
+      ? { ...numeric, ...solver } : null;
+    const plan = retainedNumeric?.turnPlan ?? null;
     const degradation = validatedDegradation(metadata.sceneArtifacts);
     const rejection = validatedProblemIRRejection(metadata.sceneArtifacts,question);
     const sourcePlanEvidence = validatedSourcePlanEvidence(metadata.sceneArtifacts);
@@ -134,7 +141,7 @@ export async function canonicalizeTurnSceneMetadata(
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
-    const baseArtifacts = retryRequired || degradation || codeLesson || continuation || rejection || sourcePlanEvidence
+    const baseArtifacts = numericSubmitted || retryRequired || degradation || codeLesson || continuation || rejection || sourcePlanEvidence
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -151,6 +158,13 @@ export async function canonicalizeTurnSceneMetadata(
         sceneArtifacts: baseArtifacts
           ? {
               ...baseArtifacts,
+              ...(retainedNumeric ? {
+                turnPlan: retainedNumeric.turnPlan,
+                problemIR: retainedNumeric.problemIR,
+                solverResult: retainedNumeric.solverResult,
+                solverAuthority: retainedNumeric.solverAuthority,
+                selectionReason: "complete source-admitted numeric authority retained without a diagram",
+              } : {}),
               ...(rejection ? {problemIRRejection:rejection} : {}),
               ...(sourcePlanEvidence ? {sourcePlanEvidence} : {}),
               ...(codeLesson ? { codeLesson } : {}),
@@ -571,11 +585,6 @@ function validatedDegradation(artifacts: unknown): SceneArtifactsV3["degradation
     issueCodes,
     candidateCount: value.candidateCount as number,
   };
-}
-
-function validatedOptionalTurnPlan(artifacts: unknown, question: string): TurnPlanV3 | null {
-  if (!isRecord(artifacts)) return null;
-  return validateTurnPlanV3(artifacts.turnPlan, question).plan;
 }
 
 function canonicalizeTeachingCommands(

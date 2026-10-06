@@ -1,3 +1,4 @@
+import { hasNumericOnlyPayload, normalizedNumericOnlyArtifacts } from "./numericOnlyAuthority";
 import { canonicalizeUniformCircularSourceDocument, validateSceneSourceAuthority, validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument, type SceneIssue } from "@heytutor/scene-engine";
 import { isBlockedVerifiedDiagramCommand, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
@@ -51,7 +52,14 @@ export function rawStoredTurnSourceIssues(
 }
 
 export function sourceCheckedStoredTurn(turn: StoredTurn): StoredTurn {
-  if (turn.sceneDocument == null) return turn;
+  if (turn.sceneDocument == null) {
+    if (!hasNumericOnlyPayload(turn.sceneArtifacts)) return turn;
+    const retryRequired = turn.visualStatus === "retry_required" || turn.visualStatus === "validated";
+    return { ...turn,
+      visualStatus: retryRequired ? "retry_required" : "text_only",
+      sceneArtifacts: normalizedNumericOnlyArtifacts(turn.sceneArtifacts, turn.question, retryRequired),
+    };
+  }
   const rawIssues = rawStoredTurnSourceIssues(turn.sceneDocument, turn);
   const structural = rawIssues.some((issue) => issue.severity === "fatal")
     ? null : validateSceneDocument(turn.sceneDocument,{sourceAuthority:{question:turn.question,problemIR:(turn.sceneArtifacts && typeof turn.sceneArtifacts==="object"?Object.getOwnPropertyDescriptor(turn.sceneArtifacts,"problemIR")?.value:undefined),turnPlan:(turn.sceneArtifacts && typeof turn.sceneArtifacts==="object"?Object.getOwnPropertyDescriptor(turn.sceneArtifacts,"turnPlan")?.value:undefined)}});

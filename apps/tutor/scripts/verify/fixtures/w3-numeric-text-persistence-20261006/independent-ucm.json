@@ -1,0 +1,266 @@
+{
+  "question": "A bead moves clockwise at a constant speed of 9 cm/s in a circle of radius 3 cm. Find its angular speed and centripetal acceleration.",
+  "problem": {
+    "schemaVersion": "problem-ir/v1",
+    "question": "A bead moves clockwise at a constant speed of 9 cm/s in a circle of radius 3 cm. Find its angular speed and centripetal acceleration.",
+    "facts": [
+      {
+        "id": "rFact",
+        "kind": "given",
+        "statement": "radius 3 cm",
+        "evidence": {
+          "source": "question",
+          "quote": "radius 3 cm",
+          "start": 68,
+          "end": 79
+        }
+      },
+      {
+        "id": "rateFact",
+        "kind": "given",
+        "statement": "constant speed of 9 cm/s",
+        "evidence": {
+          "source": "question",
+          "quote": "constant speed of 9 cm/s",
+          "start": 28,
+          "end": 52
+        }
+      },
+      {
+        "id": "ask0",
+        "kind": "requested",
+        "statement": "angular speed",
+        "evidence": {
+          "source": "question",
+          "quote": "angular speed",
+          "start": 90,
+          "end": 103
+        }
+      },
+      {
+        "id": "ask1",
+        "kind": "requested",
+        "statement": "centripetal acceleration",
+        "evidence": {
+          "source": "question",
+          "quote": "centripetal acceleration",
+          "start": 108,
+          "end": 132
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "actor",
+        "kind": "body",
+        "label": "bead",
+        "evidenceFactIds": [
+          "rFact",
+          "rateFact"
+        ]
+      },
+      {
+        "id": "path",
+        "kind": "curve",
+        "label": "circle",
+        "evidenceFactIds": [
+          "rFact"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "intent",
+        "kind": "conceptual",
+        "entityIds": [
+          "actor",
+          "path"
+        ],
+        "evidenceFactIds": [
+          "rFact",
+          "rateFact"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "e0",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 9
+            },
+            "right": {
+              "kind": "number",
+              "value": 0.01
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 3
+            },
+            "right": {
+              "kind": "number",
+              "value": 0.01
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "rFact",
+          "rateFact"
+        ]
+      },
+      {
+        "id": "e1",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "^",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 9
+              },
+              "right": {
+                "kind": "number",
+                "value": 0.01
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 3
+            },
+            "right": {
+              "kind": "number",
+              "value": 0.01
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "rFact",
+          "rateFact"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "s0",
+        "kind": "evaluate",
+        "expressionId": "e0",
+        "resultBinding": {
+          "symbol": "omega",
+          "unit": "rad/s",
+          "evidenceFactIds": [
+            "ask0"
+          ],
+          "turnPlanQuantityId": "res0"
+        }
+      },
+      {
+        "id": "s1",
+        "kind": "evaluate",
+        "expressionId": "e1",
+        "resultBinding": {
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "evidenceFactIds": [
+            "ask1"
+          ],
+          "turnPlanQuantityId": "res1"
+        }
+      }
+    ],
+    "id": "independentNumericUcm"
+  },
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "A bead moves clockwise at a constant speed of 9 cm/s in a circle of radius 3 cm. Find its angular speed and centripetal acceleration.",
+    "givens": [
+      {
+        "id": "r",
+        "symbol": "r",
+        "value": 3,
+        "unit": "cm",
+        "sourceText": "radius 3 cm",
+        "provenance": "given"
+      },
+      {
+        "id": "rate",
+        "symbol": "v",
+        "value": 9,
+        "unit": "cm/s",
+        "sourceText": "constant speed of 9 cm/s",
+        "provenance": "given"
+      }
+    ],
+    "derived": [
+      {
+        "id": "res0",
+        "symbol": "omega",
+        "unit": "rad/s",
+        "value": 3.0,
+        "dependsOn": [
+          "r",
+          "rate"
+        ],
+        "provenance": "derived"
+      },
+      {
+        "id": "res1",
+        "symbol": "a_c",
+        "unit": "m/s^2",
+        "value": 0.27,
+        "dependsOn": [
+          "r",
+          "rate"
+        ],
+        "provenance": "derived"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "res0",
+        "symbol": "omega",
+        "unit": "rad/s"
+      },
+      {
+        "id": "res1",
+        "symbol": "a_c",
+        "unit": "m/s^2"
+      }
+    ],
+    "assumptions": [],
+    "qualitativeClaims": [],
+    "lawIds": [
+      "uniform_circular_motion"
+    ],
+    "visualRequirement": "required"
+  },
+  "expected": [
+    3,
+    0.27
+  ]
+}
