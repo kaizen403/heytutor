@@ -174,6 +174,8 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
     : null;
 }
 
+const ENGINE_ONLY_SOURCE_KEYS = ["synthesizedDsa", "dsaTraceFrame", "dsaFitBox"] as const;
+
 /**
  * Canonicalize provenance that is already fixed by the request envelope. This
  * deliberately leaves all mathematical content untouched for scene-engine to
@@ -184,6 +186,13 @@ export function normalizeSceneDocumentModelOutput(
   document: SceneDocumentCandidate,
   question: string,
 ): SceneDocumentCandidate {
+  // Markers that only the engine's own DSA trace builder may set. A model
+  // that writes them must not inherit that builder's trust.
+  if (isPlainObject(document.source) && ENGINE_ONLY_SOURCE_KEYS.some((key) => key in (document.source as Record<string, unknown>))) {
+    const source = { ...(document.source as Record<string, unknown>) };
+    for (const key of ENGINE_ONLY_SOURCE_KEYS) delete source[key];
+    document = { ...document, source };
+  }
   if (isPlainObject(document.source)) {
     return typeof document.source.question === "string"
       ? document

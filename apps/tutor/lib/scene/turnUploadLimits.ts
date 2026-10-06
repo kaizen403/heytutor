@@ -10,6 +10,22 @@ export type TurnUploadValidation =
   | { ok: true }
   | { ok: false; status: 400 | 411 | 413 | 415; error: string };
 
+/**
+ * Whether an audio part's first bytes match its declared type. Compare bytes,
+ * never decoded text: a WAV's size field sits between "RIFF" and "WAVE", and
+ * when those four bytes happen to be valid UTF-8 a decoder folds them into
+ * fewer characters, so "WAVE" moves and a valid sentence (about one in twenty)
+ * was refused, taking the whole lesson's save down with it.
+ */
+export function audioPrefixMatchesType(type: string, prefix: Uint8Array): boolean {
+  const ascii = (at: number, tag: string) => [...tag].every((char, i) => prefix[at + i] === char.charCodeAt(0));
+  if (type === "audio/wav") return prefix.length >= 12 && ascii(0, "RIFF") && ascii(8, "WAVE");
+  if (type === "audio/mpeg") {
+    return ascii(0, "ID3") || (prefix[0] === 0xff && ((prefix[1] ?? 0) & 0xe0) === 0xe0 && ((prefix[1] ?? 0) & 0x06) !== 0);
+  }
+  return false;
+}
+
 export function validateTurnUploadHeaders(headers: Headers): TurnUploadValidation {
   const contentType = headers.get("content-type") ?? "";
   if (!/^multipart\/form-data\s*;/i.test(contentType) || !/\bboundary=/i.test(contentType)) {

@@ -1,4 +1,143 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
+import { circleOfExpression, circleOfStatedText, extractCircleSource, isConicExpression } from "../synthesize/statedEquations";
+
+export function validateCircleSourceBinding(document: SceneDocument): SceneIssue[] {
+  if (document.visualDecision.mode === "text_only") return [];
+  const source = typeof document.source.question === "string" ? extractCircleSource(document.source.question) : null;
+  const binding = document.source.circleSourceBinding;
+  if (!source) return binding ? [{ code: "circle_source_mismatch", message: "A claimed source circle requires an unambiguous supported source", severity: "fatal" }] : [];
+  const issues: SceneIssue[] = [];
+  const fail = (message: string): void => { issues.push({ code: "circle_source_mismatch", message, severity: "fatal" }); };
+  if (source.kind === "invalid") { fail(source.reason); return issues; }
+  const producers = new Map(document.constructions.flatMap((construction) => construction.outputs.map((id) => [id, construction] as const)));
+  const sourceNumber = (value: unknown): number | null => {
+    const units = scalarUnits(value, document);
+    if (units.length > 0) { fail(`Plain Cartesian circle inputs cannot infer a source-unit mapping for ${units.join(", ")}`); return null; }
+    return validationNumber(value, document);
+  };
+  const point = (value: unknown): RenderPoint | null => {
+    if (typeof value === "string") {
+      const producer = producers.get(value);
+      if (producer?.operator !== "point" || producer.inputs.coordinateSpace !== undefined && producer.inputs.coordinateSpace !== "world") return null;
+      const x = sourceNumber(producer.inputs.x);
+      const y = sourceNumber(producer.inputs.y);
+      return x === null || y === null ? null : { x, y };
+    }
+    try { return checkedPoint(inlinePoint(value), "source"); } catch { return null; }
+  };
+  const samePoint = (actual: RenderPoint | null, expected: RenderPoint): boolean => actual !== null && (source.kind === "point" ? actual.x === expected.x && actual.y === expected.y : Math.hypot(actual.x - expected.x, actual.y - expected.y) <= 1e-8 * Math.max(1, source.radius));
+  const circles = document.constructions.filter((construction) => construction.operator === "circle");
+  if (binding === undefined) {
+    // An unclaimed document (a planner scene, a region, a stated-curve sketch)
+    // is held to the source only where it draws the locus as a primitive: a
+    // circle must be the source circle, and a zero-radius source draws none.
+    // A locus traced by implicit_curve or bounding a constraint_region is
+    // compiled from its own expression; when that expression is itself a
+    // circle it must be the source circle, so a correct equation label cannot
+    // sit on a different traced circle. Lines, parabolas and half-planes are
+    // other curves and are not compared.
+    const sameCircle = (traced: { center: RenderPoint; radiusSquared: number }): boolean =>
+      Math.hypot(traced.center.x - source.center.x, traced.center.y - source.center.y) <= 1e-8 * Math.max(1, source.radius)
+      && Math.abs(traced.radiusSquared - source.radiusSquared) <= 1e-8 * Math.max(1, source.radiusSquared);
+    // An object labelled with the source circle's equation must be that
+    // circle: a circle primitive (checked below) or a circle-form trace. An
+    // ellipse, a line or a polyline under the equation is a false label.
+    for (const entity of document.entities) {
+      const claimed = typeof entity.label === "string" ? circleOfStatedText(entity.label) : null;
+      if (!claimed || !sameCircle(claimed)) continue;
+      const producer = producers.get(entity.id);
+      if (producer?.operator === "circle") continue;
+      const expression = producer?.operator === "implicit_curve" && typeof producer.inputs.expression === "string" ? producer.inputs.expression : null;
+      // A trace that is not a polynomial of degree two (x^4+y^4-16,
+      // y-0.5sin(x)) cannot be the source circle. It is judged after the
+      // constructions run (validateCircleLabelTraces), so a contour the
+      // compiler cannot resolve keeps its own construction_failed refusal.
+      if (expression !== null && !isConicExpression(expression)) continue;
+      const traced = expression !== null ? circleOfExpression(expression) : null;
+      // An empty trace (r² < 0) is refused by the contour compiler on its own.
+      if (traced && traced.radiusSquared < 0) continue;
+      if (!traced || !sameCircle(traced)) fail(`${entity.id} carries the source circle's equation but is not that circle`);
+    }
+    for (const construction of document.constructions) {
+      const expressions = construction.operator === "implicit_curve" ? [construction.inputs.expression]
+        : construction.operator === "constraint_region" && Array.isArray(construction.inputs.constraints)
+          ? construction.inputs.constraints.map((constraint: unknown) => isRecord(constraint) ? constraint.expression : undefined)
+          : [];
+      for (const expression of expressions) {
+        const traced = typeof expression === "string" ? circleOfExpression(expression) : null;
+        // r² < 0 traces nothing; the contour compiler refuses that on its own.
+        if (!traced || traced.radiusSquared < 0) continue;
+        const sameCentre = Math.hypot(traced.center.x - source.center.x, traced.center.y - source.center.y) <= 1e-8 * Math.max(1, source.radius);
+        const sameRadius = Math.abs(traced.radiusSquared - source.radiusSquared) <= 1e-8 * Math.max(1, source.radiusSquared);
+        if (!sameCentre || !sameRadius) fail(`${construction.operator} traces a circle other than the source circle`);
+      }
+    }
+    if (source.kind === "point") {
+      if (circles.length > 0) fail("A declared zero-radius singleton cannot render a nondegenerate circle");
+      return issues;
+    }
+    if (circles.length === 0) return issues;
+  }
+  const candidates = source.kind === "circle" ? circles : document.constructions.filter((construction) => construction.operator === "point");
+  const locusId = isRecord(binding) && typeof binding.locusId === "string" ? binding.locusId : undefined;
+  if (binding !== undefined && binding !== true && !locusId) { fail("Circle source ownership requires one explicit locus output"); return issues; }
+  const owner = locusId ? producers.get(locusId) : candidates.length === 1 ? candidates[0] : undefined;
+  if (!owner || owner.operator !== (source.kind === "circle" ? "circle" : "point") || owner.outputs.length !== 1) { fail("The source locus has missing or ambiguous ownership"); return issues; }
+  const roots = new Set(owner.outputs);
+  if (source.kind === "point") {
+    if (circles.length > 0) fail("A declared zero-radius singleton cannot render a nondegenerate circle");
+    if (!samePoint(point(owner.outputs[0]), source.center)) fail("The declared singleton point does not match the source");
+  } else {
+    const radius = sourceNumber(owner.inputs.radius ?? owner.inputs.r);
+    if (!samePoint(point(owner.inputs.center), source.center) || radius === null || Math.abs(radius - source.radius) > 1e-8 * Math.max(1, source.radius)) fail("Circle center/radius do not match the explicit source in world coordinates");
+    if (typeof owner.inputs.center === "string") roots.add(owner.inputs.center);
+    if (circles.some((circle) => circle !== owner)) fail("Additional primitive circles have no deterministic source-locus derivation witness");
+  }
+  if (source.member && !(source.kind === "point" && samePoint(source.member, source.center))) {
+    const members = document.constructions.filter((construction) => construction.operator === "point" && document.entities.some((entity) => construction.outputs.includes(entity.id) && (entity.role === "named point" || /^P\b/.test(entity.label ?? ""))) && samePoint(point(construction.outputs[0]), source.member!));
+    if (members.length !== 1) fail("The explicit membership point has missing or ambiguous ownership");
+    else for (const id of members[0]!.outputs) roots.add(id);
+  }
+  const witnessed = (id: unknown, seen = new Set<string>()): boolean => {
+    if (typeof id !== "string") return false;
+    if (roots.has(id)) return true;
+    if (seen.has(id) || seen.size >= 32) return false;
+    const producer = producers.get(id);
+    const keys = producer?.operator === "circle_from_three_points" ? ["a", "b", "c"] : producer?.operator === "circle_tangency_points" ? ["circle", "externalPoint"] : producer?.operator === "circle_intersections" ? ["circleA", "circleB"] : [];
+    if (!producer || keys.length === 0) return false;
+    return keys.every((key) => witnessed(producer.inputs[key], new Set([...seen, id])));
+  };
+  for (const construction of document.constructions) {
+    if (construction.operator === "circle_from_three_points" && !construction.outputs.every((id) => witnessed(id))) fail("A derived circle requires deterministic geometric dependencies rooted in the verified source locus");
+  }
+  return issues;
+}
+
+/**
+ * Post-construction half of the label rule: an implicit_curve carrying the
+ * source circle's equation whose expression is not a conic is a different
+ * curve under the circle's name. Run after constructions so contour failures
+ * report first.
+ */
+export function validateCircleLabelTraces(document: SceneDocument): SceneIssue[] {
+  if (document.visualDecision.mode === "text_only" || document.source.circleSourceBinding !== undefined) return [];
+  const source = typeof document.source.question === "string" ? extractCircleSource(document.source.question) : null;
+  if (!source || source.kind === "invalid") return [];
+  const producers = new Map(document.constructions.flatMap((construction) => construction.outputs.map((id) => [id, construction] as const)));
+  const issues: SceneIssue[] = [];
+  for (const entity of document.entities) {
+    const claimed = typeof entity.label === "string" ? circleOfStatedText(entity.label) : null;
+    if (!claimed) continue;
+    const sameCircle = Math.hypot(claimed.center.x - source.center.x, claimed.center.y - source.center.y) <= 1e-8 * Math.max(1, source.radius)
+      && Math.abs(claimed.radiusSquared - source.radiusSquared) <= 1e-8 * Math.max(1, source.radiusSquared);
+    if (!sameCircle) continue;
+    const producer = producers.get(entity.id);
+    if (producer?.operator === "implicit_curve" && typeof producer.inputs.expression === "string" && !isConicExpression(producer.inputs.expression)) {
+      issues.push({ code: "circle_source_mismatch", message: `${entity.id} carries the source circle's equation but traces a curve that is not a circle`, severity: "fatal" });
+    }
+  }
+  return issues;
+}
 
 export const CIRCLE_OPERATORS = [
   "circle_from_three_points", "circle_tangent_at", "circle_tangency_points", "circle_intersections",

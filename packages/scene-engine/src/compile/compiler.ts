@@ -26,6 +26,10 @@ import {
 import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
+import { validateMatrixSourceBinding } from "./matrixSourceBinding";
+import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
+import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
+import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
   isometricProject,
@@ -86,6 +90,11 @@ import { evaluateWavesConstruction, type WaveDefinition, type WaveSampleDefiniti
 import { evaluateGeometricOpticsConstruction, type OpticalImageDefinition, type OpticalFocusDefinition } from "./geometricOpticsGeometry";
 import { evaluateThermodynamicsConstruction, type ThermodynamicProcessDefinition, type ThermodynamicStateDefinition } from "./thermodynamicsGeometry";
 import { evaluateFieldConstruction, type ElectricFieldDefinition } from "./fieldGeometry";
+import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleGeometry } from "./dipoleFieldGeometry";
+import { evaluateAnalyticLineConstruction, type AnalyticLineGeometry, type AnalyticLineRecord } from "./analyticLineGeometry";
+import { evaluateRigidMassConstruction, type RigidMassGeometry, type RigidMassRecord } from "./rigidMassGeometry";
+import { evaluateMatrixArrayConstruction, matrixArrayPrimitives, type MatrixArrayGeometry } from "./matrixArrayGeometry";
+import { evaluateDistributedFieldsConstruction, type GaussFluxDefinition, type LineChargeFieldDefinition, type LoopFieldDefinition, type SinusoidalFluxDefinition, type SinusoidStateDefinition, type WireFieldDefinition } from "./distributedFieldsGeometry";
 import { evaluateTriangleConstruction } from "./triangleGeometry";
 import { conicPointResidual, evaluateConicConstruction, type ConicDefinition } from "./conicGeometry";
 import {
@@ -145,6 +154,15 @@ type DerivedGeometryMetadata = {
   hydrostaticState?: HydrostaticStateDefinition;
   buoyancyDefinition?: BuoyancyDefinition;
   electricField?: ElectricFieldDefinition;
+  dipoleField?: DipoleFieldMetadata;
+  analyticLine?: AnalyticLineRecord;
+  rigidMass?: RigidMassRecord;
+  lineChargeField?: LineChargeFieldDefinition;
+  gaussFlux?: GaussFluxDefinition;
+  wireField?: WireFieldDefinition;
+  loopField?: LoopFieldDefinition;
+  sinusoidalFlux?: SinusoidalFluxDefinition;
+  sinusoidState?: SinusoidStateDefinition;
   vectorDefinition?: VectorDefinition;
   kinematicTrajectory?: KinematicTrajectoryDefinition;
   kinematicState?: KinematicStateDefinition;
@@ -168,7 +186,8 @@ type Geometry =
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
   | { kind: "dimension"; a: Point; b: Point }
-  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition };
+  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
+  | MatrixArrayGeometry;
 
 const EPSILON = 1e-6;
 
@@ -183,6 +202,16 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
+  const matrixSourceIssues = [
+    ...validateMatrixSourceBinding(document),
+    // A document claiming the admitted relative-motion source must be exactly
+    // the one that source computes; a stale relative velocity cannot compile.
+    ...validateRelativeMotionSourceInputs(document, document.source.question),
+    ...validateUniformCircularSourceInputs(document, document.source.question),
+  ];
+  if (matrixSourceIssues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, [...structural.report.issues, ...matrixSourceIssues], 0) };
+  const circleSourceIssues = validateCircleSourceBinding(document);
+  if (circleSourceIssues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, [...structural.report.issues, ...circleSourceIssues], 0) };
   if (document.visualDecision.mode === "text_only") return { ok: true, renderScene: emptyRenderScene(document), report: structural.report };
 
   const issues = [...structural.report.issues];
@@ -261,6 +290,38 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
 
+  const viewport: Viewport = options.viewport ?? { x: 410, y: 55, width: 740, height: 555, padding: 24 };
+  const matrices = [...geometry.entries()].filter((entry): entry is [string, MatrixArrayGeometry] => entry[1].kind === "matrix_array");
+  const matrixBounds = matrices.map(([id, value]) => {
+    const points = matrixArrayPrimitives(value, id, "layout").flatMap((primitive) => primitive.points);
+    return { xMin: Math.min(...points.map((point) => point.x)), xMax: Math.max(...points.map((point) => point.x)), yMin: Math.min(...points.map((point) => point.y)), yMax: Math.max(...points.map((point) => point.y)) };
+  });
+  const overlappingMatrices = matrixBounds.some((bounds, index) => matrixBounds.slice(index + 1).some((other) =>
+    bounds.xMin < other.xMax && bounds.xMax > other.xMin && bounds.yMin < other.yMax && bounds.yMax > other.yMin));
+  if (overlappingMatrices) {
+    const sizes = matrices.map(([id, value]) => {
+      const points = matrixArrayPrimitives({ ...value, matrixArray: { ...value.matrixArray, origin: { x: 0, y: 0 }, displayScale: 1 } }, id, "layout").flatMap((primitive) => primitive.points);
+      return { width: Math.max(...points.map((point) => point.x)), height: Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y)) };
+    });
+    const layouts = Array.from({ length: matrices.length }, (_, index) => {
+      const columns = index + 1;
+      const rows = Math.ceil(matrices.length / columns);
+      const widths = Array.from({ length: columns }, (_, column) => Math.max(...sizes.filter((_, item) => item % columns === column).map((size) => size.width)));
+      const heights = Array.from({ length: rows }, (_, row) => Math.max(...sizes.slice(row * columns, (row + 1) * columns).map((size) => size.height)));
+      const width = widths.reduce((sum, item) => sum + item, 0) + 3 * (columns - 1);
+      const height = heights.reduce((sum, item) => sum + item, 0) + 3 * (rows - 1);
+      return { columns, widths, heights, scale: Math.min((viewport.width - 2 * (viewport.padding ?? 24)) / width, (viewport.height - 2 * (viewport.padding ?? 24)) / height) };
+    }).sort((a, b) => b.scale - a.scale);
+    const layout = layouts[0]!;
+    matrices.forEach(([id, value], index) => {
+      const column = index % layout.columns;
+      const row = Math.floor(index / layout.columns);
+      const x = layout.widths.slice(0, column).reduce((sum, item) => sum + item + 3, 0);
+      const y = -layout.heights.slice(0, row).reduce((sum, item) => sum + item + 3, 0) - 1.5;
+      geometry.set(id, { ...value, matrixArray: { ...value.matrixArray, origin: { x, y }, displayScale: 1 } });
+    });
+  }
+
   const constructionOnlyIds = implicitSolverEntityIds(document);
   const entityToGroup = new Map<string, string>();
   document.revealGroups.forEach((group) => group.entityIds.forEach((id) => entityToGroup.set(id, group.id)));
@@ -316,8 +377,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
+  issues.push(...validateCircleLabelTraces(document));
+  if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
 
-  const viewport: Viewport = options.viewport ?? { x: 410, y: 55, width: 740, height: 555, padding: 24 };
   const dimensionLanes = computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds);
   const hasLabels = document.entities.some((entity) => Boolean(entity.label)) ||
     document.annotations.some((annotation) =>
@@ -603,6 +665,43 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
 
   attachAngleMeasureLabels(document, geometry, labelOwners, transformPlan, consumedAnnotationIds);
+
+  const matrixCells = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.matrixNonmetric === true && primitive.provenance?.matrixCell);
+  if (matrixCells.length > 0) {
+    const cellOwners: LabelOwner[] = matrixCells.map((primitive) => ({
+      labelId: primitive.id,
+      entityId: primitive.id,
+      anchor: primitive.points[0]!,
+      text: primitive.text!,
+      viewBounds: transformPlan.viewportFor(primitive.entityId),
+      pinToAnchor: true,
+      allowLeader: false,
+      useOwnerBounds: false,
+    }));
+    let fontPx = 24;
+    let cells = placeLabels(cellOwners, [workColumnObstacle()], { fontHeightPx: fontPx, measureTextPx: measureTextWidth, measureTextInkBounds });
+    while (!cells.ok && fontPx > 12) {
+      fontPx--;
+      cells = placeLabels(cellOwners, [workColumnObstacle()], { fontHeightPx: fontPx, measureTextPx: measureTextWidth, measureTextInkBounds });
+    }
+    for (const issue of cells.issues) {
+      const owner = matrixCells.find((primitive) => primitive.id === issue.entityId);
+      issues.push({ code: issue.code, message: issue.message, severity: "fatal", entityIds: owner ? [owner.entityId] : [] });
+    }
+    if (cells.ok) {
+      const byId = new Map(matrixCells.map((primitive) => [primitive.id, primitive]));
+      for (const placement of cells.placements) {
+        const primitive = byId.get(placement.labelId)!;
+        primitive.labelPlacement = "absolute";
+        primitive.provenance = {
+          ...primitive.provenance,
+          fontPx,
+          labelBounds: placement.bounds,
+          labelCollisionBounds: placement.collisionBounds ?? placement.bounds,
+        };
+      }
+    }
+  }
 
   const uniqueLabelOwners = [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
@@ -1150,6 +1249,29 @@ function collectStrings(value: unknown, visit: (value: string) => void): void {
   else if (isRecord(value)) for (const item of Object.values(value)) collectStrings(item, visit);
 }
 
+function adaptAnalyticLineGeometry(value: AnalyticLineGeometry): Geometry {
+  const analyticLine = value.analyticLine;
+  if (value.kind === "point") return { kind: "point", point: value.point, analyticLine };
+  if (value.kind === "circle") return { kind: "circle", center: value.center, radius: value.radius, analyticLine };
+  return { kind: "path", points: value.points, infinite: value.infinite, directed: value.directed, analyticLine };
+}
+
+function adaptRigidMassGeometry(value: RigidMassGeometry): Geometry {
+  const rigidMass = value.rigidMass;
+  if (value.kind === "point") return { kind: "point", point: value.point, rigidMass };
+  if (value.kind === "circle") return { kind: "circle", center: value.center, radius: value.radius, rigidMass };
+  if (value.kind === "multi_path") return { kind: "multi_path", paths: value.paths, rigidMass };
+  return { kind: "path", points: value.points, directed: value.directed, closed: value.closed, rigidMass };
+}
+
+function adaptDipoleGeometry(value: DipoleGeometry): Geometry {
+  const dipoleField = value.dipoleField;
+  if (value.kind === "point") return { kind: "point", point: value.point, dipoleField };
+  if (value.kind === "path") return { kind: "path", points: value.points, directed: true, dipoleField };
+  if (value.kind === "circle") return { kind: "circle", center: value.center, radius: value.radius, dipoleField };
+  return { kind: "multi_path", paths: value.paths.map((path) => path.points), dipoleField };
+}
+
 function evaluateConstruction(
   operator: SupportedSceneConstructionOperator,
   inputs: Record<string, unknown>,
@@ -1222,6 +1344,49 @@ function evaluateConstruction(
     case "probability_tree": return evaluateProbabilityConstruction(operator, inputs, constructionContext);
     case "electric_field":
     case "field_components": return evaluateFieldConstruction(operator, inputs, constructionContext);
+    case "coulomb_pair":
+    case "point_charge_field":
+    case "field_lines":
+    case "dipole_field":
+    case "dipole_torque":
+    case "equipotential":
+    case "dipole_energy": return evaluateDipoleFieldConstruction(operator, inputs, constructionContext).map(adaptDipoleGeometry);
+    case "coordinate_distance":
+    case "section_point":
+    case "axis_translation":
+    case "line_relation":
+    case "line_intercepts":
+    case "line_equation":
+    case "line_intersection_angle":
+    case "line_concurrence":
+    case "point_line_distance": return evaluateAnalyticLineConstruction(operator, inputs, constructionContext).map(adaptAnalyticLineGeometry);
+    case "centre_of_mass":
+    case "com_motion":
+    case "point_mass_inertia":
+    case "simple_body_inertia":
+    case "axes_theorem": return evaluateRigidMassConstruction(operator, inputs, constructionContext).map(adaptRigidMassGeometry);
+    case "matrix_array":
+    case "matrix_add":
+    case "matrix_scale":
+    case "matrix_product":
+    case "matrix_transpose": return evaluateMatrixArrayConstruction(operator, inputs, {
+      scalar(id) {
+        const quantity = quantities.get(id);
+        if (!quantity) throw new Error("matrix source quantity cannot be resolved");
+        return { value: quantity.value, unit: quantity.unit };
+      },
+      geometry(id) {
+        const resolved = geometry.get(id);
+        if (!resolved) throw new Error("matrix operand must retain nonmetric matrix-array authority");
+        return resolved;
+      },
+    });
+    case "line_charge_field":
+    case "gauss_flux":
+    case "wire_field":
+    case "loop_field":
+    case "flux_sinusoid":
+    case "sinusoid_state": return evaluateDistributedFieldsConstruction(operator, inputs, constructionContext);
     case "circle_from_three_points":
     case "circle_tangent_at":
     case "circle_tangency_points":
@@ -1943,7 +2108,7 @@ function createTransform(values: Geometry[], viewport: { x: number; y: number; w
 function fitGeometryPoints(values: Geometry[]): Point[] {
   const finite = values.flatMap((value) => {
     if (value.kind === "path" && value.infinite) return [];
-    return pointsOf(value);
+    return [...pointsOf(value), ...measuredLineReach(value)];
   }).filter(finitePoint);
   return finite.length > 0 ? finite : values.flatMap(pointsOf).filter(finitePoint);
 }
@@ -1994,6 +2159,23 @@ function polygonArea(polygon: Point[]): number {
   }, 0) / 2;
 }
 
+/**
+ * A point-to-line distance frames a stretch of its measured line on both
+ * sides of the foot, at least as long as the distance, so the clipped
+ * infinite line reads as the line and not a stub beside the connector.
+ */
+function measuredLineReach(value: Geometry): Point[] {
+  const record = "analyticLine" in value ? (value as { analyticLine?: AnalyticLineRecord }).analyticLine : undefined;
+  if (record?.topic !== "maths|10|point-to-line-distance" || !record.foot || !record.direction) return [];
+  const length = Math.hypot(record.direction.x, record.direction.y);
+  if (!(length > 0)) return [];
+  const reach = Math.max(typeof record.distance === "number" ? record.distance : 0, 2) / length;
+  return [
+    { x: record.foot.x - record.direction.x * reach, y: record.foot.y - record.direction.y * reach },
+    { x: record.foot.x + record.direction.x * reach, y: record.foot.y + record.direction.y * reach },
+  ];
+}
+
 function infinitePathFarPoint(start: Point, next: Point): Point {
   return {
     x: start.x + (next.x - start.x) * 1e6,
@@ -2038,6 +2220,16 @@ function pushDegenerateProjectedGeometryIssues(
 }
 
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+  if (value.kind === "matrix_array") {
+    const sourceProvenance = { ...provenance };
+    delete sourceProvenance.matrixCell;
+    delete sourceProvenance.matrixNonmetric;
+    return matrixArrayPrimitives(value, entityId, groupId).map((primitive) => ({
+      ...primitive,
+      points: primitive.points.map(transform),
+      provenance: { ...sourceProvenance, ...primitive.provenance, matrixNonmetric: true },
+    }));
+  }
   if (value.kind === "point") return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "point", points: [transform(value.point)], text: label, provenance }];
   if (value.kind === "circle") return [{ id: `primitive_${entityId}`, entityId, groupId, kind: "circle", points: [transform(value.center)], radius: distance(transform(value.center), transform({ x: value.center.x + value.radius, y: value.center.y })), text: label, provenance }];
   if (value.kind === "arc") {
@@ -4294,7 +4486,7 @@ function angleOnArc(value: number, start: number, end: number): boolean {
 function projectPoint(p: Point, a: Point, b: Point): Point { const dx=b.x-a.x,dy=b.y-a.y; const denominator=dx*dx+dy*dy; if(denominator<EPSILON) throw new Error("degenerate line"); const t=((p.x-a.x)*dx+(p.y-a.y)*dy)/denominator; return {x:a.x+t*dx,y:a.y+t*dy}; }
 function reflectPoint(p: Point,a:Point,b:Point):Point { const q=projectPoint(p,a,b); return{x:2*q.x-p.x,y:2*q.y-p.y}; }
 function refract(i:Point,n:Point,eta:number):Point { let normal=n; let cosi=Math.max(-1,Math.min(1,i.x*n.x+i.y*n.y)); let ratio=eta; if(cosi>0){normal={x:-n.x,y:-n.y};ratio=1/eta;}else cosi=-cosi; const k=1-ratio*ratio*(1-cosi*cosi); if(k<0) throw new Error("total internal reflection"); return normalize({x:ratio*i.x+(ratio*cosi-Math.sqrt(k))*normal.x,y:ratio*i.y+(ratio*cosi-Math.sqrt(k))*normal.y}); }
-function pointsOf(value:Geometry):Point[]{ if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); return[value.a,value.b]; }
+function pointsOf(value:Geometry):Point[]{ if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
 function routedConnectorPoints(
   start: Point,
   end: Point,
@@ -4844,6 +5036,7 @@ function geometrySignature(value: Geometry): string {
   if (value.kind === "circle") return `circle:${pointKey(value.center)}:${signatureNumber(value.radius)}`;
   if (value.kind === "arc") return `arc:${pointKey(value.center)}:${signatureNumber(value.radius)}:${signatureNumber(value.startAngle)}:${signatureNumber(value.endAngle)}`;
   if (value.kind === "axes") return `axes:${value.xMin}:${value.xMax}:${value.yMin}:${value.yMax}`;
+  if (value.kind === "matrix_array") return `matrix:${value.matrixArray.operation}:${value.matrixArray.rows}x${value.matrixArray.columns}:${JSON.stringify(value.matrixArray.exactEntries)}:${pointKey(value.matrixArray.origin)}:${signatureNumber(value.matrixArray.displayScale)}`;
   return `dimension:${pointKey(value.a)}:${pointKey(value.b)}`;
 }
 
@@ -5058,6 +5251,14 @@ function symbolPaths(symbol: string, start: Point, end: Point): Point[][] {
       at(0.55, -0.1), at(0.65, 0.1), at(0.75, -0.1), at(0.82), at(1),
     ]];
   }
+  if (normalizedSymbol === "wire") return [[at(0), at(1)]];
+  if (normalizedSymbol === "open") return [[at(0), at(0.4)], [at(0.6), at(1)]];
+  if (normalizedSymbol === "dc_current_source") {
+    return [
+      [at(0), at(0.28)], circleAt(0.5), [at(0.72), at(1)],
+      [at(0.38), at(0.62)], [at(0.55, -0.06), at(0.62), at(0.55, 0.06)],
+    ];
+  }
   if (normalizedSymbol === "battery" || normalizedSymbol === "cell") {
     return [
       [at(0), at(0.43)],
@@ -5150,7 +5351,11 @@ function computeParallelLaneOffsets(document: SceneDocument): Map<string, number
   for (const ids of byPair.values()) {
     if (ids.length < 2) continue;
     const middle = (ids.length - 1) / 2;
-    ids.forEach((id, index) => offsets.set(id, (index - middle) * 0.42));
+    ids.forEach((id, index) => {
+      const symbol = document.constructions.find((construction) => construction.operator === "symbol" && construction.outputs[0] === id)!;
+      const direction = String(symbol.inputs.start) < String(symbol.inputs.end) ? 1 : -1;
+      offsets.set(id, (index - middle) * 0.42 * direction);
+    });
   }
   return offsets;
 }

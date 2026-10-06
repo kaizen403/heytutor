@@ -5,6 +5,8 @@
  */
 import { SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
 import { grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
+import { parseResistorTree, type ResistorTree } from "../resistorTree";
+import { numbersWithUnit, UNIT } from "../slots";
 
 function pageNormalGrid(scene: SceneBuilder, prefix: string, origin: Vec2, columns: number, rows: number, spacing: number, into: boolean, role: string): string[] {
   const ids: string[] = [];
@@ -271,9 +273,12 @@ function ohmLabel(symbol: string, value: number | undefined): string {
   return value === undefined ? symbol : `${symbol}=${fmt(value)}Ω`.slice(0, 16);
 }
 
-/** The stem names a source; only then may the network be closed through one. */
+/**
+ * The stem names a source; only then may the network be closed through one.
+ * "the potential difference across it" names a quantity to find, not a source.
+ */
 function namesSource(question: string): boolean {
-  return /\b(?:battery|batteries|cells?|emf|e\.m\.f|source|supply|\d+(?:\.\d+)?\s*(?:V|volts?)\b|potential difference|connected across|applied across)\b/i.test(question);
+  return /\b(?:battery|batteries|cells?|emf|e\.m\.f|source|supply|\d+(?:\.\d+)?\s*(?:V|volts?)\b|connected across|applied across)\b/i.test(question);
 }
 
 /** Enough circuit vocabulary to trust that the stem describes a network (guards OCR garbage). */
@@ -281,35 +286,83 @@ function describesNetwork(question: string): boolean {
   return /\b(?:resist|ohm|Ω|batter|cells?|emf|volt|current|branch|loop|junction|network|circuit|node)/i.test(question);
 }
 
-function closeWithBattery(scene: SceneBuilder, left: string, right: string, leftAt: Vec2, rightAt: Vec2, emfLabel: string): void {
+/**
+ * Close the network through a source below it. The long (positive) plate faces
+ * the left wire, so conventional current leaves the source, rises into `left`
+ * and crosses the network left to right: the direction every current sense
+ * mark on a left-to-right component already points. An ammeter, when the stem
+ * names one, sits in that left return wire where it carries the source current.
+ */
+function closeWithBattery(scene: SceneBuilder, left: string, right: string, leftAt: Vec2, rightAt: Vec2, emfLabel: string, ammeter = false): void {
   const y = Math.min(leftAt.y, rightAt.y) - 2;
   const midX = (leftAt.x + rightAt.x) / 2;
   scene.point("bl", { x: leftAt.x, y }, "node");
   scene.point("br", { x: rightAt.x, y }, "node");
   scene.point("bat_a", { x: midX - 0.6, y }, "node");
   scene.point("bat_b", { x: midX + 0.6, y }, "node");
-  scene.connect("w_left", left, "bl");
+  if (ammeter) scene.symbol("ammeter", "ammeter", "bl", left, "ammeter", "A");
+  else scene.connect("w_left", left, "bl");
   scene.connect("w_right", right, "br");
   scene.connect("w_bl", "bl", "bat_a");
   scene.connect("w_br", "bat_b", "br");
-  scene.symbol("battery", "battery", "bat_b", "bat_a", "source", emfLabel);
+  scene.symbol("battery", "battery", "bat_a", "bat_b", "source", emfLabel);
 }
 
 function resistorNetwork(context: GeneratorContext) {
   const values = numbers(context, "resistors");
-  const topology = text(context, "topology", "series");
+  const stated = maybeNum(context, "resistorCount");
   // Two separate circuits asked for (series AND parallel, "each circuit"): the
   // family builder draws both views; a single mixed network would be wrong.
-  if (topology === "both") return null;
-  const count = Math.max(2, Math.min(values.length || 2, 4));
+  if (text(context, "topology", "series") === "both") return null;
+  if (maybeNum(context, "resistorCountConflict") !== null) return null;
+  // A real cell: numeric internal-resistance stems still decline (which
+  // stated resistance is r is not read); a valueless one gets the concept.
+  if (maybeNum(context, "internalResistance") !== null) {
+    const hasNumericSource = values.length > 0
+      || [UNIT.volt, UNIT.ampere].some((unit) => numbersWithUnit(context.question, unit).length > 0);
+    return hasNumericSource ? null : internalResistanceConcept(context);
+  }
+  // A grouping the stem does not fix is never guessed.
+  if (text(context, "topology", "series") === "ambiguous") return null;
+  // Draw exactly the resistors the stem states: one stated resistor is one
+  // resistor, never a stock pair, and a network too large to draw whole is
+  // declined rather than cut down to four.
+  const genericTree = text(context, "topology", "series") === "tree" && values.length === 0 ? parseResistorTree(text(context, "tree")) : null;
+  const count = values.length || (genericTree ? treeLeafCount(genericTree) : 0) || stated || (/\bresistors\b/i.test(context.question) ? 2 : 1);
+  if (count > 4) return null;
+  const topology = count === 1 ? "series" : text(context, "topology", "series");
+  const tree = topology === "tree" ? parseResistorTree(text(context, "tree")) : null;
+  // A valueless generic tree (a concept stem) draws named resistors only.
+  if (topology === "tree" && (!tree || (values.length > 0 && (treeLeafCount(tree) !== count || values.length !== count)))) return null;
+  // Beyond three parallel lanes the label layout parks values beside the
+  // group, where a reader cannot tell which lane each value names.
+  if (topology === "parallel" && count + (/\bvoltmeter\b/i.test(context.question) ? 1 : 0) > 3) return null;
+  const withSource = namesSource(context.question);
+  // Meters are drawn only where the stem's wording fixes their place: an
+  // ammeter in the source's own line, a voltmeter across the one resistor or
+  // across a parallel group. Any other meter wording declines the figure.
+  const ammeter = /\bammeter\b/i.test(context.question);
+  const voltmeter = /\bvoltmeter\b/i.test(context.question);
+  if ((ammeter && (!withSource || (topology !== "series" && !/\b(?:main|total|battery|cell|source)\b[^.]*\bammeter\b|\bammeter\b[^.]*\b(?:main|total|battery|cell|source)\b/i.test(context.question))))
+    || (voltmeter && count !== 1 && topology !== "parallel")
+    || (tree && (ammeter || voltmeter))) return null;
   const scene = new SceneBuilder(context.question, `${topology.replace(/_/g, "–")} resistor network with the stated values`, "resistor_network");
   values.slice(0, count).forEach((value, index) => scene.quantity(`q_R${index + 1}`, `R${index + 1}`, value, "ohm"));
   const emf = maybeNum(context, "emf");
   const emfLabel = emf !== null && grounded(context, "emf") ? `${fmt(emf)} V` : "V";
-  const withSource = namesSource(context.question);
-  const labels = Array.from({ length: count }, (_, index) => ohmLabel(`R${index + 1}`, values[index]));
+  const labels = Array.from({ length: count }, (_, index) => ohmLabel(count === 1 ? "R" : `R${index + 1}`, values[index]));
   const close = (left: string, right: string, leftAt: Vec2, rightAt: Vec2): void => {
-    if (withSource) closeWithBattery(scene, left, right, leftAt, rightAt, emfLabel);
+    if (!withSource) return;
+    if (!ammeter) {
+      closeWithBattery(scene, left, right, leftAt, rightAt, emfLabel);
+      return;
+    }
+    // The ammeter gets its own vertical, led out left of the network, so its
+    // dial never sits on a parallel group's bus.
+    const nodeY = 2;
+    const lead = scene.point("ammeter_lead", { x: leftAt.x - 1.4, y: nodeY }, "node");
+    scene.connect("w_lead", left, lead);
+    closeWithBattery(scene, lead, right, { x: leftAt.x - 1.4, y: leftAt.y }, rightAt, emfLabel, true);
   };
   if (topology === "series") {
     const nodes = Array.from({ length: count + 1 }, (_, index) => scene.point(`n${index}`, { x: index * 2, y: 2 }, "node"));
@@ -320,29 +373,144 @@ function resistorNetwork(context: GeneratorContext) {
     const a = scene.point("n0", { x: 0, y: 2 }, "node");
     const b = scene.point("n1", { x: 4, y: 2 }, "node");
     const ids = labels.map((label, index) => scene.symbol(`R${index + 1}`, "resistor", a, b, "resistor", label));
-    close(a, b, { x: 0, y: 2 }, { x: 4, y: 2 });
+    // The compiler fans parallel symbols into lanes 0.42 of the span apart;
+    // the source loop runs below the lowest lane, not through it.
+    const lanes = count + (voltmeter ? 1 : 0);
+    const lowestLane = 2 - ((lanes - 1) / 2) * 0.42 * 4;
+    close(a, b, { x: 0, y: lowestLane }, { x: 4, y: lowestLane });
     scene.assert("same_pair", "sameTerminalPair", ids, true);
-  } else if (topology === "series_parallel") {
-    const a = scene.point("n0", { x: 0, y: 2 }, "node");
-    const b = scene.point("n1", { x: 2, y: 2 }, "node");
-    const c = scene.point("n2", { x: 5, y: 2 }, "node");
-    scene.symbol("R1", "resistor", a, b, "resistor", labels[0]);
-    const group = labels.slice(1, 3).map((label, index) => scene.symbol(`R${index + 2}`, "resistor", b, c, "resistor", label));
-    close(a, c, { x: 0, y: 2 }, { x: 5, y: 2 });
-    scene.assert("parallel_pair", "sameTerminalPair", group, true);
-    scene.assert("series_link", "path", ["R1", group[0]!], true);
-  } else {
-    const a = scene.point("n0", { x: 0, y: 2 }, "node");
-    const b = scene.point("n1", { x: 3, y: 2 }, "node");
-    const c = scene.point("n2", { x: 5, y: 2 }, "node");
-    const group = labels.slice(0, 2).map((label, index) => scene.symbol(`R${index + 1}`, "resistor", a, b, "resistor", label));
-    scene.symbol("R3", "resistor", b, c, "resistor", labels[2] ?? "R3");
-    close(a, c, { x: 0, y: 2 }, { x: 5, y: 2 });
-    scene.assert("parallel_pair", "sameTerminalPair", group, true);
-    scene.assert("series_link", "path", [group[0]!, "R3"], true);
+  } else if (tree) {
+    // Lay the bound tree out left to right: series children side by side,
+    // parallel children stacked between two buses. Every resistor runs left
+    // to right, the way the source drives current.
+    const block = layoutResistorTree(scene, tree, labels, 0, 2, { next: 0 });
+    close(block.left, block.right, { x: 0, y: block.bottom }, { x: block.width, y: block.bottom });
+    scene.assert("bound_tree", "connected", treeIds(tree), true);
   }
+  // Across n0 and n1: the one resistor, or every branch of a parallel group.
+  if (voltmeter) scene.symbol("voltmeter", "voltmeter", "n0", "n1", "voltmeter", "V");
   scene.sense("current_sense", "R1");
   scene.labelled("R1", ...(withSource ? ["battery"] : []));
+  return scene.build();
+}
+
+const TREE_LEAF_WIDTH = 2;
+const TREE_ROW = 1.6;
+const TREE_BUS_MARGIN = 0.6;
+const TREE_JOIN = 0.4;
+
+function treeLeafCount(tree: ResistorTree): number {
+  return tree.kind === "leaf" ? 1 : tree.children.reduce((sum, child) => sum + treeLeafCount(child), 0);
+}
+
+function treeIds(tree: ResistorTree): string[] {
+  return tree.kind === "leaf" ? [`R${tree.index + 1}`] : tree.children.flatMap(treeIds);
+}
+
+function treeWidth(tree: ResistorTree): number {
+  if (tree.kind === "leaf") return TREE_LEAF_WIDTH;
+  const widths = tree.children.map(treeWidth);
+  return tree.kind === "series"
+    ? widths.reduce((sum, width) => sum + width, 0) + TREE_JOIN * (widths.length - 1)
+    : Math.max(...widths) + 2 * TREE_BUS_MARGIN;
+}
+
+function treeRows(tree: ResistorTree): number {
+  if (tree.kind === "leaf") return 1;
+  const rows = tree.children.map(treeRows);
+  return tree.kind === "series" ? Math.max(...rows) : rows.reduce((sum, value) => sum + value, 0);
+}
+
+/**
+ * Place a bound series/parallel tree with its terminals on the row y. Returns
+ * the terminal points, the width and the lowest y any wire reaches.
+ */
+function layoutResistorTree(
+  scene: SceneBuilder,
+  tree: ResistorTree,
+  labels: readonly string[],
+  x: number,
+  y: number,
+  ids: { next: number },
+): { left: string; right: string; width: number; bottom: number } {
+  const point = (at: Vec2): string => scene.point(`t${ids.next++}`, at, "node");
+  const width = treeWidth(tree);
+  if (tree.kind === "leaf") {
+    const left = point({ x, y });
+    const right = point({ x: x + width, y });
+    scene.symbol(`R${tree.index + 1}`, "resistor", left, right, "resistor", labels[tree.index]);
+    return { left, right, width, bottom: y };
+  }
+  if (tree.kind === "series") {
+    let cursor = x;
+    let previous: string | null = null;
+    let first = "";
+    let bottom = y;
+    for (const child of tree.children) {
+      const placed = layoutResistorTree(scene, child, labels, cursor, y, ids);
+      if (previous) scene.connect(`w_t${ids.next++}`, previous, placed.left);
+      else first = placed.left;
+      previous = placed.right;
+      cursor += placed.width + TREE_JOIN;
+      bottom = Math.min(bottom, placed.bottom);
+    }
+    return { left: first, right: previous!, width, bottom };
+  }
+  // Parallel: rows stacked from the terminal row downward and upward around y.
+  const left = point({ x, y });
+  const right = point({ x: x + width, y });
+  const total = treeRows(tree);
+  let row = y + ((total - 1) / 2) * TREE_ROW;
+  let bottom = y;
+  for (const child of tree.children) {
+    const rows = treeRows(child);
+    const centre = row - ((rows - 1) / 2) * TREE_ROW;
+    const childWidth = treeWidth(child);
+    const start = x + (width - childWidth) / 2;
+    const placed = layoutResistorTree(scene, child, labels, start, centre, ids);
+    const busLeft = centre === y ? left : point({ x, y: centre });
+    const busRight = centre === y ? right : point({ x: x + width, y: centre });
+    if (busLeft !== left) scene.connect(`w_t${ids.next++}`, left, busLeft);
+    if (busRight !== right) scene.connect(`w_t${ids.next++}`, right, busRight);
+    scene.connect(`w_t${ids.next++}`, busLeft, placed.left);
+    scene.connect(`w_t${ids.next++}`, placed.right, busRight);
+    row -= rows * TREE_ROW;
+    bottom = Math.min(bottom, placed.bottom, centre);
+  }
+  return { left, right, width, bottom };
+}
+
+/**
+ * A real cell as the idea: emf E and internal resistance r together inside a
+ * dashed outline, driving an external resistor R. No values are drawn; the
+ * terminal voltage is the drop across R.
+ */
+function internalResistanceConcept(context: GeneratorContext) {
+  const scene = new SceneBuilder(context.question, "cell with emf E and internal resistance r driving an external resistor R", "resistor_network");
+  const top = 2;
+  const bottom = 0;
+  scene.point("n0", { x: 0, y: top }, "node");
+  scene.point("n1", { x: 4, y: top }, "node");
+  scene.point("bl", { x: 0, y: bottom }, "node");
+  scene.point("br", { x: 4, y: bottom }, "node");
+  scene.point("cell_a", { x: 0.8, y: bottom }, "node");
+  scene.point("cell_b", { x: 1.6, y: bottom }, "node");
+  scene.point("r_a", { x: 2.2, y: bottom }, "node");
+  scene.point("r_b", { x: 3.2, y: bottom }, "node");
+  scene.symbol("R1", "resistor", "n0", "n1", "resistor", "R");
+  scene.connect("w_left", "n0", "bl");
+  scene.connect("w_bl", "bl", "cell_a");
+  // Long plate at the start faces the left wire: current rises into n0 and
+  // crosses R left to right.
+  scene.symbol("battery", "battery", "cell_a", "cell_b", "source", "E");
+  scene.connect("w_cell", "cell_b", "r_a");
+  scene.symbol("r_internal", "resistor", "r_a", "r_b", "internal resistance", "r");
+  scene.connect("w_br", "r_b", "br");
+  scene.connect("w_right", "br", "n1");
+  scene.outline("real_cell", ["battery", "r_internal"]);
+  scene.assert("one_loop", "path", ["R1", "r_internal"], true);
+  scene.sense("current_sense", "R1");
+  scene.labelled("R1", "battery", "r_internal");
   return scene.build();
 }
 

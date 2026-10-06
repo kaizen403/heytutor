@@ -1,6 +1,9 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import { probabilityTreeOutputLabels } from "./probabilityGeometry";
 import { fieldConstructionOutputLabels, validateEvaluatedFieldLabels } from "./fieldGeometry";
+import { dipoleConstructionOutputLabels, validateEvaluatedDipoleLabels } from "./dipoleFieldGeometry";
+import { analyticLineConstructionOutputLabels, validateEvaluatedAnalyticLineLabels } from "./analyticLineGeometry";
+import { rigidMassConstructionOutputLabels, validateEvaluatedRigidMassLabels } from "./rigidMassGeometry";
 import { acGeometryLabel, validateEvaluatedAcLabels } from "./acGeometry";
 import { wavesConstructionOutputLabels, validateEvaluatedWavesLabels } from "./wavesGeometry";
 import { geometricOpticsOutputLabels, validateEvaluatedGeometricOpticsLabels } from "./geometricOpticsGeometry";
@@ -27,6 +30,7 @@ import { rotationGeometryLabel, validateEvaluatedRotationLabels } from "./rotati
 
 import { combinatoricsGeometryLabel, validateEvaluatedCombinatoricsLabels } from "./combinatoricsGeometry";
 import { elasticityGeometryLabel, validateEvaluatedElasticityLabels } from "./elasticityGeometry";
+import { distributedFieldsConstructionOutputLabels, validateEvaluatedDistributedFieldsLabels } from "./distributedFieldsGeometry";
 
 interface LabelEvaluationContext {
   number(value: unknown): number;
@@ -44,8 +48,9 @@ export function withEvaluatedOutputLabels(
   issues: SceneIssue[],
   checkedOutputIds: Set<string>,
 ): SceneDocument {
+  const issueCount = issues.length;
   if (validateEvaluatedDerivedValueLabels(construction, index, document, outputs, issues)) {
-    construction.outputs.forEach((id) => checkedOutputIds.add(id));
+    if (issues.length === issueCount) construction.outputs.forEach((id) => checkedOutputIds.add(id));
   }
   let labels: readonly (string | null)[];
   switch (construction.operator) {
@@ -151,6 +156,50 @@ export function withEvaluatedOutputLabels(
       validateEvaluatedFieldLabels(construction, index, document, outputs, issues);
       labels = fieldConstructionOutputLabels(construction.operator, outputs);
       break;
+    case "coulomb_pair":
+    case "point_charge_field":
+    case "field_lines":
+    case "dipole_field":
+    case "dipole_torque":
+    case "equipotential":
+    case "dipole_energy":
+      validateEvaluatedDipoleLabels(construction, index, document, outputs, issues);
+      labels = dipoleConstructionOutputLabels(construction.operator, outputs);
+      break;
+    case "coordinate_distance":
+    case "section_point":
+    case "axis_translation":
+    case "line_relation":
+    case "line_intercepts":
+    case "line_equation":
+    case "line_intersection_angle":
+    case "line_concurrence":
+    case "point_line_distance":
+      if (!["section_point", "point_line_distance"].includes(construction.operator)) validateEvaluatedAnalyticLineLabels(construction, index, document, outputs, issues);
+      labels = analyticLineConstructionOutputLabels(construction.operator, outputs);
+      if (construction.operator === "section_point") labels = labels.map((label) => {
+        const sourceLabel = document.entities.find((entity) => construction.outputs.includes(entity.id))?.label?.trim();
+        const identity = /^([\p{L}][\p{L}\p{N}_'′]*)(?:\s*[=≈:]|$)/u.exec(sourceLabel ?? "")?.[1];
+        return `${identity ?? "section point"} (${label})`;
+      });
+      break;
+    case "centre_of_mass":
+    case "com_motion":
+    case "point_mass_inertia":
+    case "simple_body_inertia":
+    case "axes_theorem":
+      validateEvaluatedRigidMassLabels(construction, index, document, outputs, issues);
+      labels = rigidMassConstructionOutputLabels(construction.operator, outputs);
+      break;
+    case "line_charge_field":
+    case "gauss_flux":
+    case "wire_field":
+    case "loop_field":
+    case "flux_sinusoid":
+    case "sinusoid_state":
+      validateEvaluatedDistributedFieldsLabels(construction, index, document, outputs, issues);
+      labels = distributedFieldsConstructionOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      break;
     case "impedance":
     case "impedance_combine":
     case "phasor_response":
@@ -178,6 +227,7 @@ export function withEvaluatedOutputLabels(
     default:
       return document;
   }
+  if (issues.length > issueCount) return document;
   construction.outputs.forEach((id) => checkedOutputIds.add(id));
   if (labels.length !== construction.outputs.length) throw new Error("derived labels must match construction output arity");
   const byOutput = new Map(construction.outputs.map((id, outputIndex) => [id, labels[outputIndex]]));

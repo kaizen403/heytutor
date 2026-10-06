@@ -88,11 +88,12 @@ export function shouldAttemptExactScene(input: {
   chemistryLane: boolean;
   familyCount: number;
   hasArchetype: boolean;
+  hasSourceProgram?: boolean;
 }): boolean {
   if (input.visualRequirement === "none") return false;
   if (input.chemistryLane) return false;
   if (input.familyCount > 0) return true;
-  return input.hasArchetype;
+  return input.hasArchetype || input.hasSourceProgram === true;
 }
 
 /**

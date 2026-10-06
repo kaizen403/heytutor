@@ -2,6 +2,8 @@
 
 import {
   applyStemFamilyOverrides,
+  circleSourceFamilies,
+  sectionSourceFamilies,
   circuitTopologyFromProblemStructure,
   LAW_FAMILIES,
   normalizeStem,
@@ -11,6 +13,7 @@ import {
   riverBoatVariantFromProblemStructure,
   familiesFromProblemStructure,
   sourceMensurationStructure,
+  hasMatrixSourceProgram,
   SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
   PLANNER_VISIBLE_SCENE_PROOF_PREDICATES,
 } from "@heytutor/scene-engine";
@@ -24,6 +27,7 @@ export type { ProblemStructureView, SceneVisualFamily } from "@heytutor/scene-en
 
 export interface SceneCapabilityRequirements {
   visualRequired: boolean;
+  hasSourceProgram?: boolean;
   families: SceneVisualFamily[];
   constructionOperators: string[];
   proofPredicates: string[];
@@ -93,12 +97,12 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "work_interval", "spring_energy", "potential_curve", "collision", "incline_friction",
     "uniform_circular_motion", "projectile_trajectory",
   ],
-  circuit_network: ["flux_process", "induction_state",
+  circuit_network: ["flux_process", "induction_state", "flux_sinusoid", "sinusoid_state",
     "symbol", "connect", "point", "vector", "vector_components", "arc", "angle_mark",
     "impedance", "impedance_combine", "phasor_response", "kirchhoff_network",
     "metre_bridge", "potentiometer", "galvanometer",
   ],
-  state_plot: ["permutation_cycles", "subset_lattice", "elastic_profile", "elastic_state","flux_process", "induction_state","set_partition", "set_select","harmonic_motion", "harmonic_state", "motion_graph", "potential_curve","hydrostatic_profile", "hydrostatic_state", "buoyancy", "axes", "point", "polygon", "polyline", "vector", "label", "histogram", "frequency_polygon", "cumulative_frequency", "probability_tree", "polytropic_process", "isochoric_process", "process_state"],
+  state_plot: ["permutation_cycles", "subset_lattice", "elastic_profile", "elastic_state", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "set_partition", "set_select", "harmonic_motion", "harmonic_state", "hydrostatic_profile", "hydrostatic_state", "buoyancy", "axes", "point", "polygon", "polyline", "vector", "label", "histogram", "frequency_polygon", "cumulative_frequency", "probability_tree", "polytropic_process", "isochoric_process", "process_state", "motion_graph", "potential_curve"],
   analytic_curve: ["elastic_profile", "elastic_state",
     "axes", "function_curve", "parametric_curve", "polar_curve", "implicit_curve",
     "tangent_line", "normal_line", "function_region", "point", "intersection", "vector_components",
@@ -106,8 +110,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "constant_acceleration_trajectory", "trajectory_state",
     "curve_anchor", "curve_secant", "curve_derivative",
     "harmonic_wave", "wave_superposition", "wave_sample",
-    "flux_process", "induction_state",
-    "harmonic_motion", "harmonic_state", "motion_graph", "potential_curve", "projectile_trajectory",
+    "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "harmonic_motion", "harmonic_state", "motion_graph", "potential_curve", "projectile_trajectory",
     "hydrostatic_profile", "hydrostatic_state", "complex_point", "complex_transform", "complex_roots",
     "histogram", "frequency_polygon", "cumulative_frequency",
   ],
@@ -117,9 +120,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   ],
   solid_figure: ["solid_projection", "solid_cross_section", "solid_anchor", "space_frame", "space_point", "point", "dimension", "label"],
   fluid_apparatus: ["elastic_profile", "elastic_state","hydrostatic_profile", "hydrostatic_state", "buoyancy", "solid_projection", "solid_cross_section", "solid_anchor", "point", "rectangle", "polygon", "polyline", "connect", "vector", "dimension", "circle"],
-  point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark", "electric_field", "field_components", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "flux_process", "induction_state",
-    "current_element_field", "conductor_force", "parallel_wire_force", "magnetic_dipole_field", "solenoid_field",
-    "loop_torque", "galvanometer", "bar_magnet", "cyclotron"],
+  point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark", "electric_field", "field_components", "coulomb_pair", "point_charge_field", "field_lines", "dipole_field", "dipole_torque", "equipotential", "dipole_energy", "line_charge_field", "gauss_flux", "wire_field", "loop_field", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "current_element_field", "conductor_force", "parallel_wire_force", "magnetic_dipole_field", "solenoid_field", "loop_torque", "galvanometer", "bar_magnet", "cyclotron"],
   energy_level: ["axes", "segment", "vector", "dimension", "label", "rectangle", "point"],
   coordinate_figure: ["permutation_cycles", "subset_lattice","set_partition", "set_select",
     "complex_point", "complex_transform", "complex_roots",
@@ -131,8 +132,10 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "triangle_from_sides", "triangle_from_sas", "triangle_from_asa", "triangle_center",
     "circle_from_three_points", "circle_tangent_at", "circle_tangency_points", "circle_intersections",
     "affine_point", "affine_path", "probability_tree",
+    "coordinate_distance", "section_point", "axis_translation", "line_relation", "line_intercepts", "line_equation", "line_intersection_angle", "line_concurrence", "point_line_distance",
+    "matrix_array", "matrix_add", "matrix_scale", "matrix_product", "matrix_transpose",
   ],
-  vector_diagram: ["rotational_motion", "rotational_state", "planar_torque", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force","axes", "vector", "vector_components", "angle_mark", "label", "sign_badge", "tick_mark", "vector_sum", "vector_scale", "vector_projection", "velocity_triangle", "collinear_velocity_pair", "crossing_strategies", "parallel_guides", "relative_velocity", "uniform_circular_motion"],
+  vector_diagram: ["centre_of_mass", "com_motion", "point_mass_inertia", "simple_body_inertia", "axes_theorem", "rotational_motion", "rotational_state", "planar_torque", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "axes", "vector", "vector_components", "angle_mark", "label", "sign_badge", "tick_mark", "vector_sum", "vector_scale", "vector_projection", "velocity_triangle", "collinear_velocity_pair", "crossing_strategies", "parallel_guides", "relative_velocity", "uniform_circular_motion"],
 };
 
 const CHEMISTRY_PREDICATES = ["exists", "label_attached"] as const;
@@ -207,7 +210,7 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   bounded_region: "For planar mensuration, construct the source's straight or circular boundaries with polygon, rectangle, circle or arc, using shared world points and labelled dimensions. Never substitute an unrelated graph. For function-bounded area, use function_curve plus function_region and a representative_slice strip. A disk or washer about y=axisY uses representative_slice method disk or washer; solid_of_revolution derives the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
   solid_figure: "Draw each source solid via solid_projection; retain body quantities and shared/internal joins. Dimensions declare measurementKind and use solid_anchor: radius centre to rim; diameter opposite rims (projection radius=D/2); sphere section at=0.5; cylinder height matching rims; cone/frustum height axis centres. Hollow cylinders retain innerRadius or coaxial inner/outer projections. Polyhedron spans use actual vertices. Preserve cavities and all composite parts; unsupported cuts use source-grounded representations.",
   fluid_apparatus: "Construct connected vessels or pipes with shared terminals. Use solid_projection and solid_anchor for cylindrical or spherical bodies: radii join centre to rim, diameters join opposite rim anchors on the same section. Supply dimension measurementKind for solid-anchor spans and keep each measurement attached to its own body. A fluid-level difference is measured between the actual levels, never as vessel height. Flow and force arrows attach to their bodies; do not draw disconnected tanks.",
-  point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Compute point-charge fields with electric_field and field_components; schematic mode expresses direction, SI mode requires explicit consistent length and charge units. Use current_element_field for a wire, arc, or loop field, conductor_force for I L cross B, loop_torque for I(A cross B), cyclotron for mv/(|q|B), and solenoid_field, magnetic_dipole_field, galvanometer, or bar_magnet only with explicit source values. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
+  point_field: "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Compute point-charge fields with electric_field and field_components; schematic mode expresses direction, SI mode requires explicit consistent length and charge units. Uniform line charges use line_charge_field; spherical Gauss flux uses gauss_flux; straight-wire and loop-center B fields use wire_field and loop_field with their explicit current sign conventions. Use current_element_field for a wire, arc, or loop field, conductor_force for I L cross B, loop_torque for I(A cross B), cyclotron for mv/(|q|B), and solenoid_field, magnetic_dipole_field, galvanometer, or bar_magnet only with explicit source values. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
   energy_level: "Draw energy or stopping-potential as an axis-aligned level diagram. Semiconductor topics reuse the same stacked levels: valence and conduction bands, optional donor/acceptor levels, and a p–n depletion region as adjacent regions on one axis. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance; a device I–V curve is a state plot.",
   coordinate_figure: "Plot named points on axes, then construct the asked line, circle, polygon, or right-angle mark from those IDs. Intersections and tangents are derived operators, not guessed extra points. For a canonical hyperbola, ellipse, or parabola, use conic and its derived anchors, directrices, asymptotes, and tangents; use implicit_curve for a different explicit implicit equation; never treat a 2D conic or a planar angle-between-lines as space_frame. For 3D lines, planes, skew lines, or shortest distance, build one space_frame, then space_point / space_line / plane and space_project / space_intersection / space_closest_points / space_segment in that frame; never flatten a 3D question onto a guessed 2D circle.",
   vector_diagram: "Draw named vectors from a shared origin in one frame. Use vector_components for resolved parts and prove the named angle or perpendicular/parallel relation. A stream figure uses parallel_guides plus velocity_triangle, collinear_velocity_pair, or crossing_strategies; do not invent a heading or a straight-across triangle when boat speed does not exceed the current. Use relative_velocity for one shared frame and uniform_circular_motion for v^2/R. Do not substitute a free-body or a circuit.",
@@ -260,6 +263,16 @@ export function inferSceneCapabilities(
   lawIdsOrHints: readonly string[] | SceneStructureHints = [],
 ): SceneCapabilityRequirements {
   const hints = normalizeHints(lawIdsOrHints);
+  if (hasMatrixSourceProgram(question)) {
+    return {
+      visualRequired: hints.turnPlan?.visualRequirement !== "none",
+      hasSourceProgram: true,
+      families: [],
+      constructionOperators: SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.filter((operator) => operator.startsWith("matrix_")),
+      proofPredicates: ["exists", "label_attached"],
+      planningGuidance: ["Preserve the complete submitted matrix source and every named given. Use source-bound matrix_array/add/scale/product/transpose constructions only, retain ordered requested expressions, and never substitute derived results for source givens. Unresolved original claims remain outside-component in a nonmetric question representation."],
+    };
+  }
   const lawIds = hints.lawIds ?? hints.turnPlan?.lawIds ?? [];
   const stem = normalizeStem(question);
   const explicitVisual = /\b(?:draw|diagram|illustrat(?:e|ion)|sketch|construct|plot|graph|locate|mark|show)\b/i.test(stem);
@@ -292,6 +305,8 @@ export function inferSceneCapabilities(
   const families = new Set<SceneVisualFamily>([
     ...structureFamilies,
     ...familiesFromProblemStructure(sourceMensurationStructure(question)),
+    ...circleSourceFamilies(question),
+    ...sectionSourceFamilies(question),
   ]);
   const lawText = lawIds.join(" ");
   for (const [pattern, matches] of LAW_FAMILIES) {

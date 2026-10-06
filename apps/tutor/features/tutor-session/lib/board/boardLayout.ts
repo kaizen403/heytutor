@@ -1,4 +1,4 @@
-import { measureTextWidth, parseWorkRowSelector, resolveWorkAreaRow, WORK_CONTINUATION_INDENT } from "@heytutor/drawing";
+import { measureTextWidth, parseWorkRowSelector, resolveWorkAreaRow } from "@heytutor/drawing";
 import {
   ANNOTATION_SNAP_DISTANCE,
   BOARD_WIDTH,
@@ -229,20 +229,6 @@ export function workColumnMaxWidth(
   return Math.max(columnRight - TEXT_LAYOUT.marginX, 40);
 }
 
-/**
- * The one x offset a runtime-owned row may keep: the wrapped-continuation
- * indent. Everything else snaps to the margin, so a model that asks for its own
- * x still cannot shift the column, but a continuation stays set in under the
- * line it belongs to.
- */
-function workRowIndentOf(requestedX: number): number {
-  if (!Number.isFinite(requestedX)) return 0;
-  const offset = requestedX - TEXT_LAYOUT.marginX;
-  return Math.abs(offset - WORK_CONTINUATION_INDENT) <= WORK_CONTINUATION_INDENT / 2
-    ? WORK_CONTINUATION_INDENT
-    : 0;
-}
-
 export function findWorkTextSlot({
   layout,
   requestedX,
@@ -258,8 +244,11 @@ export function findWorkTextSlot({
   const columnRight = TEXT_LAYOUT.marginX + maxWidth;
   const occupiedWidth = Math.min(width, maxWidth);
   const maxX = columnRight - occupiedWidth;
+  // Save canonicalizes each WRITE piece at the work margin. Use that same
+  // world-column edge live and on replay, including wrapped continuations;
+  // a requested indent is not durable placement authority.
   const candidateX = runtimeOwnsX
-    ? TEXT_LAYOUT.marginX + workRowIndentOf(requestedX)
+    ? TEXT_LAYOUT.marginX
     : clampNumber(requestedX, TEXT_LAYOUT.marginX, Math.max(TEXT_LAYOUT.marginX, maxX));
   const flowStart = Math.max(
     getWorkAreaFlowStartY(layout),
@@ -277,8 +266,7 @@ export function findWorkTextSlot({
   const scanStart = sequential
     ? startY
     : clampNumber(startY, TEXT_LAYOUT.topY, TEXT_LAYOUT.bottomY - height);
-  // An indented continuation still has to stop at the same right edge, so it
-  // has that much less room than a row starting at the margin.
+  // Labels that keep their own x still stop at the same column right edge.
   const usableWidth = Math.max(columnRight - candidateX, 40);
 
   for (

@@ -11,6 +11,7 @@
 import { parseMathExpression } from "../../math/expression";
 import { SceneBuilder, fmt, withUnit } from "../document";
 import { prepareStem, UNIT, firstNumberWithUnit, numbersWithUnit, explicitFunctions } from "../slots";
+import { FINAL_SPEED_BEFORE, normalized, STARTS_AT_REST, tokens } from "./constantAcceleration";
 import { grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
 
 function evaluate(expression: string, x: number): number | null {
@@ -52,11 +53,27 @@ function toMetresPerSecond(value: number, clause: string): number {
   return /km\s*\/\s*h|kmph|km\s*h\^-1/i.test(clause) ? value / 3.6 : value;
 }
 
-function parseMotionPhases(question: string): Phase[] {
+/**
+ * The speed the first phase starts from: 0 when the stem says so, the stated
+ * initial speed when there is one, otherwise null (unstated).
+ */
+function statedStartSpeed(firstClause: string): number | null {
+  const text = normalized(firstClause);
+  if (STARTS_AT_REST.test(text) || /\bat rest\b/i.test(text)) return 0;
+  const initial = tokens(text).find((token) => token.dimension === "speed"
+    && !FINAL_SPEED_BEFORE.test(text.slice(Math.max(0, token.start - 40), token.start).trim()));
+  return initial ? initial.value : null;
+}
+
+function parseMotionPhases(question: string): { start: number; phases: Phase[] } {
   const stem = prepareStem(question);
   const clauses = stem.split(/(?:,|;|\.(?!\d)|\bthen\b|\band then\b|\bafter (?:that|which)\b|\bfinally\b|\bnext\b)/i).map((clause) => clause.trim()).filter(Boolean);
   const phases: Phase[] = [];
-  let v = 0;
+  // Never start from rest unless the question says so: a stated initial
+  // speed seeds the first phase, an unstated one declines unless the first
+  // phase is a cruise at a stated speed.
+  const start = statedStartSpeed(clauses.slice(0, 2).join(", "));
+  let v = start ?? 0;
   for (const clause of clauses) {
     const duration = firstNumberWithUnit(clause, UNIT.second);
     const speeds = numbersWithUnit(clause, SPEED_UNIT).map((value) => toMetresPerSecond(value, clause));
@@ -64,6 +81,9 @@ function parseMotionPhases(question: string): Phase[] {
     const accelerates = /\b(?:accelerat\w*|speeds? up|picks up speed|attains|reaches a (?:speed|velocity)|starts from rest)\b/i.test(clause);
     const decelerates = /\b(?:decelerat\w*|retard\w*|brak\w*|slows?(?: down)?|comes to rest|stops|halts)\b/i.test(clause);
     const cruises = /\b(?:constant (?:speed|velocity)|uniform (?:speed|velocity)|steady speed|same speed|this speed|moves uniformly|continues)\b/i.test(clause);
+    if (phases.length === 0 && start === null && !(cruises && duration !== null && !accelerates && speeds.some((speed) => speed > 0))) {
+      if (accelerates || decelerates || cruises) return { start: 0, phases: [] };
+    }
     if (decelerates && (duration !== null || acceleration !== null)) {
       const target = /\b(?:rest|stops|halts)\b/i.test(clause) ? 0 : speeds.find((speed) => speed < v) ?? 0;
       const time = duration ?? (acceleration ? Math.abs(v - target) / acceleration : 0);
@@ -85,21 +105,21 @@ function parseMotionPhases(question: string): Phase[] {
       if (time > 0) { phases.push({ kind: "accelerate", duration: time, vEnd: target }); v = target; }
     }
   }
-  return phases;
+  return { start: start ?? (phases[0]?.kind === "cruise" ? phases[0].vEnd : 0), phases };
 }
 
 function vtGraph(context: GeneratorContext) {
-  const phases = parseMotionPhases(text(context, "phases", context.question));
+  const { start, phases } = parseMotionPhases(text(context, "phases", context.question));
   if (phases.length === 0) return null;
   const totalTime = phases.reduce((sum, phase) => sum + phase.duration, 0);
-  const vMax = Math.max(...phases.map((phase) => phase.vEnd), 1e-9);
+  const vMax = Math.max(start, ...phases.map((phase) => phase.vEnd), 1e-9);
   const k = displayFactor(totalTime, 0, vMax);
   const scene = new SceneBuilder(context.question, `velocity–time graph with ${phases.length} phases read from the question`, "vt_graph");
   scene.axes("axes", -0.05 * totalTime, 1.12 * totalTime, -0.08 * vMax * k, 1.25 * vMax * k, "v-t axes", "v-t");
   const vertexIds: string[] = [];
   let t = 0;
-  let v = 0;
-  vertexIds.push(scene.point("p0", { x: 0, y: 0 }, "graph start", "0"));
+  let v = start;
+  vertexIds.push(scene.point("p0", { x: 0, y: start * k }, "graph start", start > 1e-9 ? `(0 s, ${fmt(start)} m/s)` : "0"));
   const phaseIds: string[] = [];
   for (const [index, phase] of phases.entries()) {
     t += phase.duration;
@@ -112,8 +132,8 @@ function vtGraph(context: GeneratorContext) {
     if (v > 1e-9) scene.segment(`drop${index + 1}`, id, `foot${index + 1}`, "ordinate to the time axis");
   }
   const drops = phases.map((phase, index) => (phase.vEnd > 1e-9 ? `drop${index + 1}` : null)).filter((id): id is string => id !== null);
-  scene.polygon("area", [...vertexIds, `foot${phases.length}`], "area under the graph = distance");
   scene.point("origin_ref", { x: 0, y: 0 }, "origin reference");
+  scene.polygon("area", [...(start > 1e-9 ? ["origin_ref"] : []), ...vertexIds, `foot${phases.length}`], "area under the graph = distance");
   scene.assert("time_ratio", "distance_ratio", ["origin_ref", "foot1", "origin_ref", `foot${phases.length}`], Number((phases[0]!.duration / totalTime).toFixed(6)));
   if (phases.length > 1) {
     scene.assert("ordered", "ordered_along", vertexIds, { axis: "x", direction: "increasing" });

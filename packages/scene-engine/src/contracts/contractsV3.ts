@@ -5,6 +5,9 @@
  * Full expression-tree CAS and vision-gated ready are deferred.
  */
 
+import { validateCoordinateDistanceSourceInputs } from "../ir/coordinateDistanceSource";
+import { validatePointLineSourceInputs } from "../ir/pointLineSource";
+import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
 import { evaluateTopologyAssertion } from "../topology/topology";
 import { evaluateMathExpression } from "../math/expression";
 import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "../types";
@@ -2293,6 +2296,40 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * A matrix table's name label ("2A", "kA", "(A+B)^T") is an expression over the
+ * scene's own matrix names, not a measured value: "2A" there is twice matrix A,
+ * never two amperes. Only matrix_array entities qualify, and only when every
+ * letter run is the name of another matrix table in the scene; validateMatrixSourceBinding
+ * certifies those labels against the source separately. A scene with no
+ * matrix tables (a circuit) keeps reading "2A" as a current.
+ */
+export function isMatrixExpressionLabel(document: Pick<SceneDocument, "entities">, entity: SceneDocument["entities"][number]): boolean {
+  if (entity.kind !== "matrix_array" || typeof entity.label !== "string" || entity.label.length > 64) return false;
+  const names = new Set(document.entities
+    .filter((candidate) => candidate.kind === "matrix_array" && candidate !== entity)
+    .flatMap((candidate) => [candidate.id, candidate.label])
+    .filter((name): name is string => typeof name === "string" && /^[A-Za-z][A-Za-z0-9_]{0,15}$/.test(name)));
+  if (names.size === 0) return false;
+  let rest = entity.label.replace(/\^\s*(?:\{\s*(?:T|\\top)\s*\}|T|\\top)|['′ᵀ]/g, " ");
+  let sawName = false;
+  for (const name of [...names].sort((a, b) => b.length - a.length)) {
+    const next = rest.replace(new RegExp(`(?<![A-Za-z_])${escapeRegExp(name)}`, "g"), " ");
+    sawName ||= next !== rest;
+    rest = next;
+  }
+  rest = rest.replace(/\d+(?:\.\d+)?(?:\s*\/\s*\d+)?/g, " ");
+  return sawName && /^[\s+\-*·()]*$/.test(rest);
+}
+
+/** Every label and annotation text a scene displays that may carry a measured value. */
+export function displayedSceneQuantityTexts(document: Pick<SceneDocument, "entities" | "annotations">): string[] {
+  return [
+    ...document.entities.filter((entity) => !isMatrixExpressionLabel(document, entity)).map((entity) => entity.label),
+    ...document.annotations.map((annotation) => annotation.text),
+  ].filter((value): value is string => typeof value === "string");
+}
+
 /** Verify that any shared numeric quantity keeps the plan's value and unit. */
 export function validateSceneQuantityAgreement(
   sceneQuantities: Array<Record<string, unknown> & { id: string }>,
@@ -2389,7 +2426,7 @@ export function pruneUnverifiedSceneAnnotations(
     return !unsupported;
   });
   const entities = document.entities.map((entity) => {
-    if (!entity.label) return entity;
+    if (!entity.label || isMatrixExpressionLabel(document, entity)) return entity;
     const label = pruneUnsupportedMeasuredFragments(entity.label, plan);
     if (label === entity.label) return entity;
     changed = true;
@@ -2417,13 +2454,20 @@ export function validateTurnPlanSceneProofs(
   document: SceneDocument,
   plan: TurnPlanV3 | null | undefined,
 ): SceneIssue[] {
-  if (!plan || document.visualDecision.mode !== "scene") return [];
+  if (document.visualDecision.mode !== "scene") return [];
+  const sourceQuestion = plan?.question ?? document.source.question;
+  const issues = [
+    ...validateCoordinateDistanceSourceInputs(document, sourceQuestion),
+    ...validatePointLineSourceInputs(document, sourceQuestion),
+    ...validateSectionPointSourceInputs(document, sourceQuestion),
+  ];
+  if (!plan) return issues;
 
   const evidenceText = [
     ...plan.lawIds,
     ...plan.qualitativeClaims.flatMap((claim) => [claim.id, claim.claim]),
   ].join(" ").toLowerCase();
-  const issues = validateSemanticVectorGeometry(document, plan);
+  issues.push(...validateSemanticVectorGeometry(document, plan));
   issues.push(...validateClaimedClosedRouteMembers(document, plan));
   issues.push(...validatePoweredCircuitClosure(
     document,

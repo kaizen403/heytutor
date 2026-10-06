@@ -108,6 +108,12 @@ export type UseReplayParams = {
   finishLectureUi: () => void;
   pauseTurn: () => void;
   resumeTurn: () => void;
+  /**
+   * Stop a board restore that is still inking the saved page and wait for it.
+   * Replay clears the board and the work column layout; restore rows written
+   * after that land in replay's layout and push every replayed row down.
+   */
+  settleBoardRestore?: () => Promise<void>;
 };
 
 export function useReplay({
@@ -153,6 +159,7 @@ export function useReplay({
   finishLectureUi,
   pauseTurn,
   resumeTurn,
+  settleBoardRestore,
 }: UseReplayParams) {
   /**
    * Point the code panel and the verified diagram at the turn whose cues are
@@ -643,6 +650,13 @@ export function useReplay({
       stopReplayAudio(replayAudioRef.current);
       replayAudioRef.current = null;
 
+      // The reopened page may still be inking: stop it and let its last row
+      // land before replay clears the board and the work column.
+      await settleBoardRestore?.();
+      if (cancelRef.current || generation !== replayGenerationRef.current) {
+        return;
+      }
+
       await renderBoardAtTime(startMs, timeline.cues, generation);
       if (cancelRef.current || generation !== replayGenerationRef.current) {
         return;
@@ -726,6 +740,7 @@ export function useReplay({
       }
     },
     [
+      settleBoardRestore,
       whiteboardRef,
       storedTurnsRef,
       phaseRef,

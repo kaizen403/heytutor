@@ -166,6 +166,8 @@ function equalPhysical(actual: number, expected: number): boolean { return Numbe
 function compactClaim(claim: Claim, declared: string): string { const selected = claimUnit(declared, claim.kind); return `${claim.symbol}=${Number(product(claim.expected, 1 / selected.factor, "label", Number.MAX_VALUE).toPrecision(4))} ${selected.canonical}`; }
 function checkedText(text: unknown, geometry: unknown): { claim: Claim; declared: string } | null {
   const authority = labelAuthority(geometry); if (!authority) invalid("label", "rotational output is missing physical source authority"); if (text === undefined) return null; if (typeof text !== "string") invalid("label", "rotation labels must be mathematical symbols or verified physical values");
+  // A source point name (P, A) on the circular position is an identity, not a physical claim.
+  if (isRecord(geometry) && isRecord(geometry.rotationalMotion) && /^[A-Z]$/.test(text)) return null;
   if (text === authority.defaultLabel || authority.claims.some((claim) => text === claim.symbol)) return null;
   const match = /^\s*([A-Za-z_][A-Za-z_0-9]*)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]+)\s*$/.exec(text.replaceAll("−", "-")); const claim = match && authority.claims.find((entry) => entry.symbol === match[1]);
   if (match && claim) { preserveLiteral(match[2], "label"); const declared = match[3]!; const selected = claimUnit(declared, claim.kind); if (equalPhysical(product(Number(match[2]), selected.factor, "label"), claim.expected) || text.trim() === compactClaim(claim, declared)) return { claim, declared }; } return invalid("label", "rotation labels must agree with source-derived physical values and units; display lengths are not physical magnitudes");

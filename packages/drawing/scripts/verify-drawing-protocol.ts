@@ -30,6 +30,37 @@ function assert(condition: unknown, message: string): asserts condition {
 const nestedMathTag = "[WRITE:[4x - x^3/3]_(-2)^(2),90,325]";
 const expectedText = "[4x - x^3/3]_(-2)^(2)";
 
+// Captured from a normal matrix student lesson: commas within rows are
+// mathematical text, not the WRITE command's coordinate suffix.
+for (const [type, text, coordinates] of [
+  ["WRITE", "A = [[2,5,19,-7],[35,-2,2.5,12],[1.5,1,-5,17]]", "90,145"],
+  ["WRITE", "B = [[1,2],[3,4]]", "90,211"],
+  ["LABEL", "v=[1,2,3]", "480,180,20"],
+  ["WRITE", "x ∈ [0,1)", "90,277"],
+  ["WRITE", "f(x)=[g(x),h(x)]", "90,343"],
+] as const) {
+  const tag = `[${type}:${text},${coordinates}]`;
+  const parsed = parseDrawingCommands(`Show the values. ${tag}`);
+  assert(parsed.commands.length === 1, "matrix inline: exactly one complete command");
+  assert(parsed.commands[0]?.type === type, "matrix inline: command kind survives");
+  assert(parsed.commands[0]?.text === text, "matrix inline: every row and entry survives");
+  assert(parsed.commands[0]?.params.join(",") === coordinates, "matrix inline: only the outer suffix gives coordinates");
+  assert(parsed.narration === "Show the values.", "matrix inline: no matrix suffix or protocol coordinates in speech");
+  const steps = parseStructuredLessonSteps(`[STEP]Show the values. ${tag}[/STEP]`);
+  assert(steps.length === 1 && steps[0]?.command?.text === text, "matrix structured: complete mathematical text");
+  assert(steps[0]?.narration === "Show the values.", "matrix structured: no protocol leak");
+  assert(lessonNarrationText(`[STEP]Show the values. ${tag}[/STEP]`) === "Show the values.", "matrix speech: no protocol leak");
+  const chunks: TutorSegment[] = [];
+  const matrixParser = new IncrementalTagParser({ onSegmentReady: (segment) => chunks.push(segment) });
+  matrixParser.push(`Show the values. [${type}:${text}`);
+  assert(chunks.length === 0, "matrix streaming: row closures cannot emit a partial command");
+  for (const char of `,${coordinates}]`) matrixParser.push(char);
+  matrixParser.flush();
+  assert(chunks.length === 1 && chunks[0]?.command?.text === text, "matrix streaming: the complete command emits once");
+  assert(chunks[0]?.command?.params.join(",") === coordinates, "matrix streaming: only the outer coordinates survive");
+  assert(chunks[0]?.narration === "Show the values.", "matrix streaming: no protocol leak");
+}
+
 function assertNestedMathCommand(
   command: ReturnType<typeof parseDrawingCommands>["commands"][number] | null | undefined,
   source: string,

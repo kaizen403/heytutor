@@ -167,7 +167,7 @@ const context = { params: Promise.resolve({ boardId }) };
 const jsonRequest = (path: string, body: object, method = "POST") => new Request(`https://example.test${path}`, {
   method, headers: { "content-type": "application/json", origin: "https://example.test" }, body: JSON.stringify(body),
 });
-function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: AbortSignal): Request {
+function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: AbortSignal, pcmBytes = 4): Request {
   const form = new FormData();
   form.set("metadata", JSON.stringify({
     question: "What is 2 + 2?", rawResponse: "2 + 2 = 4.", visualStatus: "text_only", traceId: traceId ?? undefined,
@@ -175,10 +175,10 @@ function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: Ab
   }));
   // Valid mono PCM WAVE; a media-format denial must not masquerade as a quota
   // denial. Two samples keep the fixture small and fully in memory.
-  const audio = new Uint8Array(48);
+  const audio = new Uint8Array(44 + pcmBytes);
   const view = new DataView(audio.buffer);
   audio.set(new TextEncoder().encode("RIFF"), 0);
-  view.setUint32(4, 40, true);
+  view.setUint32(4, 36 + pcmBytes, true);
   audio.set(new TextEncoder().encode("WAVEfmt "), 8);
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
@@ -188,7 +188,7 @@ function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: Ab
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
   audio.set(new TextEncoder().encode("data"), 36);
-  view.setUint32(40, 4, true);
+  view.setUint32(40, pcmBytes, true);
   form.set("audio-0", new Blob([audio], { type: "audio/wav" }), "lesson.wav");
   return new Request(`https://example.test/api/boards/${boardId}/turns`, {
     method: "POST", headers: { origin: "https://example.test" }, body: form, signal,
@@ -325,6 +325,12 @@ async function main(): Promise<void> {
     deniedWithoutWrite(response);
     assert.equal(ledgerBytes, 0n);
     assert.equal(pendingTurns, 0);
+  });
+  await check("a WAV whose size bytes read as UTF-8 still saves", async () => {
+    // 98,462 PCM bytes give RIFF size bytes c2 80 01 00; c2 80 decodes to one character. A text check slid "WAVE" off byte 8 and
+    // refused about one Cartesia sentence in twenty, and every lesson with it.
+    const response = await turns.POST(lessonRequest(crypto.randomUUID(), undefined, 98_462), context);
+    assert.equal(response.status, 200);
   });
   await check("oversized preview is rejected before persistence", async () => {
     const response = await ownedBoard.PATCH(jsonRequest(`/api/boards/${boardId}`, { preview: "x".repeat(512 * 1024) }, "PATCH"), context);

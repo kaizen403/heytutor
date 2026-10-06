@@ -69,9 +69,25 @@ const EMPTY_DEMAND: SceneDemand = { requires: [], forbids: [] };
  * cyclotron, a helical path, force on a moving charge, a current loop as a
  * magnetic dipole and Earth's magnetic elements. None of those named a solenoid,
  * a coil or a "current-carrying" anything, which was all this pattern knew.
+ *
+ * A bare "circular loop" is not magnetic evidence on its own: a loop-the-loop
+ * track is a work-energy apparatus. The loop counts as a magnetic source only
+ * with electromagnetic context (a current, a field, Biot-Savart, a torque),
+ * otherwise the veto below would forbid the mechanics figure for being drawn
+ * with a weight.
  */
 const MAGNETIC_SOURCE =
-  /(?:solenoid|toroid|bar magnet|circular (?:coil|loop)|current loop|biot[- ]?savart|amp[eè]re'?s? (?:circuital )?law|current[- ]carrying (?:coil|loop|wire|conductor)|long straight (?:wire|conductor)|magnetic (?:field|dipole|element|moment|flux)|cyclotron|helical path|lorentz|moving charge|earth'?s magnetic)/i;
+  /(?:solenoid|toroid|bar magnet|current loop|biot[- ]?savart|amp[eè]re'?s? (?:circuital )?law|current[- ]carrying (?:coil|loop|wire|conductor)|long straight (?:wire|conductor)|magnetic (?:field|dipole|element|moment|flux)|cyclotron|helical path|lorentz|moving charge|earth'?s magnetic)/i;
+
+const CIRCULAR_LOOP_APPARATUS = /\bcircular (?:coil|loop)\b/i;
+
+const LOOP_EM_CONTEXT =
+  /\bcurrent\b|\bmagnetic\b|\bbiot\b|\bampere\b|\bcoil\b|\btorque\b|\binduc|\bgalvanometer\b/i;
+
+function isMagneticSource(stem: string): boolean {
+  if (MAGNETIC_SOURCE.test(stem)) return true;
+  return CIRCULAR_LOOP_APPARATUS.test(stem) && LOOP_EM_CONTEXT.test(stem);
+}
 
 /**
  * Gravitation. The two-charge figure reached "acceleration due to gravity and
@@ -199,7 +215,7 @@ export function sceneDemand(
 
   if (isRiverBoatStem(stem)) requires.push("river_banks");
 
-  if (MAGNETIC_SOURCE.test(stem) && !ELECTROSTATIC_SUBJECT.test(stem)) {
+  if (isMagneticSource(stem) && !ELECTROSTATIC_SUBJECT.test(stem)) {
     forbids.push("point_charges", "resistor_chain");
   }
 
@@ -243,7 +259,7 @@ export function sceneDemand(
   // A field question is not a mass on a string. Nothing in electromagnetism or
   // atomic physics is drawn with a tension and a weight.
   if (
-    MAGNETIC_SOURCE.test(stem) ||
+    isMagneticSource(stem) ||
     (ELECTROSTATIC_SUBJECT.test(stem) && !/\bpendulum|\bhanging|suspended/i.test(stem)) ||
     NON_LEVEL_ATOMIC.test(stem)
   ) {

@@ -44,6 +44,7 @@
  * `XC`), orbital labels (`3s`, `3p`, `4s`, `3d`), and a spaced unit after a
  * number (`5 mg` stays milligrams).
  */
+import { unwrapMathMarkup } from "@heytutor/drawing";
 
 /** Insert spaces so `cosθ` and `2θ` tokenize like spoken math. */
 function spaceGreekMathSymbols(text: string): string {
@@ -485,6 +486,8 @@ function expandNotationSymbols(text: string): string {
  * last so it only ever sees characters no earlier rule wanted.
  */
 const SPEECH_STAGES: ((text: string) => string)[] = [
+  // First: "\(d = r\)" must be read as "d equals r", never as delimiters.
+  unwrapMathMarkup,
   spaceGreekMathSymbols,
   stripCodeMarkup,
   expandScientificNotation,

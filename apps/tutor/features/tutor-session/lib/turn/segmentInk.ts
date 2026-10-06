@@ -129,6 +129,16 @@ export type SegmentInkTrace = {
   cueWindowReady?: (metadata: TraceMetadata) => void;
 };
 
+/** Wrapping preserves the authored tag identity; an absent/default identity is not evidence. */
+function continuesAuthoredWrite(previous: DrawCommand, command: DrawCommand): boolean {
+  return previous.type === "WRITE" && command.type === "WRITE" &&
+    Number.isSafeInteger(command.charPosition) && command.charPosition > 0 &&
+    typeof command.narrationBefore === "string" && command.narrationBefore.trim().length > 0 &&
+    previous.charPosition === command.charPosition &&
+    previous.narrationBefore === command.narrationBefore &&
+    command.params[1]! > previous.params[1]!;
+}
+
 export async function drawSegmentInk(input: {
   plan: SegmentInkPlan;
   verifiedDiagramIntro: boolean;
@@ -223,6 +233,23 @@ export async function drawSegmentInk(input: {
           }
           return null;
         });
+  // Wrapping copies the source tag's position and narration onto every piece.
+  // Those pieces are one authored WRITE, not independently spoken rows: an
+  // unmatched tail can have an earlier fallback anchor than the matched head.
+  // Keep each continuation behind its predecessor without changing the anchors
+  // of independent commands or the verified FOCUS gestures between beats.
+  for (let commandIndex = 1; commandIndex < segmentCommands.length; commandIndex++) {
+    const previous = segmentCommands[commandIndex - 1]!;
+    const command = segmentCommands[commandIndex]!;
+    const previousAnchor = spokenAnchorsMs[commandIndex - 1];
+    const anchor = spokenAnchorsMs[commandIndex];
+    if (
+      continuesAuthoredWrite(previous, command) &&
+      typeof previousAnchor === "number" && typeof anchor === "number"
+    ) {
+      spokenAnchorsMs[commandIndex] = Math.max(previousAnchor, anchor);
+    }
+  }
   const commandOrder = orderCommandsBySpokenAnchor(spokenAnchorsMs);
   if (commandOrder.some((commandIndex, position) => commandIndex !== position)) {
     input.trace?.reordered?.(
