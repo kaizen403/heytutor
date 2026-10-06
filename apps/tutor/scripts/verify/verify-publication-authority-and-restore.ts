@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { applySectionFormulaAuthority, buildSolverAuthorityProjection, LocalDeterministicSolverProvider, verifyTurnPlanAgainstSolver, validateProblemIR, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { applySectionFormulaAuthority, buildSolverAuthorityProjection, compileSceneDocument, LocalDeterministicSolverProvider, verifyTurnPlanAgainstSolver, validateProblemIR, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { IncrementalTagParser, parseDrawingCommands, serializeSegmentCommands, unwrapMathMarkup, type TutorSegment } from "@heytutor/drawing";
 import { requestedNameCases, namedProblemFor } from "../../../../packages/scene-engine/scripts/verify/verify-w1-section-fullir";
 import { refreshSolverAuthorityForPlan } from "../../features/tutor-session/lib/turn/refreshSolverAuthority";
@@ -75,6 +75,44 @@ assert(restoreVerifiedPresentationFromTurn(turn));
 assert.equal(sourceCheckedStoredTurn(turn), turn);
 assert(buildReplayTimeline([turn]).cues.some((cue) => cue.trustedDiagramGeometry)); checks += 3;
 const result = selection.sceneDocument.constructions.find((construction) => construction.operator === "section_point")!.outputs[0]!;
+for (const hops of [1, 2]) {
+  for (const channel of ["label", "callout", "quantity", "constructed", "entity"] as const) {
+    for (const [text, valid] of [["x=7", true], ["x=99", false], ["Q=(7,8)", true], ["R=(7,8)", false], ["Q=(4,5)", false]] as const) {
+      if (channel === "quantity" && !text.startsWith("x=")) continue;
+      const document = structuredClone(selection.sceneDocument);
+      let target = result;
+      for (let hop = 0; hop < hops; hop++) {
+        const next = `descendant_${hop}`;
+        document.entities.push({ id: next, kind: "label", role: "computed caption", label: "computed" });
+        document.constructions.push({ id: `make_${next}`, operator: "label", inputs: { target, text: "computed" }, outputs: [next] });
+        document.requiredEntityIds.push(next); document.revealGroups[0]!.entityIds.push(next);
+        target = next;
+      }
+      if (channel === "quantity") {
+        document.quantities.push({ id: "descendant_value", symbol: "x", value: valid ? 7 : 99 });
+        document.annotations.push({ id: "descendant_claim", kind: "label", targetIds: [target], quantityId: "descendant_value" });
+      } else if (channel === "constructed") {
+        document.constructions.find((construction) => construction.outputs.includes(target))!.inputs.text = text;
+        if (valid) document.entities.find((entity) => entity.id === target)!.label = text;
+      } else if (channel === "entity") {
+        document.entities.find((entity) => entity.id === target)!.label = text;
+        if (valid) document.constructions.find((construction) => construction.outputs.includes(target))!.inputs.text = text;
+      }
+      else document.annotations.push({ id: "descendant_claim", kind: channel, targetIds: [target], text });
+      const message = `${hops}-hop ${channel} ${text}`;
+      const compiled = compileSceneDocument(document);
+      assert.equal(compiled.ok, valid, `${message}: ${JSON.stringify(compiled.report.issues)}`); checks++;
+      const copy = structuredClone(turn); copy.sceneDocument = document;
+      assert.equal(storedTurnSourceIssues(document, copy).some((issue) => issue.severity === "fatal"), !valid, message);
+      assert.equal(restoreVerifiedPresentationFromTurn(copy) !== null, valid, message);
+      assert.equal(sourceCheckedStoredTurn(copy).visualStatus === "retry_required", !valid, message);
+      assert.equal(buildReplayTimeline([copy]).cues.some((cue) => cue.trustedDiagramGeometry), valid, message); checks += 4;
+      for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+        assert.equal(Boolean(sceneSaveAdmissionFailure({ document, question, turnPlan: null, tier })), !valid, `${message}: ${tier}`); checks++;
+      }
+    }
+  }
+}
 for (const mutation of ["name", "coordinate", "endpoint", "ratio", "mode"] as const) {
   const copy: StoredTurn = JSON.parse(JSON.stringify(turn));
   const document = structuredClone(selection.sceneDocument);

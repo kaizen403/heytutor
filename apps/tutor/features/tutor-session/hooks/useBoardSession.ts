@@ -457,7 +457,12 @@ export function useBoardSession({
 
   const restoreBoardFromApi = useCallback(
     async (boardId: string, generation: number, draft: boolean) => {
+      if (generation !== restoreGenerationRef.current || boardId !== activeSessionIdRef.current) return;
+      let finishInk: () => void = () => {};
+      const ink = { cancelled: false, done: new Promise<void>((resolve) => { finishInk = resolve; }) };
+      restoreInkRef.current = ink;
       const isStale = () =>
+        ink.cancelled ||
         generation !== restoreGenerationRef.current ||
         boardId !== activeSessionIdRef.current;
 
@@ -511,13 +516,14 @@ export function useBoardSession({
         setNarrationText(lastNarration);
         setCurrentSegmentText("");
 
-        const whiteboardReady = await waitForWhiteboard(whiteboardRef);
+        const whiteboardReady = await waitForWhiteboard(whiteboardRef, 8_000, isStale);
         if (isStale()) return;
         if (!whiteboardReady) {
           return;
         }
 
         await whiteboardRef.current?.clearBoard();
+        if (isStale()) return;
         resetBoardLayout(false, false);
         codeLessonControllerRef?.current?.reset();
 
@@ -535,92 +541,86 @@ export function useBoardSession({
         // doubt answered on the lesson's page is part of that page: same notes
         // page, same question, same figure and code panel.
         let restoredInk = false;
-        let finishInk: () => void = () => {};
-        const ink = { cancelled: false, done: new Promise<void>((resolve) => { finishInk = resolve; }) };
-        restoreInkRef.current = ink;
         const inkStale = () => isStale() || ink.cancelled;
-        try {
-          for (const turn of turns) {
-            if (inkStale()) return;
-            const continuesPage = storedTurnContinuesBoard(turn);
-            if (restoredInk && !continuesPage) {
-              captureNotesEpoch();
-              restoredInk = false;
-            }
-            liveQuestionRef.current = storedTurnPageQuestion(turn);
-            const turnNarration = lessonNarrationText(turn.rawResponse);
-            narrationSinceEpochRef.current = continuesPage
-              ? [narrationSinceEpochRef.current, turnNarration]
-                  .map((part) => part.trim())
-                  .filter(Boolean)
-                  .join(" ")
-              : turnNarration;
+        for (const turn of turns) {
+          if (inkStale()) return;
+          const continuesPage = storedTurnContinuesBoard(turn);
+          if (restoredInk && !continuesPage) {
+            captureNotesEpoch();
+            restoredInk = false;
+          }
+          liveQuestionRef.current = storedTurnPageQuestion(turn);
+          const turnNarration = lessonNarrationText(turn.rawResponse);
+          narrationSinceEpochRef.current = continuesPage
+            ? [narrationSinceEpochRef.current, turnNarration]
+                .map((part) => part.trim())
+                .filter(Boolean)
+                .join(" ")
+            : turnNarration;
 
-            // A DSA turn's TYPE commands reveal blocks of this plan; committing
-            // it first also brings the code panel back for the restored board.
-            const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
-            if (!continuesPage) {
-              const controller = codeLessonControllerRef?.current;
-              if (codeLesson) {
-                controller?.commit(codeLesson);
-              } else {
-                controller?.reset();
-              }
-              // The restored board replays this turn's FRAME cues, so it needs the
-              // same walk-through the live turn compiled.
-              if (controller) restoreDsaFrames(controller, turn, codeLesson);
-              const diagram =
-                controller?.frames.current()?.presentation.diagram
-                ?? restoreVerifiedDiagramFromTurn(turn);
-              if (activeVerifiedDiagramRef) {
-                activeVerifiedDiagramRef.current = diagram;
-              }
-              setActiveVerifiedDiagram?.(diagram);
-              if (fbdPhaseStartedRef) {
-                fbdPhaseStartedRef.current = Boolean(diagram);
-              }
-            }
-
-            for (const segment of turn.segments) {
-              if (inkStale()) return;
-
-              const commands = parseStoredSegmentCommands(segment.command);
-              const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
-              for (const command of commands) {
-                if (inkStale() || cancelRef.current) {
-                  return;
-                }
-
-                // The boot face covers the board until this loop ends, so no
-                // one sees it: stamp finished ink. Any other scale still plays
-                // every FOCUS tour and pen swap at full length behind the loader.
-                await executeCommandRef.current(command, {
-                  durationScale: 0,
-                  applyLayout: false,
-                  trustedDiagramGeometry,
-                  isCancelled: inkStale,
-                });
-                if (command.type !== "CLEAR") {
-                  restoredInk = true;
-                }
-              }
-            }
-
-            // The lesson already finished when it was recorded: restored panels
-            // open in "complete" mode so type-along is immediately available.
+          // A DSA turn's TYPE commands reveal blocks of this plan; committing
+          // it first also brings the code panel back for the restored board.
+          const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
+          if (!continuesPage) {
+            const controller = codeLessonControllerRef?.current;
             if (codeLesson) {
-              codeLessonControllerRef?.current?.markLessonComplete();
+              controller?.commit(codeLesson);
+            } else {
+              controller?.reset();
+            }
+            // The restored board replays this turn's FRAME cues, so it needs the
+            // same walk-through the live turn compiled.
+            if (controller) restoreDsaFrames(controller, turn, codeLesson);
+            const diagram =
+              controller?.frames.current()?.presentation.diagram
+              ?? restoreVerifiedDiagramFromTurn(turn);
+            if (activeVerifiedDiagramRef) {
+              activeVerifiedDiagramRef.current = diagram;
+            }
+            setActiveVerifiedDiagram?.(diagram);
+            if (fbdPhaseStartedRef) {
+              fbdPhaseStartedRef.current = Boolean(diagram);
             }
           }
-        } finally {
-          if (restoreInkRef.current === ink) restoreInkRef.current = null;
-          finishInk();
+
+          for (const segment of turn.segments) {
+            if (inkStale()) return;
+
+            const commands = parseStoredSegmentCommands(segment.command);
+            const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
+            for (const command of commands) {
+              if (inkStale() || cancelRef.current) {
+                return;
+              }
+
+              // The boot face covers the board until this loop ends, so no
+              // one sees it: stamp finished ink. Any other scale still plays
+              // every FOCUS tour and pen swap at full length behind the loader.
+              await executeCommandRef.current(command, {
+                durationScale: 0,
+                applyLayout: false,
+                trustedDiagramGeometry,
+                isCancelled: inkStale,
+              });
+              if (command.type !== "CLEAR") {
+                restoredInk = true;
+              }
+            }
+          }
+
+          // The lesson already finished when it was recorded: restored panels
+          // open in "complete" mode so type-along is immediately available.
+          if (codeLesson) {
+            codeLessonControllerRef?.current?.markLessonComplete();
+          }
         }
 
         if (isStale()) return;
       } catch {
         // Network-level fetch failures must still clear the loading overlay.
       } finally {
+        if (restoreInkRef.current === ink) restoreInkRef.current = null;
+        finishInk();
         if (!isStale()) {
           setBoardLoaded(true);
         }
@@ -649,15 +649,17 @@ export function useBoardSession({
   );
 
   /**
-   * Stop the restored page's ink and resolve once its last command has
-   * finished. A no-op when no restore is inking. Only the ink stops: the
-   * fetched turns, conversation history and loaded flag are already set.
+   * Stop every phase of restoration and wait for its last mutation, including
+   * a pending initial clear. Fetched turns and conversation history remain.
    */
   const settleBoardRestore = useCallback(async (): Promise<void> => {
+    // Also invalidate a queued restore that has not registered its work yet.
+    const generation = ++restoreGenerationRef.current;
     const ink = restoreInkRef.current;
     if (!ink) return;
     ink.cancelled = true;
     await ink.done;
+    if (generation === restoreGenerationRef.current) setBoardLoaded(true);
   }, []);
 
   const restoreBoardFromApiRef = useRef(restoreBoardFromApi);

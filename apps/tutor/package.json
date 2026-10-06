@@ -27,7 +27,7 @@
     "verify:razorpay": "tsx scripts/verify/verify-razorpay.ts && tsx scripts/verify/verify-localized-checkout.ts",
     "verify:razorpay-db": "tsx scripts/verify/verify-razorpay-db.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-razorpay-routes.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-razorpay-races.ts",
     "verify:startup": "tsx scripts/verify/verify-startup-preparation.ts && tsx scripts/verify/verify-startup-overlay-state.ts && tsx scripts/verify/verify-startup-diagnostics.ts && tsx scripts/verify/verify-startup-playback-state.ts && tsx scripts/verify/verify-startup-turn.ts && tsx scripts/verify/verify-startup-telemetry.ts && tsx scripts/verify/verify-planning-overlap.ts && tsx scripts/verify/verify-fast-figure-authority.ts && tsx scripts/verify/verify-chat-request-params.ts",
-    "verify:publication": "tsx scripts/verify/verify-publication-authority-and-restore.ts && tsx --tsconfig tsconfig.json ../../packages/scene-engine/scripts/verify/verify-publication-derived-labels.ts"
+    "verify:publication": "tsx scripts/verify/verify-publication-authority-and-restore.ts && tsx --tsconfig tsconfig.json ../../packages/scene-engine/scripts/verify/verify-publication-derived-labels.ts && tsx scripts/verify/verify-replay-work-column-origin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

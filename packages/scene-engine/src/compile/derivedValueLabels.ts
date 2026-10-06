@@ -109,10 +109,11 @@ function authorityFor(construction: SceneConstruction, geometry: unknown, docume
     const section = geometry.analyticLine.section;
     const label = document.entities.find((entity) => construction.outputs.includes(entity.id))?.label?.trim();
     const identity = /^([\p{L}][\p{L}\p{N}_'′]*)(?:\s*[=≈:]|$)/u.exec(label ?? "")?.[1];
-    tuple(result, { x: geometry.point.x, y: geometry.point.y }, ["P", "r", "position", ...(identity ? [identity] : [])]);
+    tuple(result, { x: geometry.point.x, y: geometry.point.y }, ["position", ...(identity ? [identity] : [])]);
     put(result, ["x"], geometry.point.x); put(result, ["y"], geometry.point.y);
     if (typeof section.m === "number") put(result, ["m"], section.m);
     if (typeof section.n === "number") put(result, ["n"], section.n);
+    if (typeof section.m === "number" && typeof section.n === "number" && section.n !== 0) put(result, ["ratio"], section.m / section.n);
     if (typeof section.parameter === "number") put(result, ["t", "parameter"], section.parameter);
     return result;
   }
@@ -189,6 +190,15 @@ function parse(text: unknown): Claim | null {
   if (typeof text !== "string") fail("Derived labels must be text");
   const normalized = text.trim();
   if (/(?:\bNaN\b|\bInfinity\b|∞)/i.test(normalized)) fail("Derived quantitative labels must be finite");
+  // This is ratio notation, not a coordinate tuple or a scalar named AP.
+  const ratio = new RegExp(`^(?:ratio|AP\\s*:\\s*PB)\\s*=\\s*(${NUMBER})\\s*:\\s*(${NUMBER})$`, "i").exec(normalized);
+  if (ratio) {
+    preserveLiteral(ratio[1]); preserveLiteral(ratio[2]);
+    const numerator = Number(ratio[1]); const denominator = Number(ratio[2]);
+    if (!(numerator > 0 && denominator > 0) || !Number.isFinite(numerator / denominator)) fail("Section distance ratios must retain finite positive weights");
+    const value = numerator / denominator;
+    return { key: "ratio", values: [value], unit: "", approximate: false, tokens: [String(value)] };
+  }
   // Digits in an identifier or a symbolic function argument are identifiers,
   // not scalar claims. Equality/numeric tuples and bare numbers are claims.
   if (/^[\p{L}][\p{L}\p{N}_'′]*(?:\([^=,]*\))?$/u.test(normalized)) return null;
@@ -260,6 +270,24 @@ function checkClaim(claim: Claim, authority: Authority, document: SceneDocument,
   fail("Derived scalar label needs an explicit supported component, magnitude, coordinate, or slope meaning");
 }
 
+/** Label descendants inherit the authority of the geometry they describe. */
+export function derivedLabelTargets(document: SceneDocument, root: string): Set<string> {
+  const targets = new Set([root]);
+  const pending = [root];
+  while (pending.length) {
+    const target = pending.shift()!;
+    for (const label of document.constructions) {
+      if (label.operator !== "label" || (label.inputs.target ?? label.inputs.at ?? label.inputs.point) !== target) continue;
+      for (const id of label.outputs) {
+        if (targets.has(id)) continue;
+        if (targets.size >= 4096) fail("Derived label provenance exceeds bounded verification capacity");
+        targets.add(id); pending.push(id);
+      }
+    }
+  }
+  return targets;
+}
+
 /** Checks quantitative claims against evaluated mathematical metadata, without authoring labels. */
 export function validateEvaluatedDerivedValueLabels(construction: SceneConstruction, index: number, document: SceneDocument, outputs: readonly unknown[], issues: SceneIssue[]): boolean {
   if (!OPERATORS.has(construction.operator)) return false;
@@ -276,9 +304,13 @@ export function validateEvaluatedDerivedValueLabels(construction: SceneConstruct
     const checkText = (text: unknown, path: string): void => {
       try { const claim = parse(text); if (claim) { const authority = authorityFor(construction, outputs[outputIndex], document); checkClaim(claim, authority, document, authority.allowSource); } } catch (error) { add(error, path); }
     };
-    const entityIndex = document.entities.findIndex((entity) => entity.id === id); checkText(document.entities[entityIndex]?.label, `entities[${entityIndex}].label`);
+    let targets: Set<string>;
+    try { targets = derivedLabelTargets(document, id); } catch (error) { add(error, `constructions[${index}].outputs[${outputIndex}]`); return; }
+    document.entities.forEach((entity, entityIndex) => {
+      if (targets.has(entity.id)) checkText(entity.label, `entities[${entityIndex}].label`);
+    });
     document.annotations.forEach((annotation, annotationIndex) => {
-      if (!annotation.targetIds.includes(id) || !["label", "callout", "badge"].includes(annotation.kind)) return;
+      if (!annotation.targetIds.some((target) => targets.has(target)) || !["label", "callout", "badge"].includes(annotation.kind)) return;
       checkText(annotation.text, `annotations[${annotationIndex}].text`);
       if (annotation.quantityId === undefined) return;
       try {
@@ -290,7 +322,7 @@ export function validateEvaluatedDerivedValueLabels(construction: SceneConstruct
         for (const declaredUnit of units) close(numberValue(quantity.value, document), value, declaredUnit);
       } catch (error) { add(error, `annotations[${annotationIndex}].quantityId`); }
     });
-    document.constructions.forEach((label, labelIndex) => { if (label.operator === "label" && (label.inputs.target ?? label.inputs.at ?? label.inputs.point) === id) checkText(label.inputs.text, `constructions[${labelIndex}].inputs.text`); });
+    document.constructions.forEach((label, labelIndex) => { if (label.operator === "label" && targets.has(String(label.inputs.target ?? label.inputs.at ?? label.inputs.point))) checkText(label.inputs.text, `constructions[${labelIndex}].inputs.text`); });
     if (outputs[outputIndex] === undefined) add("Derived result is unavailable", `constructions[${index}].outputs[${outputIndex}]`);
   });
   return true;

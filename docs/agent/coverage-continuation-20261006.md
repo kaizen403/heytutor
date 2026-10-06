@@ -1,21 +1,21 @@
-# Cursor next waves: operational reference, 6 October 2026
+# Coverage continuation: Waves 2–4, 6 October 2026
 
 ## Publication boundary and starting point
 
-Published primary paths: `docs/agent/cursor-next-waves-20261006.md` (this reference) and `docs/agent/cursor-next-waves-start-prompt-20261006.md` (start prompt).
+The user superseded the proposed Cursor handoff: this integration owner continues automatically through Waves 2 and 3 after the publication task. Chemistry remains excluded. Use Sol for complex implementation and review, Luna for simple bounded work; do not use Astral. This file is the internal execution reference, not a handoff prompt. Wave 4 remains the subsequent queue.
 
 Publication receipt:
 
 - `https://github.com/kaizen403/heytutor/pull/91`: https://github.com/kaizen403/heytutor/pull/91
 - Merge SHA: resolve the actual merged commit from the PR after merge; the published document cannot embed its own eventual merge SHA.
 
-The parent fills the PR reference once open and the external paste prompt's actual SHA after merge. An open PR is not proof of publication. User authorization overrides BRIEF's no-push restriction for current handoff publication only; prepare future work locally unless separately authorized. Commit as user only, without coauthors.
+Record the actual merge receipt in the publication execution log after merge. An open PR is not proof of publication. User authorization overrides BRIEF's no-push restriction for current handoff publication only; prepare future work locally unless separately authorized. Commit as user only, without coauthors.
 
-Before engineering, resolve the merged PR's actual SHA, compare any external receipt, verify remote main contains it and approved handoff content survived. Fetch refs without changing dirty `/Users/kaizen/heytutor`. Create a fresh worktree from verified current `origin/main`. Preserve upstream `9165e39c` (PR #88 numeric authority and PR #89 startup orchestration), Sarvam Hinglish/Cartesia and OCR changes; older handoff provider configuration is not the baseline. Record fetched full SHA and integration diff. Resolve missing/conflicting receipts with the parent before dependent work.
+Before engineering, resolve the merged PR's actual SHA, verify remote main contains it and approved handoff content survived. Fetch refs without changing dirty `/Users/kaizen/heytutor`. Create a fresh worktree from verified current `origin/main`. Preserve upstream `b59263b8` (including PR #83 chapter operators, PR #88 numeric authority and PR #89 startup orchestration), Sarvam Hinglish/Cartesia and OCR changes; older handoff provider configuration is not the baseline. Record fetched full SHA and integration diff. Resolve missing/conflicting receipts with the parent before dependent work.
 
 Parent publication update: conflicts resolved retaining upstream early solver reconciliation and section/source authority before final scene gates within the current planning-overlap orchestration, plus startup gates. Raw archive and unused `/tmp`-dependent scratch `_c03-select.ts` are excluded. Actual local main protection receipt HEAD is **682eb26**, superseding checkpoint613b417e; neither is the engineering baseline. Preserve these resolutions and start from fresh verified origin/main.
 
-Parent reports publication typecheck **12/12 PASS** after removing that diagnostic. Publication also corrects whole-fraction grouping, refreshes final solver audits/projections, and registers section source checks at actual restore/replay and all admission tiers. Contradictions use the existing cleanup/stop path before teaching. The new publication gates and PR CI receipt establish those fixes; they do not certify remaining topic gaps.
+Parent reports publication typecheck **12/12 PASS** after removing that diagnostic. Publication also corrects whole-fraction grouping, refreshes final solver audits/projections, and registers section source checks at actual restore/replay and all admission tiers. Contradictions use the existing cleanup/stop path before teaching. Publication also validates transitive result-label claims against computed/source authority and cancels every restore phase before replay. The new publication gates and PR CI receipt establish those fixes; they do not certify remaining topic gaps.
 
 Historical handoff: `/Users/kaizen/heytutor-claude-handoff`, branch `handoff/diagram-coverage-20261003`, clean evidence head **33ccf3aea1e672570807c350ca5d46398a45779b**; reviewed implementation **c6b41c4bf20cb581f673f2a8763827cde58db727**. They are source-identical. Final runtime head **3b1ca9fa0108b32c2eb8b73005b17d351328ec9f** differs from c6b only by an owned log; runtime evidence commit **15c7ab68b947bf4f74e03a0001f9d3c6a3350936**. Do not treat an older private candidate as landed source.
 

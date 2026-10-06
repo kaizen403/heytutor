@@ -13,7 +13,7 @@
  * yields no section at all.
  */
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
-import { readDerivedCoordinateLabelClaim } from "../compile/derivedValueLabels";
+import { derivedLabelTargets, readDerivedCoordinateLabelClaim, validateEvaluatedDerivedValueLabels } from "../compile/derivedValueLabels";
 import { validateProblemIR, type ProblemIR } from "./problemIR";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
 
@@ -490,10 +490,15 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
   }
   const { source } = reading;
   const issues: SceneIssue[] = [];
-  const constructedLabelTexts = (id: string): Array<string | undefined> => document.constructions
-    .filter((construction) => construction.operator === "label" && (construction.inputs.target ?? construction.inputs.at ?? construction.inputs.point) === id)
-    .flatMap((construction) => [typeof construction.inputs.text === "string" ? construction.inputs.text : undefined,
-      ...construction.outputs.map((output) => document.entities.find((entity) => entity.id === output)?.label)]);
+  const constructedLabelTexts = (id: string): Array<string | undefined> => {
+    const targets = derivedLabelTargets(document, id);
+    return [
+      ...document.constructions.filter((construction) => construction.operator === "label" && targets.has(String(construction.inputs.target ?? construction.inputs.at ?? construction.inputs.point)))
+        .map((construction) => typeof construction.inputs.text === "string" ? construction.inputs.text : undefined),
+      ...document.entities.filter((entity) => entity.id !== id && targets.has(entity.id)).map((entity) => entity.label),
+      ...document.annotations.filter((annotation) => annotation.targetIds.some((target) => target !== id && targets.has(target))).map((annotation) => annotation.text),
+    ];
+  };
   const coordinateLabelAgrees = (value: string, point: { name?: string; x: number; y: number }): boolean => {
     const label = value.trim();
     // Plain A(1,2) remains the legacy endpoint spelling; source syntax is unchanged.
@@ -550,6 +555,7 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
     }
   });
   for (const { construction, index } of sections) {
+    try {
     const inputs = construction.inputs as Record<string, unknown>;
     const a = pointAt(inputs.a);
     const b = pointAt(inputs.b);
@@ -572,6 +578,15 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
     }
     if (!construction.outputs.every(resultLabelAgrees)) {
       issues.push({ code: "section_source_mismatch", severity: "fatal", path: `constructions[${index}].outputs`, message: "section result names and coordinate annotations must agree with the explicitly named source point" });
+    }
+    // Replay reads stored documents without trusting a previous compile. Bind
+    // every result label/quantity channel to freshly read source coordinates.
+    validateEvaluatedDerivedValueLabels(construction, index, document, construction.outputs.map(() => ({
+      kind: "point", point: source.point,
+      analyticLine: { section: { m, n, parameter: source.mode === "midpoint" ? 0.5 : source.m / (source.mode === "external" ? source.m - source.n : source.m + source.n) } },
+    })), issues);
+    } catch (error) {
+      issues.push({ code: "section_source_unsupported", severity: "fatal", path: `constructions[${index}].outputs`, message: error instanceof Error ? error.message : "Section label provenance is unsupported" });
     }
   }
   return issues;

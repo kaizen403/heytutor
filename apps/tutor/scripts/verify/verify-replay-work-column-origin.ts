@@ -198,7 +198,7 @@ async function controlScenario(): Promise<void> {
  * its WRITE rows until Replay has reset the work column, then let it go.
  * Returns how far each replayed row landed from its live y.
  */
-async function raceScenario(withSettle: boolean): Promise<{ offsets: number[]; restoreRowsAfterReplayStart: number; workRows: Row[]; recordedTexts: string[] }> {
+async function raceScenario(withSettle: boolean, beforeReady = false): Promise<{ offsets: number[]; restoreRowsAfterReplayStart: number; workRows: Row[]; recordedTexts: string[] }> {
   const fixture = JSON.parse(readFileSync(new URL("./fixtures/replay/circle-s3-turn.json", import.meta.url), "utf8")) as { turn: StoredTurn };
   const turn = fixture.turn;
   storedTurnsForApi = [turn];
@@ -215,7 +215,7 @@ async function raceScenario(withSettle: boolean): Promise<{ offsets: number[]; r
     return (nativeWrite as (...args: unknown[]) => Promise<void>)(text, x, y, ...rest);
   }) as typeof board.writeText;
 
-  const whiteboardRef = ref(board);
+  const whiteboardRef = ref<typeof board | null>(beforeReady ? null : board);
   const cancelRef = ref(false);
   const fbdPhaseStartedRef = ref(false);
   const activeVerifiedDiagramRef = ref<unknown>(null);
@@ -243,7 +243,7 @@ async function raceScenario(withSettle: boolean): Promise<{ offsets: number[]; r
   let release: () => void = () => {};
   const barrier = new Promise<void>((resolve) => { release = resolve; });
   const restoreExecute = async (command: DrawCommand, options?: Record<string, unknown>) => {
-    if (command.type === "WRITE" && ++restoreWrites === 3) {
+    if (!beforeReady && command.type === "WRITE" && ++restoreWrites === 3) {
       held = true;
       await barrier;
     }
@@ -267,8 +267,8 @@ async function raceScenario(withSettle: boolean): Promise<{ offsets: number[]; r
   try {
     restoreEffect();
     const heldDeadline = Date.now() + 30_000;
-    while (!held && Date.now() < heldDeadline) await new Promise<void>((resolve) => setTimeout(resolve, 2));
-    assert(held, "the restore reached its third WRITE row");
+    while (!(beforeReady ? session.storedTurnsRef.current.length > 0 : held) && Date.now() < heldDeadline) await new Promise<void>((resolve) => setTimeout(resolve, 2));
+    assert(beforeReady ? session.storedTurnsRef.current.length > 0 : held, "the restore reached its requested barrier");
     rows.splice(0);
 
     let finished = false;
@@ -290,6 +290,7 @@ async function raceScenario(withSettle: boolean): Promise<{ offsets: number[]; r
       ...(withSettle ? { settleBoardRestore: session.settleBoardRestore } : {}),
     });
     replayStarted = true;
+    whiteboardRef.current = board;
     assert.equal(replay.replayLecture(), true, "Replay lecture starts while the restore is still inking");
     const releaseDeadline = Date.now() + 1_500;
     while (resetsAfterReplayStart === 0 && Date.now() < releaseDeadline) await new Promise<void>((resolve) => setTimeout(resolve, 2));
@@ -335,6 +336,12 @@ async function main(): Promise<void> {
   assert(fixed.workRows.every((row) => row.x === 90), "with settleBoardRestore no row is pushed into a continuation indent");
   assert.equal(fixed.restoreRowsAfterReplayStart, 0, "with settleBoardRestore no restore row is inked after Replay starts");
   for (const offset of fixed.offsets) assert(Math.abs(offset) <= 4, `with settleBoardRestore every replayed row lands at its live y: ${JSON.stringify(fixed.offsets)}`);
+  const preReadyUnfixed = await raceScenario(false, true);
+  assert(preReadyUnfixed.restoreRowsAfterReplayStart > 0, "the pre-ready control must reproduce late restored ink");
+  const preReadyFixed = await raceScenario(true, true);
+  assert.equal(preReadyFixed.restoreRowsAfterReplayStart, 0, "settle cancels before readiness and initial board clear");
+  assert.deepEqual(preReadyFixed.workRows.map((row) => row.text), preReadyFixed.recordedTexts, "pre-ready cancellation preserves every replay row");
+  for (const offset of preReadyFixed.offsets) assert(Math.abs(offset) <= 4, "pre-ready cancellation preserves live coordinates");
   console.log(`replay work column race: reproduced without the fix (max offset ${Math.max(...unfixed.offsets)} px), ${fixed.offsets.length} rows exact with it, ${extraUnfixedRows} extra row(s) without it`);
 }
 
