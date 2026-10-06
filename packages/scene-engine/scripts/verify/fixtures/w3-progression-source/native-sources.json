@@ -1,0 +1,102 @@
+{
+  "schema": "wave3-native-cases-sidecar/v1",
+  "created_date": "2026-10-06",
+  "status": "partial_source_evidence_manifest",
+  "scope": [
+    "maths|6"
+  ],
+  "case_count": 3,
+  "cases": [
+    {
+      "topic_id": "maths|6|arithmetic-and-geometric-progressions",
+      "case_variant": "mixed-ap-gp-constrained-parameters",
+      "native_id": "6952782141",
+      "question_number": "6",
+      "question_options_and_source_answer_verbatim": "Question Number : 6 Question Id : 6952782141 Question Type : MCQ Option Shuffling : Yes Display Question Number :\nYes Is Question Mandatory : No Single Line Question Option : No Option Orientation : Vertical\n\nThe sum of the first ten terms of an A.P. is 160 and the sum of the first two terms\nof a G.P. is 8. If the first term of the A.P. is equal to the common ratio of the G.P.\nand the first term of the G.P. is equal to common difference of the A.P., then the\nsum of all possible values of the first term of the G.P. is:\n\nOptions :\n\n6952787516. 9\n\n6952787517. 13\n\n6952787518.\n\n6952787519. 13",
+      "source": {
+        "document_id": "jee-main-2026-04-06-shift-1",
+        "publisher": "National Testing Agency",
+        "exam": "JEE Main",
+        "year": 2026,
+        "paper": "April",
+        "language": "English",
+        "source_url": "https://cdnbbsr.s3waas.gov.in/s3f8e59f4b2fe7c5705bf878bbd494ccdf/uploads/2026/04/202604092007095665.pdf",
+        "document_sha256": "a95fbbd91673783722fe98e0455860fac1585135d2e84e31f147cbd893226eeb",
+        "pdf_page_from_extracted_text": 3,
+        "source_path": "/Users/kaizen/heytutor/data/question-bank/text/jee-main-2026-04-06-shift-1.txt",
+        "source_text_sha256": "b69aefd8cd0e74dd5451d08cfb0b6156d5a8fd20d8a02ca5f148ce4b3579dabf",
+        "extraction_method": null
+      },
+      "verbatim_question_block_sha256": "3abfa167b9899c015f6b9a0ace512db24e90f68a3b20969ab04a3db91276f5c2",
+      "independent_expected_oracle": null,
+      "classification_note": "Native source extract; any source-provided answer is preserved verbatim and is not treated as an independent oracle."
+    },
+    {
+      "topic_id": "maths|6|mixed-ap-gp-problems",
+      "case_variant": "geometric-to-arithmetic-progression",
+      "native_id": "86435121224",
+      "question_number": "65",
+      "question_options_and_source_answer_verbatim": "Question Number : 65 Question Id : 86435121224 Question Type : MCQ Option Shuffling : Yes Is Question Mandatory : No\nCorrect Marks : 4 Wrong Marks : 1\nThree numbers are in an increasing geometric progression with common ratio r. If the\nmiddle number is doubled, then the new numbers are in an arithmetic progression with\ncommon difference d. If the fourth term of GP is 3 r2, then r2—d is equal to :\nOptions :\n86435170257. 7 — 73\n36435170258, 2 + V3\n86435170259. 7 — v3\n36435170260, 2 + 33",
+      "source": {
+        "document_id": "jee-main-2021-08-31-shift-1",
+        "publisher": "National Testing Agency",
+        "exam": "JEE Main",
+        "year": 2021,
+        "paper": "August",
+        "language": "Unknown",
+        "source_url": "https://www.nta.ac.in/Download/ExamPaper/Paper_20211018175009.pdf",
+        "document_sha256": "5d4accf413807986e821712a6ce26450c617fa24c2772e67d1bfbbbb4395d902",
+        "pdf_page_from_extracted_text": 51,
+        "source_path": "/Users/kaizen/heytutor/data/question-bank/text/jee-main-2021-08-31-shift-1.txt",
+        "source_text_sha256": "5f5ccc147bb09bd4f0c381e340231b658d974ad3c623f449daf44a3072d8cb14",
+        "extraction_method": "tesseract-ocr-eng-fast-v1"
+      },
+      "verbatim_question_block_sha256": "37eee7d4f38bab015ba3cacff919484c68f54e89b3cf5086575e29de2568e1d5",
+      "independent_expected_oracle": null,
+      "classification_note": "Native source extract; any source-provided answer is preserved verbatim and is not treated as an independent oracle."
+    },
+    {
+      "topic_id": "maths|6|arithmetic-and-geometric-progressions",
+      "case_variant": "finite-ap-term-recurrence",
+      "native_id": "jee-advanced-2022-paper-1-english:Q.10",
+      "question_number": "Q.10",
+      "question_options_and_source_answer_verbatim": "Q.10      Let 𝑎1 , 𝑎2 , 𝑎3 , … be an arithmetic progression with 𝑎1 = 7 and common difference 8. Let\n            𝑇1 , 𝑇2 , 𝑇3 , … be such that 𝑇1 = 3 and 𝑇𝑛+1 − 𝑇𝑛 = 𝑎𝑛 for 𝑛 ≥ 1. Then, which of the following is/are\n            TRUE ?\n\n\n\n            (A) 𝑇20 = 1604                                            (B) ∑20\n                                                                           𝑘=1 𝑇𝑘 = 10510\n\n            (C) 𝑇30 = 3454                                            (D) ∑30\n                                                                           𝑘=1 𝑇𝑘 = 35610",
+      "source": {
+        "document_id": "jee-advanced-2022-paper-1-english",
+        "publisher": "JEE (Advanced) Joint Admission Board",
+        "exam": "JEE Advanced",
+        "year": 2022,
+        "paper": "Paper 1",
+        "language": "English",
+        "source_url": "https://jeeadv.ac.in/past_qps/2022_1_English.pdf",
+        "document_sha256": "ff67ab84597e45dd99450ec61ec33d181e6c58570b0061ed7e8ff9ca73f8af58",
+        "pdf_page_from_extracted_text": 4,
+        "source_path": "/Users/kaizen/heytutor/data/question-bank/text/jee-advanced-2022-paper-1-english.txt",
+        "source_text_sha256": "5d875792b17927d9368af951d0deff5abf78df3c0047d4a9703ffe5cba09ae79",
+        "extraction_method": "pdftotext-layout"
+      },
+      "verbatim_question_block_sha256": "0ca70bf4e5f68b5d874d5697f8f90da6732db4cf325c8dce20ce743672553431",
+      "independent_expected_oracle": null,
+      "classification_note": "Native source extract; any source-provided answer is preserved verbatim and is not treated as an independent oracle."
+    }
+  ],
+  "search_result": {
+    "canonical_bank_record_count_each_tree": 789,
+    "canonical_bank_topics_in_all_three_trees": {
+      "Electromagnetic Induction and Alternating Currents": 494,
+      "Three-Dimensional Geometry": 295
+    },
+    "searched_trees": [
+      "/Users/kaizen/heytutor-cov-wt/publish-w1-20261006/data/question-bank",
+      "/Users/kaizen/heytutor/data/question-bank",
+      "/Users/kaizen/heytutor-claude-handoff/data/question-bank"
+    ],
+    "searched_local_payload_paths": [
+      "/Users/kaizen/heytutor/data/question-bank/text",
+      "/Users/kaizen/heytutor/data/question-bank/raw",
+      "/Users/kaizen/heytutor/data/question-bank/staging"
+    ],
+    "native_payload_found_in": "/Users/kaizen/heytutor/data/question-bank/text",
+    "limits": "Canonical questions.jsonl in all trees has no records assigned to these three units. Local official-paper text payloads did contain exact-unit stems; extracted wording and OCR artifacts are preserved. This manifest does not establish topic coverage acceptance."
+  }
+}

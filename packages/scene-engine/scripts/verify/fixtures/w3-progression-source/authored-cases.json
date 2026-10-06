@@ -1,0 +1,2030 @@
+{
+  "schema": "w3-progression-source-fixtures/v1",
+  "cases": [
+    {
+      "id": "authored-signed-ap",
+      "classification": "authored regression source",
+      "question": "Let a_n be an arithmetic progression with a_1 = 3 and common difference -2. Find a_1, a_2, a_3, a_4.",
+      "expected": [
+        3,
+        1,
+        -1,
+        -3
+      ],
+      "kind": "arithmetic",
+      "first": 3,
+      "parameter": -2,
+      "cumulativeFirst": null,
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "actualProblem",
+        "question": "Let a_n be an arithmetic progression with a_1 = 3 and common difference -2. Find a_1, a_2, a_3, a_4.",
+        "facts": [
+          {
+            "id": "modelFact",
+            "kind": "given",
+            "statement": "Let a_n be an arithmetic progression with a_1 = 3 and common difference -2.",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 75,
+              "quote": "Let a_n be an arithmetic progression with a_1 = 3 and common difference -2."
+            }
+          },
+          {
+            "id": "askFact0",
+            "kind": "requested",
+            "statement": "Compute a_1",
+            "evidence": {
+              "source": "question",
+              "start": 81,
+              "end": 84,
+              "quote": "a_1"
+            }
+          },
+          {
+            "id": "askFact1",
+            "kind": "requested",
+            "statement": "Compute a_2",
+            "evidence": {
+              "source": "question",
+              "start": 86,
+              "end": 89,
+              "quote": "a_2"
+            }
+          },
+          {
+            "id": "askFact2",
+            "kind": "requested",
+            "statement": "Compute a_3",
+            "evidence": {
+              "source": "question",
+              "start": 91,
+              "end": 94,
+              "quote": "a_3"
+            }
+          },
+          {
+            "id": "askFact3",
+            "kind": "requested",
+            "statement": "Compute a_4",
+            "evidence": {
+              "source": "question",
+              "start": 96,
+              "end": 99,
+              "quote": "a_4"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "actualSequenceEntity",
+            "kind": "other",
+            "label": "a_n",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "sourceExpression0",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": -2
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact0"
+            ]
+          },
+          {
+            "id": "sourceExpression1",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": -2
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact1"
+            ]
+          },
+          {
+            "id": "sourceExpression2",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 3
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": -2
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact2"
+            ]
+          },
+          {
+            "id": "sourceExpression3",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 4
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": -2
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact3"
+            ]
+          },
+          {
+            "id": "actualFirstVariable",
+            "valueType": "scalar",
+            "root": {
+              "kind": "variable",
+              "name": "a_1"
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          },
+          {
+            "id": "actualFirstLiteral",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 3
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "constraints": [
+          {
+            "id": "actualFirstConstraint",
+            "kind": "equation",
+            "leftExpressionId": "actualFirstVariable",
+            "rightExpressionId": "actualFirstLiteral",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "actualTableIntent",
+            "kind": "conceptual",
+            "entityIds": [
+              "actualSequenceEntity"
+            ],
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actualSolveRequest0",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression0",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity0",
+              "symbol": "Result_0",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact0"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest1",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression1",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity1",
+              "symbol": "Result_1",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact1"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest2",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression2",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity2",
+              "symbol": "Result_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact2"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest3",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression3",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity3",
+              "symbol": "Result_3",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact3"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Let a_n be an arithmetic progression with a_1 = 3 and common difference -2. Find a_1, a_2, a_3, a_4.",
+        "givens": [
+          {
+            "id": "actualFirstQuantity",
+            "symbol": "a_1",
+            "unit": "1",
+            "value": 3,
+            "provenance": "given",
+            "sourceText": "a_1 = 3"
+          },
+          {
+            "id": "actualParameterQuantity",
+            "symbol": "d",
+            "unit": "1",
+            "value": -2,
+            "provenance": "given",
+            "sourceText": "common difference -2"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "actualPlanQuantity0",
+            "symbol": "Result_0",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity1",
+            "symbol": "Result_1",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity2",
+            "symbol": "Result_2",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity3",
+            "symbol": "Result_3",
+            "unit": "1"
+          }
+        ],
+        "derived": [],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "id": "authored-signed-gp",
+      "classification": "authored regression source",
+      "question": "Let a_n be a geometric progression with a_1 = 2 and common ratio -2. Find a_1, a_2, a_3, a_4, sum_{k=1}^4 a_k.",
+      "expected": [
+        2,
+        -4,
+        8,
+        -16,
+        -10
+      ],
+      "kind": "geometric",
+      "first": 2,
+      "parameter": -2,
+      "cumulativeFirst": null,
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "actualProblem",
+        "question": "Let a_n be a geometric progression with a_1 = 2 and common ratio -2. Find a_1, a_2, a_3, a_4, sum_{k=1}^4 a_k.",
+        "facts": [
+          {
+            "id": "modelFact",
+            "kind": "given",
+            "statement": "Let a_n be a geometric progression with a_1 = 2 and common ratio -2.",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 68,
+              "quote": "Let a_n be a geometric progression with a_1 = 2 and common ratio -2."
+            }
+          },
+          {
+            "id": "askFact0",
+            "kind": "requested",
+            "statement": "Compute a_1",
+            "evidence": {
+              "source": "question",
+              "start": 74,
+              "end": 77,
+              "quote": "a_1"
+            }
+          },
+          {
+            "id": "askFact1",
+            "kind": "requested",
+            "statement": "Compute a_2",
+            "evidence": {
+              "source": "question",
+              "start": 79,
+              "end": 82,
+              "quote": "a_2"
+            }
+          },
+          {
+            "id": "askFact2",
+            "kind": "requested",
+            "statement": "Compute a_3",
+            "evidence": {
+              "source": "question",
+              "start": 84,
+              "end": 87,
+              "quote": "a_3"
+            }
+          },
+          {
+            "id": "askFact3",
+            "kind": "requested",
+            "statement": "Compute a_4",
+            "evidence": {
+              "source": "question",
+              "start": 89,
+              "end": 92,
+              "quote": "a_4"
+            }
+          },
+          {
+            "id": "askFact4",
+            "kind": "requested",
+            "statement": "Compute sum_{k=1}^4 a_k",
+            "evidence": {
+              "source": "question",
+              "start": 94,
+              "end": 109,
+              "quote": "sum_{k=1}^4 a_k"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "actualSequenceEntity",
+            "kind": "other",
+            "label": "a_n",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "sourceExpression0",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "number",
+                  "value": -2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact0"
+            ]
+          },
+          {
+            "id": "sourceExpression1",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "number",
+                  "value": -2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact1"
+            ]
+          },
+          {
+            "id": "sourceExpression2",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "number",
+                  "value": -2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 3
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact2"
+            ]
+          },
+          {
+            "id": "sourceExpression3",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "number",
+                  "value": -2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 4
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact3"
+            ]
+          },
+          {
+            "id": "sourceExpression4",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "number",
+                      "value": -2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 4
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 1
+                },
+                "right": {
+                  "kind": "number",
+                  "value": -2
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact4"
+            ]
+          },
+          {
+            "id": "actualFirstVariable",
+            "valueType": "scalar",
+            "root": {
+              "kind": "variable",
+              "name": "a_1"
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          },
+          {
+            "id": "actualFirstLiteral",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 2
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "constraints": [
+          {
+            "id": "actualFirstConstraint",
+            "kind": "equation",
+            "leftExpressionId": "actualFirstVariable",
+            "rightExpressionId": "actualFirstLiteral",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "actualTableIntent",
+            "kind": "conceptual",
+            "entityIds": [
+              "actualSequenceEntity"
+            ],
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actualSolveRequest0",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression0",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity0",
+              "symbol": "Result_0",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact0"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest1",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression1",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity1",
+              "symbol": "Result_1",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact1"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest2",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression2",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity2",
+              "symbol": "Result_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact2"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest3",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression3",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity3",
+              "symbol": "Result_3",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact3"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest4",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression4",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity4",
+              "symbol": "Result_4",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact4"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Let a_n be a geometric progression with a_1 = 2 and common ratio -2. Find a_1, a_2, a_3, a_4, sum_{k=1}^4 a_k.",
+        "givens": [
+          {
+            "id": "actualFirstQuantity",
+            "symbol": "a_1",
+            "unit": "1",
+            "value": 2,
+            "provenance": "given",
+            "sourceText": "a_1 = 2"
+          },
+          {
+            "id": "actualParameterQuantity",
+            "symbol": "r",
+            "unit": "1",
+            "value": -2,
+            "provenance": "given",
+            "sourceText": "common ratio -2"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "actualPlanQuantity0",
+            "symbol": "Result_0",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity1",
+            "symbol": "Result_1",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity2",
+            "symbol": "Result_2",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity3",
+            "symbol": "Result_3",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity4",
+            "symbol": "Result_4",
+            "unit": "1"
+          }
+        ],
+        "derived": [],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "id": "authored-unit-ratio-empty-sum",
+      "classification": "authored regression source",
+      "question": "Let a_n be a geometric progression with a_1 = 2 and common ratio 1. Find sum_{k=1}^4 a_k, sum_{k=1}^0 a_k.",
+      "expected": [
+        8,
+        0
+      ],
+      "kind": "geometric",
+      "first": 2,
+      "parameter": 1,
+      "cumulativeFirst": null,
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "actualProblem",
+        "question": "Let a_n be a geometric progression with a_1 = 2 and common ratio 1. Find sum_{k=1}^4 a_k, sum_{k=1}^0 a_k.",
+        "facts": [
+          {
+            "id": "modelFact",
+            "kind": "given",
+            "statement": "Let a_n be a geometric progression with a_1 = 2 and common ratio 1.",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 67,
+              "quote": "Let a_n be a geometric progression with a_1 = 2 and common ratio 1."
+            }
+          },
+          {
+            "id": "askFact0",
+            "kind": "requested",
+            "statement": "Compute sum_{k=1}^4 a_k",
+            "evidence": {
+              "source": "question",
+              "start": 73,
+              "end": 88,
+              "quote": "sum_{k=1}^4 a_k"
+            }
+          },
+          {
+            "id": "askFact1",
+            "kind": "requested",
+            "statement": "Compute sum_{k=1}^0 a_k",
+            "evidence": {
+              "source": "question",
+              "start": 90,
+              "end": 105,
+              "quote": "sum_{k=1}^0 a_k"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "actualSequenceEntity",
+            "kind": "other",
+            "label": "a_n",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "sourceExpression0",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 4
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "evidenceFactIds": [
+              "askFact0"
+            ]
+          },
+          {
+            "id": "sourceExpression1",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 0
+            },
+            "evidenceFactIds": [
+              "askFact1"
+            ]
+          },
+          {
+            "id": "actualFirstVariable",
+            "valueType": "scalar",
+            "root": {
+              "kind": "variable",
+              "name": "a_1"
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          },
+          {
+            "id": "actualFirstLiteral",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 2
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "constraints": [
+          {
+            "id": "actualFirstConstraint",
+            "kind": "equation",
+            "leftExpressionId": "actualFirstVariable",
+            "rightExpressionId": "actualFirstLiteral",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "actualTableIntent",
+            "kind": "conceptual",
+            "entityIds": [
+              "actualSequenceEntity"
+            ],
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actualSolveRequest0",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression0",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity0",
+              "symbol": "Result_0",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact0"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest1",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression1",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity1",
+              "symbol": "Result_1",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact1"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Let a_n be a geometric progression with a_1 = 2 and common ratio 1. Find sum_{k=1}^4 a_k, sum_{k=1}^0 a_k.",
+        "givens": [
+          {
+            "id": "actualFirstQuantity",
+            "symbol": "a_1",
+            "unit": "1",
+            "value": 2,
+            "provenance": "given",
+            "sourceText": "a_1 = 2"
+          },
+          {
+            "id": "actualParameterQuantity",
+            "symbol": "r",
+            "unit": "1",
+            "value": 1,
+            "provenance": "given",
+            "sourceText": "common ratio 1"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "actualPlanQuantity0",
+            "symbol": "Result_0",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity1",
+            "symbol": "Result_1",
+            "unit": "1"
+          }
+        ],
+        "derived": [],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    },
+    {
+      "id": "authored-transcription-native-2022-q10",
+      "classification": "authored faithful transcription; never native",
+      "question": "Let a_n be an arithmetic progression with a_1 = 7 and common difference 8. Let T_n satisfy T_1 = 3 and T_(n+1) - T_n = a_n for n >= 1. Find T_20, sum_{k=1}^20 T_k, T_30, sum_{k=1}^30 T_k.",
+      "expected": [
+        1504,
+        10510,
+        3454,
+        35615
+      ],
+      "kind": "arithmetic",
+      "first": 7,
+      "parameter": 8,
+      "cumulativeFirst": 3,
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "actualProblem",
+        "question": "Let a_n be an arithmetic progression with a_1 = 7 and common difference 8. Let T_n satisfy T_1 = 3 and T_(n+1) - T_n = a_n for n >= 1. Find T_20, sum_{k=1}^20 T_k, T_30, sum_{k=1}^30 T_k.",
+        "facts": [
+          {
+            "id": "modelFact",
+            "kind": "given",
+            "statement": "Let a_n be an arithmetic progression with a_1 = 7 and common difference 8.",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 74,
+              "quote": "Let a_n be an arithmetic progression with a_1 = 7 and common difference 8."
+            }
+          },
+          {
+            "id": "recurrenceFact",
+            "kind": "given",
+            "statement": "Let T_n satisfy T_1 = 3 and T_(n+1) - T_n = a_n for n >= 1.",
+            "evidence": {
+              "source": "question",
+              "start": 75,
+              "end": 134,
+              "quote": "Let T_n satisfy T_1 = 3 and T_(n+1) - T_n = a_n for n >= 1."
+            }
+          },
+          {
+            "id": "askFact0",
+            "kind": "requested",
+            "statement": "Compute T_20",
+            "evidence": {
+              "source": "question",
+              "start": 140,
+              "end": 144,
+              "quote": "T_20"
+            }
+          },
+          {
+            "id": "askFact1",
+            "kind": "requested",
+            "statement": "Compute sum_{k=1}^20 T_k",
+            "evidence": {
+              "source": "question",
+              "start": 146,
+              "end": 162,
+              "quote": "sum_{k=1}^20 T_k"
+            }
+          },
+          {
+            "id": "askFact2",
+            "kind": "requested",
+            "statement": "Compute T_30",
+            "evidence": {
+              "source": "question",
+              "start": 164,
+              "end": 168,
+              "quote": "T_30"
+            }
+          },
+          {
+            "id": "askFact3",
+            "kind": "requested",
+            "statement": "Compute sum_{k=1}^30 T_k",
+            "evidence": {
+              "source": "question",
+              "start": 170,
+              "end": 186,
+              "quote": "sum_{k=1}^30 T_k"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "actualSequenceEntity",
+            "kind": "other",
+            "label": "a_n",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          },
+          {
+            "id": "actualCumulativeEntity",
+            "kind": "state",
+            "label": "T_n",
+            "evidenceFactIds": [
+              "recurrenceFact"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "sourceExpression0",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 3
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "-",
+                    "left": {
+                      "kind": "number",
+                      "value": 20
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 7
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 8
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 20
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 1
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 20
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact0"
+            ]
+          },
+          {
+            "id": "sourceExpression1",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 20
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "*",
+                      "left": {
+                        "kind": "number",
+                        "value": 7
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 20
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 20
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 1
+                      }
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 8
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 20
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 20
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 1
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 20
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 6
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact1"
+            ]
+          },
+          {
+            "id": "sourceExpression2",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 3
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "-",
+                    "left": {
+                      "kind": "number",
+                      "value": 30
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 7
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 8
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 30
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 1
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 30
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact2"
+            ]
+          },
+          {
+            "id": "sourceExpression3",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 30
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "*",
+                      "left": {
+                        "kind": "number",
+                        "value": 7
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 30
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 30
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 1
+                      }
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 8
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 30
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 30
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 1
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "number",
+                        "value": 30
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 6
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact3"
+            ]
+          },
+          {
+            "id": "actualFirstVariable",
+            "valueType": "scalar",
+            "root": {
+              "kind": "variable",
+              "name": "a_1"
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          },
+          {
+            "id": "actualFirstLiteral",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 7
+            },
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          },
+          {
+            "id": "actualRecurrenceDifference",
+            "valueType": "function",
+            "root": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "variable",
+                "name": "T_next"
+              },
+              "right": {
+                "kind": "variable",
+                "name": "T_n"
+              }
+            },
+            "evidenceFactIds": [
+              "recurrenceFact"
+            ]
+          },
+          {
+            "id": "actualRecurrenceTerm",
+            "valueType": "function",
+            "root": {
+              "kind": "variable",
+              "name": "a_n"
+            },
+            "evidenceFactIds": [
+              "recurrenceFact"
+            ]
+          },
+          {
+            "id": "actualDomainIndex",
+            "valueType": "scalar",
+            "root": {
+              "kind": "variable",
+              "name": "n"
+            },
+            "evidenceFactIds": [
+              "recurrenceFact"
+            ]
+          },
+          {
+            "id": "actualDomainLower",
+            "valueType": "scalar",
+            "root": {
+              "kind": "number",
+              "value": 1
+            },
+            "evidenceFactIds": [
+              "recurrenceFact"
+            ]
+          }
+        ],
+        "constraints": [
+          {
+            "id": "actualFirstConstraint",
+            "kind": "equation",
+            "leftExpressionId": "actualFirstVariable",
+            "rightExpressionId": "actualFirstLiteral",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          },
+          {
+            "id": "actualRecurrenceConstraint",
+            "kind": "equation",
+            "leftExpressionId": "actualRecurrenceDifference",
+            "rightExpressionId": "actualRecurrenceTerm",
+            "evidenceFactIds": [
+              "recurrenceFact"
+            ]
+          },
+          {
+            "id": "actualDomainConstraint",
+            "kind": "inequality",
+            "leftExpressionId": "actualDomainIndex",
+            "rightExpressionId": "actualDomainLower",
+            "relation": ">=",
+            "evidenceFactIds": [
+              "recurrenceFact"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "actualTableIntent",
+            "kind": "conceptual",
+            "entityIds": [
+              "actualSequenceEntity",
+              "actualCumulativeEntity"
+            ],
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actualSolveRequest0",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression0",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity0",
+              "symbol": "Result_0",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact0"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest1",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression1",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity1",
+              "symbol": "Result_1",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact1"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest2",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression2",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity2",
+              "symbol": "Result_2",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact2"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest3",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression3",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity3",
+              "symbol": "Result_3",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact3"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Let a_n be an arithmetic progression with a_1 = 7 and common difference 8. Let T_n satisfy T_1 = 3 and T_(n+1) - T_n = a_n for n >= 1. Find T_20, sum_{k=1}^20 T_k, T_30, sum_{k=1}^30 T_k.",
+        "givens": [
+          {
+            "id": "actualFirstQuantity",
+            "symbol": "a_1",
+            "unit": "1",
+            "value": 7,
+            "provenance": "given",
+            "sourceText": "a_1 = 7"
+          },
+          {
+            "id": "actualParameterQuantity",
+            "symbol": "d",
+            "unit": "1",
+            "value": 8,
+            "provenance": "given",
+            "sourceText": "common difference 8"
+          },
+          {
+            "id": "actualTFirstQuantity",
+            "symbol": "T_1",
+            "unit": "1",
+            "value": 3,
+            "provenance": "given",
+            "sourceText": "T_1 = 3"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "actualPlanQuantity0",
+            "symbol": "Result_0",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity1",
+            "symbol": "Result_1",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity2",
+            "symbol": "Result_2",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity3",
+            "symbol": "Result_3",
+            "unit": "1"
+          }
+        ],
+        "derived": [],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      },
+      "nativeSourceReference": "native-sources.json: jee-advanced-2022-paper-1-english:Q.10; original options A=1604/B=10510/C=3454/D=35610, independent direct recurrence yields A=false/B=true/C=true/D=false"
+    },
+    {
+      "id": "authored-all-real-insertion",
+      "classification": "authored regression source",
+      "question": "Insert 1 geometric means between 2 and 8, using all_real ratio branches. Find a_2[positive], a_2[negative].",
+      "expected": [
+        4,
+        -4
+      ],
+      "kind": "geometric",
+      "first": 2,
+      "parameter": null,
+      "cumulativeFirst": null,
+      "problem": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "actualProblem",
+        "question": "Insert 1 geometric means between 2 and 8, using all_real ratio branches. Find a_2[positive], a_2[negative].",
+        "facts": [
+          {
+            "id": "modelFact",
+            "kind": "given",
+            "statement": "Insert 1 geometric means between 2 and 8, using all_real ratio branches.",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 72,
+              "quote": "Insert 1 geometric means between 2 and 8, using all_real ratio branches."
+            }
+          },
+          {
+            "id": "askFact0",
+            "kind": "requested",
+            "statement": "Compute a_2[positive]",
+            "evidence": {
+              "source": "question",
+              "start": 78,
+              "end": 91,
+              "quote": "a_2[positive]"
+            }
+          },
+          {
+            "id": "askFact1",
+            "kind": "requested",
+            "statement": "Compute a_2[negative]",
+            "evidence": {
+              "source": "question",
+              "start": 93,
+              "end": 106,
+              "quote": "a_2[negative]"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "actualSequenceEntity",
+            "kind": "other",
+            "label": "a_n",
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "sourceExpression0",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "binary",
+                  "operator": "^",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "/",
+                    "left": {
+                      "kind": "number",
+                      "value": 8
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "/",
+                    "left": {
+                      "kind": "number",
+                      "value": 1
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact0"
+            ]
+          },
+          {
+            "id": "sourceExpression1",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "unary",
+                  "operator": "-",
+                  "operand": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "/",
+                      "left": {
+                        "kind": "number",
+                        "value": 8
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "/",
+                      "left": {
+                        "kind": "number",
+                        "value": 1
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "askFact1"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "actualTableIntent",
+            "kind": "conceptual",
+            "entityIds": [
+              "actualSequenceEntity"
+            ],
+            "evidenceFactIds": [
+              "modelFact"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "actualSolveRequest0",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression0",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity0",
+              "symbol": "Result_0",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact0"
+              ]
+            }
+          },
+          {
+            "id": "actualSolveRequest1",
+            "kind": "evaluate",
+            "expressionId": "sourceExpression1",
+            "resultBinding": {
+              "turnPlanQuantityId": "actualPlanQuantity1",
+              "symbol": "Result_1",
+              "unit": "1",
+              "evidenceFactIds": [
+                "askFact1"
+              ]
+            }
+          }
+        ]
+      },
+      "plan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Insert 1 geometric means between 2 and 8, using all_real ratio branches. Find a_2[positive], a_2[negative].",
+        "givens": [],
+        "unknowns": [
+          {
+            "id": "actualPlanQuantity0",
+            "symbol": "Result_0",
+            "unit": "1"
+          },
+          {
+            "id": "actualPlanQuantity1",
+            "symbol": "Result_1",
+            "unit": "1"
+          }
+        ],
+        "derived": [],
+        "qualitativeClaims": [],
+        "lawIds": [],
+        "assumptions": [],
+        "visualRequirement": "required"
+      }
+    }
+  ]
+}
