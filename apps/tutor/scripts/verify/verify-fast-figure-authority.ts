@@ -294,7 +294,12 @@ check("river crossing, symbolic: not_applicable with symbolic zero givens keeps 
 
 check("Kirchhoff two loop: structure-routed circuit keeps today's selection", () => {
   const live = selectLikeLive(get("kirchhoff_two_loop"));
-  assert.equal(live.audit, "verified");
+  // The captured plan solved its own loop equations wrong (I = 1.8 A; they
+  // give 24/13 A) and repeats 1.8 A in its claims, while the captured solver
+  // formulation gives 36/13 A. Reconcile writes the solver's value into the
+  // quantity, so the claims now contradict it and the audit blocks the turn
+  // instead of teaching a current that disagrees with its own working.
+  assert.equal(live.audit, "contradiction");
   assert.ok(live.bindings > 0);
   assert.deepEqual([...live.families], ["circuit_network"]);
   assert.equal(live.figure, null);
