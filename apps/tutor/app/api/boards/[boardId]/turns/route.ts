@@ -10,6 +10,7 @@ import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import {
+  audioPrefixMatchesType,
   validateTurnUploadHeaders,
   validateTurnUploadParts,
   MAX_TURN_UPLOAD_BYTES,
@@ -194,10 +195,7 @@ export async function POST(request: Request, context: RouteContext) {
   for (const [, value] of formData.entries()) {
     if (!(value instanceof File) || value.size === 0) continue;
     const prefix = new Uint8Array(await value.slice(0, 12).arrayBuffer());
-    const text = new TextDecoder().decode(prefix);
-    const wave = text.startsWith("RIFF") && text.slice(8, 12) === "WAVE";
-    const mp3 = text.startsWith("ID3") || (prefix[0] === 0xff && ((prefix[1] ?? 0) & 0xe0) === 0xe0 && ((prefix[1] ?? 0) & 0x06) !== 0);
-    if ((value.type === "audio/wav" && !wave) || (value.type === "audio/mpeg" && !mp3)) {
+    if (!audioPrefixMatchesType(value.type, prefix)) {
       return NextResponse.json({ error: "audio content does not match its declared format" }, { status: 415 });
     }
   }

@@ -167,7 +167,7 @@ const context = { params: Promise.resolve({ boardId }) };
 const jsonRequest = (path: string, body: object, method = "POST") => new Request(`https://example.test${path}`, {
   method, headers: { "content-type": "application/json", origin: "https://example.test" }, body: JSON.stringify(body),
 });
-function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: AbortSignal): Request {
+function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: AbortSignal, riffSize = 40): Request {
   const form = new FormData();
   form.set("metadata", JSON.stringify({
     question: "What is 2 + 2?", rawResponse: "2 + 2 = 4.", visualStatus: "text_only", traceId: traceId ?? undefined,
@@ -178,7 +178,7 @@ function lessonRequest(traceId: string | null = crypto.randomUUID(), signal?: Ab
   const audio = new Uint8Array(48);
   const view = new DataView(audio.buffer);
   audio.set(new TextEncoder().encode("RIFF"), 0);
-  view.setUint32(4, 40, true);
+  view.setUint32(4, riffSize, true);
   audio.set(new TextEncoder().encode("WAVEfmt "), 8);
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
@@ -325,6 +325,12 @@ async function main(): Promise<void> {
     deniedWithoutWrite(response);
     assert.equal(ledgerBytes, 0n);
     assert.equal(pendingTurns, 0);
+  });
+  await check("a WAV whose size bytes read as UTF-8 still saves", async () => {
+    // c2 80 decodes to one character. A text check slid "WAVE" off byte 8 and
+    // refused about one Cartesia sentence in twenty, and every lesson with it.
+    const response = await turns.POST(lessonRequest(crypto.randomUUID(), undefined, 0x0001_80c2), context);
+    assert.equal(response.status, 200);
   });
   await check("oversized preview is rejected before persistence", async () => {
     const response = await ownedBoard.PATCH(jsonRequest(`/api/boards/${boardId}`, { preview: "x".repeat(512 * 1024) }, "PATCH"), context);
