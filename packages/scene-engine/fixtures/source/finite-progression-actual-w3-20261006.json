@@ -1,0 +1,422 @@
+{
+  "captureVersion": "w3-progression-actual/v1",
+  "baseCommit": "50865ce221042e254e3ac5972d6c80496b54d08d",
+  "evidence": {
+    "directory": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0833-w2-c4ede352/evidence",
+    "sha256": {
+      "reviewed-progression-ap-positive-planner-exchanges.json": "7d5b1d784682d4fe35c67b9203bfc58c5fba9121ae687651046eed65ae9c0625",
+      "reviewed-progression-ap-positive-live.json": "abe6219f85641fdd51e3b86a4fa08f85cbc0637e3791a433bdba34505efbc180"
+    },
+    "originalVisualStatus": "text_only",
+    "originalSceneDocument": null
+  },
+  "question": "Let a_n be an arithmetic progression with a_1 = 5 and common difference 3. Find a_20, sum_{k=1}^20 a_k.",
+  "actualPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Let a_n be an arithmetic progression with a_1 = 5 and common difference 3. Find a_20, sum_{k=1}^20 a_k.",
+    "givens": [],
+    "unknowns": [
+      {
+        "id": "progression_result_0",
+        "symbol": "a_20",
+        "unit": "1"
+      },
+      {
+        "id": "progression_result_1",
+        "symbol": "sum_{k=1}^20 a_k",
+        "unit": "1"
+      }
+    ],
+    "derived": [
+      {
+        "id": "progression_result_0",
+        "symbol": "a_20",
+        "value": 62,
+        "unit": "1",
+        "sourceText": "5+(20-1)*3",
+        "provenance": "derived"
+      },
+      {
+        "id": "progression_result_1",
+        "symbol": "sum_{k=1}^20 a_k",
+        "value": 670,
+        "unit": "1",
+        "sourceText": "20*(2*5+(20-1)*3)/2",
+        "provenance": "derived",
+        "dependsOn": [
+          "progression_result_0"
+        ]
+      }
+    ],
+    "qualitativeClaims": [],
+    "lawIds": [
+      "arithmetic_progression_nth_term",
+      "arithmetic_series_sum"
+    ],
+    "assumptions": [],
+    "visualRequirement": "optional"
+  },
+  "rawProblemIR": {
+    "facts": [
+      {
+        "id": "fModel",
+        "kind": "given",
+        "statement": "Let a_n be an arithmetic progression with a_1 = 5 and common difference 3.",
+        "quote": "Let a_n be an arithmetic progression with a_1 = 5 and common difference 3."
+      },
+      {
+        "id": "fFirst",
+        "kind": "given",
+        "statement": "a_1 = 5",
+        "quote": "a_1 = 5"
+      },
+      {
+        "id": "fDiff",
+        "kind": "given",
+        "statement": "common difference 3",
+        "quote": "common difference 3"
+      },
+      {
+        "id": "fAskTerm",
+        "kind": "requested",
+        "statement": "a_20",
+        "quote": "a_20"
+      },
+      {
+        "id": "fAskSum",
+        "kind": "requested",
+        "statement": "sum_{k=1}^20 a_k",
+        "quote": "sum_{k=1}^20 a_k"
+      }
+    ],
+    "entities": [
+      {
+        "id": "seqA",
+        "kind": "other",
+        "label": "a_n",
+        "evidenceFactIds": [
+          "fModel"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eModel",
+        "valueType": "function",
+        "expr": "5+(n-1)*3",
+        "evidenceFactIds": [
+          "fModel"
+        ]
+      },
+      {
+        "id": "eTerm",
+        "valueType": "scalar",
+        "expr": "5+(20-1)*3",
+        "evidenceFactIds": [
+          "fAskTerm"
+        ]
+      },
+      {
+        "id": "eSum",
+        "valueType": "scalar",
+        "expr": "20*(2*5+(20-1)*3)/2",
+        "evidenceFactIds": [
+          "fAskSum"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iSeq",
+        "kind": "conceptual",
+        "entityIds": [
+          "seqA"
+        ],
+        "evidenceFactIds": [
+          "fModel",
+          "fFirst",
+          "fDiff",
+          "fAskTerm",
+          "fAskSum"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sTerm",
+        "kind": "evaluate",
+        "expressionId": "eTerm",
+        "resultBinding": {
+          "turnPlanQuantityId": "progression_result_0",
+          "symbol": "a_20",
+          "unit": "1",
+          "evidenceFactIds": [
+            "fAskTerm"
+          ]
+        }
+      },
+      {
+        "id": "sSum",
+        "kind": "evaluate",
+        "expressionId": "eSum",
+        "resultBinding": {
+          "turnPlanQuantityId": "progression_result_1",
+          "symbol": "sum_{k=1}^20 a_k",
+          "unit": "1",
+          "evidenceFactIds": [
+            "fAskSum"
+          ]
+        }
+      }
+    ]
+  },
+  "normalizedProblemIR": {
+    "facts": [
+      {
+        "id": "fModel",
+        "kind": "given",
+        "statement": "Let a_n be an arithmetic progression with a_1 = 5 and common difference 3.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 74,
+          "quote": "Let a_n be an arithmetic progression with a_1 = 5 and common difference 3."
+        }
+      },
+      {
+        "id": "fFirst",
+        "kind": "given",
+        "statement": "a_1 = 5",
+        "evidence": {
+          "source": "question",
+          "start": 42,
+          "end": 49,
+          "quote": "a_1 = 5"
+        }
+      },
+      {
+        "id": "fDiff",
+        "kind": "given",
+        "statement": "common difference 3",
+        "evidence": {
+          "source": "question",
+          "start": 54,
+          "end": 73,
+          "quote": "common difference 3"
+        }
+      },
+      {
+        "id": "fAskTerm",
+        "kind": "requested",
+        "statement": "a_20",
+        "evidence": {
+          "source": "question",
+          "start": 80,
+          "end": 84,
+          "quote": "a_20"
+        }
+      },
+      {
+        "id": "fAskSum",
+        "kind": "requested",
+        "statement": "sum_{k=1}^20 a_k",
+        "evidence": {
+          "source": "question",
+          "start": 86,
+          "end": 102,
+          "quote": "sum_{k=1}^20 a_k"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "seqA",
+        "kind": "other",
+        "label": "a_n",
+        "evidenceFactIds": [
+          "fModel"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eModel",
+        "valueType": "function",
+        "evidenceFactIds": [
+          "fModel"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 5
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "variable",
+                "name": "n"
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            }
+          }
+        }
+      },
+      {
+        "id": "eTerm",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fAskTerm"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 5
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "number",
+                "value": 20
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            }
+          }
+        }
+      },
+      {
+        "id": "eSum",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fAskSum"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 20
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 5
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 20
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              }
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iSeq",
+        "kind": "conceptual",
+        "entityIds": [
+          "seqA"
+        ],
+        "evidenceFactIds": [
+          "fModel",
+          "fFirst",
+          "fDiff",
+          "fAskTerm",
+          "fAskSum"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sTerm",
+        "kind": "evaluate",
+        "expressionId": "eTerm",
+        "resultBinding": {
+          "turnPlanQuantityId": "progression_result_0",
+          "symbol": "a_20",
+          "unit": "1",
+          "evidenceFactIds": [
+            "fAskTerm"
+          ]
+        }
+      },
+      {
+        "id": "sSum",
+        "kind": "evaluate",
+        "expressionId": "eSum",
+        "resultBinding": {
+          "turnPlanQuantityId": "progression_result_1",
+          "symbol": "sum_{k=1}^20 a_k",
+          "unit": "1",
+          "evidenceFactIds": [
+            "fAskSum"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Let a_n be an arithmetic progression with a_1 = 5 and common difference 3. Find a_20, sum_{k=1}^20 a_k."
+  }
+}

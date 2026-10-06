@@ -36,6 +36,42 @@ function astKey(root: ExpressionNodeIR): string {
   }
 }
 function fail(message: string): never { throw new Error(message); }
+/** Bounded identities on SOURCE operands, never arithmetic on candidate literals.
+ * AP: N*(2*A+T)/2 = N*(A+(A+T))/2 = (N/2)*(2*A+T).
+ * GP: A*(1-R^N)/(1-R) = A*(R^N-1)/(R-1).
+ * The entire substituted AST must match. In particular this cannot cancel
+ * extra operands, fold answers, or exchange first/parameter/index roles.
+ */
+function sourceAskMatches(source: FiniteProgressionSource, ask: ProgressionSourceAsk, root: ExpressionNodeIR): boolean {
+  if (astKey(root) === astKey(ask.root)) return true;
+  if (ask.kind !== "sum" || ask.index === 0 || source.cumulative) return false;
+  const is = (node: ExpressionNodeIR, operator: string): node is Extract<ExpressionNodeIR, {kind: "binary"}> => node.kind === "binary" && node.operator === operator;
+  const number = (node: ExpressionNodeIR, value: number) => node.kind === "number" && node.value === value;
+  const binary = (operator: "+" | "-" | "*" | "/", left: ExpressionNodeIR, right: ExpressionNodeIR): ExpressionNodeIR => ({kind: "binary", operator, left, right});
+  const expected = ask.root;
+  if (!is(expected, "/") || !is(expected.left, "*")) return false;
+  const product = expected.left;
+  const alternatives: ExpressionNodeIR[] = [];
+  if (source.kind === "arithmetic" && number(expected.right, 2) && number(product.left, ask.index) && is(product.right, "+")) {
+    const sum = product.right;
+    let first: ExpressionNodeIR, tail: ExpressionNodeIR;
+    // Accept either independently constructed source formula as the authority.
+    if (is(sum.left, "*") && number(sum.left.left, 2)) {
+      first = sum.left.right; tail = sum.right;
+    } else if (is(sum.right, "+") && astKey(sum.left) === astKey(sum.right.left)) {
+      first = sum.left; tail = sum.right.right;
+    } else return false;
+    const two: ExpressionNodeIR = {kind: "number", value: 2};
+    const sums = [binary("+", binary("*", two, first), tail), binary("+", first, binary("+", first, tail)), binary("+", binary("+", first, first), tail)];
+    for (const sum of sums) {
+      alternatives.push(binary("/", binary("*", product.left, sum), two), binary("*", binary("/", product.left, two), sum));
+    }
+  } else if (source.kind === "geometric" && is(product.right, "-") && is(expected.right, "-")) {
+    // Both signs must reverse together, preserving the original power subtree.
+    alternatives.push(binary("/", binary("*", product.left, binary("-", product.right.right, product.right.left)), binary("-", expected.right.right, expected.right.left)));
+  }
+  return alternatives.some(candidate => astKey(candidate) === astKey(root));
+}
 function dimensionless(unit: unknown): unit is string { return unit === "1" || unit === "dimensionless" || unit === "unitless" || unit === "scalar"; }
 function covers(outer: QuestionSourceEvidence, inner: QuestionSourceEvidence): boolean { return outer.start <= inner.start && outer.end >= inner.end; }
 function grounded(question: string, span: QuestionSourceEvidence): boolean { return question.slice(span.start, span.end) === span.quote && span.quote.length > 0; }
@@ -178,6 +214,19 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
     if (sequenceNames.some((name) => problem.entities.filter((entity) => entity.label === `${name}_n`).length !== 1)) fail("each source sequence requires one actual IR entity");
     for (const intent of problem.representationIntents) {
       if (intent.kind !== "conceptual" || !intent.entityIds.length || !refs(intent.evidenceFactIds).every((fact) => fact.kind === "given" || fact.kind === "requested")) fail("only an honest discrete conceptual table intent is supported; no interpolating graph");
+      // Entity identity has already been audited. Every fact must assert a
+      // complete parsed role represented by this intent's sequence table or
+      // source-role/result labels; mere inclusion in an intent is not a waiver.
+      const labels = intent.entityIds.map(id => problem.entities.find(entity => entity.id === id)!.label);
+      for (const fact of refs(intent.evidenceFactIds)) {
+        const roles = factRoles.get(fact.id)!;
+        if (!roles.every(role => {
+          const cumulative = role.role.startsWith("cumulative_") || role.role === "domain" || fact.kind === "requested" && source.cumulative;
+          const name = cumulative ? source.cumulative?.sequence : source.sequence;
+          return name && labels.includes(`${name}_n`);
+        })) fail("conceptual fact roles require their actual source sequence entity");
+        usedFacts.add(fact.id);
+      }
     }
     const expressionMap = new Map(problem.expressions.map((expression) => [expression.id, expression]));
     const constrained = new Set(problem.constraints.flatMap((constraint) => constraint.kind === "equation" || constraint.kind === "inequality" ? [constraint.leftExpressionId, constraint.rightExpressionId] : []));
@@ -201,7 +250,7 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
     for (const request of problem.solveRequests) {
       if (request.kind !== "evaluate" || !request.resultBinding) fail("every bounded source ask requires an actual evaluate request and binding");
       const expression = expressionMap.get(request.expressionId)!;
-      const candidates = source.asks.filter((ask) => astKey(ask.root) === astKey(expression.root) && factCovers(expression.evidenceFactIds, ask, "requested") && factCovers(request.resultBinding!.evidenceFactIds, ask, "requested"));
+      const candidates = source.asks.filter((ask) => sourceAskMatches(source, ask, expression.root) && factCovers(expression.evidenceFactIds, ask, "requested") && factCovers(request.resultBinding!.evidenceFactIds, ask, "requested"));
       if (candidates.length !== 1) fail("solve AST must prove its exact source ask, not coincide with its answer");
       const ask = candidates[0]!, binding = request.resultBinding;
       const quantity = [...plan.derived, ...plan.unknowns].find((item) => item.id === binding.turnPlanQuantityId);
@@ -224,7 +273,8 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
       if (roles.length !== 1 || !close(given.value, valueOf(roles[0]!.root)) || given.provenance !== "given" || given.symbol !== (target(source, roles[0]!) as {name?: string} | null)?.name) fail("plan given must retain its unique source role and value");
     }
     if ([...plan.givens, ...plan.derived].some(quantity => quantity.uncertainty !== undefined && quantity.uncertainty !== 0)) fail("exact finite progression cannot carry uncertain Plan scalars");
-    if (problem.facts.some(fact => !usedFacts.has(fact.id))) fail("every full-IR fact must participate in a proved source dependency");
+    const unconsumed = problem.facts.filter(fact => !usedFacts.has(fact.id));
+    if (unconsumed.length) fail(`every full-IR fact must participate in a proved source dependency or verified conceptual representation: ${unconsumed.map(fact => fact.id).join(",")}`);
     const document = makeDocument(source, problem, plan, bindings, captured.placement);
     return { status: "ok", source, problem, plan, bindings, document };
   } catch (error) { return { status: "declined", reason: error instanceof Error ? error.message : "invalid source admission" }; }
@@ -247,14 +297,15 @@ function makeDocument(source: FiniteProgressionSource, problem: ProblemIR, plan:
   const summaries: Array<{id: string; text: string; provenance: Record<string, unknown>}> = [];
   if (source.cumulative) summaries.push({id: "cumulative_sequence", text: `${source.cumulative.sequence}_n`, provenance: {problemEntityId: problem.entities.find(entity => entity.label === `${source.cumulative!.sequence}_n`)!.id}});
   source.roles.forEach((role, i) => {
+    const evidenceFactIds = problem.facts.filter(fact => assertedRoles(source, fact).includes(role)).map(fact => fact.id);
     try {
       const value = valueOf(role.root);
       const given = plan.givens.find(quantity => quantity.sourceText === role.evidence.quote);
       const expressionIds = problem.expressions.filter(expression => astKey(expression.root) === astKey(role.root) && expression.evidenceFactIds.some(id => covers(problem.facts.find(fact => fact.id === id)!.evidence, role.evidence))).map(expression => expression.id);
       const name = target(source, role)?.kind === "variable" ? (target(source, role) as {name: string}).name : role.role;
-      summaries.push({id: `source_role_${i}`, text: `${name}${role.role === "domain" ? ">=" : "="}${expressionLabel(role.root)}`, provenance: {sourceRole: role.role, sourceEvidence: role.evidence, expressionIds, value, ...(given ? {quantityId: given.id, unit: given.unit} : {}), nonmetric: true}});
+      summaries.push({id: `source_role_${i}`, text: `${name}${role.role === "domain" ? ">=" : "="}${expressionLabel(role.root)}`, provenance: {sourceRole: role.role, sourceEvidence: role.evidence, evidenceFactIds, expressionIds, value, ...(given ? {quantityId: given.id, unit: given.unit} : {}), nonmetric: true}});
     } catch {
-      if (role.role === "cumulative_relation") summaries.push({id: `source_role_${i}`, text: `${source.cumulative!.sequence}_(n+1)-${source.cumulative!.sequence}_n=${source.sequence}_n`, provenance: {sourceRole: role.role, sourceEvidence: role.evidence, nonmetric: true}});
+      if (role.role === "cumulative_relation") summaries.push({id: `source_role_${i}`, text: `${source.cumulative!.sequence}_(n+1)-${source.cumulative!.sequence}_n=${source.sequence}_n`, provenance: {sourceRole: role.role, sourceEvidence: role.evidence, evidenceFactIds, nonmetric: true}});
 
     }
   });
