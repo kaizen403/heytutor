@@ -14,6 +14,10 @@ interface Case {
   expected: number[]; kind: "arithmetic" | "geometric"; first: number; parameter: number | null; cumulativeFirst: number | null;
 }
 const fixtures = JSON.parse(readFileSync(new URL("./fixtures/w3-progression-source/authored-cases.json", import.meta.url), "utf8")) as { cases: Case[] };
+// At the foundation pin these Plans omitted resolved derived roles. The normal
+// engine requires complete V3 Plans; the authored caller supplies its frozen
+// expected values under the same unknown IDs, just as the actual planner does.
+for (const c of fixtures.cases) c.plan.derived = c.plan.unknowns.map((quantity, i) => ({...quantity, value: c.expected[i]!, provenance: "derived"}));
 const placement: ProgressionTablePlacement = { origin: [0, 0], displayScale: 1 };
 let checks = 0;
 function check(value: unknown, message: string): asserts value { checks++; if (!value) throw new Error(message); }
@@ -93,9 +97,10 @@ for (const c of fixtures.cases) {
     (d: SceneDocument) => { d.entities.push({ id: "fakeCurve", kind: "polyline", role: "continuous interpolation" }); },
     (d: SceneDocument) => { d.constructions[0]!.inputs.first = "99"; },
   ]) { const changed = clone(restored); mutate(changed); check(validateFiniteProgressionSourceDocument(changed, c.question, c.problem, c.plan, placement).length > 0, "atomic source proof rejects persisted payload mutation"); }
-  const compiled = compileSceneDocument(result.document);
+  const compiled = compileSceneDocument(result.document, {sourceAuthority: {question: c.question, problemIR: c.problem, turnPlan: c.plan}});
   if (!compiled.ok) compiled.report.issues.forEach((issue) => sharedGaps.add(issue.code));
-  else check(compiled.renderScene!.primitives.every((primitive) => primitive.kind === "point" || primitive.kind === "label"), "parent wired discrete path emits no continuum");
+  check(compiled.ok && compiled.renderScene, `normal progression compiler failed: ${compiled.report.issues.map(issue => issue.code)}`);
+  check(compiled.renderScene!.primitives.every((primitive) => primitive.kind === "point" || primitive.kind === "label"), "parent wired discrete path emits no continuum");
   console.log(`${c.id}: ${result.bindings.map(({ ask }) => `${ask.symbol}=${ask.value}`).join("; ")}`);
 }
 
@@ -110,8 +115,7 @@ rejectsIR(nativeCase, (ir) => { ir.expressions.find((expression) => expression.i
 rejectsIR(nativeCase, (ir) => { const domain = ir.constraints.find((constraint) => constraint.id === "actualDomainConstraint")!; if (domain.kind === "inequality") domain.relation = ">"; }, "strict domain change cannot replace source n>=1");
 rejectsIR(nativeCase, (ir) => { const at = ir.constraints.findIndex((constraint) => constraint.id === "actualDomainConstraint"); const domain = ir.constraints[at]!; if (domain.kind === "inequality") ir.constraints[at] = { id: domain.id, kind: "equation", leftExpressionId: domain.leftExpressionId, rightExpressionId: domain.rightExpressionId, evidenceFactIds: domain.evidenceFactIds }; }, "source n>=1 is not equality n=1");
 for (const [index, falseOption] of [[0, 1604], [3, 35610]] as const) rejectsIR(nativeCase, (_ir, plan) => {
-  const quantity = plan.unknowns.splice(index, 1)[0]!;
-  plan.derived.push({ ...quantity, value: falseOption, provenance: "derived" });
+  plan.derived[index]!.value = falseOption;
 }, "false native option cannot become scalar authority");
 for (const [mutate, message] of [
   [(ir: ProblemIR) => { ir.expressions[0]!.root = n(3); }, "same-answer constant is not source term AST"],
@@ -128,7 +132,7 @@ for (const [mutate, message] of [
   [(ir: ProblemIR) => { ir.solveRequests[0]!.resultBinding!.turnPlanQuantityId = "inventedId"; }, "invented plan binding"],
   [(ir: ProblemIR) => { ir.solveRequests[0]!.resultBinding!.unit = "m"; }, "binding dimensional mismatch"],
   [(ir: ProblemIR) => { ir.solveRequests[0]!.resultBinding!.symbol = "other"; }, "binding symbol mismatch"],
-  [(_ir: ProblemIR, plan: TurnPlanV3) => { plan.derived = [{ ...plan.unknowns[0]!, provenance: "derived", value: 999 }]; plan.unknowns.shift(); }, "stale numeric authority"],
+  [(_ir: ProblemIR, plan: TurnPlanV3) => { plan.derived[0]!.value = 999; }, "stale numeric authority"],
   [(_ir: ProblemIR, plan: TurnPlanV3) => { plan.givens[0]!.value = 99; }, "stale source coefficient"],
   [(_ir: ProblemIR, plan: TurnPlanV3) => { plan.unknowns.push({ id: "extra", symbol: "x", unit: "1" }); }, "omitted actual plan unknown"],
   [(_ir: ProblemIR, plan: TurnPlanV3) => { plan.givens[1]!.sourceText = "a_1 = 3"; }, "source coefficient role swap"],
@@ -151,6 +155,7 @@ const recoveryQuestion = observed.source.question;
 const recoveryIR = clone(base.problem), recoveryPlan = clone(base.plan);
 recoveryIR.question = recoveryPlan.question = recoveryQuestion;
 recoveryPlan.givens = []; recoveryPlan.unknowns = recoveryPlan.unknowns.slice(0, 3);
+recoveryPlan.derived = recoveryPlan.unknowns.map((quantity, i) => ({...quantity, value: [2, -4, 8][i]!, provenance: "derived"}));
 recoveryIR.facts = recoveryIR.facts.slice(0, 4);
 const modelEnd = recoveryQuestion.indexOf(" Find ");
 recoveryIR.facts[0]!.evidence = { source: "question", start: 0, end: modelEnd, quote: recoveryQuestion.slice(0, modelEnd) };
@@ -185,7 +190,7 @@ const tinyIR: ProblemIR = {
   expressions: [{ id: "sourceExpression0", valueType: "scalar", root: bin("+", n(3e-13), bin("*", bin("-", n(1), n(1)), n(0))), evidenceFactIds: ["askFact0"] }],
   constraints: [], representationIntents: [], solveRequests: [clone(base.problem.solveRequests[0]!)],
 };
-const tinyPlan: TurnPlanV3 = { ...clone(base.plan), question: tinyQuestion, givens: [], unknowns: [clone(base.plan.unknowns[0]!)] };
+const tinyPlan: TurnPlanV3 = { ...clone(base.plan), question: tinyQuestion, givens: [], unknowns: [clone(base.plan.unknowns[0]!)], derived: [{...base.plan.unknowns[0]!, value: 3e-13, provenance: "derived"}] };
 check(finiteProgressionSourceProgram(tinyQuestion, tinyIR, tinyPlan, placement).status === "ok", "small nonzero decimal source admits without an absolute tolerance floor");
 const tinyStalePlan = clone(tinyPlan);
 tinyStalePlan.derived = [{ ...tinyStalePlan.unknowns.pop()!, value: 0, provenance: "derived" }];
@@ -214,5 +219,5 @@ equal(fixtures.cases[3]!.expected, [1504, 10510, 3454, 35615], "native options A
 let getterCalls = 0;
 const hostile = Object.defineProperty(clone(base.problem), "entities", { get() { getterCalls++; return []; } });
 check(finiteProgressionSourceProgram(base.question, hostile, base.plan, placement).status === "declined" && getterCalls === 0, "own-data capture declines accessor without execution");
-console.log(`shared compiler measurement: ${[...sharedGaps].sort().join(", ") || "wired"}; parent registration/admission required`);
+console.log(`shared compiler measurement: ${[...sharedGaps].sort().join(", ") || "wired"}; actual external question/fullIR/Plan required`);
 console.log(`Wave3 progression source passed (${fixtures.cases.length} authored source cases, ${checks} checks); READY=0 accepted=0; parent/student/lifecycle pending`);

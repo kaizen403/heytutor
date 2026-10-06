@@ -1,3 +1,4 @@
+import { finiteProgressionDocumentIssues } from "../contracts/finiteProgressionContract";
 import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
 import { validateStaticContactTriangleSource } from "./staticContactTriangle";
 import { validateOpticalConjugateSource } from "./opticalConjugateProgram";
@@ -13,7 +14,9 @@ import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../phy
 import type { SceneDocument, SceneIssue } from "../types";
 
 /** Re-establish the actual caller's whole-IR authority at each scene boundary. */
-export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown): SceneIssue[] {
+export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown, rawPlan?: unknown): SceneIssue[] {
+  const progressionIssues = finiteProgressionDocumentIssues(document, {question, problemIR: rawProblem, turnPlan: rawPlan});
+  if (progressionIssues.length) return progressionIssues;
   const issues = [
     ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem}),
     ...validateOpticalConjugateSource(document, question, rawProblem),
@@ -30,5 +33,5 @@ export function validateSceneSourceAuthority(document: SceneDocument, question: 
   if (relativeMotionSource(question)?.status === "admitted" && !relativeMotionSourceEntityBindings(question, checked.problem)) {
     issues.push({code:"relative_source_identity",severity:"fatal",message:"Every caller entity must bind one distinct source motion actor",path:"sourceAuthority.problemIR.entities"});
   }
-  return [...issues, ...uniformCircularProblemSourceIssues(document, checked.problem), ...visualObligationIssues(checked.problem, document)];
+  return [...issues, ...uniformCircularProblemSourceIssues(document, checked.problem), ...visualObligationIssues(checked.problem, document, rawPlan)];
 }

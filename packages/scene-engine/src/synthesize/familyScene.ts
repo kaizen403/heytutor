@@ -1,3 +1,5 @@
+import { finiteProgressionSourceProgram } from "../ir/finiteProgressionSourceProgram";
+import { readFiniteProgressionSource } from "../math/finiteProgressionSource";
 import { finiteBinomialSourceDocument, readFiniteBinomialProgram } from "../ir/finiteBinomialProgram";
 /**
  * Compile a verified scene from the question, turn plan, and inferred visual
@@ -177,6 +179,15 @@ function synthesizeFromFamilies(
       || visualObligationRejection(deriveVisualObligations(input.problemIR), compiled.document, input.problemIR)) return null;
     return {...compiled, tier: "exact_verified", nonMetric: true, family: "finite_polynomial_expansion",
       reason: "Exact source-derived finite polynomial coefficients; table spacing is nonmetric."};
+  }
+  if (readFiniteProgressionSource(input.question).status === "ok") {
+    const admitted = finiteProgressionSourceProgram(input.question, input.problemIR, input.turnPlan);
+    if (admitted.status !== "ok") return null;
+    const options = {sourceAuthority: {question: input.question, problemIR: input.problemIR, turnPlan: input.turnPlan}};
+    const compiled = compileSceneDocument(admitted.document, options);
+    if (!compiled.ok || !compiled.renderScene || visualObligationRejection(deriveVisualObligations(admitted.problem), admitted.document, admitted.problem, input.turnPlan)) return null;
+    return {document: admitted.document, renderScene: compiled.renderScene, validationReport: compiled.report, tier: "exact_verified", nonMetric: true, family: "indexed_progression",
+      reason: "Complete source-derived finite progression; discrete table spacing is nonmetric."};
   }
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;

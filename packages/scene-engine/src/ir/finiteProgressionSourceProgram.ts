@@ -1,5 +1,5 @@
 /** Parent-callable admission/proof seam. No registration, planner hints, or trust flags. */
-import type { TurnPlanV3 } from "../contracts/contractsV3";
+import { validateTurnPlanV3, type TurnPlanV3 } from "../contracts/contractsV3";
 import { snapshotMathSourceData } from "../compile/mathSourceData";
 import { evaluateIndexedProgressionConstruction, indexedProgressionPrimitives } from "../compile/indexedProgressionGeometry";
 import { parseMathExpression } from "../math/expression";
@@ -7,7 +7,9 @@ import { readFiniteProgressionSource, type FiniteProgressionSource, type Progres
 import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemFact, type ProblemIR, type QuestionSourceEvidence } from "./problemIR";
 import { SCENE_DOCUMENT_VERSION, type RenderPrimitive, type SceneDocument, type SceneIssue } from "../types";
 
-export interface ProgressionTablePlacement { origin: [number, number]; displayScale: number }
+export const NORMAL_PROGRESSION_PLACEMENT: ProgressionTablePlacement = Object.freeze({ origin: Object.freeze([0, 0] as const), displayScale: 1 });
+
+export interface ProgressionTablePlacement { origin: readonly [number, number]; displayScale: number }
 export interface ProgressionSourceBinding {
   ask: ProgressionSourceAsk;
   requestId: string;
@@ -47,8 +49,21 @@ function stable(value: unknown): string {
   if (value && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable((value as Record<string, unknown>)[key])}`).join(",")}}`;
   return JSON.stringify(value) ?? "undefined";
 }
+/** Board notation only; the audited AST remains the authority. */
+function expressionLabel(root: ExpressionNodeIR): string {
+  switch (root.kind) {
+    case "number": return String(root.value);
+    case "constant": return root.name;
+    case "variable": return root.name;
+    case "unary": return `${root.operator}(${expressionLabel(root.operand)})`;
+    case "binary": return `(${expressionLabel(root.left)}${root.operator}${expressionLabel(root.right)})`;
+    case "call": return `${root.function}(${expressionLabel(root.argument)})`;
+  }
+}
 function target(source: FiniteProgressionSource, role: ProgressionSourceRole): ExpressionNodeIR | null {
   if (role.role === "first") return { kind: "variable", name: `${source.sequence}_1` };
+  if (role.role === "last") return {kind: "variable", name: `${source.sequence}_${Number(source.inputs.insertions) + 2}`};
+  if (role.role === "insertions") return {kind: "variable", name: "m"};
   if (role.role === "parameter") return { kind: "variable", name: source.kind === "arithmetic" ? "d" : "r" };
   if (role.role === "model" && source.operation === "indexed_progression") return { kind: "variable", name: `${source.sequence}_n` };
   if (role.role === "cumulative_first") return { kind: "variable", name: `${source.cumulative!.sequence}_1` };
@@ -62,19 +77,56 @@ function target(source: FiniteProgressionSource, role: ProgressionSourceRole): E
 }
 
 /** Audits the FULL actual IR, retains it verbatim, and refuses uncovered obligations. */
-export function finiteProgressionSourceProgram(question: string, rawProblem: unknown, rawPlan: TurnPlanV3, placement: ProgressionTablePlacement): ProgressionSourceProgramResult {
+export function finiteProgressionSourceProgram(question: string, rawProblem: unknown, rawPlan: unknown, placement: ProgressionTablePlacement = NORMAL_PROGRESSION_PLACEMENT): ProgressionSourceProgramResult {
   try {
     const captured = snapshotMathSourceData({ problem: rawProblem, plan: rawPlan, placement });
     const reading = readFiniteProgressionSource(question);
     if (reading.status !== "ok") return reading;
     const source = reading.source;
     const validation = validateProblemIR(captured.problem, question);
-    if (!validation.problem || validation.problem.question !== question) fail(`full ProblemIR invalid: ${validation.issues.map((issue) => issue.code).join(",")}`);
-    const problem = validation.problem, plan = captured.plan;
+    if (!validation.valid || !validation.problem || validation.problem.question !== question) fail(`full ProblemIR invalid: ${validation.issues.map((issue) => issue.code).join(",")}`);
+    const planValidation = validateTurnPlanV3(captured.plan, question);
+    if (!planValidation.valid || !planValidation.plan) fail(`whole actual TurnPlan invalid: ${planValidation.issues.map(issue => issue.code).join(",")}`);
+    const problem = validation.problem, plan = planValidation.plan;
+    const fields = (value: object, allowed: string[]) => { if (Object.keys(value).some(key => !allowed.includes(key))) fail("uncovered actual IR/Plan field"); };
+    // Preserve the caller's complete profile; reject unmodeled fields instead
+    // of projecting it to the few arrays this bounded source understands.
+    fields(problem, ["schemaVersion", "id", "question", "facts", "entities", "expressions", "constraints", "representationIntents", "solveRequests"]);
+    problem.facts.forEach(fact => { fields(fact, ["id", "kind", "statement", "evidence"]); fields(fact.evidence, ["source", "start", "end", "quote"]); });
+    problem.entities.forEach(entity => fields(entity, ["id", "kind", "label", "evidenceFactIds"]));
+    const auditNodeFields = (node: ExpressionNodeIR): void => {
+      switch (node.kind) {
+        case "number": fields(node, ["kind", "value"]); break;
+        case "constant": case "variable": fields(node, ["kind", "name"]); break;
+        case "unary": fields(node, ["kind", "operator", "operand"]); auditNodeFields(node.operand); break;
+        case "binary": fields(node, ["kind", "operator", "left", "right"]); auditNodeFields(node.left); auditNodeFields(node.right); break;
+        case "call": fields(node, ["kind", "function", "argument"]); auditNodeFields(node.argument); break;
+      }
+    };
+    problem.expressions.forEach(expression => { fields(expression, ["id", "valueType", "root", "evidenceFactIds"]); auditNodeFields(expression.root); });
+    problem.constraints.forEach(constraint => fields(constraint, constraint.kind === "equation" || constraint.kind === "inequality"
+      ? ["id", "kind", "leftExpressionId", "rightExpressionId", "evidenceFactIds", ...(constraint.kind === "inequality" ? ["relation"] : [])]
+      : ["id", "kind", "entityIds", "evidenceFactIds"]));
+    problem.representationIntents.forEach(intent => fields(intent, ["id", "kind", "entityIds", "evidenceFactIds"]));
+    problem.solveRequests.forEach(request => {
+      if (request.kind !== "evaluate" || !request.resultBinding) fail("every request must bind a bounded source evaluation");
+      fields(request, ["id", "kind", "expressionId", "resultBinding"]);
+      fields(request.resultBinding, ["turnPlanQuantityId", "symbol", "unit", "evidenceFactIds"]);
+    });
+    fields(plan, ["schemaVersion", "question", "givens", "unknowns", "derived", "qualitativeClaims", "lawIds", "assumptions", "visualRequirement", "teachingSequenceHints"]);
+    if (plan.teachingSequenceHints !== undefined && (!Array.isArray(plan.teachingSequenceHints) || plan.teachingSequenceHints.some(hint => typeof hint !== "string" || !hint.trim()))) fail("invalid actual Plan teaching hints");
+    for (const list of [plan.givens, plan.derived, plan.unknowns]) {
+      if (new Set(list.map(quantity => quantity.id)).size !== list.length) fail("duplicate IDs within Plan role");
+      list.forEach(quantity => fields(quantity, list === plan.unknowns ? ["id", "symbol", "unit"] : ["id", "symbol", "unit", "value", "provenance", "sign", "sourceText", "dependsOn", "uncertainty"]));
+    }
+    if (plan.givens.some(given => [...plan.unknowns, ...plan.derived].some(quantity => quantity.id === given.id))) fail("a given cannot also be a requested result");
+    for (const unknown of plan.unknowns) {
+      const derived = plan.derived.find(quantity => quantity.id === unknown.id);
+      if (derived && (derived.symbol !== unknown.symbol || derived.unit !== unknown.unit)) fail("same-ID unknown/derived roles require identical symbol/unit");
+    }
     if (plan.schemaVersion !== "turn-plan/v3" || plan.question !== question || plan.visualRequirement === "none") fail("actual source TurnPlan and visual requirement are required");
     if (plan.assumptions.length || plan.qualitativeClaims.length) fail("uncovered plan assumptions/qualitative claims");
     const allQuantities = [...plan.givens, ...plan.derived, ...plan.unknowns];
-    if (new Set(allQuantities.map((quantity) => quantity.id)).size !== allQuantities.length) fail("plan quantity IDs must be unique across roles");
     if (allQuantities.some((quantity) => !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(quantity.id) || !dimensionless(quantity.unit) || !quantity.symbol.trim())) fail("every actual plan quantity requires a unique ID, symbol and explicit dimensionless unit");
     const facts = new Map(problem.facts.map((fact) => [fact.id, fact]));
     const refs = (ids: string[]): ProblemFact[] => ids.map((id) => facts.get(id) ?? fail("missing source fact"));
@@ -121,7 +173,7 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
       const candidates = source.asks.filter((ask) => astKey(ask.root) === astKey(expression.root) && factCovers(expression.evidenceFactIds, ask, "requested") && factCovers(request.resultBinding!.evidenceFactIds, ask, "requested"));
       if (candidates.length !== 1) fail("solve AST must prove its exact source ask, not coincide with its answer");
       const ask = candidates[0]!, binding = request.resultBinding;
-      const quantity = [...plan.unknowns, ...plan.derived].find((item) => item.id === binding.turnPlanQuantityId);
+      const quantity = [...plan.derived, ...plan.unknowns].find((item) => item.id === binding.turnPlanQuantityId);
       if (!quantity || binding.symbol !== quantity.symbol || binding.unit !== quantity.unit) fail("result binding must address the actual requested plan quantity ID/symbol/unit");
       if ("value" in quantity && (typeof quantity.value !== "number" || !close(quantity.value, ask.value))) fail("stale requested plan scalar");
       if (!close(valueOf(expression.root), ask.value)) fail("independent audited AST and exact aggregation disagree");
@@ -138,8 +190,9 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
     }
     for (const given of plan.givens) {
       const roles = source.roles.filter((role) => role.root.kind !== "variable" && role.role !== "model" && given.sourceText === role.evidence.quote);
-      if (roles.length !== 1 || !close(given.value, valueOf(roles[0]!.root)) || given.provenance !== "given") fail("plan given must retain its unique source role and value");
+      if (roles.length !== 1 || !close(given.value, valueOf(roles[0]!.root)) || given.provenance !== "given" || given.symbol !== (target(source, roles[0]!) as {name?: string} | null)?.name) fail("plan given must retain its unique source role and value");
     }
+    if ([...plan.givens, ...plan.derived].some(quantity => quantity.uncertainty !== undefined && quantity.uncertainty !== 0)) fail("exact finite progression cannot carry uncertain Plan scalars");
     const document = makeDocument(source, problem, plan, bindings, captured.placement);
     return { status: "ok", source, problem, plan, bindings, document };
   } catch (error) { return { status: "declined", reason: error instanceof Error ? error.message : "invalid source admission" }; }
@@ -152,27 +205,55 @@ function makeDocument(source: FiniteProgressionSource, problem: ProblemIR, plan:
     schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "finite source-grounded index/value table; nonmetric" },
     source: { question: source.question, progressionSourceVersion: "finite-progression-source/v1", problemIR: problem, turnPlan: plan },
     quantities: [...plan.givens.map((given) => ({ ...given })), ...bindings.map((binding) => ({ id: binding.quantityId, symbol: binding.symbol, unit: binding.unit, value: binding.ask.value, exactValue: binding.ask.exact }))],
-    entities: [{ id: "progression", kind: "indexed_progression", role: `source ${source.sequence}_n discrete index/value table`, semantic: { nonmetric: true, sequence: source.sequence } }],
+    entities: [{ id: "progression", kind: "indexed_progression", role: `source ${source.sequence}_n discrete index/value table`, label: `${source.sequence}_n`, semantic: { nonmetric: true, sequence: source.sequence } }],
     constructions: [{ id: "make_progression", operator: source.operation, inputs: { ...source.inputs, ...(source.operation !== "progression_insert" ? { indices: geometry.indexedProgression.solutions[0]!.terms.map((term) => term.index) } : {}), origin: placement.origin, displayScale: placement.displayScale }, outputs: ["progression"] }],
     relations: [], assertions: [], annotations: [], requiredEntityIds: ["progression"],
     revealGroups: [{ id: "terms", entityIds: ["progression"], dependsOn: [], narrationCue: `show ${source.sequence}_n at its finite indices; table spacing is nonmetric` }],
     teachingTimeline: [{ id: "reveal_terms", action: "reveal", targetId: "terms", dependsOn: [], narrationIntent: "show the source progression table" }],
   };
+  const tableBottom = Math.max(...indexedProgressionPrimitives(geometry, "progression", "terms").map(primitive => (placement.origin[1] - primitive.points[0]!.y) / placement.displayScale));
+  const summaries: Array<{id: string; text: string; provenance: Record<string, unknown>}> = [];
+  if (source.cumulative) summaries.push({id: "cumulative_sequence", text: `${source.cumulative.sequence}_n`, provenance: {problemEntityId: problem.entities.find(entity => entity.label === `${source.cumulative!.sequence}_n`)!.id}});
+  source.roles.forEach((role, i) => {
+    try {
+      const value = valueOf(role.root);
+      const given = plan.givens.find(quantity => quantity.sourceText === role.evidence.quote);
+      const expressionIds = problem.expressions.filter(expression => astKey(expression.root) === astKey(role.root) && expression.evidenceFactIds.some(id => covers(problem.facts.find(fact => fact.id === id)!.evidence, role.evidence))).map(expression => expression.id);
+      const name = target(source, role)?.kind === "variable" ? (target(source, role) as {name: string}).name : role.role;
+      summaries.push({id: `source_role_${i}`, text: `${name}${role.role === "domain" ? ">=" : "="}${expressionLabel(role.root)}`, provenance: {sourceRole: role.role, sourceEvidence: role.evidence, expressionIds, value, ...(given ? {quantityId: given.id, unit: given.unit} : {}), nonmetric: true}});
+    } catch {
+      if (role.role === "cumulative_relation") summaries.push({id: `source_role_${i}`, text: `${source.cumulative!.sequence}_(n+1)-${source.cumulative!.sequence}_n=${source.sequence}_n`, provenance: {sourceRole: role.role, sourceEvidence: role.evidence, nonmetric: true}});
+
+    }
+  });
+  summaries.forEach((summary, i) => {
+    const anchor = `${summary.id}_anchor`;
+    document.entities.push({id: summary.id, kind: "label", role: "source sequence/given role", label: summary.text, provenance: {...summary.provenance, pinLabel: true}});
+    document.constructions.push({id: `make_${anchor}`, operator: "point", inputs: {x: placement.origin[0], y: placement.origin[1] - (tableBottom + 5 + i * 3) * placement.displayScale}, outputs: [anchor]}, {id: `make_${summary.id}`, operator: "label", inputs: {target: anchor, text: summary.text}, outputs: [summary.id]});
+    document.requiredEntityIds.push(summary.id);
+    document.revealGroups[0]!.entityIds.push(summary.id);
+  });
   bindings.forEach((binding, i) => {
     const id = `result_${i}`, anchor = `result_anchor_${i}`;
-    const text = `${binding.symbol}=${exactText(binding.ask)}`;
+    const sourceSymbol = binding.ask.kind === "sum" ? `S_${binding.ask.index}(${source.cumulative?.sequence ?? source.sequence})` : binding.ask.symbol;
+    const text = `${sourceSymbol}=${exactText(binding.ask)}`;
     if (text.length > 80) fail("requested bound label exceeds display capacity");
-    document.entities.push({ id: anchor, kind: "point", role: "helper result text anchor" }, { id, kind: "label", role: `requested ${binding.ask.symbol}`, label: text, provenance: { quantityId: binding.quantityId, unit: binding.unit, requestId: binding.requestId, sourceEvidence: binding.ask.evidence, nonmetric: true } });
-    document.constructions.push({ id: `make_${anchor}`, operator: "point", inputs: { x: placement.origin[0], y: placement.origin[1] - (32 + i * 3) * placement.displayScale }, outputs: [anchor] }, { id: `make_${id}`, operator: "label", inputs: { target: anchor, text }, outputs: [id] });
+    document.entities.push({ id, kind: "label", role: `requested ${binding.ask.symbol}`, label: text, provenance: { quantityId: binding.quantityId, symbol: binding.symbol, sourceSymbol: binding.ask.symbol, unit: binding.unit, requestId: binding.requestId, sourceEvidence: binding.ask.evidence, nonmetric: true, pinLabel: true } });
+    document.constructions.push({ id: `make_${anchor}`, operator: "point", inputs: { x: placement.origin[0], y: placement.origin[1] - (tableBottom + 7 + (summaries.length + i) * 3) * placement.displayScale }, outputs: [anchor] }, { id: `make_${id}`, operator: "label", inputs: { target: anchor, text }, outputs: [id] });
     document.requiredEntityIds.push(id);
   });
   document.revealGroups.push({ id: "results", entityIds: bindings.map((_, i) => `result_${i}`), dependsOn: ["terms"], narrationCue: "show every requested term and finite sum with its source bound quantity" });
   document.teachingTimeline.push({ id: "reveal_results", action: "reveal", targetId: "results", dependsOn: ["reveal_terms"], narrationIntent: "reveal all source requested results" });
+  // The normal validator materializes undeclared point outputs as solver-only
+  // helper entities. Emit that same canonical order so repeated validation and
+  // saved/read boundaries compare the complete document without a waiver.
+  document.constructions.filter(construction => construction.operator === "point").forEach(construction =>
+    document.entities.push({id: construction.outputs[0]!, kind: "point", role: "construction helper"}));
   return document;
 }
 
 /** Use identically at compiler/live/save/read/restore; caller supplies trusted source/IR/plan. */
-export function validateFiniteProgressionSourceDocument(document: SceneDocument, question: string, problem: unknown, plan: TurnPlanV3, placement: ProgressionTablePlacement): SceneIssue[] {
+export function validateFiniteProgressionSourceDocument(document: SceneDocument, question: string, problem: unknown, plan: unknown, placement: ProgressionTablePlacement = NORMAL_PROGRESSION_PLACEMENT): SceneIssue[] {
   try {
     const captured = snapshotMathSourceData(document);
     const admission = finiteProgressionSourceProgram(question, problem, plan, placement);
@@ -183,7 +264,7 @@ export function validateFiniteProgressionSourceDocument(document: SceneDocument,
 }
 
 /** Delegates table ink, retaining actual source sequence names and requested quantity IDs. */
-export function finiteProgressionSourceTablePrimitives(document: SceneDocument, question: string, problem: unknown, plan: TurnPlanV3, placement: ProgressionTablePlacement): RenderPrimitive[] {
+export function finiteProgressionSourceTablePrimitives(document: SceneDocument, question: string, problem: unknown, plan: unknown, placement: ProgressionTablePlacement = NORMAL_PROGRESSION_PLACEMENT): RenderPrimitive[] {
   const issues = validateFiniteProgressionSourceDocument(document, question, problem, plan, placement);
   if (issues.length) fail(issues[0]!.message);
   const admission = finiteProgressionSourceProgram(question, problem, plan, placement);
@@ -191,7 +272,7 @@ export function finiteProgressionSourceTablePrimitives(document: SceneDocument, 
   const construction = admission.document.constructions[0]!;
   const geometry = evaluateIndexedProgressionConstruction(construction.operator, construction.inputs, { scalar() { fail("source table cannot depend on planner scalars"); } })[0]!;
   return indexedProgressionPrimitives(geometry, "progression", "terms").map((primitive) => {
-    const binding = admission.source.cumulative ? undefined : admission.bindings.find(({ ask }) => ask.kind === "term" && primitive.provenance?.index === ask.index && primitive.id.startsWith(`progression_${ask.branch}_`));
-    return { ...primitive, ...(primitive.text === "t_n" ? { text: `${admission.source.sequence}_n` } : {}), provenance: { ...primitive.provenance, sourceSequence: admission.source.sequence, ...(binding ? { quantityId: binding.quantityId, unit: binding.unit, requestId: binding.requestId } : {}) } };
+    const binding = admission.source.cumulative ? undefined : admission.bindings.find(({ ask }) => (primitive.id.includes("_value_") || primitive.id.includes("_point_")) && ask.kind === "term" && primitive.provenance?.index === ask.index && primitive.id.startsWith(`progression_${ask.branch}_`));
+    return { ...primitive, ...(primitive.text === "t_n" ? { text: `${admission.source.sequence}_n` } : primitive.id.endsWith("_parameters") ? {text: primitive.text!.replace(/^a=/, `${admission.source.sequence}_1=`)} : {}), provenance: { ...primitive.provenance, sourceSequence: admission.source.sequence, ...(binding ? { quantityId: binding.quantityId, unit: binding.unit, requestId: binding.requestId } : {}) } };
   });
 }

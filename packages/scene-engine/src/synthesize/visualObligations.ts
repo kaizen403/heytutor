@@ -1,3 +1,4 @@
+import { finiteProgressionDocumentIssues, isSourceBoundFiniteProgressionDocument } from "../contracts/finiteProgressionContract";
 import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
 import { admitFiniteBinomialProblem, validateFiniteBinomialSourceDocument } from "../ir/finiteBinomialProgram";
 /**
@@ -253,10 +254,13 @@ export function checkVisualObligations(
   set: VisualObligationSet,
   document: SceneDocument,
   problem?: ProblemIR,
+  turnPlan?: unknown,
 ): VisualObligationCheckResult {
-  const sourceIssues = finiteBinomialDocumentIssues(document, problem ? {question: problem.question, problemIR: problem} : undefined);
+  const authority = problem ? {question: problem.question, problemIR: problem, turnPlan} : undefined;
+  const progressionIssues = finiteProgressionDocumentIssues(document, authority);
+  const sourceIssues = progressionIssues.length ? progressionIssues : finiteBinomialDocumentIssues(document, authority);
   if (sourceIssues.length) return {satisfied: false, satisfiedIds: [],
-    missing: sourceIssues.map(issue => ({obligationId: "finite_polynomial_source", kind: "named_body", code: issue.code,
+    missing: sourceIssues.map(issue => ({obligationId: progressionIssues.length ? "finite_progression_source" : "finite_polynomial_source", kind: "named_body", code: issue.code,
       message: issue.message, problemEntityIds: problem?.entities.map(entity => entity.id) ?? []})),
     unsupportedIds: set.obligations.filter(obligation => !obligation.supported).map(obligation => obligation.id)};
   const satisfiedIds: string[] = [];
@@ -313,9 +317,10 @@ export function checkVisualObligations(
 export function visualObligationIssues(
   problem: ProblemIR,
   document: SceneDocument,
+  turnPlan?: unknown,
 ): SceneIssue[] {
   const set = deriveVisualObligations(problem);
-  const result = checkVisualObligations(set, document, problem);
+  const result = checkVisualObligations(set, document, problem, turnPlan);
   return result.missing.map((miss) => ({
     code: miss.code,
     message: miss.message,
@@ -330,8 +335,9 @@ export function visualObligationRejection(
   set: VisualObligationSet,
   document: SceneDocument,
   problem?: ProblemIR,
+  turnPlan?: unknown,
 ): string | null {
-  const result = checkVisualObligations(set, document, problem);
+  const result = checkVisualObligations(set, document, problem, turnPlan);
   return result.missing.length > 0 ? result.missing[0]!.message : null;
 }
 
@@ -402,7 +408,11 @@ function checkObligation(
           };
     }
     case "given_dimension": {
-      return ((problem ? matrixLiteralSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
+      return ((isSourceBoundFiniteProgressionDocument(document) ? document.entities.some(entity => entity.kind === "label"
+        && Array.isArray(entity.provenance?.expressionIds) && entity.provenance.expressionIds.includes(obligation.problemExpressionId)
+        && entity.provenance.value === obligation.value && document.requiredEntityIds.includes(entity.id)
+        && document.revealGroups.some(group => group.entityIds.includes(entity.id))) : null)
+        ?? (problem ? matrixLiteralSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
         ?? (problem ? uniformCircularSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
         ?? (problem ? pointLineRequestedDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value) : null)
         ?? (problem ? sectionFormulaRequestedDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value) : null)

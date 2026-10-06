@@ -1,4 +1,7 @@
-import { evaluateFiniteBinomialConstruction, finiteBinomialGeometryValue, finiteBinomialPrimitives, type FiniteBinomialAuthority } from "./binomialExpansionGeometry";
+import { evaluateIndexedProgressionConstruction, indexedProgressionPrimitives } from "./indexedProgressionGeometry";
+import { finiteProgressionSourceTablePrimitives } from "../ir/finiteProgressionSourceProgram";
+import { isSourceBoundFiniteProgressionDocument } from "../contracts/finiteProgressionContract";
+import { evaluateFiniteBinomialConstruction, finiteBinomialGeometryValue, finiteBinomialPrimitives } from "./binomialExpansionGeometry";
 import {
   SCENE_ENGINE_VERSION,
   type CompileOptions,
@@ -131,6 +134,7 @@ type SampledCurve = {
   derivative?: (parameter: number) => Point;
 };
 type DerivedGeometryMetadata = {
+  indexedProgression?: { nonmetric: true; primitives: RenderPrimitive[] };
   finiteBinomial?: { nonmetric: true; primitives: RenderPrimitive[]; selectedValue: number | null };
   combinatoricsGraph?: CombinatoricsGraphDefinition;
   combinatoricsNode?: CombinatoricsNodeDefinition;
@@ -212,7 +216,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
   const trustedQuestion = options.sourceAuthority?.question ?? document.source.question;
   const callerIssues = options.sourceAuthority
-    ? validateSceneSourceAuthority(document, options.sourceAuthority.question, options.sourceAuthority.problemIR) : [];
+    ? validateSceneSourceAuthority(document, options.sourceAuthority.question, options.sourceAuthority.problemIR, options.sourceAuthority.turnPlan) : [];
   const matrixSourceIssues = [
     ...callerIssues,
     ...(options.sourceAuthority ? [] : typeof trustedQuestion === "string" ? validateStaticContactTriangleSource(document, trustedQuestion) : []),
@@ -505,6 +509,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!entity.label || !renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id)) continue;
     const target = geometry.get(entity.id);
     if (!target) continue;
+    if ("indexedProgression" in target && primitives.some(primitive => primitive.entityId === entity.id && primitive.kind === "label" && primitive.text === entity.label)) continue;
     const semanticDirectionMarker = entity.kind === "label" && isPageNormalMarker(entity.label);
     if (entity.kind === "label" && !semanticDirectionMarker && document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
@@ -741,6 +746,28 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
 
+  const progressionLabels = primitives.filter(primitive => primitive.kind === "label" && primitive.provenance?.indexedDiscrete === true);
+  if (progressionLabels.length) {
+    const owners: LabelOwner[] = progressionLabels.map(primitive => ({labelId: primitive.id, entityId: primitive.id,
+      anchor: primitive.points[0]!, text: primitive.text!, viewBounds: transformPlan.viewportFor(primitive.entityId),
+      pinToAnchor: true, allowLeader: false, useOwnerBounds: false}));
+    const obstacles = [...obstaclesFromPrimitives(primitives.filter(primitive => !progressionLabels.includes(primitive))), workColumnObstacle()];
+    const layout = (fontPx: number) => placeLabels(owners, obstacles, {fontHeightPx: fontPx, maxLabelChars: 100,
+      measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk});
+    let fontPx = 24, labels = layout(fontPx);
+    while (!labels.ok && fontPx > 12) labels = layout(--fontPx);
+    for (const issue of labels.issues) {
+      const primitive = progressionLabels.find(primitive => primitive.id === issue.entityId);
+      issues.push({code: issue.code, message: issue.message, severity: "fatal", entityIds: primitive ? [primitive.entityId] : []});
+    }
+    if (labels.ok) for (const placement of labels.placements) {
+      const primitive = progressionLabels.find(primitive => primitive.id === placement.labelId)!;
+      primitive.labelPlacement = "absolute";
+      primitive.provenance = {...primitive.provenance, fontPx, labelBounds: placement.bounds,
+        labelCollisionBounds: placement.collisionBounds ?? placement.bounds};
+    }
+  }
+
   const uniqueLabelOwners = [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
@@ -816,6 +843,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       text: placement.text,
       labelPlacement: "absolute",
       provenance: {
+        ...(isSourceBoundFiniteProgressionDocument(document) ? document.entities.find(entity => entity.id === placement.entityId)?.provenance : {}),
         ...annotationLabels.get(placement.labelId)?.provenance,
         labelBounds: placement.bounds,
         ...(placement.collisionBounds ? { labelCollisionBounds: placement.collisionBounds } : {}),
@@ -1315,7 +1343,7 @@ function evaluateConstruction(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
-  sourceContext: { construction: SceneConstruction; document: SceneDocument; authority?: FiniteBinomialAuthority },
+  sourceContext: { construction: SceneConstruction; document: SceneDocument; authority?: CompileOptions["sourceAuthority"] },
 ): Geometry[] {
   const point = (names: string[]): Point => resolvePoint(first(inputs, names), geometry);
   const number = (names: string[]): number => resolveNumber(first(inputs, names), quantities);
@@ -1325,6 +1353,26 @@ function evaluateConstruction(
     geometry: (value: unknown) => resolveGeometry(value, geometry, true),
   };
   switch (operator) {
+    case "indexed_progression":
+    case "progression_recover":
+    case "progression_insert": {
+      const { construction, document, authority } = sourceContext;
+      const entityId = construction.outputs[0]!;
+      const groupId = document.revealGroups.find(group => group.entityIds.includes(entityId))!.id;
+      const evaluated = evaluateIndexedProgressionConstruction(operator, inputs, {scalar(id) { return quantities.get(id); }})[0]!;
+      const primitives = isSourceBoundFiniteProgressionDocument(document)
+        ? finiteProgressionSourceTablePrimitives(document, authority!.question, authority!.problemIR, authority!.turnPlan)
+        : indexedProgressionPrimitives(evaluated, entityId, groupId);
+      // Glyph extents in the operator's logical units participate in ordinary
+      // viewport fitting. Table spacing never proves numeric geometry.
+      const paths = primitives.map(primitive => {
+        const center = primitive.points[0]!;
+        const scale = evaluated.indexedProgression.displayScale;
+        const halfWidth = scale * (primitive.kind === "label" ? (measureTextWidth(primitive.text!, 1.6) + .8) / 2 : .2);
+        return [{x: center.x - halfWidth, y: center.y - .8 * scale}, {x: center.x + halfWidth, y: center.y + .8 * scale}];
+      });
+      return [{kind: "multi_path", paths, indexedProgression: {nonmetric: true, primitives}}];
+    }
     case "finite_polynomial_expansion": {
       const {authority, construction, document} = sourceContext;
       if (!authority) throw new Error("caller-owned finite polynomial source authority is required");
@@ -2278,6 +2326,9 @@ function pushDegenerateProjectedGeometryIssues(
 }
 
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+  if ("indexedProgression" in value && value.indexedProgression) {
+    return value.indexedProgression.primitives.map(primitive => ({...primitive, points: primitive.points.map(transform)}));
+  }
   if ("finiteBinomial" in value && value.finiteBinomial) {
     return value.finiteBinomial.primitives.map(primitive => ({...primitive, points: primitive.points.map(transform)}));
   }
