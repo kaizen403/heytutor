@@ -40,6 +40,29 @@ const isCirclePolynomial = (p: CirclePolynomial): boolean => {
   return a.n !== 0n && coefficient(p, 1, 1).n === 0n && sameExact(a, coefficient(p, 0, 2));
 };
 
+/** Account for every numeric query clause within the existing locus grammar.
+ * A recognized result word is not permission to discard a second request. */
+function numericQueryRoles(text: string): CircleValueRole[] | null {
+  const asks: CircleValueRole[] = [];
+  const queries = [...text.matchAll(/\b(?:find|determine|calculate)\b([\s\S]*?)(?=\b(?:find|determine|calculate|draw|sketch|plot|graph|show|mark|locate|does)\b|$)/gi)];
+  for (const query of queries) {
+    let body = query[1]!.trim().replace(/\s+/g, " ").replace(/^[,:]+\s*/, "");
+    // A conjunction may introduce the following independent geometry command.
+    const following = text.slice(query.index! + query[0].length);
+    if (/^\b(?:draw|sketch|plot|graph|show|mark|locate)\b/i.test(following)) body = body.replace(/\band\s*$/i, "");
+    const clauses = body.split(/\band\b|[.,;?!]/i).map(clause => clause.trim()).filter(Boolean);
+    if (!clauses.length) return null;
+    for (const raw of clauses) {
+      const clause = raw.replace(/^(?:the|its)\s+/i, "").replace(/\s+of(?:\s+(?:the\s+)?circle)?\s*$/i, "");
+      const roles: CircleValueRole[] | null = /^(?:(?:coordinates|coordinate) of (?:the )?)?cent(?:er|re)$/i.test(clause) ? ["center_x", "center_y"]
+        : /^radius squared$/i.test(clause) ? ["radius_squared"] : /^radius$/i.test(clause) ? ["radius"] : null;
+      if (!roles || roles.some(role => asks.includes(role))) return null;
+      asks.push(...roles);
+    }
+  }
+  return asks;
+}
+
 /** This is a grammar for one numeric Cartesian locus, never a topic/template router. */
 export function readCircleSourceProgram(question: string): CircleProgramReading {
   const xSquare = /(?:x\s*(?:\^2|²|\?)|\(x[^()]*\)\s*(?:\^2|²))/.test(question);
@@ -117,7 +140,7 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
       const polynomial = addPolynomial(leftPolynomial, rightPolynomial, -1);
       recognizedCircle ||= isCirclePolynomial(polynomial);
       const span = evidence(question, start + question.slice(start, i).indexOf(left), i + 1 + question.slice(i + 1, end).indexOf(right) + right.length);
-      equations.push({ polynomial, left: leftPolynomial, right: rightPolynomial, evidence: span }); consume(start, end);
+      equations.push({ polynomial, left: leftPolynomial, right: rightPolynomial, evidence: span }); consume(span.start, span.end);
     }
     if (!equations.length && (!centerDeclaration || !radiusDeclaration)) return decline("no complete numeric circle definition");
     let polynomial = equations[0]?.polynomial;
@@ -152,16 +175,18 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
     const named = /\bcircle\s+([A-Z](?:_?\d)?'?)(?=\s|:)/.exec(question);
     if (named) { name = named[1]!; consume(named.index + named[0].lastIndexOf(name), named.index + named[0].length); }
     if (centerName === name || points.some(point => point.name && (point.name === centerName || point.name === name))) return decline("conflicting body identities");
+    // An equivalence connector is consumed only when followed immediately by
+    // an already proved equivalent source definition, never as a query escape.
+    for (const connector of question.matchAll(/\b(?:equivalently|equivalent)\b/gi)) {
+      const end = connector.index! + connector[0].length;
+      if (!equations.some(row => row.evidence.start >= end && !question.slice(end, row.evidence.start).trim())) return decline("unbound source equivalence connector");
+      consume(connector.index!, end);
+    }
     const residual = Array.from(question, (char, i) => consumed[i] ? " " : char).join("");
     const vocabulary = new Set("find determine calculate draw sketch plot graph show mark locate the a an circle equation equations of and with having centre center radius squared coordinates coordinate point points at on inside outside or does lie lies is its it to from origin represented by represents equivalent equivalently locus singleton zero real in cartesian form standard general given whether position relative respect".split(" "));
     for (const word of residual.match(/[A-Za-z]+|[^A-Za-z\s.,;:?!]/g) ?? []) if (!vocabulary.has(word.toLowerCase())) return decline(`unsupported source token: ${word}`);
-    const asks: CircleValueRole[] = [];
-    if (/\b(?:find|determine|calculate)\b/i.test(residual)) {
-      if (/\bcent(?:er|re)\b/i.test(residual)) asks.push("center_x", "center_y");
-      if (/\bradius\s+squared\b/i.test(residual)) asks.push("radius_squared");
-      else if (/\bradius\b/i.test(residual)) asks.push("radius");
-      if (!asks.length) return decline("unsupported numeric request");
-    }
+    const asks = numericQueryRoles(residual);
+    if (!asks) return decline("unsupported or repeated whole numeric request");
     if (/\b(?:on|inside|outside|whether|does)\b/i.test(residual) && points.length !== 1) return decline("ambiguous membership request");
     const classified = points.map(point => {
       const dx = plus(point.exactX, negate(x)), dy = plus(point.exactY, negate(y));
@@ -264,8 +289,10 @@ export function bindCircleSourceProblem(question: string, raw: unknown): CircleP
     const binding: CircleProblemBinding = { problem, source, document: makeCircleDocument(source), entityBindings: [], expressionBindings: [], factBindings: [], requestBindings: [] };
     const requestedRole = (role: CircleValueRole, ids: string[]): boolean => ids.some(id => {
       const fact = facts.get(id)!;
-      return fact.kind === "requested" && /\b(?:find|determine|calculate)\b/i.test(fact.evidence.quote) &&
-        (role === "center_x" || role === "center_y" ? /\bcent(?:er|re)\b/i.test(fact.evidence.quote) : role === "radius_squared" ? /\bradius\s+squared\b/i.test(fact.evidence.quote) : /\bradius\b/i.test(fact.evidence.quote));
+      const definitions = [...source.equations.map(e => e.evidence), ...source.declarations, ...source.points.map(p => p.evidence)];
+      const query = Array.from(fact.evidence.quote, (char, i) => definitions.some(span =>
+        fact.evidence.start + i >= span.start && fact.evidence.start + i < span.end) ? " " : char).join("");
+      return fact.kind === "requested" && (numericQueryRoles(query)?.includes(role) ?? false);
     });
     for (const fact of problem.facts) {
       const coefficientRole = circleCoefficientRole(fact.statement);
@@ -278,6 +305,9 @@ export function bindCircleSourceProblem(question: string, raw: unknown): CircleP
       if (coefficientRole && !sourceEquation([fact.id])) return null;
       if (role === "request" && (fact.kind !== "requested" || !/\b(?:find|determine|calculate|draw|show|sketch|plot|mark|does|lie|inside|outside)\b/i.test(fact.evidence.quote))) return null;
       if (fact.kind === "requested") {
+        // Source-derived coefficient/point propositions are givens, never
+        // unasked numeric obligations borrowing a broad query quote.
+        if (coefficientRole || coordinate) return null;
         if (!/\b(?:find|determine|calculate|draw|show|sketch|plot|mark|does|lie|inside|outside)\b/i.test(fact.evidence.quote)) return null;
         role = "request";
       }

@@ -1,0 +1,392 @@
+{
+  "question": "For 4x^2+4y^2-16x+8y=80, find the centre and radius and the coordinates of point T(7,-1).",
+  "problem": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "fresh_new",
+    "question": "For 4x^2+4y^2-16x+8y=80, find the centre and radius and the coordinates of point T(7,-1).",
+    "facts": [
+      {
+        "id": "eq0",
+        "kind": "given",
+        "statement": "4x^2+4y^2-16x+8y=80",
+        "evidence": {
+          "source": "question",
+          "start": 4,
+          "end": 23,
+          "quote": "4x^2+4y^2-16x+8y=80"
+        }
+      },
+      {
+        "id": "ask",
+        "kind": "requested",
+        "statement": "find the centre and radius and the coordinates of point T(7,-1).",
+        "evidence": {
+          "source": "question",
+          "start": 25,
+          "end": 89,
+          "quote": "find the centre and radius and the coordinates of point T(7,-1)."
+        }
+      },
+      {
+        "id": "point0",
+        "kind": "given",
+        "statement": "T(7,-1)",
+        "evidence": {
+          "source": "question",
+          "start": 81,
+          "end": 88,
+          "quote": "T(7,-1)"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "curve",
+        "kind": "curve",
+        "label": "circle",
+        "evidenceFactIds": [
+          "eq0"
+        ]
+      },
+      {
+        "id": "point0",
+        "kind": "point",
+        "label": "T",
+        "evidenceFactIds": [
+          "point0"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "h",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "unary",
+            "operator": "-",
+            "operand": {
+              "kind": "number",
+              "value": -16
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 4
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      },
+      {
+        "id": "k",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "unary",
+            "operator": "-",
+            "operand": {
+              "kind": "number",
+              "value": 8
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 4
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      },
+      {
+        "id": "r",
+        "valueType": "scalar",
+        "root": {
+          "kind": "call",
+          "function": "sqrt",
+          "argument": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "unary",
+                    "operator": "-",
+                    "operand": {
+                      "kind": "number",
+                      "value": -16
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 4
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "unary",
+                    "operator": "-",
+                    "operand": {
+                      "kind": "number",
+                      "value": 8
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 4
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": -80
+              },
+              "right": {
+                "kind": "number",
+                "value": 4
+              }
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "on0",
+        "kind": "incident",
+        "entityIds": [
+          "curve",
+          "point0"
+        ],
+        "evidenceFactIds": [
+          "eq0",
+          "point0"
+        ]
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "graph",
+        "kind": "graph",
+        "entityIds": [
+          "curve",
+          "point0"
+        ],
+        "evidenceFactIds": [
+          "eq0",
+          "ask",
+          "point0"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "solve_h",
+        "kind": "evaluate",
+        "expressionId": "h",
+        "resultBinding": {
+          "turnPlanQuantityId": "h",
+          "symbol": "h",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq0",
+            "ask"
+          ]
+        }
+      },
+      {
+        "id": "solve_k",
+        "kind": "evaluate",
+        "expressionId": "k",
+        "resultBinding": {
+          "turnPlanQuantityId": "k",
+          "symbol": "k",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq0",
+            "ask"
+          ]
+        }
+      },
+      {
+        "id": "solve_r",
+        "kind": "evaluate",
+        "expressionId": "r",
+        "resultBinding": {
+          "turnPlanQuantityId": "r",
+          "symbol": "r",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq0",
+            "ask"
+          ]
+        }
+      }
+    ]
+  },
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For 4x^2+4y^2-16x+8y=80, find the centre and radius and the coordinates of point T(7,-1).",
+    "givens": [
+      {
+        "id": "A",
+        "symbol": "A",
+        "unit": "1",
+        "value": 4,
+        "provenance": "given",
+        "sourceText": "coefficient of x^2 and y^2"
+      },
+      {
+        "id": "D",
+        "symbol": "D",
+        "unit": "1",
+        "value": -16,
+        "provenance": "given",
+        "sourceText": "coefficient of x"
+      },
+      {
+        "id": "E",
+        "symbol": "E",
+        "unit": "1",
+        "value": 8,
+        "provenance": "given",
+        "sourceText": "coefficient of y"
+      },
+      {
+        "id": "F",
+        "symbol": "F",
+        "unit": "1",
+        "value": -80,
+        "provenance": "given",
+        "sourceText": "constant term"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "h",
+        "symbol": "h",
+        "unit": "1"
+      },
+      {
+        "id": "k",
+        "symbol": "k",
+        "unit": "1"
+      },
+      {
+        "id": "r",
+        "symbol": "r",
+        "unit": "1"
+      }
+    ],
+    "derived": [
+      {
+        "id": "h",
+        "symbol": "h",
+        "unit": "1",
+        "value": 2,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "D"
+        ]
+      },
+      {
+        "id": "k",
+        "symbol": "k",
+        "unit": "1",
+        "value": -1,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "E"
+        ]
+      },
+      {
+        "id": "r",
+        "symbol": "r",
+        "unit": "1",
+        "value": 5,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "D",
+          "E",
+          "F"
+        ]
+      }
+    ],
+    "qualitativeClaims": [],
+    "lawIds": [],
+    "assumptions": [],
+    "visualRequirement": "required"
+  }
+}

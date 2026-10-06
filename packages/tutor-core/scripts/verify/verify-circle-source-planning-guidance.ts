@@ -91,4 +91,24 @@ check(JSON.stringify(carried)===carryBefore,"whole carried caller immutable");
 for(const alteration of [(p:TurnPlanV3)=>p.assumptions.push("The point is outside the circle"),(p:TurnPlanV3)=>p.lawIds.push("gravity"),(p:TurnPlanV3)=>p.qualitativeClaims.push({id:"outside",claim:"point outside",expected:true}),(p:TurnPlanV3)=>p.unknowns.push({id:"force",symbol:"force",unit:"N"})]){
  const p=structuredClone(carried.plan);alteration(p);check(circleCallerIssues(carried.question,null,p).length>0,"source-only compatibility cannot lend unproved propositions authority");check(selectVerifiedRepresentation({question:carried.question,turnPlan:p,problemIR:null}).renderScene.primitives.length===0,"source-only unsafe additions remain terminal");
 }
+for(const question of ["For 4x^2+4y^2-16x+8y=80, find the centre and radius; and the equation.","For 4x^2+4y^2-16x+8y=80, find the centre and radius. And the coordinates of point T(7,-1).","For 4x^2+4y^2-16x+8y=80, find the radius. Equivalently the equation."]){check(readCircleSourceProgram(question).status==="declined","punctuation cannot hide a residual numeric query");}
+// Fresh Kepler full-query/typed-request findings, unchanged original callers.
+for(const name of ["query-radius-and-radius-squared-omitted.new-original.json","query-extra-equation-ask.new-original.json","query-extra-point-coordinates-complete-actors.new-original.json","ir-query-wrong-role-full-quote.new-original.json"]){
+ const c=JSON.parse(readFileSync(new URL(`./fixtures/circle-full-review-20261006/${name}`,import.meta.url),"utf8")),before=JSON.stringify(c);
+ check(circleCallerIssues(c.question,c.problem,c.plan).length>0,"whole query/request original caller must decline");
+ const source=readCircleSourceProgram(c.question),bound=bindCircleSourceProblem(c.question,c.problem);
+ if(bound)check(!compileSceneDocument(bound.document,{sourceAuthority:{question:c.question,problemIR:c.problem,turnPlan:c.plan}}).ok,"omitted query cannot lend compile authority");
+ const result=await planProblemAuthorityV1(c.question,c.plan,{proxyUrl:"http://offline.invalid",timeoutMs:2000,fetchImpl:async()=>Response.json({choices:[{message:{content:JSON.stringify(c.problem)}}]})});
+ check(result&&"status"in result&&result.status==="source_declined","ordinary API declines unsupported full query/request");
+ check(selectVerifiedRepresentation({question:c.question,turnPlan:c.plan,problemIR:c.problem}).renderScene.primitives.length===0,"whole query/request refusal remains terminal");
+ const registry=applySourceQuantityAuthority(c.plan,c.problem,c.question);check(registry.outcomes.some(x=>x.declineFigure)&&JSON.stringify(registry.plan)===JSON.stringify(c.plan),"whole refused original Plan remains unchanged");
+ check(JSON.stringify(c)===before,"fresh full-query original evidence remains unchanged");
+ if(name.includes("extra-"))check(source.status==="declined","unsupported extra source request declines whole programme");
+}
+const completeQuery=JSON.parse(readFileSync(new URL("./fixtures/circle-full-review-20261006/query-radius-and-radius-squared-complete.new-original.json",import.meta.url),"utf8"));
+const queryRead=readCircleSourceProgram(completeQuery.question);check(queryRead.status==="ok"&&queryRead.source.asks.includes("radius")&&queryRead.source.asks.includes("radius_squared"),"radius and radius squared are two distinct whole-source requests");
+check(circleCallerIssues(completeQuery.question,completeQuery.problem,completeQuery.plan).length===0,"unchanged paired complete two-result caller survives");
+const queryResult=await planProblemAuthorityV1(completeQuery.question,completeQuery.plan,{proxyUrl:"http://offline.invalid",timeoutMs:2000,fetchImpl:async()=>Response.json({choices:[{message:{content:JSON.stringify(completeQuery.problem)}}]})});
+check(queryResult&&!("status"in queryResult)&&queryResult.audit.status==="verified"&&queryResult.audit.bindings.length===2,"normal API verifies both whole original output requests");
+check(selectVerifiedRepresentation({question:completeQuery.question,turnPlan:completeQuery.plan,problemIR:completeQuery.problem}).renderScene.primitives.length>0,"normal app complete radius/radius-squared source figure survives");
 console.log(`circle source planning guidance: ${checks} checks passed; offline only`);
