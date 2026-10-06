@@ -106,7 +106,9 @@ async function main(): Promise<void> {
   // The live hook must actually consult the check before it commits a figure.
   const hook = readFileSync(join(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
   const call = hook.indexOf("liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier })");
-  const gate = hook.indexOf("const selectedIsDrawable = selectedHasInk && !saveFailure &&");
+  // The drawable test also refuses a figure the solver authority blocked; what
+  // matters here is that the save check is part of it, before the commit.
+  const gate = hook.search(/const selectedIsDrawable = (?:!solverAuthorityBlocked && )?selectedHasInk && !saveFailure &&/);
   const commit = hook.indexOf("sceneV2Document = selectedIsDrawable ? selected.sceneDocument : null;");
   assert(call > 0 && gate > call && commit > gate, "useQuestionHandler runs liveSceneSaveFailure before deciding the figure is drawable");
   const persistence = readFileSync(join(__dirname, "../../lib/scene/turnScenePersistence.ts"), "utf8");

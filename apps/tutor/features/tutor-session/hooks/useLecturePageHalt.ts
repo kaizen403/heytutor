@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { haltAllLectureAudio } from "@heytutor/tutor-core";
+import { liveTurnSave } from "../lib/turn/liveTurnSave";
 
 /**
  * Firefox often skips React unmount when the tab or window goes away
@@ -10,6 +11,16 @@ import { haltAllLectureAudio } from "@heytutor/tutor-core";
  *
  * pagehide / beforeunload run in that teardown. Do not halt from the effect
  * cleanup — React Strict Mode remounts would silence a live lecture.
+ *
+ * The page going away also saves the lesson. `pagehide` sends the small
+ * keepalive close first (the unsent tail, words and ink), before the halt and
+ * before any turn's telemetry flush: keepalive bodies share one 64 KiB budget.
+ * It is registered at mount and in the capture phase, so it runs ahead of the
+ * telemetry listener each turn adds later.
+ *
+ * `beforeunload` asks the student to stay only while lesson data is still
+ * unsent (decision 8), and then does not halt: if the student stays, the
+ * lesson goes on; if they leave, `pagehide` closes and halts.
  */
 export function useLecturePageHalt(haltSession: () => void): void {
   const haltSessionRef = useRef(haltSession);
@@ -22,11 +33,27 @@ export function useLecturePageHalt(haltSession: () => void): void {
       haltSessionRef.current();
       haltAllLectureAudio();
     };
-    window.addEventListener("pagehide", halt);
-    window.addEventListener("beforeunload", halt);
+    const onPageHide = () => {
+      try {
+        liveTurnSave().pageHideClose();
+      } finally {
+        halt();
+      }
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (liveTurnSave().hasUnsentData()) {
+        event.preventDefault();
+        // Older browsers show the prompt only when returnValue is set.
+        event.returnValue = "";
+        return;
+      }
+      halt();
+    };
+    window.addEventListener("pagehide", onPageHide, { capture: true });
+    window.addEventListener("beforeunload", onBeforeUnload);
     return () => {
-      window.removeEventListener("pagehide", halt);
-      window.removeEventListener("beforeunload", halt);
+      window.removeEventListener("pagehide", onPageHide, { capture: true });
+      window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, []);
 }

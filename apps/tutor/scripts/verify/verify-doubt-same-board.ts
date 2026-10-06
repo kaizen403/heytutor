@@ -612,7 +612,7 @@ function between(source: string, file: string, start: string, end: string): stri
 
 {
   const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
-  const handler = between(read(file), file, "const handleQuestion = useCallback(", "return { handleQuestion };");
+  const handler = between(read(file), file, "const teachQuestion = useCallback(", "return { handleQuestion };");
   assert(
     (handler.match(/beginBoardEpoch\(\)/g) ?? []).length === 1 &&
       /if \(!doubt && !resume\) \{\s*await beginBoardEpoch\(\);/.test(handler),
@@ -629,7 +629,18 @@ function between(source: string, file: string, start: string, end: string): stri
   assert(handler.includes("offerPausedLessonResume("), "a finished doubt offers to continue the paused lesson");
   assert(handler.includes("clearPausedLesson("), "a fresh question drops the paused lecture");
   assert(handler.includes("revealDeferredAnnotations: !doubt"), "a doubt does not reveal what the stopped lesson had not reached");
-  assert(handler.includes("partialTurnScene(") && handler.includes("savePartialTurn"), "a stopped turn's ink is saved before the doubt that continues it");
+  // The stopped turn is saved by its own Stop (progressive save), not by the
+  // doubt: a doubt refused by billing used to lose the lesson it stopped.
+  assert(!handler.includes("partialTurnSave"), "the doubt no longer saves the stopped turn itself");
+  assert(
+    /liveTurnSave\(\)\.begin\(\{[\s\S]*?continuesBoard: doubt \? \(doubtPage\?\.continuesBoard \?\? false\)/.test(handler),
+    "a doubt's save continues the page its plan says it continues",
+  );
+  const control = read("features/tutor-session/hooks/turn/useTurnControl.ts");
+  const stop = between(control, "useTurnControl.ts", "const stopTurn = useCallback(", "useEffect(() => {\n    stopTurnRef.current = stopTurn;");
+  const keptFigure = stop.indexOf("introKeptByStopRef.current = activeIntroTransaction;");
+  const closed = stop.indexOf("liveTurnSave().closeOwner(cancelRef);");
+  assert(keptFigure > 0 && closed > keptFigure, "Stop saves the stopped turn's ink, after a figure kept for the doubt is committed");
 }
 
 {
@@ -762,15 +773,20 @@ function between(source: string, file: string, start: string, end: string): stri
 
 {
   const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
-  const handler = between(read(file), file, "const handleQuestion = useCallback(", "return { handleQuestion };");
+  const handler = between(read(file), file, "const teachQuestion = useCallback(", "return { handleQuestion };");
   assert(
     /await boardCommitted;\s*(?:\/\/[^\n]*\s*)*if \(turnGeneration !== turnGenerationRef\.current\) \{\s*return;/.test(handler),
     "a turn replaced while its board row was written stops there, before it clears or claims the page",
   );
-  assert(handler.includes("partialTurnSegments("), "a stopped turn saves only what the server accepts");
+  const save = read("features/tutor-session/lib/turn/liveTurnSave.ts");
   assert(
-    /const continues =\s*page\.turn\.continuesBoard && \(partialTurnSaved \? await partialTurnSaved : true\)/.test(handler),
-    "a doubt continues a page only once the part it continues is saved",
+    save.includes("scene.visualStatus === \"validated\" ? rows : partialTurnSegments(rows, scene)"),
+    "a stopped turn's local copy keeps only what the server accepts",
+  );
+  assert(
+    save.includes("if (turn.ackedStatus === null && !this.queueAllows(turn)) return;") &&
+      /return previous !== null && previous\.ackedStatus === null && previous\.failure !== null;/.test(save),
+    "a doubt continues a page only once the part it continues is saved; if that failed, it opens its own page",
   );
   assert(
     handler.includes("pendingQuestionOptionsRef.current = options ?"),

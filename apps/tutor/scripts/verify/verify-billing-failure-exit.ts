@@ -15,7 +15,7 @@
  * shouldFlushPendingQuestion is the exported flush predicate and is called
  * directly. rememberBillingFailure is the real function. A marker assigned
  * immediately after the extracted region is the runtime evidence that execution
- * continued. partialTurnSaved, beginBoardEpoch, and the liveQuestionRef write
+ * continued. liveSave (the save handle minted once billing passed), beginBoardEpoch, and the liveQuestionRef write
  * are not executed; their position is AST-only. No network call.
  */
 import assert from "node:assert/strict";
@@ -405,12 +405,13 @@ async function main(): Promise<void> {
     "evidence: extracted-source execution of the beginTurn await, the ownership return when the source has one, the billing-failure if, finishLectureUi, and the submit gate. The fake beginTurn returns or rejects in-process. Hooks were not mounted. No network call.",
   );
   console.log(
-    "success follow-through: runtime marker continuedPastBilling is assigned immediately after the extracted region. AST-only: the next source statement is partialTurnSaved, then beginBoardEpoch and liveQuestionRef. The harness does not call them.",
+    "success follow-through: runtime marker continuedPastBilling is assigned immediately after the extracted region. AST-only: the next source statement is liveSave, then beginBoardEpoch and liveQuestionRef. The harness does not call them.",
   );
 
   const handler = readSource("../../features/tutor-session/hooks/turn/useQuestionHandler.ts");
   const control = readSource("../../features/tutor-session/hooks/turn/useTurnControl.ts");
-  const handleQuestion = findNamedCallback(handler, "handleQuestion");
+  // The question body; `handleQuestion` only wraps it so every billed exit saves.
+  const handleQuestion = findNamedCallback(handler, "teachQuestion");
   const finishLectureUi = findNamedCallback(control, "finishLectureUi");
   const billingIf = findIf(handleQuestion, handler, (text) => text.replace(/\s+/g, "") === "!billed.ok");
   const submitGate = findIf(
@@ -508,7 +509,7 @@ async function main(): Promise<void> {
     ? next.declarationList.declarations[0]?.name.getText(handler)
     : undefined;
   check(
-    nextName === "partialTurnSaved",
+    nextName === "liveSave",
     `the statement after a billing refusal must stay the success fall-through, found ${String(nextName)}`,
   );
   const afterBillingText = parent.statements
@@ -542,7 +543,7 @@ async function main(): Promise<void> {
   const beginRegion = beginTurnRegion(handleQuestion, handler);
   assert.match(beginRegion, /await beginTurn\(/);
   assert.match(beginRegion, /!billed\.ok/);
-  assert.equal(beginRegion.includes("partialTurnSaved"), false);
+  assert.equal(beginRegion.includes("liveSave"), false);
   assert.equal(beginRegion.includes("beginBoardEpoch"), false);
   assert.equal(beginRegion.includes("liveQuestionRef"), false);
   assert.equal(beginRegion.includes("${"), false);
@@ -711,7 +712,7 @@ async function main(): Promise<void> {
   );
   check(
     settledOk.continuedPastBilling === true,
-    "runtime: a current success falls through to the continuation marker. AST-only: partialTurnSaved is the next source statement and is not called",
+    "runtime: a current success falls through to the continuation marker. AST-only: liveSave is the next source statement and is not called",
   );
   check(settledOk.spotlight === "dimmed", "a resolved beginTurn must not clear the spotlight");
   check(settledOk.ttsStops === 0, "a resolved beginTurn must not stop speech");
@@ -884,7 +885,7 @@ async function main(): Promise<void> {
     check(snap.ttsStops === 0, `${label}: must not stop speech`);
     check(
       snap.continuedPastBilling === false,
-      `${label}: runtime returned before the success continuation. AST-only: that continuation starts at partialTurnSaved, which this harness does not call`,
+      `${label}: runtime returned before the success continuation. AST-only: that continuation starts at liveSave, which this harness does not call`,
     );
     check(harness.laterSubmit() !== "accepted", `${label}: the active turn must still hold the submit gate`);
   };

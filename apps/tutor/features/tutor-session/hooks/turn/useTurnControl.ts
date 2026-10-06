@@ -34,6 +34,7 @@ import {
   type DoubtTurnRequest,
 } from "../../lib/input/askDoubt";
 import { pausedLessonFromLive, type PausedLessonRequest } from "../../lib/turn/doubtTurn";
+import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { useSegmentRunner } from "./useSegmentRunner";
 import type { TutorPhase } from "../../types";
 import type { HandleQuestionOptions, TurnControlApi, TurnPauseSource, UseTurnLifecycleParams } from "./types";
@@ -395,6 +396,8 @@ export function useTurnControl(
           if (page && page.boardId === sessionId) {
             page.figureDrawn = true;
           }
+          // Its held rows are ink now: save them with the figure at once.
+          liveTurnSave().figureCommitted(cancelRef, turnGeneration);
         } catch (error) {
           // A doubt interrupt may already have committed this intro so the
           // figure the student circled stays on the board. Aborting here
@@ -407,6 +410,8 @@ export function useTurnControl(
           // Remove exact rows owned by this intro even after Stop increments the
           // turn generation. Never splice a replacement turn's new recordings.
           recordedSegmentsRef.current = recordedSegmentsRef.current.filter((row) => !introRecordedRows.has(row));
+          // Never saved either: a figure that did not commit leaves no rows.
+          liveTurnSave().dropIntroRows(cancelRef, turnGeneration);
           rollbackIntroNarration();
           // Only the intro's own turn is torn down with it. A stopped turn's
           // intro unwinding late must not cancel, abort, or strip the figure
@@ -772,6 +777,11 @@ export function useTurnControl(
       }
       activeIntroTransactionRef.current = null;
     }
+    // Save what the stopped lesson taught now, not when its aborted chain
+    // unwinds (that may never happen on a stall). After the intro above, so a
+    // figure kept for a doubt goes with it. The turn's own `finally` is then a
+    // no-op.
+    liveTurnSave().closeOwner(cancelRef);
     whiteboardRef.current?.setPaused(false);
 
     segmentChainRef.current = Promise.resolve();

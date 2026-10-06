@@ -163,7 +163,9 @@ assert(flushBody.includes("if (!resumeInkGate) {") &&
 assert(source.includes("resumeInkGate.reset()"), "speech-only first attempts must be discarded before retry");
 assert(source.includes("resumeInkGate.hasInk()"), "the final response must be checked for ink");
 assert(source.includes("offerPausedLessonResume(resume)"), "a failed generation must keep Continue available for another try");
-const billingGate = source.split("billed = await beginTurn(")[1]?.split("const partialTurnSaved =")[0] ?? "";
+// From the billing await to the save handle minted once billing passed. Both anchors must exist.
+assert(source.includes("billed = await beginTurn(") && source.includes("const liveSave = sessionId"), "billing gate anchors");
+const billingGate = source.split("billed = await beginTurn(")[1]?.split("const liveSave = sessionId")[0] ?? "";
 assert(billingGate.split("if (resume) offerPausedLessonResume(resume);").length === 3,
   "network and billing failures before teaching must each restore Continue");
 const teachingFailure = source.split("console.error(\"Tutor error:\", error);")[1]?.split("} finally {")[0] ?? "";

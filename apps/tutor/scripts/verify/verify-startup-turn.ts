@@ -161,6 +161,24 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
       telemetry.push(JSON.parse(String(init?.body)));
       return Response.json({});
     }
+    // The progressive lesson save (liveTurnSave): accept every checkpoint.
+    const checkpoint = /\/api\/boards\/[^/]+\/turns\/([^/]+)$/.exec(url);
+    if (checkpoint && (init?.method === "PUT" || init?.method === "PATCH")) {
+      record("board-save");
+      const meta = JSON.parse(init.method === "PUT" ? String((init.body as FormData).get("metadata")) : String(init.body)) as {
+        seq: number; status: string; baseCount: number; question?: string; appendSegments?: unknown[];
+      };
+      return Response.json({
+        turn: {
+          id: checkpoint[1], orderIndex: 0, question: meta.question ?? question, rawResponse: "", speedMultiplier: 1,
+          traceId: null, sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only",
+          sceneArtifacts: null, segments: [], status: meta.status,
+        },
+        serverCount: meta.status === "complete" ? null : meta.baseCount + (meta.appendSegments?.length ?? 0),
+        serverSeq: meta.seq,
+        final: meta.status === "complete",
+      });
+    }
     assert(url.endsWith("/api/chat"), `${mode}: no real network call is permitted: ${url}`);
     if (headers.get("x-turn-planner-version") === "3") {
       record("turn-plan-request");
