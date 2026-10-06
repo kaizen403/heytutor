@@ -58,7 +58,9 @@ bank coverage.
 
 ## Current counts
 
-READY: 3. FULLY-CERTIFIED: 0.
+READY: 4. FULLY-CERTIFIED: 0.
+
+Section formula adds one scoped READY after normal external(7,8) live and restarted saved whole replay. [Scope and evidence](work-logs/w2-section-formula-ready-20261006.md).
 
 Direct finite AP/GP adds one scoped READY after original62/670 live review,
 fresh duplicate-premise review and provider-backed whole saved replay. Scope,
@@ -78,7 +80,7 @@ does not establish figure, teaching or lifecycle correctness.
 | --- | --- | --- | --- | --- |
 | `maths\|3\|matrices-and-types` | **not ready:** normal order/entry case is text only; AB/BA renders correct products and names | c6b41c4b | source, parser, focus and writing fixes reviewed; final normal case1 and AB/BA student captures in wave-one runtime log | case1 full-IR admission/fallback; affected lifecycle; 17 variants, native q5 full stem/options and holdouts |
 | `maths\|10\|point-to-line-distance` | not ready: source line lineage open | 1d81d1f8, 29706b10 (layers only) | | lineage, all tier admission, student lifecycle
-| `maths\|10\|section-formula` | **not ready:** current SF3 renders A/B and omits required P=(7,8) | c6b41c4b | full-IR and source-name/label-channel corrections reviewed; current SF3 live/save/reopen/replay capture | actual graph includes an extra line entity and source family declines; prevent incomplete planner figure; realistic variants and native/holdout checks |
+| `maths\|10\|section-formula` | **READY** (6 Oct2026): single source-complete finite2D internal/external divider or midpoint with complete required join/incidence | a0269328 | independent780/350/168/138/299 and31body seams; actual(7,8) live95s and ownPGrestart/freshAuth wholeReplay76s, manualpixels; [evidence](work-logs/w2-section-formula-ready-20261006.md) | 3D/symbolic/multiple asks, native/holdouts and full frozen chapter contract unqualified |
 | `maths\|10\|circle-standard-form` | **READY** (4 Oct 2026): one circle per stem, read from `(x-h)^2+(y-k)^2=r^2` or centre and radius, integer, decimal or simple fraction values, optional named point on, inside or outside; tier `qualitative_verified`; a forged trace under the source label is rejected; r^2 <= 0, an xy term, unequal square coefficients and unreadable equations decline | c876c08b (904cbf74, 37606d3f, a1202b92) | reviewer PASS with an independent oracle; `verify-circle-standard-ready.ts` (184 checks); student run S3 rendered and inspected on batches 4 and 5/6a (plain math, FOCUS resolved; runtime/circle.md); save, Postgres restart, reopen and whole replay exact on batch 4 | two circles in one stem unbound; centre and radius not drawn when the equation label fits; restore/replay race correction now landed (24160e4e); remaining affected final-batch lifecycle limits are recorded in the wave-one report; native and holdout items not run |
 | `maths\|10\|circle-general-form-radius-and-centre` | **not ready:** proposed live fix c8814e67 failed independent review and was excluded | 904cbf74 (existing engine layer) | wave-one live review: blanket obligation bypass and Q renamed P | safe live admission and normal student render; symbolic coefficients, holdouts, native stems |
 | `physics\|2\|suvat-equations` | not ready: archetype reader blocked | 1033163e, f0b98b9f (guard only) | | 2 preserved compiler gaps, archetype fraction defect
