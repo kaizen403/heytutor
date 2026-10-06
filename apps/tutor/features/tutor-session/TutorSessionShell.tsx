@@ -80,6 +80,7 @@ import {
   type TTSClient,
 } from "@heytutor/tutor-core";
 import { type TurnTelemetry } from "@/lib/obs/turnTelemetry";
+import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { type RecordedSegmentPayload } from "@/lib/boards/boardsClient";
 import { liveNotesPayload } from "@/lib/boards/notesChatClient";
 import {
@@ -804,6 +805,12 @@ export function TutorSessionShell({
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
   });
+
+  // Page load clock only: the first loaded board of this document. Declared
+  // before the turn hooks so a question queued during load sees it.
+  useEffect(() => {
+    if (boardLoaded) pageLoadTiming.markBoardReady();
+  }, [boardLoaded]);
 
   const {
     finishLectureUi,

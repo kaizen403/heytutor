@@ -1,0 +1,843 @@
+/**
+ * Speculative scene planning during ProblemIR, on fake planners and a fake clock.
+ *
+ * Every dependency of runScenePlanningOverlap is scripted, so each scenario
+ * states the order of events it expects: when the scene planner started, on
+ * which plan, what was aborted, what restarted with which budget, and which
+ * plan the selected candidates were validated against.
+ */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { TurnPlanV3 } from "@heytutor/scene-engine";
+import {
+  planSceneDocumentWithRepair,
+  revalidateScenePlanWithRepairResult,
+  type SceneCandidateValidation,
+} from "@heytutor/tutor-core";
+import {
+  SCENE_REQUEST_BUDGET,
+  decideSpeculation,
+  runScenePlanningOverlap,
+  shouldStartSpeculativeScene,
+  type SceneGateCore,
+} from "../../features/tutor-session/lib/scene/planningOverlap";
+
+type Authority = { id: string; contradiction?: boolean; plan?: TurnPlanV3 };
+type Gate = SceneGateCore & { planId: string };
+type Fast = { figure: string };
+type Result = {
+  tag: string;
+  candidates: unknown[];
+  validation: { valid: boolean };
+  repairRounds: number;
+  validatedAgainst: TurnPlanV3;
+};
+
+const QUESTION = "A projectile is launched at 20 m/s at 30 degrees. Find its range.";
+const plan = (value: number): TurnPlanV3 => ({
+  schemaVersion: "turn-plan/v3",
+  question: QUESTION,
+  givens: [{ id: "u", symbol: "u", value: 20, unit: "m/s", provenance: "given" }],
+  unknowns: [{ id: "range", symbol: "R", unit: "m" }],
+  derived: [{ id: "range", symbol: "R", value, unit: "m", provenance: "derived", sourceText: "R" }],
+  qualitativeClaims: [],
+  lawIds: ["projectile"],
+  assumptions: [],
+  visualRequirement: "required",
+} as unknown as TurnPlanV3);
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
+const flush = async () => {
+  for (let i = 0; i < 20; i += 1) await Promise.resolve();
+};
+
+type Event = { name: string; atMs: number; data?: Record<string, unknown>; parent?: string };
+type PlanCall = {
+  gate: Gate;
+  plan: TurnPlanV3;
+  signal: AbortSignal;
+  timeoutMs: number;
+  atMs: number;
+  /** The repair hold's settled value: undefined while pending, "none" when absent. */
+  hold: { value: boolean | undefined } | "none";
+  reply: ReturnType<typeof deferred<Result | null>>;
+};
+
+interface Script {
+  initialPlan?: TurnPlanV3;
+  authority?: "none" | "pending" | "resolved";
+  speculationAllowed?: boolean;
+  /** Gate per plan and authority. Defaults to one stable projectile gate. */
+  gate?: (plan: TurnPlanV3, authority: Authority | null) => Partial<Gate>;
+  fast?: (plan: TurnPlanV3, authority: Authority | null) => Fast | null;
+  recover?: Result | null;
+  guard?: <T>(operation: Promise<T>) => Promise<T>;
+  plannerStartedAt?: number;
+  /** Speculation scenarios force the flag on; it defaults off in the app. */
+  speculationEnabled?: boolean;
+}
+
+function harness(script: Script) {
+  let nowMs = 0;
+  const events: Event[] = [];
+  const planCalls: PlanCall[] = [];
+  const revalidations: TurnPlanV3[] = [];
+  const authority = deferred<Authority | null>();
+  const initialPlan = script.initialPlan ?? plan(35.35);
+  const record = (name: string, data?: Record<string, unknown>, parent?: string) =>
+    events.push({ name, atMs: nowMs, data, parent });
+  const telemetry = {
+    mark: (name: string, data?: Record<string, unknown>) => record(name, data),
+    span: (name: string, parent?: string) => {
+      record(`${name}:start`, undefined, parent);
+      return { end: (data?: Record<string, unknown>) => record(`${name}:end`, data, parent) };
+    },
+  };
+  const deriveGate = (gatePlan: TurnPlanV3, gateAuthority: Authority | null): Gate => ({
+    shouldPlanExactScene: true,
+    shouldAttemptLlmScene: true,
+    families: ["projectile"],
+    archetypeId: "projectile_trajectory",
+    request: { conversationContext: JSON.stringify(gatePlan), guidance: ["trajectory"] },
+    planId: gateAuthority ? "final" : "speculative",
+    ...script.gate?.(gatePlan, gateAuthority),
+  });
+  const authorityPromise = script.authority === "none"
+    ? null
+    : script.authority === "resolved"
+      ? Promise.resolve<Authority | null>({ id: "ir" })
+      : authority.promise;
+  const outcome = runScenePlanningOverlap<Authority, Gate, Fast, Result>({
+    turnPlan: initialPlan,
+    problemAuthority: authorityPromise,
+    speculationAllowed: script.speculationAllowed ?? true,
+    speculationEnabled: script.speculationEnabled ?? true,
+    plannerStartedAt: script.plannerStartedAt ?? 0,
+    deadlineMs: 60_000,
+    now: () => nowMs,
+    sleep: async (ms) => {
+      nowMs += ms;
+    },
+    guard: script.guard,
+    telemetry,
+    parentSpan: "planner",
+    deriveGate,
+    applyAuthority: (authorityPlan, answered) => ({
+      turnPlan: answered.plan ?? authorityPlan,
+      authority: answered,
+    }),
+    fastFigureBlocked: (answered) => answered?.contradiction === true,
+    recover: script.recover === undefined ? undefined : () => script.recover ?? null,
+    selectFast: (fastPlan, fastAuthority) => script.fast?.(fastPlan, fastAuthority) ?? null,
+    planScene: (gate, scenePlan, run) => {
+      const reply = deferred<Result | null>();
+      const hold: PlanCall["hold"] = run.holdValidationUntil ? { value: undefined } : "none";
+      if (hold !== "none") void run.holdValidationUntil!.then((value) => {
+        hold.value = value;
+      });
+      // Like planSceneDocumentWithRepair, an aborted run settles promptly.
+      run.signal.addEventListener("abort", () => reply.resolve(null), { once: true });
+      planCalls.push({ gate, plan: scenePlan, signal: run.signal, timeoutMs: run.timeoutMs, atMs: nowMs, hold, reply });
+      record("plan-scene", { plan: gate.planId });
+      return reply.promise;
+    },
+    revalidate: async (result, finalPlan) => {
+      revalidations.push(finalPlan);
+      return { ...result, tag: `${result.tag}+revalidated`, validatedAgainst: finalPlan };
+    },
+  });
+  void outcome.catch(() => {});
+  return {
+    outcome,
+    events,
+    planCalls,
+    revalidations,
+    authority,
+    initialPlan,
+    advance: (ms: number) => {
+      nowMs += ms;
+    },
+    result: (tag: string, call: PlanCall, valid = true): Result => ({
+      tag,
+      candidates: [{}, {}],
+      validation: { valid },
+      repairRounds: 1,
+      validatedAgainst: call.plan,
+    }),
+  };
+}
+
+const names = (events: Event[]) => events.map((event) => event.name);
+let passed = 0;
+async function scenario(name: string, run: () => Promise<void>) {
+  await run();
+  passed += 1;
+  console.log(`verify-planning-overlap: ${name}`);
+}
+
+// Pure decisions first.
+const baseGate: SceneGateCore = {
+  shouldPlanExactScene: true,
+  shouldAttemptLlmScene: true,
+  families: ["a", "b"],
+  archetypeId: null,
+  request: { conversationContext: "x" },
+};
+const start = (overrides: Partial<Parameters<typeof shouldStartSpeculativeScene>[0]>) =>
+  shouldStartSpeculativeScene({
+    speculationAllowed: true,
+    authorityPending: true,
+    gate: baseGate,
+    remainingMs: 1_000,
+    deterministicPredicted: false,
+    ...overrides,
+  });
+assert.equal(start({}), true);
+assert.equal(start({ speculationAllowed: false }), false, "a recovered scene never speculates");
+assert.equal(start({ authorityPending: false }), false, "nothing to overlap once ProblemIR answered");
+assert.equal(start({ gate: { ...baseGate, shouldPlanExactScene: false } }), false, "visual none or chemistry");
+assert.equal(start({ gate: { ...baseGate, shouldAttemptLlmScene: false } }), false, "no family and no archetype");
+assert.equal(start({ remainingMs: 0 }), false, "no budget");
+assert.equal(start({ deterministicPredicted: true }), false, "the turn plan already compiles a figure");
+const finalFacts = (overrides: Partial<Parameters<typeof decideSpeculation>[1]> = {}) => ({
+  gate: baseGate,
+  turnPlan: plan(1),
+  deterministicSelected: false,
+  recovered: false,
+  remainingMs: 1_000,
+  ...overrides,
+});
+const specPlan = plan(1);
+assert.deepEqual(decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ turnPlan: specPlan })), { keep: true });
+assert.deepEqual(
+  decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ turnPlan: structuredClone(specPlan) })),
+  { keep: true },
+  "a deep-equal plan is the same facts",
+);
+assert.deepEqual(
+  decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ gate: { ...baseGate, families: ["b", "a"] }, turnPlan: specPlan })),
+  { keep: true },
+  "family order alone is not a family change when the request is identical",
+);
+assert.equal(
+  (decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ deterministicSelected: true })) as { reason: string }).reason,
+  "deterministic",
+);
+assert.equal(
+  (decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ gate: { ...baseGate, families: ["a"] } })) as { reason: string }).reason,
+  "families_changed",
+);
+assert.equal(
+  (decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ gate: { ...baseGate, archetypeId: "x" } })) as { reason: string }).reason,
+  "families_changed",
+);
+assert.equal(
+  (decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ turnPlan: plan(2) })) as { reason: string }).reason,
+  "values_changed",
+);
+assert.equal(
+  (decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ turnPlan: specPlan, gate: { ...baseGate, request: { conversationContext: "y" } } })) as { reason: string }).reason,
+  "inputs_changed",
+);
+assert.deepEqual(
+  decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ gate: { ...baseGate, shouldAttemptLlmScene: false } })),
+  { keep: false, reason: "not_attempted", restart: false },
+);
+assert.equal(
+  (decideSpeculation(
+    { gate: { ...baseGate, request: { conversationContext: "x", planningGuidance: undefined } }, turnPlan: specPlan },
+    finalFacts({ turnPlan: specPlan }),
+  ) as { reason: string }).reason,
+  "inputs_changed",
+  "an undefined key is not the same as a missing one",
+);
+assert.deepEqual(
+  decideSpeculation({ gate: baseGate, turnPlan: specPlan }, finalFacts({ turnPlan: specPlan, remainingMs: 0 })),
+  { keep: false, reason: "budget", restart: false },
+);
+
+async function main(): Promise<void> {
+  await scenario("flag off (the default): origin/main's sequence, no speculative call, no prediction", async () => {
+    let fastCalls = 0;
+    const h = harness({
+      speculationEnabled: false,
+      fast: () => {
+        fastCalls += 1;
+        return null;
+      },
+    });
+    h.advance(9_000);
+    await flush();
+    assert.equal(h.planCalls.length, 0, "no scene planner call before ProblemIR answers");
+    assert.equal(fastCalls, 0, "no deterministic figure compiled from the turn plan alone");
+    assert(!h.events.some((event) => event.name.startsWith("scene-speculative")));
+    h.authority.resolve({ id: "ir" });
+    await flush();
+    assert.equal(fastCalls, 1, "the fast figure runs once, on the final facts");
+    assert.equal(h.planCalls.length, 1, "then the planner, once");
+    assert.equal(h.planCalls[0]!.gate.planId, "final");
+    assert.equal(h.planCalls[0]!.hold, "none", "nothing is held");
+    h.planCalls[0]!.reply.resolve(h.result("serial", h.planCalls[0]!));
+    const outcome = await h.outcome;
+    assert.deepEqual(outcome.speculation, { started: false, kept: false, abortReason: null, restarted: false });
+    assert.deepEqual(h.revalidations, [], "row 6 still skips the unchanged revalidation");
+    assert.deepEqual(names(h.events).filter((name) => name.endsWith(":start")), [
+      "deterministic-figure:start", "scene-planner:start", "revalidate:start",
+    ]);
+    const { SCENE_SPECULATION_ENABLED } = await import("../../features/tutor-session/lib/scene/planningOverlap");
+    assert.equal(SCENE_SPECULATION_ENABLED, process.env.NEXT_PUBLIC_SCENE_SPECULATION === "1");
+    if (process.env.NEXT_PUBLIC_SCENE_SPECULATION === undefined) assert.equal(SCENE_SPECULATION_ENABLED, false);
+  });
+
+  await scenario("a turn with no ProblemIR plans exactly once, after the gate, as before", async () => {
+    const h = harness({ authority: "none" });
+    await flush();
+    assert.equal(h.planCalls.length, 1);
+    assert.equal(h.planCalls[0]!.gate.planId, "speculative", "no authority: the turn plan is the final plan");
+    assert.equal(h.planCalls[0]!.plan, h.initialPlan);
+    assert(!names(h.events).some((name) => name.startsWith("scene-speculative")));
+    h.planCalls[0]!.reply.resolve(h.result("only", h.planCalls[0]!));
+    const outcome = await h.outcome;
+    assert.equal(outcome.scene?.tag, "only", "an unchanged plan with no authority is not revalidated");
+    assert.deepEqual(outcome.speculation, { started: false, kept: false, abortReason: null, restarted: false });
+    assert.deepEqual(names(h.events), [
+      "deterministic-figure:start", "deterministic-figure:end", "scene-planner:start", "plan-scene",
+      "scene-planner:end", "revalidate:start", "revalidate:end",
+    ]);
+  });
+
+  await scenario("speculation starts while ProblemIR is pending and is kept when the facts hold", async () => {
+    const h = harness({ plannerStartedAt: 0 });
+    h.advance(9_000);
+    await flush();
+    assert.equal(h.planCalls.length, 1, "the scene planner starts before ProblemIR answers");
+    assert.equal(h.planCalls[0]!.plan, h.initialPlan);
+    assert.equal(h.planCalls[0]!.timeoutMs, 51_000, "it runs inside the same 60s planner budget");
+    assert.equal(names(h.events).indexOf("scene-speculative-start") > names(h.events).indexOf("plan-scene"), true);
+    assert.deepEqual(h.planCalls[0]!.hold, { value: undefined }, "a speculative run holds its repairs");
+    h.advance(6_000);
+    h.authority.resolve({ id: "ir" });
+    await flush();
+    assert.equal(h.planCalls.length, 1, "kept: no second planner run");
+    assert.deepEqual(h.planCalls[0]!.hold, { value: true }, "keeping the run releases its repairs");
+    assert(!h.planCalls[0]!.signal.aborted);
+    h.advance(10_000);
+    h.planCalls[0]!.reply.resolve(h.result("spec", h.planCalls[0]!));
+    const outcome = await h.outcome;
+    assert.equal(outcome.speculation.kept, true);
+    assert.equal(outcome.speculation.restarted, false);
+    assert.equal(outcome.scene?.tag, "spec", "the plan the candidates were validated against is the final plan");
+    assert.equal(h.planCalls[0]!.plan, outcome.turnPlan, "selection already ran on the final facts");
+    assert.deepEqual(h.revalidations, [], "an identical plan is not recompiled, even with solver authority");
+    assert.equal(outcome.timings.revalidateSkipped, true);
+    assert.deepEqual(h.events.find((event) => event.name === "revalidate:end")?.data, { skipped: true });
+    assert.equal(outcome.timings.scenePlannerMs, 16_000);
+    const plannerEnd = h.events.find((event) => event.name === "scene-planner:end");
+    assert.deepEqual(plannerEnd?.data, { speculative: true, restarted: false, candidates: 2, repair_rounds: 1, valid: true });
+    assert(h.events.filter((event) => event.name.endsWith(":start")).every((event) => event.parent === "planner"));
+  });
+
+  await scenario("the deterministic figure on the final facts aborts speculation", async () => {
+    const h = harness({ fast: (_plan, answered) => answered ? { figure: "trajectory" } : null });
+    await flush();
+    assert.equal(h.planCalls.length, 1);
+    h.authority.resolve({ id: "ir" });
+    const outcome = await h.outcome;
+    assert(h.planCalls[0]!.signal.aborted, "the speculative planner is aborted");
+    assert.equal(h.planCalls.length, 1, "no restart");
+    assert.deepEqual(outcome.fast, { figure: "trajectory" });
+    assert.equal(outcome.scene, null);
+    assert.deepEqual(h.events.find((event) => event.name === "scene-speculative-abort")?.data, { reason: "deterministic" });
+    h.planCalls[0]!.reply.resolve(h.result("late", h.planCalls[0]!));
+    await flush();
+    assert.equal(outcome.scene, null, "a late speculative answer is never observed");
+  });
+
+  await scenario("a family change restarts the planner on the final inputs within the remaining budget", async () => {
+    const h = harness({
+      gate: (_plan, answered) => answered ? { families: ["projectile", "vector_diagram"] } : {},
+    });
+    h.advance(10_000);
+    await flush();
+    h.advance(8_000);
+    h.authority.resolve({ id: "ir" });
+    await flush();
+    assert.equal(h.planCalls.length, 2);
+    assert(h.planCalls[0]!.signal.aborted);
+    assert.deepEqual(h.planCalls[0]!.hold, { value: false }, "a discarded run never launched a repair");
+    assert.equal(h.planCalls[1]!.hold, "none", "the restart repairs freely");
+    assert.equal(h.planCalls[1]!.gate.planId, "final", "the restart uses the gate inferred with ProblemIR");
+    assert.equal(h.planCalls[1]!.timeoutMs, 41_500,
+      "the restart waits out the abort notice, then gets only what is left of 60s");
+    assert.equal(h.planCalls[1]!.atMs, 18_500);
+    assert.deepEqual(h.events.find((event) => event.name === "scene-speculative-abort")?.data, { reason: "families_changed" });
+    h.planCalls[1]!.reply.resolve(h.result("restart", h.planCalls[1]!));
+    const outcome = await h.outcome;
+    assert.equal(outcome.speculation.restarted, true);
+    assert.equal(outcome.speculation.kept, false);
+    assert(outcome.scene?.tag.startsWith("restart"));
+    const ends = h.events.filter((event) => event.name === "scene-planner:end").map((event) => event.data);
+    assert.deepEqual(ends[0], { speculative: true, restarted: false, aborted: "families_changed" });
+    assert.equal(ends[1]?.restarted, true);
+  });
+
+  await scenario("a reconciled quantity discards candidates built on stale numbers", async () => {
+    const reconciled = plan(36.1);
+    const h = harness({});
+    await flush();
+    h.authority.resolve({ id: "ir", plan: reconciled });
+    await flush();
+    assert.equal(h.planCalls.length, 2, "values changed: restart");
+    assert.equal(h.planCalls[1]!.plan, reconciled, "the restarted validator is bound to the reconciled plan");
+    assert.deepEqual(h.events.find((event) => event.name === "scene-speculative-abort")?.data, { reason: "values_changed" });
+    h.planCalls[0]!.reply.resolve(h.result("stale", h.planCalls[0]!));
+    h.planCalls[1]!.reply.resolve(h.result("fresh", h.planCalls[1]!));
+    const outcome = await h.outcome;
+    assert(outcome.scene?.tag.startsWith("fresh"), "a stale candidate is never selected");
+    assert.equal(outcome.turnPlan, reconciled);
+    assert.deepEqual(h.revalidations, [], "the restart was validated against the reconciled plan itself");
+  });
+
+  await scenario("a solver contradiction keeps the serial behaviour: no deterministic figure, planner result kept", async () => {
+    let fastCalls = 0;
+    const h = harness({ fast: () => { fastCalls += 1; return { figure: "never" }; } });
+    await flush();
+    // The turn plan alone predicts a deterministic figure, so nothing starts.
+    assert.equal(h.planCalls.length, 0);
+    assert.deepEqual(h.events.find((event) => event.name === "scene-speculative-skip")?.data, { reason: "deterministic_predicted" });
+    h.authority.resolve({ id: "ir", contradiction: true });
+    await flush();
+    assert.equal(fastCalls, 1, "the contradiction keeps the final deterministic figure off");
+    assert.equal(h.planCalls.length, 1, "the planner runs on the final facts as before");
+    h.planCalls[0]!.reply.resolve(h.result("serial", h.planCalls[0]!));
+    const outcome = await h.outcome;
+    assert.equal(outcome.fast, null);
+    assert(outcome.scene?.tag.startsWith("serial"));
+
+    const kept = harness({});
+    await flush();
+    kept.authority.resolve({ id: "ir", contradiction: true });
+    await flush();
+    assert.equal(kept.planCalls.length, 1, "a speculative run is kept through a contradiction, exactly as the serial planner ran");
+    kept.planCalls[0]!.reply.resolve(kept.result("spec", kept.planCalls[0]!));
+    assert((await kept.outcome).scene?.tag.startsWith("spec"));
+  });
+
+  await scenario("the final exact gate can withdraw the planner: abort without restart", async () => {
+    const h = harness({ gate: (_plan, answered) => answered ? { shouldAttemptLlmScene: false, families: [] } : {} });
+    await flush();
+    h.authority.resolve({ id: "ir" });
+    const outcome = await h.outcome;
+    assert(h.planCalls[0]!.signal.aborted);
+    assert.equal(h.planCalls.length, 1);
+    assert.equal(outcome.scene, null);
+    assert.equal(outcome.speculation.abortReason, "not_attempted");
+  });
+
+  await scenario("paths that never reach the LLM planner never speculate", async () => {
+    for (const [label, script] of [
+      ["recovered scene", { speculationAllowed: false, recover: null }],
+      ["visual none or chemistry", { gate: () => ({ shouldPlanExactScene: false, shouldAttemptLlmScene: false }) }],
+      ["no family and no archetype", { gate: () => ({ shouldAttemptLlmScene: false, families: [], archetypeId: null }) }],
+      ["budget spent", { plannerStartedAt: -60_000 }],
+      ["ProblemIR already answered", { authority: "resolved" }],
+    ] as Array<[string, Script]>) {
+      const h = harness(script);
+      await flush();
+      const startedEarly = h.planCalls.length > 0 && h.events.some((event) => event.name === "scene-speculative-start");
+      assert(!startedEarly, `${label}: speculation must not start`);
+      h.authority.resolve({ id: "ir" });
+      await flush();
+      for (const call of h.planCalls) call.reply.resolve(h.result("late", call));
+      await h.outcome;
+    }
+  });
+
+  await scenario("a recovered scene skips planning and the deterministic figure", async () => {
+    const recovered: Result = { tag: "recovered", candidates: [{}], validation: { valid: true }, repairRounds: 0, validatedAgainst: plan(35.35) };
+    let fastCalls = 0;
+    const h = harness({ speculationAllowed: false, recover: recovered, fast: () => { fastCalls += 1; return null; } });
+    await flush();
+    h.authority.resolve({ id: "ir" });
+    const outcome = await h.outcome;
+    assert.equal(h.planCalls.length, 0);
+    assert.equal(fastCalls, 0);
+    assert.equal(outcome.recovered, true);
+    assert(outcome.scene?.tag.startsWith("recovered"));
+  });
+
+  await scenario("a cancelled turn aborts the in-flight planner and rethrows", async () => {
+    let cancelled = false;
+    const h = harness({
+      guard: async (operation) => {
+        const value = await operation;
+        if (cancelled) throw new DOMException("turn cancelled", "AbortError");
+        return value;
+      },
+    });
+    await flush();
+    cancelled = true;
+    h.authority.resolve({ id: "ir" });
+    await assert.rejects(h.outcome, /turn cancelled/);
+    assert(h.planCalls[0]!.signal.aborted);
+    await flush();
+    assert.deepEqual(h.planCalls[0]!.hold, { value: false });
+    assert.deepEqual(h.events.find((event) => event.name === "scene-planner:end")?.data,
+      { speculative: true, restarted: false, aborted: true }, "a cancelled run still closes its span");
+
+    const failing = harness({});
+    await flush();
+    failing.authority.reject(new Error("authority transport"));
+    await assert.rejects(failing.outcome, /authority transport/);
+    assert(failing.planCalls[0]!.signal.aborted, "a thrown authority never leaves a planner running");
+  });
+
+  await scenario("telemetry carries no student text", async () => {
+    const h = harness({ gate: (_plan, answered) => answered ? { families: ["other"] } : {} });
+    await flush();
+    h.authority.resolve({ id: "ir" });
+    await flush();
+    h.planCalls[1]!.reply.resolve(h.result("r", h.planCalls[1]!));
+    await h.outcome;
+    for (const event of h.events) {
+      for (const value of Object.values(event.data ?? {})) {
+        assert(["number", "boolean"].includes(typeof value) || value === null ||
+          (typeof value === "string" && value.length <= 32 && !QUESTION.includes(value)),
+        `${event.name} carries a free text value: ${String(value)}`);
+      }
+    }
+  });
+
+  await scenario("revalidation is skipped only when the validated plan is the final plan", async () => {
+    const { finalizeScenePlanAfterAuthority, shouldRevalidateSceneCandidatesAfterAuthority } =
+      await import("../../features/tutor-session/lib/scene/diagramGeneration");
+    const validated = plan(35.35);
+    const decide = (candidatesValidatedAgainst: unknown, authoritativeTurnPlan: unknown) =>
+      shouldRevalidateSceneCandidatesAfterAuthority({
+        problemAuthorityAvailable: true,
+        planningTurnPlan: validated,
+        authoritativeTurnPlan,
+        candidatesValidatedAgainst,
+      });
+    assert.equal(decide(validated, validated), false, "same object: skip");
+    assert.equal(decide(validated, structuredClone(validated)), false, "deep-equal: skip");
+    assert.equal(decide(validated, plan(36.1)), true, "a reconciled value: revalidate");
+    assert.equal(decide(validated, { ...validated, visualRequirement: "optional" }), true, "any other change: revalidate");
+    assert.equal(shouldRevalidateSceneCandidatesAfterAuthority({
+      problemAuthorityAvailable: true,
+      planningTurnPlan: validated,
+      authoritativeTurnPlan: validated,
+    }), true, "a caller that does not name the validated plan keeps the forced revalidation");
+    let calls = 0;
+    const kept = { id: "kept" };
+    const finalized = await finalizeScenePlanAfterAuthority(kept, {
+      problemAuthorityAvailable: true,
+      planningTurnPlan: validated,
+      authoritativeTurnPlan: structuredClone(validated),
+      candidatesValidatedAgainst: validated,
+      revalidate: async (result) => {
+        calls += 1;
+        return result;
+      },
+    });
+    assert.equal(finalized, kept);
+    assert.equal(calls, 0);
+
+    // A kept speculative run whose plan is only deep-equal to the final plan.
+    const h = harness({});
+    await flush();
+    h.authority.resolve({ id: "ir", plan: structuredClone(h.initialPlan) });
+    await flush();
+    assert.equal(h.planCalls.length, 1, "deep-equal facts keep the speculative run");
+    h.planCalls[0]!.reply.resolve(h.result("spec", h.planCalls[0]!));
+    const outcome = await h.outcome;
+    assert.equal(outcome.scene?.tag, "spec");
+    assert.deepEqual(h.revalidations, []);
+  });
+
+  await scenario("worst-case turns never trip the billing caps (4 ai in flight, 12 planner calls)", async () => {
+    const grant = readFileSync(join(process.cwd(), "lib/billing/grant.ts"), "utf8");
+    assert(/planner: 12,/.test(grant) && /group === "tts" \? 24 : 4\)/.test(grant),
+      "the caps this case enforces must match acquirePaidCall");
+    assert.equal(SCENE_REQUEST_BUDGET, 12 - 3 - 1);
+    for (const worstCase of ["restart_then_two_repair_rounds", "empty_answers_everywhere"] as const) {
+      // A fake /api/chat with acquirePaidCall's admission: a refused call is a 429.
+      // An aborted call keeps its slot until the server notices (NOTICE_MS).
+      const NOTICE_MS = 15;
+      const server = { inFlight: 0, peak: 0, planner: 0, refused: 0 };
+      const admit = (planner: boolean) => {
+        if (server.inFlight >= 4 || (planner && server.planner >= 12)) {
+          server.refused += 1;
+          return false;
+        }
+        server.inFlight += 1;
+        server.peak = Math.max(server.peak, server.inFlight);
+        if (planner) server.planner += 1;
+        return true;
+      };
+      const release = () => {
+        server.inFlight -= 1;
+      };
+      const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+      // Turn plan: two lanes and the retry spent, one aborted lane not yet noticed.
+      for (let lane = 0; lane < 3; lane += 1) assert(admit(true));
+      release();
+      release();
+      setTimeout(release, NOTICE_MS);
+      // ProblemIR holds a slot until it answers.
+      assert(admit(true));
+      const authority = deferred<Authority | null>();
+      setTimeout(() => {
+        release();
+        authority.resolve({ id: "ir" });
+      }, 60);
+
+      let sceneCall = 0;
+      const doc = (tag: string, fatal: number) => ({ schemaVersion: "scene-document/v2", tag, fatal });
+      const reply = (phase: string, lane: string, index: number): { ms: number; doc: Record<string, unknown> | null } => {
+        if (worstCase === "empty_answers_everywhere") {
+          if (phase === "plan") return index < 2 || (index >= 3 && index < 5) ? { ms: 5, doc: null } : { ms: 120, doc: doc(`F${index}`, 2) };
+          return { ms: 20, doc: doc(`R${index}`, 3) };
+        }
+        // Speculative candidates are still pending at 60ms and get discarded.
+        if (index < 2) return { ms: 500, doc: doc("spec", 1) };
+        if (phase === "plan") return lane === "primary" ? { ms: 10, doc: doc("A", 3) } : { ms: 200, doc: doc("B", 4) };
+        return { ms: lane === "primary" ? 15 : 150, doc: doc(`R${index}`, index >= 6 && lane === "primary" ? 0 : 2) };
+      };
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        const index = sceneCall;
+        sceneCall += 1;
+        if (!admit(true)) {
+          return { ok: false, status: 429, headers: new Headers(), json: async () => ({ error: "concurrent_limit" }) } as unknown as Response;
+        }
+        const scripted = reply(headers.get("x-scene-planner-phase") ?? "", headers.get("x-scene-planner-lane") ?? "", index);
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            release();
+            resolve({
+              ok: true,
+              status: 200,
+              headers: new Headers(),
+              json: async () => ({ choices: [{ message: { content: scripted.doc ? JSON.stringify(scripted.doc) : "" } }] }),
+            } as unknown as Response);
+          }, scripted.ms);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            setTimeout(release, NOTICE_MS);
+            reject(new DOMException("aborted", "AbortError"));
+          }, { once: true });
+        });
+      }) as typeof fetch;
+      try {
+        const validate = (candidate: Record<string, unknown>): SceneCandidateValidation<string> =>
+          Number(candidate.fatal) === 0
+            ? { valid: true, errors: [], value: String(candidate.tag) }
+            : { valid: false, errors: [{ code: "fatal_geometry", message: "x", severity: "fatal" }] };
+        const outcome = await runScenePlanningOverlap<Authority, Gate, Fast, Awaited<ReturnType<typeof planSceneDocumentWithRepair<string>>> & object>({
+          turnPlan: plan(35.35),
+          problemAuthority: authority.promise,
+          speculationAllowed: true,
+          speculationEnabled: true,
+          plannerStartedAt: Date.now(),
+          deadlineMs: 60_000,
+          deriveGate: (_gatePlan, answered) => ({
+            shouldPlanExactScene: true,
+            shouldAttemptLlmScene: true,
+            families: answered ? ["projectile", "vector_diagram"] : ["projectile"],
+            archetypeId: null,
+            request: {},
+            planId: answered ? "final" : "speculative",
+          }),
+          applyAuthority: (authorityPlan, answered) => ({ turnPlan: authorityPlan, authority: answered }),
+          fastFigureBlocked: () => false,
+          selectFast: () => null,
+          planScene: (_gate, _scenePlan, run) => planSceneDocumentWithRepair(QUESTION, validate, {
+            proxyUrl: "http://planner.test",
+            signal: run.signal,
+            timeoutMs: run.timeoutMs,
+            holdValidationUntil: run.holdValidationUntil,
+            maxConcurrentRequests: run.maxConcurrentRequests,
+            requestBudget: run.requestBudget,
+          }),
+          revalidate: async (result) => result,
+        });
+        assert.equal(outcome.speculation.restarted, true, `${worstCase}: the worst case restarts`);
+        // Teaching starts the moment planning returns, next to any aborted loser.
+        assert(admit(false), `${worstCase}: the teaching request must be admitted`);
+        await wait(NOTICE_MS * 3);
+        assert.equal(server.refused, 0, `${worstCase}: no call may be refused`);
+        assert(server.peak <= 4, `${worstCase}: peak ${server.peak} ai calls in flight`);
+        assert(server.planner <= 12, `${worstCase}: ${server.planner} planner calls in one trace`);
+        console.log(`verify-planning-overlap: ${worstCase} peak ${server.peak} in flight, ${server.planner} planner calls, ${outcome.scene?.repairRounds ?? 0} repair rounds`);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    }
+  });
+
+  await scenario("no candidate is compiled more often than on origin/main", async () => {
+    // Every validate call compiles the candidate (1 to 3 s of main thread
+    // each, profiled); so does each deterministic figure attempt.
+    type Case = "kept" | "kept_with_repairs" | "restart" | "deterministic" | "late_deterministic";
+    const doc = (tag: string, fatal: number) => ({ schemaVersion: "scene-document/v2", tag, fatal });
+    const reply = (which: Case, phase: string) => which === "kept_with_repairs" && phase === "plan"
+      ? doc("needs-repair", 2)
+      : doc(phase, 0);
+    const install = (which: Case) => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+        const phase = new Headers(init?.headers).get("x-scene-planner-phase") ?? "";
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => resolve({
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({ choices: [{ message: { content: JSON.stringify(reply(which, phase)) } }] }),
+          } as unknown as Response), 5);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(new DOMException("aborted", "AbortError"));
+          }, { once: true });
+        });
+      }) as typeof fetch;
+      return () => {
+        globalThis.fetch = originalFetch;
+      };
+    };
+    const counter = () => {
+      const counts = { validate: 0, fast: 0 };
+      const validate = (candidate: Record<string, unknown>): SceneCandidateValidation<string> => {
+        counts.validate += 1;
+        return Number(candidate.fatal) === 0
+          ? { valid: true, errors: [], value: String(candidate.tag) }
+          : { valid: false, errors: [{ code: "fatal_geometry", message: "x", severity: "fatal" }] };
+      };
+      return { counts, validate };
+    };
+    const finalFamilies = (which: Case) => which === "restart" ? ["projectile", "vector_diagram"] : ["projectile"];
+    const sceneOptions = { proxyUrl: "http://planner.test", timeoutMs: 60_000 };
+
+    // origin/main: ProblemIR first, then the fast figure, then the planner on
+    // the final plan, then the forced revalidation that authority triggered.
+    const mainFlow = async (which: Case) => {
+      const { counts, validate } = counter();
+      counts.fast += 1;
+      if (which === "deterministic" || which === "late_deterministic") return counts;
+      const result = await planSceneDocumentWithRepair(QUESTION, validate, sceneOptions);
+      if (result) await revalidateScenePlanWithRepairResult(result, validate);
+      return counts;
+    };
+    const branchFlow = async (which: Case, speculationEnabled: boolean) => {
+      const { counts, validate } = counter();
+      const authority = deferred<Authority | null>();
+      // ProblemIR answers after the speculative candidates have arrived.
+      setTimeout(() => authority.resolve({ id: "ir" }), 40);
+      const outcome = await runScenePlanningOverlap<Authority, Gate, Fast, NonNullable<Awaited<ReturnType<typeof planSceneDocumentWithRepair<string>>>>>({
+        turnPlan: plan(35.35),
+        problemAuthority: authority.promise,
+        speculationAllowed: true,
+        speculationEnabled,
+        plannerStartedAt: Date.now(),
+        deadlineMs: 60_000,
+        sleep: async () => {},
+        deriveGate: (_gatePlan, answered) => ({
+          shouldPlanExactScene: true,
+          shouldAttemptLlmScene: true,
+          families: answered ? finalFamilies(which) : ["projectile"],
+          archetypeId: null,
+          request: {},
+          planId: answered ? "final" : "speculative",
+        }),
+        applyAuthority: (authorityPlan, answered) => ({ turnPlan: authorityPlan, authority: answered }),
+        fastFigureBlocked: () => false,
+        selectFast: (_fastPlan, answered) => {
+          counts.fast += 1;
+          return which === "deterministic" || (which === "late_deterministic" && answered)
+            ? { figure: "fast" }
+            : null;
+        },
+        planScene: (_gate, _scenePlan, run) => planSceneDocumentWithRepair(QUESTION, validate, {
+          ...sceneOptions,
+          signal: run.signal,
+          timeoutMs: run.timeoutMs,
+          holdValidationUntil: run.holdValidationUntil,
+          maxConcurrentRequests: run.maxConcurrentRequests,
+          requestBudget: run.requestBudget,
+        }),
+        revalidate: (result, finalPlan) => revalidateScenePlanWithRepairResult(result, (candidate) => {
+          void finalPlan;
+          return validate(candidate);
+        }),
+      });
+      return { counts, outcome };
+    };
+    for (const which of ["kept", "kept_with_repairs", "restart", "deterministic", "late_deterministic"] as const) {
+      const restoreMain = install(which);
+      const main = await mainFlow(which).finally(restoreMain);
+      const restoreBranch = install(which);
+      const branch = await branchFlow(which, true).finally(restoreBranch);
+      const restoreOff = install(which);
+      const off = await branchFlow(which, false).finally(restoreOff);
+      const mainCompiles = main.validate + main.fast;
+      const offCompiles = off.counts.validate + off.counts.fast;
+      assert.equal(off.counts.fast, 1, `${which}, flag off: no turn-plan-only prediction`);
+      assert(offCompiles <= mainCompiles, `${which}, flag off: compiled ${offCompiles}, main ${mainCompiles}`);
+      assert.equal(off.outcome.speculation.started, false, `${which}, flag off: nothing speculative`);
+      const branchCompiles = branch.counts.validate + branch.counts.fast;
+      // The one extra deterministic attempt is the turn-plan-only prediction.
+      assert.equal(branch.counts.fast, 2, `${which}: the prediction and the final deterministic figure`);
+      assert(branch.counts.validate <= main.validate,
+        `${which}: branch validated ${branch.counts.validate} candidates, main ${main.validate}`);
+      if (!which.endsWith("deterministic")) {
+        assert(branchCompiles <= mainCompiles, `${which}: branch compiled ${branchCompiles}, main ${mainCompiles}`);
+      }
+      if (which === "restart") {
+        assert.equal(branch.outcome.speculation.abortReason, "families_changed");
+        assert.equal(branch.counts.validate, 2,
+          "restart: only the two restarted candidates are compiled, the discarded ones never");
+      }
+      if (which.endsWith("deterministic")) {
+        assert.equal(branch.counts.validate, 0, `${which}: speculative candidates never compiled`);
+      }
+      if (which === "late_deterministic") assert.equal(branch.outcome.speculation.abortReason, "deterministic");
+      if (which.startsWith("kept")) assert.equal(branch.outcome.timings.revalidateSkipped, true);
+      console.log(`verify-planning-overlap: ${which} compiles main ${mainCompiles} (${main.validate} validate + ${main.fast} fast), speculation on ${branchCompiles} (${branch.counts.validate} + ${branch.counts.fast}), off ${offCompiles} (${off.counts.validate} + ${off.counts.fast})`);
+    }
+  });
+
+  // Both callers run the same module, so the bench measures the live path.
+  const appRoot = join(process.cwd());
+  const hook = readFileSync(join(appRoot, "features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+  const bench = readFileSync(join(appRoot, "scripts/lecture-lab/lecturePipeline.ts"), "utf8");
+  assert(/await runScenePlanningOverlap</.test(hook), "the live hook must plan through runScenePlanningOverlap");
+  assert(/await runScenePlanningOverlap</.test(bench), "the lecture lab must plan through runScenePlanningOverlap");
+  assert(/speculationAllowed: recoveredScene === null/.test(hook), "a recovered scene must never speculate");
+  assert(!/planSceneDocumentWithRepair\([\s\S]{0,40}validateCandidate,/.test(hook),
+    "the hook must not keep a second, serial scene planner call");
+  assert(/isCurrentTurn\)\.catch\(closeTurnPlanSpanOnFailure\)/.test(hook) &&
+    /turnPlanSpan\.end\(\{ aborted: true \}\)/.test(hook),
+    "a cancelled turn plan closes its span");
+  assert(/holdValidationUntil: run\.holdValidationUntil/.test(hook) &&
+    /holdValidationUntil: sceneRun\.holdValidationUntil/.test(bench),
+    "both callers pass the repair hold to the scene planner");
+  assert(/tel\.span\("turn-plan", "planner"\)/.test(hook) && /tel\.span\("problem-ir", "planner"\)/.test(hook),
+    "turn-plan and problem-ir spans are children of planner");
+  passed += 1;
+  console.log(`verify-planning-overlap: ${passed} scenarios passed`);
+}
+
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

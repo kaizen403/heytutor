@@ -7,7 +7,7 @@ import {
 import { questionsForJob } from "../../lib/llm/evaluation/rubrics";
 import type { NormalizedAnswer, TutorAssessment } from "../../lib/llm/evaluation/types";
 import { prepareNotesChat } from "../../lib/llm/notesChatPolicy";
-import { DEFAULT_PROBLEM_IR_MODEL, DEFAULT_TEACHING_FAST_MODEL } from "../../lib/llm/fireworksModels";
+import { DEFAULT_CHEAP_FIREWORKS_MODEL, DEFAULT_TEACHING_FAST_MODEL } from "../../lib/llm/fireworksModels";
 import { assessDsaTeachingPolicy } from "../../lib/llm/dsaTeachingPolicy";
 import { codeLessonBeatPlan } from "@heytutor/tutor-core";
 import { formatLessonNotesForPrompt, type LessonNotesSnapshot } from "../../features/tutor-session/lib/notes/lessonNotes";
@@ -219,7 +219,7 @@ const cheap = await prepareNotesChat({
     throw new Error("cheap mode must not call Jev");
   },
 });
-assert(cheap.model === DEFAULT_PROBLEM_IR_MODEL, "the static cheap cohort uses DeepSeek Flash");
+assert(cheap.model === DEFAULT_CHEAP_FIREWORKS_MODEL, "the static cheap cohort uses DeepSeek Flash");
 assert(cheap.evaluation === null, "the static cohort does not need an evaluator");
 
 let routedBody = "";
@@ -246,7 +246,7 @@ const routed = await prepareNotesChat({
     });
   },
 });
-assert(routed.model === DEFAULT_PROBLEM_IR_MODEL, "an explicit cheap_explanation choice may use the cheap notes model");
+assert(routed.model === DEFAULT_CHEAP_FIREWORKS_MODEL, "an explicit cheap_explanation choice may use the cheap notes model");
 assert(routedBody.includes("uncertain"), "the uncertain option is always offered");
 
 const shadow = await prepareNotesChat({

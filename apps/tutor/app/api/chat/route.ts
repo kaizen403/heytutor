@@ -14,6 +14,8 @@ import {
 } from "@/lib/obs/langfuse";
 import {
   chatGenerationName,
+  chatTimingMetadata,
+  providerPerfMetadata,
   readChatTraceHeaders,
   resolveChatGenerationKind,
   resolveTurnTraceInput,
@@ -31,8 +33,9 @@ import { markGrantInUse, type TurnGrant } from "@/lib/billing/grant";
 import type { SpendActor } from "@/lib/billing/actor";
 import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type PaidUsageReservation } from "@/lib/billing/paidUsage";
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
-import { serverChatBody } from "@/lib/llm/chatRequest";
+import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import { setTimeout as sleepFor } from "node:timers/promises";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
@@ -40,9 +43,15 @@ import {
 } from "@/lib/llm/plannerTransport";
 import {
   fetchTeachingCompletion,
+  classifyTeachingFailure,
+  nextTeachingAttempt,
+  readTeachingStartupRetry,
   resolveTeachingContentBudget,
-  resolveTeachingModel,
+  resolveTeachingModelRoute,
   resolveTeachingReasoningEffort,
+  teachingAttemptModel,
+  teachingAttemptMayHaveGenerated,
+  type TeachingUpstreamFailure,
 } from "@/lib/llm/teachingTransport";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
@@ -74,15 +83,11 @@ interface FireworksUsage {
   total_tokens?: number;
 }
 
-interface FireworksPerfMetrics {
-  ttft_ms?: number;
-  tokens_per_sec?: number;
-}
-
 interface FireworksSSEPayload {
   choices?: { delta?: { content?: string; reasoning_content?: string } }[];
   usage?: FireworksUsage;
-  perf_metrics?: FireworksPerfMetrics;
+  /** Final chunk only; shape read by `providerPerfMetadata`. */
+  perf_metrics?: unknown;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -328,22 +333,41 @@ function injectStreamOptions(
   }
 }
 
+interface TeachingTraceTiming {
+  /** POST received, before auth, grant, and reservation work. */
+  requestStartedAt: number;
+  /** First upstream fetch attempt started. */
+  upstreamStartedAt: number;
+  /** The attempt that produced the response started. */
+  finalAttemptStartedAt: number;
+  attemptCount: number;
+  /** Upstream response headers arrived. */
+  responseHeadersAt: number;
+}
+
 function createTracingTransformStream(
   turnTrace: TurnTrace | null,
   mock: boolean,
-  requestStartedAt: number,
+  timing: TeachingTraceTiming,
   updateTrace: boolean,
   spend?: { actor: SpendActor; model: string; reservation: PaidUsageReservation; unknownCost: () => number; retryCost: () => number },
+  generationMetadata: Record<string, unknown> = {},
+  /** The student's request signal only; server deadlines are not aborts. */
+  clientSignal?: AbortSignal,
 ): TransformStream<Uint8Array, Uint8Array> {
+  const requestStartedAt = timing.upstreamStartedAt;
   const decoder = new TextDecoder();
   let bufferedText = "";
   let accumulatedOutput = "";
   let accumulatedReasoning = "";
   let latestUsage: unknown;
-  let latestPerfMetrics: FireworksPerfMetrics | undefined;
+  let latestPerfMetrics: unknown;
   let firstContentAt: number | null = null;
   let firstReasoningAt: number | null = null;
   let chunkCount = 0;
+  // A client abort cancels the stream instead of flushing it; whichever runs
+  // first closes the Langfuse generation.
+  let generationEnded = false;
 
   const processLine = (line: string): void => {
     if (!line.startsWith("data: ")) {
@@ -399,7 +423,11 @@ function createTracingTransformStream(
     }
   };
 
-  return new TransformStream({
+  const timingMetadata = () => chatTimingMetadata({ ...timing, firstContentAt });
+
+  // `cancel` is a standard transformer hook (Node 20+) that the DOM lib types
+  // in this TypeScript version do not declare yet.
+  const transformer: Transformer<Uint8Array, Uint8Array> & { cancel(reason: unknown): void } = {
     transform(chunk, controller) {
       controller.enqueue(chunk);
 
@@ -419,6 +447,8 @@ function createTracingTransformStream(
       }
 
       const durationMs = Date.now() - requestStartedAt;
+      const usage = readUsage(latestUsage);
+      const perf = providerPerfMetadata(latestPerfMetrics, { completionTokens: usage.known ? usage.output : undefined });
 
       tutorDebug("chat", "upstream stream complete", {
         duration_ms: durationMs,
@@ -427,8 +457,8 @@ function createTracingTransformStream(
         content_chunks: chunkCount,
         ttft_content_ms: firstContentAt ? firstContentAt - requestStartedAt : null,
         ttft_reasoning_ms: firstReasoningAt ? firstReasoningAt - requestStartedAt : null,
-        fireworks_ttft_ms: latestPerfMetrics?.ttft_ms,
-        tokens_per_sec: latestPerfMetrics?.tokens_per_sec,
+        fireworks_ttft_ms: perf.ttft_ms,
+        tokens_per_sec: perf.tokens_per_sec,
       });
 
       if (accumulatedOutput.length === 0) {
@@ -438,21 +468,25 @@ function createTracingTransformStream(
         });
       }
 
-      const usage = readUsage(latestUsage);
-      endLlmGeneration(turnTrace, {
-        output: accumulatedOutput,
-        usageDetails: usageDetailsFromParsed(usage),
-        metadata: {
-          ttft_ms: latestPerfMetrics?.ttft_ms,
-          tokens_per_sec: latestPerfMetrics?.tokens_per_sec,
-          reasoning_chars: accumulatedReasoning.length,
-          content_chars: accumulatedOutput.length,
-          usage_status: usage.known ? "known" : "unknown",
-          cached_input_tokens: usage.cachedInput ?? 0,
-        },
-        mock,
-        updateTrace,
-      });
+      if (!generationEnded) {
+        generationEnded = true;
+        endLlmGeneration(turnTrace, {
+          output: accumulatedOutput,
+          usageDetails: usageDetailsFromParsed(usage),
+          metadata: {
+            ...generationMetadata,
+            ...perf,
+            ...timingMetadata(),
+            reasoning_chars: accumulatedReasoning.length,
+            content_chars: accumulatedOutput.length,
+            usage_status: usage.known ? "known" : "unknown",
+            cached_input_tokens: usage.cachedInput ?? 0,
+          },
+          model: spend?.model,
+          mock,
+          updateTrace,
+        });
+      }
       if (spend && !mock && usage.known) {
         recordLlmSpend({
           actor: spend.actor,
@@ -465,7 +499,38 @@ function createTracingTransformStream(
       if (spend) await spend.reservation.settle(usage.known ? (actualLlmCost(usageDetailsFromParsed(usage), spend.model) ?? 0) + spend.retryCost() : spend.unknownCost());
       flushInBackground();
     },
-  });
+    // Runs when the client cancels the body and when the upstream stream
+    // dies mid-flight. Billing for both is settled by `holdPaidUsage`; this
+    // only closes the generation, as an abort (for example the losing hedge)
+    // or as an upstream error.
+    cancel(reason) {
+      if (generationEnded) return;
+      generationEnded = true;
+      const clientAborted = clientSignal?.aborted === true;
+      const reasonName = reason instanceof Error || reason instanceof DOMException
+        ? reason.name
+        : typeof reason === "string" ? reason.slice(0, 120) : undefined;
+      endLlmGeneration(turnTrace, {
+        output: accumulatedOutput,
+        metadata: {
+          ...generationMetadata,
+          ...timingMetadata(),
+          ...(clientAborted
+            ? { aborted: true, abort_reason: reasonName }
+            : { error: true, upstream_error: reasonName ?? "unknown" }),
+          reasoning_chars: accumulatedReasoning.length,
+          content_chars: accumulatedOutput.length,
+          usage_status: "unknown",
+        },
+        model: spend?.model,
+        mock,
+        updateTrace: false,
+        level: clientAborted ? "WARNING" : "ERROR",
+      });
+      flushInBackground();
+    },
+  };
+  return new TransformStream(transformer);
 }
 
 interface PlannerRequestArgs {
@@ -522,7 +587,7 @@ async function handlePlannerRequest({
   );
   const boundedSignal = mergePlannerSignals(signal, deadlineController.signal);
   try {
-    const parsed = serverChatBody(JSON.parse(rawBody));
+    const parsed = serverChatBody(JSON.parse(rawBody), "planner");
     delete parsed.reasoning_effort;
     if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
@@ -549,10 +614,15 @@ async function handlePlannerRequest({
     if (reserved instanceof Response) return reserved;
     reservation = reserved;
     const upstreamStartedAt = Date.now();
+    let finalAttemptStartedAt = upstreamStartedAt;
     const transport = await fetchPlannerCompletion({
       url: FIREWORKS_CHAT_URL,
       apiKey,
       body: parsed,
+      fetchImpl: (input, init) => {
+        finalAttemptStartedAt = Date.now();
+        return fetch(input, init);
+      },
       models: plannerModels,
       signal: boundedSignal,
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
@@ -567,10 +637,17 @@ async function handlePlannerRequest({
       },
     });
     const { response } = transport;
+    const timing = chatTimingMetadata({
+      requestStartedAt,
+      upstreamStartedAt,
+      finalAttemptStartedAt,
+      attemptCount: transport.attemptCount,
+      responseHeadersAt: Date.now(),
+    });
 
     tutorDebug("planner", "fireworks response", {
       status: response.status,
-      connect_ms: Date.now() - upstreamStartedAt,
+      ...timing,
       model: transport.model,
       attempts: transport.attemptCount,
     });
@@ -580,6 +657,7 @@ async function handlePlannerRequest({
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
         metadata: {
+          ...timing,
           error: true,
           status: response.status,
           planner: true,
@@ -605,6 +683,7 @@ async function handlePlannerRequest({
       const parsedResponse = JSON.parse(jsonBody) as {
         choices?: { message?: { content?: string; reasoning_content?: string } }[];
         usage?: unknown;
+        perf_metrics?: unknown;
       };
       const content = parsedResponse.choices?.[0]?.message?.content ?? "";
       const reasoning = parsedResponse.choices?.[0]?.message?.reasoning_content ?? "";
@@ -613,6 +692,12 @@ async function handlePlannerRequest({
         output: content,
         usageDetails: usageDetailsFromParsed(usage),
         metadata: {
+          ...providerPerfMetadata(parsedResponse.perf_metrics, {
+            headers: response.headers,
+            completionTokens: usage.known ? usage.output : undefined,
+          }),
+          ...timing,
+          temperature: parsed.temperature,
           planner: true,
           scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
           turn_planner_version: turnPlanV3 ? 3 : undefined,
@@ -708,7 +793,9 @@ export async function POST(request: Request): Promise<Response> {
   let streamOwnsGrant = false;
   let reservation: PaidUsageReservation | null = null;
   let attemptCount = 0;
-  let singleAttemptCost = 0;
+  // What each dispatched upstream attempt may cost, priced for the model it called.
+  const attemptCosts: number[] = [];
+  const attemptedCost = () => attemptCosts.reduce((total, cost) => total + cost, 0);
   const requestSignal = AbortSignal.any([request.signal, AbortSignal.timeout(120_000)]);
   try {
   let rawBody: string;
@@ -727,9 +814,11 @@ export async function POST(request: Request): Promise<Response> {
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
   const apiKey = process.env.FIREWORKS_API_KEY;
   const mock = !apiKey;
-  const serverModel = kind === "teaching"
-    ? resolveTeachingModel(process.env, { fastMode })
-    : resolveFireworksModel({ fastMode });
+  // A startup retry after a stalled Fast router runs on the standard deployment.
+  const teachingRoute = kind === "teaching"
+    ? resolveTeachingModelRoute(process.env, { fastMode, startupRetry: readTeachingStartupRetry(request.headers) })
+    : null;
+  const serverModel = teachingRoute ? teachingRoute.model : resolveFireworksModel({ fastMode });
   const turnTrace = startTurnTrace({
     userId: actor.userId,
     sessionId,
@@ -807,6 +896,17 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const reasoningMode = parseReasoningMode(process.env.TUTOR_REASONING_MODE);
+  // A hedge is admitted exactly like any teaching call on this trace: same
+  // grant, ownership check, per-trace call allowance, and reservation. The
+  // header only tags the generation so the pair can be told apart.
+  const teachingHedge = isTeachingHedge(request.headers);
+  const teachingMetadata: Record<string, unknown> = teachingHedge ? { teaching_hedge: true } : {};
+  const route = teachingRoute ?? { model: serverModel, alternate: null, fallbackReason: null };
+  const markModelFallback = (reason: string) => {
+    teachingMetadata.teaching_model_fallback = true;
+    teachingMetadata.teaching_model_fallback_reason = reason;
+  };
+  if (route.fallbackReason) markModelFallback(route.fallbackReason);
   const teachingPass = request.headers.get("x-heytutor-teaching-pass");
   const hasAuthoritativePlan = teachingPass === "planned";
   const isCodeLessonTurn =
@@ -818,33 +918,62 @@ export async function POST(request: Request): Promise<Response> {
     codeLesson: teachingPass === "code-lesson",
     afterReasoningOnly: request.headers.get("x-heytutor-reasoning-retry") === "1",
   });
-  const bodyToSend = injectStreamOptions(rawBody, serverModel, reasoningEffort, isCodeLessonTurn);
-  const providerBody = JSON.parse(bodyToSend) as Record<string, unknown>;
-  singleAttemptCost = maximumLlmCost(providerBody.messages, Number(providerBody.max_tokens), [serverModel]);
-  const reserved = await reservePaidUsage({ actor, grant, kind: "teaching", traceId, usd: singleAttemptCost * 3 });
+  const TEACHING_UPSTREAM_ATTEMPTS = 3;
+  // Same body for every deployment; only `model` differs.
+  const bodyFor = (model: string) => injectStreamOptions(rawBody, model, reasoningEffort, isCodeLessonTurn);
+  const providerBody = JSON.parse(bodyFor(route.model)) as Record<string, unknown>;
+  const attemptCostFor = (model: string) =>
+    maximumLlmCost(providerBody.messages, Number(providerBody.max_tokens), [model]);
+  let reservedUsd = 0;
+  for (let attempt = 0; attempt < TEACHING_UPSTREAM_ATTEMPTS; attempt++) {
+    reservedUsd += attemptCostFor(teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS));
+  }
+  const reserved = await reservePaidUsage({ actor, grant, kind: "teaching", traceId, usd: reservedUsd });
   if (reserved instanceof Response) return reserved;
   reservation = reserved;
 
   tutorDebug("chat", "forwarding to Fireworks", {
-    model: serverModel,
+    model: route.model,
+    alternate_model: route.alternate,
+    model_fallback: route.fallbackReason,
     authoritative_plan: hasAuthoritativePlan,
     code_lesson: isCodeLessonTurn,
     reasoning_mode: reasoningMode,
     reasoning_effort: reasoningEffort,
+    teaching_hedge: teachingHedge,
   });
 
+  let upstreamStartedAt: number | null = null;
+  // The deployment the latest upstream attempt called.
+  let calledModel = route.model;
   try {
-    const upstreamStartedAt = Date.now();
+    upstreamStartedAt = Date.now();
+    let finalAttemptStartedAt = upstreamStartedAt;
     let response: Response | null = null;
     let lastFetchError: unknown = null;
 
-    // Transient DNS/TLS/"fetch failed" blips are common; one quick retry avoids
-    // aborting a whole turn for a one-off network hiccup.
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Transient DNS/TLS/"fetch failed" blips and provider 5xx are common; quick
+    // retries avoid aborting a whole turn for a one-off hiccup. When every
+    // earlier attempt failed before content, the last one moves to the
+    // alternate deployment; a 429 skips straight there or is not retried.
+    // Nothing here runs once a response has been accepted, so a stream that
+    // started is never retried.
+    let lastFailure: TeachingUpstreamFailure | null = null;
+    let attempt = 0;
+    while (attempt < TEACHING_UPSTREAM_ATTEMPTS) {
+      if (requestSignal.aborted) break;
+      const model = teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS);
+      if (model !== route.model && !teachingMetadata.teaching_model_fallback) {
+        markModelFallback(lastFailure ?? "upstream_connect_failure");
+        tutorDebug("chat", "teaching falls back to the alternate deployment", { from: route.model, to: model, after: lastFailure });
+      }
+      calledModel = model;
+      attemptCount += 1;
+      attemptCosts.push(attemptCostFor(model));
+      finalAttemptStartedAt = Date.now();
+      let failure: TeachingUpstreamFailure | null;
       try {
-        if (requestSignal.aborted) break;
-        attemptCount += 1;
-        response = await fetchTeachingCompletion({
+        const attemptResponse = await fetchTeachingCompletion({
           url: FIREWORKS_CHAT_URL,
           signal: requestSignal,
           init: {
@@ -853,22 +982,42 @@ export async function POST(request: Request): Promise<Response> {
               Authorization: `Bearer ${apiKey}`,
               "content-type": "application/json",
             },
-            body: bodyToSend,
+            body: bodyFor(model),
           },
         });
         lastFetchError = null;
-        break;
+        // A provider error status means no generation ran: that attempt is free.
+        if (!teachingAttemptMayHaveGenerated(attemptResponse)) attemptCosts[attemptCosts.length - 1] = 0;
+        failure = classifyTeachingFailure(attemptResponse);
+        if (nextTeachingAttempt(route, attempt, TEACHING_UPSTREAM_ATTEMPTS, failure) === null) {
+          response = attemptResponse;
+          break;
+        }
+        await attemptResponse.body?.cancel().catch(() => undefined);
+        lastFetchError = new Error(`upstream status ${attemptResponse.status}`);
+        tutorDebug("chat", "Fireworks upstream error before content", {
+          attempt: attempt + 1,
+          model,
+          status: attemptResponse.status,
+        });
       } catch (error: unknown) {
+        failure = "upstream_connect_failure";
         lastFetchError = error;
         tutorDebug("chat", "Fireworks fetch failed", {
           attempt: attempt + 1,
+          model,
           message: error instanceof Error ? error.message : String(error),
         });
-        if (requestSignal.aborted) break;
-        if (attempt < 2) {
-          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
-        }
       }
+      lastFailure = failure;
+      const next = requestSignal.aborted
+        ? null
+        : nextTeachingAttempt(route, attempt, TEACHING_UPSTREAM_ATTEMPTS, failure);
+      if (next === null) break;
+      // Stop or the client deadline ends the backoff at once, so the pending
+      // slot and the reservation are released without waiting it out.
+      await sleepFor(400 * (attempt + 1), undefined, { signal: requestSignal }).catch(() => undefined);
+      attempt = next;
     }
 
     if (!response) {
@@ -877,9 +1026,16 @@ export async function POST(request: Request): Promise<Response> {
         : new Error("fetch failed");
     }
 
+    const timing: TeachingTraceTiming = {
+      requestStartedAt,
+      upstreamStartedAt,
+      finalAttemptStartedAt,
+      attemptCount,
+      responseHeadersAt: Date.now(),
+    };
     tutorDebug("chat", "Fireworks response headers", {
       status: response.status,
-      connect_ms: Date.now() - upstreamStartedAt,
+      ...chatTimingMetadata(timing),
     });
 
     if (!response.ok) {
@@ -887,7 +1043,8 @@ export async function POST(request: Request): Promise<Response> {
 
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
-        metadata: { error: true, status: response.status },
+        metadata: { ...teachingMetadata, ...chatTimingMetadata(timing), error: true, status: response.status },
+        model: calledModel,
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
@@ -904,7 +1061,8 @@ export async function POST(request: Request): Promise<Response> {
     if (!response.body) {
       endLlmGeneration(turnTrace, {
         output: "",
-        metadata: { error: true, reason: "empty_body" },
+        metadata: { ...teachingMetadata, ...chatTimingMetadata(timing), error: true, reason: "empty_body" },
+        model: calledModel,
         updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
         level: "ERROR",
       });
@@ -920,9 +1078,13 @@ export async function POST(request: Request): Promise<Response> {
       createTracingTransformStream(
         turnTrace,
         false,
-        upstreamStartedAt,
+        timing,
         shouldUpdateParentTraceOutput(kind, userInput),
-        { actor, model: serverModel, reservation, unknownCost: () => singleAttemptCost * attemptCount, retryCost: () => singleAttemptCost * Math.max(0, attemptCount - 1) },
+        // Usage is priced for the deployment that streamed; earlier failed
+        // attempts keep their own bounded charge.
+        { actor, model: calledModel, reservation, unknownCost: attemptedCost, retryCost: () => attemptedCost() - (attemptCosts.at(-1) ?? 0) },
+        teachingMetadata,
+        request.signal,
       ),
     );
 
@@ -931,7 +1093,7 @@ export async function POST(request: Request): Promise<Response> {
       total_setup_ms: Date.now() - requestStartedAt,
     });
 
-    const heldBody = holdGrantUntilStreamEnds(grant, grantTraceId, holdPaidUsage(tracedBody, reservation, () => singleAttemptCost * attemptCount), releaseInUse);
+    const heldBody = holdGrantUntilStreamEnds(grant, grantTraceId, holdPaidUsage(tracedBody, reservation, attemptedCost), releaseInUse);
     streamOwnsGrant = true;
     return new Response(heldBody, {
       status: response.status,
@@ -951,9 +1113,16 @@ export async function POST(request: Request): Promise<Response> {
 
     endLlmGeneration(turnTrace, {
       output: message,
-      metadata: { error: true },
+      metadata: {
+        ...teachingMetadata,
+        ...(upstreamStartedAt === null ? {} : { server_setup_ms: upstreamStartedAt - requestStartedAt }),
+        attempt_count: attemptCount,
+        error: true,
+        ...(request.signal.aborted ? { aborted: true } : { upstream_error: error instanceof Error ? error.name : "unknown" }),
+      },
+      model: calledModel,
       updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
-      level: "ERROR",
+      level: request.signal.aborted ? "WARNING" : "ERROR",
     });
     flushInBackground();
 
@@ -967,7 +1136,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   } finally {
     if (!streamOwnsGrant) {
-      await reservation?.settle(singleAttemptCost * attemptCount).catch(error => console.error("[billing] teaching reconciliation failed", error));
+      await reservation?.settle(attemptedCost()).catch(error => console.error("[billing] teaching reconciliation failed", error));
       releaseInUse();
     }
   }
