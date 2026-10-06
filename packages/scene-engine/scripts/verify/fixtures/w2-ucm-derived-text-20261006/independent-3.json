@@ -1,0 +1,226 @@
+{
+  "question": "A body moves clockwise at a constant speed of 9 m/s in a circle of radius 18 m. Find its angular speed and centripetal acceleration.",
+  "rawIRs": [
+    {
+      "facts": [
+        {
+          "id": "fSpeed",
+          "kind": "given",
+          "statement": "constant speed of 9 m/s",
+          "quote": "constant speed of 9 m/s"
+        },
+        {
+          "id": "fRadius",
+          "kind": "given",
+          "statement": "circle of radius 18 m",
+          "quote": "circle of radius 18 m"
+        },
+        {
+          "id": "fClockwise",
+          "kind": "given",
+          "statement": "moves clockwise",
+          "quote": "moves clockwise"
+        },
+        {
+          "id": "fOmega",
+          "kind": "requested",
+          "statement": "find angular speed",
+          "quote": "Find its angular speed"
+        },
+        {
+          "id": "fAc",
+          "kind": "requested",
+          "statement": "find centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "body",
+          "kind": "body",
+          "label": "moving body",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fClockwise"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circular path",
+          "evidenceFactIds": [
+            "fRadius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eOmega",
+          "valueType": "scalar",
+          "expr": "9/18",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius"
+          ]
+        },
+        {
+          "id": "eAc",
+          "valueType": "scalar",
+          "expr": "9^2/18",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "iCircle",
+          "kind": "conceptual",
+          "entityIds": [
+            "body",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "fRadius",
+            "fClockwise"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sOmega",
+          "kind": "evaluate",
+          "expressionId": "eOmega",
+          "resultBinding": {
+            "turnPlanQuantityId": "omega",
+            "symbol": "\u03c9",
+            "unit": "rad/s",
+            "evidenceFactIds": [
+              "fOmega"
+            ]
+          }
+        },
+        {
+          "id": "sAc",
+          "kind": "evaluate",
+          "expressionId": "eAc",
+          "resultBinding": {
+            "turnPlanQuantityId": "ac",
+            "symbol": "a_c",
+            "unit": "m/s\u00b2",
+            "evidenceFactIds": [
+              "fAc"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "canonicalPlan": {
+    "givens": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "value": 9,
+        "symbol": "v",
+        "provenance": "given",
+        "sourceText": "constant speed of 9 m/s"
+      },
+      {
+        "id": "r",
+        "unit": "m",
+        "value": 18,
+        "symbol": "r",
+        "provenance": "given",
+        "sourceText": "radius 18 m"
+      }
+    ],
+    "lawIds": [
+      "uniform_circular_motion_angular_speed",
+      "centripetal_acceleration"
+    ],
+    "derived": [
+      {
+        "id": "omega",
+        "unit": "rad/s",
+        "value": 0.5,
+        "symbol": "\u03c9",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "\u03c9 = 9/18 = 0.5 rad/s"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s\u00b2",
+        "value": 4.5,
+        "symbol": "a_c",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "a_c = 9^2/18 = 4.5 m/s\u00b2"
+      }
+    ],
+    "question": "A body moves clockwise at a constant speed of 9 m/s in a circle of radius 18 m. Find its angular speed and centripetal acceleration.",
+    "unknowns": [
+      {
+        "id": "omega",
+        "unit": "rad/s",
+        "symbol": "\u03c9"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s\u00b2",
+        "symbol": "a_c"
+      }
+    ],
+    "assumptions": [
+      "Uniform circular motion at constant speed",
+      "Centripetal acceleration directed toward the centre of the circle",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Angular speed is \u03c9 = v/r.",
+        "expected": true,
+        "relatedQuantityIds": [
+          "omega",
+          "v",
+          "r"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Centripetal acceleration magnitude is a_c = v\u00b2/r = \u03c9\u00b2r, directed radially inward toward the centre.",
+        "expected": true,
+        "relatedQuantityIds": [
+          "ac",
+          "v",
+          "r",
+          "omega"
+        ]
+      },
+      {
+        "id": "c3",
+        "claim": "Clockwise motion sets the sign of angular velocity (negative by the usual counterclockwise-positive convention) but does not change the magnitudes.",
+        "expected": true,
+        "relatedQuantityIds": [
+          "omega"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "expected": [
+    0.5,
+    4.5
+  ]
+}

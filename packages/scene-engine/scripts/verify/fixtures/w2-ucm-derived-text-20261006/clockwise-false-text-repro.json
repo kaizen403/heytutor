@@ -1,0 +1,677 @@
+{
+  "question": "A body moves clockwise at a constant speed of 6 m/s in a circle of radius 12 m. Find its angular speed and centripetal acceleration.",
+  "problemIR": {
+    "facts": [
+      {
+        "id": "fSpeed",
+        "kind": "given",
+        "statement": "constant speed 6 m/s",
+        "evidence": {
+          "source": "question",
+          "start": 28,
+          "end": 51,
+          "quote": "constant speed of 6 m/s"
+        }
+      },
+      {
+        "id": "fRadius",
+        "kind": "given",
+        "statement": "circle radius 12 m",
+        "evidence": {
+          "source": "question",
+          "start": 57,
+          "end": 78,
+          "quote": "circle of radius 12 m"
+        }
+      },
+      {
+        "id": "fClockwise",
+        "kind": "given",
+        "statement": "body moves clockwise",
+        "evidence": {
+          "source": "question",
+          "start": 7,
+          "end": 22,
+          "quote": "moves clockwise"
+        }
+      },
+      {
+        "id": "fOmega",
+        "kind": "requested",
+        "statement": "find angular speed",
+        "evidence": {
+          "source": "question",
+          "start": 80,
+          "end": 102,
+          "quote": "Find its angular speed"
+        }
+      },
+      {
+        "id": "fAc",
+        "kind": "requested",
+        "statement": "find centripetal acceleration",
+        "evidence": {
+          "source": "question",
+          "start": 107,
+          "end": 131,
+          "quote": "centripetal acceleration"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "body",
+        "kind": "body",
+        "label": "moving body",
+        "evidenceFactIds": [
+          "fSpeed",
+          "fClockwise"
+        ]
+      },
+      {
+        "id": "path",
+        "kind": "curve",
+        "label": "circular path",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eOmega",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "number",
+            "value": 6
+          },
+          "right": {
+            "kind": "number",
+            "value": 12
+          }
+        }
+      },
+      {
+        "id": "eAc",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "^",
+            "left": {
+              "kind": "number",
+              "value": 6
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 12
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iCircle",
+        "kind": "conceptual",
+        "entityIds": [
+          "body",
+          "path"
+        ],
+        "evidenceFactIds": [
+          "fRadius",
+          "fClockwise"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sOmega",
+        "kind": "evaluate",
+        "expressionId": "eOmega",
+        "resultBinding": {
+          "turnPlanQuantityId": "omega",
+          "symbol": "\u03c9",
+          "unit": "rad/s",
+          "evidenceFactIds": [
+            "fOmega"
+          ]
+        }
+      },
+      {
+        "id": "sAc",
+        "kind": "evaluate",
+        "expressionId": "eAc",
+        "resultBinding": {
+          "turnPlanQuantityId": "ac",
+          "symbol": "a_c",
+          "unit": "m/s\u00b2",
+          "evidenceFactIds": [
+            "fAc"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A body moves clockwise at a constant speed of 6 m/s in a circle of radius 12 m. Find its angular speed and centripetal acceleration."
+  },
+  "turnPlan": {
+    "givens": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "value": 6,
+        "symbol": "v",
+        "provenance": "given",
+        "sourceText": "constant speed of 6 m/s"
+      },
+      {
+        "id": "r",
+        "unit": "m",
+        "value": 12,
+        "symbol": "r",
+        "provenance": "given",
+        "sourceText": "circle of radius 12 m"
+      }
+    ],
+    "lawIds": [
+      "uniform_circular_motion_angular_speed",
+      "centripetal_acceleration"
+    ],
+    "derived": [
+      {
+        "id": "omega",
+        "unit": "rad/s",
+        "value": 0.5,
+        "symbol": "\u03c9",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "Centripetal acceleration is zero because speed is constant."
+      },
+      {
+        "id": "ac",
+        "unit": "m/s\u00b2",
+        "value": 3,
+        "symbol": "a_c",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "a_c = v\u00b2/r = 36/12 = 3"
+      }
+    ],
+    "question": "A body moves clockwise at a constant speed of 6 m/s in a circle of radius 12 m. Find its angular speed and centripetal acceleration.",
+    "unknowns": [
+      {
+        "id": "omega",
+        "unit": "rad/s",
+        "symbol": "\u03c9"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s\u00b2",
+        "symbol": "a_c"
+      }
+    ],
+    "assumptions": [
+      "Uniform circular motion at constant speed",
+      "Centripetal acceleration directed toward the centre of the circle",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Angular speed is \u03c9 = v/r.",
+        "expected": "\u03c9 = v/r = 0.5 rad/s",
+        "relatedQuantityIds": [
+          "omega",
+          "v",
+          "r"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Centripetal acceleration magnitude is a_c = v\u00b2/r = \u03c9\u00b2r, directed radially inward toward the centre.",
+        "expected": "a_c = v\u00b2/r = 3 m/s\u00b2",
+        "relatedQuantityIds": [
+          "ac",
+          "v",
+          "r",
+          "omega"
+        ]
+      },
+      {
+        "id": "c3",
+        "claim": "Clockwise motion sets the sign of angular velocity (negative by the usual counterclockwise-positive convention) but does not change the magnitudes.",
+        "expected": "\u03c9 = \u22120.5 rad/s if signed; magnitude 0.5 rad/s",
+        "relatedQuantityIds": [
+          "omega"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "body in uniform circular motion, moving clockwise, with its tangent velocity and inward acceleration recomputed from the source radius and rate"
+    },
+    "source": {
+      "question": "A body moves clockwise at a constant speed of 6 m/s in a circle of radius 12 m. Find its angular speed and centripetal acceleration.",
+      "synthesizedFamily": true,
+      "archetype": "uniform_circular_motion_source",
+      "slotSources": {
+        "r": "stem",
+        "v": "stem",
+        "omega": "stem",
+        "a_c": "stem"
+      }
+    },
+    "quantities": [
+      {
+        "id": "r",
+        "symbol": "r",
+        "value": 12,
+        "unit": "m"
+      },
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": 6,
+        "unit": "m/s"
+      },
+      {
+        "id": "omega",
+        "symbol": "omega",
+        "value": 0.5,
+        "unit": "rad/s"
+      },
+      {
+        "id": "a_c",
+        "symbol": "a_c",
+        "value": 3,
+        "unit": "m/s^2"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "centre",
+        "label": "O"
+      },
+      {
+        "id": "path",
+        "kind": "circle",
+        "role": "circular path"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "radius mark end helper"
+      },
+      {
+        "id": "radius",
+        "kind": "segment",
+        "role": "radius",
+        "label": "r=12 m"
+      },
+      {
+        "id": "body",
+        "kind": "point",
+        "role": "body in uniform circular motion",
+        "label": "P"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "tangential velocity",
+        "label": "v=6 m/s"
+      },
+      {
+        "id": "accel",
+        "kind": "vector",
+        "role": "centripetal acceleration",
+        "label": "a=3 m/s^2"
+      },
+      {
+        "id": "source_name_body_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "body"
+      },
+      {
+        "id": "source_name_path_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "circle"
+      },
+      {
+        "id": "source_name_O_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "centre"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_path",
+        "operator": "circle",
+        "inputs": {
+          "center": "O",
+          "radius": 2.4
+        },
+        "outputs": [
+          "path"
+        ]
+      },
+      {
+        "id": "make_Q",
+        "operator": "point",
+        "inputs": {
+          "x": 2.0785,
+          "y": -1.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "make_radius",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "Q"
+        },
+        "outputs": [
+          "radius"
+        ]
+      },
+      {
+        "id": "make_body",
+        "operator": "rotational_motion",
+        "inputs": {
+          "radius": "r",
+          "angle": 1.5707963267948966,
+          "angleUnit": "rad",
+          "angularVelocity": -0.5,
+          "angularAcceleration": 0,
+          "units": {
+            "length": "m",
+            "time": "s"
+          },
+          "angularVelocityUnit": "rad/s",
+          "angularAccelerationUnit": "rad/s^2",
+          "origin": [
+            0,
+            0
+          ],
+          "displayScale": 0.19999999999999998
+        },
+        "outputs": [
+          "body"
+        ]
+      },
+      {
+        "id": "make_velocity",
+        "operator": "rotational_state",
+        "inputs": {
+          "motion": "body",
+          "kind": "velocity",
+          "displayLength": 1.4
+        },
+        "outputs": [
+          "velocity"
+        ]
+      },
+      {
+        "id": "make_accel",
+        "operator": "rotational_state",
+        "inputs": {
+          "motion": "body",
+          "kind": "acceleration",
+          "displayLength": 1.1
+        },
+        "outputs": [
+          "accel"
+        ]
+      },
+      {
+        "id": "make_source_name_body_0",
+        "operator": "label",
+        "inputs": {
+          "target": "body",
+          "text": "body"
+        },
+        "outputs": [
+          "source_name_body_0"
+        ]
+      },
+      {
+        "id": "make_source_name_path_0",
+        "operator": "label",
+        "inputs": {
+          "target": "path",
+          "text": "circle"
+        },
+        "outputs": [
+          "source_name_path_0"
+        ]
+      },
+      {
+        "id": "make_source_name_O_0",
+        "operator": "label",
+        "inputs": {
+          "target": "O",
+          "text": "centre"
+        },
+        "outputs": [
+          "source_name_O_0"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "radius_end_on_path",
+        "predicate": "on",
+        "entities": [
+          "Q",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "body_on_path",
+        "predicate": "on",
+        "entities": [
+          "body",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "velocity_perpendicular_to_acceleration",
+        "predicate": "perpendicular",
+        "entities": [
+          "velocity",
+          "accel"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_body",
+        "predicate": "label_attached",
+        "entities": [
+          "body"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_velocity",
+        "predicate": "label_attached",
+        "entities": [
+          "velocity"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_accel",
+        "predicate": "label_attached",
+        "entities": [
+          "accel"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "source_period",
+        "kind": "label",
+        "targetIds": [
+          "path"
+        ],
+        "text": "T=12.57 s"
+      }
+    ],
+    "requiredEntityIds": [
+      "O",
+      "path",
+      "radius",
+      "body",
+      "velocity",
+      "accel",
+      "source_name_body_0",
+      "source_name_path_0",
+      "source_name_O_0"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "path",
+          "radius",
+          "source_name_path_0",
+          "source_name_O_0"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the circular path, its centre and the radius"
+      },
+      {
+        "id": "motion",
+        "entityIds": [
+          "body",
+          "velocity",
+          "source_name_body_0"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "the body and its velocity along the tangent, moving clockwise"
+      },
+      {
+        "id": "acceleration",
+        "entityIds": [
+          "accel"
+        ],
+        "dependsOn": [
+          "motion"
+        ],
+        "narrationCue": "the acceleration pointing to the centre"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the circular path, its centre and the radius"
+      },
+      {
+        "id": "reveal_motion",
+        "action": "reveal",
+        "targetId": "motion",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "the body and its velocity along the tangent, moving clockwise"
+      },
+      {
+        "id": "reveal_acceleration",
+        "action": "reveal",
+        "targetId": "acceleration",
+        "dependsOn": [
+          "reveal_motion"
+        ],
+        "narrationIntent": "the acceleration pointing to the centre"
+      }
+    ]
+  },
+  "result": {
+    "case": "clockwise",
+    "variant": "derivedFalseSourceText",
+    "irValid": true,
+    "planValid": true,
+    "accept": {
+      "family": true,
+      "structural": true,
+      "caller": true,
+      "central": true,
+      "compile": true,
+      "render": true,
+      "live": true,
+      "save": true,
+      "read": true,
+      "sanitize": true,
+      "restore": true
+    },
+    "callerIssues": [],
+    "structuralIssues": []
+  }
+}

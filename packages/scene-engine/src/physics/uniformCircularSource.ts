@@ -676,6 +676,12 @@ export function applyUniformCircularAuthority(question: string, turnPlan: unknow
   if (runtime?.status === "declined") return { plan, source, corrections: [], withdrawn: [], unbound: [
     { id: "source", symbol: "", planValue: Number.NaN, sourceValue: Number.NaN, unit: "" },
   ] };
+  // Prove the original whole Plan before scalar correction. Correcting a
+  // bound number cannot remove or replace an unproved textual obligation.
+  if (runtime?.status === "bound") {
+    const unbound = uniformCircularRuntimePlanConflicts(question, plan);
+    if (unbound.length) return { plan, source, corrections: [], withdrawn: [], unbound };
+  }
   const corrections: UniformCircularPlanCorrection[] = [];
   const withdrawn: StalePlanQuantity[] = [];
   const review = (list: unknown): unknown => Array.isArray(list) ? list.flatMap((entry) => {
@@ -686,8 +692,7 @@ export function applyUniformCircularAuthority(question: string, turnPlan: unknow
       if (expected !== null) {
         if (quantity.value === expected) return [entry];
         corrections.push({ quantityId: String(quantity.id ?? ""), symbol: quantity.symbol, previous: quantity.value, corrected: expected, unit: String(quantity.unit ?? "") });
-        return [{ ...quantity, value: expected, sourceText: quantity.provenance === "given" ? quantity.sourceText
-          : `Source-verified ${quantity.symbol} = ${expected} ${String(quantity.unit)}` }];
+        return [{ ...quantity, value: expected }];
       }
       return [entry];
     }

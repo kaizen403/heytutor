@@ -1,0 +1,697 @@
+{
+  "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution.",
+  "problemIR": {
+    "facts": [
+      {
+        "id": "fSpeed",
+        "kind": "given",
+        "statement": "car moves at constant speed 20 m/s",
+        "evidence": {
+          "source": "question",
+          "start": 17,
+          "end": 41,
+          "quote": "constant speed of 20 m/s"
+        }
+      },
+      {
+        "id": "fRadius",
+        "kind": "given",
+        "statement": "circular track radius 50 m",
+        "evidence": {
+          "source": "question",
+          "start": 51,
+          "end": 80,
+          "quote": "circular track of radius 50 m"
+        }
+      },
+      {
+        "id": "fReqAc",
+        "kind": "requested",
+        "statement": "find centripetal acceleration",
+        "evidence": {
+          "source": "question",
+          "start": 82,
+          "end": 115,
+          "quote": "Find its centripetal acceleration"
+        }
+      },
+      {
+        "id": "fReqT",
+        "kind": "requested",
+        "statement": "find time for one revolution",
+        "evidence": {
+          "source": "question",
+          "start": 120,
+          "end": 143,
+          "quote": "time for one revolution"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "car",
+        "kind": "point",
+        "label": "car",
+        "evidenceFactIds": [
+          "fSpeed"
+        ]
+      },
+      {
+        "id": "track",
+        "kind": "curve",
+        "label": "circular track",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eAc",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "^",
+            "left": {
+              "kind": "number",
+              "value": 20
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 50
+          }
+        }
+      },
+      {
+        "id": "eT",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "constant",
+                "name": "pi"
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 50
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 20
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iMotion",
+        "kind": "conceptual",
+        "entityIds": [
+          "car",
+          "track"
+        ],
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sAc",
+        "kind": "evaluate",
+        "expressionId": "eAc",
+        "resultBinding": {
+          "turnPlanQuantityId": "ac",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "evidenceFactIds": [
+            "fReqAc"
+          ]
+        }
+      },
+      {
+        "id": "sT",
+        "kind": "evaluate",
+        "expressionId": "eT",
+        "resultBinding": {
+          "turnPlanQuantityId": "T",
+          "symbol": "T",
+          "unit": "s",
+          "evidenceFactIds": [
+            "fReqT"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution."
+  },
+  "turnPlan": {
+    "givens": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "value": 20,
+        "symbol": "v",
+        "provenance": "given",
+        "sourceText": "constant speed of 20 m/s"
+      },
+      {
+        "id": "r",
+        "unit": "m",
+        "value": 50,
+        "symbol": "r",
+        "provenance": "given",
+        "sourceText": "radius 50 m"
+      }
+    ],
+    "lawIds": [
+      "centripetal_acceleration",
+      "uniform_circular_motion_period"
+    ],
+    "derived": [
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "value": 8,
+        "symbol": "a_c",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "Centripetal acceleration is zero because speed is constant."
+      },
+      {
+        "id": "T",
+        "unit": "s",
+        "value": 15.707963267948966,
+        "symbol": "T",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "Source-verified T = 15.707963267948966 s"
+      }
+    ],
+    "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution.",
+    "unknowns": [
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "symbol": "a_c"
+      },
+      {
+        "id": "T",
+        "unit": "s",
+        "symbol": "T"
+      }
+    ],
+    "assumptions": [
+      "Track is a perfect circle of radius 50 m",
+      "Speed is constant at 20 m/s (uniform circular motion)",
+      "Car treated as a point particle",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Centripetal acceleration points toward the center of the circular track, perpendicular to the velocity.",
+        "expected": "a_c = v^2/r = 8 m/s^2, directed radially inward",
+        "relatedQuantityIds": [
+          "ac",
+          "v",
+          "r"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Speed is constant, so the period is circumference divided by speed.",
+        "expected": "T = 2*pi*r/v = 5*pi s \u2248 15.71 s",
+        "relatedQuantityIds": [
+          "T",
+          "v",
+          "r"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "body in uniform circular motion with its inward acceleration; the source states no direction of travel, so the velocity is shown only as the tangent line"
+    },
+    "source": {
+      "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution.",
+      "synthesizedFamily": true,
+      "archetype": "uniform_circular_motion_source",
+      "slotSources": {
+        "r": "stem",
+        "v": "stem",
+        "omega": "stem",
+        "a_c": "stem"
+      }
+    },
+    "quantities": [
+      {
+        "id": "r",
+        "symbol": "r",
+        "value": 50,
+        "unit": "m"
+      },
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": 20,
+        "unit": "m/s"
+      },
+      {
+        "id": "omega",
+        "symbol": "omega",
+        "value": 0.4,
+        "unit": "rad/s"
+      },
+      {
+        "id": "a_c",
+        "symbol": "a_c",
+        "value": 8,
+        "unit": "m/s^2"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "centre",
+        "label": "O"
+      },
+      {
+        "id": "path",
+        "kind": "circle",
+        "role": "circular path"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "radius mark end helper"
+      },
+      {
+        "id": "radius",
+        "kind": "segment",
+        "role": "radius",
+        "label": "r=50 m"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "body in uniform circular motion",
+        "label": "P"
+      },
+      {
+        "id": "T1",
+        "kind": "point",
+        "role": "tangent end helper"
+      },
+      {
+        "id": "T2",
+        "kind": "point",
+        "role": "tangent end helper"
+      },
+      {
+        "id": "tangent",
+        "kind": "segment",
+        "role": "velocity direction line (sense not stated)",
+        "label": "v=20 m/s"
+      },
+      {
+        "id": "accel",
+        "kind": "vector",
+        "role": "centripetal acceleration",
+        "label": "a=8 m/s^2"
+      },
+      {
+        "id": "source_name_P_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "car"
+      },
+      {
+        "id": "source_name_path_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "circular track"
+      },
+      {
+        "id": "source_name_O_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "centre"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_path",
+        "operator": "circle",
+        "inputs": {
+          "center": "O",
+          "radius": 2.4
+        },
+        "outputs": [
+          "path"
+        ]
+      },
+      {
+        "id": "make_Q",
+        "operator": "point",
+        "inputs": {
+          "x": 2.0785,
+          "y": -1.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "make_radius",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "Q"
+        },
+        "outputs": [
+          "radius"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_T1",
+        "operator": "point",
+        "inputs": {
+          "x": 1.05,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T1"
+        ]
+      },
+      {
+        "id": "make_T2",
+        "operator": "point",
+        "inputs": {
+          "x": -1.05,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T2"
+        ]
+      },
+      {
+        "id": "make_tangent",
+        "operator": "segment",
+        "inputs": {
+          "start": "T1",
+          "end": "T2"
+        },
+        "outputs": [
+          "tangent"
+        ]
+      },
+      {
+        "id": "make_accel",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.1
+        },
+        "outputs": [
+          "accel"
+        ]
+      },
+      {
+        "id": "make_source_name_P_0",
+        "operator": "label",
+        "inputs": {
+          "target": "P",
+          "text": "car"
+        },
+        "outputs": [
+          "source_name_P_0"
+        ]
+      },
+      {
+        "id": "make_source_name_path_0",
+        "operator": "label",
+        "inputs": {
+          "target": "path",
+          "text": "circular track"
+        },
+        "outputs": [
+          "source_name_path_0"
+        ]
+      },
+      {
+        "id": "make_source_name_O_0",
+        "operator": "label",
+        "inputs": {
+          "target": "O",
+          "text": "centre"
+        },
+        "outputs": [
+          "source_name_O_0"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "radius_end_on_path",
+        "predicate": "on",
+        "entities": [
+          "Q",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "body_on_path",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "tangent_through_body",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "tangent"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "tangent_perpendicular_to_acceleration",
+        "predicate": "perpendicular",
+        "entities": [
+          "tangent",
+          "accel"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_tangent",
+        "predicate": "label_attached",
+        "entities": [
+          "tangent"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_accel",
+        "predicate": "label_attached",
+        "entities": [
+          "accel"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "source_period",
+        "kind": "label",
+        "targetIds": [
+          "path"
+        ],
+        "text": "T=15.71 s"
+      }
+    ],
+    "requiredEntityIds": [
+      "O",
+      "path",
+      "radius",
+      "P",
+      "tangent",
+      "accel",
+      "source_name_P_0",
+      "source_name_path_0",
+      "source_name_O_0"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "path",
+          "radius",
+          "source_name_path_0",
+          "source_name_O_0"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the circular path, its centre and the radius"
+      },
+      {
+        "id": "motion",
+        "entityIds": [
+          "P",
+          "tangent",
+          "source_name_P_0"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "the body and the tangent line its velocity lies along"
+      },
+      {
+        "id": "acceleration",
+        "entityIds": [
+          "accel"
+        ],
+        "dependsOn": [
+          "motion"
+        ],
+        "narrationCue": "the acceleration pointing to the centre"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the circular path, its centre and the radius"
+      },
+      {
+        "id": "reveal_motion",
+        "action": "reveal",
+        "targetId": "motion",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "the body and the tangent line its velocity lies along"
+      },
+      {
+        "id": "reveal_acceleration",
+        "action": "reveal",
+        "targetId": "acceleration",
+        "dependsOn": [
+          "reveal_motion"
+        ],
+        "narrationIntent": "the acceleration pointing to the centre"
+      }
+    ]
+  },
+  "result": {
+    "case": "car",
+    "variant": "derivedFalseSourceText",
+    "irValid": true,
+    "planValid": true,
+    "accept": {
+      "family": true,
+      "structural": true,
+      "caller": true,
+      "central": true,
+      "compile": true,
+      "render": true,
+      "live": true,
+      "save": true,
+      "read": true,
+      "sanitize": true,
+      "restore": true
+    },
+    "callerIssues": [],
+    "structuralIssues": []
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "question": "A car moves at a constant speed of 16 m/s around a circular track of radius 80 m. Find its centripetal acceleration and time for one revolution.",
+  "rawIRs": [
+    {
+      "facts": [
+        {
+          "id": "fSpeed",
+          "kind": "given",
+          "statement": "constant speed of 16 m/s",
+          "quote": "constant speed of 16 m/s"
+        },
+        {
+          "id": "fRadius",
+          "kind": "given",
+          "statement": "circular track of radius 80 m",
+          "quote": "circular track of radius 80 m"
+        },
+        {
+          "id": "fReqAc",
+          "kind": "requested",
+          "statement": "find centripetal acceleration",
+          "quote": "Find its centripetal acceleration"
+        },
+        {
+          "id": "fReqT",
+          "kind": "requested",
+          "statement": "find time for one revolution",
+          "quote": "time for one revolution"
+        }
+      ],
+      "entities": [
+        {
+          "id": "car",
+          "kind": "point",
+          "label": "car",
+          "evidenceFactIds": [
+            "fSpeed"
+          ]
+        },
+        {
+          "id": "track",
+          "kind": "curve",
+          "label": "circular track",
+          "evidenceFactIds": [
+            "fRadius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eAc",
+          "valueType": "scalar",
+          "expr": "16^2/80",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius"
+          ]
+        },
+        {
+          "id": "eT",
+          "valueType": "scalar",
+          "expr": "2*pi*80/16",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "iMotion",
+          "kind": "conceptual",
+          "entityIds": [
+            "car",
+            "track"
+          ],
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sAc",
+          "kind": "evaluate",
+          "expressionId": "eAc",
+          "resultBinding": {
+            "turnPlanQuantityId": "ac",
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "fReqAc"
+            ]
+          }
+        },
+        {
+          "id": "sT",
+          "kind": "evaluate",
+          "expressionId": "eT",
+          "resultBinding": {
+            "turnPlanQuantityId": "T",
+            "symbol": "T",
+            "unit": "s",
+            "evidenceFactIds": [
+              "fReqT"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "canonicalPlan": {
+    "givens": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "value": 16,
+        "symbol": "v",
+        "provenance": "given",
+        "sourceText": "constant speed of 16 m/s"
+      },
+      {
+        "id": "r",
+        "unit": "m",
+        "value": 80,
+        "symbol": "r",
+        "provenance": "given",
+        "sourceText": "radius 80 m"
+      }
+    ],
+    "lawIds": [
+      "centripetal_acceleration",
+      "uniform_circular_motion_period"
+    ],
+    "derived": [
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "value": 3.2,
+        "symbol": "a_c",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "a_c = 16^2/80 = 3.2 m/s^2"
+      },
+      {
+        "id": "T",
+        "unit": "s",
+        "value": 31.41592653589793,
+        "symbol": "T",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "T = 2*pi*80/16 = 31.41592653589793 s"
+      }
+    ],
+    "question": "A car moves at a constant speed of 16 m/s around a circular track of radius 80 m. Find its centripetal acceleration and time for one revolution.",
+    "unknowns": [
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "symbol": "a_c"
+      },
+      {
+        "id": "T",
+        "unit": "s",
+        "symbol": "T"
+      }
+    ],
+    "assumptions": [
+      "Track is a perfect circle of radius 80 m",
+      "Speed is constant at 16 m/s (uniform circular motion)",
+      "Car treated as a point particle",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Centripetal acceleration points toward the center of the circular track, perpendicular to the velocity.",
+        "expected": true,
+        "relatedQuantityIds": [
+          "ac",
+          "v",
+          "r"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Speed is constant, so the period is circumference divided by speed.",
+        "expected": true,
+        "relatedQuantityIds": [
+          "T",
+          "v",
+          "r"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "expected": [
+    3.2,
+    31.41592653589793
+  ]
+}

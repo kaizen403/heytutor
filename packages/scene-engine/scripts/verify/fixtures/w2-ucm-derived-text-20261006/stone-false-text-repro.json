@@ -1,0 +1,741 @@
+{
+  "question": "A stone moves in a horizontal circle of radius 0.8 m with a period of 2 s. Find its speed and centripetal acceleration.",
+  "problemIR": {
+    "facts": [
+      {
+        "id": "fRadius",
+        "kind": "given",
+        "statement": "circle radius is 0.8 m",
+        "evidence": {
+          "source": "question",
+          "start": 40,
+          "end": 52,
+          "quote": "radius 0.8 m"
+        }
+      },
+      {
+        "id": "fPeriod",
+        "kind": "given",
+        "statement": "period of motion is 2 s",
+        "evidence": {
+          "source": "question",
+          "start": 60,
+          "end": 73,
+          "quote": "period of 2 s"
+        }
+      },
+      {
+        "id": "fSpeed",
+        "kind": "requested",
+        "statement": "find the stone's speed",
+        "evidence": {
+          "source": "question",
+          "start": 75,
+          "end": 89,
+          "quote": "Find its speed"
+        }
+      },
+      {
+        "id": "fAccel",
+        "kind": "requested",
+        "statement": "find the centripetal acceleration",
+        "evidence": {
+          "source": "question",
+          "start": 94,
+          "end": 118,
+          "quote": "centripetal acceleration"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "stone",
+        "kind": "body",
+        "label": "stone",
+        "evidenceFactIds": [
+          "fRadius",
+          "fPeriod"
+        ]
+      },
+      {
+        "id": "circle",
+        "kind": "curve",
+        "label": "horizontal circular path",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eSpeed",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fRadius",
+          "fPeriod"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "constant",
+                "name": "pi"
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 0.8
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2
+          }
+        }
+      },
+      {
+        "id": "eAccel",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fRadius",
+          "fPeriod"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "^",
+            "left": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "constant",
+                    "name": "pi"
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 0.8
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 0.8
+          }
+        }
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "iCircle",
+        "kind": "conceptual",
+        "entityIds": [
+          "stone",
+          "circle"
+        ],
+        "evidenceFactIds": [
+          "fRadius",
+          "fPeriod"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sSpeed",
+        "kind": "evaluate",
+        "expressionId": "eSpeed",
+        "resultBinding": {
+          "turnPlanQuantityId": "v",
+          "symbol": "v",
+          "unit": "m/s",
+          "evidenceFactIds": [
+            "fSpeed"
+          ]
+        }
+      },
+      {
+        "id": "sAccel",
+        "kind": "evaluate",
+        "expressionId": "eAccel",
+        "resultBinding": {
+          "turnPlanQuantityId": "ac",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "evidenceFactIds": [
+            "fAccel"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A stone moves in a horizontal circle of radius 0.8 m with a period of 2 s. Find its speed and centripetal acceleration."
+  },
+  "turnPlan": {
+    "givens": [
+      {
+        "id": "r",
+        "unit": "m",
+        "value": 0.8,
+        "symbol": "r",
+        "provenance": "given",
+        "sourceText": "radius 0.8 m"
+      },
+      {
+        "id": "T",
+        "unit": "s",
+        "value": 2,
+        "symbol": "T",
+        "provenance": "given",
+        "sourceText": "period of 2 s"
+      }
+    ],
+    "lawIds": [
+      "uniform_circular_motion_speed",
+      "centripetal_acceleration"
+    ],
+    "derived": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "value": 2.5132741228718345,
+        "symbol": "v",
+        "dependsOn": [
+          "r",
+          "T"
+        ],
+        "provenance": "derived",
+        "sourceText": "Centripetal acceleration is zero because speed is constant."
+      },
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "value": 7.8956835208714855,
+        "symbol": "a_c",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "Source-verified a_c = 7.8956835208714855 m/s^2"
+      }
+    ],
+    "question": "A stone moves in a horizontal circle of radius 0.8 m with a period of 2 s. Find its speed and centripetal acceleration.",
+    "unknowns": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "symbol": "v"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "symbol": "a_c"
+      }
+    ],
+    "assumptions": [
+      "Uniform circular motion (constant speed)",
+      "pi approx 3.14159",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Speed is constant in uniform circular motion and equals circumference divided by period.",
+        "expected": "v = 2*pi*r/T",
+        "relatedQuantityIds": [
+          "v",
+          "r",
+          "T"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Centripetal acceleration points toward the center of the circle and has magnitude v^2/r.",
+        "expected": "a_c = v^2/r = 4*pi^2*r/T^2",
+        "relatedQuantityIds": [
+          "ac",
+          "v",
+          "r",
+          "T"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "body in uniform circular motion with its inward acceleration; the source states no direction of travel, so the velocity is shown only as the tangent line"
+    },
+    "source": {
+      "question": "A stone moves in a horizontal circle of radius 0.8 m with a period of 2 s. Find its speed and centripetal acceleration.",
+      "synthesizedFamily": true,
+      "archetype": "uniform_circular_motion_source",
+      "slotSources": {
+        "r": "stem",
+        "v": "stem",
+        "omega": "stem",
+        "a_c": "stem"
+      }
+    },
+    "quantities": [
+      {
+        "id": "r",
+        "symbol": "r",
+        "value": 0.8,
+        "unit": "m"
+      },
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": 2.5132741228718345,
+        "unit": "m/s"
+      },
+      {
+        "id": "omega",
+        "symbol": "omega",
+        "value": 3.141592653589793,
+        "unit": "rad/s"
+      },
+      {
+        "id": "a_c",
+        "symbol": "a_c",
+        "value": 7.8956835208714855,
+        "unit": "m/s^2"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "centre",
+        "label": "O"
+      },
+      {
+        "id": "path",
+        "kind": "circle",
+        "role": "circular path"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "radius mark end helper"
+      },
+      {
+        "id": "radius",
+        "kind": "segment",
+        "role": "radius",
+        "label": "r=0.8 m"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "body in uniform circular motion",
+        "label": "P"
+      },
+      {
+        "id": "T1",
+        "kind": "point",
+        "role": "tangent end helper"
+      },
+      {
+        "id": "T2",
+        "kind": "point",
+        "role": "tangent end helper"
+      },
+      {
+        "id": "tangent",
+        "kind": "segment",
+        "role": "velocity direction line (sense not stated)",
+        "label": "v=2.513 m/s"
+      },
+      {
+        "id": "accel",
+        "kind": "vector",
+        "role": "centripetal acceleration",
+        "label": "a=7.896 m/s^2"
+      },
+      {
+        "id": "source_name_P_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "stone"
+      },
+      {
+        "id": "source_name_path_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "horizontal"
+      },
+      {
+        "id": "source_name_path_1",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "circle"
+      },
+      {
+        "id": "source_name_O_0",
+        "kind": "label",
+        "role": "source identity caption",
+        "label": "centre"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_path",
+        "operator": "circle",
+        "inputs": {
+          "center": "O",
+          "radius": 2.4
+        },
+        "outputs": [
+          "path"
+        ]
+      },
+      {
+        "id": "make_Q",
+        "operator": "point",
+        "inputs": {
+          "x": 2.0785,
+          "y": -1.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "make_radius",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "Q"
+        },
+        "outputs": [
+          "radius"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_T1",
+        "operator": "point",
+        "inputs": {
+          "x": 1.05,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T1"
+        ]
+      },
+      {
+        "id": "make_T2",
+        "operator": "point",
+        "inputs": {
+          "x": -1.05,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T2"
+        ]
+      },
+      {
+        "id": "make_tangent",
+        "operator": "segment",
+        "inputs": {
+          "start": "T1",
+          "end": "T2"
+        },
+        "outputs": [
+          "tangent"
+        ]
+      },
+      {
+        "id": "make_accel",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.1
+        },
+        "outputs": [
+          "accel"
+        ]
+      },
+      {
+        "id": "make_source_name_P_0",
+        "operator": "label",
+        "inputs": {
+          "target": "P",
+          "text": "stone"
+        },
+        "outputs": [
+          "source_name_P_0"
+        ]
+      },
+      {
+        "id": "make_source_name_path_0",
+        "operator": "label",
+        "inputs": {
+          "target": "path",
+          "text": "horizontal"
+        },
+        "outputs": [
+          "source_name_path_0"
+        ]
+      },
+      {
+        "id": "make_source_name_path_1",
+        "operator": "label",
+        "inputs": {
+          "target": "path",
+          "text": "circle"
+        },
+        "outputs": [
+          "source_name_path_1"
+        ]
+      },
+      {
+        "id": "make_source_name_O_0",
+        "operator": "label",
+        "inputs": {
+          "target": "O",
+          "text": "centre"
+        },
+        "outputs": [
+          "source_name_O_0"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "radius_end_on_path",
+        "predicate": "on",
+        "entities": [
+          "Q",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "body_on_path",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "tangent_through_body",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "tangent"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "tangent_perpendicular_to_acceleration",
+        "predicate": "perpendicular",
+        "entities": [
+          "tangent",
+          "accel"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_tangent",
+        "predicate": "label_attached",
+        "entities": [
+          "tangent"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_accel",
+        "predicate": "label_attached",
+        "entities": [
+          "accel"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "source_period",
+        "kind": "label",
+        "targetIds": [
+          "path"
+        ],
+        "text": "T=2 s"
+      }
+    ],
+    "requiredEntityIds": [
+      "O",
+      "path",
+      "radius",
+      "P",
+      "tangent",
+      "accel",
+      "source_name_P_0",
+      "source_name_path_0",
+      "source_name_path_1",
+      "source_name_O_0"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "path",
+          "radius",
+          "source_name_path_0",
+          "source_name_path_1",
+          "source_name_O_0"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the circular path, its centre and the radius"
+      },
+      {
+        "id": "motion",
+        "entityIds": [
+          "P",
+          "tangent",
+          "source_name_P_0"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "the body and the tangent line its velocity lies along"
+      },
+      {
+        "id": "acceleration",
+        "entityIds": [
+          "accel"
+        ],
+        "dependsOn": [
+          "motion"
+        ],
+        "narrationCue": "the acceleration pointing to the centre"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the circular path, its centre and the radius"
+      },
+      {
+        "id": "reveal_motion",
+        "action": "reveal",
+        "targetId": "motion",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "the body and the tangent line its velocity lies along"
+      },
+      {
+        "id": "reveal_acceleration",
+        "action": "reveal",
+        "targetId": "acceleration",
+        "dependsOn": [
+          "reveal_motion"
+        ],
+        "narrationIntent": "the acceleration pointing to the centre"
+      }
+    ]
+  },
+  "result": {
+    "case": "stone",
+    "variant": "derivedFalseSourceText",
+    "irValid": true,
+    "planValid": true,
+    "accept": {
+      "family": true,
+      "structural": true,
+      "caller": true,
+      "central": true,
+      "compile": true,
+      "render": true,
+      "live": true,
+      "save": true,
+      "read": true,
+      "sanitize": true,
+      "restore": true
+    },
+    "callerIssues": [],
+    "structuralIssues": []
+  }
+}

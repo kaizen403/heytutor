@@ -336,6 +336,133 @@ function supportedClaimExpected(contract: UniformCircularRuntimeContract, expect
   return true;
 }
 
+/** Bounded source-role math. No value-only join of arbitrary expressions:
+ * each expansion must retain the operands/operators of a supported law.
+ * Constant subtrees may be folded, but cancellation cannot erase a role.
+ */
+type SourceMath = { kind: "number"; value: number } | { kind: "pi" }
+  | { kind: "role"; role: Role }
+  | { kind: "binary"; operator: "*" | "/" | "^"; left: SourceMath; right: SourceMath };
+const roleSymbols: Record<string, Role> = { r: "radius", R: "radius", v: "speed", v_t: "speed", T: "period", T_p: "period", omega: "angular_speed", a: "acceleration", a_c: "acceleration", ac: "acceleration", a_cp: "acceleration", a_r: "acceleration" };
+function parseSourceMath(text: string): SourceMath | null {
+  if (!text || text.length > 256) return null;
+  const tokens = text.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z_]+|[*/^()]/g) ?? [];
+  if (tokens.length > 128 || tokens.join("") !== text.replace(/\s/g, "")) return null;
+  let at = 0;
+  const primary = (depth: number): SourceMath => {
+    if (depth > 24) throw new Error("source math depth");
+    const token = tokens[at++];
+    if (token === "(") { const node = product(depth + 1); if (tokens[at++] !== ")") throw new Error("closing parenthesis"); return node; }
+    if (token === "pi") return { kind: "pi" };
+    if (token && roleSymbols[token]) return { kind: "role", role: roleSymbols[token]! };
+    if (token && /^\d|^\.\d/.test(token) && Number.isFinite(Number(token)) && Number(token) <= 1e12) return { kind: "number", value: Number(token) };
+    throw new Error("source math atom");
+  };
+  const power = (depth: number): SourceMath => {
+    const left = primary(depth);
+    if (tokens[at] !== "^") return left;
+    at++; const right = primary(depth + 1);
+    if (right.kind !== "number" || right.value !== 2) throw new Error("source math power");
+    return { kind: "binary", operator: "^", left, right };
+  };
+  const product = (depth: number): SourceMath => {
+    let node = power(depth);
+    while (at < tokens.length && tokens[at] !== ")") {
+      const token = tokens[at];
+      const explicit = token === "*" || token === "/";
+      if (explicit) at++;
+      else if (!token || !/^(?:[A-Za-z_]|\(|\d|\.)/.test(token)) throw new Error("source math operator");
+      node = { kind: "binary", operator: token === "/" ? "/" : "*", left: node, right: power(depth + 1) };
+    }
+    return node;
+  };
+  try { const node = product(0); return at === tokens.length ? node : null; } catch { return null; }
+}
+const sourceRoleValue = (contract: UniformCircularRuntimeContract, role: Role): number => ({
+  radius: contract.source.radiusM, speed: contract.source.speed, period: contract.source.period,
+  angular_speed: contract.source.angularSpeed, acceleration: contract.source.centripetalAcceleration,
+})[role];
+function sourceMathValue(contract: UniformCircularRuntimeContract, node: SourceMath): number {
+  if (node.kind === "number") return node.value;
+  if (node.kind === "pi") return Math.PI;
+  if (node.kind === "role") return sourceRoleValue(contract, node.role);
+  const l = sourceMathValue(contract, node.left), r = sourceMathValue(contract, node.right);
+  return node.operator === "*" ? l * r : node.operator === "/" ? l / r : l ** r;
+}
+const arithmeticEqual = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b)
+  && Math.abs(a - b) <= 32 * Number.EPSILON * Math.max(Math.abs(a), Math.abs(b));
+function sourceMathTree(node: ExpressionNodeIR): SourceMath {
+  if (node.kind === "number") return node;
+  if (node.kind === "constant" && node.name === "pi") return { kind: "pi" };
+  if (node.kind === "binary" && ["*", "/", "^"].includes(node.operator)) return {
+    kind: "binary", operator: node.operator as "*" | "/" | "^", left: sourceMathTree(node.left), right: sourceMathTree(node.right),
+  };
+  throw new Error("unsupported source tree");
+}
+function provesSourceMath(contract: UniformCircularRuntimeContract, actual: SourceMath, expected: SourceMath, trees: Record<Role, ExpressionNodeIR[]>): boolean {
+  // A literal is a deterministic fold of this exact source subtree. A
+  // composite expression cannot obtain that permission from its final value.
+  if (actual.kind === "number") return arithmeticEqual(actual.value, sourceMathValue(contract, expected));
+  if (expected.kind === "role") {
+    if (actual.kind === "role") return actual.role === expected.role;
+    return trees[expected.role].some(tree => provesSourceMath(contract, actual, sourceMathTree(tree), trees));
+  }
+  if (expected.kind === "pi") return actual.kind === "pi";
+  if (actual.kind !== "binary" || expected.kind !== "binary" || actual.operator !== expected.operator) return false;
+  const direct = provesSourceMath(contract, actual.left, expected.left, trees) && provesSourceMath(contract, actual.right, expected.right, trees);
+  return direct || actual.operator === "*" && provesSourceMath(contract, actual.left, expected.right, trees) && provesSourceMath(contract, actual.right, expected.left, trees);
+}
+const circularFormulaSources: Record<Role, string[]> = {
+  radius: ["r"], speed: ["v", "2*pi*r/T", "omega*r"], period: ["T", "2*pi*r/v", "2*pi/omega"],
+  angular_speed: ["omega", "v/r", "2*pi/T"], acceleration: ["a_c", "v^2/r", "omega^2*r", "4*pi^2*r/T^2"],
+};
+/** Complete derived proposition proof, independent of its declared scalar.
+ * Unsupported prose/equations, wrong roles and false intermediate arithmetic
+ * decline. Approximation is a terminal decimal display, never a new operand.
+ */
+function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role): boolean {
+  if (row.sourceText === undefined) return true;
+  if (typeof row.sourceText !== "string" || !row.sourceText.trim() || row.sourceText.length > 2048) return false;
+  const unit = String(row.unit).replace(/²/g, "^2").normalize("NFKC").replace(/\s/g, "");
+  const siUnit: Record<Role, string> = { radius: "m", speed: "m/s", period: "s", angular_speed: "rad/s", acceleration: "m/s^2" };
+  const trees = sourceTrees(contract);
+  const normalize = (text: string) => text.replace(/²/g, "^2").replace(/π/g, "pi").replace(/ω/g, "omega").replace(/−/g, "-");
+  const clauses = normalize(row.sourceText).trim().split(/;|\n/);
+  return clauses.every(raw => {
+    let clause = raw.trim().replace(/\.$/, "");
+    if (!clause) return false;
+    if (supportedPlanAssertion(contract, clause)) return true;
+    // This suffix asserts direction too, and is consumed as a whole.
+    if (/, directed radially inward$/.test(clause) && role !== "acceleration") return false;
+    clause = clause.replace(/, directed radially inward$/, "");
+    clause = clause.replace(/^Source-verified /, "");
+    const parts = clause.split(/\s*(=|≈)\s*/);
+    const lhs = parts.shift()?.trim();
+    if (!lhs || roleSymbols[lhs] !== role || parts.length < 2 || unit !== siUnit[role]) return false;
+    const expected = sourceRoleValue(contract, role);
+    for (let i = 0; i < parts.length; i += 2) {
+      let member = parts[i + 1]!.trim();
+      // Explicit member units must name the row's complete SI role.
+      if (member.endsWith(siUnit[role])) member = member.slice(0, -siUnit[role].length).trim();
+      if (parts[i] === "≈") {
+        if (i !== parts.length - 2 || !/^\d+(?:\.\d+)?$/.test(member)) return false;
+        const decimals = member.split(".")[1]?.length ?? 0;
+        if (Math.abs(Number(member) - expected) > .5 * 10 ** -decimals) return false;
+        continue;
+      }
+      const actual = parseSourceMath(member);
+      if (!actual || !arithmeticEqual(sourceMathValue(contract, actual), expected)) return false;
+      const proved = circularFormulaSources[role].some(formula => provesSourceMath(contract, actual, parseSourceMath(formula)!, trees))
+        || trees[role].some(tree => provesSourceMath(contract, actual, sourceMathTree(tree), trees));
+      // Reduced pi displays (5*pi, .8*pi^2) have no arbitrary arithmetic
+      // expression to hide an operand in; verify them against the source.
+      const display = /^(?:\d+(?:\.\d+)?|\.\d+)\s*\*\s*pi(?:\^2)?$/.test(member);
+      if (!proved && !display) return false;
+    }
+    return true;
+  });
+}
+
 /** Unknown rows are obligations too; do not delete them to obtain admission. */
 export function uniformCircularRuntimePlanConflicts(question: string, rawPlan: unknown): Array<{ id: string; symbol: string; planValue: number; sourceValue: number; unit: string }> {
   const reading = readUniformCircularRuntimeContract(question);
@@ -348,13 +475,14 @@ export function uniformCircularRuntimePlanConflicts(question: string, rawPlan: u
   for (const row of [...rows("givens"), ...rows("derived"), ...rows("unknowns")]) {
     const role = typeof row.symbol === "string" ? uniformCircularRuntimeQuantityRole({ symbol: row.symbol, unit: typeof row.unit === "string" ? row.unit : undefined }) : null;
     if (!role) { add(row); continue; }
-    // Source text is evidence only on input rows, where the literal must be
-    // owned by the same role; a same-value radius/rate substitution is false.
+    // Inputs own source quotations; every supplied derived text owns its
+    // entire proposition and arithmetic, independently of a correct scalar.
     if (rows("givens").includes(row)) {
       const given = reading.contract.source.givens.find(given => given.role === role);
       if (!given || typeof row.sourceText !== "string" || !containsLiteral(row.sourceText, given.text)
         || !reading.contract.setup.includes(row.sourceText) || !givenStatementRoles(reading.contract, row.sourceText)?.includes(role)) add(row);
     }
+    if (rows("derived").includes(row) && !supportedDerivedSourceText(reading.contract, row, role)) add(row);
     if (rows("unknowns").includes(row) && !reading.contract.requested.includes(role)) add(row);
     if (row.uncertainty !== undefined && (row.uncertainty !== 0 || !rows("givens").includes(row)
       && (typeof row.value !== "number" || row.value !== uniformCircularRuntimeQuantityValue(reading.contract.source, {symbol:String(row.symbol),unit:String(row.unit)})))) add(row);
