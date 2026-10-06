@@ -1,0 +1,259 @@
+{
+  "schemaVersion": "problem-ir/v1",
+  "id": "stoneCircularMotion",
+  "question": "A stone moves in a horizontal circle of radius 0.8 m with a period of 2 s. Find its speed and centripetal acceleration.",
+  "facts": [
+    {
+      "id": "factRadius",
+      "kind": "given",
+      "statement": "The stone moves in a horizontal circle of radius 0.8 m.",
+      "evidence": {
+        "source": "question",
+        "start": 0,
+        "end": 54,
+        "quote": "A stone moves in a horizontal circle of radius 0.8 m"
+      }
+    },
+    {
+      "id": "factPeriod",
+      "kind": "given",
+      "statement": "The period of the circular motion is 2 s.",
+      "evidence": {
+        "source": "question",
+        "start": 55,
+        "end": 75,
+        "quote": "with a period of 2 s"
+      }
+    },
+    {
+      "id": "factFindSpeed",
+      "kind": "requested",
+      "statement": "Find the stone's speed.",
+      "evidence": {
+        "source": "question",
+        "start": 77,
+        "end": 91,
+        "quote": "Find its speed"
+      }
+    },
+    {
+      "id": "factFindAcceleration",
+      "kind": "requested",
+      "statement": "Find the stone's centripetal acceleration.",
+      "evidence": {
+        "source": "question",
+        "start": 92,
+        "end": 122,
+        "quote": "and centripetal acceleration."
+      }
+    },
+    {
+      "id": "factUniformCircularMotion",
+      "kind": "assumption",
+      "statement": "The stone moves with constant speed in uniform circular motion.",
+      "evidence": {
+        "source": "question",
+        "start": 0,
+        "end": 54,
+        "quote": "A stone moves in a horizontal circle of radius 0.8 m"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "stone",
+      "kind": "body",
+      "label": "stone",
+      "evidenceFactIds": [
+        "factRadius"
+      ]
+    },
+    {
+      "id": "circlePath",
+      "kind": "curve",
+      "label": "horizontal circle",
+      "evidenceFactIds": [
+        "factRadius"
+      ]
+    },
+    {
+      "id": "circleCenter",
+      "kind": "point",
+      "label": "center of the circle",
+      "evidenceFactIds": [
+        "factRadius"
+      ]
+    },
+    {
+      "id": "radiusSegment",
+      "kind": "line",
+      "label": "radius",
+      "evidenceFactIds": [
+        "factRadius"
+      ]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "exprRadius",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 0.8
+      },
+      "evidenceFactIds": [
+        "factRadius"
+      ]
+    },
+    {
+      "id": "exprPeriod",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 2
+      },
+      "evidenceFactIds": [
+        "factPeriod"
+      ]
+    },
+    {
+      "id": "exprSpeed",
+      "valueType": "scalar",
+      "root": {
+        "kind": "binary",
+        "op": "/",
+        "left": {
+          "kind": "binary",
+          "op": "*",
+          "left": {
+            "kind": "binary",
+            "op": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "constant",
+              "name": "pi"
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 0.8
+          }
+        },
+        "right": {
+          "kind": "number",
+          "value": 2
+        }
+      },
+      "evidenceFactIds": [
+        "factRadius",
+        "factPeriod",
+        "factFindSpeed"
+      ]
+    },
+    {
+      "id": "exprAcceleration",
+      "valueType": "scalar",
+      "root": {
+        "kind": "binary",
+        "op": "/",
+        "left": {
+          "kind": "binary",
+          "op": "^",
+          "left": {
+            "kind": "binary",
+            "op": "/",
+            "left": {
+              "kind": "binary",
+              "op": "*",
+              "left": {
+                "kind": "binary",
+                "op": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "constant",
+                  "name": "pi"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 0.8
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2
+          }
+        },
+        "right": {
+          "kind": "number",
+          "value": 0.8
+        }
+      },
+      "evidenceFactIds": [
+        "factRadius",
+        "factPeriod",
+        "factFindAcceleration"
+      ]
+    }
+  ],
+  "constraints": [],
+  "representationIntents": [
+    {
+      "id": "intentCircle",
+      "kind": "graph",
+      "entityIds": [
+        "circlePath",
+        "circleCenter",
+        "radiusSegment",
+        "stone"
+      ],
+      "evidenceFactIds": [
+        "factRadius",
+        "factUniformCircularMotion"
+      ]
+    }
+  ],
+  "solveRequests": [
+    {
+      "id": "solveSpeed",
+      "kind": "evaluate",
+      "expressionId": "exprSpeed",
+      "resultBinding": {
+        "turnPlanQuantityId": "v",
+        "symbol": "v",
+        "unit": "m/s",
+        "evidenceFactIds": [
+          "factRadius",
+          "factPeriod",
+          "factFindSpeed"
+        ]
+      }
+    },
+    {
+      "id": "solveAcceleration",
+      "kind": "evaluate",
+      "expressionId": "exprAcceleration",
+      "resultBinding": {
+        "turnPlanQuantityId": "ac",
+        "symbol": "a_c",
+        "unit": "m/s^2",
+        "evidenceFactIds": [
+          "factRadius",
+          "factPeriod",
+          "factFindAcceleration"
+        ]
+      }
+    }
+  ]
+}

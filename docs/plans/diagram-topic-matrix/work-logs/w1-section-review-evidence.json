@@ -1,0 +1,429 @@
+{
+  "reviewed_head": "7443b2f91db1b6dd132159e005d4f20a40f6e3ec",
+  "base": "f459df7b53301437ba097969ca6949d47aa6ba9e",
+  "disposition": "BLOCK",
+  "new_findings": [
+    {
+      "severity": "P1",
+      "path": "packages/scene-engine/src/ir/sectionFormulaSource.ts",
+      "line": 367,
+      "reason": "Explicit Q request accepts IR R via coordinates-of or capital Point wording; exact scene and canonical save retain R=(7,8).",
+      "baseline": "same validated fullIR inputs declined"
+    }
+  ],
+  "preexisting_boundary_gaps": [
+    "Forged scalar fact lineage saves on both revisions.",
+    "Omitted required scalar saves on both revisions."
+  ],
+  "runs": {
+    "engine": {
+      "checks": 61,
+      "failed_observations": [
+        {
+          "id": "wrong-requested-name:coordinates-of",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "wrong-requested-name:coordinates-of-the-point",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "wrong-requested-name:capital-Point",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        }
+      ],
+      "naming_evidence": [],
+      "captured_cases": [
+        {
+          "id": "captured:SF1",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "captured:SF3",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "captured:SF4",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "captured:SF5",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "captured:SF6",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        }
+      ],
+      "matching_name_controls": [
+        {
+          "id": "matching-requested-name:coordinates-of",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "matching-requested-name:coordinates-of-the-point",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "matching-requested-name:capital-Point",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "matching-requested-name:point-Q-control",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        }
+      ]
+    },
+    "app": {
+      "checks": 87,
+      "failed_observations": [
+        {
+          "id": "client-lineage:compiled-live-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "client-lineage:save-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:coordinates-of:scene",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:coordinates-of:live-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:coordinates-of:save-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:coordinates-of-the-point:scene",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:coordinates-of-the-point:live-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:coordinates-of-the-point:save-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:capital-Point:scene",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:capital-Point:live-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "requested-name:capital-Point:save-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "client-omitted-equal-component:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        }
+      ],
+      "naming_evidence": [
+        {
+          "namingEvidence": "coordinates-of",
+          "tier": "exact_verified",
+          "pointLabels": [
+            "A",
+            "B",
+            "R"
+          ],
+          "boardLabels": [
+            "A(1,2)",
+            "B(4,5)",
+            "R=(7,8)"
+          ]
+        },
+        {
+          "namingEvidence": "coordinates-of-the-point",
+          "tier": "exact_verified",
+          "pointLabels": [
+            "A",
+            "B",
+            "R"
+          ],
+          "boardLabels": [
+            "A(1,2)",
+            "B(4,5)",
+            "R=(7,8)"
+          ]
+        },
+        {
+          "namingEvidence": "capital-Point",
+          "tier": "exact_verified",
+          "pointLabels": [
+            "A",
+            "B",
+            "R"
+          ],
+          "boardLabels": [
+            "A(1,2)",
+            "B(4,5)",
+            "R=(7,8)"
+          ]
+        }
+      ],
+      "false_annotation_controls": [
+        {
+          "id": "client-coordinate-annotation:compiled-live-accepted",
+          "pass": true,
+          "expected": false,
+          "actual": false
+        },
+        {
+          "id": "client-coordinate-annotation:save-accepted",
+          "pass": true,
+          "expected": false,
+          "actual": false
+        },
+        {
+          "id": "client-answer-annotation:compiled-live-accepted",
+          "pass": true,
+          "expected": false,
+          "actual": false
+        },
+        {
+          "id": "client-answer-annotation:save-accepted",
+          "pass": true,
+          "expected": false,
+          "actual": false
+        }
+      ],
+      "supported_tiers": [
+        {
+          "id": "external21:normal-tier",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "internal23:normal-tier",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "midpoint:normal-tier",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        },
+        {
+          "id": "readRatio:normal-tier",
+          "pass": true,
+          "expected": "exact_verified",
+          "actual": "exact_verified"
+        }
+      ]
+    },
+    "engine-base": {
+      "checks": 27,
+      "failed_observations": [
+        {
+          "id": "external21:tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "internal23:tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "midpoint:tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "readRatio:tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "matching-requested-name:coordinates-of",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "matching-requested-name:coordinates-of-the-point",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "matching-requested-name:capital-Point",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "matching-requested-name:point-Q-control",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "captured:SF1",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "captured:SF3",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "captured:SF4",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "captured:SF5",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        },
+        {
+          "id": "captured:SF6",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "declined"
+        }
+      ],
+      "naming_evidence": []
+    },
+    "app-base": {
+      "checks": 9,
+      "failed_observations": [
+        {
+          "id": "external21:normal-tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "question_representation"
+        },
+        {
+          "id": "internal23:normal-tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "question_representation"
+        },
+        {
+          "id": "midpoint:normal-tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "question_representation"
+        },
+        {
+          "id": "readRatio:normal-tier",
+          "pass": false,
+          "expected": "exact_verified",
+          "actual": "question_representation"
+        }
+      ],
+      "naming_evidence": []
+    },
+    "boundary-head": {
+      "checks": 3,
+      "failed_observations": [
+        {
+          "id": "same-submitted-document:lineage:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "same-submitted-document:omitted-component:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        }
+      ],
+      "naming_evidence": []
+    },
+    "boundary-base": {
+      "checks": 3,
+      "failed_observations": [
+        {
+          "id": "same-submitted-document:lineage:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "same-submitted-document:omitted-component:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        }
+      ],
+      "naming_evidence": []
+    }
+  },
+  "limits": [
+    "Offline only; no real student, DB, saved reopen or whole replay.",
+    "No broad full package suites, source fixes, ledger counts or READY claim."
+  ]
+}

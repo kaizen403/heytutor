@@ -14,8 +14,12 @@
  * or teaches text-only), and (c) the cue tables are exercised as a test
  * oracle by the archetype picture gate rather than grown per question.
  */
+import { riverCrossingSpeeds } from "../physics/riverCrossingSource";
 import { riverBoatVariant } from "../synthesize/familyClassification";
+import { levelRelationSource } from "../physics/levelRelationSource";
+import { extractFreeFallSlots, extractSuvatSlots } from "./generators/constantAcceleration";
 import { ARCHETYPES, isArchetypeId, type ArchetypeId, type Slots } from "./catalog";
+import { formatResistorTree, readResistorTree } from "./resistorTree";
 import {
   UNIT,
   lengthAfterInCm,
@@ -33,7 +37,6 @@ import {
   numberBefore,
   numbersWithUnit,
   planNumber,
-  planNumbersByUnit,
   pointOfInterestX,
   positionOfTime,
   prepareStem,
@@ -121,11 +124,104 @@ const DEG = UNIT.degree;
 const massesOf = (stem: string): number[] => numbersWithUnit(stem, UNIT.kilogram);
 const speedsOf = (stem: string): number[] => numbersWithUnit(stem, UNIT.speed);
 
+// Ω is not a word character, so a trailing \b never matched "6 Ω resistor":
+// every Ω value was dropped and the network fell back to stock resistors.
 function ohms(stem: string): number[] {
-  return [...stem.matchAll(/(\d+(?:\.\d+)?)\s*(kΩ|k\s*ohms?|Ω|ohms?)\b/gi)].map((match) => {
+  return [...stem.matchAll(/(\d+(?:\.\d+)?)\s*(kΩ|MΩ|k\s*ohms?|M\s*ohms?|Ω|ohms?)(?![A-Za-z0-9])/gi)].map((match) => {
     const value = Number(match[1]);
-    return /k/i.test(match[2] ?? "") ? value * 1000 : value;
+    const prefix = (match[2] ?? "")[0];
+    return prefix === "k" || prefix === "K" ? value * 1000 : prefix === "M" ? value * 1e6 : prefix === "m" ? value / 1000 : value;
   }).filter(Number.isFinite);
+}
+
+/**
+ * Words that group resistors before arranging them ("this combination", "end
+ * to end", "which is in parallel with"). A stem with one of them, or with both
+ * arrangement words, is read only by the structural reader; the one-word fast
+ * path below is for stems with no grouping at all.
+ */
+const GROUPING_CUE = /\b(?:combination|arrangement|group|pair|end[- ]to[- ]end|joined|together|this|which|that|these|it)\b/i;
+
+function needsStructuralReader(stem: string): boolean {
+  const bothKinds = /\bseries\b/i.test(stem) && /\bparallel\b/i.test(stem);
+  // "In this circuit", "in this case": deictic words that point at the
+  // question, not at a group of resistors, are not grouping cues.
+  const cues = stem.replace(/\b(?:this|these|that)\s+(?:circuits?|cases?|questions?|problems?|figures?|diagrams?|situations?|experiments?|setups?)\b/gi, " ");
+  return bothKinds || (ohms(stem).length >= 2 && GROUPING_CUE.test(cues));
+}
+
+/**
+ * The resistor arrangement only where the stem fixes it. A stem with no
+ * grouping word and one arrangement word is read directly; every other stem
+ * with several resistances goes through the bounded structural reader, which
+ * returns an explicit tree or nothing. Anything it cannot bind, or two
+ * resistors with no arrangement word, is ambiguous and draws nothing.
+ */
+function resistorTopology(stem: string, bag: SlotBag): string {
+  const series = /\bseries\b/i.test(stem);
+  const parallel = /\bparallel\b/i.test(stem);
+  // "in series and then in parallel" asks for two figures.
+  const twoFigures = /\bin series and (?:then )?(?:in )?parallel\b(?!\s+with)|\bin parallel and (?:then )?(?:in )?series\b(?!\s+with)|\b(?:both|each|two) (?:equivalent resistances|circuits?|combinations?|cases|arrangements)\b|\bseparately\b/i.test(stem);
+  // A stem that states no resistances asks for the idea, not one network:
+  // "series and parallel combinations" are drawn as two separate views and a
+  // "mixed series-parallel network" as one generic mix, unlabelled, valueless.
+  if (series && parallel && ohms(stem).length === 0) {
+    if (/\bmixed\b|\bseries[- ]parallel\b|\bcombined\b/i.test(stem)) {
+      setSlot(bag, "tree", "S(0,P(1,2))", "default");
+      return "tree";
+    }
+    return "both";
+  }
+  if (needsStructuralReader(stem)) {
+    const tree = readResistorTree(stem);
+    if (tree?.kind === "series" || tree?.kind === "parallel") {
+      // One level of one kind is the plain series or parallel figure.
+      if (tree.children.every((child) => child.kind === "leaf")) return tree.kind;
+      setSlot(bag, "tree", formatResistorTree(tree), "stem");
+      return "tree";
+    }
+    return twoFigures && series && parallel ? "both" : "ambiguous";
+  }
+  if (parallel) return "parallel";
+  const count = typeof bag.values.resistorCount === "number" ? bag.values.resistorCount : ohms(stem).length;
+  if (series || count <= 1) return "series";
+  return "ambiguous";
+}
+
+/**
+ * Remove "the X Ω resistor" after "across", "through", "in" or "of" when X was
+ * already stated earlier: it refers back to that resistor. A value used by
+ * two earlier resistors still reads as a back reference; the authority then
+ * cannot tell which one is meant and binds nothing.
+ */
+function withoutResistorBackReferences(stem: string): string {
+  const pattern = /\b(?:across|through|in|of|by)\s+the\s+(\d+(?:\.\d+)?)\s*(kΩ|MΩ|k\s*ohms?|M\s*ohms?|Ω|ohms?)(?![A-Za-z0-9])\s+resistor\b/gi;
+  return stem.replace(pattern, (match, raw: string, unit: string, offset: number) => {
+    const earlier = ohms(stem.slice(0, offset));
+    const value = ohms(`${raw} ${unit}`)[0];
+    return value !== undefined && earlier.includes(value) ? match.replace(/\d+(?:\.\d+)?\s*(?:kΩ|MΩ|k\s*ohms?|M\s*ohms?|Ω|ohms?)/i, "stated") : match;
+  });
+}
+
+const COUNT_WORDS: Record<string, number> = { one: 1, a: 1, an: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6 };
+
+/** "three resistors", "two identical resistors": the count the stem states, if any. */
+function statedResistorCount(stem: string): number | null {
+  const match = /\b(one|a|an|single|two|three|four|five|six|[1-6])\s+(?:(?:identical|equal|similar|ohmic)\s+)?resistors?\b/i.exec(stem);
+  return match ? COUNT_WORDS[match[1]!.toLowerCase()] ?? null : null;
+}
+
+/**
+ * Resistances the stem itself states. "each of 6 Ω" with a stated count
+ * repeats the one value; a stated count that disagrees with the listed values
+ * is unreadable, so nothing is returned and the figure declines.
+ */
+function stemResistances(stem: string): number[] | null {
+  const values = ohms(stem);
+  const stated = statedResistorCount(stem);
+  if (stated === null || stated === values.length) return values;
+  if (values.length === 1 && stated > 1 && /\beach\b|\bidentical\b|\bequal\b/i.test(stem)) return Array.from({ length: stated }, () => values[0]!);
+  return values.length === 0 ? Array.from({ length: stated }, () => Number.NaN) : null;
 }
 
 function farads(stem: string): number[] {
@@ -156,7 +252,12 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:angle of projection|projection angle|initial velocity|velocity of projection)\b/i, 2],
       [/\b(?:ground|tower|cliff|building)\b/i, 1],
     ],
-    vetoes: [/\bincline|inclined plane|pulley|spring|pendulum|circuit|lens|mirror|charge\b/i, /\bvertically\s+(?:up|down)/i],
+    vetoes: [
+      /\bincline|inclined plane|pulley|spring|pendulum|circuit|lens|mirror|charge\b/i,
+      /\bvertically\s+(?:up|down)/i,
+      // Straight-line speeding up or braking is not a launch.
+      /\b(?:accelerat(?:es|ing)|decelerat\w*|retard(?:s|ing|ation)|brak(?:es|ing))\b/i,
+    ],
     extract: (stem, plan, bag) => {
       setSlot(bag, "u", planNumber(plan, ["u", "v0", "u0", "speed", "initialspeed", "initialvelocity", "velocity", "v"]), "plan");
       setSlot(bag, "u", speedsOf(stem)[0] ?? null, "stem");
@@ -175,13 +276,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:balloon|helicopter)\b/i, 1],
     ],
     vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "h", planNumber(plan, ["h", "height", "s", "distance"]), "plan");
-      setSlot(bag, "h", firstNumberWithUnit(stem, UNIT.metre), "stem");
-      setSlot(bag, "u", planNumber(plan, ["u", "v0", "initialspeed", "initialvelocity"]), "plan");
-      setSlot(bag, "u", /thrown/i.test(stem) ? speedsOf(stem)[0] ?? null : null, "stem");
-      setSlot(bag, "direction", /thrown (?:vertically )?up/i.test(stem) ? "up" : "down", "stem");
-    },
+    extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
     id: "incline_body",
@@ -321,12 +416,30 @@ const CUE_SETS: readonly CueSet[] = [
     id: "vertical_circle",
     cues: [
       [/\bvertical circle\b/i, 4],
+      [/\bvertical circular (?:loop|track)\b/i, 4, "vertical loop"],
+      [/\bloop[- ]the[- ]loop\b/i, 3, "loop-the-loop"],
       [/\bwhirled\b/i, 3],
-      [/\b(?:loop[- ]the[- ]loop|circular loop|lowest point|highest point|top of the circle)\b/i, 2],
+      [/\b(?:circular loop|lowest point|highest point|top of the circle)\b/i, 2],
     ],
+    // A current loop is electromagnetism, not mechanics: Biot-Savart reached
+    // this figure through the bare "circular loop" cue and the lesson then
+    // narrated velocity arrows as current arrows. A wire loop without a stated
+    // current is still a wire apparatus, never a whirled string or an
+    // energy track; the apparatus-neutral family document stays available.
+    vetoes: [/\bcurrent\b/i, /\bmagnetic\b/i, /\bbiot\b/i, /\bcoil\b/i, /\bsolenoid\b/i, /\bcyclotron\b/i, /\bwire\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "radius", planNumber(plan, ["r", "radius", "l", "length"]), "plan");
+      setSlot(bag, "radius", numberAfter(stem, /radius(?: of)?|loop of radius|track of radius/i, UNIT.metre), "stem");
       setSlot(bag, "radius", firstNumberWithUnit(stem, UNIT.metre), "stem");
+      // A track loop is held by a normal reaction, a string loop by a tension.
+      // The words that name the apparatus decide; a bare "vertical circle"
+      // keeps the string figure it always drew.
+      const namesTrack = /\btrack\b|\brail\b|\bloop\b/i.test(stem);
+      const namesString = /\bstring\b|\bthread\b|\bwhirled\b/i.test(stem);
+      setSlot(bag, "variant", namesTrack && !namesString ? "track" : "string", "stem");
+      setSlot(bag, "releaseHeight", planNumber(plan, ["h", "height", "releaseheight", "h0"]), "plan");
+      setSlot(bag, "releaseHeight", numberAfter(stem, /released from(?: a)? height(?: of)?|height of/i, UNIT.metre), "stem");
+      setSlot(bag, "approach", /\bincline\b|\bramp\b|\bslope\b/i.test(stem) ? "incline" : "none", "stem");
     },
   },
   {
@@ -395,7 +508,15 @@ const CUE_SETS: readonly CueSet[] = [
       setSlot(bag, "vA", speeds[0] ?? null, "stem");
       setSlot(bag, "vB", speeds[1] ?? null, "stem");
       setSlot(bag, "gap", numberBefore(stem, /(?:m|metres?|km)\s+(?:ahead|behind|apart)/, undefined) ?? firstNumberWithUnit(stem, /m\s+(?:ahead|behind|apart)/), "stem");
-      setSlot(bag, "sameDirection", /\bopposite\b/i.test(stem) ? "no" : "yes", "stem");
+      // Direction is read, never assumed: head-on wording is "no", explicit
+      // same-direction wording is "yes", and anything else stays unset.
+      const compass = new Set((stem.match(/\b(?:east|west|north|south)(?:wards?)?\b/gi) ?? []).map((word) => word.toLowerCase().replace(/wards?$/, "")));
+      const opposite = /\b(?:opposite|towards? each other|approach\w* each other|head[- ]on)\b/i.test(stem)
+        || (compass.has("east") && compass.has("west")) || (compass.has("north") && compass.has("south"));
+      const same = /\b(?:same direction|overtak\w*|catch(?:es)? up|chas\w*)\b/i.test(stem) || compass.size === 1;
+      // A signed negative velocity fixes direction on an unstated axis; leave it unread.
+      const signedNegative = /(?:^|[^\w.])-\s*\d+(?:\.\d+)?\s*(?:m\/s|km\/h)/i.test(stem);
+      setSlot(bag, "sameDirection", opposite === same || signedNegative ? null : opposite ? "no" : "yes", "stem");
     },
   },
   {
@@ -404,14 +525,31 @@ const CUE_SETS: readonly CueSet[] = [
     vetoes: [/\brain\b/i],
     minScore: 5,
     extract: (stem, plan, bag) => {
-      const speeds = speedsOf(stem);
-      setSlot(bag, "vb", planNumber(plan, ["vb", "vboat", "boatspeed", "vbw"]), "plan");
-      setSlot(bag, "vc", planNumber(plan, ["vc", "vr", "vriver", "vcurrent", "riverspeed", "vw"]), "plan");
-      setSlot(bag, "vb", speeds[0] ?? null, "stem");
-      setSlot(bag, "vc", speeds[1] ?? null, "stem");
+      // Speeds bind by role words, never by mention order; unbound roles stay unset.
+      const speeds = riverCrossingSpeeds(stem);
+      if (speeds.status === "bound") {
+        setSlot(bag, "vb", speeds.vb, "stem");
+        setSlot(bag, "vc", speeds.vc, "stem");
+      }
       // One oracle for the river variant, shared with the family layer.
       setSlot(bag, "variant", riverBoatVariant(stem), "stem");
     },
+  },
+  {
+    id: "uniform_acceleration_vt",
+    cues: [
+      [/\b(?:uniform(?:ly)?\s+accelerat\w*|constant\s+(?:acceleration|deceleration|retardation)|accelerat(?:es|ing|ed)\b|decelerat\w*|retard\w*|brak(?:es|ing|ed)\b|speeds? up|slows? down)/i, 3, "constant acceleration"],
+      [/\b(?:velocity[- ]time|v[- –]t) (?:graph|curve|plot)\b/i, 4, "v-t graph"],
+      [/\b(?:straight (?:line|road|track|path)|along a (?:straight |level )?(?:road|track|runway|line))\b/i, 1],
+      [/\b(?:starts? from rest|comes? to (?:a )?(?:rest|stop)|stopping distance)\b/i, 1],
+    ],
+    vetoes: [
+      /\b(?:vertical(?:ly)?|upwards?|downwards?|thrown|dropped|falls?|freely|free fall|projectile|projected|incline|inclined|slope|circular|circle|orbit|relative to|angle)\b/i,
+      /\b(?:then|after that|afterwards|for the next|finally|thereafter)\b/i,
+      /\bg\s*=|\b(?:x|s)\s*=\s*[^,.;]*\d\s*\*?\s*t\b|\b(?:x|s)\s*=\s*t\b/i,
+    ],
+    minScore: 3,
+    extract: (stem, plan, bag) => extractSuvatSlots(stem, plan, bag, setSlot),
   },
   {
     id: "vt_graph",
@@ -485,7 +623,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:at an angle|angle between|inclined at)\b/i, 2],
       [/\b(?:magnitude|units?)\b/i, 1],
     ],
-    vetoes: [/\briver|boat|charge|field|current\b/i],
+    vetoes: [/\briver|boat|charge|field|current|projectile\b/i],
     extract: (stem, plan, bag) => {
       const magnitudes = [...stem.matchAll(/\b(\d+(?:\.\d+)?)\s*(?:units?|N\b|newtons?|m\/s)/gi)].map((match) => Number(match[1]));
       const bare = magnitudes.length >= 2 ? magnitudes : [...stem.matchAll(/\b(?:magnitudes?|of)\s+(\d+(?:\.\d+)?)\s+and\s+(\d+(?:\.\d+)?)/gi)].flatMap((match) => [Number(match[1]), Number(match[2])]);
@@ -614,24 +752,49 @@ const CUE_SETS: readonly CueSet[] = [
     id: "resistor_network",
     cues: [
       [/\bresistors?\b/i, 2],
-      [/\b(?:Ω|ohms?)\b/i, 2],
+      [/Ω|\bohms?\b/i, 2],
       [/\b(?:in series|in parallel|series combination|parallel combination|equivalent resistance|effective resistance|total current|current drawn)\b/i, 2],
       [/\b(?:battery|cell|emf|volt)\b/i, 1],
+      [/\binternal resistance\b/i, 2],
     ],
     vetoes: [/\b(?:kirchhoff|two loops?|loop rule|junction rule|wheatstone|met(?:er|re) bridge|potentiometer|capacitor|galvanometer)\b/i],
-    extract: (stem, plan, bag) => {
-      const values = ohms(stem);
-      const planValues = planNumbersByUnit(plan, /ohm|Ω/i, /^R_?\d+$/i);
-      setSlot(bag, "resistors", planValues.length >= 2 ? planValues : null, "plan");
-      setSlot(bag, "resistors", values.length >= 1 ? values : null, "stem");
-      const series = /\bseries\b/i.test(stem);
-      const parallel = /\bparallel\b/i.test(stem);
-      const twoFigures = /\bin series and (?:in )?parallel\b|\b(?:both|each|two) (?:equivalent resistances|circuits?|combinations?|cases|arrangements)\b|\bseparately\b/i.test(stem);
-      setSlot(bag, "topology", series && parallel
-        ? (twoFigures ? "both" : /\bseries with (?:a |the )?parallel|in series with (?:a |the )?(?:parallel|combination)/i.test(stem) ? "series_parallel" : "parallel_series")
-        : parallel ? "parallel" : "series", "stem");
-      setSlot(bag, "emf", planNumber(plan, ["v", "e", "emf", "voltage"]), "plan");
-      setSlot(bag, "emf", volts(stem)[0] ?? null, "stem");
+    extract: (fullStem, plan, bag) => {
+      // "Find the potential difference across the 6 Ω resistor" names a
+      // resistor already stated; it is not one more resistor.
+      const stem = withoutResistorBackReferences(fullStem);
+      // Only resistances the stem states may become resistors. The plan's
+      // quantity list mixes givens with derived values (an equivalent
+      // resistance in ohms would otherwise be drawn as one more resistor), so a
+      // plan list is used only when every value is a literal of the stem.
+      // In a bound mixed tree a count word ("two resistors of 6 Ω and 3 Ω ...
+      // in series with a 2 Ω resistor") counts one group, and the tree's
+      // leaves are the stem's resistances in order, so the plan cannot reorder them.
+      const mixedTree = needsStructuralReader(stem) ? readResistorTree(stem) : null;
+      const values = mixedTree ? ohms(stem) : stemResistances(stem);
+      if (values === null) {
+        setSlot(bag, "resistorCountConflict", 1, "stem");
+      } else {
+        const literals = new Set([...stem.matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0])));
+        const planValues = plan
+          .filter((quantity) => /^R_?\d+$/i.test(quantity.symbol) || (quantity.unit !== undefined && /^(?:ohms?|Ω)$/i.test(quantity.unit.trim()) && !/eq|tot|net|eff|ext/i.test(`${quantity.id} ${quantity.symbol}`)))
+          .map((quantity) => quantity.value);
+        const planGrounded = planValues.length >= 2 && planValues.length >= values.length && planValues.every((value) => literals.has(value));
+        setSlot(bag, "resistors", !mixedTree && planGrounded && !values.some(Number.isNaN) ? planValues : null, "plan");
+        const known = values.filter((value) => !Number.isNaN(value));
+        setSlot(bag, "resistors", known.length === values.length && known.length >= 1 ? known : null, "stem");
+        setSlot(bag, "resistorCount", values.length >= 1 ? values.length : null, "stem");
+      }
+      setSlot(bag, "topology", resistorTopology(stem, bag), "stem");
+      // A source with internal resistance is a different circuit (terminal
+      // voltage, lost volts); it is not drawn as one more external resistor.
+      if (/\binternal resistance\b/i.test(stem)) setSlot(bag, "internalResistance", 1, "stem");
+      // A source label must be the stem's one stated voltage. Several distinct
+      // voltages (a meter reading, a rating) leave the source unlabelled, and a
+      // plan voltage counts only when the stem states it.
+      const stemVolts = [...new Set(volts(stem))];
+      const planEmf = planNumber(plan, ["v", "e", "emf", "voltage"]);
+      setSlot(bag, "emf", planEmf !== null && stemVolts.length === 1 && stemVolts[0] === planEmf ? planEmf : null, "plan");
+      setSlot(bag, "emf", stemVolts.length === 1 ? stemVolts[0]! : null, "stem");
     },
   },
   {
@@ -879,9 +1042,9 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\b(?:bohr|hydrogen atom|energy levels?|transition|lyman|balmer|paschen|excited state|ground state)\b/i, 4], [/\bn\s*=\s*[1-7]\b(?!\.)/, 2]],
     vetoes: [/\b(?:photoelectric|work function|stopping potential|de broglie|x-ray|radioactiv|half-life|binding energy)\b/i],
     extract: (stem, plan, bag) => {
-      const levels = [...stem.matchAll(/\bn\s*=\s*(\d)/gi)].map((match) => Number(match[1]));
-      setSlot(bag, "from", Math.max(...levels, 0) || null, "stem");
-      setSlot(bag, "to", Math.min(...levels.filter((level) => level > 0), Infinity) === Infinity ? null : Math.min(...levels.filter((level) => level > 0)), "stem");
+      const relation = levelRelationSource(stem);
+      setSlot(bag, "from", relation?.from ?? null, "stem");
+      setSlot(bag, "to", relation?.to ?? null, "stem");
       void plan;
     },
   },

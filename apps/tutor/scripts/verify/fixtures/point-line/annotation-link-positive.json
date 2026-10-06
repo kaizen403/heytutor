@@ -1,0 +1,384 @@
+{
+ "submitted": {
+  "question": "In Cartesian coordinate units, find the distance and perpendicular foot from P(0,0) to 3x+4y-25=0. Options: A 5; B 25; C 7; D 0.",
+  "sceneDocument": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Show the source line, point and perpendicular distance"
+   },
+   "source": {
+    "question": "In Cartesian coordinate units, find the distance and perpendicular foot from P(0,0) to 3x+4y-25=0. Options: A 5; B 25; C 7; D 0."
+   },
+   "quantities": [
+    {
+     "id": "distanceValue",
+     "symbol": "d",
+     "value": 5
+    }
+   ],
+   "entities": [
+    {
+     "id": "line",
+     "kind": "line",
+     "role": "complete source line"
+    },
+    {
+     "id": "P",
+     "kind": "point",
+     "role": "source point",
+     "label": "P"
+    },
+    {
+     "id": "distance",
+     "kind": "segment",
+     "role": "computed perpendicular foot connector"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "line_make",
+     "operator": "line_equation",
+     "inputs": {
+      "form": "general",
+      "a": 3,
+      "b": 4,
+      "c": -25
+     },
+     "outputs": [
+      "line"
+     ]
+    },
+    {
+     "id": "point_make",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0
+     },
+     "outputs": [
+      "P"
+     ]
+    },
+    {
+     "id": "distance_make",
+     "operator": "point_line_distance",
+     "inputs": {
+      "point": "P",
+      "a": 3,
+      "b": 4,
+      "c": -25
+     },
+     "outputs": [
+      "distance"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "grounded_distance_claim",
+     "kind": "callout",
+     "targetIds": [
+      "distance"
+     ],
+     "quantityId": "distanceValue"
+    }
+   ],
+   "requiredEntityIds": [
+    "line",
+    "P",
+    "distance"
+   ],
+   "revealGroups": [
+    {
+     "id": "scene",
+     "entityIds": [
+      "line",
+      "P",
+      "distance"
+     ],
+     "dependsOn": [],
+     "narrationCue": "In Cartesian coordinate units, find the distance and perpendicular foot from P(0,0) to 3x+4y-25=0. Options: A 5; B 25; C 7; D 0."
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "show",
+     "action": "reveal",
+     "targetId": "scene",
+     "dependsOn": [],
+     "narrationIntent": "Reveal only the engine-owned line, point and distance"
+    }
+   ]
+  },
+  "visualStatus": "validated",
+  "sceneArtifacts": {
+   "schemaVersion": "scene-artifacts/v3",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "In Cartesian coordinate units, find the distance and perpendicular foot from P(0,0) to 3x+4y-25=0. Options: A 5; B 25; C 7; D 0.",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "a",
+      "value": 3,
+      "sourceText": "3",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "b",
+      "value": 4,
+      "sourceText": "4",
+      "provenance": "given"
+     },
+     {
+      "id": "c",
+      "symbol": "c",
+      "value": -25,
+      "sourceText": "-25",
+      "provenance": "given"
+     },
+     {
+      "id": "x0",
+      "symbol": "x0",
+      "value": 0,
+      "sourceText": "0",
+      "provenance": "given"
+     },
+     {
+      "id": "y0",
+      "symbol": "y0",
+      "value": 0,
+      "sourceText": "0",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "distanceValue",
+      "symbol": "d"
+     }
+    ],
+    "derived": [
+     {
+      "id": "distanceValue",
+      "symbol": "d",
+      "value": 5,
+      "provenance": "derived",
+      "sourceText": "abs(3*0+4*0-25)/sqrt(3^2+4^2)",
+      "dependsOn": [
+       "a",
+       "b",
+       "c",
+       "x0",
+       "y0"
+      ]
+     }
+    ],
+    "qualitativeClaims": [],
+    "lawIds": [
+     "point_line_distance"
+    ],
+    "assumptions": [],
+    "visualRequirement": "required"
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "pointLineSource",
+    "question": "In Cartesian coordinate units, find the distance and perpendicular foot from P(0,0) to 3x+4y-25=0. Options: A 5; B 25; C 7; D 0.",
+    "facts": [
+     {
+      "id": "sourcePoint",
+      "kind": "given",
+      "statement": "P(0,0)",
+      "evidence": {
+       "source": "question",
+       "start": 77,
+       "end": 83,
+       "quote": "P(0,0)"
+      }
+     },
+     {
+      "id": "sourceLine",
+      "kind": "given",
+      "statement": "3x+4y-25=0",
+      "evidence": {
+       "source": "question",
+       "start": 87,
+       "end": 97,
+       "quote": "3x+4y-25=0"
+      }
+     },
+     {
+      "id": "requestedDistance",
+      "kind": "requested",
+      "statement": "find the distance and perpendicular foot",
+      "evidence": {
+       "source": "question",
+       "start": 31,
+       "end": 71,
+       "quote": "find the distance and perpendicular foot"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "P",
+      "kind": "point",
+      "evidenceFactIds": [
+       "sourcePoint"
+      ]
+     },
+     {
+      "id": "line",
+      "kind": "line",
+      "evidenceFactIds": [
+       "sourceLine"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "sourceDistance",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "sourcePoint",
+       "sourceLine",
+       "requestedDistance"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "call",
+        "function": "abs",
+        "argument": {
+         "kind": "binary",
+         "operator": "+",
+         "left": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+           "kind": "binary",
+           "operator": "*",
+           "left": {
+            "kind": "number",
+            "value": 3
+           },
+           "right": {
+            "kind": "number",
+            "value": 0
+           }
+          },
+          "right": {
+           "kind": "binary",
+           "operator": "*",
+           "left": {
+            "kind": "number",
+            "value": 4
+           },
+           "right": {
+            "kind": "number",
+            "value": 0
+           }
+          }
+         },
+         "right": {
+          "kind": "number",
+          "value": -25
+         }
+        }
+       },
+       "right": {
+        "kind": "call",
+        "function": "sqrt",
+        "argument": {
+         "kind": "binary",
+         "operator": "+",
+         "left": {
+          "kind": "binary",
+          "operator": "^",
+          "left": {
+           "kind": "number",
+           "value": 3
+          },
+          "right": {
+           "kind": "number",
+           "value": 2
+          }
+         },
+         "right": {
+          "kind": "binary",
+          "operator": "^",
+          "left": {
+           "kind": "number",
+           "value": 4
+          },
+          "right": {
+           "kind": "number",
+           "value": 2
+          }
+         }
+        }
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": [
+     {
+      "id": "distanceRequest",
+      "kind": "evaluate",
+      "expressionId": "sourceDistance",
+      "resultBinding": {
+       "turnPlanQuantityId": "distanceValue",
+       "symbol": "d",
+       "evidenceFactIds": [
+        "requestedDistance"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "pointLineSource",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_distanceRequest",
+      "requestId": "distanceRequest",
+      "valueType": "scalar",
+      "approximate": 5,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_distanceRequest",
+      "requestId": "distanceRequest",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "sourceDistance"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-09,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "candidates": [],
+   "representationTier": "exact_verified",
+   "nonMetric": false,
+   "diagramResultStatus": "ready"
+  },
+  "segments": []
+ }
+}

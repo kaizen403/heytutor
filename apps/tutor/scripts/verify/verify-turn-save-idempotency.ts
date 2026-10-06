@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import vm from "node:vm";
 import ts from "typescript";
 import { readBoundedFormData, RequestBodyError } from "../../lib/http/requestBody";
+import * as storedSceneSource from "../../lib/scene/storedSceneSource";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -116,6 +117,9 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
   "@/lib/scene/turnUploadLimits": { MAX_TURN_UPLOAD_BYTES: 36 * 1024 * 1024, validateTurnUploadHeaders: () => ({ ok: true }), validateTurnUploadParts: () => ({ ok: true }) },
 });
 const { saveTurn } = load("lib/boards/boardsClient.ts", {
+  // The real stored-turn source reader (boardsClient gained this import after
+  // the gate was written); saveTurn does not depend on a fake of it.
+  "@/lib/scene/storedSceneSource": storedSceneSource,
   "@heytutor/tutor-core": { speechAudioMimeType: () => "audio/mpeg", resolveApiUrl: (url: string) => `https://example.test${url}` },
   "@/lib/boards/boardTitle": { finalizeBoardTitle: () => "title" },
 });

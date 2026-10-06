@@ -288,4 +288,16 @@ for (const segment of wideGivens) {
   );
 }
 
+const matrixIntro = collectQuestionGivens("A=[[1,2],[3,4]]. A is a square matrix. Show A and state its type.");
+assert(matrixIntro.some((given) => given.symbol === "A" && given.board === "A = [[1,2],[3,4]]"), "matrix commas must preserve the complete source given");
+assert(!matrixIntro.some((given) => given.board === "A = [[1" || given.spoken === "A equals [[1"), "matrix intro must never assert a truncated supplied value");
+const tupleIntro = collectQuestionGivens("r=(1,2,3), m=2 kg; F=(3+4) N. Find the magnitude.");
+assert(tupleIntro.some((given) => given.board === "r = (1,2,3)"), "tuple commas belong inside the supplied vector value");
+assert(tupleIntro.some((given) => given.board === "m = 2 kg") && tupleIntro.some((given) => given.board === "F = (3+4) N"), "structured values must preserve adjacent scalar assignments");
+const nestedIntro = collectQuestionGivens("A=[[1,2],[3,4]], r=([1,2],{3,4}) and t=5 s. Find t.");
+assert(nestedIntro.some((given) => given.board === "A = [[1,2],[3,4]]"), "nested matrix brackets must be read atomically");
+assert(nestedIntro.some((given) => given.board === "r = ([1,2],{3,4})"), "nested mixed delimiters must not split provided tuples");
+const longMatrix = `A=[${Array.from({ length: 6 }, () => "[1,1,1,1,1,1]").join(",")}]. Show A.`;
+assert(!collectQuestionGivens(longMatrix).some((given) => given.symbol === "A"), "an oversized intro value must be omitted rather than asserted as a clipped source matrix");
+assert(collectQuestionGivens("A=[[1,2],[3,4]. Show A.").length === 0, "unbalanced source values must not become supplied intro facts");
 console.log("given value intro verification passed");

@@ -141,6 +141,12 @@ export function useBoardSession({
   const [inputInteracted, setInputInteracted] = useState(false);
   const replayBlobUrlsRef = useRef<string[]>([]);
   const restoreGenerationRef = useRef(0);
+  /**
+   * The restored page's ink loop while it runs. Replay stops it and waits for
+   * it before clearing the board: a row the loop writes after replay's layout
+   * reset re-enters the work column and pushes every replayed row down.
+   */
+  const restoreInkRef = useRef<{ cancelled: boolean; done: Promise<void> } | null>(null);
   const activeSessionIdRef = useRef(sessionId);
   const isDraftRef = useRef(isDraft);
   // Commit the active board before paint and before asynchronous continuations.
@@ -451,7 +457,12 @@ export function useBoardSession({
 
   const restoreBoardFromApi = useCallback(
     async (boardId: string, generation: number, draft: boolean) => {
+      if (generation !== restoreGenerationRef.current || boardId !== activeSessionIdRef.current) return;
+      let finishInk: () => void = () => {};
+      const ink = { cancelled: false, done: new Promise<void>((resolve) => { finishInk = resolve; }) };
+      restoreInkRef.current = ink;
       const isStale = () =>
+        ink.cancelled ||
         generation !== restoreGenerationRef.current ||
         boardId !== activeSessionIdRef.current;
 
@@ -505,13 +516,14 @@ export function useBoardSession({
         setNarrationText(lastNarration);
         setCurrentSegmentText("");
 
-        const whiteboardReady = await waitForWhiteboard(whiteboardRef);
+        const whiteboardReady = await waitForWhiteboard(whiteboardRef, 8_000, isStale);
         if (isStale()) return;
         if (!whiteboardReady) {
           return;
         }
 
         await whiteboardRef.current?.clearBoard();
+        if (isStale()) return;
         resetBoardLayout(false, false);
         codeLessonControllerRef?.current?.reset();
 
@@ -529,8 +541,9 @@ export function useBoardSession({
         // doubt answered on the lesson's page is part of that page: same notes
         // page, same question, same figure and code panel.
         let restoredInk = false;
+        const inkStale = () => isStale() || ink.cancelled;
         for (const turn of turns) {
-          if (isStale()) return;
+          if (inkStale()) return;
           const continuesPage = storedTurnContinuesBoard(turn);
           if (restoredInk && !continuesPage) {
             captureNotesEpoch();
@@ -571,12 +584,12 @@ export function useBoardSession({
           }
 
           for (const segment of turn.segments) {
-            if (isStale()) return;
+            if (inkStale()) return;
 
             const commands = parseStoredSegmentCommands(segment.command);
             const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
             for (const command of commands) {
-              if (isStale() || cancelRef.current) {
+              if (inkStale() || cancelRef.current) {
                 return;
               }
 
@@ -587,7 +600,7 @@ export function useBoardSession({
                 durationScale: 0,
                 applyLayout: false,
                 trustedDiagramGeometry,
-                isCancelled: isStale,
+                isCancelled: inkStale,
               });
               if (command.type !== "CLEAR") {
                 restoredInk = true;
@@ -606,6 +619,8 @@ export function useBoardSession({
       } catch {
         // Network-level fetch failures must still clear the loading overlay.
       } finally {
+        if (restoreInkRef.current === ink) restoreInkRef.current = null;
+        finishInk();
         if (!isStale()) {
           setBoardLoaded(true);
         }
@@ -632,6 +647,20 @@ export function useBoardSession({
       fbdPhaseStartedRef,
     ],
   );
+
+  /**
+   * Stop every phase of restoration and wait for its last mutation, including
+   * a pending initial clear. Fetched turns and conversation history remain.
+   */
+  const settleBoardRestore = useCallback(async (): Promise<void> => {
+    // Also invalidate a queued restore that has not registered its work yet.
+    const generation = ++restoreGenerationRef.current;
+    const ink = restoreInkRef.current;
+    if (!ink) return;
+    ink.cancelled = true;
+    await ink.done;
+    if (generation === restoreGenerationRef.current) setBoardLoaded(true);
+  }, []);
 
   const restoreBoardFromApiRef = useRef(restoreBoardFromApi);
   useEffect(() => {
@@ -695,5 +724,6 @@ export function useBoardSession({
     revokeReplayBlobUrls,
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
+    settleBoardRestore,
   };
 }

@@ -3,6 +3,7 @@ import { evaluateKinematicsConstruction } from "./kinematicsGeometry";
 import { evaluateWavesConstruction } from "./wavesGeometry";
 import { evaluateElasticityConstruction } from "./elasticityGeometry";
 import { evaluateInductionConstruction } from "./inductionGeometry";
+import { evaluateDistributedFieldsConstruction } from "./distributedFieldsGeometry";
 import { evaluateHarmonicMotionConstruction } from "./harmonicMotionGeometry";
 import { evaluateFluidConstruction } from "./fluidGeometry";
 import { evaluateThermodynamicsConstruction } from "./thermodynamicsGeometry";
@@ -163,6 +164,7 @@ function validateUnits(construction: SceneConstruction, document: SceneDocument,
   }
   if (thermodynamic || producer.operator === "elastic_profile") parameterUnits.add("1");
   if (producer.operator === "flux_process" && isRecord(inputs.units) && typeof inputs.units.time === "string") parameterUnits.add(UNIT_ALIASES[inputs.units.time] ?? invalid("units", "flux source time unit is not supported"));
+  if (producer.operator === "flux_sinusoid" && isRecord(inputs.units) && typeof inputs.units.time === "string") parameterUnits.add(UNIT_ALIASES[inputs.units.time] ?? invalid("units", "sinusoid source time unit is not supported"));
   if (producer.operator === "harmonic_motion" && typeof inputs.timeUnit === "string") parameterUnits.add(UNIT_ALIASES[inputs.timeUnit] ?? invalid("units", "harmonic source time unit is not supported"));
   if (producer.operator === "hydrostatic_profile" && typeof inputs.depthUnit === "string") parameterUnits.add(UNIT_ALIASES[inputs.depthUnit] ?? invalid("units", "hydrostatic depth unit is not supported"));
   if (producer.operator === "constant_acceleration_trajectory" && isRecord(inputs.units) && typeof inputs.units.time === "string") parameterUnits.add(UNIT_ALIASES[inputs.units.time] ?? invalid("units", "trajectory time unit is not supported"));
@@ -209,6 +211,7 @@ function analyticReplayContext(document: SceneDocument, constructionByOutput: Ma
           if (["harmonic_wave", "wave_superposition"].includes(producer.operator)) return evaluateWavesConstruction(producer.operator, inputs, context);
           if (producer.operator === "elastic_profile") return evaluateElasticityConstruction(producer.operator, inputs, context);
           if (producer.operator === "flux_process") return evaluateInductionConstruction(producer.operator, inputs, context);
+          if (producer.operator === "flux_sinusoid") return evaluateDistributedFieldsConstruction(producer.operator, inputs, context);
           if (producer.operator === "harmonic_motion") return evaluateHarmonicMotionConstruction(producer.operator, inputs, context);
           if (producer.operator === "hydrostatic_profile") return evaluateFluidConstruction(producer.operator, inputs, context);
           if (["polytropic_process", "isochoric_process"].includes(producer.operator)) return evaluateThermodynamicsConstruction(producer.operator, inputs, context);

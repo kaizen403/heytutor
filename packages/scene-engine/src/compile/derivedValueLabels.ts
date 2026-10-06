@@ -3,15 +3,15 @@ import type { KinematicStateDefinition, KinematicTrajectoryDefinition } from "./
 import type { VectorDefinition } from "./vectorGeometry";
 import type { CalculusDerivativeDefinition } from "./calculusGeometry";
 
-const OPERATORS = new Set(["constant_acceleration_trajectory", "trajectory_state", "vector_sum", "vector_scale", "vector_projection", "curve_anchor", "curve_secant", "curve_derivative"]);
+const OPERATORS = new Set(["constant_acceleration_trajectory", "trajectory_state", "vector_sum", "vector_scale", "vector_projection", "curve_anchor", "curve_secant", "curve_derivative", "point_line_distance", "section_point"]);
 const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
 const SCALAR = new RegExp(`^(${NUMBER})(?:\\s*([^\\d].*))?$`);
 const PAIR = new RegExp(`^([([])\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*([)\\]])(?:\\s*(.*))?$`);
 const EPSILON = 64 * Number.EPSILON;
 type Dimension = { length: number; time: number; factor: number; identity?: string };
 type Value = { raw: number; dimension: Dimension };
-type Authority = { allowSource: boolean; values: Map<string, Value>; tuple?: [Value, Value]; tupleKeys: Set<string>; reserved: Set<string>; bare?: Value };
-type Claim = { key: string; values: number[]; unit: string; approximate: boolean; tokens: string[] };
+type Authority = { allowSource: boolean; values: Map<string, Value>; tuple?: [Value, Value]; tupleKeys: Set<string>; reserved: Set<string>; bare?: Value; namedRatios?: Map<string, number> };
+type Claim = { key: string; values: number[]; unit: string; approximate: boolean; tokens: string[]; namedRatio?: true };
 const UNITLESS: Dimension = { length: 0, time: 0, factor: 1 };
 const LENGTH_FACTORS: Readonly<Record<string, number>> = { m: 1, meter: 1, meters: 1, metre: 1, metres: 1, cm: 0.01, centimeter: 0.01, centimeters: 0.01, centimetre: 0.01, centimetres: 0.01, mm: 0.001, millimeter: 0.001, millimeters: 0.001, millimetre: 0.001, millimetres: 0.001, km: 1000, kilometer: 1000, kilometers: 1000, kilometre: 1000, kilometres: 1000, um: 1e-6, "µm": 1e-6, "μm": 1e-6, micrometer: 1e-6, micrometers: 1e-6, nm: 1e-9, nanometer: 1e-9, nanometers: 1e-9, ft: 0.3048, foot: 0.3048, feet: 0.3048, in: 0.0254, inch: 0.0254, inches: 0.0254 };
 const TIME_FACTORS: Readonly<Record<string, number>> = { s: 1, sec: 1, second: 1, seconds: 1, ms: 0.001, millisecond: 0.001, milliseconds: 0.001, us: 1e-6, "µs": 1e-6, "μs": 1e-6, microsecond: 1e-6, microseconds: 1e-6, min: 60, minute: 60, minutes: 60, h: 3600, hr: 3600, hour: 3600, hours: 3600 };
@@ -91,12 +91,46 @@ function tuple(authority: Authority, value: { x: number; y: number }, names: rea
 function sourceCurve(construction: SceneConstruction, document: SceneDocument): SceneConstruction | undefined { return document.constructions.find((candidate) => candidate.outputs.includes(String(construction.inputs.curve))); }
 function authorityFor(construction: SceneConstruction, geometry: unknown, document: SceneDocument): Authority {
   if (!record(geometry)) fail("Derived output is missing evaluated geometry");
+  if (construction.operator === "point_line_distance") {
+    if (!record(geometry.analyticLine) || geometry.analyticLine.worldUnits !== true || typeof geometry.analyticLine.distance !== "number" || !Number.isFinite(geometry.analyticLine.distance)) fail("Point-line labels require finite source-frame distance authority");
+    const result: Authority = { allowSource: false, values: new Map(), tupleKeys: new Set(), reserved: new Set(["d", "distance", "length"]) };
+    put(result, ["d", "distance", "length"], geometry.analyticLine.distance);
+    result.bare = result.values.get("d");
+    return result;
+  }
   const reserved = construction.operator.startsWith("curve_")
     ? ["x", "y", "P", "r", "position", "dx/dt", "dy/dt", "dy/dx", "dC/dt", "derivative", "slope", "m", "magnitude", "mag"]
     : construction.operator.startsWith("vector_")
       ? ["x", "y", "vx", "vy", "rx", "ry", "v", "r", "a+b", "vector", "resultant", "magnitude", "mag"]
       : ["x", "y", "x0", "y0", "vx", "vy", "ax", "ay", "v0", "vx0", "vy0", "v0x", "v0y", "v", "a", "P", "r", "position", "velocity", "acceleration", "t", "time", "tMin", "tMax", "speed", "magnitude", "mag"];
   const result: Authority = { allowSource: true, values: new Map(), tupleKeys: new Set([""]), reserved: new Set(reserved.map(key)) };
+  if (construction.operator === "section_point" && record(geometry.point) && typeof geometry.point.x === "number" && typeof geometry.point.y === "number" && record(geometry.analyticLine) && record(geometry.analyticLine.section)) {
+    result.allowSource = false;
+    const section = geometry.analyticLine.section;
+    const label = document.entities.find((entity) => construction.outputs.includes(entity.id))?.label?.trim();
+    const identity = /^([\p{L}][\p{L}\p{N}_'′]*)(?:\s*[=≈:]|$)/u.exec(label ?? "")?.[1];
+    tuple(result, { x: geometry.point.x, y: geometry.point.y }, ["position", ...(identity ? [identity] : [])]);
+    put(result, ["x"], geometry.point.x); put(result, ["y"], geometry.point.y);
+    if (typeof section.m === "number") put(result, ["m"], section.m);
+    if (typeof section.n === "number") put(result, ["n"], section.n);
+    if (typeof section.m === "number" && typeof section.n === "number" && section.m > 0 && section.n > 0) {
+      put(result, ["m/n"], section.m / section.n);
+      const endpointName = (input: unknown): string | undefined => {
+        if (typeof input !== "string") return undefined;
+        const label = document.entities.find((entity) => entity.id === input)?.label?.trim();
+        return /^([\p{L}][\p{L}\p{N}_'′]*)(?:\s*[=≈:]|$)/u.exec(label ?? "")?.[1];
+      };
+      const a = endpointName(construction.inputs.a); const b = endpointName(construction.inputs.b);
+      if (a && b && identity && a !== b && identity !== a && identity !== b) {
+        result.namedRatios = new Map([
+          [`${a}${identity}:${identity}${b}`, section.m / section.n],
+          [`${b}${identity}:${identity}${a}`, section.n / section.m],
+        ]);
+      }
+    }
+    if (typeof section.parameter === "number") put(result, ["t", "parameter"], section.parameter);
+    return result;
+  }
   if (record(geometry.kinematicState)) {
     const state = geometry.kinematicState as unknown as KinematicStateDefinition;
     const position = dimension(state.sourceUnits, "position"); const velocity = dimension(state.sourceUnits, "velocity"); const acceleration = dimension(state.sourceUnits, "acceleration");
@@ -156,11 +190,29 @@ function authorityFor(construction: SceneConstruction, geometry: unknown, docume
   }
   return result;
 }
+/** Source binding uses the same coordinate grammar as compiled quantitative labels. */
+export function readDerivedCoordinateLabelClaim(text: string): { name: string; values: [number, number]; unit: string } | null {
+  const claim = parse(text);
+  if (!claim || claim.values.length !== 2) return null;
+  const normalized = text.trim();
+  const separator = normalized.search(/[=≈:]/);
+  return { name: separator < 0 ? "" : normalized.slice(0, separator).trim(), values: [claim.values[0]!, claim.values[1]!], unit: claim.unit };
+}
+
 function parse(text: unknown): Claim | null {
   if (text === undefined) return null;
   if (typeof text !== "string") fail("Derived labels must be text");
   const normalized = text.trim();
   if (/(?:\bNaN\b|\bInfinity\b|∞)/i.test(normalized)) fail("Derived quantitative labels must be finite");
+  // This is ratio notation, not a coordinate tuple or a scalar named AP.
+  const ratio = new RegExp(`^([\\p{L}][\\p{L}\\p{N}_'′]*\\s*:\\s*[\\p{L}][\\p{L}\\p{N}_'′]*)\\s*=\\s*(${NUMBER})\\s*:\\s*(${NUMBER})$`, "u").exec(normalized);
+  if (ratio) {
+    preserveLiteral(ratio[2]); preserveLiteral(ratio[3]);
+    const numerator = Number(ratio[2]); const denominator = Number(ratio[3]);
+    if (!(numerator > 0 && denominator > 0 && numerator / denominator > 0) || !Number.isFinite(numerator / denominator)) fail("Section distance ratios must retain finite positive weights");
+    const value = numerator / denominator;
+    return { key: ratio[1]!.replace(/\s+/g, ""), namedRatio: true, values: [value], unit: "", approximate: false, tokens: [String(value)] };
+  }
   // Digits in an identifier or a symbolic function argument are identifiers,
   // not scalar claims. Equality/numeric tuples and bare numbers are claims.
   if (/^[\p{L}][\p{L}\p{N}_'′]*(?:\([^=,]*\))?$/u.test(normalized)) return null;
@@ -221,6 +273,11 @@ function sourceClaim(claim: Claim, document: SceneDocument): boolean {
   return true;
 }
 function checkClaim(claim: Claim, authority: Authority, document: SceneDocument, allowSource: boolean): void {
+  if (claim.namedRatio) {
+    const expected = authority.namedRatios?.get(claim.key);
+    if (expected === undefined) fail("Named distance ratio requires certified endpoint and dividing-point identities");
+    close(claim.values[0]!, { raw: expected, dimension: UNITLESS }, claim.unit, false, claim.tokens[0]); return;
+  }
   if (claim.values.length === 2) {
     if (!authority.tuple || !authority.tupleKeys.has(claim.key)) fail("Derived coordinate/component tuple has no unambiguous evaluated authority");
     claim.values.forEach((value, index) => close(value, authority.tuple![index]!, claim.unit, claim.approximate, claim.tokens[index])); return;
@@ -232,17 +289,47 @@ function checkClaim(claim: Claim, authority: Authority, document: SceneDocument,
   fail("Derived scalar label needs an explicit supported component, magnitude, coordinate, or slope meaning");
 }
 
+/** Label descendants inherit the authority of the geometry they describe. */
+export function derivedLabelTargets(document: SceneDocument, root: string): Set<string> {
+  const targets = new Set([root]);
+  const pending = [root];
+  while (pending.length) {
+    const target = pending.shift()!;
+    for (const label of document.constructions) {
+      if (label.operator !== "label" || (label.inputs.target ?? label.inputs.at ?? label.inputs.point) !== target) continue;
+      for (const id of label.outputs) {
+        if (targets.has(id)) continue;
+        if (targets.size >= 4096) fail("Derived label provenance exceeds bounded verification capacity");
+        targets.add(id); pending.push(id);
+      }
+    }
+  }
+  return targets;
+}
+
 /** Checks quantitative claims against evaluated mathematical metadata, without authoring labels. */
 export function validateEvaluatedDerivedValueLabels(construction: SceneConstruction, index: number, document: SceneDocument, outputs: readonly unknown[], issues: SceneIssue[]): boolean {
   if (!OPERATORS.has(construction.operator)) return false;
   construction.outputs.forEach((id, outputIndex) => {
     const add = (error: unknown, path: string): void => { issues.push({ code: "invalid_derived_value_label", message: error instanceof Error ? error.message : "Derived value label is invalid", severity: "fatal", path, entityIds: [id] }); };
+    if (construction.operator === "point_line_distance") {
+      const geometry = outputs[outputIndex];
+      if (record(geometry) && geometry.kind === "path") {
+        const endpoint = Array.isArray(geometry.points) ? geometry.points.at(-1) : undefined;
+        const foot = record(geometry.analyticLine) ? geometry.analyticLine.foot : undefined;
+        if (!record(endpoint) || !record(foot) || typeof endpoint.x !== "number" || typeof endpoint.y !== "number" || typeof foot.x !== "number" || typeof foot.y !== "number" || Math.hypot(endpoint.x - foot.x, endpoint.y - foot.y) > EPSILON * Math.max(1, Math.hypot(foot.x, foot.y))) add("A scene distance connector must end at its certified perpendicular foot", `constructions[${index}].inputs.displayLength`);
+      }
+    }
     const checkText = (text: unknown, path: string): void => {
       try { const claim = parse(text); if (claim) { const authority = authorityFor(construction, outputs[outputIndex], document); checkClaim(claim, authority, document, authority.allowSource); } } catch (error) { add(error, path); }
     };
-    const entityIndex = document.entities.findIndex((entity) => entity.id === id); checkText(document.entities[entityIndex]?.label, `entities[${entityIndex}].label`);
+    let targets: Set<string>;
+    try { targets = derivedLabelTargets(document, id); } catch (error) { add(error, `constructions[${index}].outputs[${outputIndex}]`); return; }
+    document.entities.forEach((entity, entityIndex) => {
+      if (targets.has(entity.id)) checkText(entity.label, `entities[${entityIndex}].label`);
+    });
     document.annotations.forEach((annotation, annotationIndex) => {
-      if (!annotation.targetIds.includes(id) || !["label", "callout", "badge"].includes(annotation.kind)) return;
+      if (!annotation.targetIds.some((target) => targets.has(target)) || !["label", "callout", "badge"].includes(annotation.kind)) return;
       checkText(annotation.text, `annotations[${annotationIndex}].text`);
       if (annotation.quantityId === undefined) return;
       try {
@@ -254,7 +341,7 @@ export function validateEvaluatedDerivedValueLabels(construction: SceneConstruct
         for (const declaredUnit of units) close(numberValue(quantity.value, document), value, declaredUnit);
       } catch (error) { add(error, `annotations[${annotationIndex}].quantityId`); }
     });
-    document.constructions.forEach((label, labelIndex) => { if (label.operator === "label" && (label.inputs.target ?? label.inputs.at ?? label.inputs.point) === id) checkText(label.inputs.text, `constructions[${labelIndex}].inputs.text`); });
+    document.constructions.forEach((label, labelIndex) => { if (label.operator === "label" && targets.has(String(label.inputs.target ?? label.inputs.at ?? label.inputs.point))) checkText(label.inputs.text, `constructions[${labelIndex}].inputs.text`); });
     if (outputs[outputIndex] === undefined) add("Derived result is unavailable", `constructions[${index}].outputs[${outputIndex}]`);
   });
   return true;

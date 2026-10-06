@@ -3,10 +3,18 @@
  * family. Geometry comes from operators and plan quantities — never from
  * planner-authored pixels.
  */
+import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { compileSceneDocument } from "../compile/compiler";
+import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
+import { levelRelationSource } from "../physics/levelRelationSource";
+import { relativeMotionSource } from "../physics/relativeMotionSource";
+import { projectileLaunchAngle } from "../physics/projectileLaunchSource";
+import { relativeMotionPlanConflicts } from "../physics/motionPlanAgreement";
+import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked } from "../physics/riverCrossingSource";
+import { relativeMotionDocument } from "./relativeMotionScene";
 import {
   applyStemFamilyOverrides,
   inferFamiliesFromQuestion,
@@ -27,6 +35,8 @@ import {
   isSemiconductorBandStem,
   isSpaceGeometryStem,
   isTwoLoopNetworkStem,
+  circleSourceFamilies,
+  sectionSourceFamilies,
   familiesFromProblemStructure,
   type ProblemStructureView,
   normalizeStem,
@@ -36,14 +46,23 @@ import {
   type SceneVisualFamily,
 } from "./familyClassification";
 import { demandRejection, sceneDemand } from "./sceneDemand";
+import {
+  deriveVisualObligations,
+  isFullProblemIRStructure,
+  visualObligationRejection,
+  type VisualObligationSet,
+} from "./visualObligations";
 import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
-import { findStatedCurves, type StatedCurve } from "./statedEquations";
+import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
+import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
+import { detectArchetype } from "../archetypes/detect";
 import { buildSolidFigure } from "./solidFigure";
 import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
+import { synthesizeUniformCircularScene } from "./uniformCircularFamily";
 import {
   SCENE_DOCUMENT_VERSION,
   type RenderScene,
@@ -139,10 +158,24 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  const circleSource = extractCircleSource(question);
+  if (circleSource?.kind === "invalid") return null;
+  // A section stem that cannot be read whole, whose stated point disagrees
+  // with its ratio, or whose division has no finite point is refused here,
+  // so no other family draws a stand-in for it.
+  const sectionReading = circleSource ? null : readSectionFormulaSource(question);
+  if (sectionReading && sectionReading.status !== "none" && sectionReading.status !== "ok") return null;
   // Figure-absent honesty (P0, mirrors verify-bank-family-compile): a stem that
   // refers to a figure we do not have and names no drawable apparatus gets no
   // fake circuit/network ink — the caller degrades to text-only.
   if (figureAbsentWithoutNamedApparatus(normalizeStem(question))) return null;
+  // When the plan names circular motion, the source is read before any
+  // lexical family or archetype: the figure is recomputed from the stated
+  // radius and rate, and a degenerate, contradictory, nonuniform or
+  // stale-plan source declines here so no static circle or projectile can
+  // stand in for it.
+  const circular = synthesizeUniformCircularScene(question, { turnPlan: input.turnPlan, problemIR: input.problemIR });
+  if (circular) return circular.status === "drawn" ? circular.scene : null;
   // Parameterized archetypes compute geometry from typed slots and have
   // already faced the same picture demand. Complete source-bound geometry
   // keeps the existing family selection's priority over generic lexical cues.
@@ -152,13 +185,78 @@ function synthesizeFromFamilies(
   // archetype cue such as "height of". The existing family selection still
   // owns physics overrides and the solved ProblemIR's leading family.
   const preferSourceGeometry = sourceFamilies.some((family) => family === families[0]);
-  const archetype = preferSourceGeometry ? null : synthesizeArchetypeScene({
+  const quantities = collectPlanQuantities(input.turnPlan);
+  // What this stem's picture must (and must not) contain, whichever family
+  // ends up drawing it.
+  const demand = sceneDemand(question, input.problemIR);
+  // DCP-02: when a full solved structure is present, every candidate must also
+  // carry every supported source requirement — named bodies, connections,
+  // given dimensions, and proved spatial relations. A loose or absent view
+  // leaves this null and every path below behaves exactly as before.
+  const obligations: VisualObligationSet | null = isFullProblemIRStructure(input.problemIR)
+    ? deriveVisualObligations(input.problemIR)
+    : null;
+  const groundedCircuit = groundedOhmScene(question, input.problemIR);
+  if (groundedCircuit.handled) {
+    const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+    return { ...compiled, tier: "question_representation", nonMetric: true,
+      reason: "Compiled a source-bound two-terminal DC schematic with exact signed values; display geometry is nonmetric.", family: "circuit_network" };
+  }
+  // A section-formula stem read whole draws its own endpoints and section
+  // point; the section_point operator certifies the point.
+  const sectionDocument = sectionReading?.status === "ok"
+    ? sectionFormulaScene(question, isFullProblemIRStructure(input.problemIR) ? input.problemIR : null) : null;
+  if (sectionReading?.status === "ok" && !sectionDocument) return null;
+  if (sectionDocument) {
+    const compiled = tryCompile(sectionDocument);
+    if (compiled && !demandRejection(compiled.document, demand)
+      && !(obligations && visualObligationRejection(obligations, compiled.document))) {
+      const metricProof = hasPlanMetricProof(compiled.document);
+      return { ...compiled, tier: metricProof ? "exact_verified" : "qualitative_verified", nonMetric: !metricProof,
+        reason: "Compiled the stated endpoints and the section point from the question's coordinates and ratio.", family: "coordinate_figure" };
+    }
+    return null;
+  }
+  // Constant-velocity relative motion on one line: an admitted source owns
+  // the whole figure. A rejected source still reaches the qualitative
+  // two-car sketches, which now draw only an explicitly stated direction.
+  const relativeMotion = relativeMotionSource(question);
+  if (relativeMotion?.status === "admitted") {
+    // A plan that would narrate a different vAB, time or position than the
+    // source computes keeps the figure off the board.
+    if (relativeMotionPlanConflicts(relativeMotion.source, input.turnPlan, question).length > 0) return null;
+    const compiled = tryCompile(relativeMotionDocument(question, relativeMotion.source));
+    if (!compiled || demandRejection(compiled.document, demand)) return null;
+    if (obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    const metricProof = !schematic && hasPlanMetricProof(compiled.document);
+    return {
+      ...compiled,
+      tier: schematic ? "question_representation" : metricProof ? "exact_verified" : "qualitative_verified",
+      nonMetric: schematic || !metricProof,
+      reason: metricProof
+        ? "relative motion computed from the admitted source positions, velocities and frame"
+        : "relative motion from the admitted source; no nonzero speed ratio to prove, so the geometry is qualitative",
+      family: "contact_body",
+    };
+  }
+  // A rejected source that states something a two-body sketch would drop
+  // (third body, delay, unreadable unit, a premise in the question sentence)
+  // gets no relative-motion sketch at all.
+  const relativeOutOfModel = relativeMotion?.status === "rejected" && relativeMotion.kind === "out_of_model";
+  const archetypeCandidate = preferSourceGeometry || circleSource ? null : synthesizeArchetypeScene({
     question,
     turnPlan: input.turnPlan,
     problemIR: input.problemIR ?? null,
     schematic,
   });
-  if (archetype) {
+  const statedVerticalThrow = archetypeCandidate?.archetype === "free_fall"
+    && /\bthrown\s+vertically\s+(?:up(?:ward)?s?|down(?:ward)?s?)\b/i.test(question);
+  const projectileSource = isProjectileStem(question) && !statedVerticalThrow;
+  const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
+    || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
+  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
     return {
       document: archetype.document,
       renderScene: archetype.renderScene,
@@ -169,10 +267,9 @@ function synthesizeFromFamilies(
       family: archetype.family,
     };
   }
-  const quantities = collectPlanQuantities(input.turnPlan);
-  // What this stem's picture must (and must not) contain, whichever family
-  // ends up drawing it.
-  const demand = sceneDemand(question, input.problemIR);
+  // A declined launch cannot borrow an unrelated vector/incline sketch or
+  // the legacy partial launch family. The computed projectile owns its angle.
+  if (projectileSource) return null;
   for (const family of families) {
     const builder = FAMILY_BUILDERS[family] ?? chemistryFamilyBuilder(family);
     if (!builder) continue;
@@ -183,6 +280,10 @@ function synthesizeFromFamilies(
     // geometry. A candidate that contradicts the stem loses its turn to the
     // next family; if none survives the caller teaches text-only.
     if (demandRejection(compiled.document, demand)) continue;
+    // A candidate that compiles yet drops a named body, a connection, a given
+    // dimension, or a proved relation is a partial scene: reject it the same
+    // way, so only whole figures reach the board.
+    if (obligations && visualObligationRejection(obligations, compiled.document)) continue;
     // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
     // assertion (a real refraction angle, a real image-distance ratio) — never
     // `exists`/`label_attached`/topology proofs alone. Display-scale families
@@ -211,7 +312,11 @@ function synthesizeFromFamilies(
   // canned P–V rectangle.
   const conceptDocument = buildConceptSchematic(question, input.turnPlan);
   const conceptCompiled = conceptDocument ? tryCompile(conceptDocument) : null;
-  if (conceptCompiled && !demandRejection(conceptCompiled.document, demand)) {
+  if (
+    conceptCompiled
+    && !demandRejection(conceptCompiled.document, demand)
+    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document))
+  ) {
     return {
       ...conceptCompiled,
       tier: schematic ? "question_representation" : "qualitative_verified",
@@ -287,6 +392,8 @@ function resolveRequestedFamilies(
   const merged = new Set<SceneVisualFamily>([
     ...structure,
     ...familiesFromProblemStructure(sourceMensurationStructure(question)),
+    ...circleSourceFamilies(question),
+    ...sectionSourceFamilies(question),
     ...(requested ?? []).filter(isSceneVisualFamily),
     ...inferFamiliesFromQuestion(question),
   ]);
@@ -1078,11 +1185,29 @@ function buildCircuit(
   ) {
     return null;
   }
-  const resistors = extractResistors(question, quantities);
+  // Resistances the stem writes with their unit. Ω is not a word character,
+  // so this reads to the next letter rather than a word boundary.
+  const statedOhms = [...question.matchAll(/(\d+(?:\.\d+)?)\s*(kΩ|MΩ|Ω|k?\s*ohms?)(?![A-Za-z0-9])/g)]
+    .map((match) => ({ symbol: "", value: Number(match[1]), unit: match[2]!.replace(/\s+/g, "") }));
+  const extracted = extractResistors(question, quantities);
+  const resistors = extracted.length ? extracted : statedOhms.map((resistor, index) => ({ ...resistor, symbol: `R${index + 1}` }));
   if (isDiodeDeviceCircuit(question) && resistors.length < 2) {
     return diodeBiasDocument(question);
   }
   const namedNetwork = /(?:wheatstone|met(?:er|re) bridge|potentiometer|kirchhoff|galvanometer|transformer|\bLCR\b|\bRLC\b)/i.test(normalizeStem(question));
+  // An ordinary resistor network belongs to the resistor_network archetype,
+  // which draws exactly the stated resistors, source and meters or declines.
+  // When it declined, a stock network here would be the wrong figure.
+  // Two separate views ("in series and then in parallel") stay with this builder.
+  if (/\binternal resistance\b/i.test(question) && !namedNetwork) return null;
+  const archetypeMatch = detectArchetype(question);
+  if (archetypeMatch?.id === "resistor_network" && archetypeMatch.slots.topology !== "both") return null;
+  // A generic network may not draw a different number of resistors than the
+  // stem states: five stated resistors are not drawn as four, one is not two.
+  // "Three 12 ohm resistors" states one value for several resistors.
+  if (!namedNetwork && statedOhms.length > 0 && (statedOhms.length > 4
+    || (statedOhms.length >= 2 && resistors.length !== statedOhms.length)
+    || resistors.length < 2)) return null;
   if (resistors.length < 2 && !schematic && !namedNetwork) return null;
   // A schematic still requires the stem to name circuit apparatus; never invent a network.
   if (
@@ -1097,11 +1222,12 @@ function buildCircuit(
   const wantsParallel = /\bparallel\b/i.test(question) && !/\bin series except\b/i.test(question);
   const wantsSeries = /\bseries\b/i.test(question) || (namedNetwork && !wantsParallel);
   if (!schematic && !wantsParallel && !wantsSeries && resistors.length < 2) return null;
+  if (wantsParallel && !wantsSeries && statedOhms.length > 3) return null;
   if (wantsSeries && wantsParallel) {
     return buildSeparatedCircuitViews(question, resistors, count);
   }
   if (isTwoLoopNetworkStem(question)) {
-    return buildTwoLoopCircuit(question, resistors);
+    return buildTwoLoopCircuit(question, resistors, extractNamedVoltages(question, quantities));
   }
   const topology = wantsParallel || (!wantsSeries && schematic) ? "parallel" : "series";
   return buildSingleCircuitView(question, resistors, count, topology, 0, "");
@@ -1177,6 +1303,7 @@ function buildSingleCircuitView(
 function buildTwoLoopCircuit(
   question: string,
   resistors: Array<{ symbol: string; value: number; unit?: string }>,
+  sources: Array<{ symbol: string; value: number; unit?: string }>,
 ): SceneDocument {
   const r1 = resistors[0]?.symbol ?? "R1";
   const r2 = resistors[1]?.symbol ?? "R2";
@@ -1184,8 +1311,12 @@ function buildTwoLoopCircuit(
   return baseDocument({
     question,
     reason: "two-loop network from the question wording",
-    quantities: resistors.slice(0, 3).map((resistor, index) =>
-      quantityRecord(`R${index + 1}`, resistor.symbol, resistor.value, resistor.unit ?? "ohm")),
+    quantities: [
+      ...resistors.slice(0, 3).map((resistor, index) =>
+        quantityRecord(`R${index + 1}`, resistor.symbol, resistor.value, resistor.unit ?? "ohm")),
+      ...sources.slice(0, 2).map((source, index) =>
+        quantityRecord(`V${index + 1}`, source.symbol, source.value, source.unit ?? "V")),
+    ],
     entities: [
       { id: "n_tl", kind: "point", role: "node" },
       { id: "n_tc", kind: "point", role: "node", label: "A" },
@@ -1298,6 +1429,14 @@ function buildStatedCurveScene(question: string): SceneDocument | null {
     yMin = Math.min(yMin, curve.anchor.y - curve.extent.y);
     yMax = Math.max(yMax, curve.anchor.y + curve.extent.y);
   }
+  const circleSource = extractCircleSource(question);
+  if (circleSource && circleSource.kind !== "invalid" && circleSource.member) {
+    const margin = Math.max(0.5, circleSource.radius * 0.1);
+    xMin = Math.min(xMin, circleSource.member.x - margin);
+    xMax = Math.max(xMax, circleSource.member.x + margin);
+    yMin = Math.min(yMin, circleSource.member.y - margin);
+    yMax = Math.max(yMax, circleSource.member.y + margin);
+  }
   // Keep the origin in frame so the axes read as axes.
   xMin = Math.min(0, xMin); xMax = Math.max(0, xMax);
   yMin = Math.min(0, yMin); yMax = Math.max(0, yMax);
@@ -1326,14 +1465,23 @@ function statedCurveDocument(
     outputs: ["axes"],
   }];
   const assertions: SceneAssertion[] = [];
+  const circleSource = extractCircleSource(question);
 
+  // The validator keeps labels of 16 characters or fewer. An equation that does
+  // not fit ("(x-1.5)²+(y+2)²=7") would be dropped whole, leaving a bare circle;
+  // say the same source facts as the centre point and r² instead.
+  let centreForLongEquation: { x: number; y: number } | null = null;
   curves.forEach((curve, index) => {
     const id = `curve_${index + 1}`;
+    const equation = statedCurveLabel(curve);
+    const circleSquared = curve.kind === "circle" && curve.anchor && curve.radius ? statedCircleSquared(curve) : null;
+    const splitCircleLabel = circleSquared !== null && equation.length > COMPACT_LABEL_LIMIT;
+    if (splitCircleLabel && curve.anchor) centreForLongEquation = curve.anchor;
     entities.push({
       id,
       kind: curve.kind === "line" ? "line" : "polyline",
       role: `${curve.kind} stated by the question`,
-      label: compactLabel(statedCurveLabel(curve)),
+      label: splitCircleLabel ? `r²=${displayNumber(circleSquared!)}` : curve.kind === "circle" ? equation : compactLabel(equation),
     });
     if (curve.kind === "circle" && curve.anchor && curve.radius) {
       constructions.push({
@@ -1368,8 +1516,25 @@ function statedCurveDocument(
     });
   });
 
+  const centre = centreForLongEquation as { x: number; y: number } | null;
+  if (centre) {
+    entities.push({ id: "source_centre", kind: "point", role: "circle centre", label: `C(${displayNumber(centre.x)},${displayNumber(centre.y)})` });
+    constructions.push(pointAt("source_centre", centre.x, centre.y));
+    assertions.push({ id: "source_centre_exists", predicate: "exists", entities: ["source_centre"], expected: true, severity: "fatal" });
+  }
+
+  if (circleSource?.kind === "circle" && circleSource.member) {
+    entities.push({ id: "source_member", kind: "point", role: "named point", label: `P(${circleSource.member.x},${circleSource.member.y})` });
+    constructions.push(pointAt("source_member", circleSource.member.x, circleSource.member.y));
+    assertions.push({ id: "source_member_exists", predicate: "exists", entities: ["source_member"], expected: true, severity: "fatal" });
+    const squaredDistance = (circleSource.member.x - circleSource.center.x) ** 2 + (circleSource.member.y - circleSource.center.y) ** 2;
+    if (Math.abs(squaredDistance - circleSource.radiusSquared) <= 1e-8 * Math.max(1, circleSource.radiusSquared)) {
+      assertions.push({ id: "source_member_on_circle", predicate: "on", entities: ["source_member", "curve_1"], expected: true, severity: "fatal" });
+    }
+  }
+
   if (assertions.length === 0) return null;
-  return baseDocument({
+  const document = baseDocument({
     question,
     reason: "curves stated by the question, drawn from their own equations",
     quantities: [],
@@ -1378,17 +1543,32 @@ function statedCurveDocument(
     constructions,
     assertions,
   });
+  if (circleSource?.kind === "circle") document.source.circleSourceBinding = { locusId: `curve_${curves.findIndex((curve) => curve.kind === "circle") + 1}` };
+  return document;
 }
+
+const COMPACT_LABEL_LIMIT = 16;
 
 /** A readable equation for the label, rebuilt from the fitted coefficients. */
 function statedCurveLabel(curve: StatedCurve): string {
   if (curve.kind === "circle" && curve.anchor && curve.radius) {
-    const squared = Number((curve.radius * curve.radius).toFixed(2));
-    const xPart = Math.abs(curve.anchor.x) < 1e-9 ? "x^2" : `(x${curve.anchor.x > 0 ? "-" : "+"}${Math.abs(curve.anchor.x)})^2`;
-    const yPart = Math.abs(curve.anchor.y) < 1e-9 ? "y^2" : `(y${curve.anchor.y > 0 ? "-" : "+"}${Math.abs(curve.anchor.y)})^2`;
-    return `${xPart}+${yPart}=${squared}`;
+    const squared = statedCircleSquared(curve);
+    const xPart = curve.anchor.x === 0 ? "x²" : `(x${curve.anchor.x > 0 ? "-" : "+"}${displayNumber(Math.abs(curve.anchor.x))})²`;
+    const yPart = curve.anchor.y === 0 ? "y²" : `(y${curve.anchor.y > 0 ? "-" : "+"}${displayNumber(Math.abs(curve.anchor.y))})²`;
+    return `${xPart}+${yPart}=${displayNumber(squared)}`;
   }
   return curve.kind;
+}
+
+function statedCircleSquared(curve: StatedCurve): number {
+  const [a, , , , , f] = curve.coefficients;
+  return curve.anchor!.x ** 2 + curve.anchor!.y ** 2 - f / a;
+}
+
+/** Twelve significant figures: drops float dust (6.999999999999999) without rounding a stated value. */
+function displayNumber(value: number): string {
+  const rounded = Number(value.toPrecision(12));
+  return String(Object.is(rounded, -0) ? 0 : rounded);
 }
 
 /** Where a stated line crosses the framed box. */
@@ -2084,7 +2264,9 @@ function buildContactBody(
   if (/circular park/i.test(stem)) {
     return circularParkDocument(question);
   }
-  if (isRelativeVelocityStem(stem)) {
+  if (isRelativeVelocityStem(stem) && sameDirectionStated(stem)) {
+    const admission = relativeMotionSource(question);
+    if (admission?.status === "rejected" && admission.kind === "out_of_model") return null;
     return relativeVelocityDocument(question);
   }
   if (isKinematicsMotionStem(stem)) {
@@ -2804,6 +2986,14 @@ function isKinematicsMotionStem(question: string): boolean {
   return /(?:average (?:speed|velocity)|instantaneous velocity|starts from rest|constant acceleration|accelerates uniformly|round trip|circular park|motion in a straight.?line|straight-line trip|position along a line|train starting|covers half the distance)/i.test(normalizeStem(question));
 }
 
+/** The stock relative-velocity sketch draws both arrows one way; it needs that stated. */
+function sameDirectionStated(stem: string): boolean {
+  const compass = new Set((stem.match(/\b(?:east|west|north|south)\b/gi) ?? []).map((word) => word.toLowerCase()));
+  return (/\b(?:same direction|overtak\w*|catch(?:es)? up|catches|ahead of|behind)\b/i.test(stem) || compass.size === 1)
+    && !/\b(?:opposite|towards? each other|approach\w*|head[- ]on|east\b.*\bwest|west\b.*\beast)\b/i.test(stem)
+    && !/(?:^|[^\w.])-\s*\d+(?:\.\d+)?\s*(?:m\/s|km\/h)/i.test(stem);
+}
+
 function isRelativeVelocityStem(question: string): boolean {
   return /(?:two cars|car [AB] travels|velocity of [AB] relative to [AB]|relative to [AB]|catches? [AB]|100 m ahead of [AB])/i.test(normalizeStem(question));
 }
@@ -2826,10 +3016,12 @@ function isMotionGraphStem(question: string): boolean {
   return /(?:velocity-?time|position-?time|displacement-?time|v-t graph|s-t graph|x-t graph)/i.test(normalizeStem(question));
 }
 
-function projectileDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+function projectileDocument(question: string, quantities: PlanQuantity[]): SceneDocument | null {
   const stem = normalizeStem(question);
   const fromHeight = /(?:thrown horizontally|from a \d+(?:\.\d+)?\s*m tower|from a tower)/i.test(stem);
-  const theta = fromHeight ? 0 : (angleDegrees(quantities, question) ?? 45);
+  const theta = projectileLaunchAngle(question);
+  const plannedTheta = firstQuantity(quantities, ["theta", "angle", "alpha"]);
+  if (theta === null || (plannedTheta !== null && plannedTheta !== theta)) return null;
   return baseDocument({
     question,
     reason: fromHeight
@@ -3062,8 +3254,22 @@ function relativeVelocityDocument(question: string): SceneDocument {
 }
 
 function isKinematicsVtStem(question: string): boolean {
-  return /(?:accelerates uniformly|train starting from rest|average speed for the whole)/i.test(normalizeStem(question))
-    || isMotionGraphStem(question);
+  // The fixed shape starts from rest; a stated nonzero initial speed would be
+  // contradicted by the first vertex.
+  const startSpeed = stemKnowns(question).u;
+  if (startSpeed !== undefined && startSpeed > 0) return false;
+  // Nor can it show a throw, a body slowing down or a return: those graphs
+  // fall or cross zero, and the fixed shape only rises then holds.
+  if (/\b(?:thrown|vertically|upwards?|decelerat\w*|retard\w*|brak\w*|slows?|comes? to rest|returns?|back to)\b/i.test(normalizeStem(question))) {
+    return false;
+  }
+  if (isMotionGraphStem(question)) return true;
+  const stem = normalizeStem(question);
+  if (!/(?:accelerates uniformly|train starting from rest|average speed for the whole)/i.test(stem)) return false;
+  // Without a graph request the fallback graph's fixed boost-then-cruise
+  // shape is honest only when the stem names both phases; a single interval
+  // or a braking body would be drawn with a phase it does not have.
+  return /(?:constant (?:speed|velocity)|uniform (?:speed|velocity)|steady speed|same speed|moves uniformly|cruis)/i.test(stem);
 }
 
 function kinematicsVtDocument(question: string): SceneDocument {
@@ -3127,6 +3333,20 @@ function circularParkDocument(question: string): SceneDocument {
       { id: "radii_exist", predicate: "exists", entities: ["OP", "QO"], expected: true, severity: "fatal" },
     ],
   });
+}
+
+/**
+ * The legacy river sketch is withheld when the boat and current speeds are
+ * not each bound by role words, when the plan disagrees with them, or when a
+ * boat no faster than the current is asked to cross straight.
+ */
+function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): boolean {
+  const speeds = riverCrossingSpeeds(question);
+  if (speeds.status === "unstated") return false;
+  if (speeds.status !== "bound") return true;
+  if (riverCrossingPlanConflicts(speeds, { givens: quantities }, question).length > 0) return true;
+  if (speeds.vb > speeds.vc) return false;
+  return riverBoatVariant(normalizeStem(question)) === "two_triangles" || riverShortestPathAsked(question);
 }
 
 function riverSpeeds(quantities: PlanQuantity[]): { boat: number; current: number; unit: "m/s" | "km/h" | "cm/s" | "unit"; sourced: boolean } {
@@ -3330,7 +3550,7 @@ function buildVectorDiagram(
   _schematic: boolean,
 ): SceneDocument | null {
   const stem = normalizeStem(question);
-  if (isRiverBoatStem(stem)) return riverBoatDocument(question, quantities);
+  if (isRiverBoatStem(stem)) return riverCrossingWithheld(question, quantities) ? null : riverBoatDocument(question, quantities);
   const magnitudes = quantities.filter((quantity) =>
     /(?:magnitude|vec|a|b)/i.test(`${quantity.id} ${quantity.symbol}`));
   const vectorEvidence = /(?:resultant|two vectors|vector|velocity vectors|velocity triangles?|rain falls|concurrent forces|triangle of forces|[îĵ]|makes with the x-axis)/i.test(stem);
@@ -3504,6 +3724,9 @@ function buildCoordinateFigure(
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  const circleSource = extractCircleSource(question);
+  if (circleSource?.kind === "invalid") return null;
+  if (circleSource) return coordinateCircleDocument(question, quantities, normalizeStem(question));
   // Before any canonical conic: if the stem states its own equation, draw that.
   const statedFigure = buildStatedCurveScene(question);
   if (statedFigure) return statedFigure;
@@ -3576,7 +3799,35 @@ function coordinateCircleDocument(
   question: string,
   quantities: PlanQuantity[],
   stem: string,
-): SceneDocument {
+): SceneDocument | null {
+  const source = extractCircleSource(question);
+  if (source?.kind === "invalid") return null;
+  if (source?.kind === "point") {
+    const { x, y } = source.center;
+    const at = `(${displayNumber(x)},${displayNumber(y)})`;
+    const label = [`Point${at}; r=0`, `${at}; r=0`, at].find((text) => text.length <= COMPACT_LABEL_LIMIT) ?? at;
+    // Axes locate the singleton; a lone dot says nothing about where it is.
+    const margin = 1.5;
+    const document = baseDocument({
+      question,
+      reason: "Zero-radius singleton, not a nondegenerate circle",
+      quantities: [],
+      entities: [{ id: "axes", kind: "axes", role: "display axes" }, { id: "source_point", kind: "point", role: "source singleton", label }],
+      constructions: [
+        { id: "make_axes", operator: "axes", inputs: { xMin: Math.min(0, x) - margin, xMax: Math.max(0, x) + margin, yMin: Math.min(0, y) - margin, yMax: Math.max(0, y) + margin }, outputs: ["axes"] },
+        pointAt("source_point", x, y),
+      ],
+      assertions: [{ id: "source_point_exists", predicate: "exists", entities: ["source_point"], expected: true, severity: "fatal" }],
+    });
+    document.source.circleSourceBinding = { locusId: "source_point" };
+    return document;
+  }
+  if (source?.kind === "circle") {
+    const { x, y } = source.center;
+    const extent = source.radius * 1.3;
+    const bounds = { xMin: Math.min(0, x - extent, (source.member?.x ?? x) - 0.5), xMax: Math.max(0, x + extent, (source.member?.x ?? x) + 0.5), yMin: Math.min(0, y - extent, (source.member?.y ?? y) - 0.5), yMax: Math.max(0, y + extent, (source.member?.y ?? y) + 0.5) };
+    return statedCurveDocument(question, [{ kind: "circle", expression: `(${source.equation.split("=")[0]})-${source.radiusSquared}`, coefficients: [1, 0, 1, -2 * x, -2 * y, x ** 2 + y ** 2 - source.radiusSquared], anchor: source.center, extent: { x: extent, y: extent }, radius: source.radius }], bounds, 97);
+  }
   const radius = firstQuantity(quantities, ["r", "radius"]) ?? 2;
   const inscribed = /rectangles inscribed/i.test(stem);
   return baseDocument({
@@ -3887,41 +4138,39 @@ function buildEnergyLevel(question: string, _quantities: PlanQuantity[], _schema
   if (isSemiconductorBandStem(stem)) {
     return semiconductorBandDocument(question);
   }
-  // Only a stem actually about levels gets a level diagram. The wider list this
-  // replaced sent photoelectric, de Broglie, X-ray, fission, decay and half-life
-  // stems to the same canned n=1 -> n=2 transition, which is a picture of a
-  // different phenomenon; those teach text-only until their own figures exist
-  // (photocell I-V, stopping potential vs frequency, binding-energy curve).
-  if (!/(?:energy level|\bbohr\b|rydberg|hydrogen (?:atom|spectrum)|excited state|ground state|ionisation energy|ionization energy|lyman|balmer|paschen|brackett|pfund|spectral series|\btransition\b|\borbit\b)/i.test(stem)) {
-    return null;
-  }
-  return bohrLevelDocument(question);
+  return sourceLevelRelationDocument(question);
 }
 
-function bohrLevelDocument(question: string): SceneDocument {
+function sourceLevelRelationDocument(question: string): SceneDocument | null {
+  const relation = levelRelationSource(question);
+  if (!relation) return null;
+  const entities: SceneEntity[] = [];
+  const constructions: SceneConstruction[] = [];
+  const states = [relation.lower, relation.upper].map((n, rank) => ({ n, y: rank * 2, id: `level_${n}`, collection: rank === 1 && relation.indexedCollection }));
+  for (const state of states) {
+    entities.push(
+      { id: `${state.id}_a`, kind: "point", role: "level display anchor" },
+      { id: `${state.id}_b`, kind: "point", role: "level display anchor" },
+      { id: `${state.id}_center`, kind: "point", role: "relation display anchor" },
+      { id: state.id, kind: "segment", role: state.collection ? "energy level collection" : "energy level", label: state.collection ? `n=${state.n},${state.n + 1},...` : `n=${state.n}` },
+    );
+    constructions.push(
+      pointAt(`${state.id}_a`, -1, state.collection ? state.y - 0.5 : state.y),
+      pointAt(`${state.id}_b`, state.collection ? -1 : 1, state.collection ? state.y + 0.5 : state.y),
+      pointAt(`${state.id}_center`, state.collection ? -1 : 0, state.y),
+      { id: `make_${state.id}`, operator: "segment", inputs: { start: `${state.id}_a`, end: `${state.id}_b` }, outputs: [state.id] },
+    );
+  }
+  const from = relation.from ?? relation.upper;
+  const to = relation.to ?? relation.lower;
+  entities.push({ id: "level_relation", kind: relation.indexedCollection ? "segment" : "vector", role: relation.indexedCollection ? "indexed transition relation, no event direction asserted" : "source-stated photon transition" });
+  constructions.push({ id: "make_level_relation", operator: relation.indexedCollection ? "segment" : "vector", inputs: { start: `level_${from}_center`, end: `level_${to}_center` }, outputs: ["level_relation"] });
   return baseDocument({
     question,
-    reason: "stacked energy levels on a display axis",
-    quantities: [],
-    entities: [
-      { id: "n1_a", kind: "point", role: "level end" },
-      { id: "n1_b", kind: "point", role: "level end" },
-      { id: "n2_a", kind: "point", role: "level end" },
-      { id: "n2_b", kind: "point", role: "level end" },
-      { id: "level1", kind: "segment", role: "energy level", label: "n=1" },
-      { id: "level2", kind: "segment", role: "energy level", label: "n=2" },
-      { id: "transition", kind: "vector", role: "transition" },
-    ],
-    constructions: [
-      pointAt("n1_a", -2, -1),
-      pointAt("n1_b", 2, -1),
-      pointAt("n2_a", -2, 1),
-      pointAt("n2_b", 2, 1),
-      { id: "make_level1", operator: "segment", inputs: { start: "n1_a", end: "n1_b" }, outputs: ["level1"] },
-      { id: "make_level2", operator: "segment", inputs: { start: "n2_a", end: "n2_b" }, outputs: ["level2"] },
-      { id: "make_transition", operator: "vector", inputs: { start: "n2_a", end: "n1_a" }, outputs: ["transition"] },
-    ],
-    assertions: [{ id: "levels_exist", predicate: "exists", entities: ["level1", "level2"], expected: true, severity: "fatal" }],
+    reason: "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale",
+    quantities: [], entities, constructions,
+    annotations: [{ id: "ordinal_level_caption", kind: "caption", targetIds: [], text: "Ordinal level relation; not to scale" }],
+    assertions: [{ id: "source_levels_exist", predicate: "exists", entities: [...states.map((state) => state.id), "level_relation"], expected: true, severity: "fatal" }],
   });
 }
 
@@ -4328,6 +4577,26 @@ function angleDegrees(quantities: PlanQuantity[], question: string): number | nu
   if (!match) return null;
   const value = Number(match[1]);
   return Number.isFinite(value) ? value : null;
+}
+
+function extractNamedVoltages(
+  question: string,
+  quantities: PlanQuantity[],
+): Array<{ symbol: string; value: number; unit?: string }> {
+  const fromQuestion: Array<{ symbol: string; value: number; unit?: string }> = [];
+  for (const match of question.matchAll(/\b(V[_-]?\d+)\s*=\s*(\d+(?:\.\d+)?)\s*(mV|kV|volts?|V)?/gi)) {
+    fromQuestion.push({
+      symbol: match[1]!.replace(/[_-]/g, ""),
+      value: Number(match[2]),
+      unit: "V",
+    });
+  }
+  if (fromQuestion.length > 0) return fromQuestion;
+  return quantities.filter((quantity) => /^v\d+$/i.test(quantity.symbol) || /^v\d+$/i.test(quantity.id)).map((quantity) => ({
+    symbol: quantity.symbol,
+    value: quantity.value,
+    unit: quantity.unit ?? "V",
+  }));
 }
 
 function extractResistors(

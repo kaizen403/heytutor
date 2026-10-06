@@ -47,7 +47,7 @@ const metric = validateSceneDocument({
   ...foreign.document,
   assertions: [...foreign.document.assertions, {
     id: "height_radius_ratio", predicate: "distance_ratio", severity: "fatal",
-    entities: ["cylinder_height_start", "cylinder_height_end", "cylinder_center", "cylinder_rim"], expected: 8 / 3,
+    entities: ["cylinder_height_start", "cylinder_height_end", "cylinder_radius_center", "cylinder_rim"], expected: 8 / 3,
   }],
 });
 assert(metric.document);

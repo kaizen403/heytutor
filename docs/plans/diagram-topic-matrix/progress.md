@@ -1,5 +1,28 @@
 # Topic progress and agent completion logs
 
+Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](../../agent/coverage-continuation-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+
+## Execution policy of 4 October 2026
+
+The owner resumed the nine topic queue under a revised policy. Practical
+**TOPIC-READY for a declared scope** is now the working milestone and is
+tracked in [readiness.md](readiness.md). The full certification gate below no
+longer blocks that work, but it still governs `accepted` in the ledger: a READY
+topic is never written as `accepted`, the counters below stay as they are, and
+old evidence is preserved. READY and FULLY-CERTIFIED are reported as separate
+counts. Execution log: [claude-execution-20261004.md](work-logs/claude-execution-20261004.md).
+
+## Pause of 3 October 2026 (superseded for the nine topic queue)
+
+The programme is on hold for a local Claude handoff. **Accepted topics remain
+zero.** The [wind-down log](work-logs/wind-down-HEY83-20261003.md) records current
+fixes, the single complete common Matrix student smoke, known gaps, paused
+assignments and original workspaces. Older slot/dispatch language below is
+historical; it does not authorize new work. The single local handoff branch
+preserves current code plus separately labelled pending layers. No topic counter
+is increased from tests, workers finishing, or that one smoke.
+
+
 Tracking snapshot: **2026-10-02-topic-matrix-v1**. This ledger starts with **no newly accepted topic evidence**. Existing engine support is still unknown at topic level, not zero. Historical fractions such as Kinematics **6/14** remain a baseline inventory record; they are not automatically copied into accepted rows.
 
 ## Mandatory completion workflow

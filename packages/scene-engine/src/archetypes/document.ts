@@ -416,6 +416,11 @@ export class SceneBuilder {
     this.annotations.push({ id, kind: "sense", targetIds: [targetId] });
   }
 
+  /** A dashed outline around parts that form one physical object (a real cell's emf and its internal resistance). */
+  outline(id: string, targetIds: readonly string[]): void {
+    this.annotations.push({ id, kind: "enclose", targetIds: [...targetIds], style: { transient: false } });
+  }
+
   /** Hatching on a contact surface (ground, incline, wall) — every contact figure carries one. */
   hatch(id: string, targetId: string): void {
     this.annotations.push({ id, kind: "hatch", targetIds: [targetId] });

@@ -17,6 +17,8 @@ export interface PlanQuantity {
   value: number;
   unit?: string;
   sourceText?: string;
+  /** Which turn-plan list the row came from: a derived value is a claim, never a source. */
+  origin?: "given" | "derived";
 }
 
 export interface SlotBag {
@@ -51,10 +53,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function collectPlanQuantities(turnPlan: unknown): PlanQuantity[] {
   if (!isRecord(turnPlan)) return [];
   const rows = [
-    ...(Array.isArray(turnPlan.givens) ? turnPlan.givens : []),
-    ...(Array.isArray(turnPlan.derived) ? turnPlan.derived : []),
+    ...(Array.isArray(turnPlan.givens) ? turnPlan.givens : []).map((row: unknown) => ({ row, origin: "given" as const })),
+    ...(Array.isArray(turnPlan.derived) ? turnPlan.derived : []).map((row: unknown) => ({ row, origin: "derived" as const })),
   ];
-  return rows.flatMap((row, index) => {
+  return rows.flatMap(({ row, origin }, index) => {
     if (!isRecord(row) || typeof row.value !== "number" || !Number.isFinite(row.value)) return [];
     const id = typeof row.id === "string" && row.id.trim() ? row.id : `q${index + 1}`;
     const symbol = typeof row.symbol === "string" && row.symbol.trim() ? row.symbol : id;
@@ -64,6 +66,7 @@ export function collectPlanQuantities(turnPlan: unknown): PlanQuantity[] {
       value: row.value,
       unit: typeof row.unit === "string" ? row.unit : undefined,
       sourceText: typeof row.sourceText === "string" ? row.sourceText : undefined,
+      origin,
     }];
   });
 }
@@ -98,11 +101,65 @@ export function planNumbersByUnit(quantities: readonly PlanQuantity[], unitPatte
 /* Stem numbers                                                               */
 /* ------------------------------------------------------------------------- */
 
-const NUMBER = String.raw`(-?\d+(?:\.\d+)?(?:\s*[x×]\s*10\s*\^?\s*-?\d+|e-?\d+)?)`;
+/**
+ * A stem number: a mixed number "1 1/2", a fraction "3/4", a vulgar fraction
+ * "½" or "2½", or a decimal with an optional power of ten.
+ *
+ * The lookbehind keeps a match from starting inside another token, so the
+ * denominator of "1/2 m/s^2" is never read as "2 m/s^2" and the exponent of
+ * "s^2" is never a value. The lookahead keeps a decimal or a fraction from
+ * being cut short, while a full stop after a number ("is 1.5.") still ends it.
+ *
+ * Thousands separators. A comma followed by exactly three digits, with no
+ * space and no further digit, groups a number: "1,000 m" is 1000 and
+ * "12,500.5 kg" is 12500.5. A bracket holding only numbers, with a comma
+ * directly between two digits ("(1,000)", "(1,500,2)", "(2,3)", "[2,000]"),
+ * is a coordinate or a tuple and reads nothing at all, never 1000 or 1500 or
+ * a stray part; a bracket that also holds a word or unit ("(1,000 m)") reads
+ * normally. Outside brackets, a comma before any other digit count ("2,3") or
+ * a comma and a space ("1, 000") is a list read part by part. Three or more
+ * digits after a comma never end a number early or start one of their own:
+ * a malformed "1,0000" reads nothing, neither 1 nor 0.
+ */
+const GROUPED = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?`;
+const NUMERIC_BRACKET = String.raw`(?<=[(\[{][-+\d.,\s]*)(?=[-+\d.,\s]*[)\]}])(?:(?<=[(\[{][-+\d.,\s]*\d,)|(?=[-+\d.\s]*?\d,\d)|(?<=[(\[{][-+\d.,\s]*\d,\d[-+\d.,\s]*))`;
+const NUMBER = String.raw`(?<![\w.\/^])(?!(?<=\d,)\d{3,}(?!\d))(?!${NUMERIC_BRACKET})(-?(?:${GROUPED}|\d+ \d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d*[½¼¾]|\d+(?:\.\d+)?(?:\s*[x×]\s*10\s*\^?\s*-?\d+|e-?\d+)?))(?![\d½¼¾]|\.\d|\s*\/\s*\d|,\d{3})`;
+
+const VULGAR_FRACTIONS: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75 };
+
+/**
+ * The one stem number grammar. A generator that reads its own role values
+ * builds its pattern from `STEM_NUMBER` (capture group 1) and parses the
+ * capture with `parseStemNumber`, instead of a private `\d+` pattern.
+ */
+export const STEM_NUMBER = NUMBER;
+
+/**
+ * One component of a coordinate pair or tuple, for readers that match the
+ * whole bracket themselves ("P = (2, 0) m"). `STEM_NUMBER` refuses numbers in
+ * a numeric bracket so a bare "(1,000)" or "(2,3)" is never a scalar; a tuple
+ * reader needs the components, and a component is never thousands grouped.
+ */
+export const TUPLE_COMPONENT_NUMBER = String.raw`(?<![\w.\/^])(-?(?:\d+\s*\/\s*\d+|\d*[½¼¾]|\d+(?:\.\d+)?(?:\s*[x×]\s*10\s*\^?\s*-?\d+|e-?\d+)?))(?![\d½¼¾]|\.\d|\s*\/\s*\d)`;
+export function parseStemNumber(raw: string): number | null {
+  return parseNumber(raw);
+}
 
 function parseNumber(raw: string): number | null {
-  const cleaned = raw.replace(/\s+/g, "").replace(/[x×]10\^?(-?\d+)/i, "e$1");
-  const value = Number(cleaned);
+  const trimmed = raw.trim();
+  const sign = trimmed.startsWith("-") ? -1 : 1;
+  const body = trimmed.replace(/^-\s*/, "");
+  const fraction = /^(?:(\d+) )?(\d+)\s*\/\s*(\d+)$/.exec(body);
+  if (fraction) {
+    const denominator = Number(fraction[3]);
+    if (denominator === 0) return null;
+    return sign * (Number(fraction[1] ?? 0) + Number(fraction[2]) / denominator);
+  }
+  const vulgar = /^(\d*)([½¼¾])$/.exec(body);
+  if (vulgar) return sign * (Number(vulgar[1] || 0) + VULGAR_FRACTIONS[vulgar[2]!]!);
+  if (/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(body)) return sign * Number(body.replace(/,/g, ""));
+  const cleaned = body.replace(/\s+/g, "").replace(/[x×]10\^?(-?\d+)/i, "e$1");
+  const value = sign * Number(cleaned);
   return Number.isFinite(value) ? value : null;
 }
 
@@ -119,9 +176,12 @@ export function prepareStem(question: string): string {
     .trim();
 }
 
-/** Every number immediately followed by a unit that matches `unit`. */
+/**
+ * Every number immediately followed by a unit that matches `unit`. The unit
+ * must end there: "m/s" is not the start of "m/s^2".
+ */
 export function numbersWithUnit(stem: string, unit: RegExp): number[] {
-  const pattern = new RegExp(`${NUMBER}\\s*(?:${unit.source})(?![a-z])`, "gi");
+  const pattern = new RegExp(`${NUMBER}\\s*(?:${unit.source})(?![a-z]|\\s*\\^)`, "gi");
   const values: number[] = [];
   for (const match of stem.matchAll(pattern)) {
     const value = parseNumber(match[1]!);

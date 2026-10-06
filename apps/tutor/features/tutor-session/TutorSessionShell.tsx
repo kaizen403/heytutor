@@ -774,6 +774,7 @@ export function TutorSessionShell({
     registerReplayBlobUrl,
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
+    settleBoardRestore,
   } = useBoardSession({
     sessionId,
     isDraft,
@@ -1052,6 +1053,7 @@ export function TutorSessionShell({
     finishLectureUi,
     pauseTurn,
     resumeTurn,
+    settleBoardRestore,
   });
 
   const pauseForRewind = useCallback(() => pauseTurn("rewind"), [pauseTurn]);
