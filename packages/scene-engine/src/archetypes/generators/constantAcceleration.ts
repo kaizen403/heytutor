@@ -1,10 +1,10 @@
 /**
  * One interval of straight-line motion under constant acceleration (SUVAT).
  *
- * Slots are read from the question's own numbers and from turn-plan givens
- * whose quoted source text is in the question. The five SUVAT quantities are
- * then recomputed here from any three of them; the plan's derived values are
- * never drawn, they are only compared, so a stale narration scalar declines
+ * Slots are read independently from the question's own numbers and roles.
+ * The five SUVAT quantities are recomputed here from any three of them;
+ * every recognized plan row is compared, never used to fill a missing source
+ * role, so a stale narration scalar declines
  * the figure instead of pairing with it.
  *
  * Supported: one interval, +x along the initial motion (u >= 0), the body
@@ -31,6 +31,12 @@ const RELATIVE_TOLERANCE = 0.005;
 /* ------------------------------------------------------------------------- */
 
 type Knowns = Partial<Record<SuvatRole, number>>;
+
+// Exact source/claim checks are separate from the legacy rounded-label tolerance.
+function sourceAgrees(actual: number, expected: number): boolean {
+  return Number.isFinite(actual) && Number.isFinite(expected)
+    && Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(actual), Math.abs(expected));
+}
 
 function has(known: Knowns, ...roles: SuvatRole[]): boolean {
   return roles.every((role) => known[role] !== undefined);
@@ -105,11 +111,11 @@ export function resolveConstantAcceleration(
   if (state.s < 0) return { ok: false, reason: "negative displacement for forward motion" };
   for (const role of ROLES) {
     const given = knowns[role];
-    if (given !== undefined && !agrees(state[role], given)) {
+    if (given !== undefined && !sourceAgrees(state[role], given)) {
       return { ok: false, reason: `over-determined givens disagree: ${role}=${given} but the others give ${state[role]}` };
     }
     const claim = claims[role];
-    if (claim !== undefined && !agrees(state[role], claim)) {
+    if (claim !== undefined && !sourceAgrees(state[role], claim)) {
       return { ok: false, reason: `plan value ${role}=${claim} disagrees with the recomputed ${state[role]}` };
     }
   }
@@ -251,9 +257,24 @@ export interface SuvatSlots {
   claims: Knowns;
 }
 
-/** Merge stem and source-bound plan givens; any disagreement reads nothing. */
+/** Premise checks for this bounded one-body, one-interval source program. */
+function constantAccelerationSourceIssue(text: string): string | null {
+  if (/\b(?:vertical(?:ly)?|upwards?|downwards?|thrown|dropped|falls?|free fall|projectile|projected|incline|inclined|slope|circular|circle|orbit|relative to|moving frame|noninertial|non-inertial|reverse[sd]?|reversal|turns? back)\b/.test(text)) return "unsupported motion or frame";
+  if (/\b(?:then|after that|afterwards|for the next|finally|thereafter|two|three|second body|another body|respectively)\b/.test(text)) return "multiple intervals or bodies are unsupported";
+  if (/\b(?:initial position|final position|located|nth second|average speed|average velocity)\b|\b(?:x|s)\s*=/.test(text)) return "absolute position or a different motion quantity is unsupported";
+  const found = tokens(text);
+  for (const dimension of ["accel", "time", "length"] as const) {
+    if (found.filter(token => token.dimension === dimension).length > 1) return "multiple source quantities have the same unresolved role";
+  }
+  if (found.filter(token => token.dimension === "speed").length > 2) return "more than two source speeds are unsupported";
+  return null;
+}
+
+/** Source quantities fix the solve; every plan row is a checked claim. */
 export function suvatSlots(stem: string, plan: readonly PlanQuantity[]): SuvatSlots | { conflict: string } {
   const text = normalized(stem);
+  const scopeIssue = constantAccelerationSourceIssue(text);
+  if (scopeIssue) return { conflict: scopeIssue };
   const decelerating = DECELERATION.test(text);
   const knowns = stemKnowns(stem);
   const sources: Partial<Record<SuvatRole, SlotSource>> = {};
@@ -263,16 +284,14 @@ export function suvatSlots(stem: string, plan: readonly PlanQuantity[]): SuvatSl
     const role = roleOf(quantity);
     if (!role) continue;
     let value = siValue(quantity, ROLE_DIMENSION[role]);
-    if (value === null) continue;
+    if (value === null || !Number.isFinite(value)) return { conflict: `unsupported plan unit or value for ${role}` };
     if (role === "a" && value > 0 && (decelerating || /decel|retard/i.test(`${quantity.id} ${quantity.symbol}`))) value = -value;
-    if (sourceBound(quantity, text)) {
-      const existing = knowns[role];
-      if (existing !== undefined && !agrees(existing, value)) return { conflict: `${role}: question ${existing} vs plan given ${value}` };
-      knowns[role] = value;
-      sources[role] = "plan";
-    } else if (claims[role] === undefined) {
-      claims[role] = value;
-    }
+    // A quote containing a matching numeral does not establish its role or
+    // dimension. Only independently read source roles may supply the solve.
+    const existing = knowns[role];
+    if (existing !== undefined && !sourceAgrees(existing, value)) return { conflict: `${role}: question ${existing} vs plan ${value}` };
+    if (claims[role] !== undefined && !sourceAgrees(claims[role]!, value)) return { conflict: `duplicate plan ${role} claims disagree` };
+    claims[role] = value;
   }
   return { knowns, sources, claims };
 }
@@ -304,12 +323,16 @@ function displayFactor(xSpan: number, yMin: number, yMax: number): number {
 const label = (symbol: string, value: number, unit: string) => `${symbol} = ${fmt(value)} ${unit}`;
 
 function uniformAccelerationVt(context: GeneratorContext) {
-  const [u, v, a, t, s] = (["u", "v", "a", "t", "s"] as const).map((role) => maybeNum(context, role));
-  if (u === null || v === null || a === null || t === null || s === null) return null;
-  // Re-check the interval from the slots themselves: a generator must not
-  // draw a state it did not resolve.
-  const check = resolveConstantAcceleration({ u, a, t }, { v, s });
-  if (!check.ok) return null;
+  const slots = suvatSlots(context.question, context.quantities);
+  if ("conflict" in slots) return null;
+  const resolved = resolveConstantAcceleration(slots.knowns, slots.claims);
+  if (!resolved.ok) return null;
+  const { u, v, a, t, s } = resolved.state;
+  // Cached/planner slots cannot replace or contradict the source program.
+  for (const role of ROLES) {
+    const supplied = maybeNum(context, role);
+    if (supplied !== null && !sourceAgrees(supplied, resolved.state[role])) return null;
+  }
   const k = displayFactor(t, 0, Math.max(u, v));
   const top = Math.max(u, v) * k;
   const span = Math.max(top, 1e-6);
@@ -335,6 +358,11 @@ function uniformAccelerationVt(context: GeneratorContext) {
   scene.group("graph_group", ["graph", "start", "end", "foot", ...(v > 1e-9 ? ["drop"] : [])], "a straight line from u to v whose slope is the acceleration", ["axes_group"]);
   scene.group("area_group", ["zero", "area", "s_label"], "the area under the line is the displacement", ["graph_group"]);
   return scene.build();
+}
+
+/** Parent selection/admission can query the existing source program directly. */
+export function constantAccelerationSourceProgram(question: string, quantities: readonly PlanQuantity[] = []) {
+  return uniformAccelerationVt({ question, quantities, slots: {}, sources: {}, schematic: false });
 }
 
 export const CONSTANT_ACCELERATION_GENERATORS: GeneratorTable = {

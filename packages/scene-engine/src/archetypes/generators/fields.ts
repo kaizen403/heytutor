@@ -7,6 +7,12 @@ import { SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
 import { grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 import { parseResistorTree, type ResistorTree } from "../resistorTree";
 import { numbersWithUnit, UNIT } from "../slots";
+import { ladderSourceProgram } from "../../ir/ladderSourceProgram";
+
+/** Parent registry/admission seam: independently source-bound static geometry. */
+export function ladderWallFromSource(context: GeneratorContext) {
+  return ladderSourceProgram(context.question, context.quantities);
+}
 
 function pageNormalGrid(scene: SceneBuilder, prefix: string, origin: Vec2, columns: number, rows: number, spacing: number, into: boolean, role: string): string[] {
   const ids: string[] = [];
