@@ -1,0 +1,15 @@
+{
+  "question": "For 2x^2+2y^2+12x-16y+18=0, draw the circle and show radius squared.",
+  "problem": null,
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For 2x^2+2y^2+12x-16y+18=0, draw the circle and show radius squared.",
+    "givens": [],
+    "unknowns": [],
+    "derived": [],
+    "qualitativeClaims": [],
+    "lawIds": [],
+    "assumptions": [],
+    "visualRequirement": "required"
+  }
+}

@@ -1,0 +1,482 @@
+{
+  "question": "For 2x^2+2y^2+12x-16y+18=0, find the centre and radius and show radius squared.",
+  "problem": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "fresh_new",
+    "question": "For 2x^2+2y^2+12x-16y+18=0, find the centre and radius and show radius squared.",
+    "facts": [
+      {
+        "id": "eq0",
+        "kind": "given",
+        "statement": "2x^2+2y^2+12x-16y+18=0",
+        "evidence": {
+          "source": "question",
+          "start": 4,
+          "end": 26,
+          "quote": "2x^2+2y^2+12x-16y+18=0"
+        }
+      },
+      {
+        "id": "ask",
+        "kind": "requested",
+        "statement": "find the centre and radius and show radius squared.",
+        "evidence": {
+          "source": "question",
+          "start": 28,
+          "end": 79,
+          "quote": "find the centre and radius and show radius squared."
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "curve",
+        "kind": "curve",
+        "label": "circle",
+        "evidenceFactIds": [
+          "eq0"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "h",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "unary",
+            "operator": "-",
+            "operand": {
+              "kind": "number",
+              "value": 12
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      },
+      {
+        "id": "k",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "unary",
+            "operator": "-",
+            "operand": {
+              "kind": "number",
+              "value": -16
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      },
+      {
+        "id": "r",
+        "valueType": "scalar",
+        "root": {
+          "kind": "call",
+          "function": "sqrt",
+          "argument": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "unary",
+                    "operator": "-",
+                    "operand": {
+                      "kind": "number",
+                      "value": 12
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "unary",
+                    "operator": "-",
+                    "operand": {
+                      "kind": "number",
+                      "value": -16
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 18
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      },
+      {
+        "id": "r_squared",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "unary",
+                  "operator": "-",
+                  "operand": {
+                    "kind": "number",
+                    "value": 12
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "unary",
+                  "operator": "-",
+                  "operand": {
+                    "kind": "number",
+                    "value": -16
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "number",
+              "value": 18
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "graph",
+        "kind": "graph",
+        "entityIds": [
+          "curve"
+        ],
+        "evidenceFactIds": [
+          "eq0",
+          "ask"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "solve_h",
+        "kind": "evaluate",
+        "expressionId": "h",
+        "resultBinding": {
+          "turnPlanQuantityId": "h",
+          "symbol": "h",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq0",
+            "ask"
+          ]
+        }
+      },
+      {
+        "id": "solve_k",
+        "kind": "evaluate",
+        "expressionId": "k",
+        "resultBinding": {
+          "turnPlanQuantityId": "k",
+          "symbol": "k",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq0",
+            "ask"
+          ]
+        }
+      },
+      {
+        "id": "solve_r",
+        "kind": "evaluate",
+        "expressionId": "r",
+        "resultBinding": {
+          "turnPlanQuantityId": "r",
+          "symbol": "r",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq0",
+            "ask"
+          ]
+        }
+      },
+      {
+        "id": "solve_r_squared",
+        "kind": "evaluate",
+        "expressionId": "r_squared",
+        "resultBinding": {
+          "turnPlanQuantityId": "r_squared",
+          "symbol": "r_squared",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq0",
+            "ask"
+          ]
+        }
+      }
+    ]
+  },
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For 2x^2+2y^2+12x-16y+18=0, find the centre and radius and show radius squared.",
+    "givens": [
+      {
+        "id": "A",
+        "symbol": "A",
+        "unit": "1",
+        "value": 2,
+        "provenance": "given",
+        "sourceText": "coefficient of x^2 and y^2"
+      },
+      {
+        "id": "D",
+        "symbol": "D",
+        "unit": "1",
+        "value": 12,
+        "provenance": "given",
+        "sourceText": "coefficient of x"
+      },
+      {
+        "id": "E",
+        "symbol": "E",
+        "unit": "1",
+        "value": -16,
+        "provenance": "given",
+        "sourceText": "coefficient of y"
+      },
+      {
+        "id": "F",
+        "symbol": "F",
+        "unit": "1",
+        "value": 18,
+        "provenance": "given",
+        "sourceText": "constant term"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "h",
+        "symbol": "h",
+        "unit": "1"
+      },
+      {
+        "id": "k",
+        "symbol": "k",
+        "unit": "1"
+      },
+      {
+        "id": "r",
+        "symbol": "r",
+        "unit": "1"
+      },
+      {
+        "id": "r_squared",
+        "symbol": "r_squared",
+        "unit": "1"
+      }
+    ],
+    "derived": [
+      {
+        "id": "h",
+        "symbol": "h",
+        "unit": "1",
+        "value": -3,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "D"
+        ]
+      },
+      {
+        "id": "k",
+        "symbol": "k",
+        "unit": "1",
+        "value": 4,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "E"
+        ]
+      },
+      {
+        "id": "r",
+        "symbol": "r",
+        "unit": "1",
+        "value": 4,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "D",
+          "E",
+          "F"
+        ]
+      },
+      {
+        "id": "r_squared",
+        "symbol": "r_squared",
+        "unit": "1",
+        "value": 16,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "D",
+          "E",
+          "F"
+        ]
+      }
+    ],
+    "qualitativeClaims": [],
+    "lawIds": [],
+    "assumptions": [],
+    "visualRequirement": "required"
+  }
+}

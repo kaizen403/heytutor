@@ -111,4 +111,15 @@ check(circleCallerIssues(completeQuery.question,completeQuery.problem,completeQu
 const queryResult=await planProblemAuthorityV1(completeQuery.question,completeQuery.plan,{proxyUrl:"http://offline.invalid",timeoutMs:2000,fetchImpl:async()=>Response.json({choices:[{message:{content:JSON.stringify(completeQuery.problem)}}]})});
 check(queryResult&&!("status"in queryResult)&&queryResult.audit.status==="verified"&&queryResult.audit.bindings.length===2,"normal API verifies both whole original output requests");
 check(selectVerifiedRepresentation({question:completeQuery.question,turnPlan:completeQuery.plan,problemIR:completeQuery.problem}).renderScene.primitives.length>0,"normal app complete radius/radius-squared source figure survives");
+// Fresh geometry-command tails cannot escape complete numeric obligations.
+for(const name of ["unsafe-r-and-rs-across-draw.new-original.json","unsafe-r-and-rs-across-draw-complete.new-original.json","unsafe-query-9.new-original.json","unsafe-command-complete-four.new-original.json","source-only-show-squared.new-original.json"]){
+ const c=JSON.parse(readFileSync(new URL(`./fixtures/circle-full-review-20261006/${name}`,import.meta.url),"utf8")),before=JSON.stringify(c);
+ check(readCircleSourceProgram(c.question).status==="declined","unsupported geometry-command numeric tail declines whole source");
+ check(circleCallerIssues(c.question,c.problem,c.plan).length>0,"whole original command caller refuses");
+ const api=await planProblemAuthorityV1(c.question,c.plan,{proxyUrl:"http://offline.invalid",timeoutMs:2000,fetchImpl:async()=>Response.json({choices:[{message:{content:JSON.stringify(c.problem)}}]})});
+ check(api&&"status"in api&&api.status==="source_declined","ordinary API refuses incomplete command query");
+ check(selectVerifiedRepresentation({question:c.question,turnPlan:c.plan,problemIR:c.problem}).renderScene.primitives.length===0,"unsupported command no partial app ink or nullIR escape");
+ const registry=applySourceQuantityAuthority(c.plan,c.problem,c.question);check(registry.outcomes.some(x=>x.declineFigure)&&JSON.stringify(registry.plan)===JSON.stringify(c.plan),"refused original command Plan preserved");
+ check(JSON.stringify(c)===before,"original full command caller unchanged");
+}
 console.log(`circle source planning guidance: ${checks} checks passed; offline only`);

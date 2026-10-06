@@ -60,6 +60,27 @@ function numericQueryRoles(text: string): CircleValueRole[] | null {
       asks.push(...roles);
     }
   }
+  // Geometry commands are complete clauses, not delimiters granting permission
+  // to discard numeric obligations after them. Source definitions/point tuples
+  // are already masked by the caller of this grammar.
+  const geometry = [...text.matchAll(/\b(?:draw|sketch|plot|graph|show|mark|locate)\b([\s\S]*?)(?=\b(?:find|determine|calculate|draw|sketch|plot|graph|show|mark|locate|does)\b|$)/gi)];
+  for (const command of geometry) {
+    let body = command[1]!.trim().replace(/\s+/g, " ");
+    const following = text.slice(command.index! + command[0].length);
+    if (/^\b(?:find|determine|calculate|draw|sketch|plot|graph|show|mark|locate|does)\b/i.test(following)) body = body.replace(/\band\s*$/i, "");
+    const clauses = body.split(/\band\b|[.,;?!]/i).map(clause => clause.trim()).filter(Boolean);
+    if (!clauses.length || clauses.some(clause => !/^(?:(?:the|a|an|its)\s+)?(?:circle(?:\s+(?:with|having))?|locus|points?|origin)$/i.test(clause))) return null;
+  }
+  const membership = [...text.matchAll(/\bdoes\b([\s\S]*?)(?=\b(?:find|determine|calculate|draw|sketch|plot|graph|show|mark|locate|does)\b|$)/gi)];
+  for (const command of membership) {
+    const body = command[1]!.replace(/[.,;?!]/g, " ").trim().replace(/\s+/g, " ");
+    if (!/^(?:the )?(?:point|origin) lie (?:on|inside|outside)(?: (?:or )?(?:on|inside|outside)){0,2} (?:the )?circle$/i.test(body)) return null;
+  }
+  const consumed = [...queries, ...geometry, ...membership];
+  const remainder = Array.from(text, (char, i) => consumed.some(command => i >= command.index! && i < command.index! + command[0].length) ? " " : char).join("");
+  // Outside complete commands only source-definition introduction remains.
+  // A vocabulary hit alone never accounts for an additional query/predicate.
+  if (!/^(?:(?:for|given|the|a|an|circle|equation|equations|of|with|having|in|cartesian|form|standard|general|locus|represented|by|and)\b|[\s.,;:])*$/i.test(remainder)) return null;
   return asks;
 }
 
@@ -106,12 +127,12 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
       const exactX = literal(match[2]!), exactY = literal(match[3]!);
       const span = evidence(question, start + (match[1] ? match[0].indexOf(match[1]) : match[0].indexOf("(")), end);
       points.push({ ...(match[1] ? { name: match[1] } : {}), x: numeric(exactX), y: numeric(exactY), exactX, exactY, evidence: span });
-      consume(start, end);
+      consume(span.start, span.end);
     }
     for (const match of question.matchAll(/\borigin\b/g)) {
       const span = evidence(question, match.index!, match.index! + match[0].length);
       points.push({ name: "O", x: 0, y: 0, exactX: exact(0n), exactY: exact(0n), evidence: span });
-      consume(span.start, span.end);
+      // Keep the proved target noun for whole geometry-command parsing.
     }
     const equations: CircleWholeSource["equations"] = [];
     const expressionCharacter = /[0-9xy+\-*/^().\s²−–—]/;
@@ -289,7 +310,7 @@ export function bindCircleSourceProblem(question: string, raw: unknown): CircleP
     const binding: CircleProblemBinding = { problem, source, document: makeCircleDocument(source), entityBindings: [], expressionBindings: [], factBindings: [], requestBindings: [] };
     const requestedRole = (role: CircleValueRole, ids: string[]): boolean => ids.some(id => {
       const fact = facts.get(id)!;
-      const definitions = [...source.equations.map(e => e.evidence), ...source.declarations, ...source.points.map(p => p.evidence)];
+      const definitions = [...source.equations.map(e => e.evidence), ...source.declarations, ...source.points.filter(p => p.evidence.quote !== "origin").map(p => p.evidence)];
       const query = Array.from(fact.evidence.quote, (char, i) => definitions.some(span =>
         fact.evidence.start + i >= span.start && fact.evidence.start + i < span.end) ? " " : char).join("");
       return fact.kind === "requested" && (numericQueryRoles(query)?.includes(role) ?? false);
