@@ -1,0 +1,28 @@
+{
+  "classification": "native_source_extract",
+  "native_id": "6760331081",
+  "question_number": "1",
+  "topic_id": "physics|1|least-count",
+  "case_variant": "screw-gauge-least-count-and-zero-error",
+  "verbatim_question_block_sha256": "2d12b0d5c223fe9713f8a31a6fa8ce17dc6cd946fb4e88e446cce98895409f01",
+  "question_options_and_source_answer_verbatim": "Question Number : 1 Question Id : 6760331081 Question Type : MCQ Option Shuffling : Yes Is Question Mandatory : No\nCorrect Marks : 4 Wrong Marks : 1\n\nLeast count corresponding to the main scale and circular scale of a screw\n\ngauge are 0.5 mm and 0.005 mm, respectively. A wire of diameter 2.675 mm\n\nis measured with the screw gauge. What would be the reading of divisions\n\non circular scale of the screw gauge, if the zero error of the screw gauge is\n\n+0.02 mm ?\n\nOptions :\n\n6760333241. 31\n\n6760333242. 35\n\n6760333243. 39\n\n6760333244. 61",
+  "source": {
+    "document_id": "jee-main-2021-08-03-shift-1",
+    "publisher": "National Testing Agency",
+    "exam": "JEE Main",
+    "year": 2021,
+    "paper": "August",
+    "language": "Unknown",
+    "source_url": "https://www.nta.ac.in/Download/ExamPaper/Paper_20211018174429.pdf",
+    "document_sha256": "1c777785cec72e5842ac6473b4d3a4685d6edcd63d012356ebb9427f2665e1de",
+    "pdf_page_from_extracted_text": 2,
+    "source_path": "/Users/kaizen/heytutor/data/question-bank/text/jee-main-2021-08-03-shift-1.txt",
+    "source_text_sha256": "ecdc0f539274cfcb9a2e13050962fc47d47eb1c691929cf0cefd31cb53d4b6b2",
+    "extraction_method": "tesseract-ocr-eng-fast-v1"
+  },
+  "independent_expected_oracle": {
+    "status": "independently_computed",
+    "expected": "39 circular-scale divisions",
+    "basis": "Observed reading = true diameter + positive zero error = 2.675 mm + 0.020 mm; main-scale contribution 2.5 mm; (2.695 - 2.5)/0.005 = 39. Independent calculation, not native answer."
+  }
+}
