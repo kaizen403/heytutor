@@ -8,6 +8,7 @@ import { test } from "node:test";
 const landing = createRequire(resolve("apps/landing/package.json"));
 const tailwind3Entry = landing.resolve("tailwindcss");
 const tailwind3 = createRequire(tailwind3Entry);
+const tailwind3Plugin = tailwind3(tailwind3Entry);
 const tailwind3PostcssEntry = tailwind3.resolve("postcss");
 const tailwind3Postcss = createRequire(tailwind3PostcssEntry)(tailwind3PostcssEntry);
 const nestedEntry = tailwind3.resolve("postcss-nested");
@@ -79,14 +80,53 @@ test("Tailwind 3 and postcss-nested share selector-parser 7 with nested arbitrar
   }
 });
 
-test("selector-parser handles a large flat selector list within a bounded child process", () => {
+test("Tailwind 3 transforms group, peer and arbitrary variants on utilities and compound plugin selectors", async () => {
+  const result = await tailwind3Postcss([tailwind3Plugin({
+    content: [{
+      raw: "group-hover:block peer-focus:underline [&>span]:font-bold group-hover:compound peer-focus:compound [&:focus]:compound",
+      extension: "html",
+    }],
+    plugins: [({ addUtilities }) => {
+      // Multiple nodes around the candidate class exercise finalizeSelector's
+      // insertion during traversal, rather than its single-class replacement.
+      addUtilities({ ".compound.extra:hover::before": { content: '"ok"', color: "red" } });
+    }],
+  })]).process("@tailwind utilities;", { from: undefined });
+
+  const rules = result.root.nodes.map((rule) => ({
+    selector: rule.selector,
+    declarations: rule.nodes.map((declaration) => [declaration.prop, declaration.value]),
+  }));
+  assert.deepEqual(rules, [
+    { selector: ".group:hover .group-hover\\:block", declarations: [["display", "block"]] },
+    {
+      selector: ".group:hover .group-hover\\:compound.extra:hover::before",
+      declarations: [["content", '"ok"'], ["color", "red"]],
+    },
+    { selector: ".peer:focus ~ .peer-focus\\:underline", declarations: [["text-decoration-line", "underline"]] },
+    {
+      selector: ".peer:focus ~ .peer-focus\\:compound.extra:hover::before",
+      declarations: [["content", '"ok"'], ["color", "red"]],
+    },
+    {
+      selector: ".\\[\\&\\:focus\\]\\:compound:focus.extra:hover::before",
+      declarations: [["content", '"ok"'], ["color", "red"]],
+    },
+    { selector: ".\\[\\&\\>span\\]\\:font-bold>span", declarations: [["font-weight", "700"]] },
+  ]);
+});
+
+test("selector-parser handles one long flat class selector within a bounded child process", () => {
   const script = `
     const assert = require("node:assert/strict");
     const parser = require(${JSON.stringify(selectorParserEntry)});
-    const selector = "a,".repeat(99_999) + "a ";
+    const selector = ".a".repeat(100_000);
     assert.equal(selector.length, 200_000);
     const root = parser().astSync(selector);
-    assert.equal(root.nodes.length, 100_000);
+    assert.equal(root.nodes.length, 1);
+    let classes = 0;
+    root.walkClasses(() => { classes++; });
+    assert.equal(classes, 100_000);
     assert.equal(root.toString(), selector);
   `;
   const result = spawnSync(process.execPath, ["-e", script], {
