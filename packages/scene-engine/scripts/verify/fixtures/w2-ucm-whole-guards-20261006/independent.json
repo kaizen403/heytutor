@@ -1,0 +1,962 @@
+[
+  {
+    "id": "independent-0",
+    "question": "A bead moves clockwise at a constant speed of 9 cm/s in a circle of radius 3 cm. Find its angular speed and centripetal acceleration.",
+    "rawIR": {
+      "schemaVersion": "problem-ir/v1",
+      "question": "A bead moves clockwise at a constant speed of 9 cm/s in a circle of radius 3 cm. Find its angular speed and centripetal acceleration.",
+      "facts": [
+        {
+          "id": "rFact",
+          "kind": "given",
+          "statement": "radius 3 cm",
+          "quote": "radius 3 cm"
+        },
+        {
+          "id": "rateFact",
+          "kind": "given",
+          "statement": "constant speed of 9 cm/s",
+          "quote": "constant speed of 9 cm/s"
+        },
+        {
+          "id": "ask0",
+          "kind": "requested",
+          "statement": "angular speed",
+          "quote": "angular speed"
+        },
+        {
+          "id": "ask1",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "bead",
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "rFact"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "intent",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "e0",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 9
+              },
+              "right": {
+                "kind": "number",
+                "value": 0.01
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "number",
+                "value": 0.01
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "e1",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 9
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 0.01
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "number",
+                "value": 0.01
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "s0",
+          "kind": "evaluate",
+          "expressionId": "e0",
+          "resultBinding": {
+            "symbol": "omega",
+            "unit": "rad/s",
+            "evidenceFactIds": [
+              "ask0"
+            ],
+            "turnPlanQuantityId": "res0"
+          }
+        },
+        {
+          "id": "s1",
+          "kind": "evaluate",
+          "expressionId": "e1",
+          "resultBinding": {
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "ask1"
+            ],
+            "turnPlanQuantityId": "res1"
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A bead moves clockwise at a constant speed of 9 cm/s in a circle of radius 3 cm. Find its angular speed and centripetal acceleration.",
+      "givens": [
+        {
+          "id": "r",
+          "symbol": "r",
+          "value": 3,
+          "unit": "cm",
+          "sourceText": "radius 3 cm",
+          "provenance": "given"
+        },
+        {
+          "id": "rate",
+          "symbol": "v",
+          "value": 9,
+          "unit": "cm/s",
+          "sourceText": "constant speed of 9 cm/s",
+          "provenance": "given"
+        }
+      ],
+      "derived": [
+        {
+          "id": "res0",
+          "symbol": "omega",
+          "unit": "rad/s",
+          "value": 3.0,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 0.27,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "res0",
+          "symbol": "omega",
+          "unit": "rad/s"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        }
+      ],
+      "assumptions": [],
+      "qualitativeClaims": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "expected": [
+      3.0,
+      0.27
+    ]
+  },
+  {
+    "id": "independent-1",
+    "question": "A particle moves anticlockwise at a constant speed of 10 m/s in a circle of radius 5 m. Find its angular speed and centripetal acceleration.",
+    "rawIR": {
+      "schemaVersion": "problem-ir/v1",
+      "question": "A particle moves anticlockwise at a constant speed of 10 m/s in a circle of radius 5 m. Find its angular speed and centripetal acceleration.",
+      "facts": [
+        {
+          "id": "rFact",
+          "kind": "given",
+          "statement": "radius 5 m",
+          "quote": "radius 5 m"
+        },
+        {
+          "id": "rateFact",
+          "kind": "given",
+          "statement": "constant speed of 10 m/s",
+          "quote": "constant speed of 10 m/s"
+        },
+        {
+          "id": "ask0",
+          "kind": "requested",
+          "statement": "angular speed",
+          "quote": "angular speed"
+        },
+        {
+          "id": "ask1",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "particle",
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "rFact"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "intent",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "e0",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "number",
+              "value": 10
+            },
+            "right": {
+              "kind": "number",
+              "value": 5
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "e1",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "number",
+                "value": 10
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 5
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "s0",
+          "kind": "evaluate",
+          "expressionId": "e0",
+          "resultBinding": {
+            "symbol": "omega",
+            "unit": "rad/s",
+            "evidenceFactIds": [
+              "ask0"
+            ],
+            "turnPlanQuantityId": "res0"
+          }
+        },
+        {
+          "id": "s1",
+          "kind": "evaluate",
+          "expressionId": "e1",
+          "resultBinding": {
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "ask1"
+            ],
+            "turnPlanQuantityId": "res1"
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A particle moves anticlockwise at a constant speed of 10 m/s in a circle of radius 5 m. Find its angular speed and centripetal acceleration.",
+      "givens": [
+        {
+          "id": "r",
+          "symbol": "r",
+          "value": 5,
+          "unit": "m",
+          "sourceText": "radius 5 m",
+          "provenance": "given"
+        },
+        {
+          "id": "rate",
+          "symbol": "v",
+          "value": 10,
+          "unit": "m/s",
+          "sourceText": "constant speed of 10 m/s",
+          "provenance": "given"
+        }
+      ],
+      "derived": [
+        {
+          "id": "res0",
+          "symbol": "omega",
+          "unit": "rad/s",
+          "value": 2.0,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 20.0,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "res0",
+          "symbol": "omega",
+          "unit": "rad/s"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        }
+      ],
+      "assumptions": [],
+      "qualitativeClaims": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "expected": [
+      2.0,
+      20.0
+    ]
+  },
+  {
+    "id": "independent-2",
+    "question": "A car moves at a constant speed of 36 km/h in a circle of radius 0.4 km. Find its angular speed and centripetal acceleration.",
+    "rawIR": {
+      "schemaVersion": "problem-ir/v1",
+      "question": "A car moves at a constant speed of 36 km/h in a circle of radius 0.4 km. Find its angular speed and centripetal acceleration.",
+      "facts": [
+        {
+          "id": "rFact",
+          "kind": "given",
+          "statement": "radius 0.4 km",
+          "quote": "radius 0.4 km"
+        },
+        {
+          "id": "rateFact",
+          "kind": "given",
+          "statement": "constant speed of 36 km/h",
+          "quote": "constant speed of 36 km/h"
+        },
+        {
+          "id": "ask0",
+          "kind": "requested",
+          "statement": "angular speed",
+          "quote": "angular speed"
+        },
+        {
+          "id": "ask1",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "car",
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "rFact"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "intent",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "e0",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 36
+              },
+              "right": {
+                "kind": "number",
+                "value": 0.2777777777777778
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 0.4
+              },
+              "right": {
+                "kind": "number",
+                "value": 1000.0
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "e1",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 36
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 0.2777777777777778
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 0.4
+              },
+              "right": {
+                "kind": "number",
+                "value": 1000.0
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "s0",
+          "kind": "evaluate",
+          "expressionId": "e0",
+          "resultBinding": {
+            "symbol": "omega",
+            "unit": "rad/s",
+            "evidenceFactIds": [
+              "ask0"
+            ],
+            "turnPlanQuantityId": "res0"
+          }
+        },
+        {
+          "id": "s1",
+          "kind": "evaluate",
+          "expressionId": "e1",
+          "resultBinding": {
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "ask1"
+            ],
+            "turnPlanQuantityId": "res1"
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A car moves at a constant speed of 36 km/h in a circle of radius 0.4 km. Find its angular speed and centripetal acceleration.",
+      "givens": [
+        {
+          "id": "r",
+          "symbol": "r",
+          "value": 0.4,
+          "unit": "km",
+          "sourceText": "radius 0.4 km",
+          "provenance": "given"
+        },
+        {
+          "id": "rate",
+          "symbol": "v",
+          "value": 36,
+          "unit": "km/h",
+          "sourceText": "constant speed of 36 km/h",
+          "provenance": "given"
+        }
+      ],
+      "derived": [
+        {
+          "id": "res0",
+          "symbol": "omega",
+          "unit": "rad/s",
+          "value": 0.025,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 0.25,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "res0",
+          "symbol": "omega",
+          "unit": "rad/s"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        }
+      ],
+      "assumptions": [],
+      "qualitativeClaims": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "expected": [
+      0.025,
+      0.25
+    ]
+  },
+  {
+    "id": "independent-3",
+    "question": "A stone moves in a horizontal circle of radius 1.5 m with a period of 3 s. Find its speed and centripetal acceleration.",
+    "rawIR": {
+      "schemaVersion": "problem-ir/v1",
+      "question": "A stone moves in a horizontal circle of radius 1.5 m with a period of 3 s. Find its speed and centripetal acceleration.",
+      "facts": [
+        {
+          "id": "rFact",
+          "kind": "given",
+          "statement": "radius 1.5 m",
+          "quote": "radius 1.5 m"
+        },
+        {
+          "id": "rateFact",
+          "kind": "given",
+          "statement": "period of 3 s",
+          "quote": "period of 3 s"
+        },
+        {
+          "id": "ask0",
+          "kind": "requested",
+          "statement": "speed",
+          "quote": "speed"
+        },
+        {
+          "id": "ask1",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "stone",
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "horizontal circle",
+          "evidenceFactIds": [
+            "rFact"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "intent",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "e0",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "constant",
+                  "name": "pi"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 1.5
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        },
+        {
+          "id": "e1",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "constant",
+                      "name": "pi"
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1.5
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 1.5
+            }
+          },
+          "evidenceFactIds": [
+            "rFact",
+            "rateFact"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "s0",
+          "kind": "evaluate",
+          "expressionId": "e0",
+          "resultBinding": {
+            "symbol": "v",
+            "unit": "m/s",
+            "evidenceFactIds": [
+              "ask0"
+            ],
+            "turnPlanQuantityId": "res0"
+          }
+        },
+        {
+          "id": "s1",
+          "kind": "evaluate",
+          "expressionId": "e1",
+          "resultBinding": {
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "ask1"
+            ],
+            "turnPlanQuantityId": "res1"
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A stone moves in a horizontal circle of radius 1.5 m with a period of 3 s. Find its speed and centripetal acceleration.",
+      "givens": [
+        {
+          "id": "r",
+          "symbol": "r",
+          "value": 1.5,
+          "unit": "m",
+          "sourceText": "radius 1.5 m",
+          "provenance": "given"
+        },
+        {
+          "id": "rate",
+          "symbol": "T",
+          "value": 3,
+          "unit": "s",
+          "sourceText": "period of 3 s",
+          "provenance": "given"
+        }
+      ],
+      "derived": [
+        {
+          "id": "res0",
+          "symbol": "v",
+          "unit": "m/s",
+          "value": 3.141592653589793,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 6.579736267392906,
+          "dependsOn": [
+            "r",
+            "rate"
+          ],
+          "provenance": "derived"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "res0",
+          "symbol": "v",
+          "unit": "m/s"
+        },
+        {
+          "id": "res1",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        }
+      ],
+      "assumptions": [],
+      "qualitativeClaims": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "expected": [
+      3.141592653589793,
+      6.579736267392906
+    ]
+  }
+]

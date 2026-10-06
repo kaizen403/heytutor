@@ -1,3 +1,4 @@
+import { evaluateMathExpression } from "../math/expression";
 import { sameSceneValue } from "../document/valueEquality";
 import type { ExpressionNodeIR, ProblemIR, ProblemFact } from "../ir/problemIR";
 import type { SceneIssue } from "../types";
@@ -74,6 +75,40 @@ export function readUniformCircularRuntimeContract(question: string): Reading | 
   return { status: "bound", contract: { source, ...names, requestStart, setup, requested } };
 }
 
+const escapePattern = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const phraseText = (text: string) => text.trim().replace(/[.]$/, "").toLowerCase();
+
+function requestMeanings(contract: UniformCircularRuntimeContract, text: string): Role[] | null {
+  const actor = escapePattern(contract.actor);
+  const roles = phraseText(text).replace(/^(?:find|calculate|determine)\s+/, "")
+    .split(/\s+and\s+|\s*,\s*/).map(phrase => requestedRole(phrase.replace(new RegExp(`^(?:the )?${actor}'s\\s+`), "")));
+  return roles.some(role => !role) || new Set(roles).size !== roles.length ? null : roles as Role[];
+}
+
+/** Whole bounded assertion, with the single source actor implicit or explicit.
+ * Each scalar literal remains owned by its role and unit. Unread remainders
+ * decline; source quotations are not a bag of numbers or statement authority.
+ */
+function givenStatementRoles(contract: UniformCircularRuntimeContract, text: string): Role[] | null {
+  const phrase = phraseText(text);
+  const actor = escapePattern(contract.actor);
+  const owner = `(?:(?:a |the )?${actor}(?:'s)?(?: moves)?(?: at| with)? |the )?`;
+  for (const given of contract.source.givens) {
+    const literal = escapePattern(given.text.toLowerCase());
+    const role = given.role as Role;
+    const subject = role === "radius" ? `(?:(?:horizontal )?(?:circle|circular path|circular track)(?: of)? )?radius(?: of the (?:horizontal )?(?:circle|circular path|circular track))?`
+      : role === "period" ? `(?:time )?period(?: of (?:the )?motion)?` : `(?:(?:constant|uniform) )?speed`;
+    if (new RegExp(`^${owner}${subject}(?: is| of)? ${literal}$`).test(phrase)) {
+      if (phrase.includes("horizontal") && !/\bhorizontal\b/i.test(contract.setup)) return null;
+      if (phrase.includes("circular track") && contract.path !== "circular track") return null;
+      return [role];
+    }
+  }
+  const sense = contract.source.sense;
+  if (sense && new RegExp(`^(?:(?:a |the )?${actor} )?(?:moves |motion is |the motion is )?${sense}$`).test(phrase)) return [];
+  return null;
+}
+
 function supportedUniformAssumption(contract: UniformCircularRuntimeContract, fact: ProblemFact): boolean {
   return fact.kind === "assumption" && fact.evidence.quote.trim() === contract.setup
     && new RegExp(`^(?:the )?${contract.actor} (?:undergoes|moves in) uniform circular motion(?: with constant speed)?[.]?$`, "i").test(fact.statement);
@@ -141,41 +176,57 @@ export function uniformCircularRuntimeProblemIssues(contract: UniformCircularRun
   const factRoles = new Map<string, Role[]>();
   for (const fact of problem.facts) {
     const evidence = fact.evidence;
-    if (/\b(?:force|energy|mass|charge|friction|momentum)\b/i.test(fact.statement)) fail(`facts.${fact.id}`);
-    const statementNumbers = fact.statement.match(/[-+]?(?:\d*\.\d+|\d+)(?:e[-+]?\d+)?/gi) ?? [];
-    const quoteNumbers = (evidence.quote.match(/[-+]?(?:\d*\.\d+|\d+)(?:e[-+]?\d+)?/gi) ?? []).map(Number);
-    if (statementNumbers.some(number => !quoteNumbers.includes(Number(number)))) fail(`facts.${fact.id}`);
+    const quoteIsSource = problem.question.slice(evidence.start, evidence.end) === evidence.quote;
+    if (!quoteIsSource) { fail(`facts.${fact.id}`); continue; }
     if (fact.kind === "requested") {
-      const phrases = evidence.quote.replace(/^(?:Find|Calculate|Determine)\s+/i, "").replace(/[.]$/, "").split(/\s+and\s+|\s*,\s*/i);
-      const roles = phrases.map(phrase => requestedRole(phrase.trim()));
-      if (evidence.start < contract.requestStart || roles.some(role => !role || !contract.requested.includes(role))) fail(`facts.${fact.id}`);
-      else factRoles.set(fact.id, roles as Role[]);
+      const roles = requestMeanings(contract, evidence.quote);
+      const stated = requestMeanings(contract, fact.statement);
+      if (evidence.start < contract.requestStart || !roles || !stated
+        || roles.some(role => !contract.requested.includes(role)) || !sameSceneValue([...roles].sort(), [...stated].sort())) fail(`facts.${fact.id}`);
+      else factRoles.set(fact.id, roles);
     } else {
       if (supportedUniformAssumption(contract, fact)) {
         factRoles.set(fact.id, []);
         continue;
       }
-      if (fact.kind !== "given" || evidence.end > contract.requestStart) fail(`facts.${fact.id}`);
-      const opposite = contract.source.sense === "clockwise" ? /\banticlockwise\b/ : /(?<!anti)\bclockwise\b/;
-      if (opposite.test(fact.statement) || /\bhorizontal\b/i.test(fact.statement) && !/\bhorizontal\b/i.test(problem.question)) fail(`facts.${fact.id}`);
+      if (fact.kind !== "given" || evidence.end > contract.requestStart) { fail(`facts.${fact.id}`); continue; }
       const roles = contract.source.givens.filter(given => containsLiteral(evidence.quote, given.text)).map(given => given.role as Role);
-      // A setup/sense fact is legitimate even when it carries no scalar.
-      if (!roles.length && !/\bmoves\b|\bclockwise\b|\banticlockwise\b|\bcircl|\bradius\b/i.test(evidence.quote)) fail(`facts.${fact.id}`);
-      const statementRoles: Role[] = [];
-      if (/\bradius\b/i.test(fact.statement)) statementRoles.push("radius");
-      if (/\bperiod\b|time for one (?:complete )?revolution/i.test(fact.statement)) statementRoles.push("period");
-      if (/(?<!angular )\bspeed\b/i.test(fact.statement)) statementRoles.push("speed");
-      if (statementRoles.some(role => !roles.includes(role))) fail(`facts.${fact.id}`);
-      factRoles.set(fact.id, roles);
+      const stated = fact.statement === evidence.quote ? roles : givenStatementRoles(contract, fact.statement);
+      if (!stated || !sameSceneValue([...roles].sort(), [...stated].sort())
+        || !roles.length && !/\bmoves\b|\bclockwise\b|\banticlockwise\b|\bcircl|\bradius\b/i.test(evidence.quote)
+        || !roles.length && fact.statement !== evidence.quote && !contract.source.sense) fail(`facts.${fact.id}`);
+      else factRoles.set(fact.id, roles);
     }
   }
+
+  const entityIdentities = problem.entities.map(entity => uniformCircularRuntimeEntityId(contract, problem, entity.id));
+  if (!entityIdentities.includes("body") || !entityIdentities.includes("path")) fail("entities");
+  if (!problem.representationIntents.some(intent => {
+    const identities = intent.entityIds.map(id => uniformCircularRuntimeEntityId(contract, problem, id));
+    return identities.includes("body") && identities.includes("path");
+  })) fail("representationIntents");
   const expressionRoles = new Map<string, Role[]>();
   for (const expression of problem.expressions) {
+    const evidenceFacts = expression.evidenceFactIds.map(id => problem.facts.find(fact => fact.id === id));
     const evidenceRoles = new Set(expression.evidenceFactIds.flatMap(id => problem.facts.find(fact => fact.id === id)?.kind === "given" ? factRoles.get(id) ?? [] : []));
     const roles = (Object.keys(trees) as Role[]).filter(role => trees[role].some(root => sameSceneValue(expression.root, root)));
     const requiresRate = roles.some(role => role !== "radius" && role !== contract.source.rateSource);
-    if (expression.valueType !== "scalar" || !roles.length || !evidenceRoles.has("radius") && (requiresRate || roles.includes("radius"))
-      || !evidenceRoles.has(contract.source.rateSource as Role) && roles.some(role => role !== "radius")) fail(`expressions.${expression.id}`);
+    const needed = new Set<Role>([
+      ...(requiresRate || roles.includes("radius") ? ["radius" as const] : []),
+      ...(roles.some(role => role !== "radius") ? [contract.source.rateSource as Role] : []),
+    ]);
+    // Every listed fact supplies an operand or participates in a complete
+    // request/formula binding. An appended request is not a numeric operand.
+    const consumedRequest = (fact: ProblemFact) => fact.kind === "requested" && !!factRoles.get(fact.id)?.length
+      && factRoles.get(fact.id)!.every(role => roles.includes(role)) && problem.solveRequests.some(request => {
+        const binding = request.resultBinding;
+        return request.kind === "evaluate" && request.expressionId === expression.id && !!binding
+          && factRoles.get(fact.id)!.includes(uniformCircularRuntimeQuantityRole(binding)!)
+          && expression.evidenceFactIds.every(id => binding.evidenceFactIds.includes(id));
+      });
+    const unused = evidenceFacts.some(fact => !fact || !consumedRequest(fact) && (fact.kind !== "given"
+      || !factRoles.get(fact.id)?.length || factRoles.get(fact.id)!.some(role => !needed.has(role))));
+    if (expression.valueType !== "scalar" || !roles.length || unused || [...needed].some(role => !evidenceRoles.has(role))) fail(`expressions.${expression.id}`);
     expressionRoles.set(expression.id, roles);
   }
   const usedRequests = new Set<Role>();
@@ -196,16 +247,93 @@ export function uniformCircularRuntimeProblemIssues(contract: UniformCircularRun
     else usedRequests.add(role);
   }
   if (contract.requested.some(role => !usedRequests.has(role))) fail("solveRequests");
+  const setupEvidence = (ids: string[]) => ids.length > 0 && ids.every(id => {
+    const fact = problem.facts.find(row => row.id === id);
+    return !!fact && (fact.kind === "given" || supportedUniformAssumption(contract, fact))
+      && factRoles.has(id) && fact.evidence.end <= contract.requestStart;
+  }) && ids.some(id => factRoles.get(id)?.includes("radius"));
   for (const constraint of problem.constraints) {
     // The supported setup contains only point-on-circle incidence. Every
     // other relation/equation is an additional unsupported obligation.
     const ids = "entityIds" in constraint ? constraint.entityIds.map(id => uniformCircularRuntimeEntityId(contract, problem, id)) : [];
-    if (constraint.kind !== "incident" || ids.length !== 2 || !ids.includes("body") || !ids.includes("path")) fail(`constraints.${constraint.id}`);
+    if (!setupEvidence(constraint.evidenceFactIds) || constraint.kind !== "incident" || ids.length !== 2 || !ids.includes("body") || !ids.includes("path")) fail(`constraints.${constraint.id}`);
   }
   for (const intent of problem.representationIntents) {
-    if (!["conceptual", "graph"].includes(intent.kind) || intent.entityIds.some(id => !uniformCircularRuntimeEntityId(contract, problem, id))) fail(`representationIntents.${intent.id}`);
+    if (!setupEvidence(intent.evidenceFactIds) || !["conceptual", "graph"].includes(intent.kind) || intent.entityIds.some(id => !uniformCircularRuntimeEntityId(contract, problem, id))) fail(`representationIntents.${intent.id}`);
   }
   return issues;
+}
+
+/** Each supported sentence is a complete physical assertion, not a keyword
+ * allowlist. Unsupported prose declines. These are laws of the admitted source
+ * state, not question/fixture templates; no IDs or authored metadata confer truth.
+ */
+function supportedPlanAssertion(contract: UniformCircularRuntimeContract, text: string): boolean {
+  const phrase = phraseText(text).replace(/²/g, "^2").replace(/ω/g, "omega");
+  const inward = "(?:toward|towards) the (?:center|centre)(?: of the (?:circle|circular track))?";
+  const acceleration = new RegExp(`^(?:the )?(?:centripetal )?acceleration (?:points|is directed|directed) (?:radially inward(?: ${inward})?|${inward})(?:, perpendicular to (?:the )?velocity)?$`);
+  if (acceleration.test(phrase)) return true;
+  if (/^(?:the )?speed is constant(?: in uniform circular motion| because the period and radius are fixed)?$/.test(phrase)) return true;
+  if (phrase === "constant speed") return true;
+  if (new RegExp(`^(?:the )?${escapePattern(contract.actor)} (?:undergoes|moves in) uniform circular motion(?: with constant speed)?$`).test(phrase)) return true;
+  if (/\bhorizontal\b/.test(contract.setup) && phrase === "horizontal circle implies no vertical acceleration component considered") return true;
+  if (/^uniform circular motion(?: \(constant speed\)| at constant speed)?$/.test(phrase)) return true;
+  if (/^(?:the )?velocity is (?:tangent|tangential) to the (?:circle|circular path|circular track)$/.test(phrase)) return true;
+  if (/^(?:centripetal )?acceleration is perpendicular to (?:the )?velocity$/.test(phrase)) return true;
+  if (/^speed is constant in uniform circular motion and equals circumference divided by period$/.test(phrase)) return true;
+  if (/^speed is constant, so the period is circumference divided by speed$/.test(phrase)) return true;
+  if (new RegExp(`^centripetal acceleration points ${inward} and has magnitude v\\^2/r$`).test(phrase)) return true;
+  if (/^angular speed is omega = v\/r$/.test(phrase)) return true;
+  if (new RegExp(`^centripetal acceleration magnitude is a_c = v\\^2/r = omega\\^2r, directed radially inward ${inward}$`).test(phrase)) return true;
+  if (contract.source.sense === "clockwise" && phrase === "clockwise motion sets the sign of angular velocity (negative by the usual counterclockwise-positive convention) but does not change the magnitudes") return true;
+  if (phrase === "a verified illustration is required by the question's spatial or explicit visual request") return true;
+  const piDisplay = /^pi approx (3\.\d+)$/.exec(phrase);
+  if (piDisplay) return Math.abs(Number(piDisplay[1]) - Math.PI) <= .5 * 10 ** -(piDisplay[1]!.length - 2);
+  if (new RegExp(`^${escapePattern(contract.actor)} treated as a point particle$`).test(phrase)) return true;
+  const radius = contract.source.givens.find(given => given.role === "radius")!;
+  if (contract.path === "circular track" && phrase === `track is a perfect circle of radius ${radius.text.toLowerCase()}`) return true;
+  const speed = contract.source.givens.find(given => given.role === "speed");
+  if (speed && phrase === `speed is constant at ${speed.text.toLowerCase()} (uniform circular motion)`) return true;
+  return !!contract.source.sense && new RegExp(`^(?:(?:the )?(?:${escapePattern(contract.actor)}|body) )?moves ${contract.source.sense}$`).test(phrase);
+}
+
+/** Known equation chains are joined to the source state as well as prose.
+ * Symbolic members must be circular identities; numeric members carry their
+ * own SI units. Rounding is allowed only following an explicit approx sign.
+ */
+function supportedClaimExpected(contract: UniformCircularRuntimeContract, expected: unknown): boolean {
+  if (expected === true) return true;
+  if (typeof expected !== "string") return false;
+  if (supportedPlanAssertion(contract, expected)) return true;
+  let text = expected.replace(/²/g, "^2").replace(/ω/g, "omega").replace(/−/g, "-").trim();
+  const signed = / if signed; magnitude /.test(text);
+  if (signed) {
+    if (contract.source.sense !== "clockwise") return false;
+    const match = /^omega = (-[\d.]+) rad\/s if signed; magnitude ([\d.]+) rad\/s$/.exec(text);
+    return !!match && Number(match[1]) === -contract.source.angularSpeed && Number(match[2]) === contract.source.angularSpeed;
+  }
+  text = text.replace(/, directed radially inward$/, "");
+  const parts = text.split(/\s*(=|≈)\s*/);
+  const symbol = parts.shift()!.trim();
+  const role: Role | null = symbol === "a_c" ? "acceleration" : symbol === "T" ? "period" : symbol === "v" ? "speed" : symbol === "omega" ? "angular_speed" : null;
+  if (!role || parts.length < 2) return false;
+  const identities: Record<Role, string[]> = {
+    radius: ["r"], speed: ["2*pi*r/T"], period: ["2*pi*r/v"], angular_speed: ["v/r", "2*pi/T"],
+    acceleration: ["v^2/r", "omega^2r", "omega^2*r", "4*pi^2*r/T^2"],
+  };
+  const unit: Record<Role, string> = {radius:"m",speed:"m/s",period:"s",angular_speed:"rad/s",acceleration:"m/s^2"};
+  const value = uniformCircularRuntimeQuantityValue(contract.source, {symbol,unit:unit[role]})!;
+  for (let i = 0; i < parts.length; i += 2) {
+    const member = parts[i + 1]!.replace(/\s/g, "");
+    if (identities[role].includes(member) && parts[i] === "=") continue;
+    if (!member.endsWith(unit[role])) return false;
+    const literal = member.slice(0, -unit[role].length);
+    if (!/^-?(?:\d+(?:\.\d+)?)(?:\*pi)?$/.test(literal)) return false;
+    const digits = /\.(\d+)/.exec(literal)?.[1]?.length ?? 0;
+    const tolerance = parts[i] === "≈" ? .5 * 10 ** -digits : 8 * Number.EPSILON * Math.max(1, Math.abs(value));
+    try { if (Math.abs(evaluateMathExpression(literal, 0) - value) > tolerance) return false; } catch { return false; }
+  }
+  return true;
 }
 
 /** Unknown rows are obligations too; do not delete them to obtain admission. */
@@ -224,15 +352,23 @@ export function uniformCircularRuntimePlanConflicts(question: string, rawPlan: u
     // owned by the same role; a same-value radius/rate substitution is false.
     if (rows("givens").includes(row)) {
       const given = reading.contract.source.givens.find(given => given.role === role);
-      if (!given || typeof row.sourceText !== "string" || !containsLiteral(row.sourceText, given.text)) add(row);
+      if (!given || typeof row.sourceText !== "string" || !containsLiteral(row.sourceText, given.text)
+        || !reading.contract.setup.includes(row.sourceText) || !givenStatementRoles(reading.contract, row.sourceText)?.includes(role)) add(row);
     }
     if (rows("unknowns").includes(row) && !reading.contract.requested.includes(role)) add(row);
+    if (row.uncertainty !== undefined && (row.uncertainty !== 0 || !rows("givens").includes(row)
+      && (typeof row.value !== "number" || row.value !== uniformCircularRuntimeQuantityValue(reading.contract.source, {symbol:String(row.symbol),unit:String(row.unit)})))) add(row);
   }
+  const inputRoles = rows("givens").map(row => uniformCircularRuntimeQuantityRole({symbol:String(row.symbol),unit:String(row.unit)}));
+  if (inputRoles.length !== 2 || new Set(inputRoles).size !== 2 || reading.contract.source.givens.some(given => !inputRoles.includes(given.role as Role))) add({id:"givens"});
   const unknowns = rows("unknowns");
-  if (unknowns.length) {
-    const roles = unknowns.map(row => typeof row.symbol === "string" ? uniformCircularRuntimeQuantityRole({ symbol: row.symbol, unit: typeof row.unit === "string" ? row.unit : undefined }) : null);
-    if (roles.length !== new Set(roles).size || reading.contract.requested.some(role => !roles.includes(role))) add(unknowns[0]!);
+  const roles = unknowns.map(row => typeof row.symbol === "string" ? uniformCircularRuntimeQuantityRole({ symbol: row.symbol, unit: typeof row.unit === "string" ? row.unit : undefined }) : null);
+  if (roles.length !== new Set(roles).size || reading.contract.requested.some(role => !roles.includes(role))) add({id:"unknowns"});
+  for (const claim of rows("qualitativeClaims")) {
+    if (typeof claim.claim !== "string" || !supportedPlanAssertion(reading.contract, claim.claim)
+      || !supportedClaimExpected(reading.contract, claim.expected)) add(claim);
   }
+  if (!Array.isArray(plan.assumptions) || plan.assumptions.some(text => typeof text !== "string" || !supportedPlanAssertion(reading.contract, text))) add({id:"assumptions"});
   return conflicts;
 }
 

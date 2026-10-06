@@ -1,0 +1,542 @@
+{
+  "disposition": "integration_pending",
+  "base": "2314ec33b6fb421028bca597f819bca17cc2b168",
+  "worktree": "/Users/kaizen/heytutor-cov-wt/w2-ucm-whole-guards-fix-20261006",
+  "topic": "physics|2|uniform-circular-motion",
+  "productionFiles": [
+    "packages/scene-engine/src/physics/uniformCircularAuthority.ts"
+  ],
+  "newGroups": 238,
+  "sourceFailures": 0,
+  "esmFailures": 0,
+  "baselineGroups": 238,
+  "baselineFailures": 175,
+  "unchangedWorkerGroups": 246,
+  "parentChecks": 48,
+  "motionGroups": 47,
+  "selectionChecks": 33,
+  "originalFixtures": [
+    {
+      "path": "packages/scene-engine/scripts/verify/fixtures/w2-ucm-live-20261006/independent-oracles.json",
+      "sha256": "a045c0de7e97919da7435b697e4e3ff2de3f8cbe26988416729fc04292516b51",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scene-engine/scripts/verify/fixtures/w2-ucm-live-20261006/w2-ucm-car.json",
+      "sha256": "8dd2f028c7977650176f4de978d135853a0e9813b7c4b2ed8edf1cf807dd08fb",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scene-engine/scripts/verify/fixtures/w2-ucm-live-20261006/w2-ucm-clockwise.json",
+      "sha256": "a25de645db5b1d25ec9c3ab272c764ee3d3fe946872c5e6fb7711b3a1f212ba7",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scene-engine/scripts/verify/fixtures/w2-ucm-live-20261006/w2-ucm-stone.json",
+      "sha256": "8bb39a4f3fef1a177780e5afa3d78af49b44926aabcca02dd3364f4c0bf74090",
+      "unchanged": true
+    }
+  ],
+  "inheritedAssertionComparison": [
+    {
+      "gate": "ready",
+      "sameAssertion": true,
+      "baselineAssertion": "AssertionError [ERR_ASSERTION]: the normal family path must return the same figure\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "finalAssertion": "AssertionError [ERR_ASSERTION]: the normal family path must return the same figure\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "baselineSHA256": "def381812aea35bdb5e2e663485f77dd074083c202bf9c1284a605ebbc7e033a",
+      "finalSHA256": "def381812aea35bdb5e2e663485f77dd074083c202bf9c1284a605ebbc7e033a"
+    },
+    {
+      "gate": "identity",
+      "sameAssertion": true,
+      "baselineAssertion": "AssertionError [ERR_ASSERTION]: {\"sense\":\"anticlockwise\",\"location\":\"P=(1.5,-2)\",\"result\":{\"status\":\"drawn\",\"scene\":{\"document\":{\"schemaVersion\":\"scene-document/v2\",\"visualDecision\":{\"mode\":\"scene\",\"reason\":\"body in uniform circular motion, moving anticlockwise, with its tangent velocity and inward acceleration recomputed from the source radius and rate\"},\"source\":{\"question\":\"A particle moves anticlockwise with uniform speed in a circle of radius 2.5 m about the origin with angular speed 2 rad/s. It is at P=(1.5,-2) m. Find its velocity.\",\"synthesizedFamily\":true,\"archetype\":\"uniform_circular_motion_source\",\"slotSources\":{\"r\":\"stem\",\"v\":\"stem\",\"omega\":\"stem\",\"a_c\":\"stem\"}},\"quantities\":[{\"id\":\"r\",\"symbol\":\"r\",\"value\":2.5,\"unit\":\"m\"},{\"id\":\"v\",\"symbol\":\"v\",\"value\":5,\"unit\":\"m/s\"},{\"id\":\"omega\",\"symbol\":\"omega\",\"value\":2,\"unit\":\"rad/s\"},{\"id\":\"a_c\",\"symbol\":\"a_c\",\"value\":10,\"unit\":\"m/s^2\"}],\"entities\":[{\"id\":\"O\",\"kind\":\"point\",\"role\":\"centre\",\"label\":\"O\"},{\"id\":\"path\",\"kind\":\"circle\",\"role\":\"circular path\"},{\"id\":\"Q\",\"kind\":\"point\",\"role\":\"radius mark end helper\"},{\"id\":\"radius\",\"kind\":\"segment\",\"role\":\"radius\",\"label\":\"r=2.5 m\"},{\"id\":\"body\",\"kind\":\"point\",\"role\":\"body in uniform circular motion\",\"label\":\"P\"},{\"id\":\"velocity\",\"kind\":\"vector\",\"role\":\"tangential velocity\",\"label\":\"v=5 m/s\"},{\"id\":\"accel\",\"kind\":\"vector\",\"role\":\"centripetal acceleration\",\"label\":\"a=10 m/s^2\"},{\"id\":\"source_name_body_0\",\"kind\":\"label\",\"role\":\"source identity caption\",\"label\":\"particle\"},{\"id\":\"source_name_path_0\",\"kind\":\"label\",\"role\":\"source identity caption\",\"label\":\"circle\"},{\"id\":\"source_name_O_0\",\"kind\":\"label\",\"role\":\"source identity caption\",\"label\":\"centre\"}],\"constructions\":[{\"id\":\"make_O\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"O\"]},{\"id\":\"make_path\",\"operator\":\"circle\",\"inputs\":{\"center\":\"O\",\"radius\":2.4},\"outputs\":[\"path\"]},{\"id\":\"make_Q\",\"operator\":\"point\",\"inputs\":{\"x\":-2.3828,\"y\":-0.2871,\"coordinateSpace\":\"world\"},\"outputs\":[\"Q\"]},{\"id\":\"make_radius\",\"operator\":\"segment\",\"inputs\":{\"start\":\"O\",\"end\":\"Q\"},\"outputs\":[\"radius\"]},{\"id\":\"make_body\",\"operator\":\"rotational_motion\",\"inputs\":{\"radius\":\"r\",\"angle\":-0.9272952180016122,\"angleUnit\":\"rad\",\"angularVelocity\":2,\"angularAcceleration\":0,\"units\":{\"length\":\"m\",\"time\":\"s\"},\"angularVelocityUnit\":\"rad/s\",\"angularAccelerationUnit\":\"rad/s^2\",\"origin\":[0,0],\"displayScale\":0.96},\"outputs\":[\"body\"]},{\"id\":\"make_velocity\",\"operator\":\"rotational_state\",\"inputs\":{\"motion\":\"body\",\"kind\":\"velocity\",\"displayLength\":1.4},\"outputs\":[\"velocity\"]},{\"id\":\"make_accel\",\"operator\":\"rotational_state\",\"inputs\":{\"motion\":\"body\",\"kind\":\"acceleration\",\"displayLength\":1.1},\"outputs\":[\"accel\"]},{\"id\":\"make_source_name_body_0\",\"operator\":\"label\",\"inputs\":{\"target\":\"body\",\"text\":\"particle\"},\"outputs\":[\"source_name_body_0\"]},{\"id\":\"make_source_name_path_0\",\"operator\":\"label\",\"inputs\":{\"target\":\"path\",\"text\":\"circle\"},\"outputs\":[\"source_name_path_0\"]},{\"id\":\"make_source_name_O_0\",\"operator\":\"label\",\"inputs\":{\"target\":\"O\",\"text\":\"centre\"},\"outputs\":[\"source_name_O_0\"]}],\"relations\":[],\"assertions\":[{\"id\":\"radius_end_on_path\",\"predicate\":\"on\",\"entities\":[\"Q\",\"path\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"body_on_path\",\"predicate\":\"on\",\"entities\":[\"body\",\"path\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"velocity_perpendicular_to_acceleration\",\"predicate\":\"perpendicular\",\"entities\":[\"velocity\",\"accel\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"label_body\",\"predicate\":\"label_attached\",\"entities\":[\"body\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"label_velocity\",\"predicate\":\"label_attached\",\"entities\":[\"velocity\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"label_accel\",\"predicate\":\"label_attached\",\"entities\":[\"accel\"],\"expected\":true,\"severity\":\"fatal\"}],\"annotations\":[{\"id\":\"source_period\",\"kind\":\"label\",\"targetIds\":[\"path\"],\"text\":\"T=3.142 s\"}],\"requiredEntityIds\":[\"O\",\"path\",\"radius\",\"body\",\"velocity\",\"accel\",\"source_name_body_0\",\"source_name_path_0\",\"source_name_O_0\"],\"revealGroups\":[{\"id\":\"setup\",\"entityIds\":[\"O\",\"path\",\"radius\",\"source_name_path_0\",\"source_name_O_0\"],\"dependsOn\":[],\"narrationCue\":\"the circular path, its centre and the radius\"},{\"id\":\"motion\",\"entityIds\":[\"body\",\"velocity\",\"source_name_body_0\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"acceleration\",\"entityIds\":[\"accel\"],\"dependsOn\":[\"motion\"],\"narrationCue\":\"the acceleration pointing to the centre\"}],\"teachingTimeline\":[{\"id\":\"reveal_setup\",\"action\":\"reveal\",\"targetId\":\"setup\",\"dependsOn\":[],\"narrationIntent\":\"the circular path, its centre and the radius\"},{\"id\":\"reveal_motion\",\"action\":\"reveal\",\"targetId\":\"motion\",\"dependsOn\":[\"reveal_setup\"],\"narrationIntent\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"reveal_acceleration\",\"action\":\"reveal\",\"targetId\":\"acceleration\",\"dependsOn\":[\"reveal_motion\"],\"narrationIntent\":\"the acceleration pointing to the centre\"}]},\"renderScene\":{\"engineVersion\":\"scene-engine/2.0.0\",\"primitives\":[{\"id\":\"primitive_O\",\"entityId\":\"O\",\"groupId\":\"setup\",\"kind\":\"point\",\"points\":[{\"x\":772.88,\"y\":332.5}]},{\"id\":\"primitive_path\",\"entityId\":\"path\",\"groupId\":\"setup\",\"kind\":\"circle\",\"points\":[{\"x\":772.88,\"y\":332.5}],\"radius\":213.5},{\"id\":\"primitive_radius\",\"entityId\":\"radius\",\"groupId\":\"setup\",\"kind\":\"line\",\"points\":[{\"x\":772.88,\"y\":332.5},{\"x\":560.91,\"y\":358.04}]},{\"id\":\"primitive_body\",\"entityId\":\"body\",\"groupId\":\"motion\",\"kind\":\"point\",\"points\":[{\"x\":900.98,\"y\":503.3}]},{\"id\":\"primitive_velocity\",\"entityId\":\"velocity\",\"groupId\":\"motion\",\"kind\":\"vector\",\"points\":[{\"x\":900.98,\"y\":503.3},{\"x\":1000.62,\"y\":428.57}]},{\"id\":\"primitive_accel\",\"entityId\":\"accel\",\"groupId\":\"acceleration\",\"kind\":\"vector\",\"points\":[{\"x\":900.98,\"y\":503.3},{\"x\":842.27,\"y\":425.02}]},{\"id\":\"primitive_O_label\",\"entityId\":\"O\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":747.2,\"y\":302.5}],\"text\":\"O\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":735.52552,\"y\":286.5,\"width\":23.354480000000002,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_radius_label\",\"entityId\":\"radius\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":666.9,\"y\":298.5}],\"text\":\"r=2.5 m\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":632.6412554316674,\"y\":282.5,\"width\":68.50748913666516,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_body_label\",\"entityId\":\"body\",\"groupId\":\"motion\",\"kind\":\"label\",\"points\":[{\"x\":926.61,\"y\":533.3}],\"text\":\"P\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":914.98,\"y\":517.3,\"width\":23.269640000000003,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_velocity_label\",\"entityId\":\"velocity\",\"groupId\":\"motion\",\"kind\":\"label\",\"points\":[{\"x\":1052.61,\"y\":465.94}],\"text\":\"v=5 m/s\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":1018.6200000000001,\"y\":449.935,\"width\":67.98878360003718,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_accel_label\",\"entityId\":\"accel\",\"groupId\":\"acceleration\",\"kind\":\"label\",\"points\":[{\"x\":871.63,\"y\":391.02}],\"text\":\"a=10 m/s^2\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":825.1254729518394,\"y\":375.02,\"width\":92.99905409632119,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_source_name_body_0_label\",\"entityId\":\"source_name_body_0\",\"groupId\":\"motion\",\"kind\":\"label\",\"points\":[{\"x\":900.98,\"y\":571.3}],\"text\":\"particle\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":866.8986402871827,\"y\":555.3,\"width\":68.1627194256346,\"height\":32},\"usesLeader\":true}},{\"id\":\"primitive_source_name_body_0_label_leader\",\"entityId\":\"source_name_body_0\",\"groupId\":\"motion\",\"kind\":\"line\",\"points\":[{\"x\":900.98,\"y\":503.3},{\"x\":900.98,\"y\":550.3}],\"provenance\":{\"annotation\":\"callout\",\"dashed\":true,\"strokeRole\":\"construction\",\"labelLeader\":true}},{\"id\":\"primitive_source_name_path_0_label\",\"entityId\":\"source_name_path_0\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":772.88,\"y\":372.5}],\"text\":\"circle\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":748.2468458462648,\"y\":356.5,\"width\":49.26630830747039,\"height\":32},\"usesLeader\":true}},{\"id\":\"primitive_source_name_path_0_label_leader\",\"entityId\":\"source_name_path_0\",\"groupId\":\"setup\",\"kind\":\"line\",\"points\":[{\"x\":772.88,\"y\":332.5},{\"x\":772.88,\"y\":351.5}],\"provenance\":{\"annotation\":\"callout\",\"dashed\":true,\"strokeRole\":\"construction\",\"labelLeader\":true}},{\"id\":\"primitive_source_name_O_0_label\",\"entityId\":\"source_name_O_0\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":816.39,\"y\":332.5}],\"text\":\"centre\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":786.88,\"y\":316.5,\"width\":59.020457502369105,\"height\":32},\"usesLeader\":false}},{\"id\":\"source_period\",\"entityId\":\"path\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":1042.74,\"y\":332.5}],\"text\":\"T=3.142 s\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":1004.38,\"y\":316.5,\"width\":76.71413300167129,\"height\":32},\"usesLeader\":false}}],\"revealGroups\":[{\"id\":\"setup\",\"entityIds\":[\"O\",\"path\",\"radius\",\"source_name_path_0\",\"source_name_O_0\"],\"dependsOn\":[],\"narrationCue\":\"the circular path, its centre and the radius\"},{\"id\":\"motion\",\"entityIds\":[\"body\",\"velocity\",\"source_name_body_0\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"acceleration\",\"entityIds\":[\"accel\"],\"dependsOn\":[\"motion\"],\"narrationCue\":\"the acceleration pointing to the centre\"}],\"timeline\":[{\"id\":\"reveal_setup\",\"action\":\"reveal\",\"targetId\":\"setup\",\"dependsOn\":[],\"narrationIntent\":\"the circular path, its centre and the radius\"},{\"id\":\"reveal_motion\",\"action\":\"reveal\",\"targetId\":\"motion\",\"dependsOn\":[\"reveal_setup\"],\"narrationIntent\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"reveal_acceleration\",\"action\":\"reveal\",\"targetId\":\"acceleration\",\"dependsOn\":[\"reveal_motion\"],\"narrationIntent\":\"the acceleration pointing to the centre\"}],\"entityBounds\":{\"O\":{\"x\":747.2,\"y\":302.5,\"width\":25.67999999999995,\"height\":30},\"path\":{\"x\":559.38,\"y\":119,\"width\":483.36,\"height\":427},\"radius\":{\"x\":560.91,\"y\":298.5,\"width\":211.97000000000003,\"height\":59.54000000000002},\"body\":{\"x\":900.98,\"y\":503.3,\"width\":25.629999999999995,\"height\":29.999999999999943},\"velocity\":{\"x\":900.98,\"y\":428.57,\"width\":151.62999999999988,\"height\":74.73000000000002},\"accel\":{\"x\":842.27,\"y\":391.02,\"width\":58.710000000000036,\"height\":112.28000000000003},\"source_name_body_0\":{\"x\":900.98,\"y\":503.3,\"width\":0,\"height\":67.99999999999994},\"source_name_path_0\":{\"x\":772.88,\"y\":332.5,\"width\":0,\"height\":40},\"source_name_O_0\":{\"x\":816.39,\"y\":332.5,\"width\":0,\"height\":0}}},\"validationReport\":{\"engineVersion\":\"scene-engine/2.0.0\",\"valid\":true,\"issues\":[],\"stats\":{\"entityCount\":10,\"constructionCount\":10,\"primitiveCount\":17,\"assertionCount\":6}},\"tier\":\"qualitative_verified\",\"nonMetric\":true,\"reason\":\"uniform circular motion state recomputed from the source radius and rate; the drawn radius is a display length\",\"family\":\"vector_diagram\"}}}\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "finalAssertion": "AssertionError [ERR_ASSERTION]: {\"sense\":\"anticlockwise\",\"location\":\"P=(1.5,-2)\",\"result\":{\"status\":\"drawn\",\"scene\":{\"document\":{\"schemaVersion\":\"scene-document/v2\",\"visualDecision\":{\"mode\":\"scene\",\"reason\":\"body in uniform circular motion, moving anticlockwise, with its tangent velocity and inward acceleration recomputed from the source radius and rate\"},\"source\":{\"question\":\"A particle moves anticlockwise with uniform speed in a circle of radius 2.5 m about the origin with angular speed 2 rad/s. It is at P=(1.5,-2) m. Find its velocity.\",\"synthesizedFamily\":true,\"archetype\":\"uniform_circular_motion_source\",\"slotSources\":{\"r\":\"stem\",\"v\":\"stem\",\"omega\":\"stem\",\"a_c\":\"stem\"}},\"quantities\":[{\"id\":\"r\",\"symbol\":\"r\",\"value\":2.5,\"unit\":\"m\"},{\"id\":\"v\",\"symbol\":\"v\",\"value\":5,\"unit\":\"m/s\"},{\"id\":\"omega\",\"symbol\":\"omega\",\"value\":2,\"unit\":\"rad/s\"},{\"id\":\"a_c\",\"symbol\":\"a_c\",\"value\":10,\"unit\":\"m/s^2\"}],\"entities\":[{\"id\":\"O\",\"kind\":\"point\",\"role\":\"centre\",\"label\":\"O\"},{\"id\":\"path\",\"kind\":\"circle\",\"role\":\"circular path\"},{\"id\":\"Q\",\"kind\":\"point\",\"role\":\"radius mark end helper\"},{\"id\":\"radius\",\"kind\":\"segment\",\"role\":\"radius\",\"label\":\"r=2.5 m\"},{\"id\":\"body\",\"kind\":\"point\",\"role\":\"body in uniform circular motion\",\"label\":\"P\"},{\"id\":\"velocity\",\"kind\":\"vector\",\"role\":\"tangential velocity\",\"label\":\"v=5 m/s\"},{\"id\":\"accel\",\"kind\":\"vector\",\"role\":\"centripetal acceleration\",\"label\":\"a=10 m/s^2\"},{\"id\":\"source_name_body_0\",\"kind\":\"label\",\"role\":\"source identity caption\",\"label\":\"particle\"},{\"id\":\"source_name_path_0\",\"kind\":\"label\",\"role\":\"source identity caption\",\"label\":\"circle\"},{\"id\":\"source_name_O_0\",\"kind\":\"label\",\"role\":\"source identity caption\",\"label\":\"centre\"}],\"constructions\":[{\"id\":\"make_O\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"O\"]},{\"id\":\"make_path\",\"operator\":\"circle\",\"inputs\":{\"center\":\"O\",\"radius\":2.4},\"outputs\":[\"path\"]},{\"id\":\"make_Q\",\"operator\":\"point\",\"inputs\":{\"x\":-2.3828,\"y\":-0.2871,\"coordinateSpace\":\"world\"},\"outputs\":[\"Q\"]},{\"id\":\"make_radius\",\"operator\":\"segment\",\"inputs\":{\"start\":\"O\",\"end\":\"Q\"},\"outputs\":[\"radius\"]},{\"id\":\"make_body\",\"operator\":\"rotational_motion\",\"inputs\":{\"radius\":\"r\",\"angle\":-0.9272952180016122,\"angleUnit\":\"rad\",\"angularVelocity\":2,\"angularAcceleration\":0,\"units\":{\"length\":\"m\",\"time\":\"s\"},\"angularVelocityUnit\":\"rad/s\",\"angularAccelerationUnit\":\"rad/s^2\",\"origin\":[0,0],\"displayScale\":0.96},\"outputs\":[\"body\"]},{\"id\":\"make_velocity\",\"operator\":\"rotational_state\",\"inputs\":{\"motion\":\"body\",\"kind\":\"velocity\",\"displayLength\":1.4},\"outputs\":[\"velocity\"]},{\"id\":\"make_accel\",\"operator\":\"rotational_state\",\"inputs\":{\"motion\":\"body\",\"kind\":\"acceleration\",\"displayLength\":1.1},\"outputs\":[\"accel\"]},{\"id\":\"make_source_name_body_0\",\"operator\":\"label\",\"inputs\":{\"target\":\"body\",\"text\":\"particle\"},\"outputs\":[\"source_name_body_0\"]},{\"id\":\"make_source_name_path_0\",\"operator\":\"label\",\"inputs\":{\"target\":\"path\",\"text\":\"circle\"},\"outputs\":[\"source_name_path_0\"]},{\"id\":\"make_source_name_O_0\",\"operator\":\"label\",\"inputs\":{\"target\":\"O\",\"text\":\"centre\"},\"outputs\":[\"source_name_O_0\"]}],\"relations\":[],\"assertions\":[{\"id\":\"radius_end_on_path\",\"predicate\":\"on\",\"entities\":[\"Q\",\"path\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"body_on_path\",\"predicate\":\"on\",\"entities\":[\"body\",\"path\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"velocity_perpendicular_to_acceleration\",\"predicate\":\"perpendicular\",\"entities\":[\"velocity\",\"accel\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"label_body\",\"predicate\":\"label_attached\",\"entities\":[\"body\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"label_velocity\",\"predicate\":\"label_attached\",\"entities\":[\"velocity\"],\"expected\":true,\"severity\":\"fatal\"},{\"id\":\"label_accel\",\"predicate\":\"label_attached\",\"entities\":[\"accel\"],\"expected\":true,\"severity\":\"fatal\"}],\"annotations\":[{\"id\":\"source_period\",\"kind\":\"label\",\"targetIds\":[\"path\"],\"text\":\"T=3.142 s\"}],\"requiredEntityIds\":[\"O\",\"path\",\"radius\",\"body\",\"velocity\",\"accel\",\"source_name_body_0\",\"source_name_path_0\",\"source_name_O_0\"],\"revealGroups\":[{\"id\":\"setup\",\"entityIds\":[\"O\",\"path\",\"radius\",\"source_name_path_0\",\"source_name_O_0\"],\"dependsOn\":[],\"narrationCue\":\"the circular path, its centre and the radius\"},{\"id\":\"motion\",\"entityIds\":[\"body\",\"velocity\",\"source_name_body_0\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"acceleration\",\"entityIds\":[\"accel\"],\"dependsOn\":[\"motion\"],\"narrationCue\":\"the acceleration pointing to the centre\"}],\"teachingTimeline\":[{\"id\":\"reveal_setup\",\"action\":\"reveal\",\"targetId\":\"setup\",\"dependsOn\":[],\"narrationIntent\":\"the circular path, its centre and the radius\"},{\"id\":\"reveal_motion\",\"action\":\"reveal\",\"targetId\":\"motion\",\"dependsOn\":[\"reveal_setup\"],\"narrationIntent\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"reveal_acceleration\",\"action\":\"reveal\",\"targetId\":\"acceleration\",\"dependsOn\":[\"reveal_motion\"],\"narrationIntent\":\"the acceleration pointing to the centre\"}]},\"renderScene\":{\"engineVersion\":\"scene-engine/2.0.0\",\"primitives\":[{\"id\":\"primitive_O\",\"entityId\":\"O\",\"groupId\":\"setup\",\"kind\":\"point\",\"points\":[{\"x\":772.88,\"y\":332.5}]},{\"id\":\"primitive_path\",\"entityId\":\"path\",\"groupId\":\"setup\",\"kind\":\"circle\",\"points\":[{\"x\":772.88,\"y\":332.5}],\"radius\":213.5},{\"id\":\"primitive_radius\",\"entityId\":\"radius\",\"groupId\":\"setup\",\"kind\":\"line\",\"points\":[{\"x\":772.88,\"y\":332.5},{\"x\":560.91,\"y\":358.04}]},{\"id\":\"primitive_body\",\"entityId\":\"body\",\"groupId\":\"motion\",\"kind\":\"point\",\"points\":[{\"x\":900.98,\"y\":503.3}]},{\"id\":\"primitive_velocity\",\"entityId\":\"velocity\",\"groupId\":\"motion\",\"kind\":\"vector\",\"points\":[{\"x\":900.98,\"y\":503.3},{\"x\":1000.62,\"y\":428.57}]},{\"id\":\"primitive_accel\",\"entityId\":\"accel\",\"groupId\":\"acceleration\",\"kind\":\"vector\",\"points\":[{\"x\":900.98,\"y\":503.3},{\"x\":842.27,\"y\":425.02}]},{\"id\":\"primitive_O_label\",\"entityId\":\"O\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":747.2,\"y\":302.5}],\"text\":\"O\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":735.52552,\"y\":286.5,\"width\":23.354480000000002,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_radius_label\",\"entityId\":\"radius\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":666.9,\"y\":298.5}],\"text\":\"r=2.5 m\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":632.6412554316674,\"y\":282.5,\"width\":68.50748913666516,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_body_label\",\"entityId\":\"body\",\"groupId\":\"motion\",\"kind\":\"label\",\"points\":[{\"x\":926.61,\"y\":533.3}],\"text\":\"P\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":914.98,\"y\":517.3,\"width\":23.269640000000003,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_velocity_label\",\"entityId\":\"velocity\",\"groupId\":\"motion\",\"kind\":\"label\",\"points\":[{\"x\":1052.61,\"y\":465.94}],\"text\":\"v=5 m/s\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":1018.6200000000001,\"y\":449.935,\"width\":67.98878360003718,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_accel_label\",\"entityId\":\"accel\",\"groupId\":\"acceleration\",\"kind\":\"label\",\"points\":[{\"x\":871.63,\"y\":391.02}],\"text\":\"a=10 m/s^2\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":825.1254729518394,\"y\":375.02,\"width\":92.99905409632119,\"height\":32},\"usesLeader\":false}},{\"id\":\"primitive_source_name_body_0_label\",\"entityId\":\"source_name_body_0\",\"groupId\":\"motion\",\"kind\":\"label\",\"points\":[{\"x\":900.98,\"y\":571.3}],\"text\":\"particle\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":866.8986402871827,\"y\":555.3,\"width\":68.1627194256346,\"height\":32},\"usesLeader\":true}},{\"id\":\"primitive_source_name_body_0_label_leader\",\"entityId\":\"source_name_body_0\",\"groupId\":\"motion\",\"kind\":\"line\",\"points\":[{\"x\":900.98,\"y\":503.3},{\"x\":900.98,\"y\":550.3}],\"provenance\":{\"annotation\":\"callout\",\"dashed\":true,\"strokeRole\":\"construction\",\"labelLeader\":true}},{\"id\":\"primitive_source_name_path_0_label\",\"entityId\":\"source_name_path_0\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":772.88,\"y\":372.5}],\"text\":\"circle\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":748.2468458462648,\"y\":356.5,\"width\":49.26630830747039,\"height\":32},\"usesLeader\":true}},{\"id\":\"primitive_source_name_path_0_label_leader\",\"entityId\":\"source_name_path_0\",\"groupId\":\"setup\",\"kind\":\"line\",\"points\":[{\"x\":772.88,\"y\":332.5},{\"x\":772.88,\"y\":351.5}],\"provenance\":{\"annotation\":\"callout\",\"dashed\":true,\"strokeRole\":\"construction\",\"labelLeader\":true}},{\"id\":\"primitive_source_name_O_0_label\",\"entityId\":\"source_name_O_0\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":816.39,\"y\":332.5}],\"text\":\"centre\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":786.88,\"y\":316.5,\"width\":59.020457502369105,\"height\":32},\"usesLeader\":false}},{\"id\":\"source_period\",\"entityId\":\"path\",\"groupId\":\"setup\",\"kind\":\"label\",\"points\":[{\"x\":1042.74,\"y\":332.5}],\"text\":\"T=3.142 s\",\"labelPlacement\":\"absolute\",\"provenance\":{\"labelBounds\":{\"x\":1004.38,\"y\":316.5,\"width\":76.71413300167129,\"height\":32},\"usesLeader\":false}}],\"revealGroups\":[{\"id\":\"setup\",\"entityIds\":[\"O\",\"path\",\"radius\",\"source_name_path_0\",\"source_name_O_0\"],\"dependsOn\":[],\"narrationCue\":\"the circular path, its centre and the radius\"},{\"id\":\"motion\",\"entityIds\":[\"body\",\"velocity\",\"source_name_body_0\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"acceleration\",\"entityIds\":[\"accel\"],\"dependsOn\":[\"motion\"],\"narrationCue\":\"the acceleration pointing to the centre\"}],\"timeline\":[{\"id\":\"reveal_setup\",\"action\":\"reveal\",\"targetId\":\"setup\",\"dependsOn\":[],\"narrationIntent\":\"the circular path, its centre and the radius\"},{\"id\":\"reveal_motion\",\"action\":\"reveal\",\"targetId\":\"motion\",\"dependsOn\":[\"reveal_setup\"],\"narrationIntent\":\"the body and its velocity along the tangent, moving anticlockwise\"},{\"id\":\"reveal_acceleration\",\"action\":\"reveal\",\"targetId\":\"acceleration\",\"dependsOn\":[\"reveal_motion\"],\"narrationIntent\":\"the acceleration pointing to the centre\"}],\"entityBounds\":{\"O\":{\"x\":747.2,\"y\":302.5,\"width\":25.67999999999995,\"height\":30},\"path\":{\"x\":559.38,\"y\":119,\"width\":483.36,\"height\":427},\"radius\":{\"x\":560.91,\"y\":298.5,\"width\":211.97000000000003,\"height\":59.54000000000002},\"body\":{\"x\":900.98,\"y\":503.3,\"width\":25.629999999999995,\"height\":29.999999999999943},\"velocity\":{\"x\":900.98,\"y\":428.57,\"width\":151.62999999999988,\"height\":74.73000000000002},\"accel\":{\"x\":842.27,\"y\":391.02,\"width\":58.710000000000036,\"height\":112.28000000000003},\"source_name_body_0\":{\"x\":900.98,\"y\":503.3,\"width\":0,\"height\":67.99999999999994},\"source_name_path_0\":{\"x\":772.88,\"y\":332.5,\"width\":0,\"height\":40},\"source_name_O_0\":{\"x\":816.39,\"y\":332.5,\"width\":0,\"height\":0}}},\"validationReport\":{\"engineVersion\":\"scene-engine/2.0.0\",\"valid\":true,\"issues\":[],\"stats\":{\"entityCount\":10,\"constructionCount\":10,\"primitiveCount\":17,\"assertionCount\":6}},\"tier\":\"qualitative_verified\",\"nonMetric\":true,\"reason\":\"uniform circular motion state recomputed from the source radius and rate; the drawn radius is a display length\",\"family\":\"vector_diagram\"}}}\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "baselineSHA256": "17299c9f8c001820c696745dfd11ff4427b7b05ee1162ead7e0f95c5fde30ffd",
+      "finalSHA256": "17299c9f8c001820c696745dfd11ff4427b7b05ee1162ead7e0f95c5fde30ffd"
+    },
+    {
+      "gate": "trust",
+      "sameAssertion": true,
+      "baselineAssertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(carScene)\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "finalAssertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(carScene)\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "baselineSHA256": "059cd9acd3ef5a35d5e07341a27164eb89d97ad6bb7c5102c29f57947af47c8e",
+      "finalSHA256": "059cd9acd3ef5a35d5e07341a27164eb89d97ad6bb7c5102c29f57947af47c8e"
+    },
+    {
+      "gate": "precision",
+      "sameAssertion": true,
+      "baselineAssertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(scene)\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "finalAssertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(scene)\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}",
+      "baselineSHA256": "7f89263f1a0517a14cc9b36e7ffc34971ba6dcd6303f2cad1bc62808c532b868",
+      "finalSHA256": "7f89263f1a0517a14cc9b36e7ffc34971ba6dcd6303f2cad1bc62808c532b868"
+    }
+  ],
+  "parentHookObservations": [
+    {
+      "case": "car",
+      "planConflictIds": [
+        "outward"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "zero"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "falseValue"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "ac"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "v"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "ac"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "unknowns"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "givens",
+        "unknowns"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "planConflictIds": [
+        "givens"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "car",
+      "missingOriginalIR": true,
+      "sourceOnlySynthesis": true,
+      "rawReadFatal": false,
+      "restored": true,
+      "disposition": "outside actual-full-IR scope; parent must enforce presence"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "outward"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "zero"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "falseValue"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "v"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "r"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "v"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "unknowns"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "givens",
+        "unknowns"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "planConflictIds": [
+        "givens"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "stone",
+      "missingOriginalIR": true,
+      "sourceOnlySynthesis": true,
+      "rawReadFatal": false,
+      "restored": true,
+      "disposition": "outside actual-full-IR scope; parent must enforce presence"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "outward"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "zero"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "falseValue"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "omega"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "v"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "omega"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "assumptions"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "unknowns"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "givens",
+        "unknowns"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "planConflictIds": [
+        "givens"
+      ],
+      "sourcePlanFatal": false,
+      "compiled": true,
+      "disposition": "central compile must reuse UCM whole-plan conflicts and stale scalar guards"
+    },
+    {
+      "case": "clockwise",
+      "missingOriginalIR": true,
+      "sourceOnlySynthesis": true,
+      "rawReadFatal": false,
+      "restored": true,
+      "disposition": "outside actual-full-IR scope; parent must enforce presence"
+    }
+  ],
+  "logs": [
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/baseline-identity.log",
+      "sha256": "ad4f168a5a1d17c646ab94e97d79d165ac33256e68942f282c2bafb61d7077b7"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/baseline-precision.log",
+      "sha256": "673456a39c546768e2b224bcceba9e400f368f1fe9d747f1fc104e43f348c269"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/baseline-ready.log",
+      "sha256": "f02a438b096c501a65d933bb962480e0f4207c0c618c4025676f0b8c029cb098"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/baseline-trust.log",
+      "sha256": "d8f29e531c8773f81ad45ee3cf1dc507479fae29cf609162f64e503fd8b470ef"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/core-build.log",
+      "sha256": "92a6f2e943ee208207d09eb1fae1154fea9ae5df8371600c8aa9887cb7692a66"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/drawing-build.log",
+      "sha256": "e92603e8c2e4d4f14068209817586389f98b086342a7124ac5784092e96887ee"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/engine-build.log",
+      "sha256": "169109145469b3e3c9ae9612ea53cd7691fdb796832e090fea4468130545cb01"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/esm.log",
+      "sha256": "72689bd6ecd2c078fee3408a9192c7d54951b04a7010f58e33b7f15987fca97e"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/final-identity.log",
+      "sha256": "edc3594b0c7d4403eebbee2092c0728962b430e0edf8bd51bd204e1a3c02328b"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/final-precision.log",
+      "sha256": "7d544dc40e5a8a20f9ce2e9c6085f26cc9b5c88b66d9d388fb5d15f11df8c909"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/final-ready.log",
+      "sha256": "b8fa96e6a385724c49d7c9c3ba85c6f59f7c7721b0159680adc805ecd904218d"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/final-trust.log",
+      "sha256": "502854821054d4916435c3945d956dea0ca8fe64bc5461a9eae8c5f0ccd13cae"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/gate-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/motion.log",
+      "sha256": "78a7db404824fb589f3b1cb4211db2350391225969b372c278f3ad76a89bbc38"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/parent.log",
+      "sha256": "65857a86b8a678d35199ee819b6ef9f5b59651f958ed373c14bb1cc6857f99d8"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/red.log",
+      "sha256": "ac5ef418ad620c9f453f6363a86ddcbf439d8b4e4f6b97af6d86d5eaaec6531b"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/selection.log",
+      "sha256": "69d9acc452aa361644185a48d7ac74ad6f5003d42e3ec66ffa2b5b6bcd05bb0c"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/source.log",
+      "sha256": "72689bd6ecd2c078fee3408a9192c7d54951b04a7010f58e33b7f15987fca97e"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/typecheck.log",
+      "sha256": "558983b05a3796932d7981846c74de2d5f5127dc3bdb83cd2a826bdc4a6a68e1"
+    },
+    {
+      "path": "/Users/kaizen/heytutor-claude-coord/reviews/w2-ucm-whole-guards-fix-20261006/diagnostics/worker.log",
+      "sha256": "0d4c60ba06b3b726aa22dee7a5de25e46951c032b8e831b9447c167896eedd00"
+    }
+  ],
+  "liveRuntimePerformed": false,
+  "acceptedCountsChanged": false
+}
