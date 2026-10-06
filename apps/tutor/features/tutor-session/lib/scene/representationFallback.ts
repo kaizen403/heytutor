@@ -26,6 +26,7 @@ import {
   type ValidationReport,
   type ValidationResult,
   relativeMotionSource,
+  relativeMotionCallerIssues,
   relativeMotionPlanConflicts,
   riverCrossingPlanConflicts,
   riverCrossingSpeeds,
@@ -144,10 +145,11 @@ export function selectFastVerifiedRepresentation(
 ): SelectedRepresentation | null {
   if (readScrewGaugeQuestion(input.question).status !== "none") return null;
   const sourceRelative = relativeMotionSource(input.question)?.status === "admitted";
+  if (relativeMotionCallerIssues(input.question, input.problemIR, input.turnPlan).length) return null;
   if (sourceRelative && motionPlanConflict(input.question, input.turnPlan)) return null;
   const plan = validateTurnPlanV3(input.turnPlan, input.question).plan;
   if (!plan || plan.visualRequirement === "none") return null;
-  if (plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
+  if (!sourceRelative && plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
       !isQuotedPhysicalConstant(given.symbol, given.value))) return null;
   const synthesized = synthesizeFamilyScene({
     question: input.question,
@@ -197,6 +199,8 @@ export function selectVerifiedRepresentation(
   // The question fixes these motion numbers. A plan that would narrate a
   // different value gets no figure at all, so a stale number is never spoken
   // over a correct (or a planner-drawn) picture.
+  const relativeCallerIssue = relativeMotionCallerIssues(input.question, input.problemIR, input.turnPlan)[0];
+  if (relativeCallerIssue) return { ...buildTextOnlySelected(input.question), reason: relativeCallerIssue.message };
   const motionConflict = motionPlanConflict(input.question, input.turnPlan);
   if (motionConflict) {
     const textOnly = buildTextOnlySelected(input.question);

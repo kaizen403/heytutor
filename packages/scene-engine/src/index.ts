@@ -88,3 +88,5 @@ export * from "./ir/measurementSourceAuthority";
 export * from "./ir/measurementQuestionPlanAuthority";
 
 export { snapshotMathSourceData } from "./compile/mathSourceData";
+
+export { relativeMotionCallerIssues } from "./physics/relativeMotionCallerAuthority";

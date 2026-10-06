@@ -35,7 +35,9 @@ import type { TurnPlanV3 } from "../contracts/contractsV3";
 import { bindStatedCircuitProblem } from "./statedCircuitProblemBinding";
 import { applyStatedCircuitAuthority, claimsStatedResistorCircuit, readStatedCircuitProblemSource } from "./statedCircuitAuthority";
 import { applyUniformCircularAuthority } from "../physics/uniformCircularSource";
-import { applyRelativeMotionAuthority, type MotionQuantityAuthority } from "../physics/motionPlanAgreement";
+import { type MotionQuantityAuthority } from "../physics/motionPlanAgreement";
+import { relativeMotionCallerIssues } from "../physics/relativeMotionCallerAuthority";
+import { relativeMotionSource } from "../physics/relativeMotionSource";
 import { applyRiverCrossingAuthority } from "../physics/riverCrossingSource";
 import { readMatrixProductSourceProgram } from "../compile/matrixSourceBinding";
 import { correctMatrixProductSourcePlan, matrixProductFullIRIssues, type MatrixProductPlanCorrection } from "./matrixProductSourceAuthority";
@@ -133,9 +135,13 @@ function motionOutcome(topic: string, code: string, result: MotionQuantityAuthor
 
 const relativeMotionAuthority: SourceQuantityAuthority = {
   topic: "physics|2|relative-velocity",
-  apply({ question, plan }) {
-    const result = applyRelativeMotionAuthority(question, plan);
-    return result ? motionOutcome(this.topic, "relative_motion", result) : null;
+  apply({ question, plan, problemIR }) {
+    const issues = relativeMotionCallerIssues(question, problemIR, plan);
+    if (!issues.length && relativeMotionSource(question)?.status !== "admitted") return null;
+    return {
+      topic: this.topic, plan, corrections: [], declineFigure: issues.length > 0,
+      issueCodes: issues.map(issue => issue.code),
+    };
   },
 };
 

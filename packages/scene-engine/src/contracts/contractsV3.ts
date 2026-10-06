@@ -2068,7 +2068,7 @@ export function validateSceneQuantityAgreement(
   displayedTexts: string[] = [],
   sourceContext?: SourceSceneQuantityContext,
 ): TurnPlanValidationIssue[] {
-  const proved = sourceContext ? provedSourceSceneQuantityValues(sceneQuantities, plan, displayedTexts, sourceContext) : [];
+  const proved = sourceContext !== undefined ? provedSourceSceneQuantityValues(sceneQuantities, plan, displayedTexts, sourceContext) : [];
   if (proved === null) return [{code: "scene_quantity_source_context", path: "sourceAuthority", message: "Complete caller source programme and compiled label proof must agree"}];
   const issues: TurnPlanValidationIssue[] = [];
   const planQuantities = [...plan.givens, ...plan.derived];
