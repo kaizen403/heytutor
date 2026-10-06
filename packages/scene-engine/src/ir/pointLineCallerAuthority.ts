@@ -146,14 +146,50 @@ export function bindPointLineCaller(question:string,raw:unknown):PointLineCaller
   return {problem,reading,pointId:point.id,lineId:line.id,...(foot?{footId:foot.id}:{}),footIdentity,outputs};
 }
 
+/** Prove a closed arithmetic expression, never sample a function at x=0.
+ * Every identifier occurrence must bind before any operation is evaluated,
+ * including variables in zero products, cancelled terms and function calls.
+ * The temporary AST preserves the submitted operators; originals stay intact. */
 function scalar(text:string,values:Map<string,number>):number|null{
-  let source=text.trim();
-  for(const [symbol,value] of [...values].sort((a,b)=>b[0].length-a[0].length)){
-    const escaped=symbol.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-    source=source.replace(new RegExp(`(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])`,"g"),`(${value})`);
+  const source=text.trim().replace(/\|([^|]+)\|/g,"abs($1)");
+  if(!source || source.length>256)return null;
+  const tokens:string[]=[],pattern=/\s*(?:(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)|([A-Za-z][A-Za-z0-9_]*'?)|([-+*/^()]))/y;
+  let position=0;
+  while(position<source.length){
+    if(/^\s*$/.test(source.slice(position)))break;
+    pattern.lastIndex=position;const match=pattern.exec(source);
+    if(!match || tokens.length>=128)return null;
+    tokens.push(match[1]??match[2]??match[3]!);position=pattern.lastIndex;
   }
-  source=source.replace(/\|([^|]+)\|/g,"abs($1)");
-  try{return parseMathExpression(source).evaluate(0);}catch{return null;}
+  let at=0;
+  const enter=(depth:number)=>{if(depth>=24)throw new Error("arithmetic depth exceeded");return depth+1;};
+  const sum=(depth:number):ExpressionNodeIR=>{
+    let left=product(depth);
+    while(tokens[at]==="+" || tokens[at]==="-"){const op=tokens[at++] as "+"|"-";left=B(op,left,product(depth));}
+    return left;
+  };
+  const product=(depth:number):ExpressionNodeIR=>{
+    let left=unary(depth);
+    while(tokens[at]==="*" || tokens[at]==="/"){const op=tokens[at++] as "*"|"/";left=B(op,left,unary(depth));}
+    return left;
+  };
+  const unary=(depth:number):ExpressionNodeIR=>{
+    if(tokens[at]==="+" || tokens[at]==="-"){const operator=tokens[at++] as "+"|"-";return {kind:"unary",operator,operand:unary(enter(depth))};}
+    const left=primary(depth);
+    return tokens[at]==="^" ? (at++,B("^",left,unary(enter(depth)))) : left;
+  };
+  const primary=(depth:number):ExpressionNodeIR=>{
+    const token=tokens[at++];if(!token)throw new Error("missing operand");
+    if(token==="(" || token==="sqrt" || token==="abs"){
+      if(token!=="(" && tokens[at++]!=="(")throw new Error("missing function argument");
+      const argument=sum(enter(depth));if(tokens[at++]!==")")throw new Error("unclosed group");
+      return token==="("?argument:C(token,argument);
+    }
+    if(/^(?:\d|\.)/.test(token))return N(Number(token));
+    const value=values.get(token);if(value===undefined)throw new Error("unbound operand");
+    return N(value);
+  };
+  try{const root=sum(0);return at===tokens.length?evaluate(root):null;}catch{return null;}
 }
 function splitTuple(text:string):string[]|null{
   if(!text.startsWith("(") || !text.endsWith(")"))return null;
@@ -162,16 +198,17 @@ function splitTuple(text:string):string[]|null{
   return index>0?[text.slice(1,index),text.slice(index+1,-1)]:null;
 }
 function mathValue(text:string,values:Map<string,number>,binding:PointLineCallerBinding):number[]|null{
-  const source=text.replace(/\s+/g,""),tuple=splitTuple(source);
+  // Whitespace separates tokens; never join an unbound `x _P` into `x_P`.
+  const source=text.trim(),tuple=splitTuple(source);
   if(tuple){const xy=tuple.map(t=>scalar(t,values));return xy.every(v=>v!==null)?xy as number[]:null;}
   // Vector projection written in its standard affine form.
-  const vector=/^([A-Za-z][A-Za-z]?\d?'?)=/.test(source)?null: /^([A-Za-z][A-Za-z]?\d?'?)-\((.*)\)\*\(a,b\)$/.exec(source);
+  const vector=/^([A-Za-z][A-Za-z]?\d?'?)\s*-\s*\((.*)\)\s*\*\s*\(\s*a\s*,\s*b\s*\)$/.exec(source);
   if(vector && vector[1]===(binding.reading.point.name??binding.pointId)){
     const scale=scalar(vector[2]!,values);if(scale===null)return null;
     return [binding.reading.point.x-scale*binding.reading.line.a,binding.reading.point.y-scale*binding.reading.line.b];
   }
   if(source===binding.footIdentity)return [binding.reading.foot.x,binding.reading.foot.y];
-  const scaled=/^-\((.*)\)\*\((.*)\)$/.exec(source);
+  const scaled=/^-\s*\((.*)\)\s*\*\s*\((.*)\)$/.exec(source);
   if(scaled){const k=scalar(scaled[1]!,values),pair=splitTuple(`(${scaled[2]})`);if(k!==null && pair){const result=pair.map(t=>scalar(t,values));if(result.every(v=>v!==null))return result.map(v=>-k*v!);}}
   const n=scalar(source,values);return n===null?null:[n];
 }
@@ -224,13 +261,20 @@ function planAgreement(binding:PointLineCallerBinding,raw:unknown):boolean{
   }
   const laws=["point_line_distance","perpendicular_foot_projection","point_line_distance_formula","orthogonal_projection_onto_line","dot_product_perpendicularity"];
   if(plan.lawIds.some(law=>!laws.includes(law)))return false;
+  // A line actor/assumption must cite the audited line entity's own given
+  // evidence. A source point quote cannot authorize a line by prefix alone.
+  const lineEntity=problem.entities.find(entity=>entity.id===binding.lineId)!;
+  const lineQuote=(quote:string)=>lineEntity.evidenceFactIds.some(id=>{
+    const fact=problem.facts.find(f=>f.id===id);
+    return fact?.kind==="given" && fact.evidence.quote===quote;
+  });
   for(const assumption of plan.assumptions){
     if(["Euclidean plane","Coordinates in consistent units","Standard Cartesian plane with Euclidean distance","The perpendicular foot is the orthogonal projection of P onto the line".replace("P",p)].includes(assumption))continue;
-    if(assumption.startsWith("The line is exactly ") && problem.facts.some(f=>f.kind==="given" && assumption.slice(20)===f.evidence.quote))continue;
+    if(assumption.startsWith("The line is exactly ") && lineQuote(assumption.slice(20)))continue;
     return false;
   }
   for(const claim of plan.qualitativeClaims){
-    if(!claim.relatedQuantityIds?.length || claim.relatedQuantityIds.some(id=>!ids.has(id)) || claim.relatedEntityHints?.some(h=>h!==p && !problem.facts.some(f=>f.kind==="given" && h===`line ${f.evidence.quote}`)) || typeof claim.expected!=="string")return false;
+    if(!claim.relatedQuantityIds?.length || claim.relatedQuantityIds.some(id=>!ids.has(id)) || claim.relatedEntityHints?.some(h=>h!==p && !(h.startsWith("line ") && lineQuote(h.slice(5)))) || typeof claim.expected!=="string")return false;
     const propositions=["Perpendicular distance from point to line ax+by+c=0","Foot of perpendicular from P to the line".replace("P",p),"Check: foot lies on the line","Foot lies on the given line","Perpendicular foot is P shifted along the line normal (a,b) by the signed residual over norm squared".replace("P",p),`Segment ${p}${binding.footIdentity} is parallel to the normal vector (${r.line.a},${r.line.b}), hence perpendicular to the line`];
     if(!propositions.includes(claim.claim) || !equationChain(claim.expected,values,binding))return false;
     if(claim.claim===propositions[5] && r.distance===0)return false;

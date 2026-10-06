@@ -1,6 +1,7 @@
 import {
   SCENE_ENGINE_VERSION,
   readScrewGaugeQuestion,
+  pointLineCallerIssues,
   buildMatrixSourceDocument,
   compileSceneDocument,
   detectArchetype,
@@ -147,6 +148,7 @@ export function selectFastVerifiedRepresentation(
   const sourceRelative = relativeMotionSource(input.question)?.status === "admitted";
   if (relativeMotionCallerIssues(input.question, input.problemIR, input.turnPlan).length) return null;
   if (sourceRelative && motionPlanConflict(input.question, input.turnPlan)) return null;
+  if (pointLineCallerIssues(input.question, input.problemIR, input.turnPlan).length) return null;
   const plan = validateTurnPlanV3(input.turnPlan, input.question).plan;
   if (!plan || plan.visualRequirement === "none") return null;
   if (!sourceRelative && plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
@@ -191,6 +193,14 @@ export function selectFastVerifiedRepresentation(
 export function selectVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation {
+  // Whole source/caller refusal is terminal for this operator. None of the
+  // exact, family, source-sketch or last-resort paths may omit an obligation
+  // and recover a partial graph from an equation inside the refused question.
+  const pointLineConflict = pointLineCallerIssues(input.question, input.problemIR, input.turnPlan)
+    .find((issue) => issue.severity === "fatal");
+  if (pointLineConflict) {
+    return { ...buildTextOnlySelected(input.question), reason: pointLineConflict.message };
+  }
   // The measurement arithmetic profile has no source-proved apparatus scene.
   // Refusal, including a terminal empty caller, cannot regain figure authority.
   if (readScrewGaugeQuestion(input.question).status !== "none") {
@@ -398,6 +408,9 @@ export function buildSourceGroundedRepresentation(
   question: string,
   turnPlan?: TurnPlanV3 | unknown | null,
 ): SelectedRepresentation {
+  const sourceConflict = pointLineCallerIssues(question, null, turnPlan)
+    .find((issue) => issue.severity === "fatal");
+  if (sourceConflict) throw new Error(sourceConflict.message);
   const normalizedQuestion = question.trim();
   const functionFacts = extractExplicitFunctionFacts(normalizedQuestion);
   const groundedClaims = extractGroundedRelationshipFacts(normalizedQuestion);
