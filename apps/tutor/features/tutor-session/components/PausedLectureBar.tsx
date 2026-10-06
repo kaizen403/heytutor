@@ -1,20 +1,21 @@
 "use client";
 
 import {
-  PAUSED_LECTURE_ANOTHER_DOUBT_LABEL,
-  PAUSED_LECTURE_BODY,
-  PAUSED_LECTURE_CONTINUE_LABEL,
-  PAUSED_LECTURE_TITLE,
   focusQuestionField,
+  pausedLessonCopy,
+  type PausedLessonCopyReason,
 } from "../lib/turn/lessonFollowUp";
 
 export interface PausedLectureBarProps {
   visible: boolean;
   onContinue: () => void;
+  /** "stop": the student stopped it (or reloaded); "doubt": a doubt was answered. */
+  reason?: PausedLessonCopyReason;
 }
 
-export function PausedLectureBar({ visible, onContinue }: PausedLectureBarProps) {
+export function PausedLectureBar({ visible, onContinue, reason = "doubt" }: PausedLectureBarProps) {
   if (!visible) return null;
+  const copy = pausedLessonCopy(reason);
 
   return (
     <div
@@ -29,10 +30,10 @@ export function PausedLectureBar({ visible, onContinue }: PausedLectureBarProps)
     >
       <div className="min-w-0">
         <p className="text-[0.8125rem] font-medium" style={{ color: "var(--sky-300)" }}>
-          {PAUSED_LECTURE_TITLE}
+          {copy.title}
         </p>
         <p className="text-[0.8125rem] leading-snug" style={{ color: "var(--text-soft)" }}>
-          {PAUSED_LECTURE_BODY}
+          {copy.body}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
@@ -43,14 +44,14 @@ export function PausedLectureBar({ visible, onContinue }: PausedLectureBarProps)
           }}
           className="btn btn-ghost btn-sm"
         >
-          {PAUSED_LECTURE_ANOTHER_DOUBT_LABEL}
+          {copy.askLabel}
         </button>
         <button
           type="button"
           onClick={onContinue}
           className="btn btn-sky btn-sm"
         >
-          {PAUSED_LECTURE_CONTINUE_LABEL}
+          {copy.continueLabel}
         </button>
       </div>
     </div>

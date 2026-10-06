@@ -13,14 +13,14 @@ import type { TutorPhase, BoardLayoutState, SegmentPlanStats } from "../../types
 import type { CodeLessonController } from "../../lib/code-lesson/codeLessonController";
 import type { SpokenSegmentClock } from "../../lib/code-lesson/codeSpokenSync";
 import type { DoubtTurnRequest } from "../../lib/input/askDoubt";
-import type { BoardPageRecord, PageTurnKind, PausedLessonRequest } from "../../lib/turn/doubtTurn";
+import type { BoardPageRecord, PageTurnKind, PausedLessonReason, PausedLessonRequest } from "../../lib/turn/doubtTurn";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import type { IntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
 
 /** A question opens a fresh page unless it carries a doubt or resumes this one. */
 export type HandleQuestionOptions = {
   doubt?: DoubtTurnRequest;
-  /** The rest of a lesson a mid-lesson doubt just paused. */
+  /** The rest of a lesson that stopped: by a doubt, by Stop, or before a reload. */
   resume?: PausedLessonRequest;
 };
 
@@ -253,7 +253,17 @@ export type TurnControlApi = {
   finishLectureUi: (turnGeneration?: number) => void;
   applyTurnPhase: (next: TutorPhase) => void;
   enqueueSegment: (segment: TutorSegment, turnGeneration?: number) => void;
-  enqueueVerifiedIntro: (segments: TutorSegment[], turnGeneration?: number) => void;
+  enqueueVerifiedIntro: (
+    segments: TutorSegment[],
+    turnGeneration?: number,
+    options?: {
+      /**
+       * The beats of a figure Stop cut off, finished by Continue. Drawn, never
+       * saved: the stopped turn's save already holds the whole figure.
+       */
+      remainder?: boolean;
+    },
+  ) => void;
   processResponseText: (
     responseText: string,
     introSegments?: TutorSegment[],
@@ -280,14 +290,23 @@ export type TurnControlApi = {
    */
   flushPausedLesson: () => void;
   /**
-   * After a doubt turn ends, offer Continue lecture / Ask another doubt rather
-   * than picking the lesson back up on its own.
+   * After a doubt turn ends (or Stop), offer Continue lesson / Ask another doubt
+   * rather than picking the lesson back up on its own.
    */
   offerPausedLessonResume: (resume?: PausedLessonRequest) => void;
   /** Drop a paused lecture: a fresh question, or a board change. */
   clearPausedLesson: () => void;
-  /** True while a mid-lecture doubt has been answered and the lesson can continue. */
+  /** True while a stopped lesson on this board can continue. */
   pausedLessonOffer: boolean;
+  /** Why it stopped ("stop" or "doubt"), for the bar's copy; null with no offer. */
+  pausedLessonReason: PausedLessonReason | null;
+  /**
+   * After a board is restored, offer the stopped lesson its saved turns leave
+   * (`pausedLessonFromStoredTurns`). Never continues on its own. Runs once per
+   * opened board; a no-op while a turn or a replay owns the board, so call it
+   * again when that ends. Returns what is offered.
+   */
+  restorePausedLesson: (turns: readonly StoredTurn[]) => PausedLessonRequest | null;
   /**
    * `options.prompt` carries an already-composed, board-grounded doubt and
    * `options.title` what it is saved under.

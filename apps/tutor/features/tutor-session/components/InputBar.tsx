@@ -74,6 +74,12 @@ export interface InputBarProps {
   billingNotice?: BillingFailure | null;
   onUpgrade?: () => void;
   onBillingFailure?: (failure: BillingFailure) => void;
+  /**
+   * Put `text` in the composer without sending it, then focus it (Teach it
+   * again on an old board that kept only its title, decision 13). Each new
+   * `nonce` places the text again; the student edits and sends it.
+   */
+  prefill?: { text: string; nonce: number } | null;
 }
 
 type SpeechRecognitionResultList = {
@@ -144,9 +150,24 @@ export function InputBar({
   billingNotice = null,
   onUpgrade,
   onBillingFailure,
+  prefill = null,
 }: InputBarProps) {
   const [question, setQuestion] = useState("");
   const questionInputRef = useRef<HTMLTextAreaElement>(null);
+  // Adjusted during render, not in an effect: the text is in the box on the
+  // very render that asked for it.
+  const [prefillNonce, setPrefillNonce] = useState<number | null>(null);
+  if (prefill && prefill.nonce !== prefillNonce) {
+    setPrefillNonce(prefill.nonce);
+    setQuestion(prefill.text);
+  }
+  useEffect(() => {
+    if (prefillNonce === null) return;
+    const field = questionInputRef.current;
+    if (!field || field.disabled) return;
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  }, [prefillNonce]);
   const isMultiline = question.includes("\n");
   const speechSupported = useSyncExternalStore(
     subscribeToNothing,

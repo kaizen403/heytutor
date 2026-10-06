@@ -363,7 +363,7 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
     const handler = runHandler(lifecycle, observeControl);
     handleRef.current = handler.handleQuestion;
     const resume: PausedLessonRequest | undefined = mode === "resume-no-ink" ? {
-      boardId, lessonQuestion: question, turnPlan: plan, solverProjection: null,
+      boardId, reason: "doubt", lessonQuestion: question, turnPlan: plan, solverProjection: null,
       scene: null, figureDrawn: true, codeLesson: false, lessonBoardRows: [], interruptedStep: "The range follows from horizontal motion.",
     } : undefined;
     if (resume) control.offerPausedLessonResume(resume);

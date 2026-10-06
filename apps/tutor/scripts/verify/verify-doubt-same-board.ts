@@ -73,6 +73,7 @@ import {
   buildResumeTeachingPrompt,
   buildTurnTeachingPrompt,
   resumeLessonUserPrompt,
+  resumeInkRetryUserPrompt,
   type DoubtTeachingPromptInput,
 } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 import { boardContinuationOf } from "../../lib/boards/boardContinuation";
@@ -453,6 +454,38 @@ function doubtInput(overrides: Partial<DoubtTeachingPromptInput> = {}): DoubtTea
     "a resume must not be a two-step coda; it finishes the lecture",
   );
 
+  // A plain Stop (or a reload after one) asked no doubt. Its resume must never
+  // say one was answered, in any prompt it sends.
+  const stopResume = buildResumeTeachingPrompt({
+    ...doubtInput(),
+    reason: "stop",
+    lessonBoardRows: [{ workId: "w2", text: "R = u^2 sin 2θ / g" }],
+    interruptedStep: "so the range depends on",
+  });
+  for (const [name, text] of [
+    ["system", stopResume.systemPrompt],
+    ["continuation", stopResume.continuationPrompt],
+    ["user", resumeLessonUserPrompt(null, "stop")],
+    ["ink retry", resumeInkRetryUserPrompt("stop")],
+  ] as const) {
+    assert(!/doubt/i.test(text), `a "stop" resume's ${name} prompt must never mention a doubt`);
+  }
+  assert(
+    stopResume.systemPrompt.includes("THIS TURN CONTINUES THE PAUSED LESSON") &&
+      stopResume.systemPrompt.includes("has come back to it") &&
+      stopResume.systemPrompt.includes("Finish the original question completely"),
+    "a stopped lesson still continues to the end, without a doubt in the story",
+  );
+  assert(
+    resumeLessonUserPrompt(null, "stop").includes("teach it to the end"),
+    "the stop resume user prompt still asks for the rest of the lesson",
+  );
+  assert(
+    resumeInkRetryUserPrompt().includes("Do not repeat the doubt") &&
+      resumeLessonUserPrompt(null, "doubt") === resumeLessonUserPrompt(),
+    "a resume after a doubt keeps its doubt wording",
+  );
+
   const codePlan = getMockCodeLessonPlan("two sum with a hash map");
   const codeResume = buildResumeTeachingPrompt({
     ...doubtInput(),
@@ -651,7 +684,7 @@ function between(source: string, file: string, start: string, end: string): stri
   assert(ask.includes("keepVisibleBoard: true"), "Ask Doubt keeps the visible board when it stops the lesson");
   assert(ask.includes("pausedLessonFromLive("), "Ask Doubt snapshots the paused lesson so it can continue after the doubt");
   assert(
-    ask.includes("setPausedLessonOfferBoardId") && ask.includes("offerPausedLessonResume"),
+    ask.includes("setPausedLessonOfferState") && ask.includes("offerPausedLessonResume"),
     "a finished doubt waits for Continue instead of restarting on its own",
   );
   assert(

@@ -38,6 +38,8 @@ import {
 } from "../../lib/lecture-export/canExportLectureMp4";
 import { lectureExportCacheKey } from "../../lib/lecture-export/lectureExportFrames";
 import { LECTURE_EXPORT_PLAYBACK_RATE } from "../../lib/lecture-export/lectureExportSpeed";
+import { resumePageRecord, type PersistedTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
+import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -442,19 +444,118 @@ async function main(): Promise<void> {
   }
 
   {
+    // Owner decision 2: the video covers the whole board, from the lesson's
+    // start to now, so the encoder gets every turn (not only the last page).
+    // Doubts stay on their lesson's page through `storedTurnContinuesBoard` in
+    // the timeline; a live doubt continues it in the export source.
     const exporter = between(
       "features/tutor-session/hooks/useLectureExport.ts",
-      "const downloadLectureMp4 = useCallback(",
-      "return {",
+      "const downloadVideo = useCallback(",
+      "const downloadNotesPdf = useCallback(",
     );
     assert(
-      exporter.includes("latestLecturePage(") && !exporter.includes("latestCompletedTurn("),
-      "the video export must record the last page, not the last turn",
+      exporter.includes("pageTurns: turns,") && !exporter.includes("latestCompletedTurn("),
+      "the video export must hand every turn of the board to the encoder",
     );
-    assert(exporter.includes("pageTurns,"), "the export must hand the whole page to the encoder");
+    assert(
+      read("lib/lecture-export/lectureExportSource.ts").includes("boardContinuationOf(live.sceneArtifacts)"),
+      "a live doubt must continue its lesson's page in the export",
+    );
     assert(
       read("lib/lecture-export/exportLectureMp4.ts").includes("buildReplayTimeline(pageTurns)"),
-      "the encoder must draw every turn of the page",
+      "the encoder must draw every turn",
+    );
+  }
+
+  // --- the rest of a stopped lesson stays on the lesson's page -------------
+  // A resume is saved under the lesson's question with no CLEAR. Without the
+  // marker a reload read it as a new page: the notes split, the figure was drawn
+  // a second time, and the server rebuilt the whole intro into it.
+  {
+    const lessonPlan = { schemaVersion: "turn-plan/v3", question: LESSON };
+    const validated: PersistedTurnScene = {
+      sceneDocument: { id: "incline" },
+      sceneEngineVersion: "test",
+      validationReport: { ok: true },
+      visualStatus: "validated",
+      sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: lessonPlan },
+    };
+    const page = resumePageRecord({
+      boardId: "b1",
+      lessonQuestion: LESSON,
+      figureDrawn: true,
+      turnPlan: null,
+      solverProjection: null,
+      scene: validated,
+    });
+    const scene = page.turn.scene!;
+    assert(page.turn.continuesBoard && page.turn.question === LESSON, "a resume continues the page under the lesson's question");
+    assert(boardContinuationOf(scene.sceneArtifacts)?.lessonQuestion === LESSON, "the resume's scene carries the continuation marker");
+    assert(
+      scene.visualStatus === "validated" && scene.sceneDocument === validated.sceneDocument &&
+        (scene.sceneArtifacts as { turnPlan?: unknown }).turnPlan === lessonPlan,
+      "the marker rides beside the lesson's own scene and plan",
+    );
+    assert(boardContinuationOf(validated.sceneArtifacts) === null, "the lesson's own scene is not mutated");
+    const textOnly = resumePageRecord({
+      boardId: "b1", lessonQuestion: LESSON, figureDrawn: false, turnPlan: null, solverProjection: null, scene: null,
+    });
+    assert(
+      textOnly.turn.scene?.visualStatus === "text_only" &&
+        boardContinuationOf(textOnly.turn.scene.sceneArtifacts)?.lessonQuestion === LESSON,
+      "a text-only resume still carries the marker",
+    );
+
+    // Every scene the progressive save sends for the resume keeps the marker:
+    // live, stopped with or without its figure, complete, and the text-only retry.
+    const sent = [
+      liveTurnScene({ page, kind: "resume", preview: LESSON, opensPage: false, status: "live", textOnly: false }),
+      liveTurnScene({ page, kind: "resume", preview: LESSON, opensPage: false, status: "stopped", textOnly: false }),
+      liveTurnScene({ page: { ...page, figureDrawn: false }, kind: "resume", preview: LESSON, opensPage: false, status: "stopped", textOnly: false }),
+      liveTurnScene({ page, kind: "resume", preview: LESSON, opensPage: false, status: "complete", textOnly: false }),
+      liveTurnScene({ page, kind: "resume", preview: LESSON, opensPage: false, status: "live", textOnly: true }),
+    ];
+    sent.forEach((sentScene, index) => {
+      assert(
+        boardContinuationOf(sentScene.sceneArtifacts)?.lessonQuestion === LESSON,
+        `a resume save (case ${index}) must keep the continuation marker`,
+      );
+    });
+
+    // Saved, it reads as a continuation: one page, the lesson's question.
+    const lesson = lessonTurn(0, LESSON, ["F = ma"]);
+    const resumed: StoredTurn = {
+      ...turn({ orderIndex: 1, question: LESSON, rows: ["a = 3.2 m/s^2"], opensOnClear: false }),
+      sceneArtifacts: sent[3]!.sceneArtifacts,
+      kind: "resume",
+    };
+    assert(storedTurnContinuesBoard(resumed), "a saved resume continues the lesson's page");
+    assert(
+      pageTurnsEndingAt([lesson, resumed]).map((entry) => entry.id).join(",") === "turn-0,turn-1",
+      "lesson and resume are one page",
+    );
+    assert(storedTurnPageQuestion(resumed) === LESSON, "the resume's page is the lesson's");
+
+    // The server keeps the marker on a text-only resume (the validated path is
+    // covered by verify-partial-turn-restore with the real canonicalizer).
+    const savedText = await canonicalizeTurnSceneMetadata({
+      question: LESSON,
+      visualStatus: "text_only",
+      sceneArtifacts: textOnly.turn.scene!.sceneArtifacts,
+      segments: [{
+        orderIndex: 0, narration: "so a is 3.2", spokenText: "so a is 3.2",
+        command: serializeSegmentCommands([write("a = 3.2")], { trustedDiagramGeometry: false }),
+      }],
+    });
+    assert(
+      savedText.ok && boardContinuationOf(savedText.value.sceneArtifacts)?.lessonQuestion === LESSON,
+      "the server keeps a text-only resume's marker",
+    );
+
+    const handler = read("features/tutor-session/hooks/turn/useQuestionHandler.ts");
+    assert(
+      /\? resumePageRecord\(\{/.test(handler) && handler.includes('kind: doubt ? "doubt" : resume ? "resume" : "lesson",'),
+      "a resume runs on its own page record and saves as kind resume",
     );
   }
 

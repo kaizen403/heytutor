@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { IncrementalTagParser, parseDrawingCommands, prepareVerifiedLessonSegments, type TutorSegment } from "@heytutor/drawing";
 import { canStreamResumeRepair, createResumeInkGate, isTeachingResponseIncomplete, normalizeSegmentForAlignment, shouldRepairResumeWithoutInk, shouldRestoreResumeOffer } from "../../features/tutor-session/lib/turn/segmentPlanning";
-import { pausedLessonFromLive } from "../../features/tutor-session/lib/turn/doubtTurn";
+import { pausedLessonFromLive, pausedLessonOnStop, resumePageRecord, lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { LectureMarkupBuffer } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import { buildResumeTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
@@ -189,4 +189,47 @@ const beforePlayback = runner.split("let segmentCompleted = false;")[1]?.split("
 assert(onStartBody.includes("speakingNarrationRef.current = narration;") &&
   !beforePlayback.includes("speakingNarrationRef.current = narration;"),
   "a sentence must enter interrupted history only after speech starts");
+// A user Stop of a resumed lesson is offered again. The finally of the stopped
+// resume must not put back the stale request (its generation moved); Stop
+// itself snapshots the resume's own page, so Continue picks up after what the
+// resume taught.
+{
+  const pageBefore = lessonPageRecord("b1", "Find the range.");
+  pageBefore.figureDrawn = true;
+  const request = pausedLessonFromLive({
+    record: pageBefore, boardId: "b1", lessonQuestion: "Find the range.", codeLesson: false, figureDrawn: true,
+    lessonBoardRows: [{ text: "R = ?" }], interruptedStep: "so the range", reason: "stop", parentTraceId: "trace-lesson",
+  })!;
+  const resumePage = resumePageRecord({
+    boardId: "b1", lessonQuestion: "Find the range.", figureDrawn: true, turnPlan: null, solverProjection: null, scene: null,
+  });
+  const reoffered = pausedLessonOnStop({
+    record: resumePage, boardId: "b1", activeResume: { request, pageBefore }, taught: true,
+    liveQuestion: "Find the range.", codeLesson: false,
+    lessonBoardRows: [{ text: "R = ?" }, { text: "R = u^2 sin 2θ / g" }], interruptedStep: "at 45 degrees", parentTraceId: "trace-resume",
+  });
+  assert(reoffered?.reason === "stop" && reoffered.lessonQuestion === "Find the range.",
+    "a user Stop of a resume offers the lesson again");
+  assert(reoffered?.interruptedStep === "at 45 degrees" && reoffered.lessonBoardRows?.length === 2 &&
+    reoffered.parentTraceId === "trace-resume",
+    "the new offer starts after what the resume taught, not from the old snapshot");
+  assert(!shouldRestoreResumeOffer(false, true, 4, 5),
+    "the stopped resume's own finally must not put the stale request back");
+  const control = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useTurnControl.ts"), "utf8");
+  const slice = (start: string, end: string) => {
+    const from = control.indexOf(start);
+    assert(from >= 0, `useTurnControl: start anchor "${start}" is gone; repoint this gate`);
+    const to = control.indexOf(end, from + start.length);
+    assert(to > from, `useTurnControl: end anchor "${end}" is gone; repoint this gate`);
+    return control.slice(from, to);
+  };
+  const stop = slice("const stopTurn = useCallback(", "liveTurnSave().closeOwner(cancelRef);");
+  assert(stop.includes("activeResumeRef.current !== null ||") && stop.includes("activeResume: activeResumeRef.current,"),
+    "Stop knows a resume is live and snapshots it");
+  const flush = slice("const flushPausedLesson = useCallback(", "return {\n    finishLectureUi");
+  assert(flush.indexOf("activeResumeRef.current = { request: resume") >= 0 &&
+    flush.indexOf("activeResumeRef.current = { request: resume") < flush.indexOf("handleQuestionRef.current(resume.lessonQuestion"),
+    "Continue marks the resume live before it starts, so an early Stop still finds it");
+}
+
 console.log("resume ink verification passed");

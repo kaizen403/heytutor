@@ -102,6 +102,7 @@ import {
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
+import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
@@ -118,6 +119,7 @@ import {
   buildResumeTeachingPrompt,
   buildTurnTeachingPrompt,
   resumeLessonUserPrompt,
+  resumeInkRetryUserPrompt,
 } from "../../lib/turn/turnTeachingPrompt";
 import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
@@ -479,7 +481,11 @@ export function useQuestionHandler(
       collectedSegmentsRef.current = [];
       recordedSegmentsRef.current = [];
       rawResponseRef.current = "";
-      const previousTraceId = doubt || resume ? currentTraceIdRef.current ?? undefined : undefined;
+      // Billing lineage only. After a reload nothing is in memory, so a resume
+      // names the trace of the turn that stopped; it saves under its own.
+      const previousTraceId = resume
+        ? resume.parentTraceId ?? currentTraceIdRef.current ?? undefined
+        : doubt ? currentTraceIdRef.current ?? undefined : undefined;
       currentTraceIdRef.current = crypto.randomUUID();
       segmentChainRef.current = Promise.resolve();
       drawChainRef.current = Promise.resolve();
@@ -602,7 +608,9 @@ export function useQuestionHandler(
           ? resumePageRecord({
               boardId: sessionId,
               lessonQuestion: resume.lessonQuestion,
-              figureDrawn: resume.figureDrawn || Boolean(activeVerifiedDiagramRef.current),
+              // Ink, not a plan: a figure Stop caught before its first beat is
+              // drawn by this turn and marks the page when it commits.
+              figureDrawn: resume.figureDrawn,
               turnPlan: resume.turnPlan,
               solverProjection: resume.solverProjection,
               scene: resume.scene,
@@ -610,6 +618,8 @@ export function useQuestionHandler(
         : lessonPageRecord(sessionId, question);
       boardPageRef.current = page;
       liveSave?.setPage(page);
+      // What a Continue after a reload cannot rebuild from the saved turns.
+      if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));
 
       const isCurrentTurn = () =>
         canContinueTurnAfterAsync({
@@ -704,6 +714,8 @@ export function useQuestionHandler(
       let sceneV2Report: ValidationReport | null = null;
       let sceneV2RenderScene: RenderScene | null = null;
       let sceneV2IntroSegments: TutorSegment[] | null = null;
+      /** The intro is the rest of a figure a Stop cut off: drawn, never saved. */
+      let resumeIntroRemainder = false;
       let sceneVisualStatus: "validated" | "text_only" | "retry_required" = "text_only";
       let sceneV2Repaired = false;
       let sceneArtifacts: SceneArtifactsV3 | null = null;
@@ -1624,8 +1636,14 @@ export function useQuestionHandler(
       } else if (resume) {
         // Keep the figure the lesson already committed. If the intro never
         // landed, rebuild it from the paused scene so the rest of the lecture
-        // still has something to point at.
-        activeDiagram = activeVerifiedDiagramRef.current;
+        // still has something to point at. A figure a plain Stop caught before
+        // its first beat was planned, not drawn: it is drawn whole now.
+        activeDiagram = resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;
+        if (activeDiagram && !resume.codeLesson && resume.remainingIntro?.length) {
+          // Stop cut the figure off: Continue draws its missing beats first.
+          sceneV2IntroSegments = [...resume.remainingIntro];
+          resumeIntroRemainder = true;
+        }
         if (!activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
@@ -1691,6 +1709,7 @@ export function useQuestionHandler(
         // and saves the lesson's part with this scene if it stops it.
         page.turnPlan = turnPlan;
         page.solverProjection = problemAuthority?.projection ?? null;
+        liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection));
         page.turn.scene = {
           sceneDocument: sceneV2Document,
           sceneEngineVersion: SCENE_ENGINE_VERSION,
@@ -1815,6 +1834,7 @@ export function useQuestionHandler(
           ? buildResumeTeachingPrompt({
               ...pagePromptInput,
               lessonQuestion: resume.lessonQuestion,
+              reason: resume.reason,
               lessonBoardRows: resume.lessonBoardRows,
               interruptedStep: resume.interruptedStep,
               codeLessonBoard: Boolean(codeLesson),
@@ -2012,7 +2032,7 @@ export function useQuestionHandler(
           if (!codeLesson) {
             if (figureIntroEnqueued || !STREAM_SEGMENTS_LIVE) return;
             figureIntroEnqueued = true;
-            enqueueVerifiedIntro(introSegments, turnGeneration);
+            enqueueVerifiedIntro(introSegments, turnGeneration, { remainder: resumeIntroRemainder });
           }
         };
         const segmentNeedsFigure = (segment: TutorSegment): boolean =>
@@ -2196,7 +2216,7 @@ export function useQuestionHandler(
                 ? turnContinuationPrompt
                 : turnSystemPrompt,
               userPrompt: resumeInkRetry
-                ? `${resumeLessonUserPrompt()}\n\nYour previous continuation contained no usable [WRITE] step. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short [WRITE:text,x,y] tag immediately after the words that explain it. Do not repeat the doubt or any already written row. Return [STEP] blocks, not narration alone.`
+                ? resumeInkRetryUserPrompt(resume?.reason)
                 : isContinuation
                 ? [
                     "continue",
@@ -2215,6 +2235,7 @@ export function useQuestionHandler(
                       conductor && codeLesson
                         ? codeLessonResumeNote(conductor.status(), codeLesson)
                         : null,
+                      resume.reason,
                     )
                 : question,
               conversationHistory: compactConversationHistory(
@@ -2460,7 +2481,7 @@ export function useQuestionHandler(
         flushBufferedSegment();
         throwIfTurnCancelled();
         if (resumeInkGate && !resumeInkGate.hasInk()) {
-          const message = "The lecture could not resume with board writing. Please try Continue lecture again.";
+          const message = "The lesson could not resume with board writing. Please try Continue lesson again.";
           tel.mark("resume-without-ink", { attempts: resumeInkAttempts + 1 });
           turnCancelled = true;
           if (resume) offerPausedLessonResume(resume);
