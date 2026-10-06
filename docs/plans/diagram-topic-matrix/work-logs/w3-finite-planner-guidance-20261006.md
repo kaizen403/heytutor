@@ -1,0 +1,11 @@
+# W3 finite algebra planner guidance — 6 October 2026
+
+Parent-owned core prompt repair. Integration pending independent review and fresh real student acceptance. No READY/count/ledger changes.
+
+Actual native student input at combined2314ec33 in coordinator runtime/runs/2026-10-06T0748-w2-4ffd60c5 timed out120s. The model Plan invented a scalar polynomial=1, split result IDs u1/d1, used an unsupported compound symbol, rewrote OCR evidence and supplied wrong contribution claims. The original returned IR is preserved; closed source authority declined it. No smaller IR/alternate transcription was substituted. Other batch cases were unrun, no dependent restart/replay.
+
+New core/planners/finitePolynomialGuidance.ts uses the existing complete executed finite source parser to supply original exact expression/request quotes, full unsimplified AST, request role, and exact rational source coefficient to both ordinary TurnPlan lanes and ProblemIR prompts. It describes already-supported same-ID/symbol dimensionless coefficient roles and empty scalar givens/unsupported claims rather than a scalar polynomial placeholder. This is data and protocol guidance, not an IR builder, diagram factory, model response replacement or certification bypass. Every returned full IR and actual Plan still pass the unchanged recursive/source/AST/binding guards; extra unsupported obligations remain unresolved. Unrecognized whole source receives no guidance. The optional table describes pedagogical value without altering the submitted question or adding a figure cue.
+
+Core normal ESM/DTS build, typecheck and scoped lint pass. Existing455 W3 whole-IR Plan/live/save/read/restore controls and130 typed-decline/complete-input/source/public ESM controls pass. Logs coordinator integration/w3-guidance-*.log. The actual first failure and source exchanges remain diagnostic failure evidence. Independent final source review is ongoing; the prompt change will be separately reviewed before accepting a student.
+
+Changed files: packages/tutor-core/src/planners/finitePolynomialGuidance.ts, turnPlannerV3.ts and problemPlannerV1.ts plus this log. No source parser, validator, obligation budget, main, remote or Chemistry changes.

@@ -33,7 +33,7 @@ import { applyStaticContactTriangleAuthority } from "./staticContactTriangleAuth
 import {applyCircleSourceAuthority} from "./circleSourceAuthority";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import { bindStatedCircuitProblem } from "./statedCircuitProblemBinding";
-import { applyStatedCircuitAuthority, readStatedCircuitProblemSource, readCircuitUnit } from "./statedCircuitAuthority";
+import { applyStatedCircuitAuthority, claimsStatedResistorCircuit, readStatedCircuitProblemSource } from "./statedCircuitAuthority";
 import { applyUniformCircularAuthority } from "../physics/uniformCircularSource";
 import { applyRelativeMotionAuthority, type MotionQuantityAuthority } from "../physics/motionPlanAgreement";
 import { applyRiverCrossingAuthority } from "../physics/riverCrossingSource";
@@ -68,15 +68,17 @@ export interface SourceQuantityAuthority {
 const circuitAuthority: SourceQuantityAuthority = {
   topic: "physics|12|ohms-law-and-resistance",
   apply({ question, plan, problemIR }) {
-    if (!problemIR || !readStatedCircuitProblemSource(question)) return null;
-    if (!bindStatedCircuitProblem(question, problemIR)) {
-      const withdrawn = new Set(plan.derived.filter((quantity) => readCircuitUnit(quantity.unit)).map((quantity) => quantity.id));
+    if (!claimsStatedResistorCircuit(question)) return null;
+    const source = readStatedCircuitProblemSource(question);
+    // Before an attempted IR arrives, supported source-only planning keeps its
+    // separate existing policy. A refused whole source cannot use that path.
+    if (!problemIR && source) return null;
+    if (!source || !bindStatedCircuitProblem(question, problemIR)) {
       return {
         topic: this.topic,
-        plan: { ...plan, derived: plan.derived.filter((quantity) => !withdrawn.has(quantity.id)),
-          qualitativeClaims: plan.qualitativeClaims.filter((claim) => !(claim.relatedQuantityIds ?? []).some((id) => withdrawn.has(id))) },
+        plan: { ...plan, derived: [], unknowns: [], qualitativeClaims: [], assumptions: [] },
         corrections: [], declineFigure: true,
-        issueCodes: ["circuit_problem_binding", ...[...withdrawn].map(() => "circuit_value_withdrawn")],
+        issueCodes: ["circuit_problem_binding", ...plan.derived.map(() => "circuit_value_withdrawn")],
       };
     }
     const result = applyStatedCircuitAuthority(question, plan, { requireBoundClaims: true });

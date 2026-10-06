@@ -140,6 +140,7 @@ import {
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
+import { withdrawDeclinedProblemAuthority } from "../../lib/turn/declinedProblemAuthority";
 import { createTeachingArithmeticAdmission } from "../../lib/turn/teachingArithmeticAdmission";
 import { prepareSourceProblemAuthority, unavailableSourceProblemAuthority } from "../../lib/turn/sourceProblemAuthority";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
@@ -1356,7 +1357,7 @@ export function useQuestionHandler(
           parentSpan: "planner",
           deriveGate: deriveSceneGate,
           applyUnavailableAuthority: plan => sourceDecline
-            ? applySourceQuantityAuthority(plan, sourceDecline.rawProblemIR, question).plan : plan,
+            ? withdrawDeclinedProblemAuthority(plan, sourceDecline) : plan,
           applyAuthority: async (planToReconcile, authority) => {
             // A captured/model full IR is retained and source-bound before
             // recomputing its solver. Never pair repaired facts with old values.
