@@ -1,0 +1,386 @@
+{
+  "input": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0456-w2-f87b5051/evidence/w2-sf-external-planner-exchanges.json",
+  "question": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally in the ratio 2:1.",
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally in the ratio 2:1.",
+    "givens": [
+      {
+        "id": "ax",
+        "symbol": "x_A",
+        "value": 1,
+        "provenance": "given",
+        "sourceText": "A(1,2)"
+      },
+      {
+        "id": "ay",
+        "symbol": "y_A",
+        "value": 2,
+        "provenance": "given",
+        "sourceText": "A(1,2)"
+      },
+      {
+        "id": "bx",
+        "symbol": "x_B",
+        "value": 4,
+        "provenance": "given",
+        "sourceText": "B(4,5)"
+      },
+      {
+        "id": "by",
+        "symbol": "y_B",
+        "value": 5,
+        "provenance": "given",
+        "sourceText": "B(4,5)"
+      },
+      {
+        "id": "m",
+        "symbol": "m",
+        "value": 2,
+        "provenance": "given",
+        "sourceText": "ratio 2:1"
+      },
+      {
+        "id": "n",
+        "symbol": "n",
+        "value": 1,
+        "provenance": "given",
+        "sourceText": "ratio 2:1"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "px",
+        "symbol": "x_P"
+      },
+      {
+        "id": "py",
+        "symbol": "y_P"
+      }
+    ],
+    "derived": [
+      {
+        "id": "px",
+        "symbol": "x_P",
+        "value": 7,
+        "provenance": "derived",
+        "dependsOn": [
+          "ax",
+          "bx",
+          "m",
+          "n"
+        ],
+        "sourceText": "x_P=(m*x_B-n*x_A)/(m-n)=(2*4-1*1)/(2-1)=7"
+      },
+      {
+        "id": "py",
+        "symbol": "y_P",
+        "value": 8,
+        "provenance": "derived",
+        "dependsOn": [
+          "ay",
+          "by",
+          "m",
+          "n"
+        ],
+        "sourceText": "y_P=(m*y_B-n*y_A)/(m-n)=(2*5-1*2)/(2-1)=8"
+      }
+    ],
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "External division places P on line AB outside segment AB, on the side of B since m>n.",
+        "expected": "P=(7,8) lies beyond B(4,5) relative to A(1,2).",
+        "relatedQuantityIds": [
+          "px",
+          "py",
+          "ax",
+          "ay",
+          "bx",
+          "by"
+        ],
+        "relatedEntityHints": [
+          "point P",
+          "line segment AB"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Component check: AP:PB magnitudes match 2:1 externally.",
+        "expected": "A->P=(6,6), B->P=(3,3), so AP=2*PB as vectors in same direction from B to P.",
+        "relatedQuantityIds": [
+          "px",
+          "py",
+          "ax",
+          "ay",
+          "bx",
+          "by"
+        ],
+        "relatedEntityHints": [
+          "ratio 2:1"
+        ]
+      }
+    ],
+    "lawIds": [
+      "external_section_formula",
+      "coordinate_vector_ratio_check"
+    ],
+    "assumptions": [
+      "Cartesian plane coordinates",
+      "External division ratio m:n=2:1 with m>n",
+      "P is collinear with A and B"
+    ],
+    "visualRequirement": "optional"
+  },
+  "problem": {
+    "facts": [
+      {
+        "id": "fA",
+        "kind": "given",
+        "statement": "Point A has coordinates (1,2)",
+        "evidence": {
+          "source": "question",
+          "start": 56,
+          "end": 62,
+          "quote": "A(1,2)"
+        }
+      },
+      {
+        "id": "fB",
+        "kind": "given",
+        "statement": "Point B has coordinates (4,5)",
+        "evidence": {
+          "source": "question",
+          "start": 67,
+          "end": 73,
+          "quote": "B(4,5)"
+        }
+      },
+      {
+        "id": "fRatio",
+        "kind": "given",
+        "statement": "External division ratio is 2:1",
+        "evidence": {
+          "source": "question",
+          "start": 74,
+          "end": 101,
+          "quote": "externally in the ratio 2:1"
+        }
+      },
+      {
+        "id": "fP",
+        "kind": "requested",
+        "statement": "Find point P dividing segment externally",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 84,
+          "quote": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "ptA",
+        "kind": "point",
+        "label": "A",
+        "evidenceFactIds": [
+          "fA"
+        ]
+      },
+      {
+        "id": "ptB",
+        "kind": "point",
+        "label": "B",
+        "evidenceFactIds": [
+          "fB"
+        ]
+      },
+      {
+        "id": "ptP",
+        "kind": "point",
+        "label": "P",
+        "evidenceFactIds": [
+          "fP"
+        ]
+      },
+      {
+        "id": "segAB",
+        "kind": "line",
+        "label": "segment AB",
+        "evidenceFactIds": [
+          "fA",
+          "fB",
+          "fP"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "ePx",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fA",
+          "fB",
+          "fRatio"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 4
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 1
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 1
+            }
+          }
+        }
+      },
+      {
+        "id": "ePy",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fA",
+          "fB",
+          "fRatio"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 5
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 1
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 1
+            }
+          }
+        }
+      }
+    ],
+    "constraints": [
+      {
+        "id": "cCollinear",
+        "kind": "incident",
+        "entityIds": [
+          "ptP",
+          "segAB"
+        ],
+        "evidenceFactIds": [
+          "fP"
+        ]
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "iGraph",
+        "kind": "graph",
+        "entityIds": [
+          "ptA",
+          "ptB",
+          "ptP",
+          "segAB"
+        ],
+        "evidenceFactIds": [
+          "fA",
+          "fB",
+          "fP"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sPx",
+        "kind": "evaluate",
+        "expressionId": "ePx",
+        "resultBinding": {
+          "turnPlanQuantityId": "px",
+          "symbol": "x_P",
+          "evidenceFactIds": [
+            "fP"
+          ]
+        }
+      },
+      {
+        "id": "sPy",
+        "kind": "evaluate",
+        "expressionId": "ePy",
+        "resultBinding": {
+          "turnPlanQuantityId": "py",
+          "symbol": "y_P",
+          "evidenceFactIds": [
+            "fP"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally in the ratio 2:1."
+  }
+}

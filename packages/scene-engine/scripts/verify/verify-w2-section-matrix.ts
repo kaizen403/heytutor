@@ -103,7 +103,7 @@ for (const c of sectionCases) {
 const sf3Family = synthesizeFamilyScene({ question: section.question, problemIR: section });
 assert(sf3Family?.tier === "exact_verified", "actual SF3 normal family route");
 const line = doc.entities.find((entity) => entity.label === "AB")!;
-assert.equal(line.kind, "segment");
+assert.equal(line.kind, "line", "the caller's line carries external-point incidence beyond the finite endpoint interval");
 assert.deepEqual(line.provenance?.evidenceFactIds, ["fA", "fB"]);
 assert(doc.requiredEntityIds.includes(line.id));
 const unmarked = structuredClone(doc);

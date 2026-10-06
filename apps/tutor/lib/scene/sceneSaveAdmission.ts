@@ -17,6 +17,7 @@ import {
   validateSceneSourceAuthority,
   validateStaticContactTriangleSource, readStaticContactTriangle,
   readOpticalConjugateSource, opticalConjugateDocument, opticalConjugatePlanConflicts, opticalConjugateQuantityRole, opticalLengthInCm,
+  circleSourceDocument,applyCircleSourceAuthority,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -140,6 +141,12 @@ export function sceneSaveAdmissionFailure(input: {
     })) return "Optical unknown units or identities do not bind source roles";
     const conjugateDocument=conjugate?opticalConjugateDocument(question,turnPlan,input.problemIR):null;
     const conjugateTexts=new Set(conjugateDocument?displayedSceneText(conjugateDocument):[]);
+    const circleDocument=input.problemIR!=null?circleSourceDocument(question,input.problemIR):null;
+    if (circleDocument) {
+      const authority=applyCircleSourceAuthority(question,turnPlan,input.problemIR);
+      if (!authority || authority.issues.length) return "Circle plan quantities must first match their independently bound source roles";
+    }
+    const circleTexts=new Set(circleDocument?displayedSceneText(circleDocument):[]);
     // Quantities and labels the engine derives from the stem and the plan,
     // recomputed here, are supported alongside the plan's own. Plan ids stay
     // authoritative: a plan quantity is always checked against the plan.
@@ -149,11 +156,13 @@ export function sceneSaveAdmissionFailure(input: {
     const audited = document.quantities.filter((quantity) => {
       const conjugateQuantity=conjugateDocument?.quantities.find(row=>row.id===quantity.id);
       if (conjugateQuantity && conjugateQuantity.value===quantity.value && conjugateQuantity.unit===quantity.unit) return false;
+      const circleQuantity=circleDocument?.quantities.find(row=>row.id===quantity.id);
+      if (!planIds.has(quantity.id) && circleQuantity && circleQuantity.value===quantity.value && circleQuantity.unit===quantity.unit) return false;
       if (planIds.has(quantity.id)) return true;
       const fresh = derivedByEngine().quantities.get(quantity.id);
       return !(fresh && fresh.value === quantity.value && unitKey(fresh.unit) === unitKey(quantity.unit));
     });
-    const texts = displayedSceneText(document).filter((text) => !conjugateTexts.has(text) && !derivedByEngine().texts.has(text));
+    const texts = displayedSceneText(document).filter((text) => !conjugateTexts.has(text) && !circleTexts.has(text) && !derivedByEngine().texts.has(text));
     const agreementIssues = validateSceneQuantityAgreement(
       audited,
       turnPlan,

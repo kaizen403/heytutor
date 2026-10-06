@@ -17,8 +17,12 @@ import {
   readPointLineProgram,
   constantAccelerationSourceProgram,
   readSectionFormulaSource,
+  sectionFormulaScene,
+  validateProblemIR,
   staticContactTriangleDocument,
   opticalConjugateDocument,
+  readCircleSourceProgram,
+  circleSourceDocument,
   relativeMotionDocument,
   readStatedCircuitProblemSource,
   relativeMotionSource,
@@ -297,7 +301,16 @@ export function inferSceneCapabilities(
   const motion = relativeMotionSource(question);
   const triangle = staticContactTriangleDocument(question);
   const conjugate = opticalConjugateDocument(question);
-  const sourceDocument = acceleration ?? circuit?.document ?? triangle ?? conjugate ?? (motion?.status === "admitted" ? relativeMotionDocument(question,motion.source) : null);
+  const circle=readCircleSourceProgram(question);
+  if (circle.status==="ok") {
+    const document=circleSourceDocument(question,hints.problemIR);
+    return {visualRequired:hints.turnPlan?.visualRequirement!=="none",hasSourceProgram:true,families:["coordinate_figure"],
+      constructionOperators:[...new Set(document?.constructions.map(row=>row.operator) ?? ["axes","point","circle"])].filter(operator=>SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.some(supported=>supported===operator)),
+      proofPredicates:[...new Set(document?.assertions.map(row=>row.predicate) ?? [])].filter(predicate=>PLANNER_VISIBLE_SCENE_PROOF_PREDICATES.some(supported=>supported===predicate)),
+      planningGuidance:["A complete Cartesian source circle program is available. Preserve every actual caller fact, named point, requested result, proof and reveal obligation; availability does not certify a partial scene."]};
+  }
+  const sectionDocument=section?.status==="ok"?sectionFormulaScene(question,hints.problemIR==null?null:validateProblemIR(hints.problemIR,question).problem):null;
+  const sourceDocument = acceleration ?? circuit?.document ?? triangle ?? conjugate ?? sectionDocument ?? (motion?.status === "admitted" ? relativeMotionDocument(question,motion.source) : null);
   if (sourceDocument || section?.status === "ok" || motion?.status === "admitted") {
     // Availability comes from successfully executing a source program, never
     // a chapter identifier. Final full-IR/numeric/scene gates still decide ink.
@@ -306,7 +319,7 @@ export function inferSceneCapabilities(
       : ["axes", "point", "segment", "collinear_velocity_pair"];
     return {
       visualRequired: hints.turnPlan?.visualRequirement !== "none", hasSourceProgram: true,
-      families: sourceDocument ? acceleration ? ["analytic_curve"] : triangle || motion?.status === "admitted" ? ["contact_body"] : conjugate ? ["ray_path"] : ["circuit_network"]
+      families: sourceDocument ? acceleration ? ["analytic_curve"] : triangle || motion?.status === "admitted" ? ["contact_body"] : conjugate ? ["ray_path"] : sectionDocument ? ["coordinate_figure"] : ["circuit_network"]
         : section?.status === "ok" ? ["coordinate_figure"] : ["vector_diagram"],
       constructionOperators: operators.filter(operator => SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.some(supported => supported === operator)),
       proofPredicates: sourceDocument ? [...new Set(sourceDocument.assertions.map(row => row.predicate))]

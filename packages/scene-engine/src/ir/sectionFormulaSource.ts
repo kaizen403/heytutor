@@ -16,6 +16,8 @@ import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { derivedLabelTargets, readDerivedCoordinateLabelClaim, validateEvaluatedDerivedValueLabels } from "../compile/derivedValueLabels";
 import { validateProblemIR, type ExpressionNodeIR, type ProblemIR } from "./problemIR";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
+import {pruneDeadSceneEntities,validateSceneDocument} from "../document/validation";
+import {sameSceneValue} from "../document/valueEquality";
 
 type Rational = { n: bigint; d: bigint };
 type ExactPoint = { x: Rational; y: Rational };
@@ -411,7 +413,7 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
     facts.get(id)?.kind === "given" && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
   if (!endpoints.every((entity, i) => hasPointEvidence(entity!.evidenceFactIds, [source.a, source.b][i]!))) return false;
   const lines = problem.entities.filter((entity) => entity.kind === "line");
-  if (lines.length > 1 || lines.some((line) => line.label !== `${source.a.name}${source.b.name}`
+  if (lines.length > 1 || lines.some((line) => ![`${source.a.name}${source.b.name}`,`segment ${source.a.name}${source.b.name}`,`line ${source.a.name}${source.b.name}`,`line segment ${source.a.name}${source.b.name}`].includes(line.label ?? "")
     || !hasPointEvidence(line.evidenceFactIds, source.a) || !hasPointEvidence(line.evidenceFactIds, source.b))) return false;
   const admittedIds = [...endpointIds, result.id, ...lines.map((line) => line.id)];
   if (problem.entities.some((entity) => !admittedIds.includes(entity.id))
@@ -421,8 +423,13 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   // witness. Its lineage records the original entity and both source points.
   if (lines[0]) {
     const join = document.entities.find((entity) => entity.id === "seg_join")!;
+    // ProblemIR's line is unbounded. An external section point is incident
+    // on the line through A/B, not on the finite segment between them.
+    join.kind="line";join.role="underlying line through source endpoints";
+    document.constructions.find(row=>row.id==="join")!.operator="line";
     join.label = lines[0].label;
     join.provenance = { problemEntityId: lines[0].id, evidenceFactIds: [...lines[0].evidenceFactIds] };
+    document.assertions.push({id:"section_on_source_line",predicate:"on",entities:[`pt_${source.point.name}`,"seg_join"],severity:"fatal"});
   }
 
   const section = document.constructions.find((construction) => construction.operator === "section_point")!;
@@ -489,6 +496,38 @@ export function sectionFormulaDimensionIsCarried(
       && Array.isArray(quantity.evidenceFactIds) && quantity.evidenceFactIds.length === factIds.length
       && factIds.every((id) => (quantity.evidenceFactIds as unknown[]).includes(id));
   });
+}
+
+/** A requested coordinate is carried by the independently bound section
+ * construction. Given-fact evidence does not turn its formula into a new given. */
+export function sectionFormulaRequestedDimensionIsCarried(document:SceneDocument,problem:ProblemIR,expressionId:string,value:number):boolean|null {
+  const reading=readSectionFormulaSource(problem.question);
+  if (reading.status!=="ok") return null;
+  const request=problem.solveRequests.filter(row=>row.kind==="evaluate" && row.expressionId===expressionId && row.resultBinding);
+  if (request.length!==1) return null;
+  const binding=request[0]!.resultBinding!;
+  if (!binding.evidenceFactIds.length || !binding.evidenceFactIds.every(id=>problem.facts.some(row=>row.id===id && row.kind==="requested"))) return null;
+  const symbol=binding.symbol.replace(/_/g,""),name=reading.source.point.name;
+  const axis=["x","y"].find(axis=>[`${axis}${name}`,`${name}${axis}`].includes(symbol)) as "x"|"y"|undefined;
+  if (!axis) return null;
+  if (binding.unit && !["1","unit","units","coordinate"].includes(binding.unit)) return false;
+  return value===reading.source.point[axis] && sectionFormulaSourceProgramIsBound(document,problem);
+}
+
+function sectionFormulaSourceProgramIsBound(document:SceneDocument,problem:ProblemIR):boolean {
+  const expected=sectionFormulaScene(problem.question,problem);
+  if (!expected) return false;
+  const canonical=validateSceneDocument(pruneDeadSceneEntities(expected as unknown as Record<string,unknown>)).document;
+  if (!canonical) return false;
+  const shape=(scene:SceneDocument)=>({entities:scene.entities.map(({provenance:_provenance,...row})=>row),quantities:scene.quantities,constructions:scene.constructions,annotations:scene.annotations,assertions:scene.assertions,relations:scene.relations,requiredEntityIds:scene.requiredEntityIds,revealGroups:scene.revealGroups,teachingTimeline:scene.teachingTimeline});
+  return document.source.question===problem.question && sameSceneValue(shape(document),shape(canonical));
+}
+
+export function validateSectionFormulaProblemSource(document:SceneDocument,question:string,rawProblem?:unknown):SceneIssue[] {
+  if (rawProblem==null || readSectionFormulaSource(question).status!=="ok") return [];
+  const checked=validateProblemIR(rawProblem,question);
+  if (checked.valid && checked.problem && sectionFormulaSourceProgramIsBound(document,checked.problem)) return [];
+  return [{code:"section_source_program",severity:"fatal",message:"The complete section source roles, caller line, requested coordinates and scene proofs must independently regenerate",path:"sourceAuthority.problemIR"}];
 }
 
 /**

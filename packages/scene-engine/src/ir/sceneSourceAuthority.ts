@@ -1,6 +1,8 @@
 import { validateStaticContactTriangleSource } from "./staticContactTriangle";
 import { validateOpticalConjugateSource } from "./opticalConjugateProgram";
 import { validatePointLineProgramSource } from "./pointLineProgram";
+import {readCircleSourceProgram,checkCircleSourceProblemBinding} from "./circleSourceProgram";
+import {validateSectionFormulaProblemSource} from "./sectionFormulaSource";
 import { validateProblemIR } from "./problemIR";
 import { checkStatedCircuitProblemBinding } from "./statedCircuitProblemBinding";
 import { readStatedCircuitProblemSource } from "./statedCircuitAuthority";
@@ -14,6 +16,8 @@ export function validateSceneSourceAuthority(document: SceneDocument, question: 
   const issues = [
     ...validateOpticalConjugateSource(document, question, rawProblem),
     ...validatePointLineProgramSource(document, question, rawProblem),
+    ...validateSectionFormulaProblemSource(document,question,rawProblem),
+    ...(readCircleSourceProgram(question).status==="ok" ? checkCircleSourceProblemBinding(question,rawProblem,document):[]),
     ...validateStaticContactTriangleSource(document, question, rawProblem),
     ...(readStatedCircuitProblemSource(question) ? checkStatedCircuitProblemBinding(question, rawProblem, document) : []),
   ];

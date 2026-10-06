@@ -35,9 +35,10 @@ import {
   isPlannerVisibleSceneProofPredicate,
 } from "../capability/capabilityManifest";
 import type { ExpressionNodeIR, ProblemIR } from "../ir/problemIR";
-import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
+import { sectionFormulaDimensionIsCarried, sectionFormulaRequestedDimensionIsCarried } from "../ir/sectionFormulaSource";
 import { matrixLiteralSourceEntityIsCarried, matrixLiteralSourceDimensionIsCarried } from "../ir/matrixLiteralSource";
 import {pointLineRequestedDimensionIsCarried} from "../ir/pointLineProgram";
+import {circleSourceProblemEntitySceneId,circleSourceDimensionIsCarried} from "../ir/circleSourceProgram";
 import { bindStatedCircuitProblem, checkStatedCircuitProblemBinding } from "../ir/statedCircuitProblemBinding";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
 import { validateRelativeMotionSourceInputs } from "./relativeMotionScene";
@@ -397,6 +398,8 @@ function checkObligation(
       return ((problem ? matrixLiteralSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
         ?? (problem ? uniformCircularSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
         ?? (problem ? pointLineRequestedDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value) : null)
+        ?? (problem ? sectionFormulaRequestedDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value) : null)
+        ?? (problem ? circleSourceDimensionIsCarried(document,problem,obligation.problemExpressionId,obligation.value,obligation.factIds) : null)
         ?? sectionFormulaDimensionIsCarried(document, obligation.problemExpressionId, obligation.value, obligation.factIds)
         ?? sceneCarriesValue(document, obligation.value))
         ? null
@@ -495,6 +498,11 @@ function mapProblemEntities(
       mapping.set(obligation.problemEntityId, circuitEntity.id); consumed.add(circuitEntity.id); continue;
     }
     const circularId = problem ? uniformCircularProblemEntitySceneId(document, problem, obligation.problemEntityId) : null;
+    const sourceCircleId=problem?circleSourceProblemEntitySceneId(document,problem,obligation.problemEntityId):null;
+    const sourceCircleEntity=sourceCircleId?byId.get(sourceCircleId):undefined;
+    if (sourceCircleEntity && !consumed.has(sourceCircleEntity.id)) {
+      mapping.set(obligation.problemEntityId,sourceCircleEntity.id);consumed.add(sourceCircleEntity.id);continue;
+    }
     const circularEntity = circularId ? byId.get(circularId) : null;
     if (circularEntity && kindHolds(circularEntity, obligation) && !consumed.has(circularEntity.id)) {
       mapping.set(obligation.problemEntityId, circularEntity.id); consumed.add(circularEntity.id); continue;

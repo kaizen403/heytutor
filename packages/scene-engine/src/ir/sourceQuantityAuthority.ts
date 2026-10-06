@@ -25,6 +25,7 @@
  * telemetry. To register a topic, add one entry to SOURCE_QUANTITY_AUTHORITIES.
  */
 import { applyStaticContactTriangleAuthority } from "./staticContactTriangleAuthority";
+import {applyCircleSourceAuthority} from "./circleSourceAuthority";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import { bindStatedCircuitProblem } from "./statedCircuitProblemBinding";
 import { applyStatedCircuitAuthority, readStatedCircuitProblemSource, readCircuitUnit } from "./statedCircuitAuthority";
@@ -145,6 +146,20 @@ const staticContactTriangleAuthority:SourceQuantityAuthority = {
 };
 
 export const SOURCE_QUANTITY_AUTHORITIES: readonly SourceQuantityAuthority[] = [
+  {
+    topic:"cartesian-circle-source",
+    apply({question,plan,problemIR}) {
+      const result=applyCircleSourceAuthority(question,plan,problemIR ?? undefined);
+      if (!result) return null;
+      const previous=new Map([...plan.givens,...plan.derived].map(row=>[row.id,row]));
+      return {topic:this.topic,plan:result.plan,
+        corrections:result.plan.derived.flatMap(row=> {
+          const old=previous.get(row.id);
+          return old && old.value!==row.value?[{quantityId:row.id,symbol:row.symbol,previous:old.value,corrected:row.value,unit:row.unit}]:[];
+        }),
+        declineFigure:result.issues.some(issue=>issue.code!=="circle_value_corrected"),issueCodes:result.issues.map(issue=>issue.code)};
+    },
+  },
   staticContactTriangleAuthority,
   circuitAuthority,
   uniformCircularAuthority,

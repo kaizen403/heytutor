@@ -12,6 +12,7 @@ import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import {readOpticalConjugateSource} from "../physics/opticalConjugateSource";
 import {opticalConjugateDocument} from "../ir/opticalConjugateProgram";
+import {readCircleSourceProgram,circleSourceDocument} from "../ir/circleSourceProgram";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import { levelRelationSource } from "../physics/levelRelationSource";
@@ -215,6 +216,12 @@ function synthesizeFromFamilies(
     const compiled=document?tryCompile(document,{sourceAuthority:{question,problemIR:input.problemIR}}):null;
     if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
     return {...compiled,tier:"question_representation",nonMetric:true,reason:"Source-bound Cartesian conjugates with explicitly paraxial principal rays.",family:"ray_path"};
+  }
+  if (readCircleSourceProgram(question).status==="ok") {
+    const document=circleSourceDocument(question,input.problemIR);
+    const compiled=document?tryCompile(document,{sourceAuthority:{question,problemIR:input.problemIR}}):null;
+    if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
+    return {...compiled,tier:"question_representation",nonMetric:true,family:"coordinate_figure",reason:"Complete source Cartesian circle and caller geometry obligations."};
   }
   const groundedCircuit = groundedOhmScene(question, input.problemIR);
   if (groundedCircuit.handled) {

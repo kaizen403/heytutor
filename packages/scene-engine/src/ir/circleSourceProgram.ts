@@ -384,14 +384,20 @@ function makeCircleDocument(source: CircleWholeSource): SceneDocument {
   return document;
 }
 
-export function circleSourceDocument(question: string, problem: unknown): SceneDocument | null { return bindCircleSourceProblem(question, problem)?.document ?? null; }
+export function circleSourceDocument(question: string, problem?: unknown): SceneDocument | null {
+  if (problem!=null) return bindCircleSourceProblem(question,problem)?.document ?? null;
+  const reading=readCircleSourceProgram(question);
+  if (reading.status!=="ok") return null;
+  return validateSceneDocument(pruneDeadSceneEntities(makeCircleDocument(reading.source) as unknown as Record<string,unknown>)).document;
+}
 function canonical(value: unknown): unknown {
   return Array.isArray(value) ? value.map(canonical) : value !== null && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, canonical(v)])) : value;
 }
 export function checkCircleSourceProblemBinding(question: string, problem: unknown, candidate: SceneDocument): SceneIssue[] {
   const binding = bindCircleSourceProblem(question, problem);
   const audit = (d: SceneDocument): unknown => ({ schemaVersion: d.schemaVersion, mode: d.visualDecision.mode, entities: d.entities.map(({ provenance: _ignored, ...e }) => e), quantities: d.quantities, constructions: d.constructions, assertions: d.assertions, relations: d.relations, annotations: d.annotations, requiredEntityIds: d.requiredEntityIds, revealGroups: d.revealGroups, teachingTimeline: d.teachingTimeline });
-  if (binding && JSON.stringify(canonical(audit(binding.document))) === JSON.stringify(canonical(audit(candidate)))) return [];
+  const expected=problem==null?circleSourceDocument(question):binding?.document;
+  if (expected && JSON.stringify(canonical(audit(expected))) === JSON.stringify(canonical(audit(candidate)))) return [];
   return [{ code: "circle_source_problem_binding", severity: "fatal", path: "circleSourceProgram", message: binding ? "Candidate differs from whole-source/full-IR regeneration" : "Whole source/full ProblemIR is unsupported or inconsistent" }];
 }
 /** Narrow obligation joins. Null means this expression/entity is outside this program. */
