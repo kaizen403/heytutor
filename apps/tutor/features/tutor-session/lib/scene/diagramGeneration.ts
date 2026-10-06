@@ -10,7 +10,9 @@ import {
   resolveDiagramFailureStatus,
   type DiagramGenerationStatus,
   type VisualRequirement,
+  type TurnPlanV3,
 } from "@heytutor/scene-engine";
+import { isConceptLessonQuestion } from "@heytutor/tutor-core";
 
 export type { DiagramGenerationStatus, VisualRequirement };
 
@@ -28,6 +30,20 @@ export const SCENE_PLANNER_DEADLINE_MS = REQUIRED_DIAGRAM_DEADLINE_MS;
 export const TURN_PLAN_DEADLINE_MS = 20_000;
 export const TURN_PLAN_ATTEMPT_DEADLINE_MS = 16_000;
 export const PROBLEM_AUTHORITY_DEADLINE_MS = 18_000;
+
+export function turnPlanNeedsNumericAuthority(question: string, plan: TurnPlanV3): boolean {
+  if (plan.givens.length > 0 || plan.derived.length > 0) {
+    return true;
+  }
+  if (/\d|[=+*/^²³]/.test(question) ||
+      /\b(?:find|calculate|compute|evaluate|determine|solve|numeric|numerical|value)\b/i.test(question)) return true;
+  const symbolicRequest = /\b(?:derive|derivation|prove)\b/i.test(question) &&
+    /\b(?:formula|expression|identity|relation|equation)\b/i.test(question);
+  if (!isConceptLessonQuestion(question) && !symbolicRequest) return true;
+  return plan.unknowns.some((unknown) =>
+    !plan.qualitativeClaims.some((claim) => typeof claim.expected !== "number" &&
+      claim.relatedQuantityIds?.includes(unknown.id)));
+}
 
 export function diagramFailureVisualStatus(
   visualRequirement: VisualRequirement = "optional",

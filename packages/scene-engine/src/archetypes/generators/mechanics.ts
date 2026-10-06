@@ -42,10 +42,12 @@ function projectile(context: GeneratorContext) {
 
   const scene = new SceneBuilder(context.question, theta === 0
     ? "projectile launched horizontally from a height, following the trajectory the speed implies"
-    : `projectile launched at ${fmt(theta)}° following the trajectory u and θ imply`, "projectile");
-  scene.quantity("u", "u", u, "m/s");
-  scene.quantity("theta", "theta", theta, "degree");
-  if (height0 > 0) scene.quantity("h0", "h", height0, "m");
+    : grounded(context, "theta")
+      ? `projectile launched at ${fmt(theta)}° following the trajectory u and θ imply`
+      : "projectile following a parabolic trajectory at symbolic launch angle θ", "projectile");
+  if (grounded(context, "u")) scene.quantity("u", "u", u, "m/s");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
+  if (height0 > 0 && grounded(context, "h0")) scene.quantity("h0", "h", height0, "m");
 
   groundLine(scene, "ground", { x: -0.12 * range, y: 0 }, { x: 1.08 * range, y: 0 });
   scene.point("O", { x: 0, y: height0 }, "launch point", "O");
@@ -684,8 +686,8 @@ function riverBoat(context: GeneratorContext) {
     : variant === "two_triangles"
       ? "the two velocity triangles: straight across and shortest time"
       : "boat crossing the river with its velocity triangle", "river_boat");
-  scene.quantity("vb", "v_b", vb, "m/s");
-  scene.quantity("vc", "v_c", vc, "m/s");
+  if (grounded(context, "vb")) scene.quantity("vb", "v_b", vb, "m/s");
+  if (grounded(context, "vc")) scene.quantity("vc", "v_c", vc, "m/s");
   scene.point("near_a", { x: -1, y: 0 }, "near bank end");
   scene.point("near_b", { x: 9, y: 0 }, "near bank end");
   scene.point("far_a", { x: -1, y: width }, "far bank end");
@@ -717,7 +719,8 @@ function riverBoat(context: GeneratorContext) {
       scene.assert(`${prefix}straight_across`, "perpendicular", [`${prefix}resultant`, "near_bank"]);
       scene.point(`${prefix}up_ref`, add(origin, { x: 0, y: 1.4 }), "perpendicular reference end");
       scene.segment(`${prefix}perp`, originId, `${prefix}up_ref`, "perpendicular to the bank");
-      scene.angleMark(`${prefix}angle`, originId, `${prefix}boat`, `${prefix}perp`, `α=${fmt(Math.asin(vc / vb) / DEG)}°`);
+      scene.angleMark(`${prefix}angle`, originId, `${prefix}boat`, `${prefix}perp`,
+        grounded(context, "vb") && grounded(context, "vc") ? `α=${fmt(Math.asin(vc / vb) / DEG)}°` : "α");
       scene.assert(`${prefix}heading`, "angle_between", [`${prefix}boat`, `${prefix}perp`], angleExpected(Math.asin(vc / vb) / DEG));
     } else {
       scene.assert(`${prefix}boat_perp`, "perpendicular", [`${prefix}boat`, "near_bank"]);
@@ -729,10 +732,12 @@ function riverBoat(context: GeneratorContext) {
   if (variant === "along_stream") {
     scene.point("down_start", { x: 1, y: 1.2 }, "boat going downstream", "boat");
     scene.point("down_end", { x: 1 + k * (vb + vc), y: 1.2 }, "downstream tip");
-    scene.vector("downstream", "down_start", { end: "down_end" }, "resultant velocity downstream", `vb+vc=${fmt(vb + vc)}`);
+    scene.vector("downstream", "down_start", { end: "down_end" }, "resultant velocity downstream",
+      grounded(context, "vb") && grounded(context, "vc") ? `vb+vc=${fmt(vb + vc)}` : "vb+vc");
     scene.point("up_start", { x: 7.4, y: 2.8 }, "boat going upstream", "boat");
     scene.point("up_end", { x: 7.4 - k * Math.max(vb - vc, 0.15), y: 2.8 }, "upstream tip");
-    scene.vector("upstream", "up_start", { end: "up_end" }, "resultant velocity upstream", `vb−vc=${fmt(vb - vc)}`);
+    scene.vector("upstream", "up_start", { end: "up_end" }, "resultant velocity upstream",
+      grounded(context, "vb") && grounded(context, "vc") ? `vb−vc=${fmt(vb - vc)}` : "vb−vc");
     scene.assert("down_parallel", "parallel", ["downstream", "near_bank"]);
     scene.assert("up_parallel", "parallel", ["upstream", "near_bank"]);
     if (vb > vc) scene.assert("ratio", "distance_ratio", ["down_start", "down_end", "up_start", "up_end"], Number(((vb + vc) / (vb - vc)).toFixed(6)));

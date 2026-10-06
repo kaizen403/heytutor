@@ -40,6 +40,7 @@ export * from "./llm/lessonScope";
 export * from "./llm/notesChatPrompt";
 export * from "./llm/givenValueIntro";
 export * from "./llm/lessonOpening";
+export * from "./llm/hinglishNarration";
 export * from "./code/codeLessonPlan";
 export * from "./code/codeFormatGate";
 export * from "./code/codeTraceGate";

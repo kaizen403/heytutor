@@ -1,4 +1,4 @@
-import type { SpeechProvider } from "../tts/providerConfig";
+import type { TtsProvider } from "../tts/providerConfig";
 import { calculateLlmCostDetails, calculateTtsCostDetails, type UsageCounts } from "@/lib/obs/usageCost";
 import { AutumnUnavailableError, trackFeature } from "./autumnClient";
 import { BILLING_FEATURES } from "./catalog";
@@ -84,7 +84,7 @@ export function recordTtsSpend(input: {
   userId: string;
   characters: number;
   model?: string | null;
-  provider?: SpeechProvider;
+  provider?: TtsProvider;
   skipAutumn?: boolean;
   skipGates?: boolean;
   accounted?: boolean;

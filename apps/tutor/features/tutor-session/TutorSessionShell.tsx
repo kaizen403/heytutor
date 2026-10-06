@@ -66,6 +66,7 @@ import {
 import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
+import type { SpeechStartupStatus } from "./hooks/turn/types";
 import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
@@ -307,6 +308,7 @@ export function TutorSessionShell({
   const phaseRef = useRef<TutorPhase>("idle");
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
+  const [speechStartupStatus, setSpeechStartupStatus] = useState<SpeechStartupStatus | null>(null);
   const [narrationText, setNarrationText] = useState("");
   const [currentSegmentText, setCurrentSegmentText] = useState("");
   const [lastError, setLastError] = useState<TutorSessionError | null>(null);
@@ -362,6 +364,15 @@ export function TutorSessionShell({
   // first paint writes defaults and clobbers language/speed/colour on reload.
   // Headless boards have no stored settings to hydrate, so they start hydrated.
   const [settingsHydrated, setSettingsHydrated] = useState(isHeadless);
+  /** The server offers Hinglish only when it holds a Sarvam key. */
+  const [hinglishAvailable, setHinglishAvailable] = useState(false);
+  /**
+   * The language is only written back once the server's own answer is in. A
+   * failed settings load leaves the sheet on English, and saving that would
+   * erase the student's Hinglish choice.
+   */
+  const serverSettingsLoadedRef = useRef(false);
+  const pendingVoicePreferencesRef = useRef<TutorVoicePreferences | null>(null);
   const voicePreferencesRef = useRef<TutorVoicePreferences>({
     voiceKey: toVoiceKey(DEFAULT_SETTINGS.audioLanguage, DEFAULT_SETTINGS.accent),
     lowLatency: DEFAULT_SETTINGS.lowLatencyVoice,
@@ -477,13 +488,21 @@ export function TutorSessionShell({
     void fetch("/api/account/settings")
       .then(async (response) => {
         if (!response.ok) return null;
-        return (await response.json()) as { settings?: Parameters<typeof lessonSettingsFromAccount>[0] };
+        return (await response.json()) as {
+          settings?: Parameters<typeof lessonSettingsFromAccount>[0];
+          hinglishAvailable?: boolean;
+        };
       })
       .then((data) => {
         if (cancelled || !data?.settings) return;
         const next = lessonSettingsFromAccount(data.settings);
+        const hinglish = data.hinglishAvailable === true;
+        setHinglishAvailable(hinglish);
+        serverSettingsLoadedRef.current = true;
         next.fastMode = true;
-        next.audioLanguage = DEFAULT_AUDIO_LANGUAGE;
+        // Hinglish comes only from the server's answer, never the local cache.
+        next.audioLanguage =
+          hinglish && data.settings.audioLanguage === "hinglish" ? "hinglish" : DEFAULT_AUDIO_LANGUAGE;
         next.narrationEnabled = true;
         next.lowLatencyVoice = false;
         teachingPrefsRef.current = {
@@ -547,35 +566,45 @@ export function TutorSessionShell({
     writeStoredSetting(FAMILIARITY_STORAGE_KEY, settings.familiarity);
   }, [settings.familiarity, isHeadless, settingsHydrated]);
 
-  // Accent reaches the server as part of the English voice key; the TTS client
-  // reconnects on the next segment so the new voice is used. Audio stays English
-  // and natural (not low-latency) — those are no longer student toggles.
+  // Language and accent reach the server as one voice key; the TTS client
+  // reconnects on the next segment so the new voice is used. Hinglish is the
+  // Sarvam voice; every English accent stays on Cartesia. The voice stays
+  // natural (not low-latency), which is no longer a student toggle.
   useEffect(() => {
     if (!settingsHydrated) {
       return;
     }
     const voicePreferences: TutorVoicePreferences = {
-      voiceKey: toVoiceKey(DEFAULT_AUDIO_LANGUAGE, settings.accent),
+      voiceKey: toVoiceKey(settings.audioLanguage, settings.accent),
       lowLatency: false,
     };
-    voicePreferencesRef.current = voicePreferences;
-    ttsClientRef.current?.setVoicePreferences?.(voicePreferences);
+    const switchesLanguage =
+      (voicePreferences.voiceKey === "hi-IN") !== (voicePreferencesRef.current.voiceKey === "hi-IN");
+    if (switchesLanguage && turnActiveRef.current) {
+      // This turn's words were written for the old voice; switch at the next question.
+      pendingVoicePreferencesRef.current = voicePreferences;
+    } else {
+      pendingVoicePreferencesRef.current = null;
+      voicePreferencesRef.current = voicePreferences;
+      ttsClientRef.current?.setVoicePreferences?.(voicePreferences);
+    }
     if (isHeadless || typeof window === "undefined") {
       return;
     }
-    writeStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY, DEFAULT_AUDIO_LANGUAGE);
+    writeStoredSetting(AUDIO_LANGUAGE_STORAGE_KEY, settings.audioLanguage);
     writeStoredSetting(ACCENT_STORAGE_KEY, settings.accent);
     writeStoredSetting(LOW_LATENCY_STORAGE_KEY, "0");
-  }, [settings.accent, isHeadless, settingsHydrated]);
+  }, [settings.audioLanguage, settings.accent, isHeadless, settingsHydrated]);
 
   useEffect(() => {
     if (!settingsHydrated || !can.persistSettings) return;
     writeSettingsCache(settings);
     const timer = window.setTimeout(() => {
+      const { audioLanguage, ...rest } = settings;
       void fetch("/api/account/settings", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(serverSettingsLoadedRef.current ? { ...rest, audioLanguage } : rest),
       }).catch(() => {
         /* local cache still holds the last choice */
       });
@@ -794,6 +823,7 @@ export function TutorSessionShell({
     enableKeyboardControls: variant === "full",
     onComplete,
     onError,
+    onSpeechStartupStatus: setSpeechStartupStatus,
     phase,
     isReplaying,
     boardLoaded,
@@ -839,6 +869,8 @@ export function TutorSessionShell({
     speedRef,
     fastModeRef,
     familiarityRef,
+    voicePreferencesRef,
+    pendingVoicePreferencesRef,
     teachingPrefsRef,
     pendingSegmentCountRef,
     narrationDensityRef,
@@ -1015,6 +1047,7 @@ export function TutorSessionShell({
     resumeTurn,
   });
 
+  const pauseForRewind = useCallback(() => pauseTurn("rewind"), [pauseTurn]);
   const {
     rewindBoardRef,
     rewindActive,
@@ -1036,7 +1069,7 @@ export function TutorSessionShell({
     livePausedRef: isPausedRef,
     rewoundRef,
     setSettings,
-    pauseTurn,
+    pauseTurn: pauseForRewind,
     resumeTurn,
     enableKeyboardControls: variant === "full",
     enabled: !isHeadless,
@@ -1114,7 +1147,7 @@ export function TutorSessionShell({
    * The lesson chrome's pause button while rewound means "take me back to the
    * lecture" — the live turn cannot resume under a board showing the past.
    */
-  const handleLessonPauseToggle = useCallback(() => {
+  const handleLessonPauseToggle = useCallback((source: "control" | "doubt-composer" = "control") => {
     if (rewindActive) {
       goLive();
       return;
@@ -1122,7 +1155,7 @@ export function TutorSessionShell({
     if (isPaused) {
       resumeTurn();
     } else {
-      pauseTurn();
+      pauseTurn(source);
     }
   }, [rewindActive, goLive, isPaused, resumeTurn, pauseTurn]);
 
@@ -1149,7 +1182,7 @@ export function TutorSessionShell({
     // Marks resolve against the finished page, so the past comes down first.
     closeLecturePlayer();
     if (!rewindActive && !isPausedRef.current && phaseRef.current !== "idle") {
-      pauseTurn();
+      pauseTurn("marking");
     }
   }, [closeLecturePlayer, pauseTurn, rewindActive]);
 
@@ -1428,6 +1461,8 @@ export function TutorSessionShell({
         {waitingToTeach && (
           <ThinkingOverlay
             ink={pendingInk}
+            paused={isPaused}
+            onResume={resumeTurn}
             onBoardAt={
               liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
             }
@@ -1736,6 +1771,13 @@ export function TutorSessionShell({
             {waitingToTeach && !rewindActive && (
               <ThinkingOverlay
                 ink={pendingInk}
+                paused={isPaused}
+                onResume={resumeTurn}
+                onEnableAudio={
+                  !isPaused && !mutePlayback
+                    ? speechStartupStatus?.enableAudio
+                    : null
+                }
                 onBoardAt={
                   liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
                 }
@@ -1863,6 +1905,7 @@ export function TutorSessionShell({
             onOpenChange={setSettingsOpen}
             settings={settings}
             onSettingsChange={setSettings}
+            hinglishAvailable={hinglishAvailable}
           />
         ) : null}
         <OutOfCreditsDialog

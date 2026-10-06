@@ -48,7 +48,7 @@ export interface InputBarProps {
   disabled?: boolean;
   submitMode?: InputSubmitMode;
   isPaused?: boolean;
-  onPauseToggle?: () => void;
+  onPauseToggle?: (source?: "control" | "doubt-composer") => void;
   onCancel?: () => void;
   placeholder?: string;
   autoFocus?: boolean;
@@ -278,7 +278,7 @@ export function InputBar({
   /** Composing a doubt stops the voice talking over the student. */
   const pauseForDoubt = useCallback(() => {
     if (canInterruptWithDoubt && !isPaused) {
-      onPauseToggle?.();
+      onPauseToggle?.("doubt-composer");
     }
   }, [canInterruptWithDoubt, isPaused, onPauseToggle]);
 
@@ -788,7 +788,7 @@ export function InputBar({
           >
             <button
               type="button"
-              onClick={onPauseToggle}
+              onClick={() => onPauseToggle()}
               aria-label={isPaused ? "Resume teaching" : "Pause teaching"}
               className={cn("flex shrink-0 items-center justify-center rounded-full transition-colors", compact ? "h-11 w-11" : "h-9 w-9")}
               style={{

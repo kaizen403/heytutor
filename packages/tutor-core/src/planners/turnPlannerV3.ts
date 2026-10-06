@@ -76,13 +76,16 @@ export async function planTurnV3(
       ? null
       : Math.max(0, TURN_PLAN_PEER_GRACE_MS - (Date.now() - firstValidAt));
     if (remainingGrace === 0) break;
+    let graceTimeoutId: ReturnType<typeof setTimeout> | undefined;
     const graceTimeout = remainingGrace === null
       ? null
-      : new Promise<null>((resolve) => setTimeout(() => resolve(null), remainingGrace));
+      : new Promise<null>((resolve) => {
+          graceTimeoutId = setTimeout(() => resolve(null), remainingGrace);
+        });
     const settled = await Promise.race([
       ...pending.values(),
       ...(graceTimeout ? [graceTimeout] : []),
-    ]);
+    ]).finally(() => clearTimeout(graceTimeoutId));
     if (!settled) break;
     pending.delete(settled.index);
     if (!settled.result) continue;
@@ -512,6 +515,28 @@ function normalizePlannerTurnPlan(value: unknown, question: string): unknown {
   };
   const normalizedRawGivens = modelQuantityEntries(plan.givens, "given");
   const allFiniteDerived = modelQuantityEntries(plan.derived, "derived");
+  const symbolicClaims = normalizedRawGivens.length === 0 &&
+    /\b(?:derive|derivation|prove)\b/i.test(question) &&
+    /\b(?:formula|expression|identity|relation|equation)\b/i.test(question) &&
+    !/\b(?:find|calculate|compute|evaluate|determine)\b/i.test(question)
+    ? fieldEntries(plan.derived).flatMap((quantity) => {
+        if (!isRecord(quantity) || typeof quantity.id !== "string" ||
+            typeof quantity.symbol !== "string" || typeof quantity.value !== "string" ||
+            quantity.value.length > 256 || !/[a-z\u0370-\u03ff]/i.test(quantity.value) ||
+            !/[+*/^=()²³−×·]/.test(quantity.value)) return [];
+        const symbolKey = normalizeQuantityKey(quantity.symbol);
+        if (!symbolKey) return [];
+        const matchingUnknown = unknownEntries.find((unknown) => isRecord(unknown) &&
+          [unknown.id, unknown.symbol].some((key) => typeof key === "string" &&
+            normalizeQuantityKey(key) === symbolKey));
+        return [{
+          id: `symbolic_${quantity.id}`,
+          claim: `${quantity.symbol} = ${quantity.value}`,
+          expected: quantity.value,
+          relatedQuantityIds: isRecord(matchingUnknown) ? [matchingUnknown.id] : [],
+        }];
+      })
+    : [];
   const matchingDerived = allFiniteDerived.filter((quantity) => {
         if (!isRecord(quantity)) return false;
         const keys = [quantity.id, quantity.symbol]
@@ -614,7 +639,7 @@ function normalizePlannerTurnPlan(value: unknown, question: string): unknown {
     : isRecord(plan.qualitativeClaims)
       ? Object.entries(plan.qualitativeClaims).map(([id, claim]) => ({ id, claim: typeof claim === "string" ? claim : id, expected: true }))
       : [];
-  const normalizedClaims = rawClaims.flatMap((claim) => {
+  const normalizedClaims = [...rawClaims, ...symbolicClaims].flatMap((claim) => {
         if (typeof claim === "string") claim = { id: claim, claim, expected: true };
         if (typeof claim !== "object" || claim === null || Array.isArray(claim)) return [];
         const record = claim as Record<string, unknown>;
@@ -932,9 +957,10 @@ Set visualRequirement to:
 - "none" when a visual adds no instructional meaning.
 ${TURN_PLAN_V3_VISUAL_GROUNDING}
 
-Copy numeric givens exactly. Derive only values you can justify using named lawIds. Every requested numerical unknown must have a corresponding finite numeric item in derived; solve simultaneous equations completely. Never put null, NaN, infinity, or a symbolic-only equation in a derived value. Put intermediate equations in sourceText or computation on a finite result instead. Every explicit arithmetic expression in sourceText or computation must evaluate to the item's declared value.
-Keep the plan compact enough to finish as valid JSON: givens contains only independent values stated by the question; derived contains every requested numeric answer plus at most four indispensable intermediate scalars; qualitativeClaims contains at most eight claims; assumptions contains at most six strings; each sourceText is at most 180 characters. Do not expand coordinate labels, process endpoints, or repeated multiples into separate quantities when they can be expressed from an original given.
-Before returning, independently recompute every derived scalar and check dimensional consistency. The optional quantity sign describes the numeric scalar value only and must agree with it; put spatial directions such as leftward, downward, or into the page in qualitativeClaims instead. For every directional claim, establish a coordinate convention, evaluate vector operations component by component, and check the result against conservation laws and the stated physical tendency. Claims within the plan must not contradict each other. Keep stable IDs compact. Never invent measurements, topology, directions, or assumptions. The question field must contain the user's exact question.`;
+Copy numeric givens exactly. Every numerical unknown needs a finite derived answer justified by named lawIds; solve simultaneous equations completely. Never put null, NaN, infinity, or formulas in numeric value fields. Equations belong in sourceText; explicit arithmetic must equal the declared value.
+For symbolic derivations, omit symbolic parameters from numeric quantities. Put formulas in qualitativeClaims.expected as strings, linked to their unknowns by relatedQuantityIds; describe parameters in claims or assumptions. These are teaching relations, not verified numeric results. Mixed formula/numeric requests still need finite numerical answers. Never invent measurements.
+Keep valid JSON compact: givens contains independent stated values only; derived contains all numerical answers and at most four essential intermediate scalars; at most eight claims and six assumptions; sourceText at most 180 characters. Express coordinate labels, endpoints and repeated multiples from original givens instead of extra quantities.
+Independently recompute scalars and verify units. sign must agree with the scalar; spatial directions belong in claims. For directional claims, define coordinates, compute vectors componentwise, and check conservation laws and physical tendency. Claims must not contradict. Keep IDs compact. Never invent measurements, topology, directions or assumptions. question must copy the user's exact question.`;
 
 const TURN_PLAN_V3_RETRY_PROMPT = `${TURN_PLAN_V3_PROMPT}
 

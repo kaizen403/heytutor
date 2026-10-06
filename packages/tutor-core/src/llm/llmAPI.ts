@@ -21,6 +21,8 @@ export interface StreamLLMResponseParams {
   codeLesson?: boolean;
   /** Retry after a reasoning-only response: ask the server for no thinking budget. */
   noReasoning?: boolean;
+  firstContentTimeoutMs?: number;
+  hasUsableContent?: () => boolean;
   onTraceId?: (traceId: string) => void;
   signal?: AbortSignal;
   /** Client-generated Langfuse turn id. Every planner and teaching call on this question shares it. */
@@ -38,6 +40,7 @@ export interface StreamLLMResult {
     reasoningChars: number;
     ttftContentMs: number | null;
     ttftReasoningMs: number | null;
+    firstContentTimedOut: boolean;
   };
 }
 
@@ -166,6 +169,8 @@ export async function streamLLMResponse(
     fastMode,
     codeLesson,
     noReasoning,
+    firstContentTimeoutMs = 15_000,
+    hasUsableContent,
     onTraceId,
     signal,
     traceId: requestTraceId,
@@ -175,57 +180,14 @@ export async function streamLLMResponse(
 ): Promise<StreamLLMResult> {
   const model = "server";
   const streamStart = performance.now();
-
-  tutorDebug("llm", "fetch start", {
-    model,
-    user_chars: userPrompt.length,
-    history_turns: conversationHistory.length,
-  });
-
-  const response = await fetch(proxyUrl, {
-    method: "POST",
-    headers: buildRequestHeaders(
-      sessionId,
-      hasAuthoritativePlan,
-      fastMode,
-      codeLesson,
-      noReasoning,
-      requestTraceId,
-      question,
-    ),
-    signal,
-    body: JSON.stringify({
-      model,
-      max_tokens: 12000,
-      temperature: 0.3,
-      stream: true,
-      reasoning_effort: "none",
-      perf_metrics_in_response: true,
-      messages: buildMessages(systemPrompt, conversationHistory, userPrompt),
-    }),
-  });
-
-  tutorDebug("llm", "fetch headers received", {
-    status: response.status,
-    elapsed_ms: Math.round(performance.now() - streamStart),
-  });
-
-  const traceId = response.headers.get("x-heytutor-trace-id");
-
-  if (traceId) {
-    onTraceId?.(traceId);
-  }
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`LLM proxy error (${response.status}): ${errorBody}`);
-  }
-
-  if (!response.body) {
-    throw new Error("LLM proxy returned no response body.");
-  }
-
-  const reader = response.body.getReader();
+  const requestController = new AbortController();
+  const timeoutMs = Number.isFinite(firstContentTimeoutMs) && firstContentTimeoutMs > 0
+    ? firstContentTimeoutMs
+    : 15_000;
+  let firstContentTimer: ReturnType<typeof setTimeout> | undefined;
+  let firstContentTimedOut = false;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let traceId: string | null = null;
   const decoder = new TextDecoder();
   let bufferedText = "";
   let accumulatedResponseText = "";
@@ -234,8 +196,15 @@ export async function streamLLMResponse(
   let ttftContentMs: number | null = null;
   let ttftReasoningMs: number | null = null;
 
+  const abortRequest = (reason: unknown) => {
+    clearTimeout(firstContentTimer);
+    requestController.abort(reason);
+    void reader?.cancel().catch(() => undefined);
+  };
+  const onExternalAbort = () => abortRequest(signal?.reason);
+
   const processLine = (line: string): boolean => {
-    if (!line.startsWith("data: ")) {
+    if (requestController.signal.aborted || !line.startsWith("data: ")) {
       return false;
     }
 
@@ -264,17 +233,21 @@ export async function streamLLMResponse(
       const textChunk = readContentChunk(eventPayload);
 
       if (textChunk !== null) {
-        if (ttftContentMs === null) {
+        contentChars += textChunk.length;
+        accumulatedResponseText += textChunk;
+        onDelta?.(textChunk);
+
+        if (ttftContentMs === null && (hasUsableContent
+          ? hasUsableContent()
+          : accumulatedResponseText.replace(/\[[^\]]*(?:\]|$)/g, "").trim().length > 0)) {
+          clearTimeout(firstContentTimer);
+          firstContentTimer = undefined;
           ttftContentMs = Math.round(performance.now() - streamStart);
           tutorDebug("llm", "first content token", {
             ttft_ms: ttftContentMs,
             preview: textChunk.slice(0, 80),
           });
         }
-
-        contentChars += textChunk.length;
-        accumulatedResponseText += textChunk;
-        onDelta?.(textChunk);
       }
     } catch (error: unknown) {
       if (!(error instanceof SyntaxError)) {
@@ -286,6 +259,10 @@ export async function streamLLMResponse(
   };
 
   const finishResult = (): StreamLLMResult => {
+    if (firstContentTimedOut && noReasoning) {
+      throw new Error("The lesson did not start in time, even after retrying. Please try asking again.");
+    }
+
     const durationMs = Math.round(performance.now() - streamStart);
     const streamStats = {
       durationMs,
@@ -293,6 +270,7 @@ export async function streamLLMResponse(
       reasoningChars,
       ttftContentMs,
       ttftReasoningMs,
+      firstContentTimedOut,
     };
 
     tutorDebug("llm", "stream complete", streamStats);
@@ -310,47 +288,119 @@ export async function streamLLMResponse(
     return { text: accumulatedResponseText, traceId, streamStats };
   };
 
-  while (true) {
-    let readResult: ReadableStreamReadResult<Uint8Array>;
-
-    try {
-      readResult = await reader.read();
-    } catch (error: unknown) {
-      if (signal?.aborted) {
-        await reader.cancel().catch(() => undefined);
-        return finishResult();
-      }
-
-      throw error;
-    }
-
-    const { value, done } = readResult;
-
-    if (done) {
-      break;
-    }
-
-    bufferedText += decoder.decode(value, { stream: true });
-    const lines = bufferedText.split(/\r?\n/);
-    bufferedText = lines.pop() ?? "";
-
-    for (const line of lines) {
-      if (processLine(line)) {
-        await reader.cancel();
-        return finishResult();
+  try {
+    if (signal?.aborted) {
+      onExternalAbort();
+    } else {
+      signal?.addEventListener("abort", onExternalAbort, { once: true });
+      if (!hasUsableContent?.()) {
+        firstContentTimer = setTimeout(() => {
+          firstContentTimedOut = true;
+          abortRequest(new DOMException("LLM first-content deadline expired", "TimeoutError"));
+        }, timeoutMs);
       }
     }
-  }
 
-  bufferedText += decoder.decode();
+    tutorDebug("llm", "fetch start", {
+      model,
+      user_chars: userPrompt.length,
+      history_turns: conversationHistory.length,
+    });
 
-  if (bufferedText.length > 0) {
-    for (const line of bufferedText.split(/\r?\n/)) {
-      if (processLine(line)) {
+    const response = await fetch(proxyUrl, {
+      method: "POST",
+      headers: buildRequestHeaders(
+        sessionId,
+        hasAuthoritativePlan,
+        fastMode,
+        codeLesson,
+        noReasoning,
+        requestTraceId,
+        question,
+      ),
+      signal: requestController.signal,
+      body: JSON.stringify({
+        model,
+        max_tokens: 12000,
+        temperature: 0.3,
+        stream: true,
+        reasoning_effort: "none",
+        perf_metrics_in_response: true,
+        messages: buildMessages(systemPrompt, conversationHistory, userPrompt),
+      }),
+    });
+
+    tutorDebug("llm", "fetch headers received", {
+      status: response.status,
+      elapsed_ms: Math.round(performance.now() - streamStart),
+    });
+
+    traceId = response.headers.get("x-heytutor-trace-id");
+
+    if (traceId) {
+      onTraceId?.(traceId);
+    }
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`LLM proxy error (${response.status}): ${errorBody}`);
+    }
+
+    if (!response.body) {
+      throw new Error("LLM proxy returned no response body.");
+    }
+
+    reader = response.body.getReader();
+
+    while (true) {
+      if (requestController.signal.aborted) {
         break;
       }
+
+      const { value, done } = await reader.read();
+
+      if (done || requestController.signal.aborted) {
+        break;
+      }
+
+      bufferedText += decoder.decode(value, { stream: true });
+      const lines = bufferedText.split(/\r?\n/);
+      bufferedText = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (processLine(line)) {
+          return finishResult();
+        }
+      }
+    }
+
+    if (!requestController.signal.aborted) {
+      bufferedText += decoder.decode();
+
+      if (bufferedText.length > 0) {
+        for (const line of bufferedText.split(/\r?\n/)) {
+          if (processLine(line)) {
+            break;
+          }
+        }
+      }
+    }
+
+    return finishResult();
+  } catch (error: unknown) {
+    if (firstContentTimedOut) {
+      return finishResult();
+    }
+    if (signal?.aborted && reader) {
+      return finishResult();
+    }
+    throw error;
+  } finally {
+    clearTimeout(firstContentTimer);
+    signal?.removeEventListener("abort", onExternalAbort);
+    if (reader) {
+      void reader.cancel().catch(() => undefined);
+      reader.releaseLock();
     }
   }
-
-  return finishResult();
 }

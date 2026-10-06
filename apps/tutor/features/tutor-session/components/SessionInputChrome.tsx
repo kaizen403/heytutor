@@ -14,7 +14,7 @@ interface SessionInputChromeProps {
   inputSubmitMode: "ask" | "doubt" | "follow-up";
   onSubmit: (question: string) => void;
   onAskDoubt: (question: string) => void;
-  onPauseToggle: () => void;
+  onPauseToggle: (source?: "control" | "doubt-composer") => void;
   onCancel: () => void;
   onUserInteractionChange: (interacted: boolean) => void;
   onOpenSettings?: () => void;

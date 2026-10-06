@@ -1,4 +1,4 @@
-import { speechAudioMimeType } from "./audioFormat";
+import { speechAudioMimeType, wavDurationSec } from "./audioFormat";
 import {
   DEFAULT_VOICE_PREFERENCES,
   TTS_LANG_QUERY,
@@ -360,6 +360,23 @@ function isTtsRelayControlPayload(
   );
 }
 
+/**
+ * A voice that sends no alignment (Sarvam) still has a known length: its WAV
+ * header. Only the duration is filled in. The character times stay empty, so
+ * the pen keeps its estimated schedule; the runner uses the duration to learn
+ * the speaking rate and to record how long the sentence lasted for replay.
+ */
+function fillDurationFromWav(timings: AudioTimings, chunks: readonly Uint8Array[]): void {
+  if (timings.totalDuration > 0 || timings.charStartTimes.length > 0) return;
+  let total = 0;
+  for (const chunk of chunks) {
+    const seconds = wavDurationSec(chunk);
+    if (seconds === null) return;
+    total += seconds;
+  }
+  if (total > 0) timings.totalDuration = total;
+}
+
 export class StreamingSpeechClient implements TTSClient {
   private ws: WebSocket | null = null;
   private audioContext: AudioContext | null = null;
@@ -385,6 +402,7 @@ export class StreamingSpeechClient implements TTSClient {
   private cancelHtmlAudio: (() => void) | null = null;
   private failHtmlAudio: ((error: unknown) => void) | null = null;
   private muted = false;
+  private playbackBlockedCallback: SpeakSegmentOptions["onPlaybackBlocked"];
   private voicePreferences: TutorVoicePreferences = { ...DEFAULT_VOICE_PREFERENCES };
 
   private jobs: SegmentJob[] = [];
@@ -613,6 +631,7 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   private stopActiveAudio(reason: string, options?: { preserveHttp?: boolean }): void {
+    this.playbackBlockedCallback?.(null);
     if (!options?.preserveHttp) {
       this.abortHttpStream(reason);
     }
@@ -643,6 +662,7 @@ export class StreamingSpeechClient implements TTSClient {
     options: SpeakSegmentOptions,
     generation = this.speakGeneration,
   ): Promise<void> {
+    options.onPlaybackBlocked?.(null);
     const rate = browserFallbackPlaybackRate(this.playbackRate);
     this.activeBrowserFallbackRate = rate;
     this.speechFallback.setPlaybackRate(rate);
@@ -729,12 +749,17 @@ export class StreamingSpeechClient implements TTSClient {
       onError: (error) => { if (this.speakGeneration === generation) callbacks.onError?.(error); },
       onTimings: (timings) => { if (this.speakGeneration === generation) callbacks.onTimings?.(timings); },
       onAudioCaptured: (audio) => { if (this.speakGeneration === generation) callbacks.onAudioCaptured?.(audio); },
+      onPlaybackBlocked: callbacks.onPlaybackBlocked ? (blocked) => {
+        if (this.speakGeneration === generation && (!blocked || (!this.paused && !this.muted && !this.halted))) {
+          callbacks.onPlaybackBlocked?.(blocked);
+        }
+      } : undefined,
     };
-
     if (spokenText.length === 0) {
       options.onEnd?.();
       return;
     }
+    this.playbackBlockedCallback = options.onPlaybackBlocked;
 
     try {
     // Pause must silence immediately and must not start a fallback voice.
@@ -905,6 +930,11 @@ export class StreamingSpeechClient implements TTSClient {
         return;
       }
       throw error;
+    } finally {
+      if (this.playbackBlockedCallback === options.onPlaybackBlocked) {
+        options.onPlaybackBlocked?.(null);
+        this.playbackBlockedCallback = undefined;
+      }
     }
   }
 
@@ -913,6 +943,8 @@ export class StreamingSpeechClient implements TTSClient {
    * Clears audio sources and rejects queued jobs so the segment runner can continue.
    */
   abandonSpeaking(): void {
+    this.playbackBlockedCallback?.(null);
+    this.playbackBlockedCallback = undefined;
     this.speakGeneration += 1;
     this.clearTimers();
     this.detachStreamHandler();
@@ -1182,6 +1214,13 @@ export class StreamingSpeechClient implements TTSClient {
       for (const stale of this.jobs.filter((queued) => !queued.claimed && !queued.settled)) {
         stale.settled = true;
         this.releaseJobContext(stale);
+        // A serial voice (Sarvam) generates one sentence at a time, so a stale
+        // guess still queued at the relay would delay this one by its whole
+        // length. Tell the relay; a parallel voice ignores the message.
+        const staleIndex = Number(stale.contextId?.replace(/^segment_/, ""));
+        if (Number.isSafeInteger(staleIndex) && this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ cancel_segment_index: staleIndex }));
+        }
         tutorDebug("tts", "dropping unspoken lookahead", {
           preview: stale.spokenText.slice(0, 60),
         });
@@ -1442,6 +1481,7 @@ export class StreamingSpeechClient implements TTSClient {
           job.contextFinal = true;
           this.emitAudioReady(job);
           if (job.settled) return;
+          fillDurationFromWav(job.timings, job.capturedChunks);
           this.emitTimings(job);
           if (!job.playbackStarted) await this.tryStartJobPlayback(job);
           if (job === this.currentJob) await this.completeCurrentJob();
@@ -2073,6 +2113,7 @@ export class StreamingSpeechClient implements TTSClient {
         const bytes = base64ToUint8Array(audioBase64);
         capturedChunks.push(bytes);
         chunkOffsetSec = mergeChunkTimings(timings, payload, chunkOffsetSec);
+        fillDurationFromWav(timings, capturedChunks);
         if (timings.totalDuration > 0) {
           options.onTimings?.(toSegmentRelativeAudioTimings(timings));
         }
@@ -2199,6 +2240,7 @@ export class StreamingSpeechClient implements TTSClient {
     applyHtmlAudioMute(audio, this.muted);
     this.stopHtmlAudio();
     this.currentHtmlAudio = audio;
+    const playbackBlockedCallback = this.playbackBlockedCallback;
     return new Promise<void>((resolve, reject) => {
       let settled = false;
       let announced = false;
@@ -2213,11 +2255,13 @@ export class StreamingSpeechClient implements TTSClient {
         if (announced) return;
         announced = true;
         onStart?.();
+        playbackBlockedCallback?.(null);
       };
       this.currentHtmlOnStart = announceStart;
       const finish = (error?: unknown) => {
         if (settled) return;
         settled = true;
+        playbackBlockedCallback?.(null);
         audio.onended = null;
         audio.onerror = null;
         audio.onplaying = null;
@@ -2247,9 +2291,11 @@ export class StreamingSpeechClient implements TTSClient {
           // A pause while the clip is still loading rejects play() with
           // AbortError. The same clip is resumed later; it has not ended.
           if (this.currentHtmlAudio === audio && this.pauseEpoch !== playPauseEpoch) return;
+          if (!settled && this.holdBlockedHtmlAudio(error, audio)) return;
           finish(error instanceof Error ? error : new Error(String(error)));
         });
       } catch (error) {
+        if (this.holdBlockedHtmlAudio(error, audio)) return;
         finish(error instanceof Error ? error : new Error(String(error)));
       }
     });
@@ -2277,12 +2323,20 @@ export class StreamingSpeechClient implements TTSClient {
     this.audioContext = this.audioContext ?? createLectureAudioContext();
 
     if (resume && this.audioContext.state === "suspended" && !this.paused) {
+      const blockedCallback = this.playbackBlockedCallback;
+      const generation = this.speakGeneration;
+      const pauseEpoch = this.pauseEpoch;
       try {
         await this.audioContext.resume();
       } catch (error) {
         tutorDebug("tts", "AudioContext resume failed", {
           error: error instanceof Error ? error.message : String(error),
         });
+      }
+      const afterResume = this.getAudioContextState();
+      if (this.speakGeneration === generation && this.pauseEpoch === pauseEpoch && this.playbackBlockedCallback === blockedCallback &&
+        (afterResume === "suspended" || afterResume === "interrupted")) {
+        this.reportPlaybackBlocked(afterResume === "suspended" ? "context-suspended" : "context-interrupted");
       }
     }
 
@@ -2299,6 +2353,23 @@ export class StreamingSpeechClient implements TTSClient {
     }
 
     return this.audioContext;
+  }
+
+  getAudioContextState(): AudioContextState | "interrupted" | null {
+    return this.audioContext?.state ?? null;
+  }
+
+  private holdBlockedHtmlAudio(error: unknown, audio: HTMLAudioElement): boolean {
+    if (this.currentHtmlAudio !== audio || !this.playbackBlockedCallback || this.paused || this.muted || this.halted ||
+      !(error instanceof Error) || error.name !== "NotAllowedError") return false;
+    this.reportPlaybackBlocked("not-allowed");
+    return true;
+  }
+
+  private reportPlaybackBlocked(reason: "context-suspended" | "context-interrupted" | "not-allowed"): void {
+    if (this.paused || this.muted || this.halted) return;
+    if (reason !== "not-allowed" && typeof Audio === "function" && this.activeSources.length === 0) return;
+    this.playbackBlockedCallback?.({ reason, audioContextState: this.getAudioContextState() });
   }
 
   pause(): void {
@@ -2332,12 +2403,27 @@ export class StreamingSpeechClient implements TTSClient {
         },
         (error: unknown) => {
           if (this.speakGeneration === generation && this.currentHtmlAudio === htmlAudio && this.pauseEpoch === playPauseEpoch) {
+            if (this.holdBlockedHtmlAudio(error, htmlAudio)) return;
             onFailure?.(error);
           }
         },
       );
     }
-    void this.audioContext?.resume();
+    const ctx = this.audioContext;
+    const generation = this.speakGeneration;
+    const pauseEpoch = this.pauseEpoch;
+    const blockedCallback = this.playbackBlockedCallback;
+    if (ctx) {
+      const reportIfBlocked = () => {
+        if (this.audioContext !== ctx || this.speakGeneration !== generation || this.pauseEpoch !== pauseEpoch ||
+          this.playbackBlockedCallback !== blockedCallback) return;
+        const state = this.getAudioContextState();
+        if (state === "suspended" || state === "interrupted") {
+          this.reportPlaybackBlocked(state === "suspended" ? "context-suspended" : "context-interrupted");
+        }
+      };
+      void ctx.resume().then(reportIfBlocked, reportIfBlocked);
+    }
     this.speechFallback.resume();
     const job = this.currentJob;
     if (job && !job.settled) {
@@ -2366,6 +2452,8 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   stop(): void {
+    this.playbackBlockedCallback?.(null);
+    this.playbackBlockedCallback = undefined;
     this.halted = true;
     this.speakGeneration += 1;
     this.clearTimers();
