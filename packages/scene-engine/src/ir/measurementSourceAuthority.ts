@@ -21,6 +21,10 @@ const GIVEN_ROLES: GivenRole[] = ["pitch", "least_count", "true_reading", "zero_
 const UNIT_FACTORS: Record<string, number> = { mm: 1, cm: 10, m: 1000 };
 const sourceSpace = (s: string): string => s.replace(/\s+/g, " ").trim();
 const normalize = (s: string): string => sourceSpace(s).toLowerCase();
+function isRepresentableDecimalLiteral(raw: string): boolean {
+  const value = Number(raw);
+  return Number.isFinite(value) && (value !== 0 || !/[1-9]/.test(raw));
+}
 // Relative comparisons never turn a small nonzero given into zero authority.
 const close = (a: number, b: number): boolean => a === b || Math.abs(a - b) <= 64 * Number.EPSILON * Math.max(Math.abs(a), Math.abs(b));
 const sameIds = (actual: string[] | undefined, expected: string[]): boolean => Boolean(actual && actual.length === expected.length && new Set(actual).size === actual.length && expected.every(id => actual.includes(id)));
@@ -64,6 +68,7 @@ export function readScrewGaugeSource(problem: ProblemIR): SourceRead {
   const ask = tail.slice(wire[0].length);
   const request = new RegExp(`^(?:what would be the reading of divisions on circular scale of the screw gauge|what is the circular scale reading in divisions), if the (zero error of the screw gauge is ([+-])\\s*(\\d+(?:\\.\\d*)?|\\.\\d+) ${u})\\s*\\?$`, "i").exec(ask);
   if (!request) return decline("unconsumed_source_clause", "The remaining source must be exactly one circular-division ask with an explicitly signed zero error; hidden clauses and further asks are unsupported.");
+  if (![pitchRaw, leastRaw, wire[2]!, request[3]!].every(isRepresentableDecimalLiteral)) return decline("unrepresentable_measurement_literal", "Every source decimal must be finite and any lexically nonzero value must remain nonzero before unit conversion.");
   const length = (raw: string, unit: string): number => Number(raw) * UNIT_FACTORS[unit]!;
   const pitch = length(pitchRaw, pitchUnit); const least = length(leastRaw, leastUnit);
   const trueReading = length(wire[2]!, wire[3]!);
@@ -111,6 +116,8 @@ export function verifyMeasurementSourceAuthority(problemRaw: unknown, planRaw: u
   const planResult = validateTurnPlanV3(planRaw, expectedQuestion ?? problem.question);
   if (!planResult.plan) return fail("invalid_turn_plan", planResult.issues.map(i => i.message).join("; "));
   const plan = planResult.plan;
+  if (problem.entities.some(entity => entity.label !== undefined && typeof entity.label !== "string")) return fail("invalid_entity_label", "Every supplied entity label must be a string before source-role normalization.");
+  if (plan.givens.some(row => row.sourceText !== undefined && typeof row.sourceText !== "string") || plan.derived.some(row => row.sourceText !== undefined && typeof row.sourceText !== "string")) return fail("invalid_plan_source_text", "Every supplied plan sourceText field must be a string before source-role normalization.");
   if (sourceSpace(plan.question) !== sourceSpace(problem.question)) return fail("question_mismatch", "Plan source text must retain the actual caller question, including unit case.");
   const read = readScrewGaugeSource(problem);
   if ("issue" in read) return fail(read.issue.code, read.issue.message);
