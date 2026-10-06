@@ -573,3 +573,4 @@ Assigned topic rows: **5**. Dependencies: S0; curated reference/topology contrac
 Bounded slice containing only the topic rows assigned to this packet; use their reference cases and acceptance checks. Split further by named structure, organism or input model at dispatch if needed.
 
 Assigned topic rows: **4**. Dependencies: S0; curated reference/topology contract. Current evidence: **topic audit pending**. Candidate reuse is not topic-level certification.
+

@@ -1,5 +1,7 @@
 # Diagram engine coverage plan and session record
 
+Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](docs/agent/cursor-next-waves-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+
 Updated: 2 October 2026. Status: **25-chapter expansion complete; further coverage work paused at the user's request.**
 
 Publication: [PR #80 — Expand verified diagram operators across 25 chapters](https://github.com/kaizen403/heytutor/pull/80).
@@ -499,15 +501,3 @@ For CH-08b, for example, assign only the infinite line/sheet/thin-shell Gauss-la
 ### Resume seed for the coordinating agent
 
 This planning update starts no implementation work. On an explicit resume, retain the 34-row order, run DCP-01/02 and refresh the baseline first. Then assign at most three ready disjoint slices using the template, integrate shared seams serially, and publish a per-slice evidence/gap report before taking the next batch. Add the Chemistry/Advanced/Biology lanes only to the selected versioned exam scope; do not rewrite the historical 25-chapter completion record as full-syllabus coverage.
-# Programme paused for local handoff — 3 October 2026
-
-The user's current instruction supersedes earlier dispatch/resume text: no new
-topics or runtime launches. Work is preserved on local branch
-`handoff/diagram-coverage-20261003`, with unfinished private layers kept as named
-patches rather than forced into the active application. **Zero full topics or
-chapters are newly accepted.** One authored Matrix common student lifecycle smoke
-is complete; it is not full-topic coverage. Read the
-[wind-down record](docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md)
-and [preservation index](docs/agent/coverage-handoff-20261003/README.md) before
-continuing. Historical queue/counters below are retained. No publication or merge
-was authorized, and the Claude delegation prompt is intentionally not sent yet.

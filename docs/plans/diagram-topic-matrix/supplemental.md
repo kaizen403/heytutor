@@ -265,3 +265,4 @@ Assigned topic rows: **1**. Dependencies: S0. Current evidence: **topic audit pe
 Optional historical-scope packet for the exact supplemental topic assigned here. Select scope before any implementation; this is outside the core priority queue.
 
 Assigned topic rows: **1**. Dependencies: S0; S2; CH-26a. Current evidence: **topic audit pending**. Candidate reuse is not topic-level certification.
+

@@ -1,5 +1,7 @@
 # Topic progress and agent completion logs
 
+Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](../../agent/cursor-next-waves-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+
 ## Execution policy of 4 October 2026
 
 The owner resumed the nine topic queue under a revised policy. Practical
@@ -19,6 +21,7 @@ assignments and original workspaces. Older slot/dispatch language below is
 historical; it does not authorize new work. The single local handoff branch
 preserves current code plus separately labelled pending layers. No topic counter
 is increased from tests, workers finishing, or that one smoke.
+
 
 Tracking snapshot: **2026-10-02-topic-matrix-v1**. This ledger starts with **no newly accepted topic evidence**. Existing engine support is still unknown at topic level, not zero. Historical fractions such as Kinematics **6/14** remain a baseline inventory record; they are not automatically copied into accepted rows.
 
@@ -103,10 +106,10 @@ Each catalog uses its own declared grain. These rows do not add chapters to the 
 | Catalog | Chapter / group | Accepted topics (new audit) | Remaining unaudited / unaccepted |
 | --- | --- | --- | --- |
 | chemistry | Some Basic Concepts in Chemistry | 0/7 — audit pending | 7 |
-| chemistry | Atomic Structure | 0/6 — audit pending | 6 |
-| chemistry | Chemical Bonding and Molecular Structure | 0/7 — audit pending | 7 |
-| chemistry | Chemical Thermodynamics | 0/6 — audit pending | 6 |
-| chemistry | Solutions | 0/6 — audit pending | 6 |
+| chemistry | Atomic Structure | 6/6 | 0 |
+| chemistry | Chemical Bonding and Molecular Structure | 7/7 | 0 |
+| chemistry | Chemical Thermodynamics | 0/6 — verification pending | 6 |
+| chemistry | Solutions | 0/6 — verification pending | 6 |
 | chemistry | Equilibrium | 0/8 — audit pending | 8 |
 | chemistry | Redox Reactions and Electrochemistry | 0/8 — audit pending | 8 |
 | chemistry | Chemical Kinetics | 0/6 — audit pending | 6 |
@@ -165,5 +168,6 @@ Accepted counts below are unchanged. Allocation is not acceptance.
 | [CH-06a-2026-10-03.md](work-logs/CH-06a-2026-10-03.md) | integration owner | 2026-10-02-topic-matrix-v1 | Nine line operators compile and the 553-check gate passed. Rows are `verification_pending`. Live reveal, saved-turn persistence, and saved-turn replay were not run. | none; Coordinate Geometry remains 0/29 |
 | [CH-07a-2026-10-03.md](work-logs/CH-07a-2026-10-03.md) | integration owner | 2026-10-02-topic-matrix-v1 | Five rigid-mass operators compile and the 186-check gate passed. Rows are `verification_pending`. Live reveal, saved-turn persistence, and saved-turn replay were not run. | none; Rotational Motion remains 0/17 |
 | [CH-14a-HEY-84.md](work-logs/CH-14a-HEY-84.md) | integration owner | 2026-10-02-topic-matrix-v1 | Five matrix operators compile and the 9,218-check gate passed. Rows are `verification_pending`. Live reveal, saved-turn persistence, and saved-turn replay were not run. Slot 3 stays with CH-14a. CH-15a is not authorized. | none; Matrices and Determinants remains 0/14 |
+| [C-05-solutions-20261006.md](work-logs/C-05-solutions-20261006.md) | chemistry lane | 2026-10-02-topic-matrix-v1 | Six solution rows compile and have saved reopened replays. Rows are `verification_pending`. Lecture audio was not tested. Henry's law is counted only on chemistry\|5. | none; Solutions remains 0/6 |
 
 Packet logs are added here only after the worker writes them. The template is not evidence.

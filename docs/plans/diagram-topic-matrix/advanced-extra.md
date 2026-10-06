@@ -270,3 +270,4 @@ Assigned topic rows: **3**. Dependencies: S0; S4. Current evidence: **topic audi
 Bounded slice containing only the topic rows assigned to this packet; use their reference cases and acceptance checks. Split further by named structure, organism or input model at dispatch if needed.
 
 Assigned topic rows: **1**. Dependencies: S0; S4. Current evidence: **topic audit pending**. Candidate reuse is not topic-level certification.
+

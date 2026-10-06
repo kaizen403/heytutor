@@ -1,9 +1,6 @@
 # Topic-to-agent delegation matrix
 
-The programme is paused by the user for a local handoff. Read the
-[current wind-down record](work-logs/wind-down-HEY83-20261003.md) before using the
-dispatch plan below. It preserves work and outstanding obligations; it authorizes
-no new topics and certifies zero new accepted topics.
+Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](../../agent/cursor-next-waves-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
 
 Version: **2026 syllabi / 2 October 2026**. This is a documentation-only dispatch plan. It starts no implementation work and certifies no new engine behaviour. The [root plan](../../../DIAGRAM_ENGINE_COVERAGE_PLAN.md#chapters-still-to-cover) retains its 34-chapter priority queue, historical record and DCP-01–DCP-12 backlog.
 
@@ -122,10 +119,10 @@ These are additional subject/planning lanes, not additions to the inherited 34-c
 | Chapter / group | Rows | Packet allocation shares | Combined allocation | Rows for ≥90% / >90% | Current verified topics |
 | --- | --- | --- | --- | --- | --- |
 | Some Basic Concepts in Chemistry | 7 | C-01a: 4/7 (57.1%); C-01b: 3/7 (42.9%) | 7/7 (100%) | 7 / 7 | Unknown; audit pending |
-| Atomic Structure | 6 | C-02a: 3/6 (50.0%); C-02b: 2/6 (33.3%); C-02c: 1/6 (16.7%) | 6/6 (100%) | 6 / 6 | Unknown; audit pending |
-| Chemical Bonding and Molecular Structure | 7 | C-03a: 1/7 (14.3%); C-03b: 4/7 (57.1%); C-03c: 1/7 (14.3%); C-03d: 1/7 (14.3%) | 7/7 (100%) | 7 / 7 | Unknown; audit pending |
-| Chemical Thermodynamics | 6 | C-04a: 4/6 (66.7%); C-04b: 2/6 (33.3%) | 6/6 (100%) | 6 / 6 | Unknown; audit pending |
-| Solutions | 6 | C-05a: 3/6 (50.0%); C-05b: 2/6 (33.3%); C-05c: 1/6 (16.7%) | 6/6 (100%) | 6 / 6 | Unknown; audit pending |
+| Atomic Structure | 6 | C-02a: 3/6 (50.0%); C-02b: 2/6 (33.3%); C-02c: 1/6 (16.7%) | 6/6 (100%) | 6 / 6 | 6/6 |
+| Chemical Bonding and Molecular Structure | 7 | C-03a: 1/7 (14.3%); C-03b: 4/7 (57.1%); C-03c: 1/7 (14.3%); C-03d: 1/7 (14.3%) | 7/7 (100%) | 7 / 7 | 7/7 |
+| Chemical Thermodynamics | 6 | C-04a: 4/6 (66.7%); C-04b: 2/6 (33.3%) | 6/6 (100%) | 6 / 6 | 0/6 accepted |
+| Solutions | 6 | C-05a: 3/6 (50.0%); C-05b: 2/6 (33.3%); C-05c: 1/6 (16.7%) | 6/6 (100%) | 6 / 6 | 0/6 accepted |
 | Equilibrium | 8 | C-06a: 4/8 (50.0%); C-06b: 3/8 (37.5%); C-06c: 1/8 (12.5%) | 8/8 (100%) | 8 / 8 | Unknown; audit pending |
 | Redox Reactions and Electrochemistry | 8 | C-07a: 2/8 (25.0%); C-07b: 3/8 (37.5%); C-07c: 2/8 (25.0%); C-07d: 1/8 (12.5%) | 8/8 (100%) | 8 / 8 | Unknown; audit pending |
 | Chemical Kinetics | 6 | C-08a: 4/6 (66.7%); C-08b: 2/6 (33.3%) | 6/6 (100%) | 6 / 6 | Unknown; audit pending |

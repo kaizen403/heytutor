@@ -527,31 +527,31 @@ chemistry|1|mole-concept-and-molar-mass,C-01a,chemistry,planned,,,,,,topic audit
 chemistry|1|percentage-composition-and-empirical-formula,C-01b,chemistry,planned,,,,,,topic audit pending
 chemistry|1|stoichiometry-and-limiting-reagent,C-01b,chemistry,planned,,,,,,topic audit pending
 chemistry|1|molarity-and-solution-stoichiometry,C-01b,chemistry,planned,,,,,,topic audit pending
-chemistry|2|electromagnetic-radiation-and-photoelectric-effect,C-02a,chemistry,planned,,,,,,topic audit pending
-chemistry|2|hydrogen-spectrum-and-bohr-model,C-02a,chemistry,planned,,,,,,topic audit pending
-chemistry|2|de-broglie-and-heisenberg,C-02a,chemistry,planned,,,,,,topic audit pending
-chemistry|2|quantum-mechanical-model-and-orbitals,C-02c,chemistry,planned,,,,,,topic audit pending
-chemistry|2|quantum-numbers-and-orbital-shapes,C-02b,chemistry,planned,,,,,,topic audit pending
-chemistry|2|electronic-configuration-and-filling-rules,C-02b,chemistry,planned,,,,,,topic audit pending
-chemistry|3|kossel-lewis-and-ionic-bonding,C-03a,chemistry,planned,,,,,,topic audit pending
-chemistry|3|electronegativity-fajans-rule-and-dipole-moment,C-03d,chemistry,planned,,,,,,topic audit pending
-chemistry|3|vsepr-and-shapes,C-03b,chemistry,planned,,,,,,topic audit pending
-chemistry|3|valence-bond-theory-and-hybridisation,C-03b,chemistry,planned,,,,,,topic audit pending
-chemistry|3|molecular-orbital-theory-and-bond-order,C-03c,chemistry,planned,,,,,,topic audit pending
-chemistry|3|bond-parameters-sigma-and-pi-bonds,C-03b,chemistry,planned,,,,,,topic audit pending
-chemistry|3|metallic-and-hydrogen-bonding,C-03b,chemistry,planned,,,,,,topic audit pending
-chemistry|4|systems-state-functions-and-processes,C-04a,chemistry,planned,,,,,,topic audit pending
-chemistry|4|first-law-work-heat-and-internal-energy,C-04a,chemistry,planned,,,,,,topic audit pending
-chemistry|4|heat-capacity,C-04a,chemistry,planned,,,,,,topic audit pending
-chemistry|4|hesss-law-and-enthalpies-of-reaction,C-04a,chemistry,planned,,,,,,topic audit pending
-chemistry|4|entropy-and-spontaneity,C-04b,chemistry,planned,,,,,,topic audit pending
-chemistry|4|gibbs-energy-and-equilibrium-constant,C-04b,chemistry,planned,,,,,,topic audit pending
-chemistry|5|concentration-terms,C-05a,chemistry,planned,,,,,,topic audit pending
-chemistry|5|solubility-and-henrys-law,C-05c,chemistry,planned,,,,,,topic audit pending
-chemistry|5|raoults-law-and-vapour-pressure,C-05a,chemistry,planned,,,,,,topic audit pending
-chemistry|5|ideal-and-non-ideal-solutions,C-05a,chemistry,planned,,,,,,topic audit pending
-chemistry|5|colligative-properties,C-05b,chemistry,planned,,,,,,topic audit pending
-chemistry|5|molar-mass-and-vant-hoff-factor,C-05b,chemistry,planned,,,,,,topic audit pending
+chemistry|2|electromagnetic-radiation-and-photoelectric-effect,C-02a,chemistry,accepted,chemistry-unit-2,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-02-atomic-structure-20261004.md,Rishi Vhavle,2026-10-04T04:12:59Z,none
+chemistry|2|hydrogen-spectrum-and-bohr-model,C-02a,chemistry,accepted,chemistry-unit-2,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-02-atomic-structure-20261004.md,Rishi Vhavle,2026-10-04T04:12:59Z,none
+chemistry|2|de-broglie-and-heisenberg,C-02a,chemistry,accepted,chemistry-unit-2,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-02-atomic-structure-20261004.md,Rishi Vhavle,2026-10-04T04:12:59Z,none
+chemistry|2|quantum-mechanical-model-and-orbitals,C-02c,chemistry,accepted,chemistry-unit-2,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-02-atomic-structure-20261004.md,Rishi Vhavle,2026-10-04T04:12:59Z,none
+chemistry|2|quantum-numbers-and-orbital-shapes,C-02b,chemistry,accepted,chemistry-unit-2,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-02-atomic-structure-20261004.md,Rishi Vhavle,2026-10-04T04:12:59Z,none
+chemistry|2|electronic-configuration-and-filling-rules,C-02b,chemistry,accepted,chemistry-unit-2,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-02-atomic-structure-20261004.md,Rishi Vhavle,2026-10-04T04:12:59Z,none
+chemistry|3|kossel-lewis-and-ionic-bonding,C-03a,chemistry,accepted,chemistry-unit-3,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-03-chemical-bonding-20261003.md,Rishi Vhavle,2026-10-04T00:13:58Z,none
+chemistry|3|electronegativity-fajans-rule-and-dipole-moment,C-03d,chemistry,accepted,chemistry-unit-3,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-03-chemical-bonding-20261003.md,Rishi Vhavle,2026-10-04T00:13:58Z,none
+chemistry|3|vsepr-and-shapes,C-03b,chemistry,accepted,chemistry-unit-3,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-03-chemical-bonding-20261003.md,Rishi Vhavle,2026-10-03T21:53:43Z,none
+chemistry|3|valence-bond-theory-and-hybridisation,C-03b,chemistry,accepted,chemistry-unit-3,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-03-chemical-bonding-20261003.md,Rishi Vhavle,2026-10-04T00:13:58Z,none
+chemistry|3|molecular-orbital-theory-and-bond-order,C-03c,chemistry,accepted,chemistry-unit-3,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-03-chemical-bonding-20261003.md,Rishi Vhavle,2026-10-04T00:13:58Z,none
+chemistry|3|bond-parameters-sigma-and-pi-bonds,C-03b,chemistry,accepted,chemistry-unit-3,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-03-chemical-bonding-20261003.md,Rishi Vhavle,2026-10-04T00:13:58Z,none
+chemistry|3|metallic-and-hydrogen-bonding,C-03b,chemistry,accepted,chemistry-unit-3,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-03-chemical-bonding-20261003.md,Rishi Vhavle,2026-10-04T00:13:58Z,none
+chemistry|4|systems-state-functions-and-processes,C-04a,chemistry,verification_pending,chemistry-unit-4,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-04-chemical-thermodynamics-20261005.md,,,quantitative PV path not drawn; isobaric and adiabatic endpoint boards not saved
+chemistry|4|first-law-work-heat-and-internal-energy,C-04a,chemistry,verification_pending,chemistry-unit-4,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-04-chemical-thermodynamics-20261005.md,,,reversible ideal-gas work integral stays off this figure; non-PV work is out of scope
+chemistry|4|heat-capacity,C-04a,chemistry,verification_pending,chemistry-unit-4,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-04-chemical-thermodynamics-20261005.md,,,variable heat capacity is not integrated; only stated phase-change words are rejected
+chemistry|4|hesss-law-and-enthalpies-of-reaction,C-04a,chemistry,verification_pending,chemistry-unit-4,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-04-chemical-thermodynamics-20261005.md,,,named enthalpies share the step sum when numbers are supplied; a bond-enthalpy sentence that is not a Hess step still declines
+chemistry|4|entropy-and-spontaneity,C-04b,chemistry,verification_pending,chemistry-unit-4,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-04-chemical-thermodynamics-20261005.md,,,non-isothermal integral of dq_rev/T is not computed
+chemistry|4|gibbs-energy-and-equilibrium-constant,C-04b,chemistry,verification_pending,chemistry-unit-4,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-04-chemical-thermodynamics-20261005.md,,,Gibbs line is schematic; K is a label account; no separate human acceptance
+chemistry|5|concentration-terms,C-05a,chemistry,verification_pending,chemistry-unit-5,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-05-solutions-20261006.md,,,normality is not drawn; additive-volume mixing is declined; live board is the molarity case
+chemistry|5|solubility-and-henrys-law,C-05c,chemistry,verification_pending,chemistry-unit-5,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-05-solutions-20261006.md,,,c=k_H p is a label account; no temperature series; counted only on chemistry|5
+chemistry|5|raoults-law-and-vapour-pressure,C-05a,chemistry,verification_pending,chemistry-unit-5,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-05-solutions-20261006.md,,,axis is display-scaled; nonvolatile line was gate-checked and not the saved board
+chemistry|5|ideal-and-non-ideal-solutions,C-05a,chemistry,verification_pending,chemistry-unit-5,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-05-solutions-20261006.md,,,deviation bows are schematic; negative deviation and azeotrope composition were not saved
+chemistry|5|colligative-properties,C-05b,chemistry,verification_pending,chemistry-unit-5,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-05-solutions-20261006.md,,,live board is osmotic pressure; boiling freezing and relative lowering were gate-checked only
+chemistry|5|molar-mass-and-vant-hoff-factor,C-05b,chemistry,verification_pending,chemistry-unit-5,2026-10-02-topic-matrix-v1; JEE Main 2026 Paper 1; JEE Advanced 2026; NEET 2026,docs/plans/diagram-topic-matrix/work-logs/C-05-solutions-20261006.md,,,live board is freezing-point 120 g/mol; association and dissociation panels were not saved
 chemistry|6|dynamic-equilibrium-and-physical-equilibria,C-06a,chemistry,planned,,,,,,topic audit pending
 chemistry|6|law-of-chemical-equilibrium-kp-and-kc,C-06a,chemistry,planned,,,,,,topic audit pending
 chemistry|6|gibbs-energy-and-equilibrium,C-06a,chemistry,planned,,,,,,topic audit pending
