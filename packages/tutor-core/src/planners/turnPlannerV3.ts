@@ -1,6 +1,5 @@
 import {
   reconcileTurnPlanV3ExplicitArithmetic,
-  readScrewGaugeQuestion,SCREW_GAUGE_QUESTION_GUIDANCE,
   validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
@@ -9,6 +8,8 @@ import {
 import { evaluateMathExpression } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { finitePolynomialPlanningGuidance } from "./finitePolynomialGuidance";
+import { finiteProgressionPlanningGuidance } from "./finiteProgressionGuidance";
+import { measurementPlanningGuidance } from "./measurementGuidance";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
@@ -190,7 +191,7 @@ async function requestTurnPlanV3(
         messages: [
           {
             role: "system",
-            content: systemPrompt + finitePolynomialPlanningGuidance(question) + (readScrewGaugeQuestion(question).status==="ok"?`\n${SCREW_GAUGE_QUESTION_GUIDANCE}`:""),
+            content: systemPrompt + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question),
           },
           {
             role: "user",

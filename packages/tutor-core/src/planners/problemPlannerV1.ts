@@ -1,9 +1,12 @@
 import {
   LocalDeterministicSolverProvider,
-  readFiniteBinomialProgram,solveFiniteBinomialProblem,readScrewGaugeQuestion,SCREW_GAUGE_QUESTION_GUIDANCE,
+  readFiniteBinomialProgram,solveFiniteBinomialProblem,
   buildSolverAuthorityProjection,
   evaluateMathExpression,
   expressionToSafeSource,
+  parseFinitePolynomialExpression,
+  claimsStatedResistorCircuit,
+  bindStatedCircuitProblem,
   solveWithDeadline,
   validateProblemIR,
   validateSolverResult,
@@ -16,6 +19,8 @@ import {
 } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { finitePolynomialPlanningGuidance } from "./finitePolynomialGuidance";
+import { finiteProgressionPlanningGuidance } from "./finiteProgressionGuidance";
+import { measurementPlanningGuidance } from "./measurementGuidance";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 
@@ -105,7 +110,7 @@ export async function planProblemAuthorityV1(
         temperature: 0,
         stream: false,
         messages: [
-          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + (readScrewGaugeQuestion(question).status==="ok"?`\n${SCREW_GAUGE_QUESTION_GUIDANCE}`:"") },
+          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) },
           { role: "user", content: problemIRUserMessage(question, turnPlan) },
         ],
       }),
@@ -118,7 +123,7 @@ export async function planProblemAuthorityV1(
     if (typeof content !== "string") return null;
     const parsed = parseJsonObject(content);
     const polynomial=readFiniteBinomialProgram(question);
-    const sourceInput=polynomial.status==="ok"?liftCompactProblemIR(parsed,question):null;
+    const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
       rawProblemIR:structuredClone(parsed),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
     // Syntax lifting preserves every submitted record/unknown field. Audit it
@@ -137,6 +142,9 @@ export async function planProblemAuthorityV1(
         issue_codes: problemValidation.issues.map((issue) => issue.code),
       });
       return null;
+    }
+    if (claimsStatedResistorCircuit(question) && !bindStatedCircuitProblem(question, problemValidation.problem)) {
+      return decline("stated_circuit_whole_source_declined");
     }
     const elapsedBeforeSolve = Date.now() - startedAt;
     const remainingMs = Math.max(1, options.timeoutMs - elapsedBeforeSolve);
@@ -534,6 +542,25 @@ function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal
  * - an absent schemaVersion, id or question is filled, only when the output
  *   uses a compact field. A present but invalid value is kept and rejected.
  */
+function liftFinitePolynomialInput(raw: unknown, question: string): unknown {
+  // The legacy compact parser converts decimal lexemes through Number. Prove
+  // their exact finite algebra meaning before that conversion can erase it.
+  try {
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      const expressions = (raw as Record<string, unknown>).expressions;
+      if (Array.isArray(expressions)) for (const expression of expressions) {
+        if (expression && typeof expression === "object" && !Array.isArray(expression)) {
+          const expr = (expression as Record<string, unknown>).expr;
+          if (typeof expr === "string") parseFinitePolynomialExpression(expr);
+        }
+      }
+    }
+    return liftCompactProblemIR(raw, question);
+  } catch {
+    return null;
+  }
+}
+
 export function liftCompactProblemIR(raw: unknown, question: string): unknown {
   if (!isRecord(raw)) return raw;
   const facts = Array.isArray(raw.facts) ? raw.facts : [];

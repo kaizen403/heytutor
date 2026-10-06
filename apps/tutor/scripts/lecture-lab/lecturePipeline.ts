@@ -40,7 +40,6 @@ import {
 import {
   ARCHETYPES,
   applySourceQuantityAuthority,
-  buildSolverAuthorityProjection,
   compileSceneDocument,
   detectArchetype,
   isChemistryQuestion,
@@ -53,7 +52,6 @@ import {
   validateSceneDocument,
   validateSceneQuantityAgreement,
   validateTurnPlanSceneProofs,
-  verifyTurnPlanAgainstSolver,
   type RenderScene,
   type SceneDocument,
   type TurnPlanV3,
@@ -78,6 +76,8 @@ import {
   type SpeculationAbortReason,
 } from "@/features/tutor-session/lib/scene/planningOverlap";
 import { buildTurnTeachingPrompt } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
+import { refreshSolverAuthorityForPlan } from "@/features/tutor-session/lib/turn/refreshSolverAuthority";
+import { withdrawDeclinedProblemAuthority } from "@/features/tutor-session/lib/turn/declinedProblemAuthority";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 
@@ -557,33 +557,16 @@ export async function runLecture(
       deadlineMs: SCENE_PLANNER_DEADLINE_MS,
       deriveGate: deriveSceneGate,
       applyUnavailableAuthority: plan => sourceDecline
-        ? applySourceQuantityAuthority(plan,sourceDecline.rawProblemIR,question).plan : plan,
+        ? withdrawDeclinedProblemAuthority(plan, sourceDecline) : plan,
       applyAuthority: (planToReconcile, authority) => {
-        const reconciledPlan = reconcileTurnPlanWithSolver(
+        const reconciledPlan = applySourceQuantityAuthority(reconcileTurnPlanWithSolver(
           planToReconcile,
           authority.problemIR,
           authority.solverResult,
-        );
-        const authorityAudit = verifyTurnPlanAgainstSolver(
-          authority.problemIR,
-          authority.solverResult,
-          reconciledPlan,
-          question,
-        );
+        ), authority.problemIR, question).plan;
         return {
           turnPlan: reconciledPlan,
-          authority: {
-            ...authority,
-            audit: authorityAudit,
-            projection:
-              authorityAudit.status === "verified"
-                ? buildSolverAuthorityProjection(
-                    authority.problemIR,
-                    authority.solverResult,
-                    authorityAudit,
-                  )
-                : null,
-          },
+          authority: refreshSolverAuthorityForPlan(authority, reconciledPlan, question),
         };
       },
       fastFigureBlocked: (authority) => authority?.audit.status === "contradiction",

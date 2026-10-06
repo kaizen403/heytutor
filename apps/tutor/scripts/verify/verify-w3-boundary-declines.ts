@@ -4,6 +4,7 @@ import * as engine from "@heytutor/scene-engine";
 import * as source from "../../../../packages/tutor-core/src/planners/problemPlannerV1";
 import * as built from "../../../../packages/tutor-core/dist/index.js";
 import {runScenePlanningOverlap} from "../../features/tutor-session/lib/scene/planningOverlap";
+import {withdrawDeclinedProblemAuthority} from "../../features/tutor-session/lib/turn/declinedProblemAuthority";
 import {liveSceneSaveFailure} from "../../lib/scene/sceneSaveAdmission";
 import {canonicalizeTurnSceneMetadata} from "../../lib/scene/turnScenePersistence";
 import {sourceCheckedStoredTurn} from "../../lib/scene/storedSceneSource";
@@ -39,7 +40,7 @@ async function main(){
    const planning=await runScenePlanningOverlap({turnPlan:early,problemAuthority:Promise.resolve(null),speculationAllowed:false,speculationEnabled:false,plannerStartedAt:Date.now(),deadlineMs:1000,
     deriveGate:()=>({shouldPlanExactScene:false,shouldAttemptLlmScene:false,families:[],archetypeId:null,request:{}}),
     applyAuthority:(plan,authority)=>{authorityCalls++;return {turnPlan:plan,authority}},
-    applyUnavailableAuthority:plan=>{unavailableCalls++;return engine.applySourceQuantityAuthority(plan,outcome.rawProblemIR,bad.question).plan},
+    applyUnavailableAuthority:plan=>{unavailableCalls++;return withdrawDeclinedProblemAuthority(plan,outcome)},
     fastFigureBlocked:()=>true,selectFast:()=>null,planScene:async()=>null,revalidate:async result=>result});
    equal([planning.turnPlan.derived.length,planning.turnPlan.unknowns.length,planning.turnPlan.qualitativeClaims.length],[0,0,0],"actual rejected graph withdraws final numeric/unknown/claim rows");
    equal([unavailableCalls,authorityCalls],[1,0],"final refusal delivered exactly once before final gates");
@@ -53,6 +54,24 @@ async function main(){
   for(const control of fixtures.rawControls){
    const before=structuredClone(control),outcome=await fetchOutcome(api,control);assert(outcome&&"status" in outcome,control.name);
    equal(outcome.rawProblemIR,control.problem,`${mode}: unconsumed raw field/request/binding cannot disappear`);equal(control,before,"raw caller immutable");
+  }
+  const positive=structuredClone(fixtures.profiles[1]!);
+  positive.problem.facts.find(fact=>fact.kind==="requested")!.statement=positive.problem.facts.find(fact=>fact.kind==="requested")!.evidence.quote;
+  for(const content of ["null","not JSON"]){
+   const refused=await api.planProblemAuthorityV1(positive.question,positive.plan,{proxyUrl:"https://offline.invalid",timeoutMs:3000,fetchImpl:async()=>new Response(JSON.stringify({choices:[{message:{content}}]}),{status:200})});
+   assert(refused&&"status" in refused);
+   equal(refused.rawProblemIR,null,"original null/unparseable refusal is retained without fake IR");
+   const cleaned=withdrawDeclinedProblemAuthority(positive.plan,refused);
+   equal([cleaned.derived.length,cleaned.unknowns.length,cleaned.qualitativeClaims.length],[0,0,0],`${mode}: explicit refusal status overrides early null correction`);
+  }
+  for(const [kind,expr] of [["function","(2+x)^6.000000000000000001"],["scalar","240+1e-999"],["scalar","240.000000000000000001"]] as const){
+   const raw=structuredClone(positive.problem) as unknown as {expressions:Array<Record<string,unknown>>};
+   const expression=raw.expressions.find(row=>row.valueType===kind)!;
+   delete expression.root;expression.expr=expr;
+   const refused=await api.planProblemAuthorityV1(positive.question,positive.plan,{proxyUrl:"https://offline.invalid",timeoutMs:3000,fetchImpl:async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(raw)}}]}),{status:200})});
+   assert(refused&&"status" in refused);
+   equal(refused.status,"source_declined",`${mode}: numeric compact lexeme cannot round into authority`);
+   equal(refused.rawProblemIR,raw,"complete original compact input retained");
   }
  }
  console.log(`PASS ${checks} typed rejection, complete raw graph, overlap withdrawal and mandatory Plan TS/public ESM controls; no native credit`);
