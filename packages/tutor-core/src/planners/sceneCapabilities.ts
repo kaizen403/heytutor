@@ -16,6 +16,7 @@ import {
   sourceMensurationStructure,
   hasMatrixSourceProgram,
   readMatrixProductSourceProgram, prepareMatrixProductSourceAuthority,
+  readScrewGaugeQuestion,
   readPointLineProgram,
   constantAccelerationSourceProgram,
   readSectionFormulaSource,
@@ -277,6 +278,10 @@ export function inferSceneCapabilities(
   lawIdsOrHints: readonly string[] | SceneStructureHints = [],
 ): SceneCapabilityRequirements {
   const hints = normalizeHints(lawIdsOrHints);
+  if (readScrewGaugeQuestion(question).status === "ok") return {
+    visualRequired:hints.turnPlan?.visualRequirement === "required",hasSourceProgram:false,families:[],constructionOperators:[],proofPredicates:[],
+    planningGuidance:["This complete source asks only for a scalar circular-scale count. Preserve explicit visual none; generic diameter wording supplies no instrument geometry. Numeric authority still requires the complete original IR and actual Plan."],
+  };
   const polynomial=finiteBinomialSourceDocument(question,hints.problemIR);
   const progression=finiteProgressionSourceProgram(question,hints.problemIR,hints.turnPlan);
   const finiteDocument=polynomial && !finiteBinomialPlanIssues(question,hints.problemIR,hints.turnPlan).length?polynomial:progression.status==="ok"?progression.document:null;
