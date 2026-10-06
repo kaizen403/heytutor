@@ -166,8 +166,7 @@ export function createPlanarArithmeticProof(source: {
             result = { numerator: product(a.numerator, b.denominator), denominator: product(a.denominator, b.numerator), dimension: a.dimension === null && b.dimension === null ? null : (a.dimension ?? 0) - (b.dimension ?? 0) }; break;
           }
           case "^": {
-            const exponent = evaluate(node.right);
-            if (hasRole(node.right) || !Number.isInteger(exponent) || exponent < 0 || exponent > 4) throw new Error("power budget");
+            const exponent = powerExponent(node.right);
             let numerator = one(), denominator = one();
             for (let i = 0; i < exponent; i++) { numerator = product(numerator, a.numerator); denominator = product(denominator, a.denominator); }
             result = { numerator, denominator, dimension: a.dimension === null ? null : a.dimension * exponent }; break;
@@ -180,13 +179,54 @@ export function createPlanarArithmeticProof(source: {
     }
     memo.set(node, result); return result;
   };
+  function powerExponent(node: Node): number {
+    if (hasRole(node)) throw new Error("power role parameter");
+    // Operator parameters use exact closed arithmetic, never display tolerance
+    // or a rounded evaluation such as 2 + 1e-16 becoming the integer 2.
+    const closed = form(node);
+    const numerator = closed.numerator.get("") ?? rational(0n), denominator = closed.denominator.get("");
+    if (!denominator) throw new Error("closed power denominator");
+    const value = rational(numerator.n * denominator.d, numerator.d * denominator.n);
+    if (value.d !== 1n || value.n < 0n || value.n > 4n) throw new Error("power budget");
+    return Number(value.n);
+  }
+  const domains = new Map<Node, number>();
+  function originalDomain(node: Node): number {
+    tick(); const saved = domains.get(node); if (saved !== undefined) return saved;
+    switch (node.kind) {
+      case "number": break;
+      case "variable": if (!values.has(node.name)) throw new Error("unknown role"); break;
+      case "unary":
+        if (node.operator !== "+" && node.operator !== "-") throw new Error("unsupported unary operator");
+        originalDomain(node.operand); break;
+      case "call": {
+        const argument = originalDomain(node.argument);
+        if (node.function !== "abs" && node.function !== "sqrt") throw new Error("unsupported function");
+        if (node.function === "sqrt" && argument < 0) throw new Error("sqrt domain");
+        break;
+      }
+      case "binary": {
+        originalDomain(node.left); const right = originalDomain(node.right);
+        if (node.operator === "^") powerExponent(node.right);
+        else if (node.operator === "/") {
+          if (right === 0 || !nonzeroAtSource(form(node.right).numerator)) throw new Error("division domain");
+        } else if (node.operator !== "+" && node.operator !== "-" && node.operator !== "*") throw new Error("unsupported operator");
+        break;
+      }
+      default: throw new Error("unsupported node");
+    }
+    const value = evaluate(node);
+    if (!Number.isFinite(value)) throw new Error("original arithmetic domain");
+    domains.set(node, value); return value;
+  }
   function matches(actual: Node, expected: Node): boolean {
-    tick();
+    tick(); originalDomain(actual);
     // Literal dimensions come from their matched source position. For
     // example the 1 in a*1 may be the audited x_P, but a role expression
     // equal to 1 at this point cannot take that position by value.
     if (!hasRole(actual)) { form(actual); return close(evaluate(actual), evaluate(expected)); }
     if (actual.kind === "binary" && expected.kind === "binary") {
+      if (actual.operator === "^" && expected.operator === "^") return powerExponent(actual.right) === powerExponent(expected.right) && matches(actual.left, expected.left);
       if (actual.operator === expected.operator && matches(actual.left, expected.left) && matches(actual.right, expected.right)) return true;
       if (actual.operator === expected.operator && ["+", "*"].includes(actual.operator) && matches(actual.left, expected.right) && matches(actual.right, expected.left)) return true;
       if (["+", "-"].includes(actual.operator) && ["+", "-"].includes(expected.operator) && actual.operator !== expected.operator && matches(actual.left, expected.left)) return matches(actual.right, { kind: "unary", operator: "-", operand: expected.right });
@@ -248,7 +288,7 @@ export function createPlanarArithmeticProof(source: {
   };
   const expected: Record<PlanarProofRole, Node[]> = { residual: [S], norm: [N], distance: [distance], x: [fx], y: [fy], foot: [fx, fy], displacement: [binary("*", {kind:"unary",operator:"-",operand:binary("/",S,N)}, A), binary("*", {kind:"unary",operator:"-",operand:binary("/",S,N)}, B)], incidence: [binary("+", binary("+", binary("*", A, fx), binary("*", B, fy)), C)] };
   return { proves(text, role) {
-    operations = 0; memo.clear();
+    operations = 0; memo.clear(); domains.clear();
     try {
       if (typeof text !== "string" || text.length > 1024 || ![...values.values()].every(Number.isFinite) || !Number.isFinite(evaluate(N)) || evaluate(N) <= 0) return false;
       const parts = text.split("="); if (parts.length < 2 || parts.length > 8) return false;
