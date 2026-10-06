@@ -188,6 +188,7 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
     const facts = new Map(problem.facts.map((fact) => [fact.id, fact]));
     const refs = (ids: string[]): ProblemFact[] => ids.map((id) => facts.get(id) ?? fail("missing source fact"));
     const factRoles = new Map<string, ProgressionSourceRole[]>();
+    const assertedGivenRoleSets = new Set<string>();
     const usedFacts = new Set<string>();
     const factCovers = (ids: string[], role: ProgressionSourceRole, kind?: ProblemFact["kind"]): boolean => {
       const dependencies = refs(ids);
@@ -202,6 +203,15 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
       if (fact.kind === "requested" ? fact.evidence.start < askStart || !source.asks.some((ask) => covers(fact.evidence, ask.evidence)) : fact.evidence.end > askStart || !source.roles.some((role) => covers(fact.evidence, role.evidence))) fail("uncovered full-IR fact role");
       const roles = assertedRoles(source, fact);
       if (!roles.length) fail("fact statement has contradictory or unsupported source obligations");
+      if (fact.kind === "given") {
+        // A complete quote may contain smaller, separately asserted premises.
+        // Keep those distinct role sets (e.g. actual model, first-term and
+        // difference facts), while refusing an identical given proposition
+        // copied under another fact ID to pad a conceptual intent.
+        const roleSet = JSON.stringify(roles.map(role => role.role).sort());
+        if (assertedGivenRoleSets.has(roleSet)) fail("duplicate asserted given source role set");
+        assertedGivenRoleSets.add(roleSet);
+      }
       factRoles.set(fact.id, roles);
     }
     if (source.roles.some((role) => !problem.facts.some((fact) => fact.kind === "given" && factRoles.get(fact.id)!.includes(role)))) fail("full IR omits a complete given/model/relation role");
