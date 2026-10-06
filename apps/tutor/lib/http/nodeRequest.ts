@@ -41,5 +41,15 @@ export function protectNodeRequest(req: IncomingMessage, res: ServerResponse, op
     return emit(event, ...args);
   };
   req.on("error", () => {});
+  // Next's middleware body clone copies a PassThrough's fields onto this
+  // request, `_events` included, which drops the listener above. A client
+  // that disconnects before the route has read the body then destroys the
+  // request with `Error: aborted` (ECONNRESET) and no listener: an
+  // uncaughtException. Node emits that error on a later tick, so listening
+  // again when the socket closes still catches it.
+  const socket = req.socket;
+  const guardDisconnect = () => { req.on("error", () => {}); };
+  socket.once("close", guardDisconnect);
+  res.once("finish", () => socket.off("close", guardDisconnect));
   return true;
 }
