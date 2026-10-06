@@ -10,6 +10,7 @@ import { withFastModeHeader } from "../llm/fastMode";
 import { finitePolynomialPlanningGuidance } from "./finitePolynomialGuidance";
 import { finiteProgressionPlanningGuidance } from "./finiteProgressionGuidance";
 import { measurementPlanningGuidance } from "./measurementGuidance";
+import { matrixProductPlanningGuidance } from "./matrixProductGuidance";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
@@ -191,7 +192,7 @@ async function requestTurnPlanV3(
         messages: [
           {
             role: "system",
-            content: systemPrompt + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question),
+            content: systemPrompt + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question),
           },
           {
             role: "user",
