@@ -190,13 +190,34 @@ export function readSectionFormulaSource(question: string): SectionFormulaReadin
   const unboundName = [...question.matchAll(/(?<![A-Za-z0-9_])([A-Z](?:_?\d)?'?)(?![A-Za-z0-9_'])/g)]
     .find((match) => ![a.name, b.name, pointNameEvidence?.name].includes(match[1]!));
   if (unboundName) return { status: "declined", reason: POINT_IDENTITY_FAILURES.unbound };
-  // Account for the whole bounded section sentence. Known coordinate and
-  // ratio syntax is consumed first; remaining words must describe this join
-  // and its dividing point. Extra asks/physical premises cannot disappear.
-  let residual=stem.replace(NAMED_POINT," ").replace(BARE_PAIR," ").replace(RATIO," ").replace(FRACTION_RATIO," ");
-  for(const name of [a.name,b.name,pointNameEvidence?.name,divider?.name].filter((name):name is string=>Boolean(name))) residual=residual.replace(new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_'])`,"g")," ");
-  const words=new Set("find calculate determine coordinates coordinate of the a an point points which that divides divide divided dividing line segment joining join and internally internal externally external in ratio what does is midpoint mid middle section formula its at by to between".split(" "));
-  if(residual.replace(/[A-Za-z]+/g,word=>words.has(word.toLowerCase())?" ":word).replace(/[\s.,:;!?()-]/g,"")!=="")return {status:"declined",reason:"unconsumed section source clause or obligation"};
+  // Consume one complete supported request and its endpoint relationship.
+  // A vocabulary match cannot account for another ask made of the same words.
+  let clause = stem.replace(NAMED_POINT, (_match, name: string) =>
+    name === a.name ? "ENDPOINT_A" : name === b.name ? "ENDPOINT_B" : "DIVIDER");
+  if (!a.named && !b.named) {
+    let index = 0;
+    clause = clause.replace(BARE_PAIR, () => {
+      const point = points[index++]!;
+      return point === divider ? "DIVIDER" : point === a ? "ENDPOINT_A" : "ENDPOINT_B";
+    });
+  }
+  clause = clause.replace(RATIO, "WEIGHTS").replace(FRACTION_RATIO, "ratio WEIGHTS");
+  if (pointNameEvidence) clause = clause.replace(new RegExp(`(?<![A-Za-z0-9_])${pointNameEvidence.name}(?![A-Za-z0-9_'])`, "g"), "RESULT");
+  clause = clause.trim().replace(/[.!?]$/, "").replace(/\s+/g, " ").toLowerCase();
+  const join = "(?:(?:the )?(?:line )?segment joining endpoint_a and endpoint_b|(?:the )?(?:line )?segment from endpoint_a to endpoint_b|(?:the )?line joining endpoint_a and endpoint_b|(?:the )?join of endpoint_a and endpoint_b|endpoint_a and endpoint_b)";
+  const command = "(?:find|calculate|determine) (?:the )?";
+  const pointAsk = "(?:coordinates? of (?:the )?(?:point )?(?:result )?|point (?:result )?)";
+  const division = `(?:(?:which|that) )?divid(?:es|ing) ${join} (?:internally |externally )?in (?:the )?ratio weights`;
+  const supported = [
+    `${command}${pointAsk}${division}`,
+    `${command}(?:mid-? ?point|middle point) (?:result )?of ${join}`,
+    `in what ratio does (?:the point )?divider divide (?:internally |externally )?${join}`,
+    // A stated divider followed by the same coordinate ask is one operation.
+    `(?:the )?point divider divides ${join} (?:internally |externally )?in (?:the )?ratio weights[.] ${command}coordinates? of (?:the )?(?:point )?result`,
+  ];
+  if (!supported.some(pattern => new RegExp(`^${pattern}$`).test(clause))) {
+    return { status: "declined", reason: "unconsumed section source clause or obligation" };
+  }
   const mode: SectionFormulaSource["mode"] = midpoint && !stated && !asksRatio ? "midpoint" : external ? "external" : "internal";
 
   let m: Rational;
@@ -434,19 +455,68 @@ function sectionRootBindsFormula(source:SectionFormulaSource,axis:"x"|"y",root:E
  return forms.some(form=>sectionExpressionKey(form)===sectionExpressionKey(root));
 }
 
+/** A requested midpoint clause can source the line only when the complete
+ * clause states the midpoint role, join and both exact named endpoints.
+ * Endpoint tuples alone do not prove a request or joining relationship. */
+function midpointJoinEvidence(source: SectionFormulaSource, quote: string): boolean {
+  if (source.mode !== "midpoint") return false;
+  const points = [...quote.matchAll(NAMED_POINT)];
+  if (points.length !== 2 || !points.every((match, index) => {
+    const point = [source.a, source.b][index]!;
+    return match[1] === point.name && num(decimal(match[2]!)) === point.x
+      && num(decimal(match[3]!)) === point.y;
+  })) return false;
+  const clause = quote.replace(NAMED_POINT, "ENDPOINT").trim().replace(/[.!?]$/, "").replace(/\s+/g, " ");
+  return new RegExp(`^(?:(?:find|calculate|determine) (?:the )?)?midpoint ${source.point.name} of (?:the )?(?:line )?segment joining ENDPOINT and ENDPOINT$`, "i").test(clause);
+}
+
 function sectionFactIsBound(source:SectionFormulaSource,question:string,fact:ProblemFact):boolean {
  if(fact.kind==="assumption") return false;
  const norm=(value:string)=>value.trim().replace(/[.!?]$/,"").replace(/\s+/g," ").toLowerCase();
  const statement=norm(fact.statement),quote=fact.evidence.quote;
+ if(fact.kind==="requested") {
+  // The full source was already consumed as one operation by the reader.
+  if(statement===norm(question) && norm(quote)===norm(question)) return true;
+  const name=source.point.name.toLowerCase(),join=`${source.a.name.toLowerCase()}${source.b.name.toLowerCase()}`;
+  if(source.mode==="midpoint") {
+   const request=new RegExp(`^(?:(find|calculate|determine) (?:the )?)?midpoint ${name} of (?:the )?(?:line )?segment ${join}$`).exec(statement);
+   if(request) return midpointJoinEvidence(source,quote) || Boolean(request[1] && norm(quote)===`find the midpoint ${name} of the line segment joining`);
+   return midpointJoinEvidence(source,fact.statement) && midpointJoinEvidence(source,quote);
+  }
+  if(source.asks!=="point") return false;
+  // An anonymous coordinate ask can cite just its command word. The whole
+  // source independently establishes the single dividing-point operation;
+  // this spelling cannot assert a new name, mode, ratio or extra ask.
+  const anonymous=/^(find|calculate|determine) (?:the )?coordinates? of (?:the )?dividing point$/.exec(statement);
+  if(!source.pointNameEvidence && anonymous && norm(quote)===anonymous[1]
+    && fact.evidence.start===0) return true;
+  const request=new RegExp(`^(?:find|calculate|determine) (?:the )?(?:coordinates? of (?:the )?(?:point )?${name}|(?:dividing )?point ${name})(?: (?:which divides|dividing) (?:the )?(?:line )?segment(?: ${join})?(?: (internally|externally))?(?: in (?:the )?ratio (${PART})\\s*:\\s*(${PART}))?)?$`).exec(statement);
+  if(!request || request[1] && request[1]!==`${source.mode}ly`
+    || request[2] && (num(part(request[2]))!==source.m || num(part(request[3]!))!==source.n)) return false;
+  if(request[1] && !new RegExp(`\\b${source.mode}ly\\b`,"i").test(quote)) return false;
+  if(request[2] && !dimensionEvidence(source,"m",quote)) return false;
+  // Retain captured request prefixes, but require their complete named role.
+  const prefix=`(?:find|calculate|determine) (?:the )?(?:coordinates? of (?:the )?(?:point )?${name}|point ${name})`;
+  if(new RegExp(`^${prefix}(?: (?:which divides|dividing) (?:the )?(?:line )?segment)?$`).test(norm(quote))) return true;
+  const points=[...quote.matchAll(NAMED_POINT)];
+  if(points.length!==2 || !points.every((match,index)=>{
+   const point=[source.a,source.b][index]!;
+   return match[1]===point.name && num(decimal(match[2]!))===point.x && num(decimal(match[3]!))===point.y;
+  })) return false;
+  const clause=norm(quote.replace(NAMED_POINT,"ENDPOINT"));
+  return new RegExp(`^${prefix} (?:which divides|dividing) (?:the )?(?:line )?segment joining endpoint and endpoint(?: ${source.mode}ly)?(?: in (?:the )?ratio (${PART})\\s*:\\s*(${PART}))?$`).test(clause)
+    && (!/\bratio\b/.test(clause) || dimensionEvidence(source,"m",quote));
+ }
  if(statement===norm(quote) || statement===norm(question)) return true;
- if(fact.kind==="requested" && source.mode==="midpoint" && new RegExp(`^midpoint ${source.point.name.toLowerCase()} of (?:the )?(?:line )?segment ${source.a.name.toLowerCase()}${source.b.name.toLowerCase()}$`).test(statement) && norm(quote)===norm(question))return true;
- if(fact.kind==="requested") return /^(?:find|calculate|determine|in what ratio) (?:the )?(?:coordinates|point|midpoint|ratio|dividing point)\b/.test(statement) && !/\b(?:circle|perpendicular|parallel|radius|area|slope|distance)\b/.test(statement);
  for(const point of [source.a,source.b]){
   const name=point.name.toLowerCase();
   const pair=new RegExp(`^(?:point )?${name} (?:has|is at|is given with) (?:the )?coordinates?\\s*\\(\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*\\)$`).exec(statement);
   if(pair && num(decimal(pair[1]!))===point.x && num(decimal(pair[2]!))===point.y && dimensionEvidence(source,`${point.name}_x`,quote)) return true;
   const axis=new RegExp(`^(?:point )?${name} has ([xy])[- ]coordinate (${NUMBER})$`).exec(statement);
   if(axis && num(decimal(axis[2]!))===point[axis[1] as "x"|"y"] && dimensionEvidence(source,`${point.name}_${axis[1]}`,quote)) return true;
+  const coordinateOf=new RegExp(`^([xy])[- ]coordinate of ${name} is (${NUMBER})$`).exec(statement);
+  if(fact.kind==="given" && coordinateOf && num(decimal(coordinateOf[2]!))===point[coordinateOf[1] as "x"|"y"]
+    && dimensionEvidence(source,`${point.name}_${coordinateOf[1]}`,quote)) return true;
  }
  const division=new RegExp(`^${source.point.name.toLowerCase()} divides (?:the )?(?:segment|line segment|join|${source.a.name.toLowerCase()}${source.b.name.toLowerCase()}) ${source.mode}ly in (?:the )?ratio (${PART})\\s*:\\s*(${PART})$`).exec(statement);
  if(source.mode!=="midpoint" && division && num(part(division[1]!))===source.m && num(part(division[2]!))===source.n && dimensionEvidence(source,"m",quote) && new RegExp(`\\b${source.mode}ly\\b`,"i").test(quote))return true;
@@ -480,7 +550,7 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   if (source.pointNameEvidence && result.label !== source.pointNameEvidence.name) return false;
 
   const hasPointEvidence = (ids: string[], point: SectionFormulaSource["a"], wholeQuestionRequest=false): boolean => ids.some((id) =>
-    (facts.get(id)?.kind === "given" || wholeQuestionRequest && facts.get(id)?.kind==="requested" && facts.get(id)!.evidence.quote.trim()===String(document.source.question).trim()) && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
+    (facts.get(id)?.kind === "given" || wholeQuestionRequest && facts.get(id)?.kind==="requested" && (source.mode==="midpoint" ? midpointJoinEvidence(source,facts.get(id)!.evidence.quote) : facts.get(id)!.evidence.quote.trim()===question.trim())) && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
   if (!endpoints.every((entity, i) => hasPointEvidence(entity!.evidenceFactIds, [source.a, source.b][i]!))) return false;
   const lines = problem.entities.filter((entity) => entity.kind === "line");
   if (lines.length > 1 || lines.some((line) => ![`${source.a.name}${source.b.name}`,`segment ${source.a.name}${source.b.name}`,`line ${source.a.name}${source.b.name}`,`line segment ${source.a.name}${source.b.name}`].includes(line.label ?? "")
@@ -658,8 +728,8 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
     return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: "section_point requires the source question" }];
   }
   const reading = readSectionFormulaSource(question);
-  if (reading.status === "declined" && Object.values(POINT_IDENTITY_FAILURES).includes(reading.reason)) {
-    return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: `the stem's dividing-point identity is unsupported (${reading.reason})` }];
+  if (reading.status === "declined") {
+    return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: `the stem's complete section request is unsupported (${reading.reason})` }];
   }
   if (reading.status === "inconsistent" || reading.status === "singular") {
     return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: `the stem's section has no consistent finite point (${reading.reason})` }];
