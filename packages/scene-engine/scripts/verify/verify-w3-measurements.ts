@@ -23,7 +23,7 @@ const cases = [
 ] as const;
 
 function ast(n: number): ExpressionNodeIR { return { kind: "number", value: n }; }
-function binary(operator: " + " | " - " | " / ", left: ExpressionNodeIR, right: ExpressionNodeIR): ExpressionNodeIR { return { kind: "binary", operator: operator.trim() as "+" | "-" | "/", left, right }; }
+function binary(operator: " + " | " - " | " / " | " * ", left: ExpressionNodeIR, right: ExpressionNodeIR): ExpressionNodeIR { return { kind: "binary", operator: operator.trim() as "+" | "-" | "/" | "*", left, right }; }
 function makeInput(item: typeof cases[number], override: { expression?: ExpressionNodeIR; ask?: boolean; sourceExtra?: string; planValue?: number; planUnit?: string; zeroRole?: string } = {}): { problem: ProblemIR; plan: TurnPlanV3 } {
   const question = override.sourceExtra
     ? item.question.includes("Options :") ? item.question.replace(/\n\s*Options\s*:/i, `${override.sourceExtra}\n\nOptions :`) : item.question + override.sourceExtra
@@ -59,8 +59,8 @@ function makeInput(item: typeof cases[number], override: { expression?: Expressi
       { id: "result", valueType: "scalar", root: formula, evidenceFactIds: sourceIds },
       { id: "observed", valueType: "scalar", root: binary(" + ", ast(trueInMm), ast(zeroInMm)), evidenceFactIds: ["true", "zero"] },
       { id: "truepluszero", valueType: "scalar", root: binary(" + ", ast(trueInMm), ast(zeroInMm)), evidenceFactIds: ["true", "zero"] },
-      { id: "main", valueType: "scalar", root: ast(item.main * (item.pitchUnit === "cm" ? 10 : 1)), evidenceFactIds: ["pitch", "true"] },
-      { id: "leastExpression", valueType: "scalar", root: ast(leastInMm), evidenceFactIds: ["least", "pitch"] },
+      { id: "main", valueType: "scalar", root: binary(" * ", ast(pitchInMm), ast(mainInMm / pitchInMm)), evidenceFactIds: ["pitch", "true", "zero"] },
+      { id: "leastExpression", valueType: "scalar", root: ast(leastInMm), evidenceFactIds: ["least"] },
     ],
     constraints: [{ id: "observedfromzero", kind: "equation", leftExpressionId: "observed", rightExpressionId: "truepluszero", evidenceFactIds: ["true", "zero"] }],
     representationIntents: [{ id: "measurementintent", kind: "conceptual", entityIds: ["wire"], evidenceFactIds: ["true"] }],
