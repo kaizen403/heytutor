@@ -3,8 +3,8 @@ import { normalized, tokens, stemKnowns, suvatSlots, resolveConstantAcceleration
   type SuvatRole, type SuvatState } from "../archetypes/generators/constantAcceleration";
 import type { ExpressionNodeIR, QuestionSourceEvidence } from "./problemIR";
 
-export type SuvatSemantic = "velocity" | "speed" | "displacement" | "distance" | "acceleration" | "time";
-export const suvatSemantic = (name: string): SuvatSemantic => name.includes("speed") ? "speed" : name.includes("velocity") ? "velocity" : name === "distance" ? "distance" : name === "displacement" ? "displacement" : name === "time" || name === "duration" || name === "braking time" ? "time" : "acceleration";
+export type SuvatSemantic = "velocity" | "speed" | "displacement" | "distance" | "acceleration" | "deceleration" | "time";
+export const suvatSemantic = (name: string): SuvatSemantic => /deceleration|retardation/.test(name) ? "deceleration" : name.includes("speed") ? "speed" : name.includes("velocity") ? "velocity" : name === "distance" ? "distance" : name === "displacement" ? "displacement" : name === "time" || name === "duration" || name === "braking time" ? "time" : "acceleration";
 
 export interface SuvatSource {
   question: string;
@@ -39,7 +39,7 @@ export function readSuvatSource(question: string): SuvatReading {
   if ("conflict" in slots) return decline(slots.conflict);
   const solve = resolveConstantAcceleration(slots.knowns);
   if (!solve.ok) return decline(solve.reason);
-  if (/brak|decel|retard/i.test(conditionMatch[0]) && !(Math.abs(solve.state.v)<Math.abs(solve.state.u))) return decline("stated deceleration does not decrease speed in the source interval");
+  if (/brak|decel|retard/i.test(question) && !(Math.abs(solve.state.v)<Math.abs(solve.state.u))) return decline("stated deceleration does not decrease speed in the source interval");
   const found = tokens(normalized(statement));
   // Original evidence offsets are recovered from the exact source token, not
   // from lowercased/whitespace-folded offsets.
@@ -69,9 +69,9 @@ export function readSuvatSource(question: string): SuvatReading {
     // Existing source lexemes specify magnitudes; they never license a
     // negative speed/distance by borrowing velocity/displacement coordinates.
     const priorEnd = sourceTokens.filter(prior => prior && prior.span.end <= row.span.start).at(-1)?.span.end ?? 0;
-    const names = normalized(statement.slice(priorEnd,row.span.start)).match(/\b(?:speed|velocity|distance|displacement)\b/g);
+    const names = normalized(statement.slice(priorEnd,row.span.start)).match(/\b(?:speed|velocity|distance|displacement|deceleration|retardation)\b/g);
     const semantic = names?.at(-1);
-    if(row.token.value < 0 && (semantic === "speed" || semantic === "distance")) return decline("negative source magnitude is physically invalid");
+    if(row.token.value < 0 && (semantic === "speed" || semantic === "distance" || semantic === "deceleration" || semantic === "retardation")) return decline("negative source magnitude is physically invalid");
     sourceRoles[role]=row.span;
   }
   for (const [role, pattern] of [["u",STARTS_AT_REST],["v",ENDS_AT_REST]] as const) {
@@ -96,7 +96,7 @@ export function readSuvatSource(question: string): SuvatReading {
   let queryResidual=query.toLowerCase().replace(/\b(?:acceleration|deceleration|retardation|distance|displacement|time|duration|velocity|speed)\b/g," ");
   queryResidual=queryResidual.replace(/\b(?:find|calculate|determine|compute|its|the|and|travelled|traveled|covered|covers|while|during|braking|this|time|interval|final|taken|to|stop|it|in|total)\b/g," ");
   if(!asks.length || /[a-z0-9=]/.test(queryResidual))return decline("unconsumed source query");
-  if (asks.some(ask => (ask.semantic === "distance" || ask.semantic === "speed") && solve.state[ask.role] < 0)) return decline("signed source result is not a nonnegative magnitude");
+  if (asks.some(ask => (ask.semantic === "distance" || ask.semantic === "speed" || ask.semantic === "deceleration") && solve.state[ask.role] < 0)) return decline("signed source result is not a nonnegative magnitude");
   const known=stemKnowns(question);
   const formulas = Object.fromEntries(roles.map(role=>[role,known[role] === undefined ? [] : [number(known[role]!)] ])) as Record<SuvatRole,ExpressionNodeIR[]>;
   const n=(role:SuvatRole) => formulas[role][0]!;

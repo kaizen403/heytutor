@@ -18,11 +18,12 @@ const roleOf=(row:{id:string;symbol:string}):SuvatRole|undefined => {
   const idRole=roles.find(role=>aliases[role].includes(key(row.id)));
   return row.id.length>0 && symbolRole && (!idRole || idRole===symbolRole) ? symbolRole : undefined;
 };
-const namedSemantics: Record<string,SuvatSemantic> = {initialvelocity:"velocity",finalvelocity:"velocity",initialspeed:"speed",finalspeed:"speed",distance:"distance",displacement:"displacement"};
+const namedSemantics: Record<string,SuvatSemantic> = {initialvelocity:"velocity",finalvelocity:"velocity",initialspeed:"speed",finalspeed:"speed",distance:"distance",displacement:"displacement",deceleration:"deceleration"};
 function auditQuantitySemantics(source:SuvatSource,row:{id:string;symbol:string},role:SuvatRole,requested:boolean):void {
   for(const name of [row.id,row.symbol]){
+    if(key(name)==="deceleration"&&!(Math.abs(source.state.v)<Math.abs(source.state.u)))fail("Plan deceleration name contradicts speed increase");
     const semantic=namedSemantics[key(name)];if(!semantic)continue;
-    if((semantic==="speed"||semantic==="distance")&&source.state[role]<0)fail("Plan magnitude name borrows a negative signed role");
+    if((semantic==="speed"||semantic==="distance"||semantic==="deceleration")&&source.state[role]<0)fail("Plan magnitude name borrows a negative signed role");
     if(requested && !source.asks.some(ask=>ask.role===role&&ask.semantic===semantic))fail("Plan semantic name disagrees with source query");
   }
 }
@@ -163,6 +164,7 @@ export function admitSuvatCaller(question:string,rawProblem:unknown,rawPlan:unkn
       fields(fact,["id","kind","statement","evidence"]);fields(fact.evidence,["source","start","end","quote"]);
       if(question.slice(fact.evidence.start,fact.evidence.end)!==fact.evidence.quote)fail("fact evidence span/quote conflicts");
       const statement=normalized(fact.statement);
+      if(/brak|decel|retard/.test(statement)&&!(Math.abs(source.state.v)<Math.abs(source.state.u)))fail("fact braking/deceleration predicate does not prove decreasing speed");
       let role:SuvatRole|"condition"|undefined;
       if(fact.kind==="requested"){
         const matched=/^(?:find |calculate |determine )?(acceleration|deceleration|distance|displacement|final velocity|final speed|time)(?: travelled while braking| travelled| covered| taken)?$/.exec(statement);
@@ -178,7 +180,7 @@ export function admitSuvatCaller(question:string,rawProblem:unknown,rawPlan:unkn
         role=match[1]!.startsWith("initial")?"u":match[1]!.startsWith("final")?"v":/time|duration/.test(match[1]!)?"t":/acceleration|deceleration/.test(match[1]!)?"a":"s";
         const span=source.roles[role];
         const semantic=suvatSemantic(match[1]!);
-        if((semantic==="speed"||semantic==="distance")&&source.state[role]<0)fail("fact magnitude name borrows a negative signed role");
+        if((semantic==="speed"||semantic==="distance"||semantic==="deceleration")&&source.state[role]<0)fail("fact magnitude name borrows a negative signed role");
         const rhs=match[2]!.replace(/\s*\(rest\)$/,"");
         const value=/^([-+]?\d+(?:\.\d+)?)\s*(.*)$/.exec(rhs);
         const expected=value?siValue({id:role,symbol:role,value:Number(value[1]),unit:value[2]|| (role==="u"||role==="v"?"m/s":"")},dimensions[role]):null;

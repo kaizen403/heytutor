@@ -9,7 +9,9 @@ import {selectVerifiedRepresentation,selectFastVerifiedRepresentation} from '../
 import {sceneSaveAdmissionFailure} from '../../../../apps/tutor/lib/scene/sceneSaveAdmission';
 const bytes=readFileSync(new URL('./fixtures/w2-suvat-semantic-closeout-20261007/full-callers.json',import.meta.url));
 assert.equal(createHash('sha256').update(bytes).digest('hex'),'824b52bd92a478786f2f4bc57dd753b1f640f374810c6db3ec642778bcf907af');
-const tests=JSON.parse(bytes.toString()).cases;
+const predicateBytes=readFileSync(new URL('./fixtures/w2-suvat-semantic-closeout-20261007/predicate-callers.json',import.meta.url));
+assert.equal(createHash('sha256').update(predicateBytes).digest('hex'),'c339c6d292a3286b745d6e5e5eaf5795595eeec61ea9830b216d786887b04ab3');
+const tests=[...JSON.parse(bytes.toString()).cases,...JSON.parse(predicateBytes.toString()).cases];
 const original=tests[0].c;
 const doc=E.suvatCallerDocument(original.q,original.ir,original.plan)!;
 let checks=0;const failed:string[]=[];const records=[];
