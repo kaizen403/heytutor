@@ -1,0 +1,67 @@
+{
+  "base": "759aa107a935a0c0b800dedf418bf48e9840c732",
+  "node": "24.21.0",
+  "pnpm": "10.32.0",
+  "install": "pnpm install --offline --frozen-lockfile --ignore-scripts (own worktree)",
+  "focusedOutput": "w2-circle-source: 352 checks passed; authored full-IR evidence; READY=0; count delta=0\n",
+  "comparison": [
+    {
+      "name": "verify-circle-operators",
+      "exit": 0,
+      "sha256": "ca474667d76955fdbed82a9f5e6cbcb479a5cbd9115b124ac556d625de0a3d43",
+      "baselineExit": 0,
+      "outputEqual": true
+    },
+    {
+      "name": "verify-parallel-circle-standard-topic",
+      "exit": 1,
+      "sha256": "9aca557c4e44985a2964124767ea74b03fbd87f89208f078ac8c54c3a7c8bdc6",
+      "baselineExit": 1,
+      "outputEqual": true,
+      "baselineFailureOutput": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: This guard must not reinterpret an unrelated physics/helper circle\n\nfalse !== true\n\n    at <anonymous> (/Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine/scripts/verify/verify-parallel-circle-standard-topic.ts:193:8)\n    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n    at async node:internal/modules/esm/loader:647:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.21.0\n",
+      "finalFailureOutputSha256": "9aca557c4e44985a2964124767ea74b03fbd87f89208f078ac8c54c3a7c8bdc6"
+    },
+    {
+      "name": "verify-visual-obligations",
+      "exit": 0,
+      "sha256": "2efe905d4c1124b23aee69f1ac04733af51c00ec1d435be3df63f3d76f2d3aff",
+      "baselineExit": 0,
+      "outputEqual": true
+    },
+    {
+      "name": "verify-archetype-pictures",
+      "exit": 1,
+      "sha256": "46f88eb95a6685f842006cae2e88660b361009959ef83971bbb6502c83f76a48",
+      "baselineExit": 1,
+      "outputEqual": true,
+      "baselineFailureOutput": "verify-archetype-pictures: probes=114 scenes=102 exact=38 generators=75\nverify-archetype-pictures: FAILED (4)\n  kirchhoff-bilingual: two_loop_network produced no scene (demand: a chemistry stem was handed a physics figure) \n  ladder: ladder_wall produced no scene (ladder_wall generator declined the slots) \n  collision: collision_line produced no scene (demand: a chemistry stem was handed a physics figure) \n  photoelectric: photoelectric produced no scene (demand: a chemistry stem was handed a physics figure) \n",
+      "finalFailureOutputSha256": "46f88eb95a6685f842006cae2e88660b361009959ef83971bbb6502c83f76a48"
+    },
+    {
+      "name": "verify-archetype-point-ownership",
+      "exit": 1,
+      "sha256": "1924d56d83698dd3193e586425ca674d40377169607f1ceee60c5a87d2e3f3cb",
+      "baselineExit": 1,
+      "outputEqual": true,
+      "baselineFailureOutput": "/Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine/scripts/verify/verify-archetype-point-ownership.ts:5\n  if (!condition) throw new Error(message);\n                        ^\n\nError: collision must retain every physical body and meaningful label: undefined\n    at assert (/Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine/scripts/verify/verify-archetype-point-ownership.ts:5:25)\n    at <anonymous> (/Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine/scripts/verify/verify-archetype-point-ownership.ts:13:3)\n    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n    at async node:internal/modules/esm/loader:647:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v24.21.0\n",
+      "finalFailureOutputSha256": "1924d56d83698dd3193e586425ca674d40377169607f1ceee60c5a87d2e3f3cb"
+    }
+  ],
+  "additionalFinalGates": [
+    {
+      "name": "verify-problem-ir",
+      "exit": 0,
+      "sha256": "3193767a4af4acb107bdb81ca2da870a8917596cd730a6c9c53aaa0854a96b9f"
+    }
+  ],
+  "packageLintOutput": "\n> @heytutor/scene-engine@0.1.0 lint /Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine\n> eslint src/\n\n\n/Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine/src/dsa/trace/simulators/misc.ts\n  1203:15  warning  'index' is assigned a value but never used  @typescript-eslint/no-unused-vars\n\n/Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine/src/dsa/trace/simulators/sorting.ts\n  64:10  warning  'mergeRuns' is defined but never used  @typescript-eslint/no-unused-vars\n\n/Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine/src/dsa/trace/simulators/stackAndMap.ts\n  12:3  warning  'cells' is defined but never used   @typescript-eslint/no-unused-vars\n  13:3  warning  'marked' is defined but never used  @typescript-eslint/no-unused-vars\n\n\u2716 4 problems (0 errors, 4 warnings)\n\n",
+  "ownLintOutput": "",
+  "typecheckOutput": "\n> @heytutor/scene-engine@0.1.0 typecheck /Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine\n> tsc --noEmit\n\n",
+  "verifierTypecheckOutput": "",
+  "buildLogs": {
+    "drawing": "\n> @heytutor/drawing@0.1.0 build /Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/drawing\n> tsup src/index.ts --format esm --dts --clean\n\nCLI Building entry: src/index.ts\nCLI Using tsconfig: tsconfig.json\nCLI tsup v8.5.1\nCLI Target: es2022\nCLI Cleaning output folder\nESM Build start\nDTS Build start\nESM dist/index.js 200.03 KB\nESM \u26a1\ufe0f Build success in 167ms\nDTS \u26a1\ufe0f Build success in 356ms\nDTS dist/index.d.ts 37.78 KB\n",
+    "scene-engine": "\n> @heytutor/scene-engine@0.1.0 build /Users/kaizen/heytutor-cov-wt/w2-circle-source-20261006/packages/scene-engine\n> tsup src/index.ts --format esm --dts --clean\n\nCLI Building entry: src/index.ts\nCLI Using tsconfig: tsconfig.json\nCLI tsup v8.5.1\nCLI Target: es2022\nCLI Cleaning output folder\nESM Build start\nESM dist/index.js 4.10 MB\nESM \u26a1\ufe0f Build success in 65ms\nDTS Build start\nDTS \u26a1\ufe0f Build success in 2175ms\nDTS dist/index.d.ts 198.78 KB\n",
+    "new-helpers": "CLI Building entry: src/ir/circleSourceAuthority.ts, src/ir/circleSourceProgram.ts\nCLI Using tsconfig: tsconfig.json\nCLI tsup v8.5.1\nCLI Target: es2022\nESM Build start\nESM ../../../../../../tmp/w2-circle-source-20261006/helper-dist/circleSourceAuthority.js 4.77 KB\nESM ../../../../../../tmp/w2-circle-source-20261006/helper-dist/circleSourceProgram.js   633.00 B\nESM ../../../../../../tmp/w2-circle-source-20261006/helper-dist/chunk-MRYGODKH.js        1.31 MB\nESM \u26a1\ufe0f Build success in 44ms\nDTS Build start\nDTS \u26a1\ufe0f Build success in 1272ms\nDTS ../../../../../../tmp/w2-circle-source-20261006/helper-dist/circleSourceAuthority.d.ts 2.36 KB\nDTS ../../../../../../tmp/w2-circle-source-20261006/helper-dist/circleSourceProgram.d.ts   10.02 KB\n"
+  },
+  "limitations": "Own helpers not wired into shared parent files. No browser/provider/DB/student/native full-IR certification. READY=0, count delta=0."
+}

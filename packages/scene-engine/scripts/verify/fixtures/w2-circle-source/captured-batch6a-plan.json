@@ -1,0 +1,108 @@
+{
+ "givens": [
+  {
+   "id": "g1",
+   "value": 0.5,
+   "symbol": "A",
+   "provenance": "given",
+   "sourceText": "coefficient of x^2 and y^2"
+  },
+  {
+   "id": "g2",
+   "value": -1.5,
+   "symbol": "D",
+   "provenance": "given",
+   "sourceText": "coefficient of x"
+  },
+  {
+   "id": "g3",
+   "value": 2,
+   "symbol": "E",
+   "provenance": "given",
+   "sourceText": "coefficient of y"
+  },
+  {
+   "id": "g4",
+   "value": -0.375,
+   "symbol": "F",
+   "provenance": "given",
+   "sourceText": "constant term"
+  }
+ ],
+ "lawIds": [
+  "completing_the_square",
+  "standard_circle_equation"
+ ],
+ "derived": [
+  {
+   "id": "d1",
+   "value": 1.5,
+   "symbol": "h",
+   "dependsOn": [
+    "g2"
+   ],
+   "provenance": "derived",
+   "sourceText": "x^2-3x -> (x-1.5)^2 after multiplying equation by 2"
+  },
+  {
+   "id": "d2",
+   "value": -2,
+   "symbol": "k",
+   "dependsOn": [
+    "g3"
+   ],
+   "provenance": "derived",
+   "sourceText": "y^2+4y -> (y+2)^2 after multiplying equation by 2"
+  },
+  {
+   "id": "d3",
+   "value": 3,
+   "symbol": "r",
+   "dependsOn": [
+    "g1",
+    "g2",
+    "g3",
+    "g4"
+   ],
+   "provenance": "derived",
+   "sourceText": "(x-1.5)^2+(y+2)^2=9, so r=sqrt(9)=3"
+  }
+ ],
+ "question": "Find the centre and radius of 0.5x^2+0.5y^2-1.5x+2y-0.375=0.",
+ "unknowns": [
+  {
+   "id": "u1",
+   "unit": "coordinate",
+   "symbol": "h"
+  },
+  {
+   "id": "u2",
+   "unit": "coordinate",
+   "symbol": "k"
+  },
+  {
+   "id": "u3",
+   "unit": "length",
+   "symbol": "r"
+  }
+ ],
+ "assumptions": [
+  "x and y are Cartesian coordinates",
+  "radius is nonnegative",
+  "A verified illustration is required by the question's spatial or explicit visual request."
+ ],
+ "schemaVersion": "turn-plan/v3",
+ "qualitativeClaims": [
+  {
+   "id": "c1",
+   "claim": "The equation represents a circle with centre (1.5,-2) and radius 3.",
+   "expected": "centre (3/2,-2), radius 3",
+   "relatedQuantityIds": [
+    "d1",
+    "d2",
+    "d3"
+   ]
+  }
+ ],
+ "visualRequirement": "required"
+}

@@ -1,0 +1,17 @@
+{
+  "authored-full-ir": "Independently authored full ProblemIR oracles; no native/full student capture exists in the inspected b6b evidence. Never reduced from actual IR.",
+  "captured-batch6a-plan.json": "Historical plan fixture from rejected git object c8814e67, used as evidence only. No code cherry-picked.",
+  "b6b-live": {
+    "path": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-04T0313-batch6b-66e72812/evidence/b6b-circle-general-frac-live.json",
+    "sha256": "540303db29dcf01e694d25e6eb1988879008e2c9dacca25d117becff3b7f0ada",
+    "savedTurnProblemIR": null
+  },
+  "b6b-planner": {
+    "path": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-04T0313-batch6b-66e72812/evidence/b6b-circle-general-frac-planner-exchanges.json",
+    "sha256": "6238b5c8fae965d5e350acaac8b910a09ada009b168b5cc50f6ad335849943b7",
+    "problem-ir-v1-response": [
+      "{\"error\":\"The tutor is temporarily unavailable. Please try again.\"}"
+    ]
+  },
+  "captured-batch6b-plan.json": "Complete actual first turn-plan-v3 response from b6b-circle-general-frac-planner-exchanges.json, choices[0].message.content; no fields removed. Second response has the same h=1.5,k=-2,r=2.5."
+}

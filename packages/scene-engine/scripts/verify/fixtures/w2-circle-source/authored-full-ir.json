@@ -1,0 +1,2182 @@
+[
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        1.5,
+        -2
+      ],
+      "radiusSquared": 7,
+      "pointPositions": []
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Find the centre and radius of 0.5x^2+0.5y^2-1.5x+2y-0.375=0.",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": "0.5x^2+0.5y^2-1.5x+2y-0.375=0",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 59,
+            "quote": "0.5x^2+0.5y^2-1.5x+2y-0.375=0"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 59,
+            "quote": "0.5x^2+0.5y^2-1.5x+2y-0.375=0"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 59,
+            "quote": "0.5x^2+0.5y^2-1.5x+2y-0.375=0"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 59,
+            "quote": "0.5x^2+0.5y^2-1.5x+2y-0.375=0"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 59,
+            "quote": "0.5x^2+0.5y^2-1.5x+2y-0.375=0"
+          }
+        },
+        {
+          "id": "ask",
+          "kind": "requested",
+          "statement": "Find the centre and radius",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 26,
+            "quote": "Find the centre and radius"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 0.5
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "x"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 0.5
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "y"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": -1.5
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "y"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": -0.375
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0.5
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -1.5
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 2
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -0.375
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        1.5,
+        -2
+      ],
+      "radiusSquared": 7,
+      "pointPositions": []
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Find the centre and radius of .5x\u00b2+.5y\u00b2\u22121.5x+2y\u2212.3750=0.",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": ".5x\u00b2+.5y\u00b2\u22121.5x+2y\u2212.3750=0",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 55,
+            "quote": ".5x\u00b2+.5y\u00b2\u22121.5x+2y\u2212.3750=0"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 55,
+            "quote": ".5x\u00b2+.5y\u00b2\u22121.5x+2y\u2212.3750=0"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 55,
+            "quote": ".5x\u00b2+.5y\u00b2\u22121.5x+2y\u2212.3750=0"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 55,
+            "quote": ".5x\u00b2+.5y\u00b2\u22121.5x+2y\u2212.3750=0"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 55,
+            "quote": ".5x\u00b2+.5y\u00b2\u22121.5x+2y\u2212.3750=0"
+          }
+        },
+        {
+          "id": "ask",
+          "kind": "requested",
+          "statement": "Find the centre and radius",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 26,
+            "quote": "Find the centre and radius"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 0.5
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "x"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 0.5
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "y"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": -1.5
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "y"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": -0.375
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0.5
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -1.5
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 2
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -0.375
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        -2,
+        3
+      ],
+      "radiusSquared": 16,
+      "pointPositions": []
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Find the centre and radius of 2x^2+2y^2+8x-12y-6=0.",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": "2x^2+2y^2+8x-12y-6=0",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 50,
+            "quote": "2x^2+2y^2+8x-12y-6=0"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 50,
+            "quote": "2x^2+2y^2+8x-12y-6=0"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 50,
+            "quote": "2x^2+2y^2+8x-12y-6=0"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 50,
+            "quote": "2x^2+2y^2+8x-12y-6=0"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 50,
+            "quote": "2x^2+2y^2+8x-12y-6=0"
+          }
+        },
+        {
+          "id": "ask",
+          "kind": "requested",
+          "statement": "Find the centre and radius",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 26,
+            "quote": "Find the centre and radius"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "x"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "y"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 8
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": -12
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "y"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": -6
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 2
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 8
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -12
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -6
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        -2,
+        3
+      ],
+      "radiusSquared": 16,
+      "pointPositions": []
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Find the centre and radius of -2x^2-2y^2-8x+12y+6=0.",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": "-2x^2-2y^2-8x+12y+6=0",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 51,
+            "quote": "-2x^2-2y^2-8x+12y+6=0"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 51,
+            "quote": "-2x^2-2y^2-8x+12y+6=0"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 51,
+            "quote": "-2x^2-2y^2-8x+12y+6=0"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 51,
+            "quote": "-2x^2-2y^2-8x+12y+6=0"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 51,
+            "quote": "-2x^2-2y^2-8x+12y+6=0"
+          }
+        },
+        {
+          "id": "ask",
+          "kind": "requested",
+          "statement": "Find the centre and radius",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 26,
+            "quote": "Find the centre and radius"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": -2
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "x"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": -2
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "y"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": -8
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 12
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "y"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 6
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -2
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -8
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 12
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 6
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        -1,
+        -1
+      ],
+      "radiusSquared": 1,
+      "pointPositions": []
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Find the centre and radius of x^2+y^2+2x+2y+1=0.",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": "x^2+y^2+2x+2y+1=0",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 47,
+            "quote": "x^2+y^2+2x+2y+1=0"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 47,
+            "quote": "x^2+y^2+2x+2y+1=0"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 47,
+            "quote": "x^2+y^2+2x+2y+1=0"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 47,
+            "quote": "x^2+y^2+2x+2y+1=0"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 30,
+            "end": 47,
+            "quote": "x^2+y^2+2x+2y+1=0"
+          }
+        },
+        {
+          "id": "ask",
+          "kind": "requested",
+          "statement": "Find the centre and radius",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 26,
+            "quote": "Find the centre and radius"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "x"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "y"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "y"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 1
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 2
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 2
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 1
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        0,
+        0
+      ],
+      "radiusSquared": 25,
+      "pointPositions": [
+        "on",
+        "outside"
+      ]
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Draw the circle x^2+y^2=25 and mark the point P(3,4) and the point Q(8,0).",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": "x^2+y^2=25",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_P",
+          "kind": "given",
+          "statement": "P(3,4)",
+          "evidence": {
+            "source": "question",
+            "start": 46,
+            "end": 52,
+            "quote": "P(3,4)"
+          }
+        },
+        {
+          "id": "fact_P_x",
+          "kind": "given",
+          "statement": "x coordinate of point P",
+          "evidence": {
+            "source": "question",
+            "start": 46,
+            "end": 52,
+            "quote": "P(3,4)"
+          }
+        },
+        {
+          "id": "fact_P_y",
+          "kind": "given",
+          "statement": "y coordinate of point P",
+          "evidence": {
+            "source": "question",
+            "start": 46,
+            "end": 52,
+            "quote": "P(3,4)"
+          }
+        },
+        {
+          "id": "fact_Q",
+          "kind": "given",
+          "statement": "Q(8,0)",
+          "evidence": {
+            "source": "question",
+            "start": 67,
+            "end": 73,
+            "quote": "Q(8,0)"
+          }
+        },
+        {
+          "id": "fact_Q_x",
+          "kind": "given",
+          "statement": "x coordinate of point Q",
+          "evidence": {
+            "source": "question",
+            "start": 67,
+            "end": 73,
+            "quote": "Q(8,0)"
+          }
+        },
+        {
+          "id": "fact_Q_y",
+          "kind": "given",
+          "statement": "y coordinate of point Q",
+          "evidence": {
+            "source": "question",
+            "start": 67,
+            "end": 73,
+            "quote": "Q(8,0)"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "P",
+          "kind": "point",
+          "label": "P",
+          "evidenceFactIds": [
+            "fact_P"
+          ]
+        },
+        {
+          "id": "Q",
+          "kind": "point",
+          "label": "Q",
+          "evidenceFactIds": [
+            "fact_Q"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "variable",
+                "name": "x"
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "variable",
+                "name": "y"
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 25
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 1
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -25
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        },
+        {
+          "id": "P_x",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 3
+          },
+          "evidenceFactIds": [
+            "fact_P_x"
+          ]
+        },
+        {
+          "id": "P_y",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 4
+          },
+          "evidenceFactIds": [
+            "fact_P_y"
+          ]
+        },
+        {
+          "id": "Q_x",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 8
+          },
+          "evidenceFactIds": [
+            "fact_Q_x"
+          ]
+        },
+        {
+          "id": "Q_y",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fact_Q_y"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus",
+            "P",
+            "Q"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        0,
+        0
+      ],
+      "radiusSquared": 25,
+      "pointPositions": [
+        "outside"
+      ]
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Draw the circle x^2+y^2=25 and mark the point Q(8,0).",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": "x^2+y^2=25",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 26,
+            "quote": "x^2+y^2=25"
+          }
+        },
+        {
+          "id": "fact_Q",
+          "kind": "given",
+          "statement": "Q(8,0)",
+          "evidence": {
+            "source": "question",
+            "start": 46,
+            "end": 52,
+            "quote": "Q(8,0)"
+          }
+        },
+        {
+          "id": "fact_Q_x",
+          "kind": "given",
+          "statement": "x coordinate of point Q",
+          "evidence": {
+            "source": "question",
+            "start": 46,
+            "end": 52,
+            "quote": "Q(8,0)"
+          }
+        },
+        {
+          "id": "fact_Q_y",
+          "kind": "given",
+          "statement": "y coordinate of point Q",
+          "evidence": {
+            "source": "question",
+            "start": 46,
+            "end": 52,
+            "quote": "Q(8,0)"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "Q",
+          "kind": "point",
+          "label": "Q",
+          "evidenceFactIds": [
+            "fact_Q"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "variable",
+                "name": "x"
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "variable",
+                "name": "y"
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 25
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 1
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -25
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        },
+        {
+          "id": "Q_x",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 8
+          },
+          "evidenceFactIds": [
+            "fact_Q_x"
+          ]
+        },
+        {
+          "id": "Q_y",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fact_Q_y"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus",
+            "Q"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "evidenceKind": "independently-authored-full-IR",
+    "expected": {
+      "center": [
+        1,
+        -2
+      ],
+      "radiusSquared": 0,
+      "pointPositions": []
+    },
+    "problem": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authored_circle",
+      "question": "Draw the circle (x-1)^2+(y+2)^2=0.",
+      "facts": [
+        {
+          "id": "equation",
+          "kind": "given",
+          "statement": "(x-1)^2+(y+2)^2=0",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 33,
+            "quote": "(x-1)^2+(y+2)^2=0"
+          }
+        },
+        {
+          "id": "fact_a",
+          "kind": "given",
+          "statement": "coefficient of x^2 and y^2",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 33,
+            "quote": "(x-1)^2+(y+2)^2=0"
+          }
+        },
+        {
+          "id": "fact_d",
+          "kind": "given",
+          "statement": "coefficient of x",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 33,
+            "quote": "(x-1)^2+(y+2)^2=0"
+          }
+        },
+        {
+          "id": "fact_e",
+          "kind": "given",
+          "statement": "coefficient of y",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 33,
+            "quote": "(x-1)^2+(y+2)^2=0"
+          }
+        },
+        {
+          "id": "fact_f",
+          "kind": "given",
+          "statement": "constant term",
+          "evidence": {
+            "source": "question",
+            "start": 16,
+            "end": 33,
+            "quote": "(x-1)^2+(y+2)^2=0"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "locus",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "lhs",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "x"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "variable",
+                      "name": "y"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": -2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 4
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "y"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 5
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "rhs",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "equation"
+          ]
+        },
+        {
+          "id": "coefficient_a",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 1
+          },
+          "evidenceFactIds": [
+            "fact_a"
+          ]
+        },
+        {
+          "id": "coefficient_d",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": -2
+          },
+          "evidenceFactIds": [
+            "fact_d"
+          ]
+        },
+        {
+          "id": "coefficient_e",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 4
+          },
+          "evidenceFactIds": [
+            "fact_e"
+          ]
+        },
+        {
+          "id": "coefficient_f",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 5
+          },
+          "evidenceFactIds": [
+            "fact_f"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "equation_constraint",
+          "kind": "equation",
+          "leftExpressionId": "lhs",
+          "rightExpressionId": "rhs",
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "graph",
+          "kind": "graph",
+          "entityIds": [
+            "locus"
+          ],
+          "evidenceFactIds": [
+            "equation"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  }
+]

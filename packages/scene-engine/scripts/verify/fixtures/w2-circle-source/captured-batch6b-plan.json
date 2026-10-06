@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "turn-plan/v3",
+  "question": "Find the centre and radius of 0.5x^2+0.5y^2-1.5x+2y-0.375=0.",
+  "givens": [
+    {
+      "id": "g1",
+      "symbol": "A",
+      "value": 0.5,
+      "provenance": "given",
+      "sourceText": "coefficient of x^2"
+    },
+    {
+      "id": "g2",
+      "symbol": "B",
+      "value": 0.5,
+      "provenance": "given",
+      "sourceText": "coefficient of y^2"
+    },
+    {
+      "id": "g3",
+      "symbol": "D",
+      "value": -1.5,
+      "provenance": "given",
+      "sourceText": "coefficient of x"
+    },
+    {
+      "id": "g4",
+      "symbol": "E",
+      "value": 2,
+      "provenance": "given",
+      "sourceText": "coefficient of y"
+    },
+    {
+      "id": "g5",
+      "symbol": "F",
+      "value": -0.375,
+      "provenance": "given",
+      "sourceText": "constant term"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "u1",
+      "symbol": "h",
+      "unit": null
+    },
+    {
+      "id": "u2",
+      "symbol": "k",
+      "unit": null
+    },
+    {
+      "id": "u3",
+      "symbol": "r",
+      "unit": null
+    }
+  ],
+  "derived": [
+    {
+      "id": "d1",
+      "symbol": "h",
+      "value": 1.5,
+      "provenance": "derived",
+      "dependsOn": [
+        "g1",
+        "g3"
+      ],
+      "sourceText": "h=-D/(2A)=1.5/1=1.5"
+    },
+    {
+      "id": "d2",
+      "symbol": "k",
+      "value": -2,
+      "provenance": "derived",
+      "dependsOn": [
+        "g2",
+        "g4"
+      ],
+      "sourceText": "k=-E/(2B)=-2/1=-2"
+    },
+    {
+      "id": "d3",
+      "symbol": "r",
+      "value": 2.5,
+      "provenance": "derived",
+      "dependsOn": [
+        "g1",
+        "g2",
+        "g3",
+        "g4",
+        "g5"
+      ],
+      "sourceText": "r^2=h^2+k^2-F/A=2.25+4+0.75=7; r=sqrt(7)\u22482.6458? recompute: 2.25+4=6.25; -F/A=0.75; total 7.0; r=\u221a7\u22482.6458"
+    }
+  ],
+  "qualitativeClaims": [
+    {
+      "id": "c1",
+      "claim": "The equation represents a circle since coefficients of x^2 and y^2 are equal and nonzero.",
+      "expected": "circle",
+      "relatedQuantityIds": [
+        "g1",
+        "g2"
+      ]
+    },
+    {
+      "id": "c2",
+      "claim": "Centre is (1.5,-2) and radius is \u221a7 \u2248 2.6458.",
+      "expected": "centre (1.5,-2), radius \u221a7",
+      "relatedQuantityIds": [
+        "d1",
+        "d2",
+        "d3"
+      ]
+    }
+  ],
+  "lawIds": [
+    "completing_the_square",
+    "standard_circle_equation"
+  ],
+  "assumptions": [
+    "Equation is in standard Cartesian plane",
+    "No typo in coefficients"
+  ],
+  "visualRequirement": "optional"
+}
