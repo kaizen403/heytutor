@@ -54,7 +54,7 @@ export function readCircuitAsks(text: string, solution: StatedCircuitSolution): 
     if (/^(?:equivalent|effective|total) resistance$/i.test(clause)) {
       result.push({ unit: "ohm", owner: "network", value: solution.equivalentResistance });
     } else if (/^(?:total current|current (?:drawn|supplied|delivered) (?:from|by) the (?:cell|battery)|current from the (?:cell|battery))$/i.test(clause) ||
-      (solution.resistors.length === 1 && /^(?:current|current through the resistor)$/i.test(clause)) ||
+      (solution.resistors.length === 1 && /^(?:current|current through (?:the )?resistor)$/i.test(clause)) ||
       (solution.topology === "series" && /^current in the circuit$/i.test(clause))) {
       if (!solution.sourceCurrent) return null;
       result.push({ unit: "A", owner: "battery", value: solution.sourceCurrent });

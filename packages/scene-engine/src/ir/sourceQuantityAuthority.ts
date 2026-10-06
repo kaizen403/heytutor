@@ -80,7 +80,7 @@ const circuitAuthority: SourceQuantityAuthority = {
     if (!source || !bindStatedCircuitProblem(question, problemIR)) {
       return {
         topic: this.topic,
-        plan: { ...plan, derived: [], unknowns: [], qualitativeClaims: [], assumptions: [] },
+        plan,
         corrections: [], declineFigure: true,
         issueCodes: ["circuit_problem_binding", ...plan.derived.map(() => "circuit_value_withdrawn")],
       };
