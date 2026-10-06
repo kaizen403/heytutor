@@ -146,6 +146,14 @@ check("launch conjunctions, decimals and parentheses retain their given angle", 
     }
   }
 });
+check("computed vertical throws retain the free-fall scene", () => {
+  const question = "A stone is thrown vertically upward and reaches a maximum height of 10 m.";
+  const vertical = synthesizeFamilyScene({ question });
+  assert.ok(vertical);
+  assert.equal(vertical.document.source.archetype, "free_fall");
+  assert.ok(!vertical.document.quantities.some(row => row.id === "theta"));
+  assert.ok(vertical.renderScene.primitives.length > 0);
+});
 assert.equal(JSON.stringify(problemIR), snapshot, "actual source IR must remain unchanged");
 console.log(JSON.stringify({ passed, failed: failures.length, failures }));
 if (failures.length) process.exitCode = 1;

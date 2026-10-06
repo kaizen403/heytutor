@@ -251,7 +251,7 @@ function synthesizeFromFamilies(
     problemIR: input.problemIR ?? null,
     schematic,
   });
-  const projectileSource = isProjectileStem(question);
+  const projectileSource = isProjectileStem(question) && archetypeCandidate?.archetype !== "free_fall";
   const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
     || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
   if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
