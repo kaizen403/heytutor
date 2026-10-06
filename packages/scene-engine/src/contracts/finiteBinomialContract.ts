@@ -1,5 +1,6 @@
 import { FINITE_BINOMIAL_OPERATORS, type FiniteBinomialAuthority } from "../compile/binomialExpansionGeometry";
 import { readFiniteBinomialProgram, validateFiniteBinomialSourceDocument } from "../ir/finiteBinomialProgram";
+import {finiteBinomialPlanIssues} from "../ir/finiteBinomialPlanAuthority";
 import type { SceneDocument, SceneIssue } from "../types";
 
 export const FINITE_BINOMIAL_ENTITY_KINDS = ["finite_polynomial_source", "finite_polynomial_term"] as const;
@@ -24,5 +25,5 @@ export function finiteBinomialDocumentIssues(raw: unknown, authority?: FiniteBin
   if (!claimed && readFiniteBinomialProgram(authority.question).status !== "ok") return [];
   // The source proof compares all fields before inspecting quantities; malformed
   // and normalized-away payloads must fail as well as mathematically wrong ones.
-  return validateFiniteBinomialSourceDocument(raw as SceneDocument, authority.question, authority.problemIR);
+  return [...validateFiniteBinomialSourceDocument(raw as SceneDocument, authority.question, authority.problemIR),...(authority.turnPlan==null?[]:finiteBinomialPlanIssues(authority.question,authority.problemIR,authority.turnPlan))];
 }

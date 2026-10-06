@@ -78,3 +78,8 @@ export * from "./compile/indexedProgressionGeometry";
 export * from "./math/finiteProgressionSource";
 export * from "./ir/finiteProgressionSourceProgram";
 export * from "./contracts/finiteProgressionContract";
+
+export * from "./ir/finiteBinomialPlanAuthority";
+export * from "./ir/measurementSourceAuthority";
+
+export * from "./ir/measurementQuestionPlanAuthority";

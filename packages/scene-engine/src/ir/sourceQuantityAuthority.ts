@@ -1,3 +1,8 @@
+import {applyMeasurementQuestionAuthority} from "./measurementQuestionPlanAuthority";
+import {readFiniteProgressionSource} from "../math/finiteProgressionSource";
+import {finiteProgressionSourceProgram} from "./finiteProgressionSourceProgram";
+import {applyFiniteBinomialAuthority} from "./finiteBinomialPlanAuthority";
+import {verifyMeasurementSourceAuthority,readScrewGaugeQuestion} from "./measurementSourceAuthority";
 /**
  * One seam for source quantity authority.
  *
@@ -146,6 +151,24 @@ const staticContactTriangleAuthority:SourceQuantityAuthority = {
 };
 
 export const SOURCE_QUANTITY_AUTHORITIES: readonly SourceQuantityAuthority[] = [
+  {topic:"finite-polynomial-source",apply({question,plan,problemIR}){
+    const result=applyFiniteBinomialAuthority(question,plan,problemIR);
+    return result?{topic:this.topic,...result}:null;
+  }},
+  {topic:"finite-progression-source",apply({question,plan,problemIR}){
+    if(problemIR==null || readFiniteProgressionSource(question).status!=="ok")return null;
+    const admission=finiteProgressionSourceProgram(question,problemIR,plan);
+    return admission.status==="ok"?{topic:this.topic,plan,declineFigure:false,issueCodes:[],corrections:[]}:{topic:this.topic,plan:{...plan,givens:[],derived:[],unknowns:[],qualitativeClaims:[]},declineFigure:true,issueCodes:["finite_progression_source_unbound"],corrections:[]};
+  }},
+  {topic:"measurement-source",apply({question,plan,problemIR}){
+    if(problemIR==null){const early=applyMeasurementQuestionAuthority(question,plan);return early?{topic:this.topic,...early}:null;}
+    if(readScrewGaugeQuestion(question).status==="none")return null;
+    const result=verifyMeasurementSourceAuthority(problemIR,plan,question);
+    const corrected=result.plan as TurnPlanV3;
+    const old=new Map(plan.derived.map(row=>[row.id,row]));
+    return {topic:this.topic,plan:corrected,declineFigure:result.status!=="verified",issueCodes:result.issues.map(row=>row.code),corrections:corrected.derived.flatMap(row=>{const before=old.get(row.id);return before && before.value!==row.value?[{quantityId:row.id,symbol:row.symbol,previous:before.value,corrected:row.value,unit:row.unit}]:[];})};
+  }},
+
   {
     topic:"cartesian-circle-source",
     apply({question,plan,problemIR}) {

@@ -1,3 +1,4 @@
+import {finiteBinomialPlanIssues} from "../ir/finiteBinomialPlanAuthority";
 import { finiteProgressionSourceProgram } from "../ir/finiteProgressionSourceProgram";
 import { readFiniteProgressionSource } from "../math/finiteProgressionSource";
 import { finiteBinomialSourceDocument, readFiniteBinomialProgram } from "../ir/finiteBinomialProgram";
@@ -173,8 +174,9 @@ function synthesizeFromFamilies(
   // The complete arithmetic source program, rather than a lexical family cue,
   // owns this candidate. The actual full IR is retained and audited unchanged.
   if (readFiniteBinomialProgram(input.question).status === "ok") {
+    if(input.turnPlan!=null && finiteBinomialPlanIssues(input.question,input.problemIR,input.turnPlan).length)return null;
     const document = finiteBinomialSourceDocument(input.question, input.problemIR);
-    const compiled = document ? tryCompile(document, {sourceAuthority: {question: input.question, problemIR: input.problemIR}}) : null;
+    const compiled = document ? tryCompile(document, {sourceAuthority: {question: input.question, problemIR: input.problemIR,turnPlan:input.turnPlan}}) : null;
     if (!compiled || !isFullProblemIRStructure(input.problemIR)
       || visualObligationRejection(deriveVisualObligations(input.problemIR), compiled.document, input.problemIR)) return null;
     return {...compiled, tier: "exact_verified", nonMetric: true, family: "finite_polynomial_expansion",

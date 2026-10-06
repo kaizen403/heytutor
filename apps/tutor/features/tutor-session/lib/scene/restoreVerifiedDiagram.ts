@@ -30,7 +30,9 @@ export function restoreVerifiedPresentationFromTurn(
 ): ReturnType<typeof buildVerifiedDiagramPresentation> | null {
   if (!turn?.sceneDocument) return null;
   if (rawStoredTurnSourceIssues(turn.sceneDocument, turn).some((issue) => issue.severity === "fatal")) return null;
-  const structural = validateSceneDocument(turn.sceneDocument);
+  const rawQuestion=turn.question ?? (turn.sceneDocument as SceneDocument).source?.question;
+  if(typeof rawQuestion!=="string")return null;
+  const structural = validateSceneDocument(turn.sceneDocument,{sourceAuthority:{question:rawQuestion,problemIR:(turn.sceneArtifacts && typeof turn.sceneArtifacts==="object"?Object.getOwnPropertyDescriptor(turn.sceneArtifacts,"problemIR")?.value:undefined),turnPlan:(turn.sceneArtifacts && typeof turn.sceneArtifacts==="object"?Object.getOwnPropertyDescriptor(turn.sceneArtifacts,"turnPlan")?.value:undefined)}});
   if (!structural.document) return null;
   let document = structural.document;
   if (document.visualDecision.mode !== "scene") return null;
@@ -42,7 +44,7 @@ export function restoreVerifiedPresentationFromTurn(
   const compiled = compileSceneDocument(
     document,
     { ...(dsa ? { viewport: DSA_DIAGRAM_ZONE } : {}), sourceAuthority: { question, problemIR: turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
-      ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts, "problemIR")?.value : undefined } },
+      ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts, "problemIR")?.value : undefined,turnPlan:turn.sceneArtifacts && typeof turn.sceneArtifacts === "object" ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts,"turnPlan")?.value : undefined } },
   );
   if (!compiled.ok || !compiled.renderScene) return null;
   const presentation = buildVerifiedDiagramPresentation(

@@ -115,6 +115,10 @@ export function admitFiniteBinomialProblem(question: string, raw: unknown): Fini
       // Advisory source offsets in base IR are strengthened here to exact spans.
       if (question.slice(fact.evidence.start, fact.evidence.end) !== fact.evidence.quote) throw new Error("fact span is not exact raw source");
       const quote = fact.evidence.quote.trim();
+      const statement=fact.statement.trim().replace(/\s+/g," ").toLowerCase();
+      const exactStatement=statement===quote.replace(/\s+/g," ").toLowerCase();
+      const roleStatement=fact.kind==="given"?["full source expression","the complete stated polynomial"].includes(statement):["full source request","the complete requested expansion/coefficient role"].includes(statement);
+      if(!exactStatement && !roleStatement)throw new Error("fact statement does not bind its complete polynomial source role");
       if (fact.kind === "given") {
         const root = parseFinitePolynomialExpression(normalizeMath(quote, source.normalizations.length > 0));
         if (finitePolynomialASTKey(root) !== source.astKey) throw new Error("given fact does not bind the complete source AST");
@@ -190,7 +194,7 @@ export function finiteBinomialSourceDocument(question: string, raw: unknown): Sc
   if (new Set(ids).size !== ids.length) return null;
   const document: SceneDocument = {
     schemaVersion: SCENE_DOCUMENT_VERSION,
-    source: { question, problemIR: structuredClone(problem) },
+    source: { question, problemIR: structuredClone(problem),nonMetric:true,representationTier:"exact_verified" },
     visualDecision: { mode: "scene", reason: "Exact finite polynomial coefficients in a nonmetric table; spacing is not algebraic magnitude." },
     quantities: outputs.map(output => ({ id: output.binding.turnPlanQuantityId, symbol: output.binding.symbol, unit: "1", value: output.value, exact: output.exact, provenance: "derived", evidenceFactIds: [...output.binding.evidenceFactIds], sourceText: question })),
     entities: ids.map((id, i) => ({ id, kind: i === 0 ? "finite_polynomial_source" : "finite_polynomial_term", role: i === 0 ? "complete source expression and scope" : "exact exponent/coefficient pair" })),

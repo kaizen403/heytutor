@@ -1,3 +1,4 @@
+import {finiteBinomialPlanIssues} from "./finiteBinomialPlanAuthority";
 import { finiteProgressionDocumentIssues } from "../contracts/finiteProgressionContract";
 import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
 import { validateStaticContactTriangleSource } from "./staticContactTriangle";
@@ -19,6 +20,7 @@ export function validateSceneSourceAuthority(document: SceneDocument, question: 
   if (progressionIssues.length) return progressionIssues;
   const issues = [
     ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem}),
+    ...(rawPlan==null?[]:finiteBinomialPlanIssues(question,rawProblem,rawPlan)),
     ...validateOpticalConjugateSource(document, question, rawProblem),
     ...validatePointLineProgramSource(document, question, rawProblem),
     ...validateSectionFormulaProblemSource(document,question,rawProblem),

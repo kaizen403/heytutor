@@ -2,6 +2,7 @@
 
 import {
   applyStemFamilyOverrides,
+  finiteBinomialSourceDocument,finiteBinomialPlanIssues,finiteProgressionSourceProgram,compileSceneDocument,
   circleSourceFamilies,
   sectionSourceFamilies,
   circuitTopologyFromProblemStructure,
@@ -275,6 +276,17 @@ export function inferSceneCapabilities(
   lawIdsOrHints: readonly string[] | SceneStructureHints = [],
 ): SceneCapabilityRequirements {
   const hints = normalizeHints(lawIdsOrHints);
+  const polynomial=finiteBinomialSourceDocument(question,hints.problemIR);
+  const progression=finiteProgressionSourceProgram(question,hints.problemIR,hints.turnPlan);
+  const finiteDocument=polynomial && !finiteBinomialPlanIssues(question,hints.problemIR,hints.turnPlan).length?polynomial:progression.status==="ok"?progression.document:null;
+  if(finiteDocument){
+    const compiled=compileSceneDocument(finiteDocument,{sourceAuthority:{question,problemIR:hints.problemIR,turnPlan:hints.turnPlan}});
+    if(compiled.ok && compiled.renderScene?.primitives.length)return {
+      visualRequired:hints.turnPlan?.visualRequirement!=="none",hasSourceProgram:true,families:[],
+      constructionOperators:[...new Set(finiteDocument.constructions.map(row=>row.operator))].filter(operator=>SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.some(supported=>supported===operator)),
+      proofPredicates:[...new Set(finiteDocument.assertions.map(row=>row.predicate))].filter(predicate=>PLANNER_VISIBLE_SCENE_PROOF_PREDICATES.some(supported=>supported===predicate)),
+      planningGuidance:["The complete caller graph and plan executed a finite source program. Preserve every given, actual request identity, exact value, label and reveal dependency; availability grants no validator exemption."]};
+  }
   if (readPointLineProgram(question).status === "ok") {
     return {
       visualRequired: hints.turnPlan?.visualRequirement !== "none",

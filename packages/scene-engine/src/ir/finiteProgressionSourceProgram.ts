@@ -235,7 +235,7 @@ function makeDocument(source: FiniteProgressionSource, problem: ProblemIR, plan:
   indexedProgressionPrimitives(geometry, "progression", "terms");
   const document: SceneDocument = {
     schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "finite source-grounded index/value table; nonmetric" },
-    source: { question: source.question, progressionSourceVersion: "finite-progression-source/v1", problemIR: problem, turnPlan: plan },
+    source: { question: source.question,nonMetric:true,representationTier:"exact_verified", progressionSourceVersion: "finite-progression-source/v1", problemIR: problem, turnPlan: plan },
     quantities: [...plan.givens.map((given) => ({ ...given })), ...bindings.map((binding) => ({ id: binding.quantityId, symbol: binding.symbol, unit: binding.unit, value: binding.ask.value, exactValue: binding.ask.exact }))],
     entities: [{ id: "progression", kind: "indexed_progression", role: `source ${source.sequence}_n discrete index/value table`, label: `${source.sequence}_n`, semantic: { nonmetric: true, sequence: source.sequence } }],
     constructions: [{ id: "make_progression", operator: source.operation, inputs: { ...source.inputs, ...(source.operation !== "progression_insert" ? { indices: geometry.indexedProgression.solutions[0]!.terms.map((term) => term.index) } : {}), origin: placement.origin, displayScale: placement.displayScale }, outputs: ["progression"] }],

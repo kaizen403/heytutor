@@ -11,7 +11,7 @@ export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pi
   const problemIR = artifacts && typeof artifacts === "object"
     ? Object.getOwnPropertyDescriptor(artifacts, "problemIR")?.value : undefined;
   const issues = [
-    ...(typeof question === "string" ? validateSceneSourceAuthority(document, question, problemIR) : []),
+    ...(typeof question === "string" ? validateSceneSourceAuthority(document, question, problemIR,plan) : []),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
     ...validateSectionPointSourceInputs(document, question),
@@ -52,7 +52,7 @@ export function sourceCheckedStoredTurn(turn: StoredTurn): StoredTurn {
   if (turn.sceneDocument == null) return turn;
   const rawIssues = rawStoredTurnSourceIssues(turn.sceneDocument, turn);
   const structural = rawIssues.some((issue) => issue.severity === "fatal")
-    ? null : validateSceneDocument(turn.sceneDocument);
+    ? null : validateSceneDocument(turn.sceneDocument,{sourceAuthority:{question:turn.question,problemIR:(turn.sceneArtifacts && typeof turn.sceneArtifacts==="object"?Object.getOwnPropertyDescriptor(turn.sceneArtifacts,"problemIR")?.value:undefined),turnPlan:(turn.sceneArtifacts && typeof turn.sceneArtifacts==="object"?Object.getOwnPropertyDescriptor(turn.sceneArtifacts,"turnPlan")?.value:undefined)}});
   if (structural?.document && !storedTurnSourceIssues(structural.document, turn).some((issue) => issue.severity === "fatal")) {
     const canonical = canonicalizeUniformCircularSourceDocument(structural.document, turn.question);
     if (canonical && JSON.stringify(canonical.quantities) !== JSON.stringify(structural.document.quantities)) return { ...turn, sceneDocument: canonical };

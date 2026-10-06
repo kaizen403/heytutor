@@ -1123,11 +1123,13 @@ export function useQuestionHandler(
           renderScene: RenderScene;
           report: ValidationReport;
         };
+        let sceneAuthorityIR:unknown=null;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>,
           authoritativePlan: TurnPlanV3,
         ): SceneCandidateValidation<ValidatedSceneCandidate> => {
-          let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
+          const compileOptions={sourceAuthority:{question,problemIR:sceneAuthorityIR,turnPlan:authoritativePlan}};
+          let validated = validateSceneDocument(pruneDeadSceneEntities(candidate),compileOptions);
           if (!validated.document) {
             return {
               valid: false,
@@ -1145,7 +1147,7 @@ export function useQuestionHandler(
           if (constraintNormalized !== validated.document) {
             validated = validateSceneDocument(pruneDeadSceneEntities(
               constraintNormalized as unknown as Record<string, unknown>,
-            ));
+            ),compileOptions);
             if (!validated.document) {
               return {
                 valid: false,
@@ -1157,7 +1159,7 @@ export function useQuestionHandler(
           if (annotationPruned !== validated.document) {
             validated = validateSceneDocument(pruneDeadSceneEntities(
               annotationPruned as unknown as Record<string, unknown>,
-            ));
+            ),compileOptions);
             if (!validated.document) {
               return {
                 valid: false,
@@ -1178,7 +1180,7 @@ export function useQuestionHandler(
           }));
           const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
           const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
-          const compiledScene = compileSceneDocument(validated.document);
+          const compiledScene = compileSceneDocument(validated.document,compileOptions);
           const fatalIssues = [
             ...sourceIssues,
             ...authorityIssues,
@@ -1353,6 +1355,7 @@ export function useQuestionHandler(
             // recomputing its solver. Never pair repaired facts with old values.
             const prepared = await prepareSourceProblemAuthority(question, planToReconcile, authority);
             if (prepared) { planToReconcile = prepared.plan; authority = prepared.authority; }
+            sceneAuthorityIR=authority.problemIR;
             const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(
               planToReconcile,
               authority.problemIR,

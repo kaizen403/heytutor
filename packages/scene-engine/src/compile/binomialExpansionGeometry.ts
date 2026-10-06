@@ -4,7 +4,7 @@ import type { RenderPrimitive, SceneConstruction, SceneDocument, SceneIssue } fr
 
 export const FINITE_BINOMIAL_OPERATORS = ["finite_polynomial_expansion"] as const;
 /** This must come from the caller's turn, not persisted geometry or document flags. */
-export interface FiniteBinomialAuthority { question: string; problemIR: unknown }
+export interface FiniteBinomialAuthority { question: string; problemIR: unknown; turnPlan?:unknown }
 export type FiniteBinomialGeometry =
   | { kind: "finite_polynomial_source"; expression: string; scope: string; answer: string | null }
   | { kind: "finite_polynomial_term"; term: FinitePolynomialTerm; index: number; selected: boolean };

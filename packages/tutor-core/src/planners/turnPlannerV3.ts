@@ -1,5 +1,6 @@
 import {
   reconcileTurnPlanV3ExplicitArithmetic,
+  readScrewGaugeQuestion,SCREW_GAUGE_QUESTION_GUIDANCE,
   validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
@@ -188,7 +189,7 @@ async function requestTurnPlanV3(
         messages: [
           {
             role: "system",
-            content: systemPrompt,
+            content: systemPrompt + (readScrewGaugeQuestion(question).status==="ok"?`\n${SCREW_GAUGE_QUESTION_GUIDANCE}`:""),
           },
           {
             role: "user",
