@@ -112,7 +112,7 @@ const queryResult=await planProblemAuthorityV1(completeQuery.question,completeQu
 check(queryResult&&!("status"in queryResult)&&queryResult.audit.status==="verified"&&queryResult.audit.bindings.length===2,"normal API verifies both whole original output requests");
 check(selectVerifiedRepresentation({question:completeQuery.question,turnPlan:completeQuery.plan,problemIR:completeQuery.problem}).renderScene.primitives.length>0,"normal app complete radius/radius-squared source figure survives");
 // Fresh geometry-command tails cannot escape complete numeric obligations.
-for(const name of ["unsafe-r-and-rs-across-draw.new-original.json","unsafe-r-and-rs-across-draw-complete.new-original.json","unsafe-query-9.new-original.json","unsafe-command-complete-four.new-original.json","source-only-show-squared.new-original.json"]){
+for(const name of ["unsafe-r-and-rs-across-draw.new-original.json","unsafe-r-and-rs-across-draw-complete.new-original.json","unsafe-query-9.new-original.json","unsafe-command-complete-four.new-original.json","source-only-show-squared.new-original.json","unbound-point-target-full-caller.new-original.json","unbound-points-target-null-ir.new-original.json"]){
  const c=JSON.parse(readFileSync(new URL(`./fixtures/circle-full-review-20261006/${name}`,import.meta.url),"utf8")),before=JSON.stringify(c);
  check(readCircleSourceProgram(c.question).status==="declined","unsupported geometry-command numeric tail declines whole source");
  check(circleCallerIssues(c.question,c.problem,c.plan).length>0,"whole original command caller refuses");

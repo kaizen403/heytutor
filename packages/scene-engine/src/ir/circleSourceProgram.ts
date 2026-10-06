@@ -42,7 +42,7 @@ const isCirclePolynomial = (p: CirclePolynomial): boolean => {
 
 /** Account for every numeric query clause within the existing locus grammar.
  * A recognized result word is not permission to discard a second request. */
-function numericQueryRoles(text: string): CircleValueRole[] | null {
+function numericQueryRoles(text: string, pointCount: number): CircleValueRole[] | null {
   const asks: CircleValueRole[] = [];
   const queries = [...text.matchAll(/\b(?:find|determine|calculate)\b([\s\S]*?)(?=\b(?:find|determine|calculate|draw|sketch|plot|graph|show|mark|locate|does)\b|$)/gi)];
   for (const query of queries) {
@@ -70,6 +70,10 @@ function numericQueryRoles(text: string): CircleValueRole[] | null {
     if (/^\b(?:find|determine|calculate|draw|sketch|plot|graph|show|mark|locate|does)\b/i.test(following)) body = body.replace(/\band\s*$/i, "");
     const clauses = body.split(/\band\b|[.,;?!]/i).map(clause => clause.trim()).filter(Boolean);
     if (!clauses.length || clauses.some(clause => !/^(?:(?:the|a|an|its)\s+)?(?:circle(?:\s+(?:with|having))?|locus|points?|origin)$/i.test(clause))) return null;
+    for (const clause of clauses) {
+      const target=clause.replace(/^(?:the|a|an|its)\s+/i, "").toLowerCase();
+      if (target==="point" && pointCount!==1 || target==="points" && pointCount===0) return null;
+    }
   }
   const membership = [...text.matchAll(/\bdoes\b([\s\S]*?)(?=\b(?:find|determine|calculate|draw|sketch|plot|graph|show|mark|locate|does)\b|$)/gi)];
   for (const command of membership) {
@@ -206,7 +210,7 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
     const residual = Array.from(question, (char, i) => consumed[i] ? " " : char).join("");
     const vocabulary = new Set("find determine calculate draw sketch plot graph show mark locate the a an circle equation equations of and with having centre center radius squared coordinates coordinate point points at on inside outside or does lie lies is its it to from origin represented by represents equivalent equivalently locus singleton zero real in cartesian form standard general given whether position relative respect".split(" "));
     for (const word of residual.match(/[A-Za-z]+|[^A-Za-z\s.,;:?!]/g) ?? []) if (!vocabulary.has(word.toLowerCase())) return decline(`unsupported source token: ${word}`);
-    const asks = numericQueryRoles(residual);
+    const asks = numericQueryRoles(residual, points.length);
     if (!asks) return decline("unsupported or repeated whole numeric request");
     if (/\b(?:on|inside|outside|whether|does)\b/i.test(residual) && points.length !== 1) return decline("ambiguous membership request");
     const classified = points.map(point => {
@@ -313,7 +317,7 @@ export function bindCircleSourceProblem(question: string, raw: unknown): CircleP
       const definitions = [...source.equations.map(e => e.evidence), ...source.declarations, ...source.points.filter(p => p.evidence.quote !== "origin").map(p => p.evidence)];
       const query = Array.from(fact.evidence.quote, (char, i) => definitions.some(span =>
         fact.evidence.start + i >= span.start && fact.evidence.start + i < span.end) ? " " : char).join("");
-      return fact.kind === "requested" && (numericQueryRoles(query)?.includes(role) ?? false);
+      return fact.kind === "requested" && (numericQueryRoles(query, source.points.length)?.includes(role) ?? false);
     });
     for (const fact of problem.facts) {
       const coefficientRole = circleCoefficientRole(fact.statement);
