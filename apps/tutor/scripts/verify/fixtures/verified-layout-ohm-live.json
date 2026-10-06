@@ -1,0 +1,561 @@
+{
+  "sourceEvidence": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T1232-w2-fb6ee26c/evidence/w2-ohm-single-live.json",
+  "question": "A 12 V battery is connected across a 6 Ω resistor. Find the current through the resistor.",
+  "sceneDocument": {
+    "source": {
+      "question": "A 12 V battery is connected across a 6 Ω resistor. Find the current through the resistor.",
+      "archetype": "resistor_network",
+      "synthesizedFamily": true
+    },
+    "entities": [
+      {
+        "id": "n0",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "n1",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "R1",
+        "kind": "component",
+        "role": "resistor",
+        "label": "resistor"
+      },
+      {
+        "id": "bl",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "br",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "bat_a",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "bat_b",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "w_left",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w_right",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w_bl",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w_br",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "battery",
+        "kind": "component",
+        "role": "battery",
+        "label": "battery"
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "series_path",
+        "entities": [
+          "R1"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "path"
+      },
+      {
+        "id": "label_R1",
+        "entities": [
+          "R1"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      },
+      {
+        "id": "label_battery",
+        "entities": [
+          "battery"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      }
+    ],
+    "quantities": [
+      {
+        "id": "q_R1",
+        "unit": "ohm",
+        "value": 6,
+        "symbol": "R1"
+      },
+      {
+        "id": "circuit_source_R1",
+        "unit": "ohm",
+        "value": 6,
+        "symbol": "R"
+      },
+      {
+        "id": "circuit_source_battery",
+        "unit": "V",
+        "value": 12,
+        "symbol": "V_source"
+      },
+      {
+        "id": "circuit_expression_eI",
+        "unit": "A",
+        "value": 2,
+        "symbol": "I"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "current_sense",
+        "kind": "sense",
+        "targetIds": [
+          "R1"
+        ]
+      },
+      {
+        "id": "circuit_dimension_R1",
+        "kind": "label",
+        "text": "6 Ω",
+        "targetIds": [
+          "R1"
+        ],
+        "quantityId": "circuit_source_R1"
+      },
+      {
+        "id": "circuit_dimension_battery",
+        "kind": "label",
+        "text": "12 V",
+        "targetIds": [
+          "battery"
+        ],
+        "quantityId": "circuit_source_battery"
+      }
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "dependsOn": [],
+        "entityIds": [
+          "n0",
+          "n1",
+          "R1",
+          "bl",
+          "br",
+          "bat_a",
+          "bat_b",
+          "w_left",
+          "w_right",
+          "w_bl",
+          "w_br",
+          "battery"
+        ],
+        "narrationCue": "series resistor network with the stated values"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_n0",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "n0"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_n1",
+        "inputs": {
+          "x": 2,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "n1"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_R1",
+        "inputs": {
+          "end": "n1",
+          "start": "n0",
+          "symbol": "resistor"
+        },
+        "outputs": [
+          "R1"
+        ],
+        "operator": "symbol"
+      },
+      {
+        "id": "make_bl",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bl"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_br",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "br"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_bat_a",
+        "inputs": {
+          "x": 0.4,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bat_a"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_bat_b",
+        "inputs": {
+          "x": 1.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bat_b"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_w_left",
+        "inputs": {
+          "end": "bl",
+          "start": "n0"
+        },
+        "outputs": [
+          "w_left"
+        ],
+        "operator": "connect"
+      },
+      {
+        "id": "make_w_right",
+        "inputs": {
+          "end": "br",
+          "start": "n1"
+        },
+        "outputs": [
+          "w_right"
+        ],
+        "operator": "connect"
+      },
+      {
+        "id": "make_w_bl",
+        "inputs": {
+          "end": "bat_a",
+          "start": "bl"
+        },
+        "outputs": [
+          "w_bl"
+        ],
+        "operator": "connect"
+      },
+      {
+        "id": "make_w_br",
+        "inputs": {
+          "end": "br",
+          "start": "bat_b"
+        },
+        "outputs": [
+          "w_br"
+        ],
+        "operator": "connect"
+      },
+      {
+        "id": "make_battery",
+        "inputs": {
+          "end": "bat_b",
+          "start": "bat_a",
+          "symbol": "battery"
+        },
+        "outputs": [
+          "battery"
+        ],
+        "operator": "symbol"
+      }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "series resistor network with the stated values"
+    },
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "series resistor network with the stated values"
+      }
+    ],
+    "requiredEntityIds": [
+      "n0",
+      "n1",
+      "R1",
+      "bl",
+      "br",
+      "bat_a",
+      "bat_b",
+      "w_left",
+      "w_right",
+      "w_bl",
+      "w_br",
+      "battery"
+    ]
+  },
+  "representationTier": "question_representation",
+  "nonMetric": true,
+  "failedNarration": "look at the battery on the left of the circuit, and the resistor on the right. the wires connect them in a single loop.",
+  "turnPlan": {
+    "givens": [
+      {
+        "id": "V",
+        "unit": "V",
+        "value": 12,
+        "symbol": "V",
+        "provenance": "given",
+        "sourceText": "12 V battery"
+      },
+      {
+        "id": "R",
+        "unit": "Ω",
+        "value": 6,
+        "symbol": "R",
+        "provenance": "given",
+        "sourceText": "6 Ω resistor"
+      }
+    ],
+    "lawIds": [
+      "ohms-law"
+    ],
+    "derived": [
+      {
+        "id": "I",
+        "unit": "A",
+        "value": 2,
+        "symbol": "I",
+        "dependsOn": [
+          "V",
+          "R"
+        ],
+        "provenance": "derived",
+        "sourceText": "I = V/R = 12/6 = 2"
+      }
+    ],
+    "question": "A 12 V battery is connected across a 6 Ω resistor. Find the current through the resistor.",
+    "unknowns": [
+      {
+        "id": "I",
+        "unit": "A",
+        "symbol": "I"
+      }
+    ],
+    "assumptions": [
+      "Ideal battery with negligible internal resistance",
+      "Connecting wires have negligible resistance",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Current through the resistor is 2 A, flowing from the battery's positive terminal through the resistor to the negative terminal.",
+        "expected": "I = V/R = 2 A",
+        "relatedQuantityIds": [
+          "I",
+          "V",
+          "R"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "problemIR": {
+    "id": "problem",
+    "facts": [
+      {
+        "id": "fV",
+        "kind": "given",
+        "evidence": {
+          "end": 14,
+          "quote": "12 V battery",
+          "start": 2,
+          "source": "question"
+        },
+        "statement": "battery voltage is 12 V"
+      },
+      {
+        "id": "fR",
+        "kind": "given",
+        "evidence": {
+          "end": 49,
+          "quote": "6 Ω resistor",
+          "start": 37,
+          "source": "question"
+        },
+        "statement": "resistor resistance is 6 Ω"
+      },
+      {
+        "id": "fI",
+        "kind": "requested",
+        "evidence": {
+          "end": 88,
+          "quote": "Find the current through the resistor",
+          "start": 51,
+          "source": "question"
+        },
+        "statement": "current through the resistor"
+      }
+    ],
+    "entities": [
+      {
+        "id": "battery",
+        "kind": "component",
+        "label": "battery",
+        "evidenceFactIds": [
+          "fV"
+        ]
+      },
+      {
+        "id": "resistor",
+        "kind": "component",
+        "label": "resistor",
+        "evidenceFactIds": [
+          "fR",
+          "fI"
+        ]
+      }
+    ],
+    "question": "A 12 V battery is connected across a 6 Ω resistor. Find the current through the resistor.",
+    "constraints": [],
+    "expressions": [
+      {
+        "id": "eI",
+        "root": {
+          "kind": "binary",
+          "left": {
+            "kind": "number",
+            "value": 12
+          },
+          "right": {
+            "kind": "number",
+            "value": 6
+          },
+          "operator": "/"
+        },
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fV",
+          "fR"
+        ]
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "solveRequests": [
+      {
+        "id": "sI",
+        "kind": "evaluate",
+        "expressionId": "eI",
+        "resultBinding": {
+          "unit": "A",
+          "symbol": "I",
+          "evidenceFactIds": [
+            "fI"
+          ],
+          "turnPlanQuantityId": "I"
+        }
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "iCircuit",
+        "kind": "apparatus",
+        "entityIds": [
+          "battery",
+          "resistor"
+        ],
+        "evidenceFactIds": [
+          "fV",
+          "fR"
+        ]
+      }
+    ]
+  },
+  "solverResult": {
+    "issues": [],
+    "proofs": [
+      {
+        "id": "proof_sI",
+        "detail": "Evaluated the typed, variable-free expression with the audited local evaluator.",
+        "method": "exact_arithmetic",
+        "residual": 0,
+        "verified": true,
+        "requestId": "sI",
+        "tolerance": 1e-09,
+        "expressionIds": [
+          "eI"
+        ]
+      }
+    ],
+    "status": "solved",
+    "values": [
+      {
+        "id": "value_sI",
+        "exact": {
+          "kind": "integer",
+          "value": "2"
+        },
+        "requestId": "sI",
+        "valueType": "scalar",
+        "errorBound": 0,
+        "approximate": 2
+      }
+    ],
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "schemaVersion": "solver-result/v1"
+  }
+}

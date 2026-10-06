@@ -28,6 +28,7 @@ import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken } from "@heytu
 import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
 import { isDsaConstructionGuide } from "./diagramInk";
+import { verifiedLayoutNarration } from "./verifiedLayoutNarration";
 
 /** Named axis marks stay small so they read as dots, not hollow letters. */
 const DIAGRAM_POINT_RADIUS = 2;
@@ -314,6 +315,12 @@ export function buildVerifiedDiagramPresentation(
       && primitive.kind !== "label" && primitive.kind !== "dimension").map((primitive) => primitive.kind))];
     return kinds.length ? [`[FOCUS:${anchor.id}]: ${kinds.map((kind) => kind === "vector" || kind === "ray" ? `directed ${kind}` : `undirected ${kind}`).join(", ")}`] : [];
   }).join("; ");
+  const layoutNarration = options.layout === "code_lesson" ? "" : verifiedLayoutNarration(
+    renderScene,
+    commands.filter((command) => command.type === "LABEL"
+      && command.text === drawnTextByEntity.get(command.semanticRef?.entityId ?? ""))
+      .flatMap((command) => command.semanticRef?.entityId ? [command.semanticRef.entityId] : []),
+  );
   const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
   for (const entry of deferred) {
     if (pulled.has(entry.index)) continue;
@@ -358,7 +365,8 @@ To box the current work-area equation and highlight its result, use [EMPHASIZE:l
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
 Actual compiled marks: ${geometricMarks || "none"}. Only a directed vector or ray carries an arrowhead. Never call an undirected line an arrow or assign it a travel sense. If the picture shows an undirected tangent, explain the tangent line without inventing clockwise or anticlockwise motion.
-Read the figure to the student before you calculate with it: name each labeled part, say what it physically represents, and say which way it points or where it acts, with [FOCUS:entity_id] on the part you just named. Never substitute into a figure the student has not been told how to read.
+${layoutNarration}
+Read the figure to the student before you calculate with it: name each labeled part and say what it physically represents, with [FOCUS:entity_id] on the part you just named. Explain a physical direction or point of action only when the source or verified semantics establishes it; describe screen placement only from the verified screen layout facts. Never substitute into a figure the student has not been told how to read.
 ${options.figureFamily === "solid_figure" ? "For mensuration, explain which part is the base, which labelled measurement is perpendicular height, and which is radius or slant length before its formula. For surface area, explain which source surfaces are exposed and which joining faces are internal; for volume, explain the stated addition, subtraction or conservation. Point at the corresponding existing parts with FOCUS, never invent a missing face or measurement." : ""}
 ${options.figureFamily ? `The construction on the board is a ${describeSceneFamily(options.figureFamily)} figure. ` : ""}This figure is what it is. If it is not the setup this question is about, or the labelled parts are not the objects the question names, say in one plain sentence that the picture on the board does not show this setup, then teach the question in words and in the work column. Do not rename a part to make it fit and do not describe apparatus that is not in the list.
 ${options.layout === "code_lesson"
