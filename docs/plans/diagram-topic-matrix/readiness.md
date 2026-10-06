@@ -58,7 +58,9 @@ bank coverage.
 
 ## Current counts
 
-READY: 1. FULLY-CERTIFIED: 0.
+READY: 2. FULLY-CERTIFIED: 0.
+
+6 October continuation: one new scoped READY, `maths|5|binomial-theorem`, after fresh authored coefficient240 live review and actual saved whole-replay pixel review on7e92167c. The two previously omitted table rows now restore. Details and exclusions: [Wave3 finite-binomial READY evidence](work-logs/w3-finite-binomial-ready-20261006.md). No full chapter, native-bank, FULLY-CERTIFIED or accepted-ledger count changed.
 
 Wave one, 6 October 2026: reviewed implementation is integrated through
 `c6b41c4bf20cb581f673f2a8763827cde58db727`. No new topic met all five criteria.
@@ -79,5 +81,7 @@ does not establish figure, teaching or lifecycle correctness.
 | `physics\|2\|relative-velocity` | **not ready:** normal train question produces no figure | 9031aac1 | reviewed reader/role/source-trust fixes; actual 72/54 km/h student turn | support actual "catch B and distance travelled" request and report source program to visual selection; native/holdout coverage |
 | `physics\|2\|uniform-circular-motion` | **not ready:** stone restoration rejects tiny recomputation drift and teaching has false arithmetic; car planner times out | c6b41c4b | reviewed identity/precision/JSONB fixes; current stone/car real student captures | deterministic source regeneration across persistence, truthful intermediate arithmetic/tangent narration, planner fallback; fractions, stated position and symbolic native source |
 | `physics\|12\|ohms-law-and-resistance` | **not ready:** both normal numeric meters/tree questions have no circuit | 9031aac1 | reviewed bounded numeric source program; actual full-IR student captures | generic full-IR body/dimension obligations and intermediate dependency authority; affected student lifecycle; native/holdouts, excluded internal-R and concept gaps |
+
+| `maths\|5\|binomial-theorem` | **READY** (6 Oct2026), declared authored finite rational single-variable expansion/coefficient profile, bounded nonnegative integral exponents and exact nonmetric coefficient table | 7e92167c | independent source/public ESM cases/negatives,182+455 normal boundaries, fresh student240 and ownPGrestart/freshAuth whole replay; [evidence](work-logs/w3-finite-binomial-ready-20261006.md) | native1113 whole-student timeout; symbolic independent a,b, general/middle/greatest-term and other chapter rows not qualified; holdouts/full frozen contract/provider replay voice qualification pending |
 
 Execution log: [claude-execution-20261004.md](work-logs/claude-execution-20261004.md).
