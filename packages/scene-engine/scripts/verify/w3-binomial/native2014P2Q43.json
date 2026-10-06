@@ -1,0 +1,28 @@
+{
+  "topic_id": "maths|5|binomial-theorem",
+  "case_variant": "binomial-expansion",
+  "native_id": "jee-advanced-2014-paper-2-english:Q43",
+  "question_number": "43",
+  "question_options_and_source_answer_verbatim": "43. Coefficient of 𝑥𝑥 11 in the expansion of (1 + 𝑥𝑥 2 )4 (1 + 𝑥𝑥 3 )7 (1 + 𝑥𝑥 4 )12 is\n\n(A) 1051\n\n(B) 1106\n\n(C) 1113\n\n(D) 1120\n\n                                                      Answer (C)",
+  "source": {
+    "document_id": "jee-advanced-2014-paper-2-english",
+    "publisher": "JEE (Advanced) Joint Admission Board",
+    "exam": "JEE Advanced",
+    "year": 2014,
+    "paper": "Paper 2",
+    "language": "English",
+    "source_url": "https://jeeadv.ac.in/past_qps/2014_2.pdf",
+    "document_sha256": "ed3980423dd950ff3c8c24f7847242613f1de9e87f3d1fab180de5faf4c37963",
+    "pdf_page_from_extracted_text": 30,
+    "source_path": "/Users/kaizen/heytutor/data/question-bank/text/jee-advanced-2014-paper-2-english.txt",
+    "source_text_sha256": "91ca517fdd00714d9a121cb32acd8c3a96c2ccb0773f80785e1d40a75b271a69",
+    "extraction_method": "pdftotext-layout"
+  },
+  "verbatim_question_block_sha256": "e914d105c08c8919cd5be7b55449853dc4c1da4400448aee46d244ddc36f2f6b",
+  "independent_expected_oracle": {
+    "status": "independently_computed",
+    "expected": "1113",
+    "basis": "Finite coefficient convolution for x^11 in (1+x^2)^4(1+x^3)^7(1+x^4)^12, computed independently of the preserved source answer."
+  },
+  "classification_note": "Native source extract; any source-provided answer is preserved verbatim and is not treated as an independent oracle."
+}
