@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+    "mode": "scene",
+    "reason": "explicit congruent segments and circle"
+  },
+  "source": {
+    "question": "Two equal-length segments A and C; circle B is centred at (9,0) with radius 0.4."
+  },
+  "quantities": [],
+  "entities": [
+    {
+      "id": "p0",
+      "kind": "point",
+      "role": "construction helper point"
+    },
+    {
+      "id": "p1",
+      "kind": "point",
+      "role": "construction helper point"
+    },
+    {
+      "id": "p2",
+      "kind": "point",
+      "role": "construction helper point"
+    },
+    {
+      "id": "p3",
+      "kind": "point",
+      "role": "construction helper point"
+    },
+    {
+      "id": "O",
+      "kind": "point",
+      "role": "construction helper point"
+    },
+    {
+      "id": "A",
+      "kind": "segment",
+      "role": "segment",
+      "label": "A",
+      "provenance": {
+        "summary": true,
+        "annotation": "arbitrary-unrecognised-value"
+      }
+    },
+    {
+      "id": "C",
+      "kind": "segment",
+      "role": "congruent segment",
+      "label": "C"
+    },
+    {
+      "id": "B",
+      "kind": "circle",
+      "role": "circle",
+      "label": "B"
+    }
+  ],
+  "constructions": [
+    {
+      "id": "make_p0",
+      "operator": "point",
+      "inputs": {
+        "x": 0,
+        "y": 0
+      },
+      "outputs": [
+        "p0"
+      ]
+    },
+    {
+      "id": "make_p1",
+      "operator": "point",
+      "inputs": {
+        "x": 10,
+        "y": 0
+      },
+      "outputs": [
+        "p1"
+      ]
+    },
+    {
+      "id": "make_p2",
+      "operator": "point",
+      "inputs": {
+        "x": 0,
+        "y": 2
+      },
+      "outputs": [
+        "p2"
+      ]
+    },
+    {
+      "id": "make_p3",
+      "operator": "point",
+      "inputs": {
+        "x": 10,
+        "y": 2
+      },
+      "outputs": [
+        "p3"
+      ]
+    },
+    {
+      "id": "make_O",
+      "operator": "point",
+      "inputs": {
+        "x": 9,
+        "y": 0
+      },
+      "outputs": [
+        "O"
+      ]
+    },
+    {
+      "id": "make_A",
+      "operator": "segment",
+      "inputs": {
+        "start": "p0",
+        "end": "p1"
+      },
+      "outputs": [
+        "A"
+      ]
+    },
+    {
+      "id": "make_C",
+      "operator": "segment",
+      "inputs": {
+        "start": "p2",
+        "end": "p3"
+      },
+      "outputs": [
+        "C"
+      ]
+    },
+    {
+      "id": "make_B",
+      "operator": "circle",
+      "inputs": {
+        "center": "O",
+        "radius": 0.4
+      },
+      "outputs": [
+        "B"
+      ]
+    }
+  ],
+  "relations": [],
+  "assertions": [
+    {
+      "id": "congruent",
+      "predicate": "equal_length",
+      "entities": [
+        "A",
+        "C"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    }
+  ],
+  "annotations": [],
+  "requiredEntityIds": [
+    "A",
+    "C",
+    "B"
+  ],
+  "revealGroups": [
+    {
+      "id": "setup",
+      "entityIds": [
+        "A",
+        "C",
+        "B"
+      ],
+      "dependsOn": [],
+      "narrationCue": "segments A and C and circle B"
+    }
+  ],
+  "teachingTimeline": []
+}

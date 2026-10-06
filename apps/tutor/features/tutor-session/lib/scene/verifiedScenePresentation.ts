@@ -318,6 +318,7 @@ export function buildVerifiedDiagramPresentation(
   const layoutNarration = options.layout === "code_lesson" ? "" : verifiedLayoutNarration(
     renderScene,
     commands.filter((command) => command.type === "LABEL"
+      && anchors.some((anchor) => anchor.id === command.semanticRef?.entityId)
       && command.text === drawnTextByEntity.get(command.semanticRef?.entityId ?? ""))
       .flatMap((command) => command.semanticRef?.entityId ? [command.semanticRef.entityId] : []),
   );
