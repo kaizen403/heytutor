@@ -8,6 +8,7 @@
  */
 import {
   compileSceneDocument,
+  canonicalizeUniformCircularSourceDocument,
   validateSceneDocument,
   type SceneDocument,
 } from "@heytutor/scene-engine";
@@ -30,13 +31,17 @@ export function restoreVerifiedPresentationFromTurn(
   if (!turn?.sceneDocument) return null;
   const structural = validateSceneDocument(turn.sceneDocument);
   if (!structural.document) return null;
-  const document = structural.document;
+  let document = structural.document;
   if (document.visualDecision.mode !== "scene") return null;
   if (storedTurnSourceIssues(document, turn).some((issue) => issue.severity === "fatal")) return null;
+  const question = turn.question ?? document.source.question;
+  if (typeof question !== "string") return null;
+  document = canonicalizeUniformCircularSourceDocument(document, question) ?? document;
   const dsa = isDsaSceneDocument(document);
   const compiled = compileSceneDocument(
     document,
-    dsa ? { viewport: DSA_DIAGRAM_ZONE } : {},
+    { ...(dsa ? { viewport: DSA_DIAGRAM_ZONE } : {}), sourceAuthority: { question, problemIR: turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
+      ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts, "problemIR")?.value : undefined } },
   );
   if (!compiled.ok || !compiled.renderScene) return null;
   const presentation = buildVerifiedDiagramPresentation(

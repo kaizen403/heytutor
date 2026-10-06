@@ -15,6 +15,7 @@ import { SceneBuilder } from "../archetypes/document";
 import { evaluateRotationConstruction } from "../compile/rotationGeometry";
 import type { SceneDocument } from "../types";
 import type { UniformCircularNumeric, UniformCircularSymbolic } from "./uniformCircularSource";
+import { addUniformCircularSourceNames } from "./uniformCircularSourceNames";
 
 export const UNIFORM_CIRCULAR_ARCHETYPE = "uniform_circular_motion_source";
 
@@ -45,7 +46,7 @@ function numericDocument(scene: SceneBuilder): SceneDocument {
   // All numeric state values are recomputed from the bound source; the shared
   // save audit regenerates them instead of trusting this submitted metadata.
   document.source.slotSources = Object.fromEntries(document.quantities.map(({ id }) => [id, "stem"]));
-  return document;
+  return addUniformCircularSourceNames(document);
 }
 
 export function uniformCircularNumericDocument(question: string, source: UniformCircularNumeric): SceneDocument {
@@ -67,6 +68,7 @@ export function uniformCircularNumericDocument(question: string, source: Uniform
     { id: "omega", symbol: "omega", value: source.angularSpeed, unit: "rad/s" },
     { id: "a_c", symbol: "a_c", value: source.centripetalAcceleration, unit: "m/s^2" },
   );
+  scene.annotations.push({ id: "source_period", kind: "label", targetIds: ["path"], text: claim("T", source.period, "s") });
   scene.point("O", { x: 0, y: 0 }, "centre", "O");
   scene.circle("path", "O", DISPLAY_RADIUS, "circular path");
   scene.helper("Q", onCircle(bodyAngle + RADIUS_MARK_OFFSET), "radius mark end");

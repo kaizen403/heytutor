@@ -25,7 +25,8 @@
  * telemetry. To register a topic, add one entry to SOURCE_QUANTITY_AUTHORITIES.
  */
 import type { TurnPlanV3 } from "../contracts/contractsV3";
-import { applyStatedCircuitAuthority } from "./statedCircuitAuthority";
+import { bindStatedCircuitProblem } from "./statedCircuitProblemBinding";
+import { applyStatedCircuitAuthority, readStatedCircuitProblemSource, readCircuitUnit } from "./statedCircuitAuthority";
 import { applyUniformCircularAuthority } from "../physics/uniformCircularSource";
 import { applyRelativeMotionAuthority, type MotionQuantityAuthority } from "../physics/motionPlanAgreement";
 import { applyRiverCrossingAuthority } from "../physics/riverCrossingSource";
@@ -59,8 +60,19 @@ export interface SourceQuantityAuthority {
 
 const circuitAuthority: SourceQuantityAuthority = {
   topic: "physics|12|ohms-law-and-resistance",
-  apply({ question, plan }) {
-    const result = applyStatedCircuitAuthority(question, plan);
+  apply({ question, plan, problemIR }) {
+    if (!problemIR || !readStatedCircuitProblemSource(question)) return null;
+    if (!bindStatedCircuitProblem(question, problemIR)) {
+      const withdrawn = new Set(plan.derived.filter((quantity) => readCircuitUnit(quantity.unit)).map((quantity) => quantity.id));
+      return {
+        topic: this.topic,
+        plan: { ...plan, derived: plan.derived.filter((quantity) => !withdrawn.has(quantity.id)),
+          qualitativeClaims: plan.qualitativeClaims.filter((claim) => !(claim.relatedQuantityIds ?? []).some((id) => withdrawn.has(id))) },
+        corrections: [], declineFigure: true,
+        issueCodes: ["circuit_problem_binding", ...[...withdrawn].map(() => "circuit_value_withdrawn")],
+      };
+    }
+    const result = applyStatedCircuitAuthority(question, plan, { requireBoundClaims: true });
     if (!result) return null;
     const before = new Map([...plan.givens, ...plan.derived].map((quantity) => [quantity.id, quantity.value]));
     const corrections = [...result.plan.givens, ...result.plan.derived].flatMap((quantity) => {

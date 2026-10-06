@@ -309,6 +309,11 @@ export function buildVerifiedDiagramPresentation(
     return role ? [`[FOCUS:${anchor.id}] means ${role}`] : [];
   }).join("; ");
   const groupTargets = groups.map((group) => group.id).join(", ");
+  const geometricMarks = anchors.flatMap((anchor) => {
+    const kinds = [...new Set(renderScene.primitives.filter((primitive) => primitive.entityId === anchor.id
+      && primitive.kind !== "label" && primitive.kind !== "dimension").map((primitive) => primitive.kind))];
+    return kinds.length ? [`[FOCUS:${anchor.id}]: ${kinds.map((kind) => kind === "vector" || kind === "ray" ? `directed ${kind}` : `undirected ${kind}`).join(", ")}`] : [];
+  }).join("; ");
   const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
   for (const entry of deferred) {
     if (pulled.has(entry.index)) continue;
@@ -352,6 +357,7 @@ When you say what a labeled point is, for example the object O or the image I, t
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
+Actual compiled marks: ${geometricMarks || "none"}. Only a directed vector or ray carries an arrowhead. Never call an undirected line an arrow or assign it a travel sense. If the picture shows an undirected tangent, explain the tangent line without inventing clockwise or anticlockwise motion.
 Read the figure to the student before you calculate with it: name each labeled part, say what it physically represents, and say which way it points or where it acts, with [FOCUS:entity_id] on the part you just named. Never substitute into a figure the student has not been told how to read.
 ${options.figureFamily === "solid_figure" ? "For mensuration, explain which part is the base, which labelled measurement is perpendicular height, and which is radius or slant length before its formula. For surface area, explain which source surfaces are exposed and which joining faces are internal; for volume, explain the stated addition, subtraction or conservation. Point at the corresponding existing parts with FOCUS, never invent a missing face or measurement." : ""}
 ${options.figureFamily ? `The construction on the board is a ${describeSceneFamily(options.figureFamily)} figure. ` : ""}This figure is what it is. If it is not the setup this question is about, or the labelled parts are not the objects the question names, say in one plain sentence that the picture on the board does not show this setup, then teach the question in words and in the work column. Do not rename a part to make it fit and do not describe apparatus that is not in the list.

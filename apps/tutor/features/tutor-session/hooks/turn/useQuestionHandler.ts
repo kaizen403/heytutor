@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
   lessonNarrationText,
+  buildLessonSegments,
   IncrementalTagParser,
   anchorToTextRect,
   getSegmentCommands,
@@ -138,6 +139,8 @@ import {
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
+import { createTeachingArithmeticAdmission } from "../../lib/turn/teachingArithmeticAdmission";
+import { prepareSourceProblemAuthority, unavailableSourceProblemAuthority } from "../../lib/turn/sourceProblemAuthority";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
@@ -1066,7 +1069,19 @@ export function useQuestionHandler(
             createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
-          if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
+          // A complete literal source can formulate and solve itself without a
+          // model-authored IR. No existing IR is replaced on this first pass.
+          // If the turn planner was unavailable, only a whole admitted source
+          // formulation may replace the generic empty fallback plan.
+          const sourceFormulation = await awaitCurrentTurn(
+            plannedTurn ? prepareSourceProblemAuthority(question, turnPlan) : unavailableSourceProblemAuthority(question),
+            isCurrentTurn,
+          );
+          if (sourceFormulation) {
+            turnPlan = sourceFormulation.plan;
+            problemAuthorityPromise = Promise.resolve(sourceFormulation.authority);
+            tel.mark("planner-source-formulation", { source: sourceFormulation.authority.rawContent, entity_count: sourceFormulation.authority.problemIR.entities.length, request_count: sourceFormulation.authority.problemIR.solveRequests.length });
+          } else if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
             const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
             problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
               proxyUrl: plannerUrl,
@@ -1333,7 +1348,11 @@ export function useQuestionHandler(
           telemetry: tel,
           parentSpan: "planner",
           deriveGate: deriveSceneGate,
-          applyAuthority: (planToReconcile, authority) => {
+          applyAuthority: async (planToReconcile, authority) => {
+            // A captured/model full IR is retained and source-bound before
+            // recomputing its solver. Never pair repaired facts with old values.
+            const prepared = await prepareSourceProblemAuthority(question, planToReconcile, authority);
+            if (prepared) { planToReconcile = prepared.plan; authority = prepared.authority; }
             const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(
               planToReconcile,
               authority.problemIR,
@@ -1558,7 +1577,7 @@ export function useQuestionHandler(
             // runs the same checks and a refusal fails the whole turn, so the
             // student would watch a lesson that cannot be reopened.
             const saveFailure = selectedHasInk && selected.sceneDocument.visualDecision.mode === "scene"
-              ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier })
+              ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier, problemIR: problemAuthority?.problemIR })
               : null;
             if (saveFailure) {
               tutorDebug("planner", "representation would fail the lecture save, teaching text only", {
@@ -2120,6 +2139,8 @@ export function useQuestionHandler(
         // Buffer one segment so unverified marker commands are removed before
         // they enter the speech and drawing queues.
         let bufferedSegment: TutorSegment | null = null;
+        const arithmeticAdmission = createTeachingArithmeticAdmission();
+        let arithmeticRetryCount = 0;
         let usableTeachingStepReceived = false;
         let startupControlSegments: TutorSegment[] = [];
         // Startup telemetry, measured from the turn's first teaching request
@@ -2165,6 +2186,8 @@ export function useQuestionHandler(
 
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
+          // Reject the whole paired speech/ink beat before either queue sees it.
+          if (!arithmeticAdmission.offer(bufferedSegment)) { bufferedSegment = null; return; }
           // A resumed lecture must not queue its opening figure until a
           // spoken-and-written step passes the ink gate. Otherwise an intro
           // can keep drawing after a no-ink resume reports failure.
@@ -2235,6 +2258,7 @@ export function useQuestionHandler(
         let parser = new IncrementalTagParser({
           preserveStepSpeech: !codeLesson,
           onSegmentReady: (segment) => {
+            if (arithmeticAdmission.blocked()) return;
             if (STREAM_SEGMENTS_LIVE) {
               // A tag glued straight after another tag joins the sentence
               // before it instead of running in silence after it.
@@ -2243,7 +2267,7 @@ export function useQuestionHandler(
               }
               // Flush the previously buffered segment, then buffer this one.
               flushBufferedSegment();
-              bufferedSegment = segment;
+              if (!arithmeticAdmission.blocked()) bufferedSegment = segment;
             } else {
               tutorDebug("parser", "segment ready from stream", {
                 narration_preview: segment.narration.slice(0, 80),
@@ -2271,6 +2295,7 @@ export function useQuestionHandler(
 
         while (canStreamResumeRepair(continueCount, MAX_LLM_CONTINUATIONS, resumeInkRetry)) {
           const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
+          const arithmeticRepair = arithmeticAdmission.startAttempt();
           // Only the turn's first teaching request is hedged. Continuations,
           // the startup retry and resumed lectures keep a single request.
           const hedgeThisRequest = TEACHING_HEDGE_ENABLED &&
@@ -2281,7 +2306,9 @@ export function useQuestionHandler(
               systemPrompt: isContinuation
                 ? turnContinuationPrompt
                 : turnSystemPrompt,
-              userPrompt: resumeInkRetry
+              userPrompt: arithmeticRepair
+                ? `${question}\n\nContinue from the last admitted step. The rejected step and all later output were withheld. ${arithmeticRepair}\nRegenerate that step's narration and WRITE together. Do not repeat previously admitted work. Return complete [STEP] blocks.`
+                : resumeInkRetry
                 ? `${resumeLessonUserPrompt()}\n\nYour previous continuation contained no usable [WRITE] step. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short [WRITE:text,x,y] tag immediately after the words that explain it. Do not repeat the doubt or any already written row. Return [STEP] blocks, not narration alone.`
                 : isContinuation
                 ? [
@@ -2354,7 +2381,7 @@ export function useQuestionHandler(
               },
             },
             (delta) => {
-              if (!isCurrentTurn()) {
+              if (!isCurrentTurn() || arithmeticAdmission.blocked()) {
                 return;
               }
               endThinking({ phase: "first_token", delta_chars: delta.length });
@@ -2381,7 +2408,7 @@ export function useQuestionHandler(
           );
 
           throwIfTurnCancelled();
-          fullResponse += streamResult.text;
+          if (!arithmeticAdmission.blocked()) fullResponse += streamResult.text;
           traceId = streamResult.traceId;
           lastStreamStats = streamResult.streamStats;
 
@@ -2435,6 +2462,21 @@ export function useQuestionHandler(
           // happens to end on a full stop. The buffered segment has not been
           // conducted yet, so flush it before asking what is left.
           flushBufferedSegment();
+          if (arithmeticAdmission.blocked()) {
+            if (arithmeticRetryCount >= 2 || continueCount >= MAX_LLM_CONTINUATIONS)
+              throw new Error("The tutor could not produce a checked arithmetic step. Please try asking again.");
+            arithmeticRetryCount += 1;
+            continueCount += 1;
+            // Unsafe model text is never reused as history or saved response.
+            fullResponse = arithmeticAdmission.admittedNarration();
+            previousChunk = "";
+            bufferedSegment = null;
+            stepBoundaryTail = "";
+            markup = codeLesson ? null : new LectureMarkupBuffer();
+            parser = new IncrementalTagParser({ preserveStepSpeech: !codeLesson, onSegmentReady: parser.onSegmentReady });
+            tel.mark("teaching-arithmetic-retry", { attempt: arithmeticRetryCount });
+            continue;
+          }
           const codeLessonProgress = conductor?.status() ?? null;
           const beatsLeft = codeLessonProgress
             ? codeLessonProgress.missingBlockIds.length + codeLessonProgress.unshownFrameCount
@@ -2539,11 +2581,21 @@ export function useQuestionHandler(
           const extra = markup.finish();
           if (extra) parser.push(extra);
         }
-        const rawResponse = markup ? markup.text() : fullResponse;
+        let rawResponse = markup ? markup.text() : fullResponse;
 
         parser.flush();
         // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
+        if (arithmeticAdmission.blocked()) throw new Error("The tutor returned an unchecked arithmetic step. Please try asking again.");
+        if (!STREAM_SEGMENTS_LIVE) {
+          // Batch mode must complete admission before processResponseText queues
+          // any speech or handwriting from this response.
+          for (const segment of buildLessonSegments(rawResponse)) {
+            if (!arithmeticAdmission.offer(segment)) throw new Error("The tutor returned an unchecked arithmetic step. Please try asking again.");
+          }
+        }
+        if (arithmeticAdmission.filtered() && STREAM_SEGMENTS_LIVE)
+          rawResponse = arithmeticAdmission.admittedNarration();
         throwIfTurnCancelled();
         if (resumeInkGate && !resumeInkGate.hasInk()) {
           const message = "The lecture could not resume with board writing. Please try Continue lecture again.";

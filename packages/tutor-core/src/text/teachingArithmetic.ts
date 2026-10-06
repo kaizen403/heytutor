@@ -210,6 +210,8 @@ class Parser {
       const implicit = token === "(" || token === "{" || token === "pi" || token === "frac" ||
         (NUMBER.test(token ?? "") && [")", "}"].includes(this.tokens[this.at - 1]));
       if (token !== "*" && token !== "/" && !implicit) break;
+      if (implicit && token === "frac" && /^\d+$/.test(this.tokens[this.at - 1] ?? ""))
+        throw new Unsupported("integer/fraction juxtaposition can denote a mixed number");
       if (implicit && divided) throw new Unsupported("ambiguous division and implicit multiplication");
       if (!implicit) this.take();
       const rhs = this.unary();

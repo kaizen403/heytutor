@@ -222,6 +222,19 @@ export function relativeMotionDocument(question: string, source: RelativeMotionS
       { id: "meet_rel_on_path", predicate: "on", entities: [meetRel, relLane.trajectory], expected: true, severity: "fatal" },
     );
     outcome.push(meetA, meetB, meetRel, "meet_line", "meet_time", "meet_x");
+    for (const actor of source.requests.travelActors ?? []) {
+      const body = actor === a.name ? a : actor === b.name ? b : null;
+      if (!body) throw new Error("travel actor must be a source encounter body");
+      const travelled: MotionRational = { n: (body.v.n < 0n ? -body.v.n : body.v.n) * encounter.time.n, d: body.v.d * encounter.time.d };
+      doc.quantity(`q_distance_${actor}`, `d${actor}`, travelled, "m");
+      const start = actor === a.name ? laneA.start : laneB.start;
+      const end = actor === a.name ? meetA : meetB;
+      // A zero travel distance has no drawable dimension segment.
+      const mark = travelled.n === 0n
+        ? doc.tag(`distance_${actor}`, start, `distance travelled by ${actor}`, claim(`d${actor}`, travelled, "m"))
+        : doc.add({ id: `distance_${actor}`, kind: "dimension", role: `distance travelled by ${actor}`, label: claim(`d${actor}`, travelled, "m") }, "dimension", { start, end });
+      outcome.push(mark);
+    }
     if (encounter.kind === "initial") {
       outcome.push(doc.note("outcome_note", view.minX - pad, y.subject + 0.45 * view.lane, "encounter outcome", "meet at start"));
     }

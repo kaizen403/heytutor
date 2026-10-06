@@ -1,4 +1,4 @@
-import { validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
+import { canonicalizeUniformCircularSourceDocument, validateSceneSourceAuthority, validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
 import { isBlockedVerifiedDiagramCommand, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 
@@ -8,7 +8,10 @@ export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pi
     ? Object.getOwnPropertyDescriptor(artifacts, "turnPlan")?.value
     : undefined;
   const question = turn.question ?? document.source.question;
+  const problemIR = artifacts && typeof artifacts === "object"
+    ? Object.getOwnPropertyDescriptor(artifacts, "problemIR")?.value : undefined;
   const issues = [
+    ...(typeof question === "string" ? validateSceneSourceAuthority(document, question, problemIR) : []),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
     ...validateSectionPointSourceInputs(document, question),
@@ -28,7 +31,11 @@ export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pi
 export function sourceCheckedStoredTurn(turn: StoredTurn): StoredTurn {
   if (turn.sceneDocument == null) return turn;
   const structural = validateSceneDocument(turn.sceneDocument);
-  if (structural.document && !storedTurnSourceIssues(structural.document, turn).some((issue) => issue.severity === "fatal")) return turn;
+  if (structural.document && !storedTurnSourceIssues(structural.document, turn).some((issue) => issue.severity === "fatal")) {
+    const canonical = canonicalizeUniformCircularSourceDocument(structural.document, turn.question);
+    if (canonical && JSON.stringify(canonical.quantities) !== JSON.stringify(structural.document.quantities)) return { ...turn, sceneDocument: canonical };
+    return turn;
+  }
   return {
     ...turn,
     visualStatus: "retry_required",

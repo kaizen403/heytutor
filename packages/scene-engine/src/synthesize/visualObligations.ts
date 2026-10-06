@@ -36,6 +36,10 @@ import {
 } from "../capability/capabilityManifest";
 import type { ExpressionNodeIR, ProblemIR } from "../ir/problemIR";
 import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
+import { matrixLiteralSourceEntityIsCarried, matrixLiteralSourceDimensionIsCarried } from "../ir/matrixLiteralSource";
+import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
+import { validateRelativeMotionSourceInputs } from "./relativeMotionScene";
+import { uniformCircularProblemEntitySceneId, uniformCircularSourceDimensionIsCarried } from "../physics/uniformCircularIdentity";
 import type { SceneDocument, SceneIssue } from "../types";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
@@ -243,18 +247,19 @@ export function deriveVisualObligations(problem: ProblemIR): VisualObligationSet
 export function checkVisualObligations(
   set: VisualObligationSet,
   document: SceneDocument,
+  problem?: ProblemIR,
 ): VisualObligationCheckResult {
   const satisfiedIds: string[] = [];
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
-  const mapping = mapProblemEntities(set, document);
+  const mapping = mapProblemEntities(set, document, problem);
 
   for (const obligation of set.obligations) {
     if (!obligation.supported) {
       unsupportedIds.push(obligation.id);
       continue;
     }
-    const miss = checkObligation(obligation, document, mapping);
+    const miss = checkObligation(obligation, document, mapping, problem);
     if (miss) missing.push(miss);
     else satisfiedIds.push(obligation.id);
   }
@@ -294,7 +299,7 @@ export function visualObligationIssues(
   document: SceneDocument,
 ): SceneIssue[] {
   const set = deriveVisualObligations(problem);
-  const result = checkVisualObligations(set, document);
+  const result = checkVisualObligations(set, document, problem);
   return result.missing.map((miss) => ({
     code: miss.code,
     message: miss.message,
@@ -308,8 +313,9 @@ export function visualObligationIssues(
 export function visualObligationRejection(
   set: VisualObligationSet,
   document: SceneDocument,
+  problem?: ProblemIR,
 ): string | null {
-  const result = checkVisualObligations(set, document);
+  const result = checkVisualObligations(set, document, problem);
   return result.missing.length > 0 ? result.missing[0]!.message : null;
 }
 
@@ -338,9 +344,15 @@ function checkObligation(
   obligation: VisualObligation,
   document: SceneDocument,
   mapping: ReadonlyMap<string, string>,
+  problem?: ProblemIR,
 ): VisualObligationMiss | null {
   switch (obligation.kind) {
     case "named_body": {
+      const indexedSource = problem ? matrixLiteralSourceEntityIsCarried(document, problem, obligation.problemEntityId) : null;
+      if (indexedSource !== null) return indexedSource ? null : {
+        obligationId: obligation.id, kind: obligation.kind, code: "missing_named_body",
+        message: `source-indexed body ${describeBody(obligation)} is not carried by the complete verified table`, problemEntityIds: [obligation.problemEntityId],
+      };
       const sceneId = mapping.get(obligation.problemEntityId);
       return sceneId
         ? null
@@ -374,7 +386,9 @@ function checkObligation(
           };
     }
     case "given_dimension": {
-      return (sectionFormulaDimensionIsCarried(document, obligation.problemExpressionId, obligation.value, obligation.factIds)
+      return ((problem ? matrixLiteralSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
+        ?? (problem ? uniformCircularSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
+        ?? sectionFormulaDimensionIsCarried(document, obligation.problemExpressionId, obligation.value, obligation.factIds)
         ?? sceneCarriesValue(document, obligation.value))
         ? null
         : {
@@ -430,10 +444,14 @@ function describeBody(obligation: NamedBodyObligation): string {
 function mapProblemEntities(
   set: VisualObligationSet,
   document: SceneDocument,
+  problem?: ProblemIR,
 ): Map<string, string> {
   const mapping = new Map<string, string>();
   const consumed = new Set<string>();
   const byId = new Map(document.entities.map((entity) => [entity.id, entity]));
+  const motion = problem ? relativeMotionSource(problem.question) : null;
+  const motionBindings = problem && motion?.status === "admitted" && !validateRelativeMotionSourceInputs(document, problem.question).some(issue => issue.severity === "fatal")
+    ? relativeMotionSourceEntityBindings(problem.question, problem) : null;
   const labelHolds = (entity: SceneDocument["entities"][number], problemLabel: string | null): boolean =>
     problemLabel === null ||
     (typeof entity.label === "string" &&
@@ -456,6 +474,19 @@ function mapProblemEntities(
   };
   for (const obligation of set.obligations) {
     if (obligation.kind !== "named_body") continue;
+    const circularId = problem ? uniformCircularProblemEntitySceneId(document, problem, obligation.problemEntityId) : null;
+    const circularEntity = circularId ? byId.get(circularId) : null;
+    if (circularEntity && kindHolds(circularEntity, obligation) && !consumed.has(circularEntity.id)) {
+      mapping.set(obligation.problemEntityId, circularEntity.id); consumed.add(circularEntity.id); continue;
+    }
+    const actor = motionBindings?.get(obligation.problemEntityId);
+    if (actor && motion?.status === "admitted") {
+      const key = actor === motion.source.subject.name ? "a" : actor === motion.source.reference.name ? "b" : "o";
+      const marker = byId.get(`${key}_start`);
+      if (marker && marker.label === actor && kindHolds(marker, obligation) && !consumed.has(marker.id)) {
+        mapping.set(obligation.problemEntityId, marker.id); consumed.add(marker.id); continue;
+      }
+    }
     const direct = byId.get(obligation.problemEntityId);
     if (direct && !consumed.has(direct.id) && kindHolds(direct, obligation) && labelHolds(direct, obligation.problemLabel)) {
       mapping.set(obligation.problemEntityId, direct.id);

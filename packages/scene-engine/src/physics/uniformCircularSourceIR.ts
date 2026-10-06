@@ -87,7 +87,7 @@ export async function buildUniformCircularSourceFallback(question: string): Prom
     entities: [
       { id: "body", kind: "body", label: actor[1]!.toLowerCase(), evidenceFactIds: ["setup"] },
       { id: "path", kind: "curve", label: /track/i.test(setup) ? "circular track" : /horizontal/i.test(setup) ? "horizontal circle" : "circle", evidenceFactIds: ["setup", "radius"] },
-      { id: "centre", kind: "point", label: "centre", evidenceFactIds: ["radius"] },
+      { id: "centre", kind: "point", label: "centre", evidenceFactIds: ["setup", "radius"] },
     ],
     expressions: outputs.map(({ id, root }) => ({ id: `expr_${id}`, valueType: "scalar", root, evidenceFactIds: evidence })),
     constraints: [],

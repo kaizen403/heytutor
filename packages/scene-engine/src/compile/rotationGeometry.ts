@@ -1,4 +1,5 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
+import { uniformCircularSourceNames } from "../physics/uniformCircularSourceNames";
 
 export const ROTATION_OPERATORS = ["rotational_motion", "rotational_state", "planar_torque"] as const;
 export interface RotationMotionDefinition {
@@ -189,7 +190,15 @@ export function validateEvaluatedRotationLabels(construction: SceneConstruction,
         if (annotation.quantityId !== undefined) { const declared = sourceUnits(annotation.quantityId, document); if (!declared.length) invalid("label", "rotation quantity annotations require physical units"); const authorities = declared.map((value) => annotationAuthority(geometry, value, annotation.text)); const first = authorities[0]!;
           if (authorities.some((entry) => entry.claim.symbol !== first.claim.symbol || entry.factor !== first.factor)) invalid("label", "rotation annotation contains conflicting nested units"); if (!equalPhysical(product(validationNumber(annotation.quantityId, document), first.factor, "label"), first.claim.expected)) invalid("label", "rotation quantity annotation contradicts computed physical authority"); }
       }
-      for (const label of document.constructions) if (label.operator === "label" && (label.inputs.target ?? label.inputs.at ?? label.inputs.point) === id) checkedText(label.inputs.text, geometry);
+      for (const label of document.constructions) if (label.operator === "label" && (label.inputs.target ?? label.inputs.at ?? label.inputs.point) === id) {
+        // The numeric source program may name its physical actor with a
+        // separate caption. Its complete source/structure is independently
+        // regenerated at compile; this does not authorize a numeric claim or
+        // an arbitrary caption on a rotational vector.
+        const names = typeof document.source.question === "string" ? uniformCircularSourceNames(document.source.question) : null;
+        const sourceIdentity = isRecord(geometry) && isRecord(geometry.rotationalMotion) && names && label.inputs.text === names.actor;
+        if (!sourceIdentity) checkedText(label.inputs.text, geometry);
+      }
     } catch (error) { issues.push({ code: `invalid_${construction.operator}_label`, message: error instanceof Error ? error.message : "invalid rotation label", severity: "fatal", path: `constructions[${index}].outputs`, entityIds: [id] }); }
   }
 }

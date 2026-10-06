@@ -50,3 +50,5 @@ export * from "./code/codeLessonTeaching";
 export * from "./code/mockCodeLesson";
 
 export * from "./tts/audioFormat";
+
+export * from "./text/teachingArithmetic";

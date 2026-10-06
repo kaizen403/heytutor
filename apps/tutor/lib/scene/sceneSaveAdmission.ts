@@ -14,6 +14,7 @@
  */
 import {
   displayedSceneQuantityTexts,
+  validateSceneSourceAuthority,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -111,6 +112,7 @@ export function sceneSaveAdmissionFailure(input: {
   question: string;
   turnPlan: TurnPlanV3 | null;
   tier: SaveAdmissionTier;
+  problemIR?: unknown;
 }): string | null {
   const { document, question, turnPlan, tier } = input;
   if (turnPlan) {
@@ -136,6 +138,7 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...validateSceneSourceAuthority(document, question, input.problemIR),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
     ...validateSectionPointSourceInputs(document, question),
@@ -163,6 +166,7 @@ export function liveSceneSaveFailure(input: {
   question: string;
   turnPlan: TurnPlanV3 | null;
   tier: SaveAdmissionTier;
+  problemIR?: unknown;
 }): string | null {
   if (input.tier === "exact_verified" && input.turnPlan) {
     const proofIssues = validateTurnPlanSceneProofs(input.document, input.turnPlan);

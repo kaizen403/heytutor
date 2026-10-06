@@ -5,6 +5,8 @@
  */
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { compileSceneDocument } from "../compile/compiler";
+import { bindStatedCircuitProblem } from "../ir/statedCircuitProblemBinding";
+import { readStatedCircuitProblemSource } from "../ir/statedCircuitAuthority";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
@@ -63,6 +65,7 @@ import { detectArchetype } from "../archetypes/detect";
 import { buildSolidFigure } from "./solidFigure";
 import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
+import { uniformCircularProblemSourceIssues } from "../physics/uniformCircularIdentity";
 import { synthesizeUniformCircularScene } from "./uniformCircularFamily";
 import {
   SCENE_DOCUMENT_VERSION,
@@ -176,7 +179,13 @@ function synthesizeFromFamilies(
   // stale-plan source declines here so no static circle or projectile can
   // stand in for it.
   const circular = synthesizeUniformCircularScene(question, { turnPlan: input.turnPlan, problemIR: input.problemIR });
-  if (circular) return circular.status === "drawn" ? circular.scene : null;
+  if (circular) {
+    if (circular.status !== "drawn") return null;
+    if (isFullProblemIRStructure(input.problemIR)
+      && (uniformCircularProblemSourceIssues(circular.scene.document, input.problemIR).length > 0
+      || visualObligationRejection(deriveVisualObligations(input.problemIR), circular.scene.document, input.problemIR))) return null;
+    return circular.scene;
+  }
   // Parameterized archetypes compute geometry from typed slots and have
   // already faced the same picture demand. Complete source-bound geometry
   // keeps the existing family selection's priority over generic lexical cues.
@@ -201,9 +210,19 @@ function synthesizeFromFamilies(
   if (groundedCircuit.handled) {
     const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;
     if (!compiled || demandRejection(compiled.document, demand)
-      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+      || (obligations && visualObligationRejection(obligations, compiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined))) return null;
     return { ...compiled, tier: "question_representation", nonMetric: true,
       reason: "Compiled a source-bound two-terminal DC schematic with exact signed values; display geometry is nonmetric.", family: "circuit_network" };
+  }
+  // A numeric source circuit must carry the caller's complete IR, not a
+  // stock apparatus sketch with matching scalar values.
+  if (readStatedCircuitProblemSource(question)) {
+    const binding = bindStatedCircuitProblem(question, input.problemIR);
+    const compiled = binding ? tryCompile(binding.document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || (obligations && visualObligationRejection(obligations, compiled.document, binding?.problem))) return null;
+    return { ...compiled, tier: "question_representation", nonMetric: true,
+      reason: "Bound the complete source circuit and ProblemIR to exact electrical values and physical components.", family: "circuit_network" };
   }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
@@ -213,7 +232,7 @@ function synthesizeFromFamilies(
   if (sectionDocument) {
     const compiled = tryCompile(sectionDocument);
     if (compiled && !demandRejection(compiled.document, demand)
-      && !(obligations && visualObligationRejection(obligations, compiled.document))) {
+      && !(obligations && visualObligationRejection(obligations, compiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined))) {
       const metricProof = hasPlanMetricProof(compiled.document);
       return { ...compiled, tier: metricProof ? "exact_verified" : "qualitative_verified", nonMetric: !metricProof,
         reason: "Compiled the stated endpoints and the section point from the question's coordinates and ratio.", family: "coordinate_figure" };
@@ -226,7 +245,7 @@ function synthesizeFromFamilies(
       ? pointLineSourceDocument(question, isFullProblemIRStructure(input.problemIR) ? input.problemIR : null) : null;
     const compiled = document ? tryCompile(document) : null;
     if (!compiled || demandRejection(compiled.document, demand)
-      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+      || (obligations && visualObligationRejection(obligations, compiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined))) return null;
     return { ...compiled, tier: "exact_verified", nonMetric: false,
       reason: "Computed the perpendicular projection from the complete source point and linear equation.", family: "coordinate_figure" };
   }
@@ -240,7 +259,7 @@ function synthesizeFromFamilies(
     if (relativeMotionPlanConflicts(relativeMotion.source, input.turnPlan, question).length > 0) return null;
     const compiled = tryCompile(relativeMotionDocument(question, relativeMotion.source));
     if (!compiled || demandRejection(compiled.document, demand)) return null;
-    if (obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    if (obligations && visualObligationRejection(obligations, compiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined)) return null;
     const metricProof = !schematic && hasPlanMetricProof(compiled.document);
     return {
       ...compiled,
@@ -267,7 +286,7 @@ function synthesizeFromFamilies(
   const projectileSource = isProjectileStem(question) && !statedVerticalThrow;
   const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
     || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
-  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
+  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined))) {
     return {
       document: archetype.document,
       renderScene: archetype.renderScene,
@@ -294,7 +313,7 @@ function synthesizeFromFamilies(
     // A candidate that compiles yet drops a named body, a connection, a given
     // dimension, or a proved relation is a partial scene: reject it the same
     // way, so only whole figures reach the board.
-    if (obligations && visualObligationRejection(obligations, compiled.document)) continue;
+    if (obligations && visualObligationRejection(obligations, compiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined)) continue;
     // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
     // assertion (a real refraction angle, a real image-distance ratio) — never
     // `exists`/`label_attached`/topology proofs alone. Display-scale families
@@ -326,7 +345,7 @@ function synthesizeFromFamilies(
   if (
     conceptCompiled
     && !demandRejection(conceptCompiled.document, demand)
-    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document))
+    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined))
   ) {
     return {
       ...conceptCompiled,

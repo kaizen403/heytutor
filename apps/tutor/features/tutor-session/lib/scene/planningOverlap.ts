@@ -122,7 +122,7 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   parentSpan?: string;
   deriveGate(plan: TurnPlanV3, authority: A | null): G;
   /** Reconcile and audit exactly as the serial path did. */
-  applyAuthority(plan: TurnPlanV3, authority: A): { turnPlan: TurnPlanV3; authority: A };
+  applyAuthority(plan: TurnPlanV3, authority: A): { turnPlan: TurnPlanV3; authority: A } | Promise<{ turnPlan: TurnPlanV3; authority: A }>;
   /** A solver contradiction keeps the deterministic figure off, as before. */
   fastFigureBlocked(authority: A | null): boolean;
   /** A stored verified scene, validated against the final plan. */
@@ -389,7 +389,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       authority = await guard(authorityPromise);
       timings.authorityWaitMs = now() - waitStartedAt;
     }
-    if (authority) ({ turnPlan, authority } = input.applyAuthority(turnPlan, authority));
+    if (authority) ({ turnPlan, authority } = await guard(Promise.resolve(input.applyAuthority(turnPlan, authority))));
 
     const gate = input.deriveGate(turnPlan, authority);
     let scene = input.recover?.(gate, turnPlan) ?? null;

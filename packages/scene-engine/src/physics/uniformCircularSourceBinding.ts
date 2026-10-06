@@ -29,6 +29,9 @@ export function validateUniformCircularSourceInputs(document: SceneDocument, que
     constructions: scene.constructions,
     assertions: scene.assertions,
     annotations: scene.annotations ?? [],
+    requiredEntityIds: scene.requiredEntityIds,
+    revealGroups: scene.revealGroups,
+    teachingTimeline: scene.teachingTimeline,
     entities: scene.entities.map((entity) => [entity.id, entity.kind, entity.role ?? null, entity.label ?? null]),
   });
   const actual = shape(document);

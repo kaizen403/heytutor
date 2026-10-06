@@ -3,6 +3,7 @@ import {
   SCENE_ARTIFACTS_V3_VERSION,
   SCENE_ENGINE_VERSION,
   compileSceneDocument,
+  canonicalizeUniformCircularSourceDocument,
   validateProblemIR,
   validateSceneDocument,
   validateSceneQuantityAgreement,
@@ -220,12 +221,13 @@ export async function canonicalizeTurnSceneMetadata(
     if (document.source.nonMetric === false) {
       return failure("accepted document declares metric geometry outside the exact path");
     }
+    document = canonicalizeUniformCircularSourceDocument(document, question) ?? document;
     // DSA structure diagrams were compiled into the code-lesson split live;
     // recompiling into the default viewport would move every primitive under
     // the code panel and diverge replay from the taught scene.
     const compiled = compileSceneDocument(
       document,
-      isDsaSceneDocument(document) ? { viewport: DSA_DIAGRAM_ZONE } : {},
+      { ...(isDsaSceneDocument(document) ? { viewport: DSA_DIAGRAM_ZONE } : {}), sourceAuthority: { question, problemIR: metadata.sceneArtifacts.problemIR } },
     );
     if (!compiled.ok || !compiled.renderScene) {
       return failure(`accepted representation does not compile: ${formatIssues(compiled.report.issues)}`);
@@ -253,7 +255,8 @@ export async function canonicalizeTurnSceneMetadata(
         return failure(`scene proof obligations failed: ${formatIssues(proofIssues)}`);
       }
     }
-    const compiled = compileSceneDocument(document);
+    document = canonicalizeUniformCircularSourceDocument(document, question) ?? document;
+    const compiled = compileSceneDocument(document, { sourceAuthority: { question, problemIR: metadata.sceneArtifacts.problemIR } });
     if (!compiled.ok || !compiled.renderScene) {
       return failure(`exact scene does not compile: ${formatIssues(compiled.report.issues)}`);
     }
@@ -263,7 +266,7 @@ export async function canonicalizeTurnSceneMetadata(
 
   // The same function runs live before a figure is drawn (useQuestionHandler),
   // so a scene this would refuse is never shown and then lost.
-  const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier });
+  const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier, problemIR: metadata.sceneArtifacts.problemIR });
   if (admissionFailure) return failure(admissionFailure);
 
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {

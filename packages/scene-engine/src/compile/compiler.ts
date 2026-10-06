@@ -29,6 +29,7 @@ import { implicitSolverEntityIds, validateSceneDocument } from "../document/vali
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
+import { validateSceneSourceAuthority } from "../ir/sceneSourceAuthority";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
@@ -204,14 +205,18 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
+  const trustedQuestion = options.sourceAuthority?.question ?? document.source.question;
+  const callerIssues = options.sourceAuthority
+    ? validateSceneSourceAuthority(document, options.sourceAuthority.question, options.sourceAuthority.problemIR) : [];
   const matrixSourceIssues = [
+    ...callerIssues,
     ...validateMatrixSourceBinding(document),
     // A document claiming the admitted relative-motion source must be exactly
     // the one that source computes; a stale relative velocity cannot compile.
-    ...validateRelativeMotionSourceInputs(document, document.source.question),
-    ...validateUniformCircularSourceInputs(document, document.source.question),
-    ...validatePointLineSourceInputs(document, document.source.question),
-    ...validateSectionPointSourceInputs(document, document.source.question),
+    ...validateRelativeMotionSourceInputs(document, trustedQuestion),
+    ...validateUniformCircularSourceInputs(document, trustedQuestion),
+    ...validatePointLineSourceInputs(document, trustedQuestion),
+    ...validateSectionPointSourceInputs(document, trustedQuestion),
   ];
   if (matrixSourceIssues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, [...structural.report.issues, ...matrixSourceIssues], 0) };
   const circleSourceIssues = validateCircleSourceBinding(document);
