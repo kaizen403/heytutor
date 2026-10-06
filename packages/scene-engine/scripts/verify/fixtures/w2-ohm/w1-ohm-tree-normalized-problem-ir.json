@@ -1,0 +1,402 @@
+{
+  "schemaVersion": "problem-ir/v1",
+  "id": "seriesParallelCircuit",
+  "question": "A 2 ohm resistor and a 4 ohm resistor are connected in series, and this combination is connected in parallel with a 3 ohm resistor across a 6 V cell. Find the equivalent resistance and the total current.",
+  "facts": [
+    {
+      "id": "fR1",
+      "kind": "given",
+      "statement": "The first resistor has resistance 2 ohm.",
+      "evidence": {
+        "source": "question",
+        "start": 2,
+        "end": 16,
+        "quote": "2 ohm resistor"
+      }
+    },
+    {
+      "id": "fR2",
+      "kind": "given",
+      "statement": "The second resistor has resistance 4 ohm.",
+      "evidence": {
+        "source": "question",
+        "start": 23,
+        "end": 37,
+        "quote": "4 ohm resistor"
+      }
+    },
+    {
+      "id": "fR3",
+      "kind": "given",
+      "statement": "The third resistor has resistance 3 ohm.",
+      "evidence": {
+        "source": "question",
+        "start": 116,
+        "end": 130,
+        "quote": "3 ohm resistor"
+      }
+    },
+    {
+      "id": "fV",
+      "kind": "given",
+      "statement": "The cell voltage is 6 V.",
+      "evidence": {
+        "source": "question",
+        "start": 140,
+        "end": 148,
+        "quote": "6 V cell"
+      }
+    },
+    {
+      "id": "fReq",
+      "kind": "requested",
+      "statement": "Find the equivalent resistance.",
+      "evidence": {
+        "source": "question",
+        "start": 150,
+        "end": 180,
+        "quote": "Find the equivalent resistance"
+      }
+    },
+    {
+      "id": "fItot",
+      "kind": "requested",
+      "statement": "Find the total current.",
+      "evidence": {
+        "source": "question",
+        "start": 185,
+        "end": 202,
+        "quote": "the total current"
+      }
+    },
+    {
+      "id": "fSeries",
+      "kind": "given",
+      "statement": "The 2 ohm and 4 ohm resistors are connected in series.",
+      "evidence": {
+        "source": "question",
+        "start": 38,
+        "end": 61,
+        "quote": "are connected in series"
+      }
+    },
+    {
+      "id": "fParallel",
+      "kind": "given",
+      "statement": "The series combination is connected in parallel with the 3 ohm resistor.",
+      "evidence": {
+        "source": "question",
+        "start": 87,
+        "end": 130,
+        "quote": "connected in parallel with a 3 ohm resistor"
+      }
+    },
+    {
+      "id": "fAcross",
+      "kind": "given",
+      "statement": "The parallel combination is across the 6 V cell.",
+      "evidence": {
+        "source": "question",
+        "start": 131,
+        "end": 148,
+        "quote": "across a 6 V cell"
+      }
+    },
+    {
+      "id": "fIdealCell",
+      "kind": "assumption",
+      "statement": "The cell is ideal with negligible internal resistance.",
+      "evidence": {
+        "source": "question",
+        "start": 131,
+        "end": 148,
+        "quote": "across a 6 V cell"
+      }
+    },
+    {
+      "id": "fOhm",
+      "kind": "assumption",
+      "statement": "The resistors obey Ohm's law.",
+      "evidence": {
+        "source": "question",
+        "start": 2,
+        "end": 16,
+        "quote": "2 ohm resistor"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "eR1",
+      "kind": "component",
+      "label": "2 ohm resistor",
+      "evidenceFactIds": [
+        "fR1"
+      ]
+    },
+    {
+      "id": "eR2",
+      "kind": "component",
+      "label": "4 ohm resistor",
+      "evidenceFactIds": [
+        "fR2"
+      ]
+    },
+    {
+      "id": "eR3",
+      "kind": "component",
+      "label": "3 ohm resistor",
+      "evidenceFactIds": [
+        "fR3"
+      ]
+    },
+    {
+      "id": "eCell",
+      "kind": "component",
+      "label": "6 V cell",
+      "evidenceFactIds": [
+        "fV"
+      ]
+    },
+    {
+      "id": "eSeriesComb",
+      "kind": "other",
+      "label": "series combination of R1 and R2",
+      "evidenceFactIds": [
+        "fSeries"
+      ]
+    },
+    {
+      "id": "eParallelComb",
+      "kind": "other",
+      "label": "parallel combination of series branch and R3",
+      "evidenceFactIds": [
+        "fParallel"
+      ]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "exprR1",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 2
+      },
+      "evidenceFactIds": [
+        "fR1"
+      ]
+    },
+    {
+      "id": "exprR2",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 4
+      },
+      "evidenceFactIds": [
+        "fR2"
+      ]
+    },
+    {
+      "id": "exprR3",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 3
+      },
+      "evidenceFactIds": [
+        "fR3"
+      ]
+    },
+    {
+      "id": "exprV",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 6
+      },
+      "evidenceFactIds": [
+        "fV"
+      ]
+    },
+    {
+      "id": "exprReq",
+      "valueType": "scalar",
+      "root": {
+        "kind": "binary",
+        "left": {
+          "kind": "binary",
+          "left": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 4
+            },
+            "operator": "+"
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          },
+          "operator": "*"
+        },
+        "right": {
+          "kind": "binary",
+          "left": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 4
+            },
+            "operator": "+"
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          },
+          "operator": "+"
+        },
+        "operator": "/"
+      },
+      "evidenceFactIds": [
+        "fR1",
+        "fR2",
+        "fR3",
+        "fSeries",
+        "fParallel"
+      ]
+    },
+    {
+      "id": "exprItot",
+      "valueType": "scalar",
+      "root": {
+        "kind": "binary",
+        "left": {
+          "kind": "number",
+          "value": 6
+        },
+        "right": {
+          "kind": "binary",
+          "left": {
+            "kind": "binary",
+            "left": {
+              "kind": "binary",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 4
+              },
+              "operator": "+"
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            },
+            "operator": "*"
+          },
+          "right": {
+            "kind": "binary",
+            "left": {
+              "kind": "binary",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 4
+              },
+              "operator": "+"
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            },
+            "operator": "+"
+          },
+          "operator": "/"
+        },
+        "operator": "/"
+      },
+      "evidenceFactIds": [
+        "fV",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fSeries",
+        "fParallel"
+      ]
+    }
+  ],
+  "constraints": [],
+  "representationIntents": [
+    {
+      "id": "riCircuit",
+      "kind": "network",
+      "entityIds": [
+        "eR1",
+        "eR2",
+        "eR3",
+        "eCell",
+        "eSeriesComb",
+        "eParallelComb"
+      ],
+      "evidenceFactIds": [
+        "fSeries",
+        "fParallel",
+        "fAcross"
+      ]
+    }
+  ],
+  "solveRequests": [
+    {
+      "id": "srReq",
+      "kind": "evaluate",
+      "expressionId": "exprReq",
+      "resultBinding": {
+        "turnPlanQuantityId": "Req",
+        "symbol": "Req",
+        "unit": "ohm",
+        "evidenceFactIds": [
+          "fReq",
+          "fR1",
+          "fR2",
+          "fR3",
+          "fSeries",
+          "fParallel"
+        ]
+      }
+    },
+    {
+      "id": "srItot",
+      "kind": "evaluate",
+      "expressionId": "exprItot",
+      "resultBinding": {
+        "turnPlanQuantityId": "Itot",
+        "symbol": "I_total",
+        "unit": "A",
+        "evidenceFactIds": [
+          "fItot",
+          "fV",
+          "fR1",
+          "fR2",
+          "fR3",
+          "fSeries",
+          "fParallel"
+        ]
+      }
+    }
+  ]
+}

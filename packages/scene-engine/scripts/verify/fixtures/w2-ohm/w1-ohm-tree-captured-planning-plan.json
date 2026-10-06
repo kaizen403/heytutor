@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "turn-plan/v3",
+  "question": "A 2 ohm resistor and a 4 ohm resistor are connected in series, and this combination is connected in parallel with a 3 ohm resistor across a 6 V cell. Find the equivalent resistance and the total current.",
+  "givens": [
+    {
+      "id": "R1",
+      "symbol": "R1",
+      "value": 2,
+      "unit": "ohm",
+      "sourceText": "2 ohm resistor",
+      "provenance": "given"
+    },
+    {
+      "id": "R2",
+      "symbol": "R2",
+      "value": 4,
+      "unit": "ohm",
+      "sourceText": "4 ohm resistor",
+      "provenance": "given"
+    },
+    {
+      "id": "R3",
+      "symbol": "R3",
+      "value": 3,
+      "unit": "ohm",
+      "sourceText": "3 ohm resistor",
+      "provenance": "given"
+    },
+    {
+      "id": "V",
+      "symbol": "V",
+      "value": 6,
+      "unit": "V",
+      "sourceText": "6 V cell",
+      "provenance": "given"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "Req",
+      "symbol": "Req",
+      "unit": "ohm"
+    },
+    {
+      "id": "Itot",
+      "symbol": "I_total",
+      "unit": "A"
+    }
+  ],
+  "derived": [
+    {
+      "id": "Req",
+      "symbol": "Req",
+      "value": 2,
+      "unit": "ohm",
+      "sourceText": "(Rs*R3)/(Rs+R3) = (6*3)/(6+3) = 18/9 = 2",
+      "provenance": "derived",
+      "dependsOn": [
+        "Rs",
+        "R3"
+      ]
+    },
+    {
+      "id": "Itot",
+      "symbol": "I_total",
+      "value": 3,
+      "unit": "A",
+      "sourceText": "V/Req = 6/2 = 3",
+      "provenance": "derived",
+      "dependsOn": [
+        "V",
+        "Req"
+      ]
+    },
+    {
+      "id": "Rs",
+      "symbol": "R_series",
+      "value": 6,
+      "unit": "ohm",
+      "sourceText": "R1+R2 = 2+4 = 6",
+      "provenance": "derived",
+      "dependsOn": [
+        "R1",
+        "R2"
+      ]
+    }
+  ],
+  "qualitativeClaims": [
+    {
+      "id": "c1",
+      "claim": "The 2 ohm and 4 ohm resistors are in series, so their resistances add.",
+      "expected": "R_series = 6 ohm",
+      "relatedQuantityIds": [
+        "R1",
+        "R2",
+        "Rs"
+      ]
+    },
+    {
+      "id": "c2",
+      "claim": "The series combination is in parallel with the 3 ohm resistor, lowering the equivalent resistance below either branch.",
+      "expected": "Req = 2 ohm, less than 3 ohm and 6 ohm",
+      "relatedQuantityIds": [
+        "Rs",
+        "R3",
+        "Req"
+      ]
+    },
+    {
+      "id": "c3",
+      "claim": "Total current is the cell voltage divided by the equivalent resistance.",
+      "expected": "I_total = 3 A",
+      "relatedQuantityIds": [
+        "V",
+        "Req",
+        "Itot"
+      ]
+    }
+  ],
+  "lawIds": [
+    "series resistance addition",
+    "parallel resistance formula",
+    "Ohm's law"
+  ],
+  "assumptions": [
+    "Ideal cell with negligible internal resistance",
+    "Resistors obey Ohm's law",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+  ],
+  "visualRequirement": "required"
+}

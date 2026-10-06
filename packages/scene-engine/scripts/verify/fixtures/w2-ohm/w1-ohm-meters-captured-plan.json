@@ -1,0 +1,65 @@
+{
+  "givens": [
+    {
+      "id": "R",
+      "unit": "ohm",
+      "value": 10,
+      "symbol": "R",
+      "provenance": "given",
+      "sourceText": "10 ohm resistor"
+    },
+    {
+      "id": "V",
+      "unit": "V",
+      "value": 5,
+      "symbol": "V",
+      "provenance": "given",
+      "sourceText": "5 V cell"
+    }
+  ],
+  "lawIds": [
+    "Ohm's law"
+  ],
+  "derived": [
+    {
+      "id": "I",
+      "unit": "A",
+      "value": 0.5,
+      "symbol": "I",
+      "dependsOn": [
+        "V",
+        "R"
+      ],
+      "provenance": "derived",
+      "sourceText": "I = V/R = 5/10 = 0.5"
+    }
+  ],
+  "question": "A 10 ohm resistor is connected to a 5 V cell with an ammeter in series and a voltmeter across the resistor. Find the current.",
+  "unknowns": [
+    {
+      "id": "I",
+      "unit": "A",
+      "symbol": "I"
+    }
+  ],
+  "assumptions": [
+    "Ideal ammeter (zero internal resistance)",
+    "Ideal voltmeter (infinite internal resistance)",
+    "Cell internal resistance neglected",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+  ],
+  "schemaVersion": "turn-plan/v3",
+  "qualitativeClaims": [
+    {
+      "id": "c1",
+      "claim": "Ideal meters assumed: ammeter has zero resistance and voltmeter has infinite resistance, so the full 5 V appears across the 10 ohm resistor.",
+      "expected": "Current is simply V/R with no meter loading effects.",
+      "relatedQuantityIds": [
+        "I",
+        "V",
+        "R"
+      ]
+    }
+  ],
+  "visualRequirement": "required"
+}

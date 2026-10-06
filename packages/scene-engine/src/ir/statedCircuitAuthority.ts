@@ -14,8 +14,12 @@
  * figure and no authority at all.
  */
 import { attemptArchetypeScene } from "../archetypes";
-import { numbersWithUnit, UNIT } from "../archetypes/slots";
+import { detectArchetype, type ArchetypeMatch } from "../archetypes/detect";
+import { generatorFor } from "../archetypes/generators";
+import { numbersWithUnit, UNIT, STEM_NUMBER, parseStemNumber } from "../archetypes/slots";
+import { parseResistorTree, type ResistorTree } from "../archetypes/resistorTree";
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
+import type { SceneDocument } from "../types";
 
 type Rational = { n: bigint; d: bigint };
 
@@ -45,6 +49,8 @@ export interface StatedCircuitSolution {
   ammeter?: CircuitValue;
   voltmeter?: CircuitValue;
   power?: CircuitValue;
+  /** Source-computable subtrees, including the whole network. */
+  groups: Array<{ kind: "series" | "parallel"; resistorIds: string[]; resistance: CircuitValue }>;
 }
 
 export interface CircuitAuthorityIssue {
@@ -82,10 +88,12 @@ const div = (a: Rational, b: Rational): Rational => rational(a.n * b.d, a.d * b.
 /** Stem decimals are exact: 0.5 is 1/2, not a float. */
 function decimal(value: number): Rational {
   const text = String(value);
-  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text);
+  const match = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text);
   if (!match) throw new Error(`unsupported literal ${text}`);
   const fraction = match[3] ?? "";
-  return rational(BigInt(`${match[1]}${match[2]}${fraction}`), 10n ** BigInt(fraction.length));
+  const exponent = Number(match[4] ?? 0) - fraction.length;
+  const numerator = BigInt(`${match[1]}${match[2]}${fraction}`);
+  return exponent >= 0 ? rational(numerator * 10n ** BigInt(exponent)) : rational(numerator, 10n ** BigInt(-exponent));
 }
 function out(value: Rational): CircuitValue {
   return { exact: value.d === 1n ? String(value.n) : `${value.n}/${value.d}`, value: Number(value.n) / Number(value.d) };
@@ -154,13 +162,37 @@ function solveNetlist(nodes: string[], branches: Branch[]): { potentials: Map<st
 export function solveStatedResistorCircuit(question: string): StatedCircuitSolution | null {
   const attempt = attemptArchetypeScene({ question, turnPlan: null });
   if (attempt.scene?.archetype !== "resistor_network") return null;
-  const { document } = attempt.scene;
-  const slots = attempt.match!.slots;
+  return solveCircuitGraph(question, attempt.scene.document, attempt.match!);
+}
+
+/**
+ * Reconstruct the source netlist without invoking compilation. A compile
+ * guard must not recursively compile its own oracle. This document is an
+ * uncommitted candidate: full IR binding, obligations and compilation remain
+ * mandatory before it may render. No submitted graph or scalar is accepted.
+ */
+export function readStatedCircuitProblemSource(question: string): { document: SceneDocument; solution: StatedCircuitSolution; match: ArchetypeMatch } | null {
+  const match = detectArchetype(question, { turnPlan: null });
+  if (match?.id !== "resistor_network") return null;
+  const generate = generatorFor(match.id);
+  if (!generate) return null;
+  try {
+    const document = generate({ question, slots: match.slots, sources: match.sources, quantities: [], schematic: false });
+    if (!document) return null;
+    const solution = solveCircuitGraph(question, document, match);
+    return solution ? { document, solution, match } : null;
+  } catch {
+    return null;
+  }
+}
+
+function solveCircuitGraph(question: string, document: SceneDocument, match: ArchetypeMatch): StatedCircuitSolution | null {
+  const slots = match.slots;
   const values = Array.isArray(slots.resistors) ? (slots.resistors as unknown[]).filter((item): item is number => typeof item === "number") : [];
   const symbols = document.constructions.filter((construction) => construction.operator === "symbol");
   const resistorSymbols = symbols.filter((construction) => construction.inputs.symbol === "resistor");
   if (resistorSymbols.length === 0 || values.length !== resistorSymbols.length) return null;
-  const emf = attempt.match!.sources.emf === "stem" && typeof slots.emf === "number" ? decimal(slots.emf) : null;
+  const emf = match.sources.emf === "stem" && typeof slots.emf === "number" ? decimal(slots.emf) : null;
   const battery = symbols.find((construction) => construction.inputs.symbol === "battery");
   const nodes = document.constructions.filter((construction) => construction.operator === "point").map((construction) => construction.outputs[0]!);
   const branches: Branch[] = [];
@@ -228,6 +260,19 @@ export function solveStatedResistorCircuit(question: string): StatedCircuitSolut
   };
   const sourceVoltage = known ? drive : singleCurrent ? mul(singleCurrent, equivalentResistance) : null;
   const totalCurrent = known ? sourceCurrent : singleCurrent;
+  const tree: ResistorTree | null = slots.topology === "tree" ? parseResistorTree(String(slots.tree))
+    : values.length > 1 ? { kind: slots.topology === "parallel" ? "parallel" : "series", children: values.map((_, index) => ({ kind: "leaf", index })) } : null;
+  const groups: StatedCircuitSolution["groups"] = [];
+  const groupResistance = (node: ResistorTree): { value: Rational; ids: string[] } => {
+    if (node.kind === "leaf") return { value: decimal(values[node.index]!), ids: [resistors[node.index]!.id] };
+    const parts = node.children.map(groupResistance);
+    const value = node.kind === "series" ? parts.reduce((sum, part) => add(sum, part.value), ZERO)
+      : div(ONE, parts.reduce((sum, part) => add(sum, div(ONE, part.value)), ZERO));
+    const ids = parts.flatMap((part) => part.ids);
+    groups.push({ kind: node.kind, resistorIds: ids, resistance: out(value) });
+    return { value, ids };
+  };
+  if (tree) groupResistance(tree);
   const ammeter = meter("ammeter");
   const voltmeter = meter("voltmeter");
   return {
@@ -236,6 +281,7 @@ export function solveStatedResistorCircuit(question: string): StatedCircuitSolut
     ...(sourceVoltage ? { sourceVoltage: out(sourceVoltage) } : {}),
     ...(totalCurrent ? { sourceCurrent: out(totalCurrent) } : {}),
     resistors,
+    groups,
     ...(ammeter ? { ammeter: { ...ammeter, value: Math.abs(ammeter.value), exact: ammeter.exact.replace(/^-/, "") } } : {}),
     ...(voltmeter ? { voltmeter: { ...voltmeter, value: Math.abs(voltmeter.value), exact: voltmeter.exact.replace(/^-/, "") } } : {}),
     ...(sourceVoltage && totalCurrent ? { power: out(mul(sourceVoltage, totalCurrent)) } : {}),
@@ -251,12 +297,30 @@ const UNIT_SCALE: Record<string, [Dimension, number]> = {
   w: ["power", 1], watt: ["power", 1], watts: ["power", 1], mw: ["power", 1e-3], kw: ["power", 1e3],
 };
 
-function dimensionOf(unit: string | undefined): [Dimension, number] | null {
+export function readCircuitUnit(unit: string | undefined): [Dimension, number] | null {
   if (!unit) return null;
   const key = unit.trim().replace(/\s+/g, "");
   // "MΩ" and "mΩ" differ only by case; Ω units keep their prefix case.
   if (key === "MΩ") return ["resistance", 1e6];
+  if (key === "mΩ" || key === "mohm" || key === "mohms") return ["resistance", 1e-3];
+  if (key === "Mohm" || key === "Mohms") return ["resistance", 1e6];
+  if (/^[A-Z]{2}$/.test(key)) return null;
   return UNIT_SCALE[key.toLowerCase()] ?? null;
+}
+const dimensionOf = readCircuitUnit;
+
+/** Literal circuit quantities with case-sensitive SI prefixes; no plan/provenance input. */
+export function readCircuitLiterals(text: string): Array<{ value: number; si: number; unit: string; dimension: Dimension; start: number; end: number }> {
+  const result: ReturnType<typeof readCircuitLiterals> = [];
+  const pattern = new RegExp(`${STEM_NUMBER}\\s*(kΩ|MΩ|mΩ|Ω|[kMm]?ohms?|[kMmµu]?[AVW]|volts?|amperes?|amps?|watts?)(?![A-Za-z0-9])`, "g");
+  const unitWords = text.replace(/\b(ohms?|volts?|amperes?|amps?|watts?)\b/gi, (word) => word.toLowerCase());
+  for (const match of unitWords.matchAll(pattern)) {
+    const value = parseStemNumber(match[1]!);
+    const unit = readCircuitUnit(match[2]);
+    if (value === null || !unit || !Number.isFinite(value * unit[1]) || (value !== 0 && value * unit[1] === 0)) continue;
+    result.push({ value, si: value * unit[1], unit: match[2]!, dimension: unit[0], start: match.index!, end: match.index! + match[0].length });
+  }
+  return result;
 }
 
 /**
@@ -267,7 +331,7 @@ function dimensionOf(unit: string | undefined): [Dimension, number] | null {
  * bare R or P in a multi-resistor circuit, or any other name is not bound:
  * "V" may be a terminal voltage, a drop across one part, or the source.
  */
-function boundValue(solution: StatedCircuitSolution, dimension: Dimension, symbol: string): CircuitValue | undefined {
+export function statedCircuitBoundValue(solution: StatedCircuitSolution, dimension: Dimension, symbol: string): CircuitValue | undefined {
   const key = symbol.normalize("NFKC").replace(/\\(?:mathrm|text|operatorname)\s*/g, "").replace(/[{}\\\s]/g, "");
   const single = solution.resistors.length === 1;
   const oneLoop = single || solution.topology === "series";
@@ -281,8 +345,8 @@ function boundValue(solution: StatedCircuitSolution, dimension: Dimension, symbo
     if (dimension === "resistance" && letter === "R") return resistor.resistance;
     return undefined;
   }
-  if (dimension === "current" && /^I_?A$|^I_?ammeter$|^ammeter/i.test(key)) return solution.ammeter;
-  if (dimension === "voltage" && /^V_?V$|^V_?voltmeter$|^voltmeter/i.test(key)) return solution.voltmeter;
+  if (dimension === "current" && /^(?:I_?A|I_?ammeter|ammeter)$/i.test(key)) return solution.ammeter;
+  if (dimension === "voltage" && /^(?:V_?V|V_?voltmeter|voltmeter)$/i.test(key)) return solution.voltmeter;
   if (dimension === "resistance") {
     if (/^R_?(?:eq|equiv|equivalent|total|tot|net|eff|effective)$/i.test(key)) return solution.equivalentResistance;
     return single && /^R$/.test(key) ? solution.resistors[0]!.resistance : undefined;
@@ -295,6 +359,31 @@ function boundValue(solution: StatedCircuitSolution, dimension: Dimension, symbo
     return /^(?:E|ε|emf|EMF|V_?(?:emf|source|src|battery|cell|supply))$/.test(key) ? solution.sourceVoltage : undefined;
   }
   return /^P_?(?:total|tot|net|source|battery|supplied)$/i.test(key) || (single && /^P$/.test(key)) ? solution.power : undefined;
+}
+const boundValue = statedCircuitBoundValue;
+
+/** Dependency identities, not a matching scalar or claimed provenance, bind a subtree. */
+function intermediateValue(solution: StatedCircuitSolution, quantity: TurnPlanQuantityV3, givens: TurnPlanQuantityV3[], derived: TurnPlanQuantityV3[]): CircuitValue | undefined {
+  if (dimensionOf(quantity.unit)?.[0] !== "resistance" || !quantity.dependsOn?.length) return undefined;
+  let budget = 512;
+  const leaves = (id: string, visiting: Set<string>): string[] | null => {
+    if (--budget < 0 || visiting.has(id)) return null;
+    const given = givens.find((row) => row.id === id);
+    const part = given && /^R_?(\d)$/.exec(given.symbol);
+    const resistor = part ? solution.resistors[Number(part[1]) - 1] : undefined;
+    const unit = given && dimensionOf(given.unit);
+    if (given) return resistor && unit?.[0] === "resistance" && close(resistor.resistance.value, given.value * unit[1]) ? [resistor.id] : null;
+    const subtotal = derived.find((row) => row.id === id);
+    if (!subtotal?.dependsOn?.length || dimensionOf(subtotal.unit)?.[0] !== "resistance") return null;
+    const children = subtotal.dependsOn.map((dependency) => leaves(dependency, new Set([...visiting, id])));
+    return children.some((child) => child === null) ? null : children.flatMap((child) => child!);
+  };
+  const parts = quantity.dependsOn.map((id) => leaves(id, new Set([quantity.id])));
+  if (parts.some((part) => part === null)) return undefined;
+  const ids = parts.flatMap((part) => part!);
+  if (new Set(ids).size !== ids.length) return undefined;
+  const candidates = solution.groups.filter((group) => group.resistorIds.length === ids.length && group.resistorIds.every((id) => ids.includes(id)));
+  return candidates.length === 1 ? candidates[0]!.resistance : undefined;
 }
 
 /**
@@ -371,21 +460,37 @@ function fmt(value: number): string {
  * The source current and equivalent resistance (and any meter
  * readings) are added when the plan lacks them, so the teaching stream always
  * holds the solved values. Null when the stem is not a drawn resistor circuit.
+ * After successful full-IR binding, requireBoundClaims additionally rejects
+ * scalar coincidences and verifies dependency identity/closure. The default
+ * preserves the legacy unbound-value policy for existing callers.
  */
-export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3): CircuitAuthorityResult | null {
-  const solution = solveStatedResistorCircuit(question);
+export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, options: { requireBoundClaims?: boolean } = {}): CircuitAuthorityResult | null {
+  const solution = options.requireBoundClaims ? readStatedCircuitProblemSource(question)?.solution : solveStatedResistorCircuit(question);
   if (!solution) return null;
   const issues: CircuitAuthorityIssue[] = [];
+  const quantityIds = [...plan.givens, ...plan.derived].map((row) => row.id);
+  const ambiguousIds = new Set(quantityIds.filter((id, index) => quantityIds.indexOf(id) !== index));
   const stated = new Map<Dimension, number[]>([
     ["resistance", solution.resistors.map((resistor) => resistor.resistance.value)],
     ["voltage", solution.sourceVoltage && !/\bcurrent of\b/i.test(question) ? [solution.sourceVoltage.value] : []],
     ["current", numbersWithUnit(question, UNIT.ampere)],
   ]);
   const givens = plan.givens.filter((quantity) => {
+    if (ambiguousIds.has(quantity.id)) {
+      issues.push({ code: "circuit_given_conflict", quantityId: quantity.id, message: "duplicate quantity identity" });
+      return false;
+    }
     const dimension = dimensionOf(quantity.unit);
-    if (!dimension || dimension[0] === "power") return true;
+    if (!dimension || dimension[0] === "power") {
+      if (!options.requireBoundClaims) return true;
+      issues.push({ code: "circuit_given_conflict", quantityId: quantity.id, message: "given has no supported source circuit role/unit" });
+      return false;
+    }
     const allowed = stated.get(dimension[0]) ?? [];
-    if (allowed.some((value) => close(value, quantity.value * dimension[1]))) return true;
+    const owner = boundValue(solution, dimension[0], quantity.symbol)
+      ?? (dimension[0] === "voltage" && quantity.symbol === "V" ? solution.sourceVoltage : undefined);
+    if (allowed.some((value) => close(value, quantity.value * dimension[1])) &&
+      (!options.requireBoundClaims || (owner && Math.abs(owner.value - quantity.value * dimension[1]) <= 1e-12 * Math.abs(owner.value)))) return true;
     issues.push({ code: "circuit_given_conflict", quantityId: quantity.id, message: `given ${quantity.symbol}=${quantity.value} ${quantity.unit} is not a value the stem states` });
     return false;
   });
@@ -402,20 +507,41 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3):
   }
   const derived: TurnPlanQuantityV3[] = [];
   for (const quantity of plan.derived) {
+    if (ambiguousIds.has(quantity.id)) {
+      issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: "duplicate quantity identity" });
+      continue;
+    }
     const dimension = dimensionOf(quantity.unit);
     if (!dimension) {
-      derived.push(quantity);
+      if (options.requireBoundClaims) issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: "claim has no supported source circuit role/unit" });
+      else derived.push(quantity);
       continue;
     }
     // A symbol bound without doubt to a drawn quantity is corrected to it; an
     // unbound one stands only if it equals a recomputed value of its class.
-    const target = boundValue(solution, dimension[0], quantity.symbol) ?? answerOf.get(quantity.id);
+    const intermediate = intermediateValue(solution, quantity, givens, plan.derived);
+    const target = boundValue(solution, dimension[0], quantity.symbol) ?? answerOf.get(quantity.id) ?? intermediate;
+    if (options.requireBoundClaims && dimension[0] === "resistance" && quantity.dependsOn?.length &&
+      (!intermediate || !target || Math.abs(intermediate.value - target.value) > 1e-12 * Math.abs(target.value))) {
+      issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: `${quantity.symbol} dependencies do not bind its source resistance` });
+      continue;
+    }
+    // A named series/parallel subtotal must have the source's actual kind,
+    // not merely the same resistance as some other source subtree.
+    if (intermediate && /series|parallel/i.test(quantity.symbol)) {
+      const kind = /series/i.test(quantity.symbol) ? "series" : "parallel";
+      const ids = quantity.dependsOn!.map((id) => givens.find((given) => given.id === id)?.symbol.replace(/^R_?/, "R"));
+      if (!solution.groups.some((group) => group.kind === kind && group.resistorIds.length === ids.length && group.resistorIds.every((id) => ids.includes(id)))) {
+        issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: `${quantity.symbol} names the wrong source subtree kind` });
+        continue;
+      }
+    }
     if (!target) {
       // Unbound but of a class the circuit recomputes: it stands only if it is
       // one of the recomputed values; otherwise it is a number the drawn
       // circuit does not have, and it is withdrawn rather than spoken.
       const recomputed = recomputedValues(solution, dimension[0]);
-      if (recomputed.length === 0 || recomputed.some((value) => close(value, quantity.value * dimension[1]))) {
+      if (!options.requireBoundClaims && (recomputed.length === 0 || recomputed.some((value) => close(value, quantity.value * dimension[1])))) {
         derived.push(quantity);
         issues.push({ code: "circuit_value_unbound", quantityId: quantity.id, message: `${quantity.symbol} binds to no single drawn quantity but equals a recomputed one; left unchanged` });
       } else {
@@ -431,10 +557,12 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3):
     issues.push({ code: "circuit_value_corrected", quantityId: quantity.id, message: `${quantity.symbol}: ${quantity.value} -> ${fmt(value)} ${quantity.unit}` });
     derived.push({ ...quantity, value: Number(fmt(value)), sourceText: `Circuit-verified ${quantity.symbol} = ${fmt(value)} ${quantity.unit}` });
   }
-  const present = (dimension: Dimension, value: number): boolean =>
+  const present = (dimension: Dimension, value: CircuitValue): boolean =>
     [...givens, ...derived].some((quantity) => {
       const unit = dimensionOf(quantity.unit);
-      return unit?.[0] === dimension && close(value, quantity.value * unit[1]);
+      const owner = boundValue(solution, dimension, quantity.symbol) ?? answerOf.get(quantity.id);
+      return unit?.[0] === dimension && close(value.value, quantity.value * unit[1]) &&
+        (!options.requireBoundClaims || owner === value);
     });
   const additions: Array<[string, string, CircuitValue | undefined, Dimension, string]> = [
     ["circuit_I", "I_total", solution.sourceCurrent, "current", "A"],
@@ -444,12 +572,31 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3):
     ["circuit_P", "P_total", /\bpower\b/i.test(question) ? solution.power : undefined, "power", "W"],
   ];
   for (const [id, symbol, value, dimension, unit] of additions) {
-    if (!value || present(dimension, value.value) || [...givens, ...derived].some((quantity) => quantity.id === id)) continue;
+    if (!value || present(dimension, value) || [...givens, ...derived].some((quantity) => quantity.id === id)) continue;
     derived.push({ id, symbol, value: Number(fmt(value.value)), unit, provenance: "derived", sourceText: `Circuit-verified ${symbol} = ${fmt(value.value)} ${unit}` });
     issues.push({ code: "circuit_value_added", quantityId: id, message: `${symbol} = ${fmt(value.value)} ${unit}` });
   }
-  const derivedIds = new Set(derived.map((quantity) => quantity.id));
+  // Reject dangling references and cycles transitively, regardless of row order.
+  const all = new Map([...givens, ...derived].map((row) => [row.id, row]));
+  const validity = new Map<string, "visiting" | boolean>();
+  const valid = (id: string): boolean => {
+    const cached = validity.get(id);
+    if (cached !== undefined) return cached === true;
+    const row = all.get(id);
+    if (!row) return false;
+    validity.set(id, "visiting");
+    const complete = (row.dependsOn ?? []).every((dependency) => valid(dependency));
+    validity.set(id, complete);
+    return complete;
+  };
+  const complete = derived.filter((row) => {
+    if (valid(row.id)) return true;
+    issues.push({ code: "circuit_value_withdrawn", quantityId: row.id, message: `${row.symbol} has an unbound or cyclic dependency` });
+    return false;
+  });
+  const derivedIds = new Set(complete.map((quantity) => quantity.id));
   const givenIds = new Set(givens.map((quantity) => quantity.id));
   const unknowns = plan.unknowns.filter((unknown) => derivedIds.has(unknown.id) || givenIds.has(unknown.id) || !dimensionOf(unknown.unit));
-  return { plan: { ...plan, givens, derived, unknowns }, solution, issues };
+  const qualitativeClaims = plan.qualitativeClaims.filter((claim) => (claim.relatedQuantityIds ?? []).every((id) => derivedIds.has(id) || givenIds.has(id)));
+  return { plan: { ...plan, givens, derived: complete, unknowns, qualitativeClaims }, solution, issues };
 }

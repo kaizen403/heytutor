@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "problem-ir/v1",
+  "id": "resistorCircuit",
+  "question": "A 10 ohm resistor is connected to a 5 V cell with an ammeter in series and a voltmeter across the resistor. Find the current.",
+  "facts": [
+    {
+      "id": "fR",
+      "kind": "given",
+      "statement": "The resistor has resistance 10 ohm.",
+      "evidence": {
+        "source": "question",
+        "start": 2,
+        "end": 17,
+        "quote": "10 ohm resistor"
+      }
+    },
+    {
+      "id": "fV",
+      "kind": "given",
+      "statement": "The cell provides 5 V.",
+      "evidence": {
+        "source": "question",
+        "start": 36,
+        "end": 44,
+        "quote": "5 V cell"
+      }
+    },
+    {
+      "id": "fFind",
+      "kind": "requested",
+      "statement": "Find the current.",
+      "evidence": {
+        "source": "question",
+        "start": 108,
+        "end": 125,
+        "quote": "Find the current."
+      }
+    },
+    {
+      "id": "fIdealAmmeter",
+      "kind": "assumption",
+      "statement": "The ammeter is ideal with zero internal resistance.",
+      "evidence": {
+        "source": "question",
+        "start": 45,
+        "end": 70,
+        "quote": "with an ammeter in series"
+      }
+    },
+    {
+      "id": "fIdealVoltmeter",
+      "kind": "assumption",
+      "statement": "The voltmeter is ideal with infinite internal resistance.",
+      "evidence": {
+        "source": "question",
+        "start": 71,
+        "end": 106,
+        "quote": "and a voltmeter across the resistor"
+      }
+    },
+    {
+      "id": "fCellIdeal",
+      "kind": "assumption",
+      "statement": "The cell has negligible internal resistance.",
+      "evidence": {
+        "source": "question",
+        "start": 36,
+        "end": 44,
+        "quote": "5 V cell"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "resistor",
+      "kind": "component",
+      "label": "resistor",
+      "evidenceFactIds": [
+        "fR"
+      ]
+    },
+    {
+      "id": "cell",
+      "kind": "component",
+      "label": "cell",
+      "evidenceFactIds": [
+        "fV"
+      ]
+    },
+    {
+      "id": "ammeter",
+      "kind": "component",
+      "label": "ammeter",
+      "evidenceFactIds": [
+        "fIdealAmmeter"
+      ]
+    },
+    {
+      "id": "voltmeter",
+      "kind": "component",
+      "label": "voltmeter",
+      "evidenceFactIds": [
+        "fIdealVoltmeter"
+      ]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "eR",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 10
+      },
+      "evidenceFactIds": [
+        "fR"
+      ]
+    },
+    {
+      "id": "eV",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 5
+      },
+      "evidenceFactIds": [
+        "fV"
+      ]
+    }
+  ],
+  "constraints": [],
+  "representationIntents": [
+    {
+      "id": "riCircuit",
+      "kind": "network",
+      "entityIds": [
+        "resistor",
+        "cell",
+        "ammeter",
+        "voltmeter"
+      ],
+      "evidenceFactIds": [
+        "fR",
+        "fV",
+        "fIdealAmmeter",
+        "fIdealVoltmeter"
+      ]
+    }
+  ],
+  "solveRequests": []
+}
