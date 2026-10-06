@@ -80,7 +80,7 @@ export function MarkedDoubtBar({
             <button
               type="button"
               onClick={onClear}
-              className="rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
+              className="min-h-11 rounded-full px-2.5 py-1 text-xs font-medium transition-colors md:min-h-0"
               style={{ color: "var(--text-soft)" }}
               onMouseEnter={(event) => {
                 event.currentTarget.style.color = "var(--frost)";
@@ -97,7 +97,7 @@ export function MarkedDoubtBar({
             onClick={onDone}
             aria-label="Put the marker away"
             title="Put the marker away (Esc)"
-            className="flex h-7 w-7 items-center justify-center rounded-full transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-full transition-colors md:h-7 md:w-7"
             style={{ backgroundColor: "var(--stroke)", color: "var(--text-soft)" }}
           >
             <X className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
@@ -112,9 +112,9 @@ export function MarkedDoubtBar({
             return targets.map((target, targetIndex) => {
               const { verb, body, grounded } = chipLabel(mark, target);
               return (
-                <li key={`${mark.id}:${targetIndex}`}>
+                <li key={`${mark.id}:${targetIndex}`} className="min-w-0 max-w-full">
                   <span
-                    className="flex max-w-[22rem] items-center gap-1.5 rounded-full py-1 pl-2.5 pr-1"
+                    className="flex max-w-full items-center gap-1.5 rounded-full py-1 pl-2.5 pr-1 md:max-w-[22rem]"
                     style={{
                       backgroundColor: grounded
                         ? "rgba(74, 158, 255, 0.14)"
@@ -141,7 +141,7 @@ export function MarkedDoubtBar({
                       type="button"
                       onClick={() => onRemove(mark.id, targetIndex)}
                       aria-label={`Remove mark: ${verb} ${body}`}
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors md:h-5 md:w-5"
                       style={{ color: "var(--text-faint)" }}
                       onMouseEnter={(event) => {
                         event.currentTarget.style.color = "var(--frost)";

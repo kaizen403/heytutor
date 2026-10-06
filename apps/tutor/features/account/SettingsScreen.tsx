@@ -46,6 +46,8 @@ export function SettingsScreen({ section }: { section: string }) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  /** The server offers Hinglish only when it holds a Sarvam key. */
+  const [hinglishAvailable, setHinglishAvailable] = useState(false);
   const saveQueueRef = useRef<ReturnType<typeof createSettingsPatchQueue<AccountSettings>> | null>(null);
 
   useEffect(() => {
@@ -54,12 +56,17 @@ export function SettingsScreen({ section }: { section: string }) {
     void fetch("/api/account/me")
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not load account settings");
-        return response.json() as Promise<{ settings?: AccountSettings; profile?: AccountProfile }>;
+        return response.json() as Promise<{
+          settings?: AccountSettings;
+          profile?: AccountProfile;
+          hinglishAvailable?: boolean;
+        }>;
       })
       .then((data) => {
         if (unmounted) return;
         if (!data.profile?.id) throw new Error("Account identity unavailable");
         if (data.settings) setSettings(data.settings);
+        setHinglishAvailable(data.hinglishAvailable === true);
         ownerId = data.profile.id;
         setProfile(data.profile);
         setLoadState("ready");
@@ -92,6 +99,8 @@ export function SettingsScreen({ section }: { section: string }) {
     setSettings((current) => ({ ...current, ...partial }));
     saveQueueRef.current?.enqueue(partial);
   };
+
+  const english = settings.audioLanguage !== "hinglish" || !hinglishAvailable;
 
   if (loadState !== "ready" || !profile?.id) return (
     <AccountPageFrame title="Settings" subtitle="Account settings. The in-lesson drawer stays a quick sheet for the board.">
@@ -193,10 +202,18 @@ export function SettingsScreen({ section }: { section: string }) {
           {active === "voice" ? (
             <AccountCard title="Voice and speech">
               <div className="mt-3 flex flex-wrap gap-2">
-                <Choice label="India" checked={settings.accent === "india"} onClick={() => patch({ accent: "india" })} />
-                <Choice label="UK" checked={settings.accent === "uk"} onClick={() => patch({ accent: "uk" })} />
-                <Choice label="US" checked={settings.accent === "us"} onClick={() => patch({ accent: "us" })} />
+                <Choice label="India" checked={english && settings.accent === "india"} onClick={() => patch({ audioLanguage: "english", accent: "india" })} />
+                <Choice label="UK" checked={english && settings.accent === "uk"} onClick={() => patch({ audioLanguage: "english", accent: "uk" })} />
+                <Choice label="US" checked={english && settings.accent === "us"} onClick={() => patch({ audioLanguage: "english", accent: "us" })} />
+                {hinglishAvailable ? (
+                  <Choice label="Hinglish" checked={!english} onClick={() => patch({ audioLanguage: "hinglish" })} />
+                ) : null}
               </div>
+              {!english ? (
+                <p className="mt-2 text-xs text-[rgba(237,237,235,0.55)]">
+                  The tutor speaks a Hindi and English mix. The board stays in English.
+                </p>
+              ) : null}
               <label className="mt-4 block text-xs text-[rgba(237,237,235,0.55)]">
                 Playback speed {settings.speedMultiplier}x
                 <input

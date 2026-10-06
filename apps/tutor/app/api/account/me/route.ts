@@ -5,6 +5,7 @@ import { emptySnapshot, mapAccountProfile, mapAccountSettings } from "@/lib/acco
 import { AVAILABLE_SUBJECTS, parseSubjects, type SubjectId } from "@/lib/account/types";
 import { loadProgressV1 } from "@/lib/account/progress";
 import { sanitizeTeachingNote } from "@/lib/account/userSettings";
+import { hinglishVoiceAvailable } from "@/lib/tts/providerConfig";
 
 export async function GET() {
   const userId = await requireSessionUserId();
@@ -22,6 +23,7 @@ export async function GET() {
   return NextResponse.json({
     profile: mapAccountProfile(user),
     settings: mapAccountSettings(user.settings),
+    hinglishAvailable: hinglishVoiceAvailable(),
     snapshot: {
       boardCount: progress.boardCount,
       lessonCount: progress.lessonCount,
@@ -74,5 +76,6 @@ export async function PATCH(request: Request) {
   return NextResponse.json({
     profile: mapAccountProfile(user),
     settings: mapAccountSettings(user.settings),
+    hinglishAvailable: hinglishVoiceAvailable(),
   });
 }

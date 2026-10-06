@@ -86,7 +86,7 @@ export function FamiliarityPicker({
         className={cn(
           "flex items-center gap-1 rounded-full border border-stroke bg-ink-700 font-medium transition-colors",
           "hover:border-sky-500/35 hover:bg-ink-600 hover:text-sky-200 disabled:opacity-40",
-          compact ? "h-10 min-h-10 px-2.5 text-xs" : prominent ? "h-10 px-3 text-[13px]" : "h-9 px-3 text-xs",
+          compact ? "h-11 min-h-11 px-2.5 text-xs" : prominent ? "h-10 px-3 text-[13px]" : "h-9 px-3 text-xs",
         )}
         style={{ color: "var(--text-soft)" }}
       >

@@ -10,9 +10,56 @@ import {
 } from "./ttsRelayProtocol";
 import { cartesiaRequest, CartesiaContexts } from "./cartesiaProtocol";
 import type { TtsConfig } from "./providerConfig";
+import {
+  requestSarvamWav,
+  SARVAM_KEEPALIVE_MS,
+  SARVAM_WS_URL,
+  sarvamConfigMessage,
+  SarvamSegments,
+} from "./sarvamProtocol";
+
+export interface TtsRelay {
+  url: string;
+  headers: Record<string, string>;
+  /** Sent once the vendor socket opens, before the client hears `ready`. */
+  openMessages?: Record<string, unknown>[];
+  /** Sent on an interval while the vendor socket is open. */
+  keepalive?: { message: Record<string, unknown>; everyMs: number };
+  segment(id: string, text: string, settings: RelayVoiceSettings): Record<string, unknown>[];
+  receive(raw: string): string | null;
+  /** Messages a serial vendor can send now that a segment has finished. */
+  drain?(): Record<string, unknown>[];
+  /** Segments charged but never sent to the vendor. */
+  undispatched?(): string[];
+  /** Drop a segment not yet sent to the vendor; true when it was removed. */
+  cancel?(id: string): boolean;
+  closeMessage?: Record<string, unknown>;
+  dispose(): void;
+}
+
+function createSarvamRelay(config: TtsConfig, speed?: number): TtsRelay {
+  const segments = new SarvamSegments();
+  return {
+    url: `${SARVAM_WS_URL}?model=${encodeURIComponent(config.model)}&send_completion_event=true`,
+    headers: { "Api-Subscription-Key": config.apiKey! },
+    openMessages: [sarvamConfigMessage(config, speed)],
+    keepalive: { message: { type: "ping" }, everyMs: SARVAM_KEEPALIVE_MS },
+    // Pace is fixed per connection; the client already plays at its own rate.
+    segment: (id, text) => segments.start(id, text),
+    receive: (raw) => segments.accept(raw),
+    drain: () => segments.next(),
+    undispatched: () => segments.undispatched(),
+    cancel: (id) => segments.cancel(id),
+    dispose: () => segments.clear(),
+  };
+}
 
 /** The browser speaks this app's segment protocol; vendor protocols stop at this boundary. */
-export function createTtsRelay(config: TtsConfig) {
+export function createTtsRelay(
+  config: TtsConfig,
+  options: { speed?: number } = {},
+): TtsRelay {
+  if (config.provider === "sarvam") return createSarvamRelay(config, options.speed);
   const contexts = new CartesiaContexts();
   const cartesia = config.provider === "cartesia";
   return {
@@ -130,8 +177,22 @@ export async function requestTts(
   signal?: AbortSignal,
 ): Promise<Response> {
   const text = typeof body.text === "string" ? body.text : "";
-  const cartesia = config.provider === "cartesia";
   const id = crypto.randomUUID();
+  const timeout = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(30_000)])
+    : AbortSignal.timeout(30_000);
+  if (config.provider === "sarvam") {
+    const result = await requestSarvamWav(config, text, body.voice_settings?.speed, timeout);
+    if (!result.ok) return new Response(null, { status: result.status });
+    // No alignment: the client keeps its estimated schedule for this voice.
+    return timestamps
+      ? new Response(
+          JSON.stringify({ contextId: id, isFinal: true, audio: result.wav.toString("base64") }) + "\n",
+          { headers: { "content-type": "application/x-ndjson" } },
+        )
+      : new Response(new Uint8Array(result.wav), { headers: { "content-type": "audio/wav" } });
+  }
+  const cartesia = config.provider === "cartesia";
   const url = cartesia
     ? `https://api.cartesia.ai/tts/${timestamps ? "sse" : "bytes"}`
     : `${ELEVENLABS_TTS_BASE}/${config.voiceId}${timestamps ? "/stream/with-timestamps" : ""}`;
@@ -168,9 +229,7 @@ export async function requestTts(
     method: "POST",
     headers,
     body: JSON.stringify(payload),
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(30_000)])
-      : AbortSignal.timeout(30_000),
+    signal: timeout,
   });
   if (!response.ok || !response.body || !cartesia || !timestamps)
     return response;

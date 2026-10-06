@@ -12,6 +12,8 @@
  * declined rather than guessed.
  */
 import type { SceneDocument } from "../types";
+import { buildAtomicRadiationScene, isAtomicRadiationStem } from "./atomicRadiation";
+import { buildHydrogenicRadialScene, isHydrogenicRadialStem } from "./hydrogenicRadial";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { electronConfiguration, type Subshell } from "./electronConfiguration";
 import { ELEMENTS, elementBySymbol, type ElementRecord } from "./elements";
@@ -39,6 +41,7 @@ const BRACKET_COMPLEX = /\[(?!(?:he|ne|ar|kr|xe|rn)\])[a-z]{1,2}\s*[(\d]/;
 const LIGAND_TOKENS = /\((?:nh3|h2o|cn|en|co|ox|c2o4|ncs|scn|no2|py|bipy|phen|edta|nh 3|h 2 o)\)/;
 
 export function isOrbitalStem(question: string): boolean {
+  if (isAtomicRadiationStem(question) || isHydrogenicRadialStem(question)) return true;
   const stem = chemStem(question);
   if (COMPLEX_VETO.test(stem) || complexTokens(question).length > 0) return false;
   if (BRACKET_COMPLEX.test(stem) || LIGAND_TOKENS.test(stem)) return false;
@@ -677,6 +680,7 @@ function buildShapeDocument(question: string, orbital: OrbitalName): SceneDocume
   ids.push(nucleus);
   const nameId = c.text("orbital_name", { x: -1.45, y: 1.9 }, plan.name, "orbital name");
   ids.push(nameId);
+  ids.push(c.text("phase_l", { x: 0, y: -2.15 }, "phase not charge", "wavefunction phase"));
   c.scene.labelled(nameId);
   if (radial !== null) {
     ids.push(c.text("radial_l", { x: -1.35, y: -1.75 }, `radial nodes: ${radial}`, "radial node count"));
@@ -746,8 +750,33 @@ function buildLadderDocument(question: string, n: number, l: number | null): Sce
 /* Entry                                                                     */
 /* ------------------------------------------------------------------------- */
 
+/**
+ * A stated (n, l, m_l, m_s) that cannot exist. A valid subset still draws;
+ * one impossible component declines the whole figure.
+ */
+function impossibleQuantumTuple(stem: string): boolean {
+  const nMatch = /\bn\s*=\s*(-?\d+)\b/.exec(stem);
+  const lMatch = /\bl\s*=\s*(-?\d+)\b/.exec(stem);
+  const mMatch = /\bm_?l\s*=\s*([+-]?\d+)\b/.exec(stem);
+  const sMatch = /\bm_?s\s*=\s*([+-]?(?:\d+\/\d+|\d+(?:\.\d+)?))\b/.exec(stem);
+  const n = nMatch ? Number(nMatch[1]) : null;
+  const l = lMatch ? Number(lMatch[1]) : null;
+  if (n !== null && (n < 1 || n > 7)) return true;
+  if (n !== null && l !== null && (l < 0 || l >= n)) return true;
+  if (l !== null && mMatch) {
+    const m = Number(mMatch[1]);
+    if (!Number.isInteger(m) || m < -l || m > l) return true;
+  }
+  if (sMatch && !/^(?:\+?1\/2|-1\/2|\+?0\.5|-0\.5)$/.test(sMatch[1]!)) return true;
+  if (/same spin|identical spins|both electrons .{0,40}\+ ?1\/2/.test(stem)) return true;
+  return false;
+}
+
 /** The figure, or null when the stem does not ground it. */
-export function buildOrbitalScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
+export function buildOrbitalScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  if (isAtomicRadiationStem(question)) return buildAtomicRadiationScene(question, quantities, schematic);
+  if (isHydrogenicRadialStem(question)) return buildHydrogenicRadialScene(question, quantities, schematic);
+  if (impossibleQuantumTuple(chemStem(question))) return null;
   if (!isOrbitalStem(question)) return null;
   const stem = chemStem(question);
   const wantsShape = SHAPE_CUES.test(stem);

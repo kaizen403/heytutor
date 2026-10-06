@@ -1,4 +1,4 @@
-import type { SpeechProvider } from "../tts/providerConfig";
+import type { TtsProvider } from "../tts/providerConfig";
 /** USD cost helpers for Langfuse `costDetails`. Rates are per-model, env-overridable. */
 
 export interface UsageCounts {
@@ -120,7 +120,7 @@ export function resolveLlmRates(model?: string | null): {
   };
 }
 
-export type TtsRateLane = "cartesia" | "flash" | "multilingual" | "unknown";
+export type TtsRateLane = "cartesia" | "sarvam" | "flash" | "multilingual" | "unknown";
 
 /**
  * USD per 1k characters. Cartesia Sonic is 1 credit per character.
@@ -129,6 +129,8 @@ export type TtsRateLane = "cartesia" | "flash" | "multilingual" | "unknown";
  */
 export const TTS_RATE_DEFAULTS: Record<TtsRateLane, number> = {
   cartesia: 0.05,
+  /** Sarvam bulbul:v3 lists Rs 30 per 10,000 characters. */
+  sarvam: 0.035,
   flash: 0.05,
   multilingual: 0.1,
   unknown: 0.1,
@@ -138,6 +140,7 @@ export function resolveTtsRateLane(model?: string | null): TtsRateLane {
   const id = (model ?? "").toLowerCase();
   if (!id) return "unknown";
   if (id.startsWith("sonic") || id.includes("cartesia")) return "cartesia";
+  if (id.startsWith("bulbul") || id.includes("sarvam")) return "sarvam";
   if (id.includes("flash") || id.includes("turbo")) return "flash";
   if (id.includes("multilingual") || id.includes("eleven_v3") || id.includes("eleven-v3")) {
     return "multilingual";
@@ -178,20 +181,24 @@ export function calculateLlmCostDetails(
 
 export function calculateTtsCostDetails(
   characters: number,
-  options: { model?: string | null; provider?: SpeechProvider } = {},
+  options: { model?: string | null; provider?: TtsProvider } = {},
 ): CostDetails {
   const modelId = options.model?.toLowerCase() ?? "";
-  const provider = options.provider ?? (modelId.startsWith("sonic") ? "cartesia" : "elevenlabs");
+  const provider =
+    options.provider ??
+    (modelId.startsWith("sonic") ? "cartesia" : modelId.startsWith("bulbul") ? "sarvam" : "elevenlabs");
   const rate = provider === "cartesia"
     ? readEnvNumber("CARTESIA_USD_PER_1K_CHARS", 0.05)
-    : elevenLabsUsdPer1kChars(options.model);
+    : provider === "sarvam"
+      ? readEnvNumber("SARVAM_USD_PER_1K_CHARS", TTS_RATE_DEFAULTS.sarvam)
+      : elevenLabsUsdPer1kChars(options.model);
   const charactersCost = roundUsd((characters / 1000) * rate);
   return { characters: charactersCost, total: charactersCost };
 }
 
 export function enrichTraceMetadataWithCosts(
   metadata: Record<string, unknown>,
-  speech: { provider?: SpeechProvider; model?: string } = {},
+  speech: { provider?: TtsProvider; model?: string } = {},
 ): Record<string, unknown> {
   const enriched = { ...metadata };
   const chars = enriched.total_tts_chars;

@@ -10,6 +10,8 @@
  */
 import { WORK_ZONE, type TutorSegment } from "@heytutor/drawing";
 import {
+  HINGLISH_NARRATION_ADDON,
+  type NarrationLanguage,
   CHEMISTRY_LESSON_RUNTIME_ADDON,
   CODE_LESSON_SYSTEM_PROMPT,
   DSA_EXPLANATION_SYSTEM_PROMPT,
@@ -75,6 +77,8 @@ export interface TurnTeachingPromptInput {
   teachingNote?: string | null;
   alwaysShowUnits?: boolean;
   alwaysStateLawFirst?: boolean;
+  /** "hinglish" when the Sarvam voice speaks: the narration changes, the board does not. */
+  narrationLanguage?: NarrationLanguage;
 }
 
 export interface TurnTeachingPrompt {
@@ -240,6 +244,8 @@ export interface DoubtTeachingPromptInput {
   teachingNote?: string | null;
   alwaysShowUnits?: boolean;
   alwaysStateLawFirst?: boolean;
+  /** "hinglish" when the Sarvam voice speaks: the narration changes, the board does not. */
+  narrationLanguage?: NarrationLanguage;
 }
 
 /**
@@ -445,6 +451,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     }),
     [DOUBT_LENGTH_ADDON, DOUBT_FAMILIARITY_LINES[input.familiarity] ?? ""].filter(Boolean).join("\n"),
     doubtBlock,
+    input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -491,6 +498,8 @@ export interface ResumeTeachingPromptInput {
   teachingNote?: string | null;
   alwaysShowUnits?: boolean;
   alwaysStateLawFirst?: boolean;
+  /** "hinglish" when the Sarvam voice speaks: the narration changes, the board does not. */
+  narrationLanguage?: NarrationLanguage;
 }
 
 /**
@@ -615,6 +624,7 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     }),
     RESUME_LENGTH_ADDON,
     resumeBlock,
+    input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -672,6 +682,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     question,
     kind: codeLesson ? "code" : isConceptLessonQuestion(question) ? "concept" : "problem",
     hasBoardOpening: givenSegments.length > 0,
+    language: input.narrationLanguage,
   });
 
   // How long this lesson should be. Classified from the question, then
@@ -723,6 +734,8 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
       alwaysShowUnits: input.alwaysShowUnits,
       alwaysStateLawFirst: input.alwaysStateLawFirst,
     }),
+    // Last of all: it overrides the base prompt's "speak English" lines.
+    input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
   ]
     .filter(Boolean)
     .join("\n\n");

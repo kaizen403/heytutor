@@ -13,6 +13,7 @@ import {
 } from "@/lib/account/types";
 import { mapAccountProfile, mapAccountSettings } from "@/lib/account/mapUser";
 import { accountSettingsPatch } from "@/lib/account/userSettings";
+import { hinglishVoiceAvailable } from "@/lib/tts/providerConfig";
 import { signOut } from "@/auth";
 import { deleteAuthenticatedAccount } from "@/lib/auth/deleteAccount";
 
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
     audioLanguage: body.audioLanguage,
     accent: body.accent,
     familiarity: body.familiarity,
-  });
+  }, { hinglishAvailable: hinglishVoiceAvailable() });
 
   const user = await prisma.user.update({
     where: { id: userId },

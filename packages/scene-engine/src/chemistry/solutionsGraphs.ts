@@ -25,6 +25,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, planQuantity, numberAfter, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
 
@@ -433,7 +434,7 @@ function titrationCue(stem: string): boolean {
 export function isSolutionsGraphStem(question: string): boolean {
   const stem = chemStem(question);
   if (FIGURE_PRESENT.test(stem)) return false;
-  return titrationCue(stem) || RAOULT_CUE.test(stem) || COLLIGATIVE_CUE.test(stem);
+  return claimsSolutionLesson(question) || titrationCue(stem) || RAOULT_CUE.test(stem) || COLLIGATIVE_CUE.test(stem);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -692,10 +693,11 @@ function raoultScene(question: string, reading: RaoultReading): SceneDocument | 
   c.text("p_total_text", { x: 0.42, y: k * lines.pTotal(0.42) + 0.05 }, "p_total", "line name");
   c.text("x_axis_text", { x: 1.1, y: -0.075 }, `x_${nameA}`, "axis title");
   c.text("y_axis_text", { x: -0.09, y: 0.7 }, reading.unit ? `p (${reading.unit})` : "p", "axis title");
-  c.scene.assert("total_at_b", "function_value", ["p_total"], { x: 0, y: round(k * reading.pB0, 8) });
-  c.scene.assert("total_at_a", "function_value", ["p_total"], { x: 1, y: round(k * reading.pA0, 8) });
-  c.scene.assert("pa_at_a", "function_value", ["p_a"], { x: 1, y: round(k * reading.pA0, 8) });
-  c.scene.assert("pb_at_b", "function_value", ["p_b"], { x: 0, y: round(k * reading.pB0, 8) });
+  c.scene.assert("total_at_b", "function_value", ["p_total"], { x: 0, y: round(k * reading.pB0, 8) }, "warning");
+  c.scene.assert("total_at_a", "function_value", ["p_total"], { x: 1, y: round(k * reading.pA0, 8) }, "warning");
+  c.scene.assert("pa_at_a", "function_value", ["p_a"], { x: 1, y: round(k * reading.pA0, 8) }, "warning");
+  c.scene.assert("pb_at_b", "function_value", ["p_b"], { x: 0, y: round(k * reading.pB0, 8) }, "warning");
+  c.text("scale_note", { x: 0.15, y: 0.68 }, "display scaled", "axis height is not the pressure unit");
   let compositionCaption = "";
   if (reading.xA !== null && reading.xA > 0.02 && reading.xA < 0.98) {
     const total = lines.pTotal(reading.xA);
@@ -703,7 +705,14 @@ function raoultScene(question: string, reading: RaoultReading): SceneDocument | 
     c.scene.point("mix_point", at, "stated composition on the total pressure line", `p_total = ${fmtNumber(total, 3)}`);
     c.scene.point("mix_foot", { x: reading.xA, y: 0 }, "stated composition on the axis", `x_${nameA} = ${fmtNumber(reading.xA, 3)}`);
     dashed(c, "mix_drop", at, { x: reading.xA, y: 0 }, "drop at the stated composition");
-    c.scene.assert("total_at_mix", "function_value", ["p_total"], { x: round(reading.xA, 8), y: round(at.y, 8) });
+    c.scene.assert("total_at_mix", "function_value", ["p_total"], { x: round(reading.xA, 8), y: round(at.y, 8) }, "warning");
+    const pressureUnit = reading.unit ? ` ${reading.unit}` : "";
+    const partialA = `p_${nameA}=${fmtNumber(lines.pA(reading.xA), 3)}${pressureUnit}`;
+    const partialB = `p_${nameB}=${fmtNumber(lines.pB(reading.xA), 3)}${pressureUnit}`;
+    const vapour = `y_${nameA}=${fmtNumber(lines.yA(reading.xA), 3)}`;
+    c.text("pa_value", { x: 0.12, y: -0.22 }, partialA.length <= 16 ? partialA : `p_${nameA}=${fmtNumber(lines.pA(reading.xA), 3)}`, "partial pressure of A");
+    c.text("pb_value", { x: 0.12, y: -0.42 }, partialB.length <= 16 ? partialB : `p_${nameB}=${fmtNumber(lines.pB(reading.xA), 3)}`, "partial pressure of B");
+    c.text("ya_value", { x: 0.62, y: -0.22 }, vapour, "vapour mole fraction of A");
     c.scene.labelled("mix_point");
     compositionCaption = ` At x_${nameA} = ${fmtNumber(reading.xA, 3)}: p_${nameA} = ${fmtNumber(lines.pA(reading.xA), 4)}, p_${nameB} = ${fmtNumber(lines.pB(reading.xA), 4)}, p_total = ${fmtNumber(total, 4)} ${reading.unit}; vapour mole fraction y_${nameA} = ${fmtNumber(lines.yA(reading.xA), 3)}.`;
   }
@@ -750,6 +759,8 @@ function deviationScene(question: string, sign: 1 | -1, stem: string): SceneDocu
   c.text("ideal_text", { x: 0.5, y: pB0 + (pA0 - pB0) * 0.5 - 0.05 * sign }, "ideal", "line name");
   c.text("x_axis_text", { x: 1.1, y: -0.07 }, "x_A", "axis title");
   c.text("y_axis_text", { x: -0.08, y: 0.76 }, "p", "axis title");
+  c.text("schematic_l", { x: 0.28, y: 0.74 }, "schematic", "deviation curves are not measured pressures");
+  c.text("measured_l", { x: 0.62, y: 0.74 }, "not measured p", "curve height is not a measured pressure");
   c.scene.labelled("pure_a", "pure_b", "x_one");
   const example = sign > 0
     ? (/ethanol|acetone|cs2|carbon disulphide|carbon disulfide|ccl4|carbon tetrachloride|methanol|benzene|toluene/.test(stem) && !/chloroform|chcl3|phenol|aniline/.test(stem)
@@ -780,8 +791,10 @@ function idealQualitativeScene(question: string): SceneDocument | null {
   c.text("p_total_text", { x: 0.42, y: pB0 + (pA0 - pB0) * 0.42 + 0.05 }, "p_total", "line name");
   c.text("x_axis_text", { x: 1.1, y: -0.07 }, "x_A", "axis title");
   c.text("y_axis_text", { x: -0.08, y: 0.7 }, "p", "axis title");
+  c.text("schematic_l", { x: 0.28, y: 0.68 }, "schematic", "symbolic ideal lines are not measured pressures");
+  c.text("measured_l", { x: 0.62, y: 0.68 }, "not measured p", "curve height is not a measured pressure");
   c.scene.labelled("pure_a", "pure_b", "x_one");
-  return c.build({ caption: "Ideal solution: p_A = p°_A x_A and p_B = p°_B x_B are straight lines through the pure component points, and p_total = p_A + p_B is the straight line joining p°_B (pure B, left) to p°_A (pure A, right). ΔH_mix = 0 and ΔV_mix = 0." });
+  return c.build({ caption: "Ideal solution: p_A = p°_A x_A and p_B = p°_B x_B are straight lines through the pure component points, and p_total = p_A + p_B is the straight line joining p°_B (pure B, left) to p°_A (pure A, right). The heights are schematic, not measured pressures. ΔH_mix = 0 and ΔV_mix = 0." });
 }
 
 /* ------------------------------------------------------------------------- */
@@ -875,6 +888,7 @@ export function buildSolutionsGraphScene(
   void schematic;
   const stem = chemStem(question);
   if (FIGURE_PRESENT.test(stem)) return null;
+  if (claimsSolutionLesson(question)) return buildSolutionLessonScene(question, quantities, schematic);
   if (titrationCue(stem)) {
     const numeric = readTitration(stem, quantities);
     if (numeric) return titrationScene(question, numeric.curve, numeric.spec, { numeric: true, normalisedVolume: numeric.normalisedVolume });
@@ -902,6 +916,7 @@ export function buildSolutionsGraphScene(
     return colligativeScene(question, mode, statedDeltaT(stem, quantities, mode === "boiling" ? "b" : "f"));
   }
   if (RAOULT_CUE.test(stem)) {
+    if (/azeotrope/.test(stem) && !/minimum boiling|maximum boiling|azeotropic composition/.test(stem)) return null;
     const positive = /positive deviation|deviates? positively/.test(stem);
     const negative = /negative deviation|deviates? negatively/.test(stem);
     const reading = readRaoult(stem, quantities);
@@ -987,8 +1002,9 @@ export const SOLUTIONS_PROBES: ReadonlyArray<{
   },
   {
     question: "1.2 g of a non volatile solute dissolved in 50 g of water lowers the freezing point by 0.372 K. Calculate the molar mass of the solute (Kf = 1.86 K kg/mol).",
-    expect: "decline",
-    note: "numeric colligative calculation without a graph cue",
+    expect: "draw",
+    labels: ["M=120 g/mol", "i=1"],
+    note: "M = 1.86 × 1.2 × 1000 / (0.372 × 50) = 120 g/mol; dissociation is not assumed",
   },
   {
     question: "The titration curve shown below is for a weak acid titrated with NaOH. From the curve shown, find the pKa of the acid.",
@@ -1002,8 +1018,9 @@ export const SOLUTIONS_PROBES: ReadonlyArray<{
   },
   {
     question: "The osmotic pressure of a 0.1 M glucose solution at 300 K is (R = 0.083 L bar/K mol).",
-    expect: "decline",
-    note: "osmotic pressure apparatus is not modelled",
+    expect: "draw",
+    labels: ["pi=2.49 bar", "solvent", "no solute", "T=300 K"],
+    note: "π = 1 × 0.1 × 0.083 × 300 = 2.49 bar; the membrane passes solvent only",
   },
   {
     question: "25 mL of 0.1 M H2SO4 is titrated with 0.1 M NaOH. Find the volume of NaOH at the equivalence point.",

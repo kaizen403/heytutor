@@ -8,6 +8,7 @@ export * from "./protocol/verifiedDiagram";
 export {
   isBlockedVerifiedDiagramCommand,
   prepareVerifiedLessonSegments,
+  isDevanagariWrite,
   spokenFocusTarget,
   anchorToTextRect,
   resolveVerifiedDiagramFocusTarget,

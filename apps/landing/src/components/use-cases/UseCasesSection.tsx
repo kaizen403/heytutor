@@ -122,10 +122,10 @@ export default function UseCasesSection() {
   return (
     <LazyMotion features={domAnimation} strict>
       <section
-        id="use-cases"
+        aria-labelledby="use-cases-heading"
         /* Full-bleed and background-free; the tone comes from <band-steel>,
            masked away at both ends so the section has no edge to show. */
-        className="relative overflow-hidden px-5 pb-16 pt-32 sm:px-8 sm:pb-32 sm:pt-36 lg:px-10 lg:pb-36 lg:pt-44"
+        className="relative overflow-hidden px-4 pb-16 pt-16 sm:px-8 sm:pb-32 sm:pt-24 lg:px-10 lg:pb-36 lg:pt-44"
       >
         <div
           aria-hidden
@@ -153,7 +153,7 @@ export default function UseCasesSection() {
               <PixelGlyph name="burst" className="h-3.5 w-3.5 text-sky-500" />
               Use cases
             </p>
-            <h2 className="type-h2 mt-4 text-frost">
+            <h2 id="use-cases-heading" className="type-h2 mt-4 text-frost">
               A Teacher For Every Part Of The{' '}
               <span className="font-hand text-ice">Lesson</span>
             </h2>
@@ -164,9 +164,31 @@ export default function UseCasesSection() {
             </p>
           </Reveal>
 
-          <div className="mt-14 grid grid-cols-1 gap-8 lg:mt-16 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-12">
+          <div className="mt-8 grid grid-cols-1 gap-6 lg:mt-16 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-12">
+            <div className="min-w-0 lg:hidden">
+              <ul aria-label="Choose a use case" className="grid grid-cols-2 gap-2">
+                {USE_CASES.map((useCase, index) => (
+                  <li key={useCase.id} className="last:col-span-2">
+                    <button
+                      type="button"
+                      onClick={() => select(index)}
+                      onFocus={() => setManual(true)}
+                      aria-pressed={index === active}
+                      aria-controls="use-case-description use-case-stage"
+                      className={`use-case-rail-button flex min-h-12 w-full items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm leading-snug transition-colors ${index === active ? 'border-sky-500/60 bg-sky-500/10 text-frost' : 'border-white/15 bg-white/[0.03] text-brand-muted-dark'}`}
+                    >
+                      <PixelGlyph name={useCase.glyph} className="h-3.5 w-3.5 shrink-0 text-sky-500" />
+                      <span>{useCase.title}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p id="use-case-description" className="mt-4 text-sm leading-relaxed text-brand-muted-dark">
+                {current.body}
+              </p>
+            </div>
             {/* ── The rail ── */}
-            <Reveal variant="left" className="min-w-0 lg:pt-2">
+            <Reveal variant="left" className="hidden min-w-0 lg:block lg:pt-2">
               <ul aria-label="Choose a use-case demo">
                 {USE_CASES.map((useCase, index) => {
                   const isActive = index === active
@@ -292,7 +314,7 @@ export default function UseCasesSection() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="use-case-control flex h-8 w-8 items-center justify-center rounded-full border border-white/10"
+                      className="use-case-control flex h-11 w-11 items-center justify-center rounded-full border border-white/10 lg:h-8 lg:w-8"
                       aria-label="Restart this demo"
                       onClick={() => {
                         setRun((value) => value + 1)
@@ -300,28 +322,28 @@ export default function UseCasesSection() {
                         setManual(true)
                       }}
                     >
-                      <RotateCcw size={12} />
+                      <RotateCcw size={16} className="lg:h-3 lg:w-3" />
                     </button>
                     <button
                       type="button"
-                      className="use-case-control flex h-8 w-8 items-center justify-center rounded-full border border-white/10"
+                      className="use-case-control flex h-11 w-11 items-center justify-center rounded-full border border-white/10 lg:h-8 lg:w-8"
                       aria-label={playing ? 'Pause demo' : 'Play demo'}
                       onClick={() => setPlaying((value) => !value)}
                     >
-                      {playing ? <Pause size={12} /> : <Play size={12} />}
+                      {playing ? <Pause size={16} className="lg:h-3 lg:w-3" /> : <Play size={16} className="lg:h-3 lg:w-3" />}
                     </button>
                   </div>
                 )}
               </div>
               <ol
-                className="mt-3 grid grid-cols-4 gap-2"
+                className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2"
                 aria-label="Walkthrough steps"
               >
                 {DEMO_STEPS[current.beat].map((label, index) => (
                   <li
                     key={label}
                     aria-current={index === frame.step ? 'step' : undefined}
-                    className={`border-t pt-2 text-[10px] leading-relaxed transition-colors sm:text-[11px] ${index <= frame.step ? 'border-sky-500/60 text-frost' : 'border-white/10 text-brand-muted'}`}
+                    className={`border-t pt-2 text-xs leading-relaxed transition-colors lg:text-[11px] ${index <= frame.step ? 'border-sky-500/60 text-frost' : 'border-white/10 text-brand-muted'}`}
                   >
                     <span className="mr-1 font-accent text-sky-500">
                       0{index + 1}
