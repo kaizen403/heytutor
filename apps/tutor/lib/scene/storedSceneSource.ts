@@ -1,4 +1,4 @@
-import { canonicalizeUniformCircularSourceDocument, validateSceneSourceAuthority, validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
+import { canonicalizeUniformCircularSourceDocument, validateSceneSourceAuthority, validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument, type SceneIssue } from "@heytutor/scene-engine";
 import { isBlockedVerifiedDiagramCommand, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 
@@ -28,10 +28,32 @@ export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pi
   return issues;
 }
 
+/**
+ * Source proof must see the submitted structure before validateSceneDocument
+ * can promote ownership or repair reveal entries. The engine's source guards
+ * alone decide scalar roundoff and object-key equality; this adds no waiver.
+ */
+export function rawStoredTurnSourceIssues(
+  document: unknown,
+  turn: Partial<Pick<StoredTurn, "question" | "sceneArtifacts">>,
+): SceneIssue[] {
+  try {
+    // This is an untrusted guard input, not a parsed/admitted SceneDocument.
+    // Malformed shapes that typed engine guards cannot inspect fail closed;
+    // normal structural validation still runs after source proof succeeds.
+    return storedTurnSourceIssues(document as SceneDocument, turn);
+  } catch {
+    return [{ code: "raw_scene_source_structure", severity: "fatal", path: "sceneDocument",
+      message: "Raw scene structure could not be checked against its source before normalization" }];
+  }
+}
+
 export function sourceCheckedStoredTurn(turn: StoredTurn): StoredTurn {
   if (turn.sceneDocument == null) return turn;
-  const structural = validateSceneDocument(turn.sceneDocument);
-  if (structural.document && !storedTurnSourceIssues(structural.document, turn).some((issue) => issue.severity === "fatal")) {
+  const rawIssues = rawStoredTurnSourceIssues(turn.sceneDocument, turn);
+  const structural = rawIssues.some((issue) => issue.severity === "fatal")
+    ? null : validateSceneDocument(turn.sceneDocument);
+  if (structural?.document && !storedTurnSourceIssues(structural.document, turn).some((issue) => issue.severity === "fatal")) {
     const canonical = canonicalizeUniformCircularSourceDocument(structural.document, turn.question);
     if (canonical && JSON.stringify(canonical.quantities) !== JSON.stringify(structural.document.quantities)) return { ...turn, sceneDocument: canonical };
     return turn;

@@ -30,6 +30,7 @@ import {
 import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
+import { rawStoredTurnSourceIssues } from "@/lib/scene/storedSceneSource";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
@@ -169,6 +170,13 @@ export async function canonicalizeTurnSceneMetadata(
   const nonMetric = tier !== "exact_verified";
   if (metadata.sceneArtifacts.nonMetric !== nonMetric) {
     return failure("representation tier and nonMetric flag disagree");
+  }
+
+  const rawSourceIssues = rawStoredTurnSourceIssues(metadata.sceneDocument, {
+    question, sceneArtifacts: metadata.sceneArtifacts,
+  });
+  if (rawSourceIssues.some((issue) => issue.severity === "fatal")) {
+    return failure(`raw scene source proof failed: ${formatIssues(rawSourceIssues)}`);
   }
 
   const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, question);
