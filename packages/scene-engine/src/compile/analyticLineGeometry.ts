@@ -460,10 +460,12 @@ function sectionPoint(inputs: Record<string, unknown>, context: AnalyticLineEval
   const n = mode === "midpoint" ? 1 : readCoefficient(inputs.n, "n", context);
   const denominator = mode === "external" ? ratioDenom(m, n, "external") : ratioDenom(m, n, "internal");
   const parameter = m / denominator;
-  const aWeight = mode === "external" ? -n / denominator : n / denominator;
+  const aNumeratorWeight = mode === "external" ? -n : n;
   const point = checkedPoint({
-    x: aWeight * a.x + parameter * b.x,
-    y: aWeight * a.y + parameter * b.y,
+    // Form the weighted numerator exactly before dividing. Dividing each
+    // weight first creates a nonzero rounding residue at a true zero point.
+    x: exactBinary64LineResidual({a:aNumeratorWeight,b:m,c:0},{x:a.x,y:b.x}) / denominator,
+    y: exactBinary64LineResidual({a:aNumeratorWeight,b:m,c:0},{x:a.y,y:b.y}) / denominator,
   }, "geometry");
   const reconstructed = checkedPoint({
     x: a.x + parameter * (b.x - a.x),

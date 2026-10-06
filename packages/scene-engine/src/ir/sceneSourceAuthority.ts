@@ -2,7 +2,7 @@ import { validateStaticContactTriangleSource } from "./staticContactTriangle";
 import { validateOpticalConjugateSource } from "./opticalConjugateProgram";
 import { validatePointLineProgramSource } from "./pointLineProgram";
 import {readCircleSourceProgram,checkCircleSourceProblemBinding} from "./circleSourceProgram";
-import {validateSectionFormulaProblemSource} from "./sectionFormulaSource";
+import {validateSectionFormulaProblemSource,readSectionFormulaSource} from "./sectionFormulaSource";
 import { validateProblemIR } from "./problemIR";
 import { checkStatedCircuitProblemBinding } from "./statedCircuitProblemBinding";
 import { readStatedCircuitProblemSource } from "./statedCircuitAuthority";
@@ -13,6 +13,8 @@ import type { SceneDocument, SceneIssue } from "../types";
 
 /** Re-establish the actual caller's whole-IR authority at each scene boundary. */
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown): SceneIssue[] {
+  const sectionReading=readSectionFormulaSource(question);
+  if(sectionReading.status==="declined")return [{code:"section_source_declined",severity:"fatal",message:`Whole section source is unsupported: ${sectionReading.reason}`,path:"sourceAuthority.question"}];
   const circleReading = readCircleSourceProgram(question);
   if (circleReading.status === "declined") return [{
     code: "circle_source_declined", severity: "fatal",

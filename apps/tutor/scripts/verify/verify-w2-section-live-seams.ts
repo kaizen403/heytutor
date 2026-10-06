@@ -10,7 +10,7 @@ import {restoreVerifiedPresentationFromTurn} from "../../features/tutor-session/
 import type {StoredTurn} from "../../lib/boards/boardsClient";
 async function main() {
  let checks=0;
- for(const name of ["external","internal","midpoint"]){
+ for(const name of ["external","internal","midpoint","external-indexed","internal-tuples","midpoint-fullstem"]){
  const fixture=JSON.parse(readFileSync(resolve(`../../packages/scene-engine/scripts/verify/fixtures/w2-section-matrix/section-w2-live-${name}.json`),"utf8")) as {question:string;problem:built.ProblemIR;plan:built.TurnPlanV3};
 
  for (const api of [source,built]) {
@@ -41,7 +41,7 @@ async function main() {
   for (const defect of ["line-evidence","foreign-line","physical-point","line-proof","extra-equation","extra-assumption","wrong-result-symbol","wrong-result-id"] as const) {
    const badIR:built.ProblemIR=structuredClone(problem),badDoc:built.SceneDocument=structuredClone(scene.document);
 
-   if (defect==="line-evidence") badIR.entities.find(row=>row.id==="segAB")!.evidenceFactIds=[badIR.facts.find(row=>row.kind==="requested")!.id];
+   if (defect==="line-evidence") badIR.entities.find(row=>row.id==="segAB")!.evidenceFactIds=[badIR.facts.find(row=>row.kind==="given")!.id];
    if (defect==="foreign-line") badIR.entities.find(row=>row.id==="segAB")!.label="CD";
    if (defect==="physical-point") {const input=badDoc.constructions.find(row=>row.operator==="section_point")!.inputs;input.n=Number(input.n)+1;}
    if (defect==="line-proof") badDoc.assertions=badDoc.assertions.filter(row=>row.id!=="section_on_source_line");
