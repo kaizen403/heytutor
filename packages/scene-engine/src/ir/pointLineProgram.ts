@@ -4,12 +4,14 @@ import { certifiedPointLineProjection } from "../compile/analyticLineGeometry";
 import { readPointLineSourceLiterals, validatePointLineSourceInputs } from "./pointLineSource";
 import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemIR, type SolveResultBinding } from "./problemIR";
 import { parseMathExpression } from "../math/expression";
-import { SCENE_DOCUMENT_VERSION, type SceneDocument } from "../types";
+import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
+import {pruneDeadSceneEntities,validateSceneDocument} from "../document/validation";
+import {sameSceneValue} from "../document/valueEquality";
 
 export type PointLineProgramReading =
   | { status: "none" }
   | { status: "declined"; reason: string }
-  | { status: "ok"; point: { x: number; y: number; name?: string; origin?: true }; line: { a: number; b: number; c: number }; foot: { x: number; y: number }; distance: number; footName?: string };
+  | { status: "ok"; point: { x: number; y: number; name?: string; origin?: true }; line: { a: number; b: number; c: number }; foot: { x: number; y: number }; distance: number; footName?: string; requests: {distance: boolean;foot: boolean} };
 
 export function readPointLineProgram(question: string): PointLineProgramReading {
   const request = readPointLineRequest(question, readPointLineSourceLiterals(question));
@@ -22,7 +24,52 @@ export function readPointLineProgram(question: string): PointLineProgramReading 
   // Keywords ignore case; identifiers retain case and accept one/two ASCII
   // letters, an optional digit and apostrophe. Names compare case-sensitively.
   if (footName && footName === point.name) return { status: "declined", reason: "source point and requested foot names conflict" };
-  return { status: "ok", point, line, foot, distance, ...(footName ? { footName } : {}) };
+  return { status: "ok", point, line, foot, distance, ...(footName ? { footName } : {}), requests: request.requests };
+}
+
+/** A foot-only request carries no scalar distance claim. Independently rebuild
+ * its complete caller-bound source program before allowing that internal
+ * geometric dimension to persist without a distance result annotation. */
+export function pointLineFootOnlyDocumentIsBound(document:SceneDocument,question:string,rawProblem:unknown):boolean {
+  const reading=readPointLineProgram(question),checked=validateProblemIR(rawProblem,question);
+  if (reading.status!=="ok" || !reading.requests.foot || reading.requests.distance || !checked.valid || !checked.problem) return false;
+  return pointLineSourceProgramIsBound(document,question,checked.problem);
+}
+
+function pointLineSourceProgramIsBound(document:SceneDocument,question:string,problem:ProblemIR):boolean {
+  const expected=pointLineSourceDocument(question,problem);
+  if (!expected) return false;
+  const canonical=validateSceneDocument(pruneDeadSceneEntities(structuredClone(expected) as unknown as Record<string,unknown>)).document;
+  if (!canonical) return false;
+  const shape=(scene:SceneDocument)=>({entities:scene.entities.map(({provenance:_provenance,...row})=>row),quantities:scene.quantities,constructions:scene.constructions,annotations:scene.annotations,assertions:scene.assertions,relations:scene.relations,requiredEntityIds:scene.requiredEntityIds,revealGroups:scene.revealGroups,teachingTimeline:scene.teachingTimeline});
+  return document.source.question===question && sameSceneValue(shape(document),shape(canonical));
+}
+
+/** Caller result units, source roles, and complete obligations remain authority
+ * on reload as well as during synthesis. A correct number alone is insufficient. */
+export function validatePointLineProgramSource(document:SceneDocument,question:string,rawProblem?:unknown):SceneIssue[] {
+  if (rawProblem == null || readPointLineProgram(question).status!=="ok") return [];
+  const checked=validateProblemIR(rawProblem,question);
+  if (checked.valid && checked.problem && pointLineSourceProgramIsBound(document,question,checked.problem)) return [];
+  return [{code:"point_line_source_program",severity:"fatal",message:"Projection must preserve the complete caller source program and typed requested bindings",path:"sourceAuthority.problemIR"}];
+}
+
+/** A result literal can cite both source givens and the requested projection.
+ * Its coordinate is carried by the verified project operator, not by treating
+ * that derived result as a newly stated line coefficient. */
+export function pointLineRequestedDimensionIsCarried(document:SceneDocument,problem:ProblemIR,expressionId:string,value:number):boolean|null {
+  const reading=readPointLineProgram(problem.question);
+  if (reading.status!=="ok") return null;
+  const requests=problem.solveRequests.filter(row=>row.kind==="evaluate" && row.expressionId===expressionId && row.resultBinding);
+  if (requests.length!==1) return null;
+  const binding=requests[0]!.resultBinding!;
+  if (!binding.evidenceFactIds.length || !binding.evidenceFactIds.every(id=>problem.facts.some(row=>row.id===id && row.kind==="requested"))) return null;
+  const symbol=binding.symbol.replace(/_/g,"").toLowerCase(),foot=(reading.footName ?? "H").toLowerCase();
+  const expected=[`x${foot}`,`${foot}x`,"xfoot","footx"].includes(symbol)?reading.foot.x
+    : [`y${foot}`,`${foot}y`,"yfoot","footy"].includes(symbol)?reading.foot.y
+    : reading.requests.distance && ["d","distance"].includes(symbol)?reading.distance:null;
+  if (expected===null) return null;
+  return value===expected && pointLineSourceProgramIsBound(document,problem.question,problem);
 }
 
 /** Full facts and obligations are retained; an unbound IR role declines. */
@@ -143,7 +190,8 @@ export function pointLineSourceDocument(question: string, raw?: ProblemIR | null
       return null;
     }
   }
-  return validatePointLineSourceInputs(document, question).some(issue => issue.severity === "fatal") ? null : document;
+  return validatePointLineSourceInputs(document, question).some(issue => issue.severity === "fatal") ? null
+    : validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>)).document;
 }
 
 function hasVariable(node: ExpressionNodeIR): boolean {

@@ -21,6 +21,8 @@ export * from "./ir/solver";
 export * from "./ir/remoteSolver";
 export * from "./ir/solverAuthority";
 export * from "./ir/statedCircuitAuthority";
+export * from "./physics/opticalConjugateSource";
+export * from "./ir/opticalConjugateProgram";
 export * from "./ir/statedCircuitProblemBinding";
 export * from "./ir/sceneSourceAuthority";
 export * from "./ir/sourceQuantityAuthority";

@@ -1,4 +1,6 @@
 import { validateStaticContactTriangleSource } from "./staticContactTriangle";
+import { validateOpticalConjugateSource } from "./opticalConjugateProgram";
+import { validatePointLineProgramSource } from "./pointLineProgram";
 import { validateProblemIR } from "./problemIR";
 import { checkStatedCircuitProblemBinding } from "./statedCircuitProblemBinding";
 import { readStatedCircuitProblemSource } from "./statedCircuitAuthority";
@@ -10,6 +12,8 @@ import type { SceneDocument, SceneIssue } from "../types";
 /** Re-establish the actual caller's whole-IR authority at each scene boundary. */
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown): SceneIssue[] {
   const issues = [
+    ...validateOpticalConjugateSource(document, question, rawProblem),
+    ...validatePointLineProgramSource(document, question, rawProblem),
     ...validateStaticContactTriangleSource(document, question, rawProblem),
     ...(readStatedCircuitProblemSource(question) ? checkStatedCircuitProblemBinding(question, rawProblem, document) : []),
   ];

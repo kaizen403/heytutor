@@ -4,6 +4,7 @@ import {
   SCENE_ENGINE_VERSION,
   compileSceneDocument,
   canonicalizeUniformCircularSourceDocument,
+  pointLineFootOnlyDocumentIsBound,
   validateProblemIR,
   validateSceneDocument,
   validateSceneQuantityAgreement,
@@ -301,6 +302,7 @@ export async function canonicalizeTurnSceneMetadata(
 
   const solver = await canonicalSolverArtifacts(metadata.sceneArtifacts, turnPlan, question);
   if (!solver.ok) return solver;
+  const footOnlySource = pointLineFootOnlyDocumentIsBound(document,question,solver.problemIR);
   for (const construction of document.constructions) {
     if (construction.operator !== "point_line_distance") continue;
     for (const outputId of construction.outputs) {
@@ -308,6 +310,7 @@ export async function canonicalizeTurnSceneMetadata(
         ["label", "callout", "badge"].includes(annotation.kind) &&
         annotation.targetIds.includes(outputId) && annotation.quantityId !== undefined);
       const link = links[0];
+      if (links.length===0 && footOnlySource) continue;
       if (links.length !== 1 || !link || link.targetIds.length !== 1) {
         return failure("point-line distance requires one unambiguous quantity-backed output annotation");
       }

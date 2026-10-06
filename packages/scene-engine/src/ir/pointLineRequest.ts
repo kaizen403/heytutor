@@ -10,7 +10,7 @@ export interface PointLineRequestLiterals {
 export type PointLineRequestReading =
   | { status: "none" }
   | { status: "declined"; reason: string }
-  | { status: "ok"; point: PointLineRequestLiterals["points"][number]; line: PointLineRequestLiterals["lines"][number]; footName?: string };
+  | { status: "ok"; point: PointLineRequestLiterals["points"][number]; line: PointLineRequestLiterals["lines"][number]; footName?: string; requests: {distance: boolean; foot: boolean} };
 
 /** Stateless: literals come from the existing exact source reader. */
 export function readPointLineRequest(question: unknown, source: PointLineRequestLiterals | null): PointLineRequestReading {
@@ -31,5 +31,6 @@ export function readPointLineRequest(question: unknown, source: PointLineRequest
   const point = source.points[0]!;
   const line = source.lines[0]!;
   const footName = matched[1] ?? matched[2];
-  return { status: "ok", point, line, ...(footName ? { footName } : {}) };
+  return { status: "ok", point, line, ...(footName ? { footName } : {}),
+    requests: {distance: /\bdistance\b/i.test(matched[0]), foot: /\b(?:perpendicular\s+foot|foot\s+of\s+(?:the\s+)?perpendicular)\b/i.test(matched[0])} };
 }

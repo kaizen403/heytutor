@@ -37,6 +37,7 @@ import {
 import type { ExpressionNodeIR, ProblemIR } from "../ir/problemIR";
 import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
 import { matrixLiteralSourceEntityIsCarried, matrixLiteralSourceDimensionIsCarried } from "../ir/matrixLiteralSource";
+import {pointLineRequestedDimensionIsCarried} from "../ir/pointLineProgram";
 import { bindStatedCircuitProblem, checkStatedCircuitProblemBinding } from "../ir/statedCircuitProblemBinding";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
 import { validateRelativeMotionSourceInputs } from "./relativeMotionScene";
@@ -395,6 +396,7 @@ function checkObligation(
     case "given_dimension": {
       return ((problem ? matrixLiteralSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
         ?? (problem ? uniformCircularSourceDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value, obligation.factIds) : null)
+        ?? (problem ? pointLineRequestedDimensionIsCarried(document, problem, obligation.problemExpressionId, obligation.value) : null)
         ?? sectionFormulaDimensionIsCarried(document, obligation.problemExpressionId, obligation.value, obligation.factIds)
         ?? sceneCarriesValue(document, obligation.value))
         ? null

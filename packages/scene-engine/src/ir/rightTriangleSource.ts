@@ -22,17 +22,23 @@ export function resolveRightTriangle(sides: Partial<Record<RightTriangleRole, nu
   return { length, distance, height, theta: Math.atan2(height, distance) * 180 / Math.PI, cosTheta: distance / length };
 }
 
-const ALIASES: Record<RightTriangleRole | "theta", readonly string[]> = {
+type ScalarRole = RightTriangleRole | "theta" | "cosTheta";
+const ALIASES: Record<ScalarRole, readonly string[]> = {
   length: ["l", "length", "ladderlength"], distance: ["d", "x", "distance", "footdistance", "base"],
   height: ["h", "y", "height", "topheight"], theta: ["theta", "angle", "θ"],
+  cosTheta: ["costheta", "cosθ", "cosangle"],
 };
-export function rightTriangleQuantityRole(quantity: PlanQuantity): RightTriangleRole | "theta" | null {
-  const clean = (s: string) => s.toLowerCase().replace(/[\s_{}\\]/g, "");
-  return (Object.keys(ALIASES) as (RightTriangleRole | "theta")[]).find(role => ALIASES[role].includes(clean(quantity.id)) || ALIASES[role].includes(clean(quantity.symbol))) ?? null;
+export function rightTriangleQuantityRole(quantity: PlanQuantity): ScalarRole | "ambiguous" | null {
+  const clean = (s: string) => s.toLowerCase().replace(/[\s_{}\\()]/g, "");
+  const roles=(Object.keys(ALIASES) as ScalarRole[]);
+  const idRole=roles.find(role=>ALIASES[role].includes(clean(quantity.id)));
+  const symbolRole=roles.find(role=>ALIASES[role].includes(clean(quantity.symbol)));
+  return idRole && symbolRole && idRole!==symbolRole ? "ambiguous" : symbolRole ?? idRole ?? null;
 }
-export function rightTriangleClaimSIValue(quantity: PlanQuantity, role: RightTriangleRole | "theta"): number | null {
+export function rightTriangleClaimSIValue(quantity: PlanQuantity, role: ScalarRole): number | null {
   if (!Number.isFinite(quantity.value)) return null;
   const unit = normalized(quantity.unit ?? "");
+  if (role === "cosTheta") return unit === "" || unit === "1" ? quantity.value : null;
   if (role === "theta") return /^(?:degree|degrees|deg|°)$/.test(unit) ? quantity.value : /^(?:rad|radian|radians)$/.test(unit) ? quantity.value * 180 / Math.PI : null;
   const factor = /^(?:m|metres?|meters?)$/.test(unit) ? 1 : /^(?:cm|centimetres?|centimeters?)$/.test(unit) ? 0.01 : /^(?:km|kilometres?|kilometers?)$/.test(unit) ? 1000 : null;
   return factor === null ? null : quantity.value * factor;
@@ -83,6 +89,7 @@ export function resolveLadderSource(question: string, quantities: readonly PlanQ
   for (const quantity of quantities) {
     const role = rightTriangleQuantityRole(quantity);
     if (!role) continue;
+    if (role === "ambiguous") return decline("plan quantity identities bind conflicting triangle roles");
     const value = rightTriangleClaimSIValue(quantity, role);
     if (value === null || !near(value, state[role])) return decline(`plan ${role} is unsupported or disagrees with source geometry`);
   }

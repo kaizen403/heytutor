@@ -30,6 +30,7 @@ import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateStaticContactTriangleSource } from "../ir/staticContactTriangle";
+import { validateOpticalConjugateSource } from "../ir/opticalConjugateProgram";
 import { validateSceneSourceAuthority } from "../ir/sceneSourceAuthority";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
@@ -212,6 +213,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const matrixSourceIssues = [
     ...callerIssues,
     ...(options.sourceAuthority ? [] : typeof trustedQuestion === "string" ? validateStaticContactTriangleSource(document, trustedQuestion) : []),
+    ...(options.sourceAuthority ? [] : typeof trustedQuestion === "string" ? validateOpticalConjugateSource(document, trustedQuestion) : []),
     ...validateMatrixSourceBinding(document),
     // A document claiming the admitted relative-motion source must be exactly
     // the one that source computes; a stale relative velocity cannot compile.

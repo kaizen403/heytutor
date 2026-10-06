@@ -11,6 +11,7 @@ export function applyStaticContactTriangleAuthority(question:string, plan:TurnPl
   const rows = (values:TurnPlanV3["givens"]) => values.flatMap(row=> {
     const role=rightTriangleQuantityRole(row);
     if (!role) return [row];
+    if (role==="ambiguous") {withdrawn.add(row.id);return [];}
     const actual=rightTriangleClaimSIValue(row,role);
     if (actual===null || !Number.isFinite(actual)) { withdrawn.add(row.id); return []; }
     const expected=source.state[role];
@@ -21,9 +22,18 @@ export function applyStaticContactTriangleAuthority(question:string, plan:TurnPl
     corrections.push({quantityId:row.id,symbol:row.symbol,previous:row.value,corrected,unit:row.unit});
     return [{...row,value:corrected,sourceText:question}];
   });
-  const givens=rows(plan.givens), derived=rows(plan.derived);
+  const givens=rows(plan.givens);
+  let derived=rows(plan.derived),changed=true;
+  while (changed) {
+    changed=false;
+    derived=derived.filter(row=> {
+      if (!row.dependsOn?.some(id=>withdrawn.has(id))) return true;
+      withdrawn.add(row.id);changed=true;return false;
+    });
+  }
   const surviving=new Set([...givens,...derived].map(row=>row.id));
   return {plan:{...plan,givens,derived,
+    unknowns:plan.unknowns.filter(row=>!withdrawn.has(row.id)),
     qualitativeClaims:plan.qualitativeClaims.filter(claim=>(claim.relatedQuantityIds??[]).every(id=>surviving.has(id)))},
     corrections,withdrawn:[...withdrawn],declineFigure:withdrawn.size>0};
 }

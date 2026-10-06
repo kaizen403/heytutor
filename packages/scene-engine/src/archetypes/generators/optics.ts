@@ -5,6 +5,8 @@
  * Snell's law is asserted, never approximated.
  */
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
+import { readOpticalConjugateSource, opticalConjugatePlanConflicts } from "../../physics/opticalConjugateSource";
+import {pruneDeadSceneEntities,validateSceneDocument} from "../../document/validation";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
 import { grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
@@ -30,14 +32,17 @@ function dimClearance(envelope: number, h: number): number {
 }
 
 function sphericalMirror(context: GeneratorContext) {
-  const kind = text(context, "kind", "concave");
-  const uMag = Math.abs(num(context, "u", 30));
-  const fMag = Math.abs(num(context, "f", 10));
+  const source = readOpticalConjugateSource(context.question);
+  if (!source || source.device !== "mirror" || opticalConjugatePlanConflicts(source, context.quantities).length) return null;
+  context = {...context, sources:{...context.sources,u:"stem",f:"stem"}};
+  const kind = source.kind;
+  const uMag = Math.abs(source.u);
+  const fMag = Math.abs(source.f);
   if (uMag <= 0 || fMag <= 0) return null;
   // Cartesian convention: pole at the origin, light travels from the left.
   const u = -uMag;
   const f = kind === "concave" ? -fMag : fMag;
-  const v = 1 / (1 / f - 1 / u);
+  const v = source.v;
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
   const m = -v / u;
   const h = 0.28 * Math.max(fMag, uMag / 3);
@@ -112,17 +117,20 @@ function sphericalMirror(context: GeneratorContext) {
   scene.group("setup", ["axis", "P", "C", "F", "mirror", "O_base", "object", "dim_u", "dim_f"], "the mirror, its pole, focus and centre, and the object");
   scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v < 0 ? [] : ["ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
   scene.group("image_group", ["I_base", "image"], `the ${v < 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
-  return scene.build();
+  return validateSceneDocument(pruneDeadSceneEntities(scene.build() as unknown as Record<string, unknown>)).document;
 }
 
 function thinLens(context: GeneratorContext) {
-  const kind = text(context, "kind", "convex");
-  const uMag = Math.abs(num(context, "u", 20));
-  const fMag = Math.abs(num(context, "f", 15));
+  const source = readOpticalConjugateSource(context.question);
+  if (!source || source.device !== "lens" || opticalConjugatePlanConflicts(source, context.quantities).length) return null;
+  context = {...context, sources:{...context.sources,u:"stem",f:"stem"}};
+  const kind = source.kind;
+  const uMag = Math.abs(source.u);
+  const fMag = Math.abs(source.f);
   if (uMag <= 0 || fMag <= 0) return null;
   const u = -uMag;
   const f = kind === "convex" ? fMag : -fMag;
-  const v = 1 / (1 / f + 1 / u);
+  const v = source.v;
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
   const m = v / u;
   const h = 0.28 * Math.max(fMag, uMag / 3);
@@ -195,7 +203,7 @@ function thinLens(context: GeneratorContext) {
   scene.group("setup", ["axis", "O", "lens", "F1", "F2", "O_base", "object", "dim_u"], "the lens, its foci and the object");
   scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v > 0 ? [] : ["ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
   scene.group("image_group", ["I_base", "image", "dim_v"], `the ${v > 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
-  return scene.build();
+  return validateSceneDocument(pruneDeadSceneEntities(scene.build() as unknown as Record<string, unknown>)).document;
 }
 
 function planeRefraction(context: GeneratorContext) {

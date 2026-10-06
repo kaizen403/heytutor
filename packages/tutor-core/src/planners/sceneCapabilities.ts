@@ -18,6 +18,8 @@ import {
   constantAccelerationSourceProgram,
   readSectionFormulaSource,
   staticContactTriangleDocument,
+  opticalConjugateDocument,
+  relativeMotionDocument,
   readStatedCircuitProblemSource,
   relativeMotionSource,
   SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
@@ -294,7 +296,8 @@ export function inferSceneCapabilities(
   const circuit = readStatedCircuitProblemSource(question);
   const motion = relativeMotionSource(question);
   const triangle = staticContactTriangleDocument(question);
-  const sourceDocument = acceleration ?? circuit?.document ?? triangle;
+  const conjugate = opticalConjugateDocument(question);
+  const sourceDocument = acceleration ?? circuit?.document ?? triangle ?? conjugate ?? (motion?.status === "admitted" ? relativeMotionDocument(question,motion.source) : null);
   if (sourceDocument || section?.status === "ok" || motion?.status === "admitted") {
     // Availability comes from successfully executing a source program, never
     // a chapter identifier. Final full-IR/numeric/scene gates still decide ink.
@@ -303,7 +306,7 @@ export function inferSceneCapabilities(
       : ["axes", "point", "segment", "collinear_velocity_pair"];
     return {
       visualRequired: hints.turnPlan?.visualRequirement !== "none", hasSourceProgram: true,
-      families: sourceDocument ? acceleration ? ["analytic_curve"] : triangle ? ["contact_body"] : ["circuit_network"]
+      families: sourceDocument ? acceleration ? ["analytic_curve"] : triangle || motion?.status === "admitted" ? ["contact_body"] : conjugate ? ["ray_path"] : ["circuit_network"]
         : section?.status === "ok" ? ["coordinate_figure"] : ["vector_diagram"],
       constructionOperators: operators.filter(operator => SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.some(supported => supported === operator)),
       proofPredicates: sourceDocument ? [...new Set(sourceDocument.assertions.map(row => row.predicate))]

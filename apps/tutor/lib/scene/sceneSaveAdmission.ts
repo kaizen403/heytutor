@@ -16,6 +16,7 @@ import {
   displayedSceneQuantityTexts,
   validateSceneSourceAuthority,
   validateStaticContactTriangleSource, readStaticContactTriangle,
+  readOpticalConjugateSource, opticalConjugateDocument, opticalConjugatePlanConflicts, opticalConjugateQuantityRole, opticalLengthInCm,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -116,28 +117,8 @@ export function sceneSaveAdmissionFailure(input: {
   problemIR?: unknown;
 }): string | null {
   const { document, question, turnPlan, tier } = input;
-  if (turnPlan) {
-    // Quantities and labels the engine derives from the stem and the plan,
-    // recomputed here, are supported alongside the plan's own. Plan ids stay
-    // authoritative: a plan quantity is always checked against the plan.
-    const planIds = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => quantity.id));
-    let engine: EngineDerived | null = null;
-    const derivedByEngine = (): EngineDerived => engine ??= engineDerivedValues(question, turnPlan);
-    const audited = document.quantities.filter((quantity) => {
-      if (planIds.has(quantity.id)) return true;
-      const fresh = derivedByEngine().quantities.get(quantity.id);
-      return !(fresh && fresh.value === quantity.value && unitKey(fresh.unit) === unitKey(quantity.unit));
-    });
-    const texts = displayedSceneText(document).filter((text) => !derivedByEngine().texts.has(text));
-    const agreementIssues = validateSceneQuantityAgreement(
-      audited,
-      turnPlan,
-      texts,
-    );
-    if (agreementIssues.length > 0) {
-      return `scene quantities disagree with TurnPlanV3: ${formatIssues(agreementIssues)}`;
-    }
-  }
+  // The actual question and complete caller IR establish source structure
+  // before any quantity correspondence can admit signed setup magnitudes.
   const sourceInputIssues = [
     ...validateSceneSourceAuthority(document, question, input.problemIR),
     ...validateCoordinateDistanceSourceInputs(document, question),
@@ -149,6 +130,38 @@ export function sceneSaveAdmissionFailure(input: {
   ];
   if (sourceInputIssues.some((issue) => issue.severity === "fatal")) {
     return `scene source inputs are unsupported or disagree: ${formatIssues(sourceInputIssues)}`;
+  }
+  if (turnPlan) {
+    const conjugate = readOpticalConjugateSource(question);
+    if (conjugate && opticalConjugatePlanConflicts(conjugate,[...turnPlan.givens,...turnPlan.derived]).length) return "Optical plan quantities do not bind the source conjugate roles";
+    if (conjugate && turnPlan.unknowns.some(row=> {
+      const role=opticalConjugateQuantityRole(row);
+      return role==="ambiguous" || (role!==null && row.unit!==undefined && (role==="magnification" ? row.unit!=="1" : opticalLengthInCm(1,row.unit)===null));
+    })) return "Optical unknown units or identities do not bind source roles";
+    const conjugateDocument=conjugate?opticalConjugateDocument(question,turnPlan,input.problemIR):null;
+    const conjugateTexts=new Set(conjugateDocument?displayedSceneText(conjugateDocument):[]);
+    // Quantities and labels the engine derives from the stem and the plan,
+    // recomputed here, are supported alongside the plan's own. Plan ids stay
+    // authoritative: a plan quantity is always checked against the plan.
+    const planIds = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => quantity.id));
+    let engine: EngineDerived | null = null;
+    const derivedByEngine = (): EngineDerived => engine ??= engineDerivedValues(question, turnPlan);
+    const audited = document.quantities.filter((quantity) => {
+      const conjugateQuantity=conjugateDocument?.quantities.find(row=>row.id===quantity.id);
+      if (conjugateQuantity && conjugateQuantity.value===quantity.value && conjugateQuantity.unit===quantity.unit) return false;
+      if (planIds.has(quantity.id)) return true;
+      const fresh = derivedByEngine().quantities.get(quantity.id);
+      return !(fresh && fresh.value === quantity.value && unitKey(fresh.unit) === unitKey(quantity.unit));
+    });
+    const texts = displayedSceneText(document).filter((text) => !conjugateTexts.has(text) && !derivedByEngine().texts.has(text));
+    const agreementIssues = validateSceneQuantityAgreement(
+      audited,
+      turnPlan,
+      texts,
+    );
+    if (agreementIssues.length > 0) {
+      return `scene quantities disagree with TurnPlanV3: ${formatIssues(agreementIssues)}`;
+    }
   }
   if (sourceInputIssues.some((issue) => issue.code === "matrix_source_component_only") && tier !== "question_representation") {
     return "source-proved matrix components cannot be saved as a whole-question exact or qualitative result";

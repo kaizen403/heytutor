@@ -10,6 +10,8 @@ import { bindStatedCircuitProblem } from "../ir/statedCircuitProblemBinding";
 import { readStatedCircuitProblemSource } from "../ir/statedCircuitAuthority";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
+import {readOpticalConjugateSource} from "../physics/opticalConjugateSource";
+import {opticalConjugateDocument} from "../ir/opticalConjugateProgram";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import { levelRelationSource } from "../physics/levelRelationSource";
@@ -208,6 +210,12 @@ function synthesizeFromFamilies(
   const obligations: VisualObligationSet | null = isFullProblemIRStructure(input.problemIR)
     ? deriveVisualObligations(input.problemIR)
     : null;
+  if (readOpticalConjugateSource(question)) {
+    const document=opticalConjugateDocument(question,input.turnPlan,input.problemIR);
+    const compiled=document?tryCompile(document,{sourceAuthority:{question,problemIR:input.problemIR}}):null;
+    if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
+    return {...compiled,tier:"question_representation",nonMetric:true,reason:"Source-bound Cartesian conjugates with explicitly paraxial principal rays.",family:"ray_path"};
+  }
   const groundedCircuit = groundedOhmScene(question, input.problemIR);
   if (groundedCircuit.handled) {
     const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;
