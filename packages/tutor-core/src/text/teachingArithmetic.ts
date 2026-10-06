@@ -27,6 +27,9 @@ export interface TeachingArithmeticBinding {
 export type TeachingArithmeticRow = string | {
   text: string;
   binding?: TeachingArithmeticBinding;
+  /** A caller-proved common source unit, never inferred from the WRITE row.
+   * This permits a matching terminal display annotation, not unit conversion. */
+  displayUnit?: string;
 };
 export interface TeachingArithmeticProof {
   row: string;
@@ -322,8 +325,17 @@ function validBinding(binding: TeachingArithmeticBinding | undefined): binding i
   return !!binding && binding.scopeId.length <= 128 && binding.roleId.length <= 128 &&
     binding.scopeId.trim().length > 0 && binding.roleId.trim().length > 0;
 }
-function equation(row: string) {
-  const text = normalize(row), sides = text.split(/[=≈]/).map((part) => part.trim());
+function equation(row: TeachingArithmeticRow) {
+  let text = normalize(rowText(row));
+  const displayUnit = typeof row === "string" ? undefined : row.displayUnit;
+  if (displayUnit && displayUnit.length <= 32 && /^[A-Za-zµμΩ]+$/.test(displayUnit) &&
+      !["pi", "frac"].includes(displayUnit)) {
+    // A check heading and the same source-unit display suffix carry no
+    // arithmetic operation. Embedded units, conversions and unknown prose
+    // still reach the full parser and remain unsupported.
+    text = text.replace(/^check\s*:\s*/i, "").replace(new RegExp(`\\s*${displayUnit}$`), "");
+  }
+  const sides = text.split(/[=≈]/).map((part) => part.trim());
   const relations = (text.match(/[=≈]/g) ?? []) as ("=" | "≈")[];
   if (sides.length < 2 || sides.some((s) => !s) || sides.length > TEACHING_ARITHMETIC_LIMITS.chainSides) {
     throw new Unsupported("missing equality, empty side or chain limit");
@@ -344,7 +356,7 @@ export function checkTeachingArithmeticRow(
   const text = rowText(row);
   try {
     if (priorRows.length > TEACHING_ARITHMETIC_LIMITS.priorRows) throw new Unsupported("prior row limit");
-    const parsed = equation(text);
+    const parsed = equation(row);
     let expected = parsed.expressions[0].interval;
     let left = parsed.sides[0], sourceRow: string | undefined;
     if (parsed.expressions.length === 1) {
@@ -356,7 +368,7 @@ export function checkTeachingArithmeticRow(
       for (let i = priorRows.length - 1; i >= Math.max(0, priorRows.length - TEACHING_ARITHMETIC_LIMITS.restatementDistance); i--) {
         const previous = priorRows[i], binding = rowBinding(previous);
         if (!validBinding(binding) || binding.scopeId !== current.scopeId || binding.roleId !== current.roleId) continue;
-        const prior = equation(rowText(previous));
+        const prior = equation(previous);
         if (prior.label !== parsed.label || prior.expressions.length !== 1 || prior.expressions[0].operations === 0) {
           throw new Unsupported("latest role binding is not a fresh numeric computation");
         }

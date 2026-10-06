@@ -2162,7 +2162,9 @@ export function useQuestionHandler(
         // Buffer one segment so unverified marker commands are removed before
         // they enter the speech and drawing queues.
         let bufferedSegment: TutorSegment | null = null;
-        const arithmeticAdmission = createTeachingArithmeticAdmission();
+        const arithmeticAdmission = createTeachingArithmeticAdmission({
+          verifiedPlan: problemAuthority?.audit.status === "verified" ? turnPlan : undefined,
+        });
         let arithmeticRetryCount = 0;
         let usableTeachingStepReceived = false;
         let startupControlSegments: TutorSegment[] = [];
