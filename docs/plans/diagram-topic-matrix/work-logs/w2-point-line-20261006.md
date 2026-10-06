@@ -41,3 +41,17 @@ inspection and authenticated save/restart/reopen/whole replay. Arbitrary foot
 names/result spellings, duplicate statements, fractional caption notation,
 multibody/3D/parameter/intersection/two-point definitions and native holdouts
 remain outside this bounded program. Strict declines are availability limits.
+
+Independent review at `a8a1e9c6` requested changes: incomplete request consumption,
+changed source literals inside a scale tolerance, and underflow to zero. The
+integration owner fixed these: whole-request grammar shares the source literal
+spans; given coordinates match exactly; proportional numeric coefficients use
+exact dyadic cross products; polynomial evaluation retains bounded exact
+rationals until supported decimal conversion. Lost coordinate/coefficient digits,
+nonterminating source conversions and underflow decline explicitly. Derived
+caption comparisons scale each component separately, never by the other axis.
+New regression controls cover all three exact review reproductions, unreadable
+extra bodies/requirements, tiny nonzero coefficients, cancellation, and supported
+terminating fractions/whitespace. `w2-point-line-reviewfix5.log` passes these and
+all existing new controls. Final compile/source-question equality and the
+integrated head still require fresh review, checks and actual student lifecycle.

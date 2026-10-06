@@ -27,6 +27,9 @@ export interface PointLineSourceLiterals {
   points: SourcePoint[];
   /** An equation-like run touched letters or symbols the linear reader does not model. */
   unreadEquation: boolean;
+  unreadPoint: boolean;
+  /** Offsets in whitespace-normalized source text, for whole-request consumption. */
+  spans: Array<{ start: number; end: number; kind: "point" | "line" }>;
 }
 
 const NUMBER = String.raw`[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:\s*\/\s*(?:\d+(?:\.\d*)?|\.\d+))?`;
@@ -43,13 +46,17 @@ export function readPointLineSourceLiterals(question: unknown): PointLineSourceL
     .replace(/[·×]/g, "*")
     .replace(/\s+/g, " ");
   const points: SourcePoint[] = [];
+  const spans: PointLineSourceLiterals["spans"] = [];
+  let unreadPoint = false;
   for (const match of text.matchAll(POINT_PAIR)) {
     const x = readNumberText(match[2]!);
     const y = readNumberText(match[3]!);
-    if (x === null || y === null) continue;
+    if (x === null || y === null) { unreadPoint = true; continue; }
     points.push(match[1] ? { name: match[1], x, y } : { x, y });
+    spans.push({ start: match.index!, end: match.index! + match[0].length, kind: "point" });
   }
-  if (ORIGIN.test(text)) points.push({ name: "O", x: 0, y: 0, origin: true });
+  const origin = ORIGIN.exec(text);
+  if (origin) { points.push({ name: "O", x: 0, y: 0, origin: true }); spans.push({ start: origin.index, end: origin.index + origin[0].length, kind: "point" }); }
 
   // Words (§) and single letters other than x and y (¤) are masked, so
   // "by 2x+3y=6" reads the equation and "f(x)=2x" or "kx+y=3" is refused,
@@ -82,10 +89,10 @@ export function readPointLineSourceLiterals(question: unknown): PointLineSourceL
       previous === "¤" || next === "¤" ||
       (/^[+\-*/=]/.test(run) && previous !== undefined && BAD_NEIGHBOUR.test(previous));
     const line = touched ? null : parseLinearEquation(run);
-    if (line) lines.push(line);
+    if (line) { lines.push(line); spans.push({ start, end: start + run.length, kind: "line" }); }
     else unreadEquation = true;
   }
-  return { lines, points, unreadEquation };
+  return { lines, points, unreadEquation, unreadPoint, spans };
 }
 
 export function validatePointLineSourceInputs(document: SceneDocument, question: unknown): SceneIssue[] {
@@ -94,6 +101,7 @@ export function validatePointLineSourceInputs(document: SceneDocument, question:
     construction.operator === "point_line_distance" ? [{ construction, index }] : [],
   );
   if (distances.length === 0) return [];
+  if (typeof question === "string" && document.source.question !== question) return [{ code: "point_line_source_question", severity: "fatal", path: "source.question", message: "point-line geometry must bind to the exact submitted source question" }];
   const source = readPointLineSourceLiterals(question);
   const issues: SceneIssue[] = [];
   if (!source || source.lines.length === 0) {
@@ -107,9 +115,9 @@ export function validatePointLineSourceInputs(document: SceneDocument, question:
   // Roles are bound by value only when they are unique: with two stated
   // points, two different lines, or an equation the reader cannot model, the
   // figure could measure the wrong pair at a plausible distance. Decline.
-  const distinctPoints = source.points.filter((candidate, index) => source.points.findIndex((other) => samePoint(other, candidate)) === index);
+  const distinctPoints = source.points.filter((candidate, index) => source.points.findIndex((other) => exactPoint(other, candidate)) === index);
   const distinctLines = source.lines.filter((candidate, index) => source.lines.findIndex((other) => proportional(other, candidate)) === index);
-  if (distinctPoints.length > 1 || distinctLines.length > 1 || source.unreadEquation) {
+  if (distinctPoints.length > 1 || distinctLines.length > 1 || source.unreadEquation || source.unreadPoint) {
     return [{
       code: "point_line_source_ambiguous",
       severity: "fatal",
@@ -239,12 +247,12 @@ function coordinateClaim(text: string): ReturnType<typeof readDerivedCoordinateL
  * rename a point the source already names.
  */
 function sourcePointIdentity(named: string | undefined, point: Point, points: readonly SourcePoint[]): string | null {
-  const same = points.filter((candidate) => samePoint(candidate, point));
+  const same = points.filter((candidate) => exactPoint(candidate, point));
   if (same.length === 0) return "point_line_distance point is not a coordinate pair stated in the source";
   if (!named) return null;
   const sourceNamed = points.filter((candidate) => candidate.name === named);
   if (sourceNamed.length > 0) {
-    return sourceNamed.some((candidate) => samePoint(candidate, point))
+    return sourceNamed.some((candidate) => exactPoint(candidate, point))
       ? null
       : `point_line_distance point ${named} does not have the coordinates the source gives ${named}`;
   }
@@ -340,20 +348,31 @@ function pointName(input: unknown, document: SceneDocument): string | undefined 
 }
 
 function proportional(first: Line, second: Line): boolean {
-  const normalize = (line: Line): Line => {
-    const sign = line.a < 0 || line.a === 0 && line.b < 0 ? -1 : 1;
-    const scale = Math.hypot(line.a, line.b) * sign;
-    return { a: line.a / scale, b: line.b / scale, c: line.c / scale };
+  // Bind the numeric source roles exactly. Dyadic rationals preserve every
+  // binary64 bit; a large intercept never authorizes changing a given.
+  const exact = (value: number): { n: bigint; d: bigint } => {
+    const data = new DataView(new ArrayBuffer(8)); data.setFloat64(0, value);
+    const bits = data.getBigUint64(0), sign = bits >> 63n ? -1n : 1n;
+    const exponent = Number((bits >> 52n) & 2047n);
+    const fraction = bits & ((1n << 52n) - 1n);
+    const numerator = (exponent ? fraction + (1n << 52n) : fraction) * sign;
+    const power = exponent ? exponent - 1023 - 52 : -1074;
+    return power >= 0 ? { n: numerator << BigInt(power), d: 1n } : { n: numerator, d: 1n << BigInt(-power) };
   };
-  const left = normalize(first), right = normalize(second);
-  // A distant intercept must not enlarge the permitted slope error.
-  return Math.abs(left.a - right.a) <= RELATIVE && Math.abs(left.b - right.b) <= RELATIVE
-    && Math.abs(left.c - right.c) <= RELATIVE * Math.max(1, Math.abs(left.c), Math.abs(right.c));
+  if (![first.a, first.b, first.c, second.a, second.b, second.c].every(Number.isFinite)) return false;
+  const equalProduct = (a: number, b: number, c: number, d: number): boolean => {
+    const [ra, rb, rc, rd] = [a, b, c, d].map(exact);
+    return ra!.n * rb!.n * rc!.d * rd!.d === rc!.n * rd!.n * ra!.d * rb!.d;
+  };
+  return equalProduct(first.a, second.b, first.b, second.a) && equalProduct(first.a, second.c, first.c, second.a)
+    && equalProduct(first.b, second.c, first.c, second.b);
 }
 
+function exactPoint(first: Point, second: Point): boolean { return first.x === second.x && first.y === second.y; }
+
 function samePoint(first: Point, second: Point): boolean {
-  const scale = Math.max(1, Math.hypot(first.x, first.y));
-  return Math.abs(first.x - second.x) <= RELATIVE * scale && Math.abs(first.y - second.y) <= RELATIVE * scale;
+  return Math.abs(first.x - second.x) <= RELATIVE * Math.max(1, Math.abs(first.x))
+    && Math.abs(first.y - second.y) <= RELATIVE * Math.max(1, Math.abs(first.y));
 }
 
 function readNumberText(text: string): number | null {
@@ -361,11 +380,49 @@ function readNumberText(text: string): number | null {
   if (!new RegExp(`^${NUMBER}$`).test(trimmed)) return null;
   const [numerator, denominator] = trimmed.split("/");
   const value = denominator === undefined ? Number(numerator) : Number(numerator) / Number(denominator);
+  if (/[1-9]/.test(numerator!) && (value === 0 || Math.abs(value) < 1e-100)) return null;
+  try {
+    const exact = denominator === undefined ? decimalRational(numerator!) : multiplyRational(decimalRational(numerator!), (() => { const denominatorValue = decimalRational(denominator); return rational(denominatorValue.d, denominatorValue.n); })());
+    const represented = decimalRational(String(value));
+    if (exact.n * represented.d !== represented.n * exact.d) return null;
+  } catch { return null; }
   return Number.isFinite(value) && Math.abs(value) <= 1e12 ? value : null;
 }
 
-/** Linear polynomial c0 + cx·x + cy·y. */
-type Linear = { x: number; y: number; k: number };
+type Rational = { n: bigint; d: bigint };
+/** Linear polynomial c0 + cx·x + cy·y, kept exact until final geometry conversion. */
+type Linear = { x: Rational; y: Rational; k: Rational };
+const ZERO: Rational = { n: 0n, d: 1n };
+const ONE: Rational = { n: 1n, d: 1n };
+function decimalRational(text: string): Rational {
+  const match = /^([+-]?)(\d*(?:\.\d*)?)(?:e([+-]?\d+))?$/i.exec(text);
+  if (!match || !/[0-9]/.test(match[2]!)) throw new Error("unsupported decimal");
+  const [whole, fraction = ""] = match[2]!.split(".");
+  if (whole!.length + fraction.length > 100) throw new Error("decimal capacity exceeded");
+  const power = Number(match[3] ?? 0) - fraction.length;
+  if (!Number.isSafeInteger(power) || Math.abs(power) > 100) throw new Error("decimal exponent capacity exceeded");
+  const n = BigInt(`${whole || "0"}${fraction}`) * (match[1] === "-" ? -1n : 1n);
+  return power >= 0 ? rational(n * 10n ** BigInt(power), 1n) : rational(n, 10n ** BigInt(-power));
+}
+function rational(n: bigint, d: bigint): Rational {
+  if (d === 0n) throw new Error("zero denominator");
+  if (d < 0n) { n = -n; d = -d; }
+  let a = n < 0n ? -n : n, b = d;
+  while (b) { const rest = a % b; a = b; b = rest; }
+  n /= a; d /= a;
+  if (n.toString(2).length > 512 || d.toString(2).length > 512) throw new Error("exact coefficient capacity exceeded");
+  return { n, d };
+}
+function addRational(a: Rational, b: Rational): Rational { return rational(a.n * b.d + b.n * a.d, a.d * b.d); }
+function multiplyRational(a: Rational, b: Rational): Rational { return rational(a.n * b.n, a.d * b.d); }
+function subtractRational(a: Rational, b: Rational): Rational { return addRational(a, { n: -b.n, d: b.d }); }
+function rationalNumber(a: Rational): number {
+  const value = Number(a.n) / Number(a.d);
+  if (!Number.isFinite(value) || Math.abs(value) > 1e12 || a.n !== 0n && (value === 0 || Math.abs(value) < 1e-100)) throw new Error("unsupported coefficient precision");
+  const represented = decimalRational(String(value));
+  if (a.n * represented.d !== represented.n * a.d) throw new Error("coefficient loses exact source decimal identity");
+  return value;
+}
 
 /**
  * Recursive-descent reader for one linear equation in x and y with numbers,
@@ -373,12 +430,16 @@ type Linear = { x: number; y: number; k: number };
  * two non-constant factors, division by a non-constant, or a=b=0 is refused.
  */
 export function parseLinearEquation(text: string): Line | null {
+  try { return parseExactLinearEquation(text); } catch { return null; }
+}
+
+function parseExactLinearEquation(text: string): Line | null {
   const sides = text.split("=");
   if (sides.length !== 2) return null;
   const left = parseLinearExpression(sides[0]!);
   const right = parseLinearExpression(sides[1]!);
   if (!left || !right) return null;
-  const line = { a: left.x - right.x, b: left.y - right.y, c: left.k - right.k };
+  const line = { a: rationalNumber(subtractRational(left.x, right.x)), b: rationalNumber(subtractRational(left.y, right.y)), c: rationalNumber(subtractRational(left.k, right.k)) };
   if (!(Math.hypot(line.a, line.b) > 0) || ![line.a, line.b, line.c].every(Number.isFinite)) return null;
   return line;
 }
@@ -387,10 +448,13 @@ function parseLinearExpression(text: string): Linear | null {
   const matched = text.replace(/\s+/g, "").match(/\d+(?:\.\d*)?|\.\d+|[xy+\-*/()]/g);
   if (!matched || matched.join("") !== text.replace(/\s+/g, "")) return null;
   const tokens: string[] = matched;
+  if (tokens.length > 128 || tokens.some(token => token.length > 100)) return null;
+  let nesting = 0;
+  for (const token of tokens) { if (token === "(" && ++nesting > 24) return null; if (token === ")") nesting--; }
   let position = 0;
   const peek = () => tokens[position];
-  const constant = (value: Linear) => value.x === 0 && value.y === 0;
-  const scale = (value: Linear, factor: number): Linear => ({ x: value.x * factor, y: value.y * factor, k: value.k * factor });
+  const constant = (value: Linear) => value.x.n === 0n && value.y.n === 0n;
+  const scale = (value: Linear, factor: Rational): Linear => ({ x: multiplyRational(value.x, factor), y: multiplyRational(value.y, factor), k: multiplyRational(value.k, factor) });
   const multiply = (first: Linear, second: Linear): Linear | null => {
     if (constant(first)) return scale(second, first.k);
     if (constant(second)) return scale(first, second.k);
@@ -402,7 +466,8 @@ function parseLinearExpression(text: string): Linear | null {
       const sign = tokens[position++] === "+" ? 1 : -1;
       const next = term();
       if (!next) return null;
-      value = { x: value.x + sign * next.x, y: value.y + sign * next.y, k: value.k + sign * next.k };
+      const combine = sign === 1 ? addRational : subtractRational;
+      value = { x: combine(value.x, next.x), y: combine(value.y, next.y), k: combine(value.k, next.k) };
     }
     return value;
   }
@@ -416,8 +481,8 @@ function parseLinearExpression(text: string): Linear | null {
         if (!next) return null;
         if (token === "*") value = multiply(value, next);
         else {
-          if (!constant(next) || next.k === 0) return null;
-          value = scale(value, 1 / next.k);
+          if (!constant(next) || next.k.n === 0n) return null;
+          value = scale(value, rational(next.k.d, next.k.n));
         }
       } else if (token === "x" || token === "y" || token === "(" || (token !== undefined && /^[\d.]/.test(token))) {
         // Implicit product: "3x", "2(x-1)", "(x+1)2" is refused by the digit-after-paren check below.
@@ -430,23 +495,25 @@ function parseLinearExpression(text: string): Linear | null {
     return value;
   }
   function unary(): Linear | null {
-    if (peek() === "-") { position += 1; const value = unary(); return value ? scale(value, -1) : null; }
+    if (peek() === "-") { position += 1; const value = unary(); return value ? scale(value, { n: -1n, d: 1n }) : null; }
     if (peek() === "+") { position += 1; return unary(); }
     return primary();
   }
   function primary(): Linear | null {
     const token = tokens[position++];
     if (token === undefined) return null;
-    if (token === "x") return { x: 1, y: 0, k: 0 };
-    if (token === "y") return { x: 0, y: 1, k: 0 };
+    if (token === "x") return { x: ONE, y: ZERO, k: ZERO };
+    if (token === "y") return { x: ZERO, y: ONE, k: ZERO };
     if (token === "(") {
       const value = expression();
       if (tokens[position++] !== ")") return null;
       return value;
     }
     if (/^[\d.]/.test(token)) {
-      const value = Number(token);
-      return Number.isFinite(value) ? { x: 0, y: 0, k: value } : null;
+      const [whole, fraction = ""] = token.split(".");
+      const value = rational(BigInt(`${whole || "0"}${fraction}`), 10n ** BigInt(fraction.length));
+      rationalNumber(value);
+      return { x: ZERO, y: ZERO, k: value };
     }
     return null;
   }
