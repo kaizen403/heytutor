@@ -434,6 +434,7 @@ function buildFullDiagram(question: string, result: MoResult): SceneDocument {
   const axisX = -columnX - 2.2;
   c.arrow("energy_axis", { x: axisX, y: AXIS_TAIL }, { x: axisX, y: top - 0.3 }, "energy axis", "E");
   c.scene.labelled("energy_axis");
+  c.text("spacing_note", { x: axisX, y: AXIS_TAIL - 0.55 }, "not measured", "equal level spacing is not a measured energy");
   record(mark, ids.atoms);
 
   // Molecular orbitals, their names, and the correlation links.
@@ -480,6 +481,7 @@ function buildCompareDiagram(question: string, results: readonly MoResult[]): Sc
   const axisX = -((results.length - 1) * pitch) / 2 - 1.6;
   c.arrow("energy_axis", { x: axisX, y: AXIS_TAIL }, { x: axisX, y: top - 0.3 }, "energy axis", "E");
   c.scene.labelled("energy_axis");
+  c.text("spacing_note", { x: axisX, y: AXIS_TAIL - 0.55 }, "not measured", "equal level spacing is not a measured energy");
   let previous: string[] = [];
   results.forEach((result, index) => {
     const x = (index - (results.length - 1) / 2) * pitch;
