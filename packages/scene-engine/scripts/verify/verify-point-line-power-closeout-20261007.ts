@@ -22,6 +22,7 @@ const parameterChecks = [
  ['near-integer-above', 'n2=a^2.000000000000001+b^2', false],
  ['near-integer-below', 'n2=a^1.9999999999999998+b^2', false],
  ['rounded-closed-exponent', 'n2=a^(2+1e-16)+b^2', false],
+ ['rounded-function-exponent', 'n2=a^sqrt(4.000000000000001)+b^2', false],
  ['original-zero-divisor', 'n2=a^(2+0/(a-a))+b^2', false],
  ['original-negative-sqrt', 'n2=a^(2+0*sqrt(-1))+b^2', false],
  ['original-nonfinite-abs', 'n2=a^(2+0*abs(1/0))+b^2', false],
@@ -32,7 +33,8 @@ const parameterChecks = [
 // exercise the selected source or genuine own-public package boundary.
 for (const [name,text,expected] of parameterChecks) assert.equal(proof.proves(text,'norm'),expected,name);
 const rows=[];
-for(const c of frozen.cases){
+const roundedCases=JSON.parse(readFileSync(new URL('fixtures/point-line-power-closeout-20261007-rounded-function-repro.json',dir),'utf8')).cases;
+for(const c of [...frozen.cases,...roundedCases]){
  const {problem,plan,wire}=c.input,before=JSON.stringify(c.input),checks:any[]=[];
  const check=(name:string,pass:boolean)=>checks.push({name,pass});
  const parsedPlan=core.parseTurnPlanV3Content(JSON.stringify(plan),plan.question);

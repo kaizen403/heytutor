@@ -1,0 +1,1236 @@
+{
+  "commit": "c8b04a76c63b4d6aeb47a14bda7b282179b37407",
+  "cases": [
+    {
+      "name": "rounded-function-role-exponent",
+      "positive": false,
+      "input": {
+        "problem": {
+          "facts": [
+            {
+              "id": "fPoint",
+              "kind": "given",
+              "statement": "P=(1,2)",
+              "evidence": {
+                "source": "question",
+                "start": 37,
+                "end": 44,
+                "quote": "P=(1,2)"
+              }
+            },
+            {
+              "id": "fLine",
+              "kind": "given",
+              "statement": "3x+4y-5=0",
+              "evidence": {
+                "source": "question",
+                "start": 48,
+                "end": 57,
+                "quote": "3x+4y-5=0"
+              }
+            },
+            {
+              "id": "fDist",
+              "kind": "requested",
+              "statement": "perpendicular distance from P to line",
+              "evidence": {
+                "source": "question",
+                "start": 9,
+                "end": 57,
+                "quote": "perpendicular distance from P=(1,2) to 3x+4y-5=0"
+              }
+            },
+            {
+              "id": "fFoot",
+              "kind": "requested",
+              "statement": "perpendicular foot",
+              "evidence": {
+                "source": "question",
+                "start": 63,
+                "end": 85,
+                "quote": "the perpendicular foot"
+              }
+            }
+          ],
+          "entities": [
+            {
+              "id": "P",
+              "kind": "point",
+              "label": "P",
+              "evidenceFactIds": [
+                "fPoint"
+              ]
+            },
+            {
+              "id": "L",
+              "kind": "line",
+              "label": "3x+4y-5=0",
+              "evidenceFactIds": [
+                "fLine"
+              ]
+            },
+            {
+              "id": "F",
+              "kind": "point",
+              "label": "foot",
+              "evidenceFactIds": [
+                "fFoot"
+              ]
+            }
+          ],
+          "expressions": [
+            {
+              "id": "eDist",
+              "valueType": "scalar",
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fDist"
+              ],
+              "root": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "call",
+                  "function": "abs",
+                  "argument": {
+                    "kind": "binary",
+                    "operator": "-",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "+",
+                      "left": {
+                        "kind": "binary",
+                        "operator": "*",
+                        "left": {
+                          "kind": "number",
+                          "value": 3
+                        },
+                        "right": {
+                          "kind": "number",
+                          "value": 1
+                        }
+                      },
+                      "right": {
+                        "kind": "binary",
+                        "operator": "*",
+                        "left": {
+                          "kind": "number",
+                          "value": 4
+                        },
+                        "right": {
+                          "kind": "number",
+                          "value": 2
+                        }
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 5
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "call",
+                  "function": "sqrt",
+                  "argument": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "^",
+                      "left": {
+                        "kind": "number",
+                        "value": 3
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "^",
+                      "left": {
+                        "kind": "number",
+                        "value": 4
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "eFx",
+              "valueType": "scalar",
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fFoot"
+              ],
+              "root": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 1
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 3
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "binary",
+                        "operator": "+",
+                        "left": {
+                          "kind": "binary",
+                          "operator": "*",
+                          "left": {
+                            "kind": "number",
+                            "value": 3
+                          },
+                          "right": {
+                            "kind": "number",
+                            "value": 1
+                          }
+                        },
+                        "right": {
+                          "kind": "binary",
+                          "operator": "*",
+                          "left": {
+                            "kind": "number",
+                            "value": 4
+                          },
+                          "right": {
+                            "kind": "number",
+                            "value": 2
+                          }
+                        }
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 5
+                      }
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "^",
+                      "left": {
+                        "kind": "number",
+                        "value": 3
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "^",
+                      "left": {
+                        "kind": "number",
+                        "value": 4
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "eFy",
+              "valueType": "scalar",
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fFoot"
+              ],
+              "root": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 4
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "-",
+                      "left": {
+                        "kind": "binary",
+                        "operator": "+",
+                        "left": {
+                          "kind": "binary",
+                          "operator": "*",
+                          "left": {
+                            "kind": "number",
+                            "value": 3
+                          },
+                          "right": {
+                            "kind": "number",
+                            "value": 1
+                          }
+                        },
+                        "right": {
+                          "kind": "binary",
+                          "operator": "*",
+                          "left": {
+                            "kind": "number",
+                            "value": 4
+                          },
+                          "right": {
+                            "kind": "number",
+                            "value": 2
+                          }
+                        }
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 5
+                      }
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "^",
+                      "left": {
+                        "kind": "number",
+                        "value": 3
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "^",
+                      "left": {
+                        "kind": "number",
+                        "value": 4
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "constraints": [
+            {
+              "id": "cFootOn",
+              "kind": "incident",
+              "entityIds": [
+                "F",
+                "L"
+              ],
+              "evidenceFactIds": [
+                "fFoot"
+              ]
+            },
+            {
+              "id": "cPerp",
+              "kind": "perpendicular",
+              "entityIds": [
+                "P",
+                "F",
+                "L"
+              ],
+              "evidenceFactIds": [
+                "fDist",
+                "fFoot"
+              ]
+            }
+          ],
+          "representationIntents": [
+            {
+              "id": "iScene",
+              "kind": "conceptual",
+              "entityIds": [
+                "P",
+                "L",
+                "F"
+              ],
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fFoot"
+              ]
+            }
+          ],
+          "solveRequests": [
+            {
+              "id": "sDist",
+              "kind": "evaluate",
+              "expressionId": "eDist",
+              "resultBinding": {
+                "turnPlanQuantityId": "d",
+                "symbol": "d",
+                "unit": "length",
+                "evidenceFactIds": [
+                  "fDist"
+                ]
+              }
+            },
+            {
+              "id": "sFx",
+              "kind": "evaluate",
+              "expressionId": "eFx",
+              "resultBinding": {
+                "turnPlanQuantityId": "fx",
+                "symbol": "x_F",
+                "unit": "1",
+                "evidenceFactIds": [
+                  "fFoot"
+                ]
+              }
+            },
+            {
+              "id": "sFy",
+              "kind": "evaluate",
+              "expressionId": "eFy",
+              "resultBinding": {
+                "turnPlanQuantityId": "fy",
+                "symbol": "y_F",
+                "unit": "1",
+                "evidenceFactIds": [
+                  "fFoot"
+                ]
+              }
+            }
+          ],
+          "schemaVersion": "problem-ir/v1",
+          "id": "problem",
+          "question": "Find the perpendicular distance from P=(1,2) to 3x+4y-5=0, and the perpendicular foot."
+        },
+        "plan": {
+          "schemaVersion": "turn-plan/v3",
+          "question": "Find the perpendicular distance from P=(1,2) to 3x+4y-5=0, and the perpendicular foot.",
+          "givens": [
+            {
+              "id": "px",
+              "symbol": "x_P",
+              "value": 1,
+              "provenance": "given",
+              "sourceText": "P=(1,2)"
+            },
+            {
+              "id": "py",
+              "symbol": "y_P",
+              "value": 2,
+              "provenance": "given",
+              "sourceText": "P=(1,2)"
+            },
+            {
+              "id": "a",
+              "symbol": "a",
+              "value": 3,
+              "provenance": "given",
+              "sourceText": "3x+4y-5=0"
+            },
+            {
+              "id": "b",
+              "symbol": "b",
+              "value": 4,
+              "provenance": "given",
+              "sourceText": "3x+4y-5=0"
+            },
+            {
+              "id": "c",
+              "symbol": "c",
+              "value": -5,
+              "provenance": "given",
+              "sourceText": "3x+4y-5=0"
+            }
+          ],
+          "unknowns": [
+            {
+              "id": "d",
+              "symbol": "d",
+              "unit": "length"
+            },
+            {
+              "id": "fx",
+              "symbol": "x_F"
+            },
+            {
+              "id": "fy",
+              "symbol": "y_F"
+            }
+          ],
+          "derived": [
+            {
+              "id": "s",
+              "symbol": "s",
+              "value": 6,
+              "provenance": "derived",
+              "dependsOn": [
+                "a",
+                "px",
+                "b",
+                "py",
+                "c"
+              ],
+              "sourceText": "s=a*x_P+b*y_P+c=3*1+4*2-5=6"
+            },
+            {
+              "id": "n2",
+              "symbol": "a^2+b^2",
+              "value": 25,
+              "provenance": "derived",
+              "dependsOn": [
+                "a",
+                "b"
+              ],
+              "sourceText": "a^2+b^2=3^2+4^2=25"
+            },
+            {
+              "id": "d",
+              "symbol": "d",
+              "value": 1.2,
+              "unit": "length",
+              "sign": "positive",
+              "provenance": "derived",
+              "dependsOn": [
+                "s",
+                "n2"
+              ],
+              "sourceText": "d=|s|/sqrt(a^2+b^2)=6/5=1.2"
+            },
+            {
+              "id": "fx",
+              "symbol": "x_F",
+              "value": 0.28,
+              "provenance": "derived",
+              "dependsOn": [
+                "px",
+                "a",
+                "s",
+                "n2"
+              ],
+              "sourceText": "x_F=x_P-a*s/(a^sqrt(4.000000000000001)+b^2)"
+            },
+            {
+              "id": "fy",
+              "symbol": "y_F",
+              "value": 1.04,
+              "provenance": "derived",
+              "dependsOn": [
+                "py",
+                "b",
+                "s",
+                "n2"
+              ],
+              "sourceText": "y_F=y_P-b*s/(a^2+b^2)=2-4*6/25=1.04"
+            }
+          ],
+          "qualitativeClaims": [
+            {
+              "id": "q1",
+              "claim": "Perpendicular distance from point to line ax+by+c=0",
+              "expected": "d=|a*x_P+b*y_P+c|/sqrt(a^2+b^2)=6/5=1.2",
+              "relatedQuantityIds": [
+                "d",
+                "px",
+                "py",
+                "a",
+                "b",
+                "c"
+              ]
+            },
+            {
+              "id": "q2",
+              "claim": "Perpendicular foot is P shifted along the line normal (a,b) by the signed residual over norm squared",
+              "expected": "(x_F,y_F)=(x_P-a*s/(a^2+b^2), y_P-b*s/(a^2+b^2))=(0.28,1.04)",
+              "relatedQuantityIds": [
+                "fx",
+                "fy",
+                "s",
+                "n2"
+              ],
+              "relatedEntityHints": [
+                "P",
+                "line 3x+4y-5=0"
+              ]
+            },
+            {
+              "id": "q3",
+              "claim": "Foot lies on the given line",
+              "expected": "3*0.28+4*1.04-5=0",
+              "relatedQuantityIds": [
+                "fx",
+                "fy",
+                "a",
+                "b",
+                "c"
+              ]
+            },
+            {
+              "id": "q4",
+              "claim": "Segment PF is parallel to the normal vector (3,4), hence perpendicular to the line",
+              "expected": "(x_F-x_P,y_F-y_P)=(-0.72,-0.96)=-(s/(a^2+b^2))*(3,4)",
+              "relatedQuantityIds": [
+                "fx",
+                "fy",
+                "px",
+                "py",
+                "a",
+                "b",
+                "s",
+                "n2"
+              ]
+            }
+          ],
+          "lawIds": [
+            "point_line_distance_formula",
+            "orthogonal_projection_onto_line",
+            "dot_product_perpendicularity"
+          ],
+          "assumptions": [
+            "Standard Cartesian plane with Euclidean distance",
+            "The line is exactly 3x+4y-5=0",
+            "The perpendicular foot is the orthogonal projection of P onto the line"
+          ],
+          "visualRequirement": "optional"
+        },
+        "wire": {
+          "facts": [
+            {
+              "id": "fPoint",
+              "kind": "given",
+              "statement": "P=(1,2)",
+              "quote": "P=(1,2)"
+            },
+            {
+              "id": "fLine",
+              "kind": "given",
+              "statement": "3x+4y-5=0",
+              "quote": "3x+4y-5=0"
+            },
+            {
+              "id": "fDist",
+              "kind": "requested",
+              "statement": "perpendicular distance from P to line",
+              "quote": "perpendicular distance from P=(1,2) to 3x+4y-5=0"
+            },
+            {
+              "id": "fFoot",
+              "kind": "requested",
+              "statement": "perpendicular foot",
+              "quote": "the perpendicular foot"
+            }
+          ],
+          "entities": [
+            {
+              "id": "P",
+              "kind": "point",
+              "label": "P",
+              "evidenceFactIds": [
+                "fPoint"
+              ]
+            },
+            {
+              "id": "L",
+              "kind": "line",
+              "label": "3x+4y-5=0",
+              "evidenceFactIds": [
+                "fLine"
+              ]
+            },
+            {
+              "id": "F",
+              "kind": "point",
+              "label": "foot",
+              "evidenceFactIds": [
+                "fFoot"
+              ]
+            }
+          ],
+          "expressions": [
+            {
+              "id": "eDist",
+              "valueType": "scalar",
+              "expr": "abs(3*1+4*2-5)/sqrt(3^2+4^2)",
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fDist"
+              ]
+            },
+            {
+              "id": "eFx",
+              "valueType": "scalar",
+              "expr": "1-3*(3*1+4*2-5)/(3^2+4^2)",
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fFoot"
+              ]
+            },
+            {
+              "id": "eFy",
+              "valueType": "scalar",
+              "expr": "2-4*(3*1+4*2-5)/(3^2+4^2)",
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fFoot"
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "id": "cFootOn",
+              "kind": "incident",
+              "entityIds": [
+                "F",
+                "L"
+              ],
+              "evidenceFactIds": [
+                "fFoot"
+              ]
+            },
+            {
+              "id": "cPerp",
+              "kind": "perpendicular",
+              "entityIds": [
+                "P",
+                "F",
+                "L"
+              ],
+              "evidenceFactIds": [
+                "fDist",
+                "fFoot"
+              ]
+            }
+          ],
+          "representationIntents": [
+            {
+              "id": "iScene",
+              "kind": "conceptual",
+              "entityIds": [
+                "P",
+                "L",
+                "F"
+              ],
+              "evidenceFactIds": [
+                "fPoint",
+                "fLine",
+                "fFoot"
+              ]
+            }
+          ],
+          "solveRequests": [
+            {
+              "id": "sDist",
+              "kind": "evaluate",
+              "expressionId": "eDist",
+              "resultBinding": {
+                "turnPlanQuantityId": "d",
+                "symbol": "d",
+                "unit": "length",
+                "evidenceFactIds": [
+                  "fDist"
+                ]
+              }
+            },
+            {
+              "id": "sFx",
+              "kind": "evaluate",
+              "expressionId": "eFx",
+              "resultBinding": {
+                "turnPlanQuantityId": "fx",
+                "symbol": "x_F",
+                "unit": "1",
+                "evidenceFactIds": [
+                  "fFoot"
+                ]
+              }
+            },
+            {
+              "id": "sFy",
+              "kind": "evaluate",
+              "expressionId": "eFy",
+              "resultBinding": {
+                "turnPlanQuantityId": "fy",
+                "symbol": "y_F",
+                "unit": "1",
+                "evidenceFactIds": [
+                  "fFoot"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "reference": {
+        "facts": [
+          {
+            "id": "fPoint",
+            "kind": "given",
+            "statement": "P=(1,2)",
+            "evidence": {
+              "source": "question",
+              "start": 37,
+              "end": 44,
+              "quote": "P=(1,2)"
+            }
+          },
+          {
+            "id": "fLine",
+            "kind": "given",
+            "statement": "3x+4y-5=0",
+            "evidence": {
+              "source": "question",
+              "start": 48,
+              "end": 57,
+              "quote": "3x+4y-5=0"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "perpendicular distance from P to line",
+            "evidence": {
+              "source": "question",
+              "start": 9,
+              "end": 57,
+              "quote": "perpendicular distance from P=(1,2) to 3x+4y-5=0"
+            }
+          },
+          {
+            "id": "fFoot",
+            "kind": "requested",
+            "statement": "perpendicular foot",
+            "evidence": {
+              "source": "question",
+              "start": 63,
+              "end": 85,
+              "quote": "the perpendicular foot"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "P",
+            "kind": "point",
+            "label": "P",
+            "evidenceFactIds": [
+              "fPoint"
+            ]
+          },
+          {
+            "id": "L",
+            "kind": "line",
+            "label": "3x+4y-5=0",
+            "evidenceFactIds": [
+              "fLine"
+            ]
+          },
+          {
+            "id": "F",
+            "kind": "point",
+            "label": "foot",
+            "evidenceFactIds": [
+              "fFoot"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fPoint",
+              "fLine",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "call",
+                "function": "abs",
+                "argument": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "*",
+                      "left": {
+                        "kind": "number",
+                        "value": 3
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 1
+                      }
+                    },
+                    "right": {
+                      "kind": "binary",
+                      "operator": "*",
+                      "left": {
+                        "kind": "number",
+                        "value": 4
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      }
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 5
+                  }
+                }
+              },
+              "right": {
+                "kind": "call",
+                "function": "sqrt",
+                "argument": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "number",
+                      "value": 3
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "number",
+                      "value": 4
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eFx",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fPoint",
+              "fLine",
+              "fFoot"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "number",
+                "value": 1
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 3
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "-",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "+",
+                      "left": {
+                        "kind": "binary",
+                        "operator": "*",
+                        "left": {
+                          "kind": "number",
+                          "value": 3
+                        },
+                        "right": {
+                          "kind": "number",
+                          "value": 1
+                        }
+                      },
+                      "right": {
+                        "kind": "binary",
+                        "operator": "*",
+                        "left": {
+                          "kind": "number",
+                          "value": 4
+                        },
+                        "right": {
+                          "kind": "number",
+                          "value": 2
+                        }
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 5
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "number",
+                      "value": 3
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "number",
+                      "value": 4
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eFy",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fPoint",
+              "fLine",
+              "fFoot"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 4
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "-",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "+",
+                      "left": {
+                        "kind": "binary",
+                        "operator": "*",
+                        "left": {
+                          "kind": "number",
+                          "value": 3
+                        },
+                        "right": {
+                          "kind": "number",
+                          "value": 1
+                        }
+                      },
+                      "right": {
+                        "kind": "binary",
+                        "operator": "*",
+                        "left": {
+                          "kind": "number",
+                          "value": 4
+                        },
+                        "right": {
+                          "kind": "number",
+                          "value": 2
+                        }
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 5
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "number",
+                      "value": 3
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "^",
+                    "left": {
+                      "kind": "number",
+                      "value": 4
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [
+          {
+            "id": "cFootOn",
+            "kind": "incident",
+            "entityIds": [
+              "F",
+              "L"
+            ],
+            "evidenceFactIds": [
+              "fFoot"
+            ]
+          },
+          {
+            "id": "cPerp",
+            "kind": "perpendicular",
+            "entityIds": [
+              "P",
+              "F",
+              "L"
+            ],
+            "evidenceFactIds": [
+              "fDist",
+              "fFoot"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "iScene",
+            "kind": "conceptual",
+            "entityIds": [
+              "P",
+              "L",
+              "F"
+            ],
+            "evidenceFactIds": [
+              "fPoint",
+              "fLine",
+              "fFoot"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "d",
+              "symbol": "d",
+              "unit": "length",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          },
+          {
+            "id": "sFx",
+            "kind": "evaluate",
+            "expressionId": "eFx",
+            "resultBinding": {
+              "turnPlanQuantityId": "fx",
+              "symbol": "x_F",
+              "unit": "1",
+              "evidenceFactIds": [
+                "fFoot"
+              ]
+            }
+          },
+          {
+            "id": "sFy",
+            "kind": "evaluate",
+            "expressionId": "eFy",
+            "resultBinding": {
+              "turnPlanQuantityId": "fy",
+              "symbol": "y_F",
+              "unit": "1",
+              "evidenceFactIds": [
+                "fFoot"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Find the perpendicular distance from P=(1,2) to 3x+4y-5=0, and the perpendicular foot."
+      }
+    }
+  ]
+}

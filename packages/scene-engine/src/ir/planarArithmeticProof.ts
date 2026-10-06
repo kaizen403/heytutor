@@ -179,8 +179,15 @@ export function createPlanarArithmeticProof(source: {
     }
     memo.set(node, result); return result;
   };
+  function rationalParameter(node: Node): boolean {
+    tick();
+    return node.kind === "number" || node.kind === "unary" && rationalParameter(node.operand)
+      || node.kind === "binary" && rationalParameter(node.left) && rationalParameter(node.right);
+  }
   function powerExponent(node: Node): number {
-    if (hasRole(node)) throw new Error("power role parameter");
+    // Function evaluation can round a noninteger parameter to an integer.
+    // This bounded parameter lane admits exact rational arithmetic only.
+    if (!rationalParameter(node)) throw new Error("unsupported power parameter");
     // Operator parameters use exact closed arithmetic, never display tolerance
     // or a rounded evaluation such as 2 + 1e-16 becoming the integer 2.
     const closed = form(node);
