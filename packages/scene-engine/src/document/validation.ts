@@ -38,6 +38,18 @@ const COMPLEX_CONSTRUCTIONS = new Set<string>(COMPLEX_OPERATORS);
 
 import { MAGNETIC_OPERATORS, validateMagneticConstruction } from "../compile/magneticGeometry";
 const MAGNETIC_CONSTRUCTIONS = new Set<string>(MAGNETIC_OPERATORS);
+import { RELATIVE_MOTION_OPERATORS, validateRelativeMotionConstruction } from "../compile/relativeMotionGeometry";
+const RELATIVE_MOTION_CONSTRUCTIONS = new Set<string>(RELATIVE_MOTION_OPERATORS);
+import { NETWORK_OPERATORS, validateNetworkConstruction } from "../compile/networkGeometry";
+const NETWORK_CONSTRUCTIONS = new Set<string>(NETWORK_OPERATORS);
+import { MECHANICS_DIAGRAM_OPERATORS, validateMechanicsDiagramConstruction } from "../compile/mechanicsDiagramGeometry";
+const MECHANICS_DIAGRAM_CONSTRUCTIONS = new Set<string>(MECHANICS_DIAGRAM_OPERATORS);
+import { CURRENT_FIELD_OPERATORS, validateCurrentFieldConstruction } from "../compile/currentFieldGeometry";
+import { CHAPTER_REMAINDER_OPERATORS, validateChapterRemainderConstruction } from "../compile/chapterRemainderGeometry";
+import { CHAPTER_INSTRUMENT_OPERATORS, validateChapterInstrumentConstruction } from "../compile/chapterInstrumentGeometry";
+const CURRENT_FIELD_CONSTRUCTIONS = new Set<string>(CURRENT_FIELD_OPERATORS);
+const CHAPTER_REMAINDER_CONSTRUCTIONS = new Set<string>(CHAPTER_REMAINDER_OPERATORS);
+const CHAPTER_INSTRUMENT_CONSTRUCTIONS = new Set<string>(CHAPTER_INSTRUMENT_OPERATORS);
 
 import { FLUID_OPERATORS, validateFluidConstruction } from "../compile/fluidGeometry";
 const FLUID_CONSTRUCTIONS = new Set<string>(FLUID_OPERATORS);
@@ -4288,6 +4300,12 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (isRecord(construction.inputs)) {
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
       if (MAGNETIC_CONSTRUCTIONS.has(construction.operator)) validateMagneticConstruction(construction, index, document, constructionByOutput, issues);
+      if (RELATIVE_MOTION_CONSTRUCTIONS.has(construction.operator)) validateRelativeMotionConstruction(construction, index, document, constructionByOutput, issues);
+      if (NETWORK_CONSTRUCTIONS.has(construction.operator)) validateNetworkConstruction(construction, index, document, constructionByOutput, issues);
+      if (MECHANICS_DIAGRAM_CONSTRUCTIONS.has(construction.operator)) validateMechanicsDiagramConstruction(construction, index, document, constructionByOutput, issues);
+      if (CURRENT_FIELD_CONSTRUCTIONS.has(construction.operator)) validateCurrentFieldConstruction(construction, index, document, constructionByOutput, issues);
+      if (CHAPTER_REMAINDER_CONSTRUCTIONS.has(construction.operator)) validateChapterRemainderConstruction(construction, index, document, constructionByOutput, issues);
+      if (CHAPTER_INSTRUMENT_CONSTRUCTIONS.has(construction.operator)) validateChapterInstrumentConstruction(construction, index, document, constructionByOutput, issues);
       if (FLUID_CONSTRUCTIONS.has(construction.operator)) validateFluidConstruction(construction, index, document, constructionByOutput, issues);
       if (HARMONIC_MOTION_CONSTRUCTIONS.has(construction.operator)) validateHarmonicMotionConstruction(construction, index, document, constructionByOutput, issues);
       if (GRAVITY_CONSTRUCTIONS.has(construction.operator)) validateGravityConstruction(construction, index, document, constructionByOutput, issues);

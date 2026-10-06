@@ -9,6 +9,12 @@ import { validateEvaluatedDerivedValueLabels } from "./derivedValueLabels";
 
 import { complexGeometryLabel, validateEvaluatedComplexLabels } from "./complexGeometry";
 import { magneticConstructionOutputLabels, validateEvaluatedMagneticLabels } from "./magneticGeometry";
+import { relativeMotionOutputLabels } from "./relativeMotionGeometry";
+import { networkOutputLabels } from "./networkGeometry";
+import { mechanicsOutputLabels } from "./mechanicsDiagramGeometry";
+import { currentFieldOutputLabels } from "./currentFieldGeometry";
+import { chapterRemainderOutputLabels } from "./chapterRemainderGeometry";
+import { chapterInstrumentOutputLabels } from "./chapterInstrumentGeometry";
 import { fluidGeometryLabel, validateEvaluatedFluidLabels } from "./fluidGeometry";
 
 import { harmonicMotionGeometryLabel, validateEvaluatedHarmonicMotionLabels } from "./harmonicMotionGeometry";
@@ -89,6 +95,47 @@ export function withEvaluatedOutputLabels(
     case "magnetic_components":
       validateEvaluatedMagneticLabels(construction, index, document, outputs, issues);
       labels = magneticConstructionOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      break;
+    case "velocity_triangle":
+    case "collinear_velocity_pair":
+    case "crossing_strategies":
+    case "parallel_guides":
+      labels = relativeMotionOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      break;
+    case "kirchhoff_network":
+      labels = networkOutputLabels(outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      break;
+    case "free_body":
+    case "coupled_bodies":
+    case "vertical_circle":
+    case "mechanical_energy_pair":
+      labels = mechanicsOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      break;
+    case "current_element_field":
+    case "conductor_force":
+    case "parallel_wire_force":
+    case "magnetic_dipole_field":
+    case "solenoid_field":
+      labels = currentFieldOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      break;
+    case "relative_velocity":
+    case "motion_graph":
+    case "uniform_circular_motion":
+    case "projectile_trajectory":
+    case "work_interval":
+    case "spring_energy":
+    case "potential_curve":
+    case "collision":
+    case "loop_torque":
+    case "galvanometer":
+    case "bar_magnet":
+      labels = chapterRemainderOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      break;
+    case "metre_bridge":
+    case "potentiometer":
+    case "incline_friction":
+    case "cyclotron":
+      labels = chapterInstrumentOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
       break;
     case "hydrostatic_profile":
     case "hydrostatic_state":
