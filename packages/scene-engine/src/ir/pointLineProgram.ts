@@ -1,4 +1,5 @@
 /** A source program for one stated coordinate point projected onto one stated linear equation. */
+import { readPointLineRequest } from "./pointLineRequest";
 import { certifiedPointLineProjection } from "../compile/analyticLineGeometry";
 import { readPointLineSourceLiterals, validatePointLineSourceInputs } from "./pointLineSource";
 import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemIR, type SolveResultBinding } from "./problemIR";
@@ -11,29 +12,15 @@ export type PointLineProgramReading =
   | { status: "ok"; point: { x: number; y: number; name?: string; origin?: true }; line: { a: number; b: number; c: number }; foot: { x: number; y: number }; distance: number; footName?: string };
 
 export function readPointLineProgram(question: string): PointLineProgramReading {
-  // Parse a mathematical request, not a chapter or question identifier. The
-  // literal reader must consume its whole geometry before any construction.
-  if (!/\b(?:distance|perpendicular\s+foot|foot\s+of\s+(?:the\s+)?perpendicular)\b/i.test(question)) return { status: "none" };
-  const source = readPointLineSourceLiterals(question);
-  if (source?.unreadPoint) return { status: "declined", reason: "a stated point is outside supported literal precision" };
-  if (!source || source.lines.length === 0 || source.points.length === 0) return { status: "none" };
-  if (source.unreadEquation || source.lines.length !== 1 || source.points.length !== 1
-    || /\b(?:space|three.dimensions|3D|planes?)\b/i.test(question)) return { status: "declined", reason: "one complete two-dimensional point and linear equation are required" };
-  let residue = question.replace(/[−–—]/g, "-").replace(/[·×]/g, "*").replace(/\s+/g, " ");
-  for (const span of [...source.spans].sort((a, b) => b.start - a.start)) residue = residue.slice(0, span.start) + (span.kind === "point" ? "@P" : "@L") + residue.slice(span.end);
-  const footRequest = String.raw`(?:perpendicular\s+foot|foot\s+of\s+(?:the\s+)?perpendicular)(?:\s+([A-Za-z][A-Za-z]?\d?'?))?`;
-  const request = new RegExp(String.raw`^(?:In Cartesian coordinate units,\s*)?(?:Find|Calculate|Determine)\s+(?:the\s+)?(?:(?:perpendicular\s+)?distance(?:\s+and\s+(?:the\s+)?${footRequest})?|${footRequest}(?:\s+and\s+(?:the\s+)?distance)?)\s+(?:of|from)\s+(?:the\s+)?(?:point\s+)?@P\s+(?:from|to)\s+(?:the\s+)?(?:line\s+)?@L[.?!]?$`, "i");
-  const matched = request.exec(residue.trim());
-  if (!matched) return { status: "declined", reason: "the complete requested projection is not consumed by the source grammar" };
-  const point = source.points[0]!;
-  const line = source.lines[0]!;
+  const request = readPointLineRequest(question, readPointLineSourceLiterals(question));
+  if (request.status !== "ok") return request;
+  const { point, line, footName } = request;
   let projection: ReturnType<typeof certifiedPointLineProjection>;
   try { projection = certifiedPointLineProjection(point, line); }
   catch { return { status: "declined", reason: "projection exceeds supported geometry precision" }; }
   const { foot, distance } = projection;
   // Keywords ignore case; identifiers retain case and accept one/two ASCII
   // letters, an optional digit and apostrophe. Names compare case-sensitively.
-  const footName = matched[1] ?? matched[2];
   if (footName && footName === point.name) return { status: "declined", reason: "source point and requested foot names conflict" };
   return { status: "ok", point, line, foot, distance, ...(footName ? { footName } : {}) };
 }

@@ -2,6 +2,7 @@ import { equalBinary64Products } from "../math/exactBinary64";
 import { certifiedPointLineProjection, evaluateAnalyticLineConstruction, isAnalyticLineOperator, type AnalyticLineEvaluationContext } from "../compile/analyticLineGeometry";
 import type { SceneDocument, SceneIssue } from "../types";
 import { derivedLabelTargets, readDerivedCoordinateLabelClaim } from "../compile/derivedValueLabels";
+import { readPointLineRequest, type PointLineRequestReading } from "./pointLineRequest";
 
 /**
  * Source lineage for `point_line_distance`.
@@ -101,10 +102,15 @@ export function validatePointLineSourceInputs(document: SceneDocument, question:
   const distances = document.constructions.flatMap((construction, index) =>
     construction.operator === "point_line_distance" ? [{ construction, index }] : [],
   );
-  if (distances.length === 0) return [];
-  if (typeof question === "string" && document.source.question !== question) return [{ code: "point_line_source_question", severity: "fatal", path: "source.question", message: "point-line geometry must bind to the exact submitted source question" }];
   const source = readPointLineSourceLiterals(question);
+  const request = readPointLineRequest(question, source);
+  const namedRequest = request.status === "ok" && request.footName !== undefined;
+  if (distances.length === 0 && !namedRequest) return [];
+  if (typeof question === "string" && document.source.question !== question) return [{ code: "point_line_source_question", severity: "fatal", path: "source.question", message: "point-line geometry must bind to the exact submitted source question" }];
   const issues: SceneIssue[] = [];
+  const context = documentContext(document);
+  if (request.status === "ok" && request.footName) checkRequestedPointIdentities(document, request, context, issues);
+  if (distances.length === 0) return issues;
   if (!source || source.lines.length === 0) {
     return [{
       code: "point_line_source_unsupported",
@@ -127,7 +133,6 @@ export function validatePointLineSourceInputs(document: SceneDocument, question:
       message: "point_line_distance declines a source that states several points, several lines or an unread equation: which pair is measured cannot be bound by value",
     }];
   }
-  const context = documentContext(document);
   const drawnLines = drawnLineCoefficients(document, context);
   for (const { construction, index } of distances) {
     const path = `constructions[${index}].inputs`;
@@ -214,6 +219,79 @@ export function validatePointLineSourceInputs(document: SceneDocument, question:
   return issues;
 }
 
+/** Source-owned names bind each producer/channel, independently of caller IDs. */
+function checkRequestedPointIdentities(document: SceneDocument, request: Extract<PointLineRequestReading, { status: "ok" }>, context: AnalyticLineEvaluationContext, issues: SceneIssue[]): void {
+  const footName = request.footName!;
+  const fail = (message: string, id?: string): void => {
+    issues.push({ code: "point_line_requested_identity", severity: "fatal", path: id ? `entities/${id}` : "constructions", message });
+  };
+  if (footName === request.point.name) fail("the requested foot and stated point must have distinct source identities");
+  let foot: Point;
+  try { foot = certifiedPointLineProjection(request.point, request.line).foot; }
+  catch { fail("the requested foot exceeds supported geometry precision"); return; }
+  const feet = new Set<string>();
+  const sources = new Set<string>();
+  const bind = (id: string, point: Point, name: string): void => {
+    // A correct annotation cannot cover an absent/wrong entity label; an ID
+    // that happens to spell the requested name is not visible source identity.
+    const label = document.entities.find(entity => entity.id === id)?.label;
+    let actual: string | undefined;
+    try { actual = labelName(label); } catch { /* captions report invalid notation below */ }
+    if (actual !== name) fail(`point label must retain the exact source identity ${name}`, id);
+    checkCoordinateCaptions(document, id, point, name, issues);
+  };
+  for (const producer of document.constructions) {
+    if (producer.operator === "project") {
+      try {
+        const input = producer.inputs.point ?? producer.inputs.source;
+        const point = resolvePointInput(input, context);
+        const line = context.geometry(producer.inputs.line ?? producer.inputs.onto) as { kind?: string; infinite?: boolean; analyticLine?: { coefficients?: Line } };
+        if (!exactPoint(point, request.point) || line.kind !== "path" || !line.infinite
+          || !line.analyticLine?.coefficients || !proportional(line.analyticLine.coefficients, request.line)) throw new Error("unbound projection");
+        if (typeof input === "string" && request.point.name && !request.point.origin) bind(input, request.point, request.point.name);
+        for (const id of producer.outputs) { feet.add(id); bind(id, foot, footName); }
+      } catch { fail("the requested foot must project the stated point onto the source-bound infinite line"); }
+    }
+    if (producer.operator === "point") {
+      for (const id of producer.outputs) {
+        try {
+          const point = context.point(id);
+          // At true incidence both named points may share coordinates, but
+          // each still needs its own source identity.
+          const namedFootAtIncidence = exactPoint(point, request.point) && samePoint(point, foot)
+            && labelName(document.entities.find(entity => entity.id === id)?.label) === footName;
+          if (exactPoint(point, request.point) && !namedFootAtIncidence) {
+            sources.add(id);
+            if (labelName(document.entities.find(entity => entity.id === id)?.label) === footName) fail("the source point cannot carry the requested foot identity", id);
+            if (request.point.name && !request.point.origin) bind(id, request.point, request.point.name);
+          } else {
+            if (!samePoint(point, foot)) throw new Error("unbound literal foot");
+            feet.add(id); bind(id, foot, footName);
+          }
+        } catch { fail("an auxiliary literal point must be the independently computed requested foot", id); }
+      }
+    }
+  }
+  if (sources.size === 0) fail("the stated point must retain a distinct source-bound point entity");
+  if (feet.size === 0) fail("the complete request requires its named perpendicular foot");
+  for (const id of feet) {
+    if (!document.requiredEntityIds.includes(id) || !document.revealGroups.some(group => group.entityIds.includes(id))) {
+      fail("the requested foot must be required and included in a reveal group", id);
+    }
+  }
+  for (const entity of document.entities.filter(entity => entity.kind === "line")) {
+    try {
+      if (labelName(entity.label) === footName) fail("the requested foot identity cannot name the source line", entity.id);
+    } catch { fail("the source line cannot carry an unsupported point identity caption", entity.id); }
+  }
+}
+
+function labelName(text: unknown): string | undefined {
+  if (typeof text !== "string") return undefined;
+  const trimmed = text.trim();
+  return /^[A-Za-z][A-Za-z]?\d?'?$/.test(trimmed) ? trimmed : coordinateClaim(trimmed)?.name;
+}
+
 function checkCoordinateCaptions(document: SceneDocument, id: string, point: Point, name: string | undefined, issues: SceneIssue[]): void {
   let targets: Set<string>;
   try { targets = derivedLabelTargets(document, id); }
@@ -221,10 +299,16 @@ function checkCoordinateCaptions(document: SceneDocument, id: string, point: Poi
   const texts = [
     ...document.entities.filter(entity => targets.has(entity.id)).flatMap(entity => typeof entity.label === "string" ? [entity.label] : []),
     ...document.annotations.filter(annotation => annotation.targetIds.some(target => targets.has(target))).flatMap(annotation => typeof annotation.text === "string" ? [annotation.text] : []),
+    ...document.constructions.filter(construction => construction.operator === "label" && targets.has(String(construction.inputs.target ?? construction.inputs.at ?? construction.inputs.point)))
+      .flatMap(construction => typeof construction.inputs.text === "string" ? [construction.inputs.text] : []),
   ];
   for (const text of texts) {
     let claim: ReturnType<typeof readDerivedCoordinateLabelClaim>;
-    try { claim = coordinateClaim(text); }
+    try {
+      claim = coordinateClaim(text);
+      const captionName = labelName(text);
+      if (captionName && name && captionName !== name) issues.push({ code: "point_line_coordinate_caption", severity: "fatal", path: `entities/${id}`, message: "each point label channel must retain its source identity", actual: text });
+    }
     catch { issues.push({ code: "point_line_coordinate_caption", severity: "fatal", path: `entities/${id}`, message: "point captions must contain supported finite quantitative notation", actual: text }); continue; }
     if (claim && (claim.unit && !["1", "unit", "units"].includes(claim.unit)
       || claim.name && name && claim.name !== name || !samePoint(point, { x: claim.values[0], y: claim.values[1] }))) {
