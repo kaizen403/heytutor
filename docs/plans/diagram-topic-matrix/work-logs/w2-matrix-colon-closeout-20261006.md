@@ -1,0 +1,13 @@
+# Current matrix live claim closeout
+
+Integration_pending; READY4/FULLY0 and accepted ledger untouched. Existing matrix work only; user canceled further topic expansion.
+
+Awake actual run1805-w2-f8389f35 on69eaea43 hit120019ms. Its complete primary Plan's C3 is true: Matrix multiplication is not commutative here: AB != BA. The existing proof recognizes two other complete local phrasings but not this one. Original alternate full Plan and full fact-only IR independently prove. Source authority declined the selected primary before and after IR. Long unfinished33-segment text teaching also exceeded the guard. This is distinct from previous1645 host sleep/network failure.
+
+One exact whole local colon statement is added to the existing claim grammar. Both source ordered products, local equality/non-equality, related product identities and the entire expected relation are independently checked as before. This is no substring waiver, source grammar expansion, global commutativity assertion or Plan correction. Both current complete original model Plans and whole IR/wire are copied unchanged. Exact products remain AB[[4,4],[10,8]], BA[[2,4],[7,10]].
+
+New122 checks PASS in source and genuine own built public exports: both actual unchanged Plans/fullIR/normal API/normal app28marks; four existing independently fixed renamed/fractional/rectangular/equal-product source cases;24 whole contradictory or extra-colon conjuncts refuse app/registry without changing original Plan. The normal API result has audit.status not_applicable, because fullIR is fact-only, rather than a numeric solver verification. Initial gate mistakenly read result.status/rawProblemIR; that harness assertion failed in both lanes, retained colon-source.log/public.log. It was corrected to the actual normal result shape and full problemIR equality, not changed product expectations or production behavior.
+
+Own frozen deps, drawing/engine/core builds PASS Node24.21/pnpm10.32; existing445 matrix gate PASS; engine types/lint PASS with inherited warnings; diff whitespace PASS. Final logs colon-source-corrected.log, colon-public-corrected.log, existing445.log, colon-types.log, colon-lint.log in /Users/kaizen/heytutor-claude-coord/reviews/w2-matrix-awake-diagnosis-20261006. Diagnostic complete callers and original failed120receipt remain external immutable evidence.
+
+Fresh independent review, integration and new live whole lesson/restarted replay remain pending. No READY, chapter/accepted counts, Chemistry, new topic, main or remote change. Earlier matrix legacy placeholder/pruning regressions remain recorded in c8 parent review; this patch does not waive them.

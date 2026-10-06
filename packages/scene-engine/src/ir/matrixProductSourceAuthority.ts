@@ -126,6 +126,7 @@ function claimProved(source: Program, plan: TurnPlanV3, claim: TurnPlanV3["quali
   const statement = equal ? "commutative" : "not commutative";
   const claims = [
     `Matrix multiplication is ${statement} here`,
+    `Matrix multiplication is ${statement} here: ${first.name} ${equal ? "=" : "!="} ${second.name}`,
     `${first.name} and ${second.name} ${equal ? "are equal" : "differ"}, so matrix multiplication is ${statement} here`,
   ];
   return claims.includes(claim.claim)
