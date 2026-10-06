@@ -3,7 +3,8 @@
 import { snapshotMathSourceData } from "../compile/mathSourceData";
 import { validateProblemIR, expressionToSafeSource, type ProblemIR, type ExpressionNodeIR, type SolveResultBinding } from "./problemIR";
 import { readPointLineProgram, type PointLineProgramReading } from "./pointLineProgram";
-import { readPointLineSourceLiterals } from "./pointLineSource";
+import { readPointLineSourceLiterals, pointLineCaptionAgrees } from "./pointLineSource";
+import { createPlanarArithmeticProof, type PlanarProofRole } from "./planarArithmeticProof";
 import { validateTurnPlanV3 } from "../contracts/contractsV3";
 import { hasOnlyFiniteBinomialPlanFields } from "./finiteBinomialPlanAuthority";
 import { parseMathExpression } from "../math/expression";
@@ -103,6 +104,7 @@ export function bindPointLineCaller(question:string,raw:unknown):PointLineCaller
   const lines=problem.entities.filter(e=>e.kind==="line" && only(e.evidenceFactIds,"line"));
   if(points.length!==1 || lines.length!==1)return null;
   const point=points[0]!,line=lines[0]!;
+  if(!pointLineCaptionAgrees(line.label,reading.line))return null;
   if(reading.point.name && !reading.point.origin && (point.label??point.id)!==reading.point.name)return null;
   const additional=problem.entities.filter(e=>e!==point && e!==line);
   if(additional.length>1)return null;
@@ -146,78 +148,6 @@ export function bindPointLineCaller(question:string,raw:unknown):PointLineCaller
   return {problem,reading,pointId:point.id,lineId:line.id,...(foot?{footId:foot.id}:{}),footIdentity,outputs};
 }
 
-/** Prove a closed arithmetic expression, never sample a function at x=0.
- * Every identifier occurrence must bind before any operation is evaluated,
- * including variables in zero products, cancelled terms and function calls.
- * The temporary AST preserves the submitted operators; originals stay intact. */
-function scalar(text:string,values:Map<string,number>):number|null{
-  const source=text.trim().replace(/\|([^|]+)\|/g,"abs($1)");
-  if(!source || source.length>256)return null;
-  const tokens:string[]=[],pattern=/\s*(?:(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)|([A-Za-z][A-Za-z0-9_]*'?)|([-+*/^()]))/y;
-  let position=0;
-  while(position<source.length){
-    if(/^\s*$/.test(source.slice(position)))break;
-    pattern.lastIndex=position;const match=pattern.exec(source);
-    if(!match || tokens.length>=128)return null;
-    tokens.push(match[1]??match[2]??match[3]!);position=pattern.lastIndex;
-  }
-  let at=0;
-  const enter=(depth:number)=>{if(depth>=24)throw new Error("arithmetic depth exceeded");return depth+1;};
-  const sum=(depth:number):ExpressionNodeIR=>{
-    let left=product(depth);
-    while(tokens[at]==="+" || tokens[at]==="-"){const op=tokens[at++] as "+"|"-";left=B(op,left,product(depth));}
-    return left;
-  };
-  const product=(depth:number):ExpressionNodeIR=>{
-    let left=unary(depth);
-    while(tokens[at]==="*" || tokens[at]==="/"){const op=tokens[at++] as "*"|"/";left=B(op,left,unary(depth));}
-    return left;
-  };
-  const unary=(depth:number):ExpressionNodeIR=>{
-    if(tokens[at]==="+" || tokens[at]==="-"){const operator=tokens[at++] as "+"|"-";return {kind:"unary",operator,operand:unary(enter(depth))};}
-    const left=primary(depth);
-    return tokens[at]==="^" ? (at++,B("^",left,unary(enter(depth)))) : left;
-  };
-  const primary=(depth:number):ExpressionNodeIR=>{
-    const token=tokens[at++];if(!token)throw new Error("missing operand");
-    if(token==="(" || token==="sqrt" || token==="abs"){
-      if(token!=="(" && tokens[at++]!=="(")throw new Error("missing function argument");
-      const argument=sum(enter(depth));if(tokens[at++]!==")")throw new Error("unclosed group");
-      return token==="("?argument:C(token,argument);
-    }
-    if(/^(?:\d|\.)/.test(token))return N(Number(token));
-    const value=values.get(token);if(value===undefined)throw new Error("unbound operand");
-    return N(value);
-  };
-  try{const root=sum(0);return at===tokens.length?evaluate(root):null;}catch{return null;}
-}
-function splitTuple(text:string):string[]|null{
-  if(!text.startsWith("(") || !text.endsWith(")"))return null;
-  let depth=0,index=-1;
-  for(let i=1;i<text.length-1;i++){const c=text[i];if(c==="(")depth++;if(c===")")depth--;if(c==="," && depth===0){if(index!==-1)return null;index=i;}}
-  return index>0?[text.slice(1,index),text.slice(index+1,-1)]:null;
-}
-function mathValue(text:string,values:Map<string,number>,binding:PointLineCallerBinding):number[]|null{
-  // Whitespace separates tokens; never join an unbound `x _P` into `x_P`.
-  const source=text.trim(),tuple=splitTuple(source);
-  if(tuple){const xy=tuple.map(t=>scalar(t,values));return xy.every(v=>v!==null)?xy as number[]:null;}
-  // Vector projection written in its standard affine form.
-  const vector=/^([A-Za-z][A-Za-z]?\d?'?)\s*-\s*\((.*)\)\s*\*\s*\(\s*a\s*,\s*b\s*\)$/.exec(source);
-  if(vector && vector[1]===(binding.reading.point.name??binding.pointId)){
-    const scale=scalar(vector[2]!,values);if(scale===null)return null;
-    return [binding.reading.point.x-scale*binding.reading.line.a,binding.reading.point.y-scale*binding.reading.line.b];
-  }
-  if(source===binding.footIdentity)return [binding.reading.foot.x,binding.reading.foot.y];
-  const scaled=/^-\s*\((.*)\)\s*\*\s*\((.*)\)$/.exec(source);
-  if(scaled){const k=scalar(scaled[1]!,values),pair=splitTuple(`(${scaled[2]})`);if(k!==null && pair){const result=pair.map(t=>scalar(t,values));if(result.every(v=>v!==null))return result.map(v=>-k*v!);}}
-  const n=scalar(source,values);return n===null?null:[n];
-}
-function equationChain(text:string,values:Map<string,number>,binding:PointLineCallerBinding,expected?:number[]):boolean{
-  const parts=text.split("=");if(parts.length<2)return false;
-  const rows=parts.map(p=>mathValue(p,values,binding));if(rows.some(r=>!r))return false;
-  const first=expected??rows[0]!;
-  return rows.every(r=>r!.length===first.length && r!.every((v,i)=>close(v,first[i]!)));
-}
 /** Original model claims are accepted only as complete, proved propositions.
  * Unsupported prose, actor hints and equations decline rather than vanish. */
 function planAgreement(binding:PointLineCallerBinding,raw:unknown):boolean{
@@ -227,6 +157,7 @@ function planAgreement(binding:PointLineCallerBinding,raw:unknown):boolean{
   const plan=checked.plan;if(plan.question!==problem.question || plan.teachingSequenceHints?.length)return false;
   const values=new Map<string,number>([["a",r.line.a],["b",r.line.b],["c",r.line.c],["s",r.line.a*r.point.x+r.line.b*r.point.y+r.line.c],["n2",r.line.a**2+r.line.b**2]]);
   const p=r.point.name??binding.pointId;
+  const proof=createPlanarArithmeticProof({pointName:p,footName:binding.footIdentity,point:r.point,line:r.line,resultSymbols:binding.outputs.map(o=>({symbol:o.binding.symbol,role:o.role}))});
   values.set(`x_${p}`,r.point.x);values.set(`y_${p}`,r.point.y);
   values.set(`x_${binding.footIdentity}`,r.foot.x);values.set(`y_${binding.footIdentity}`,r.foot.y);values.set("d",r.distance);values.set("distance",r.distance);
   const ids=new Map<string,number>();
@@ -247,7 +178,11 @@ function planAgreement(binding:PointLineCallerBinding,raw:unknown):boolean{
     if(row.sign!==undefined && row.sign!=="unsigned" && row.sign!==(value>0?"positive":value<0?"negative":"zero"))return false;
     ids.set(row.id,value);values.set(row.symbol,value);
   }
-  for(const row of plan.derived){if(!row.sourceText || !equationChain(row.sourceText,values,binding,[row.value]))return false;}
+  for(const row of plan.derived){
+    const output=binding.outputs.find(o=>o.binding.turnPlanQuantityId===row.id);
+    const role:PlanarProofRole=output?.role ?? (row.symbol==="s"?"residual":"norm");
+    if(!row.sourceText || !proof.proves(row.sourceText,role))return false;
+  }
   const state=new Map<string,number>();
   function visit(id:string):boolean{
     if(state.get(id)===1)return false;if(state.get(id)===2)return true;state.set(id,1);
@@ -276,13 +211,13 @@ function planAgreement(binding:PointLineCallerBinding,raw:unknown):boolean{
   for(const claim of plan.qualitativeClaims){
     if(!claim.relatedQuantityIds?.length || claim.relatedQuantityIds.some(id=>!ids.has(id)) || claim.relatedEntityHints?.some(h=>h!==p && !(h.startsWith("line ") && lineQuote(h.slice(5)))) || typeof claim.expected!=="string")return false;
     const propositions=["Perpendicular distance from point to line ax+by+c=0","Foot of perpendicular from P to the line".replace("P",p),"Check: foot lies on the line","Foot lies on the given line","Perpendicular foot is P shifted along the line normal (a,b) by the signed residual over norm squared".replace("P",p),`Segment ${p}${binding.footIdentity} is parallel to the normal vector (${r.line.a},${r.line.b}), hence perpendicular to the line`];
-    if(!propositions.includes(claim.claim) || !equationChain(claim.expected,values,binding))return false;
+    if(!propositions.includes(claim.claim))return false;
     if(claim.claim===propositions[5] && r.distance===0)return false;
     const roles:Role[]=claim.claim===propositions[0]?["distance"]:["x","y"];
     if(roles.some(role=>!binding.outputs.some(output=>output.role===role && claim.relatedQuantityIds!.includes(output.binding.turnPlanQuantityId))))return false;
     // The proposition's answer must be the proved role, not just any tautology.
-    const expected=claim.claim===propositions[0]?[r.distance]:[propositions[1],propositions[4]].includes(claim.claim)?[r.foot.x,r.foot.y]:claim.claim===propositions[5]?[r.foot.x-r.point.x,r.foot.y-r.point.y]:[0];
-    if(!equationChain(claim.expected,values,binding,expected))return false;
+    const role:PlanarProofRole=claim.claim===propositions[0]?"distance":[propositions[1],propositions[4]].includes(claim.claim)?"foot":claim.claim===propositions[5]?"displacement":"incidence";
+    if(!proof.proves(claim.expected,role))return false;
   }
   return true;
 }

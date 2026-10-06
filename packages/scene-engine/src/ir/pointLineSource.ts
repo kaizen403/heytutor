@@ -430,6 +430,16 @@ function pointName(input: unknown, document: SceneDocument): string | undefined 
   return /^[A-Za-z][A-Za-z]?\d?'?$/.test(input) ? input : undefined;
 }
 
+/** An original IR line caption may be a name or a complete linear equation.
+ * Mathematical captions must prove the source coefficients; never rewrite it. */
+export function pointLineCaptionAgrees(label: string | undefined, line: Line): boolean {
+  if (label === undefined) return true;
+  const text = label.trim();
+  if (/^[A-Za-z][A-Za-z0-9_'′]*$/.test(text)) return true;
+  const caption = parseLinearEquation(text.replace(/[−–—]/g, "-").replace(/[·×]/g, "*"));
+  return caption !== null && proportional(caption, line);
+}
+
 function proportional(first: Line, second: Line): boolean {
   // Bind the numeric source roles exactly. Dyadic rationals preserve every
   // binary64 bit; a large intercept never authorizes changing a given.
