@@ -178,7 +178,7 @@ export function verifyMeasurementSourceAuthority(problemRaw: unknown, planRaw: u
   catch { return {status: "declined", problem: null, plan: emptyMeasurementPlan(expectedQuestion ?? ""), values: {}, issues: [{code: "invalid_source_data", message: "The entire measurement caller must be bounded own data."}], numericalAuthority: null}; }
   const problemResult = validateProblemIR(captured.problem, expectedQuestion);
   const problem = problemResult.problem;
-  const fail = (code: string, message: string, values: Partial<Record<MeasurementRole, MeasurementValue>> = {}): MeasurementAuthorityResult => ({ status: "declined", problem, plan: withdrawUnsupported(validateTurnPlanV3(captured.plan, expectedQuestion).plan), values, issues: [{ code, message }], numericalAuthority: null });
+  const fail = (code: string, message: string, values: Partial<Record<MeasurementRole, MeasurementValue>> = {}): MeasurementAuthorityResult => ({ status: "declined", problem: problem ? problemRaw as ProblemIR : null, plan: withdrawUnsupported(validateTurnPlanV3(captured.plan, expectedQuestion).plan), values, issues: [{ code, message }], numericalAuthority: null });
   if (!problem) return fail("invalid_problem_ir", problemResult.issues.map(i => `${i.path}: ${i.message}`).join("; "));
   if (!hasOnlyEvaluateProblemFields(problem)) return fail("uncovered_problem_field", "Every actual measurement IR field must have supported source semantics.");
   if (!hasOnlyFiniteBinomialPlanFields(captured.plan)) return fail("uncovered_plan_field", "The entire actual measurement Plan must use recognized protocol fields.");
@@ -220,7 +220,9 @@ export function verifyMeasurementSourceAuthority(problemRaw: unknown, planRaw: u
   // even if the chosen scalar was already correct. The unknown+derived same ID
   // is a legitimate pair, not a duplicate quantity.
   const clean = retainBoundPlan(plan, target, expected, corrected);
-  return { status: "verified", problem, plan: clean, values: v,
+  // Proof uses the immutable own-data capture, while the return contract keeps
+  // the validated original complete caller object. No selected graph is made.
+  return { status: "verified", problem: problemRaw as ProblemIR, plan: clean, values: v,
     issues: [
       ...(corrected ? [{ code: "source_value_corrected", quantityId: target.id, message: `Corrected the fully joined circular division count to ${expected}.` }] : []),
       ...(clean.derived.length !== plan.derived.length || clean.unknowns.length !== plan.unknowns.length || clean.qualitativeClaims.length !== plan.qualitativeClaims.length ? [{ code: "unsupported_plan_outputs_withdrawn", message: "Withdrew all unsupported numeric outputs, unknowns and claims; retained only the fully proved requested count." }] : []),
