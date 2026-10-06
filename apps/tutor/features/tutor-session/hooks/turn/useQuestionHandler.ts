@@ -2187,7 +2187,7 @@ export function useQuestionHandler(
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
           // Reject the whole paired speech/ink beat before either queue sees it.
-          if (!arithmeticAdmission.offer(bufferedSegment)) { bufferedSegment = null; return; }
+          if (!arithmeticAdmission.offer(bufferedSegment, { deferCommit: true })) { bufferedSegment = null; return; }
           // A resumed lecture must not queue its opening figure until a
           // spoken-and-written step passes the ink gate. Otherwise an intro
           // can keep drawing after a no-ink resume reports failure.
@@ -2224,15 +2224,17 @@ export function useQuestionHandler(
             ensureFigureIntro();
           }
           for (const seg of queuedSegments) {
+            const alignedSegment = normalizeSegmentForAlignment(seg);
             const readySegments = resumeInkGate
-              ? resumeInkGate.offer(normalizeSegmentForAlignment(seg))
-              : [seg];
+              ? resumeInkGate.offer(alignedSegment)
+              : [alignedSegment];
             // Enqueue the figure before the first accepted writing segment,
             // never before an attempt that may still fail for lack of ink.
             if (resumeInkGate && readySegments.length > 0) enqueueLessonOpening();
             if (readySegments.some((segment) => /[\p{L}\p{N}]/u.test(segment.narration))) usableTeachingStepReceived = true;
             for (const ready of readySegments) {
               enqueueSegment(ready, turnGeneration);
+              arithmeticAdmission.commitReleased(ready);
             }
           }
           if (

@@ -64,6 +64,8 @@ export interface DrawCommand {
   type: DrawCommandType;
   params: number[];
   text?: string;
+  /** Parser WRITE notation before board normalization, for arithmetic admission. */
+  sourceText?: string;
   charPosition: number;
   narrationBefore: string;
   syncable?: boolean;
@@ -305,11 +307,18 @@ export function parseNumericParams(rawParams: string): number[] {
     .filter((param) => Number.isFinite(param));
 }
 
-export function parseTextCommandParams(rawParams: string): { text: string; params: number[] } {
+export function parseTextCommandParams(
+  rawParams: string,
+  options: { mathMarkup?: boolean } = {},
+): { text: string; sourceText: string; params: number[] } {
   const parts = rawParams.split(',');
+  const result = (sourceText: string, params: number[]) => {
+    const text = options.mathMarkup ? unwrapMathMarkup(sourceText) : sourceText;
+    return { text: params.length ? normalizeBoardText(text) : text, sourceText, params };
+  };
 
   if (parts.length < 3) {
-    return { text: rawParams.trim(), params: [] };
+    return result(rawParams.trim(), []);
   }
 
   const last = Number(parts.at(-1)?.trim());
@@ -325,16 +334,14 @@ export function parseTextCommandParams(rawParams: string): { text: string; param
     Number.isFinite(secondLast) &&
     Number.isFinite(thirdLast)
   ) {
-    const text = normalizeBoardText(parts.slice(0, -3).join(',').trim());
-    return { text, params: [thirdLast, secondLast, last] };
+    return result(parts.slice(0, -3).join(',').trim(), [thirdLast, secondLast, last]);
   }
 
   if (!Number.isFinite(secondLast) || !Number.isFinite(last)) {
-    return { text: rawParams.trim(), params: [] };
+    return result(rawParams.trim(), []);
   }
 
-  const text = normalizeBoardText(parts.slice(0, -2).join(',').trim());
-  return { text, params: [secondLast, last] };
+  return result(parts.slice(0, -2).join(',').trim(), [secondLast, last]);
 }
 
 export function parseDimensionCommandParams(rawParams: string): { text: string; params: number[] } {
@@ -430,7 +437,7 @@ export function parseDrawCommandFromTag(
       ? { text: rawParams.trim(), params: [] }
       : type === 'WRITE'
       // Teaching rows arrive with LaTeX delimiters; the pen draws plain math.
-      ? parseTextCommandParams(unwrapMathMarkup(rawParams))
+      ? parseTextCommandParams(rawParams, { mathMarkup: true })
       : type === 'LABEL'
       ? parseTextCommandParams(rawParams)
       : type === 'DIMENSION'
@@ -441,6 +448,8 @@ export function parseDrawCommandFromTag(
     type,
     params: parsed.params,
     text: parsed.text,
+    ...(type === 'WRITE' && 'sourceText' in parsed && typeof parsed.sourceText === 'string'
+      ? { sourceText: parsed.sourceText } : {}),
     charPosition,
     narrationBefore: normalizeNarration(narrationBefore),
   };
