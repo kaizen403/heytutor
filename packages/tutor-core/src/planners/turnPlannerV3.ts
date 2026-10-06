@@ -428,16 +428,20 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
         declined: reconciled.declined.map((item) => ({ quantity_id: item.quantityId, reason: item.reason })),
       });
     }
-    const result = validateTurnPlanV3(reconciled.plan, question);
-    if (result.plan) {
-      // Report only: the optics audit never changes a plan value. The ProblemIR
-      // solver checks the numbers afterwards and is the numeric authority.
+    const validation = validateTurnPlanV3(reconciled.plan, question);
+    let result = validation;
+    if (validation.plan) {
+      // The optics audit never changes a plan value. A value that disagrees
+      // with a law evaluated under an unambiguously detected sign convention
+      // rejects the lane like any fatal validation issue, so consensus takes
+      // the other lane or falls back instead of teaching the wrong value when
+      // the ProblemIR solver is unavailable. Declined laws stay non fatal.
       // The trace keeps a copy taken before the audit, so a gate can prove it changed nothing.
-      if (trace) trace.preOptics = structuredClone(result.plan);
-      const opticsAudit = reconcileTurnPlanWithOpticsLaws(result.plan);
+      if (trace) trace.preOptics = structuredClone(validation.plan);
+      const opticsAudit = reconcileTurnPlanWithOpticsLaws(validation.plan);
       if (trace) trace.optics = opticsAudit;
       if (opticsAudit.inconsistencies.length > 0) {
-        tutorDebug("planner", "turn plan v3 optics law inconsistency (value left unchanged)", {
+        tutorDebug("planner", "turn plan v3 optics law mismatch (lane rejected)", {
           law_ids: opticsAudit.checkedLawIds,
           inconsistencies: opticsAudit.inconsistencies.map((item) => ({
             quantity_id: item.quantityId,
@@ -445,6 +449,12 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
             law_value: item.lawValue,
           })),
         });
+        result = {
+          ...validation,
+          valid: false,
+          plan: null,
+          issues: [...validation.issues, ...opticsLawMismatchIssues(opticsAudit)],
+        };
       }
       if (opticsAudit.declined.length > 0) {
         // A declined law leaves the plan's value standing unverified; say so.
@@ -476,6 +486,15 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
     });
     return null;
   }
+}
+
+/** One fatal issue per plan value that disagrees with an unambiguously evaluated optics law. */
+function opticsLawMismatchIssues(audit: OpticsPlanAuditResult): TurnPlanValidationIssue[] {
+  return audit.inconsistencies.map((item) => ({
+    code: "optics_law_mismatch",
+    path: `derived.${item.quantityId}`,
+    message: `${item.quantityId} is ${item.planValue} but ${item.lawId} gives ${item.lawValue}`,
+  }));
 }
 
 function normalizePlannerTurnPlan(value: unknown, question: string): unknown {

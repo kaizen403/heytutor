@@ -268,10 +268,13 @@ const arithmetic = {
   declined: [] as string[],
 };
 const optics = {
-  /** The audit is report only; any lane whose plan it changed is a regression. */
+  /** The audit never changes a value; any lane whose plan it changed is a regression. */
   changedLanes: [] as string[],
-  /** Plan values that disagree with an optics law; reported, never applied. */
+  /** Plan values that disagree with an optics law; never applied, the lane is rejected. */
   inconsistencies: [] as string[],
+  /** Lanes rejected for optics_law_mismatch, with whether their asked value was right. */
+  rejectedRight: [] as string[],
+  rejectedWrong: [] as string[],
   /** Laws the audit refused to evaluate; the plan value stands unverified. */
   declined: [] as string[],
 };
@@ -325,6 +328,11 @@ function replayLane(lane: LaneFixture, q: Question): TurnPlanV3 | null {
     for (const item of trace.optics.inconsistencies) {
       optics.inconsistencies.push(`${tag}: ${item.lawId} ${item.quantityId} plan ${item.planValue}, law ${item.lawValue}`);
     }
+    if (!plan && trace.issues?.some((issue) => issue.code === "optics_law_mismatch")) {
+      const before = askedValue(trace.preOptics, q);
+      const entry = `${tag}: asked ${showAsked(before)} (truth ${q.truth} ${q.unit})`;
+      (verdict(before, q) === "correct" ? optics.rejectedRight : optics.rejectedWrong).push(entry);
+    }
   }
   return plan;
 }
@@ -374,6 +382,8 @@ const metrics: Record<string, number> = {
   nonAskedRewritesByFactor: arithmetic.nonAskedByFactor.length,
   opticsChangedLanes: optics.changedLanes.length,
   opticsInconsistencies: optics.inconsistencies.length,
+  opticsLawMismatchLanes: rejectedByCode.get("optics_law_mismatch") ?? 0,
+  opticsRejectedRightLanes: optics.rejectedRight.length,
 };
 
 const list = (label: string, items: string[], always = false) => {
@@ -403,7 +413,10 @@ console.log(`  declined for mixed units (value left unverified): ${arithmetic.de
 list("declined", arithmetic.declined);
 list("wrong->right", arithmetic.wrongToRight);
 list("neutral", arithmetic.neutral);
-console.log(`optics law audit (report only): plans changed ${metrics.opticsChangedLanes}, inconsistencies reported ${metrics.opticsInconsistencies}`);
+console.log(`optics law audit: plans changed ${metrics.opticsChangedLanes}, inconsistencies reported ${metrics.opticsInconsistencies}`);
+console.log(`  lanes rejected for optics_law_mismatch: ${metrics.opticsLawMismatchLanes} (asked value right ${optics.rejectedRight.length}, wrong or missing ${optics.rejectedWrong.length})`);
+list("rejected with a right asked value", optics.rejectedRight, true);
+list("rejected with a wrong asked value", optics.rejectedWrong, true);
 list("changed", optics.changedLanes, true);
 list("inconsistent", optics.inconsistencies);
 console.log(`optics law declines (value left unverified): ${optics.declined.length}`);

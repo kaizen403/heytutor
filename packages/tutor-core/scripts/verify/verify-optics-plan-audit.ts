@@ -1,9 +1,9 @@
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { reconcileTurnPlanWithOpticsLaws, type OpticsPlanAuditResult } from "../../src/planners/opticsPlanAudit";
 
-// The audit is report only: it must never change a plan value. A plan value
-// that disagrees with a law under an unambiguous convention is reported as an
-// inconsistency carrying the law's value; the plan comes back untouched.
+// The audit must never change a plan value. A plan value that disagrees with a
+// law under an unambiguous convention is reported as an inconsistency carrying
+// the law's value (turnPlannerV3 then rejects the lane); the plan comes back untouched.
 const closeTo = (actual: number, expected: number) =>
   Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected));
 function auditUnchanged(name: string, plan: TurnPlanV3): OpticsPlanAuditResult {
@@ -457,14 +457,49 @@ for (const [name, question] of [
 // The wording that review found overwriting a right value: the object lies
 // behind the lens and the beam converging on it is refracted, so the object is
 // virtual. Cartesian: u = +10, f = +20, v = 20/3 (about 6.67 cm). Reading the
-// object as real gives -20. The plan's v must stand, whatever the audit reads:
-// the audit still reads this wording as a real object and reports -20, which
-// is a log line only, never a value change.
+// object as real gives -20. A reported mismatch now rejects the planner lane,
+// so this wording must decline and the plan's v must stand.
 const behindLens = virtualLens("An object lies 10 cm behind a convex lens of focal length 20 cm, with a converging beam refracted by it. Find the image.");
-const behindLensAudit = auditUnchanged("virtual object behind the lens", behindLens);
-if (!closeTo(behindLensAudit.plan.derived.find((item) => item.id === "v")?.value ?? Number.NaN, 20 / 3)) {
-  throw new Error(`virtual object behind the lens: v no longer stands at 20/3: ${JSON.stringify(behindLensAudit)}`);
-}
+expectAudit("virtual object behind the lens", behindLens, { declined: /virtual/ });
+// An image behind the element is still a real object's image and stays audited.
+expectAudit("image behind the lens keeps the audit", virtualLens(
+  "An object stands 10 cm in front of a convex lens of focal length 20 cm; the image forms behind the lens. Find v.",
+), { reported: { v: -20 } });
+
+// A reported mismatch rejects the lane, so a value rounded to the precision it
+// states must match. Concave mirror, Cartesian: u = -30, f = -20, v = -60.
+// Convex lens, Cartesian: u = -60, f = +20, v = 30. Thin lens, u = -25, f = 15:
+// 1/v = 1/15 - 1/25 = 2/75, v = 37.5. Real-is-positive mirror u = 30, f = 20
+// with an unsigned v compares by size.
+const precisionLens = (v: number, sign?: "unsigned") => opticsPlan({
+  question: "An object stands 25 cm in front of a convex lens of focal length 15 cm.",
+  lawIds: ["thin lens formula"],
+  givens: { u: { value: -25 }, f: { value: 15 } },
+  derived: { v: { value: v, ...(sign ? { sign } : {}) } },
+});
+expectAudit("rounded to stated precision matches: 37.5", precisionLens(37.5), {});
+expectAudit("rounded to stated precision matches: 37.50", precisionLens(37.50), {});
+expectAudit("rounded to stated precision matches: 38 within 2%", precisionLens(38), {});
+// Diverging lens, Cartesian: u = -20, f = -20, v = -10. An unsigned 10.0 is the size.
+expectAudit("unsigned magnitude compares by size", opticsPlan({
+  question: "An object stands 20 cm in front of a diverging lens of focal length 20 cm.",
+  lawIds: ["thin lens formula"],
+  givens: { u: { value: -20 }, f: { value: -20 } },
+  derived: { v: { value: 10.0, sign: "unsigned" } },
+}), {});
+expectAudit("unsigned magnitude still reports a wrong size", precisionLens(40, "unsigned"), { reported: { v: 37.5 } });
+expectAudit("beyond stated precision reports: 36", precisionLens(36), { reported: { v: 37.5 } });
+expectAudit("beyond stated precision reports: 37.2", precisionLens(37.2), { reported: { v: 37.5 } });
+const thirdLens = (v: number) => opticsPlan({
+  question: "An object stands 15 cm in front of a convex lens of focal length 10 cm.",
+  lawIds: ["thin lens formula"],
+  givens: { u: { value: -15 }, f: { value: 10 } },
+  derived: { v: { value: v } },
+});
+// u = -15, f = 10: 1/v = 1/10 - 1/15 = 1/30, v = 30. Integer answers stay exact.
+expectAudit("integer answer matches", thirdLens(30), {});
+expectAudit("integer answer 30.0 matches", thirdLens(30.0), {});
+expectAudit("integer slip reports", thirdLens(29), { reported: { v: 30 } });
 
 // Report only, in every configuration above: a plan with every value wrong
 // still comes back as the same object with the same values.

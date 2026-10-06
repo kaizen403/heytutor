@@ -2,12 +2,14 @@ import {
   auditTurnPlanV3,
   createFallbackTurnPlanV3,
   explicitDiagramRequest,
+  parseTurnPlanV3Content,
   planTurnV3,
   questionRequiresVisual,
   selectTurnPlanV3Consensus,
   TURN_PLAN_V3_PROMPT,
   TURN_PLAN_V3_PROMPT_BASELINE_CHARS,
   TURN_PLAN_V3_VISUAL_GROUNDING,
+  type TurnPlanV3ParseTrace,
 } from "../../src/planners/turnPlannerV3";
 
 const originalFetch = globalThis.fetch;
@@ -408,6 +410,74 @@ try {
   }
   if (parametricPlan.turnPlan.givens.some((quantity) => quantity.id === "x_t" || quantity.id === "y_t")) {
     throw new Error("symbolic formula givens were kept as numeric quantities");
+  }
+
+  // A lane whose value disagrees with an unambiguously evaluated optics law is
+  // rejected like a fatal validation issue, so a wrong value is never taught
+  // when the ProblemIR solver is unavailable. Concave mirror, Cartesian:
+  // u = -6, f = -12, 1/v = 1/f - 1/u = 1/12, v = +12. The slip v = 4 must reject.
+  const mirrorQuestion = "An object is 6 cm in front of a concave mirror of focal length 12 cm. Find the image distance.";
+  const opticsLane = (
+    planQuestion: string,
+    given: { u: number; f: number; sign?: "negative" },
+    v: number,
+    lawId: string,
+  ) => JSON.stringify({
+    schemaVersion: "turn-plan/v3",
+    question: planQuestion,
+    givens: [
+      { id: "u", symbol: "u", value: given.u, unit: "cm", ...(given.sign ? { sign: given.sign } : {}), provenance: "given" },
+      { id: "f", symbol: "f", value: given.f, unit: "cm", ...(given.sign ? { sign: given.sign } : {}), provenance: "given" },
+    ],
+    unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
+    derived: [{ id: "v", symbol: "v", value: v, unit: "cm", provenance: "derived", dependsOn: ["u", "f"] }],
+    qualitativeClaims: [],
+    lawIds: [lawId],
+    assumptions: [],
+    visualRequirement: "required",
+  });
+  const mirrorLane = (v: number) => opticsLane(mirrorQuestion, { u: -6, f: -12, sign: "negative" }, v, "mirror formula");
+  const wrongTrace: TurnPlanV3ParseTrace = {};
+  if (parseTurnPlanV3Content(mirrorLane(4), mirrorQuestion, wrongTrace) !== null ||
+    !wrongTrace.issues?.some((issue) => issue.code === "optics_law_mismatch")) {
+    throw new Error(`a mirror lane with v = 4 against the law's 12 was not rejected: ${JSON.stringify(wrongTrace.issues)}`);
+  }
+  const rightTrace: TurnPlanV3ParseTrace = {};
+  for (const v of [12, 12.0, 12.00]) {
+    if (!parseTurnPlanV3Content(mirrorLane(v), mirrorQuestion, rightTrace)) {
+      throw new Error(`a mirror lane with v = ${v} was rejected: ${JSON.stringify(rightTrace.issues)}`);
+    }
+  }
+  // A virtual object the audit declines on stays a valid lane: u = +10 behind
+  // the lens, f = +20, v = 20/3. Reading the object as real would give -20.
+  const behindQuestion = "An object lies 10 cm behind a convex lens of focal length 20 cm, with a converging beam refracted by it. Find the image distance.";
+  const behindTrace: TurnPlanV3ParseTrace = {};
+  if (!parseTurnPlanV3Content(opticsLane(behindQuestion, { u: 10, f: 20 }, 6.67, "thin lens formula"), behindQuestion, behindTrace) ||
+    behindTrace.issues?.some((issue) => issue.code === "optics_law_mismatch") ||
+    !behindTrace.optics?.declined.length) {
+    throw new Error(`a declined virtual object lane was rejected or audited: ${JSON.stringify({ issues: behindTrace.issues, optics: behindTrace.optics?.declined })}`);
+  }
+  // Consensus takes the other lanes when one lane is rejected, and the turn
+  // plan fails over to the fallback when every lane and the retry are rejected.
+  const opticsLanesSeen: string[] = [];
+  let wrongLanes: "first" | "all" = "first";
+  globalThis.fetch = async (_input, init) => {
+    const headers = new Headers(init?.headers);
+    const lane = headers.get("x-turn-planner-lane") ?? "";
+    opticsLanesSeen.push(lane);
+    const wrong = wrongLanes === "all" || opticsLanesSeen.length === 1;
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: mirrorLane(wrong ? 4 : 12) } }],
+    }), { status: 200 });
+  };
+  const opticsConsensus = await planTurnV3(mirrorQuestion, { proxyUrl: "http://planner.test", timeoutMs: 1000 });
+  const consensusV = opticsConsensus?.turnPlan.derived.find((quantity) => quantity.id === "v")?.value;
+  if (opticsLanesSeen.length < 2 || consensusV !== 12) {
+    throw new Error(`a rejected optics lane reached consensus: v = ${consensusV}, lanes ${opticsLanesSeen.join(",")}`);
+  }
+  wrongLanes = "all";
+  if (await planTurnV3(mirrorQuestion, { proxyUrl: "http://planner.test", timeoutMs: 1000 })) {
+    throw new Error("every optics lane was wrong, yet planTurnV3 returned a plan");
   }
 
   console.log("turn planner V3 verification passed");

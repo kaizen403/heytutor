@@ -8,10 +8,10 @@ import {
 
 /**
  * A plan value that disagrees with a recognized optics law under an
- * unambiguously detected sign convention. Reported only: the audit never
- * rewrites the plan, because the ProblemIR solver is the numeric authority and
- * a misread configuration (a virtual object read as real) would otherwise
- * overwrite a correct value.
+ * unambiguously detected sign convention. The audit never rewrites the plan,
+ * because a misread configuration (a virtual object read as real) would
+ * otherwise overwrite a correct value; turnPlannerV3 rejects the lane instead,
+ * so a wrong value is never taught when the ProblemIR solver is unavailable.
  */
 export interface OpticsPlanInconsistency {
   lawId: OpticsLawId;
@@ -325,8 +325,8 @@ function auditDerivedQuantity(
     const signedValue = fromBaseUnit(baseValue, target.unit, dimension);
     // A quantity the plan marks unsigned is a magnitude; compare magnitudes only.
     const lawValue = target.sign === "unsigned" ? Math.abs(signedValue) : signedValue;
-    if (approximatelyEqual(target.value, lawValue)) continue;
-    if (conventionSigned && approximatelyEqual(Math.abs(target.value), Math.abs(lawValue))) {
+    if (matchesWithinStatedPrecision(target.value, lawValue)) continue;
+    if (conventionSigned && matchesWithinStatedPrecision(Math.abs(target.value), Math.abs(lawValue))) {
       declined.push({ lawId, reason: `${target.id} matches in size but its sign follows a different convention than the givens` });
       continue;
     }
@@ -436,6 +436,8 @@ const VIRTUAL_OBJECT_CUE = new RegExp([
   String.raw`\bvirtual\s+object`,
   String.raw`\b(?:directed|aimed|heading|incident)\s+(?:at|to|towards?)\s+(?:a|the)\s+point\b`,
   String.raw`\b(?:acts?|serves?|behaves?|treated|used)\s+as\s+(?:an?\s+|the\s+)?(?:\w+\s+)?object\b`,
+  // An object placed behind or beyond the element sits where light leaves it: a virtual object.
+  String.raw`\bobject\s+(?:(?:is|lies|sits|stands|placed|located|situated|kept|positioned)\s+)*(?:at\s+)?(?:a\s+(?:point|distance)\s+(?:of\s+)?)?(?:\d+(?:\.\d+)?\s*(?:cm|mm|m)\s+)?(?:behind|beyond)\b`,
 ].join("|"), "i");
 
 /**
@@ -714,8 +716,24 @@ function normalizeUnit(value: string | undefined): string {
     .replace(/diopters?/g, "diopter");
 }
 
-function approximatelyEqual(first: number, second: number): boolean {
-  return Math.abs(first - second) <= Math.max(1e-10, Math.abs(second) * 1e-9);
+/**
+ * A reported mismatch rejects the planner lane, so a plan value rounded to the
+ * precision it states must still match: 6.67 matches 6.6667 and 12.0 matches 12.
+ * The tolerance is half a unit in the plan value's last stated decimal place,
+ * capped at 2% of the law value so an integer such as 4 cannot absorb 4.4, with
+ * a floor of 0.5% for values stated to more places than the law supports.
+ */
+function matchesWithinStatedPrecision(planValue: number, lawValue: number): boolean {
+  const scale = Math.abs(lawValue);
+  const halfLastPlace = 0.5 * 10 ** -statedDecimalPlaces(planValue);
+  const tolerance = Math.max(1e-10, scale * 0.005, Math.min(halfLastPlace, scale * 0.02));
+  return Math.abs(planValue - lawValue) <= tolerance * (1 + 1e-9);
+}
+
+function statedDecimalPlaces(value: number): number {
+  const [mantissa, exponent] = Math.abs(value).toString().toLowerCase().split("e");
+  const fraction = mantissa?.split(".")[1]?.length ?? 0;
+  return Math.max(0, fraction - Number(exponent ?? 0));
 }
 
 function radiansToDegrees(value: number): number {
