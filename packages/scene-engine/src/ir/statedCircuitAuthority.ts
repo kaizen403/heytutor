@@ -595,6 +595,7 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
     if (binding) answerBindings.set(id, binding);
   }
   const derived: TurnPlanQuantityV3[] = [];
+  const incompatibleUnknownIds = new Set<string>();
   for (const quantity of plan.derived) {
     if (ambiguousIds.has(quantity.id)) {
       issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: "duplicate quantity identity" });
@@ -613,8 +614,15 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
     // Requested IDs and their declared unknown symbol must agree with the
     // source request and dependency role, independently of the numeric result.
     const unknown = plan.unknowns.find(row => row.id === quantity.id);
-    const unknownBinding = unknown && statedCircuitSymbolBinding(solution, dimension[0], unknown.symbol);
-    if (options.requireBoundClaims && (!strict || (unknownBinding && !sameOwner(unknownBinding, strict)))) {
+    const unknownDimension = unknown?.unit === undefined ? dimension[0] : dimensionOf(unknown.unit)?.[0];
+    const unknownBinding = unknown && unknownDimension === dimension[0]
+      ? statedCircuitSymbolBinding(solution, unknownDimension, unknown.symbol)
+      : undefined;
+    const unknownConflict = options.requireBoundClaims && unknown !== undefined && (
+      unknownDimension !== dimension[0] || (unknownBinding !== undefined && (!strict || !sameOwner(unknownBinding, strict)))
+    );
+    if (unknownConflict) incompatibleUnknownIds.add(unknown.id);
+    if (options.requireBoundClaims && (!strict || unknownConflict)) {
       issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: `${quantity.symbol} request/symbol/dependencies do not bind one source role` });
       continue;
     }
@@ -679,7 +687,8 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
   });
   const derivedIds = new Set(complete.map((quantity) => quantity.id));
   const givenIds = new Set(givens.map((quantity) => quantity.id));
-  const unknowns = plan.unknowns.filter((unknown) => derivedIds.has(unknown.id) || givenIds.has(unknown.id) || !dimensionOf(unknown.unit));
+  const unknowns = plan.unknowns.filter((unknown) => !incompatibleUnknownIds.has(unknown.id) &&
+    (derivedIds.has(unknown.id) || givenIds.has(unknown.id) || !dimensionOf(unknown.unit)));
   const qualitativeClaims = plan.qualitativeClaims.filter((claim) => (claim.relatedQuantityIds ?? []).every((id) => derivedIds.has(id) || givenIds.has(id)));
   return { plan: { ...plan, givens, derived: complete, unknowns, qualitativeClaims }, solution, issues };
 }
