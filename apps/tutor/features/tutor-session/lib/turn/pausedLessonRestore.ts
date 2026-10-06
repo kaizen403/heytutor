@@ -105,7 +105,16 @@ function turnScene(turn: StoredTurn): PersistedTurnScene {
  */
 export function pausedLessonFromStoredTurns(
   turns: readonly StoredTurn[],
-  options: { boardId: string; now?: number },
+  options: {
+    boardId: string;
+    now?: number;
+    /**
+     * This tab is still teaching the turn. When given, a turn that reads
+     * `live` but is not live here is stopped: the tab that taught it died or
+     * lost its keepalive close, so nothing will ever stop it sooner.
+     */
+    isLiveHere?: (turnId: string) => boolean;
+  },
 ): PausedLessonRequest | null {
   if (!options.boardId || turns.length === 0) return null;
   const page = pageTurnsEndingAt(turns);
@@ -118,7 +127,10 @@ export function pausedLessonFromStoredTurns(
     (turn) => storedTurnKind(turn) !== "doubt" && turn.question.trim() === lessonQuestion,
   );
   const last = chain.at(-1);
-  if (!last || storedTurnStatus(last, options.now) !== "stopped") return null;
+  if (!last) return null;
+  const lastStatus = storedTurnStatus(last, options.now);
+  const orphaned = lastStatus === "live" && options.isLiveHere !== undefined && !options.isLiveHere(last.id);
+  if (lastStatus !== "stopped" && !orphaned) return null;
   if (!chain.some((turn) => turn.segments.some(segmentTaught))) return null;
 
   // The plan lives on the turn that opened the lesson; a resume that had to

@@ -25,7 +25,7 @@ export type LectureExportSource = {
   /** Every turn on the board, oldest first, the live turn last. */
   turns: StoredTurn[];
   /** Clips held in memory, by segment id. Copies, owned by the source. */
-  audioBytes: ReadonlyMap<string, Uint8Array>;
+  audioBytes: Map<string, Uint8Array>;
   /** The lesson is live or stopped, so the file ends at the current point. */
   partial: boolean;
   /** Id of the live turn when it is part of the source. */
@@ -152,6 +152,48 @@ export function buildLectureExportSource(input: {
     (live !== null && live.status !== "complete") ||
     (last !== undefined && storedTurnIsPartial(last));
   return { turns, audioBytes, partial, liveTurnId: live?.id ?? null };
+}
+
+/** Reads one in-tab clip. Started at once, so a URL revoked later is already being read. */
+async function readLocalClip(url: string): Promise<Uint8Array | null> {
+  const response = await fetch(url);
+  if (!response.ok) return null;
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+/**
+ * Copies the bytes of the snapshot's in-tab clips (`blob:` URLs) into the
+ * snapshot. A save answer can swap a turn's URLs and the next lesson revokes
+ * the old ones, while a running export reads its cues one at a time: without
+ * the copy, later cues would turn silent. Call it at the click, before any
+ * await: every read starts synchronously. A clip that cannot be read stays a
+ * URL (and exports as silence if that fails too). Server clips are untouched.
+ */
+export function captureLocalClips(
+  source: Pick<LectureExportSource, "turns" | "audioBytes">,
+  read: (url: string) => Promise<Uint8Array | null> = readLocalClip,
+): Promise<void> {
+  const reads: Array<Promise<void>> = [];
+  for (const turn of source.turns) {
+    for (const segment of turn.segments) {
+      const url = segment.audioUrl;
+      if (!url || !url.startsWith("blob:") || source.audioBytes.has(segment.id)) continue;
+      const id = segment.id;
+      let pending: Promise<Uint8Array | null>;
+      try {
+        pending = read(url);
+      } catch {
+        continue;
+      }
+      reads.push(pending.then(
+        (bytes) => {
+          if (bytes && bytes.length > 0 && !source.audioBytes.has(id)) source.audioBytes.set(id, bytes);
+        },
+        () => undefined,
+      ));
+    }
+  }
+  return Promise.all(reads).then(() => undefined);
 }
 
 /** Clip lookup for `buildLectureAudioTrack`: in-memory bytes before any URL. */

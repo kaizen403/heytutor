@@ -253,6 +253,13 @@ const resumeOf = (status: StoredTurn["status"], rows: string[], narration = "So 
     "a turn still being taught elsewhere is not offered");
   assert(pausedLessonFromStoredTurns([live(now - 121_000)], { boardId: BOARD, now }),
     "a live turn idle past two minutes reads as stopped and is offered");
+  // A crashed tab or a lost keepalive close leaves a fresh turn reading live.
+  // No tab on this page teaches it, so it is stopped at once.
+  const orphan = live(now - 5_000);
+  assert(pausedLessonFromStoredTurns([orphan], { boardId: BOARD, now, isLiveHere: () => false }),
+    "a live turn no tab here teaches is offered at once, not after two minutes");
+  assert.equal(pausedLessonFromStoredTurns([orphan], { boardId: BOARD, now, isLiveHere: (id) => id === orphan.id }), null,
+    "a turn this tab still teaches is not offered");
   const legacy = { ...validatedLesson(), status: undefined };
   assert.equal(pausedLessonFromStoredTurns([legacy], { boardId: BOARD }), null, "legacy turns read as complete");
 
@@ -399,6 +406,7 @@ function loadTurnControl(log: Log, speaking: { current: string }, runSegment: (.
           dropIntroRows: (_owner: unknown, generation: number) => log.push(`dropIntroRows ${generation}`),
           recordRow() {},
           setResumeState() {},
+          isLiveHere: (turnId: string) => liveHereIds.has(turnId),
         }),
       };
     }
@@ -408,6 +416,8 @@ function loadTurnControl(log: Log, speaking: { current: string }, runSegment: (.
   return hookModule.exports.useTurnControl as typeof import("../../features/tutor-session/hooks/turn/useTurnControl").useTurnControl;
 }
 const pageRef: { current: BoardPageRecord | null } = { current: null };
+/** Turns the stubbed save registry says this tab is still teaching. */
+const liveHereIds = new Set<string>();
 
 function mount(options: { runSegment?: (...args: unknown[]) => Promise<void> } = {}) {
   const log: Log = [];
@@ -640,6 +650,20 @@ async function main() {
     assert.equal(busy.control.restorePausedLesson([validatedLesson()]), null, "a turn owns the board: not yet");
     busy.idle();
     assert(busy.control.restorePausedLesson([validatedLesson()]), "and offered once it is idle");
+
+    // Reopened before the two minute cutoff: the saved turn still reads live.
+    const fresh = { ...validatedLesson("live"), updatedAt: Date.now() };
+    const reopened = mount();
+    reopened.idle();
+    assert.equal(reopened.control.restorePausedLesson([fresh])?.lessonQuestion, LESSON,
+      "a live turn no tab here owns offers Continue on a quick reopen");
+    // This tab is still teaching it: not yet, and the null is not kept.
+    liveHereIds.add(fresh.id);
+    const teaching = mount();
+    teaching.idle();
+    assert.equal(teaching.control.restorePausedLesson([fresh]), null, "a turn this tab teaches is not offered");
+    liveHereIds.delete(fresh.id);
+    assert(teaching.control.restorePausedLesson([fresh]), "once it ends here the board is derived again");
   }
 
   // ---------------------------------------------------------------------------

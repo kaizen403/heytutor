@@ -17,7 +17,8 @@
  * - `pagehide` sends the keepalive close before halting, in the capture phase;
  *   `beforeunload` prompts only with unsent data; telemetry's page away body
  *   gives room to the close.
- * - Reopening a board waits for its saves; a stopped code lesson is not
+ * - Reopening a board waits for its saves and keeps this tab's unsaved turns
+ *   over the server copy; a stopped code lesson is not
  *   marked complete; the shell gets the save status, retry, and the live turn.
  *
  * Slices are taken between two anchors, and both must exist: a missing end
@@ -166,6 +167,15 @@ const check = (condition: unknown, message: string) => {
     "await fetchBoardDetail(boardId);",
   );
   check(/const RESTORE_SAVE_DRAIN_MS = 8_000;/.test(source), "for at most 8 s");
+  inOrder(restore, "a failed or slow save's local turns are laid over the older server copy before the board is drawn",
+    "await fetchBoardDetail(boardId);",
+    "storedTurnsRef.current = detail?.turns ?? [];",
+    "for (const local of liveTurnSave().reopen(boardId)) mirrorLiveTurnRef.current(local);",
+    "const turns = storedTurnsRef.current;",
+    "conversationHistoryRef.current = compactConversationHistory(",
+    "for (const turn of turns) {",
+  );
+  checks += 1;
   check(restore.includes('if (codeLesson && storedTurnStatus(turn) === "complete") {'),
     "a stopped code lesson is not marked complete");
   check(!/\n\s*if \(codeLesson\) \{\s*codeLessonControllerRef\?\.current\?\.markLessonComplete\(\);/.test(restore),

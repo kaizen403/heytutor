@@ -1357,11 +1357,18 @@ export function useTurnControl(
     ) {
       return null;
     }
+    // A saved turn that reads live is stopped unless this tab is still
+    // teaching it (a crashed tab or a lost keepalive close leaves it live for
+    // two minutes). One this tab teaches ends later: derive then, not now, so
+    // a passing null is never kept as the board's answer.
+    const save = liveTurnSave();
+    const isLiveHere = (turnId: string) => save.isLiveHere(turnId);
+    if (turns.some((turn) => isLiveHere(turn.id))) return null;
     restoredOfferBoardRef.current = sessionId;
     // The saved turns win over a snapshot this tab took before the board was
     // redrawn from them (a board switch stops the lesson on the way out): the
     // restored figure is whole, and the server may know of a later turn.
-    const restored = pausedLessonFromStoredTurns(turns, { boardId: sessionId });
+    const restored = pausedLessonFromStoredTurns(turns, { boardId: sessionId, isLiveHere });
     if (!restored) {
       if (held) clearPausedLesson();
       return null;

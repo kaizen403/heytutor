@@ -318,8 +318,8 @@ export async function exportLectureMp4(options: {
       );
     };
 
-    /** Capture the board as it is now and encode it as `frame`. */
-    const encodeFrame = async (frame: number, mediaMs: number) => {
+    /** Capture the board as it is now and encode it as `frame`. True when the picture changed. */
+    const encodeFrame = async (frame: number, mediaMs: number): Promise<boolean> => {
       const captured = options.whiteboard.captureFrame({ pixelRatio: 1, hideCursor: false });
       if (!captured) {
         throw new Error("Lecture export could not capture the board.");
@@ -338,13 +338,14 @@ export async function exportLectureMp4(options: {
       }
       const sample = sampleLectureFrame(composeCanvas, sampleCanvas);
       if (holdSample && lectureFramesLookSame(holdSample, sample)) {
-        return;
+        return false;
       }
       copyFrameToCanvas(composeCanvas, nextCanvas);
       await flushHold(frame);
       copyFrameToCanvas(nextCanvas, holdCanvas);
       holdSample = sample;
       holdStartFrame = frame;
+      return true;
     };
 
     const cancelEncode = async (): Promise<never> => {
@@ -383,6 +384,7 @@ export async function exportLectureMp4(options: {
 
     // The audio has ended; the drawing may not have. Keep the clock moving and
     // keep encoding until the last mark is down, bounded by the tail limit.
+    let tailChanged = false;
     const tail = await drainExportTail({
       clock: options.clock,
       drawPromise,
@@ -390,7 +392,9 @@ export async function exportLectureMp4(options: {
       startMs: lectureExportMediaMs(totalFrames * LECTURE_EXPORT_FRAME_MS),
       stepMs: lectureExportMediaMs(LECTURE_EXPORT_FRAME_MS),
       limitMs: options.tailLimitMs,
-      onStep: (mediaMs, step) => encodeFrame(totalFrames + step, mediaMs),
+      onStep: async (mediaMs, step) => {
+        if (await encodeFrame(totalFrames + step, mediaMs)) tailChanged = true;
+      },
     });
     if (tail.cancelled) {
       await cancelEncode();
@@ -403,7 +407,10 @@ export async function exportLectureMp4(options: {
       options.clock.pump();
     }
     tailTruncated = !tail.settled;
-    const encodedFrames = totalFrames + tail.steps;
+    // The tail's one frame only confirmed the end (the last marks were already
+    // in the file): it does not lengthen the file. A frame that put marks
+    // down is kept.
+    const encodedFrames = totalFrames + (tail.settled && tail.steps === 1 && !tailChanged ? 0 : tail.steps);
     await flushHold(encodedFrames);
     encodedFileMs = Math.max(fileTotalMs, encodedFrames * LECTURE_EXPORT_FRAME_MS);
 

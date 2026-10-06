@@ -147,7 +147,10 @@ async function main(): Promise<void> {
     assert.notEqual(fits.tail, "hung", "a lesson whose ink fits its audio must finish");
     if (fits.tail === "hung") return;
     assert.equal(fits.tail.settled, true);
-    assert.equal(fits.tail.steps, 0, "ink inside the audio adds no tail frames: the file is as before");
+    // The timeline's last wait ends on the first advance: that one frame is
+    // sampled (it could hold marks), and the encoder drops it when the picture
+    // did not change, so the file is as before.
+    assert.equal(fits.tail.steps, 1, "ink inside the audio adds only the one frame that confirms the end");
     assert.equal(fits.draw, "resolved");
   }
 
@@ -206,6 +209,68 @@ async function main(): Promise<void> {
     );
   }
 
+  {
+    // The drawing finishes on the tail's very first advance: the marks that
+    // advance put down need a frame, or the file ends without them.
+    let now = 0;
+    let finish: () => void = () => {};
+    const drawPromise = new Promise<void>((done) => {
+      finish = done;
+    });
+    const pumpedAt: number[] = [];
+    const clock = {
+      now: () => now,
+      setNow: (ms: number) => {
+        now = ms;
+      },
+      pump: () => {
+        pumpedAt.push(now);
+        if (now >= 3_000) finish();
+      },
+      pendingCount: () => 0,
+    };
+    const stepTimes: number[] = [];
+    const lastMark = await withinWall(
+      drainExportTail({
+        clock,
+        drawPromise,
+        shouldCancel: () => false,
+        startMs: 3_000,
+        stepMs: STEP_MS,
+        onStep: (mediaMs) => {
+          stepTimes.push(mediaMs);
+        },
+        yieldToHost: () => new Promise((done) => setTimeout(done, 0)),
+      }),
+    );
+    assert.notEqual(lastMark, "hung");
+    if (lastMark === "hung") return;
+    assert.equal(lastMark.settled, true);
+    assert.deepEqual(pumpedAt.slice(0, 1), [3_000], "the first advance is the one that lands the last mark");
+    assert.equal(lastMark.steps, 1, "the frame of that advance is encoded, so the final ink is in the file");
+    assert.deepEqual(stepTimes, [3_000], "sampled after the advance, at its instant");
+
+    // A drawing already finished before the tail adds no frame at all.
+    const pumpedEarly: number[] = [];
+    const finished = await withinWall(
+      drainExportTail({
+        clock: { ...clock, pump: () => pumpedEarly.push(now) },
+        drawPromise: Promise.resolve(),
+        shouldCancel: () => false,
+        startMs: 3_000,
+        stepMs: STEP_MS,
+        onStep: () => {
+          throw new Error("no tail frame for a finished drawing");
+        },
+        yieldToHost: () => new Promise((done) => setTimeout(done, 0)),
+      }),
+    );
+    assert.notEqual(finished, "hung");
+    if (finished === "hung") return;
+    assert.equal(finished.steps, 0, "a drawing done before the tail adds no frame: the file is as before");
+    assert.deepEqual(pumpedEarly, [], "and the clock is not moved");
+  }
+
   assert.equal(LECTURE_EXPORT_TAIL_LIMIT_MS, 8_000, "the owner's limit: at most 8 s after the last word");
 
   // The encoder must drain the tail, never await the drawing bare. Both
@@ -224,6 +289,10 @@ async function main(): Promise<void> {
     assert.ok(to > from, `exportLectureMp4.ts: end anchor "${endAnchor}" is gone; repoint this gate`);
     const tail = source.slice(from, to);
     assert.ok(tail.includes("drainExportTail("), "the encoder must drain the tail after the frame loop");
+    assert.ok(/if \(await encodeFrame\(totalFrames \+ step, mediaMs\)\) tailChanged = true;/.test(tail),
+      "the encoder notes whether a tail frame changed the picture");
+    assert.ok(tail.includes("const encodedFrames = totalFrames + (tail.settled && tail.steps === 1 && !tailChanged ? 0 : tail.steps);"),
+      "a tail frame that only confirmed the end does not lengthen the file; one that put marks down is kept");
     assert.equal(
       /await\s+drawPromise\b/.test(tail),
       false,

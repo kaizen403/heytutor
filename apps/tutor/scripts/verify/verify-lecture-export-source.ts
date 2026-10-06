@@ -24,6 +24,7 @@ import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
 import { buildLectureAudioTrack } from "../../lib/lecture-export/lectureAudioTrack";
 import {
   buildLectureExportSource,
+  captureLocalClips,
   lectureExportCueBytes,
   lectureExportHasContent,
   lessonDownloadFilename,
@@ -239,6 +240,45 @@ async function main(): Promise<void> {
   assert.equal(lessonDownloadFilename("   ", "pdf", false), "Lesson.pdf");
 
   {
+    // A saved turn's in-tab clips are blob URLs. A later lesson can revoke
+    // them while the export still reads its cues one at a time, so their
+    // bytes are copied into the snapshot at the click.
+    const stored = [
+      turn("t1", 1, "find v", [
+        segment(0, "", { command: clear, durationMs: 50 }),
+        segment(1, "so v equals sixty", { audioUrl: "blob:http://localhost/v" }),
+        segment(2, "and twelve", { audioUrl: "blob:http://localhost/w" }),
+        segment(3, "from the server", { audioUrl: "/api/media?key=s" }),
+      ]),
+    ];
+    const clips = new Map([["blob:http://localhost/v", new Uint8Array([7, 7])], ["blob:http://localhost/w", new Uint8Array([8])]]);
+    const revoked = new Set<string>();
+    const reads: string[] = [];
+    const read = async (url: string) => {
+      reads.push(url);
+      await Promise.resolve();
+      return clips.get(url) ?? null;
+    };
+    const source = buildLectureExportSource({ storedTurns: stored });
+    // A read started before the revoke still reads the clip; one after fails.
+    const capturing = captureLocalClips(source, (url) => (revoked.has(url) ? Promise.reject(new Error("revoked")) : read(url)));
+    assert.deepEqual(reads, ["blob:http://localhost/v", "blob:http://localhost/w"],
+      "every in-tab clip is read at the click, synchronously; server clips are not");
+    for (const url of clips.keys()) revoked.add(url);
+    stored[0]!.segments[1] = { ...stored[0]!.segments[1]!, audioUrl: "blob:http://localhost/fresh" };
+    await capturing;
+    const bytesOf = lectureExportCueBytes(source);
+    const cue = (id: string) => ({ segment: { id } }) as never;
+    assert.deepEqual(bytesOf(cue("seg-1")), new Uint8Array([7, 7]), "the stored clip is in the snapshot");
+    assert.deepEqual(bytesOf(cue("seg-2")), new Uint8Array([8]));
+    assert.equal(bytesOf(cue("seg-3")), null, "a server clip is still read by URL");
+    // A clip that cannot be read is not fatal.
+    const broken = buildLectureExportSource({ storedTurns: stored });
+    await captureLocalClips(broken, () => Promise.reject(new Error("revoked")));
+    assert.equal(lectureExportCueBytes(broken)(cue("seg-2")), null, "an unreadable clip stays silent");
+  }
+
+  {
     // The hook reads this source and refuses nothing for want of audio or an
     // idle phase. Both anchors are checked.
     const hook = readFileSync(
@@ -257,13 +297,20 @@ async function main(): Promise<void> {
     assert.ok(snapshot.includes("getLiveTurn?.()"), "downloads include the live turn");
     const video = between("const downloadVideo = useCallback(", "const downloadNotesPdf = useCallback(");
     assert.ok(video.includes("lectureExportCueBytes(source)"), "live clips are read from memory");
+    const runAt = video.indexOf("void (async () => {");
+    assert.ok(runAt > 0, "useLectureExport.ts: the export run anchor is gone; repoint this gate");
+    assert.ok(/const localClips = captureLocalClips\(source\);/.test(video.slice(0, runAt)),
+      "stored in-tab clips are captured at the click, before any await");
+    const run = video.slice(runAt);
+    assert.ok(run.indexOf("await localClips;") >= 0 && run.indexOf("await localClips;") < run.indexOf("exportLectureMp4("),
+      "and the export waits for them before it reads a cue");
     assert.equal(/phase\s*===\s*"idle"/.test(video), false, "a video downloads in any phase");
     assert.equal(/ExportableAudio|NO_AUDIO/.test(video), false, "a page without audio is not refused");
     const gating = between("const busy = downloadIsBusy(downloadState);", "const { raceWithCancel");
     assert.equal(/phase\s*===\s*"idle"/.test(gating), false, "the buttons are not gated on an idle lesson");
   }
 
-  console.log("verify-lecture-export-source: whole board to now, live tail pages, silence for missing clips");
+  console.log("verify-lecture-export-source: whole board to now, live tail pages, silence for missing clips, stored clips captured at the click");
 }
 
 void main().catch((error: unknown) => {

@@ -17,6 +17,12 @@
  * - a 409 resends from the server's count; complete is final
  * - the segment Stop cut off is saved without audio (decision 12) and never
  *   exported as a finished step
+ * - Stop in the first step of a doubt or resume keeps that cut step: the turn
+ *   waits for the segment's late cleanup before it counts as empty
+ * - a checkpoint that never answers is aborted after its timeout and retried,
+ *   so Stop and Try again still send
+ * - reopening a board hands back the turns the server does not hold in full,
+ *   and sends a save that gave up again
  * - the keepalive close fits its budget beside telemetry's page away body
  * - the local mirror lands only on the board that is still open
  * - `liveTurnFor` / `hasLiveTurn` / `statusFor` / `drained` / `hasUnsentData`
@@ -35,6 +41,9 @@ import {
 import { boardContinuationOf } from "../../lib/boards/boardContinuation";
 import { MAX_PAGE_AWAY_TELEMETRY_BYTES, MAX_TELEMETRY_BODY_BYTES } from "../../lib/obs/turnTelemetry";
 import {
+  CHECKPOINT_TIMEOUT_MS,
+  checkpointTimeoutMs,
+  CUT_ROW_GRACE_MS,
   LiveTurnSaveRegistry,
   SAVE_RETRY_DELAYS_MS,
   type LiveTurnMirrorEvent,
@@ -591,6 +600,123 @@ async function cutRowAndLiveTurn() {
   assert.equal(c.registry.hasLiveTurn(owner, "board-1"), false);
 }
 
+async function cutFirstStepOfDoubtOrResumeIsKept() {
+  for (const kind of ["doubt", "resume"] as const) {
+    const h = harness();
+    const mirrored: LiveTurnMirrorEvent[] = [];
+    h.registry.attach(owner, { openBoardId: () => "board-1", mirror: (event) => mirrored.push(event) });
+    const page = kind === "doubt"
+      ? doubtPageRecord({ boardId: "board-1", lessonQuestion: LESSON, title: "Why?", continuesBoard: true,
+        figureDrawn: false, turnPlan: null, solverProjection: null })
+      : lessonPageRecord("board-1", LESSON);
+    const { handle } = begin(h, { generation: 1, kind, continuesBoard: true, page });
+    // Stop lands first; the cut segment's cleanup records its row a moment later.
+    h.registry.closeOwner(owner);
+    await h.settle();
+    assert.equal(h.calls.length, 0, `${kind}: nothing to send before the cut row`);
+    await h.advance(CUT_ROW_GRACE_MS - 1);
+    h.registry.recordCutRow(owner, 1, row(`${kind} first step`));
+    await h.settle();
+    const cut = h.calls[0];
+    assert(cut && cut.method === "PUT", `${kind}: the first step Stop cut off is still saved`);
+    assert.equal(cut.turnId, handle.turnId);
+    assert.equal(cut.input.status, "stopped");
+    assert(cut.input.segments.some((r) => r.narration === `${kind} first step`), `${kind}: with its words and ink`);
+    assert(mirrored.at(-1)?.rows.some((r) => r.narration === `${kind} first step`), `${kind}: and the board's copy shows it`);
+    await h.ack(cut);
+    assert.equal(h.registry.statusFor("board-1").kind, "saved");
+  }
+  // No cut row comes: dropped after the wait, and the next turn is not held.
+  const e = harness();
+  begin(e, { generation: 1, kind: "resume", continuesBoard: true });
+  e.registry.closeOwner(owner);
+  await e.advance(CUT_ROW_GRACE_MS);
+  begin(e, { generation: 2 });
+  e.registry.recordRow(owner, 2, row("next lesson"), { intro: false });
+  await e.settle();
+  assert.equal(e.calls.length, 1, "an empty resume is dropped once its cut row did not come");
+  const next = e.calls[0]!;
+  assert(next.method === "PUT" && next.input.segments.some((r) => r.narration === "next lesson"));
+}
+
+async function hungCheckpointTimesOut() {
+  assert.equal(CHECKPOINT_TIMEOUT_MS, 30_000);
+  assert(checkpointTimeoutMs(4_000_000) > CHECKPOINT_TIMEOUT_MS, "big clips get longer");
+  assert(checkpointTimeoutMs(1e12) <= 120_000, "but the wait is bounded");
+  const h = harness();
+  const { handle } = begin(h, { generation: 1 });
+  h.registry.recordRow(owner, 1, row("first"), { intro: false });
+  await h.settle();
+  const hung = h.calls[0]!;
+  assert(hung.method === "PUT");
+  const timeout = checkpointTimeoutMs((hung.input.segments ?? []).reduce((n, r) => n + (r.audioBytes?.length ?? 0), 0));
+  assert(hung.input.signal, "the checkpoint can be aborted");
+  // The connection never answers. Stop meanwhile.
+  h.registry.recordRow(owner, 1, row("second"), { intro: false });
+  handle.close();
+  await h.advance(timeout - 1);
+  assert.equal(h.calls.length, 1, "one request in flight until the timeout");
+  assert.equal(hung.input.signal!.aborted, false);
+  await h.advance(1);
+  assert.equal(hung.input.signal!.aborted, true, "the hung request is aborted");
+  assert.equal(h.registry.statusFor("board-1").kind, "saving", "and retried, not failed");
+  await h.advance(SAVE_RETRY_DELAYS_MS[0]!);
+  const retried = h.calls[1];
+  assert(retried && retried.method === "PUT", "the retry goes out after the backoff");
+  assert.equal(retried.input.status, "stopped", "carrying the Stop");
+  assert.deepEqual(retried.input.segments.filter((r) => !isClear(r)).map((r) => r.narration), ["first", "second"]);
+  // A late answer from the aborted request changes nothing.
+  hung.resolve({ ok: false, status: 500, error: "late", reason: "server", retryable: true });
+  await h.settle();
+  assert.equal(h.calls.length, 2);
+  await h.ack(retried);
+  assert.equal(h.registry.statusFor("board-1").kind, "saved");
+  assert.equal(h.server.get(handle.turnId)!.status, "stopped");
+}
+
+async function reopenKeepsUnsavedTurns() {
+  // The save gave up on a network failure, then the student reopened the board.
+  const h = harness();
+  const { handle } = begin(h, { generation: 1 });
+  h.registry.recordRow(owner, 1, row("saved step"), { intro: false });
+  await h.settle();
+  await h.ack(h.calls[0]!);
+  h.registry.recordRow(owner, 1, row("unsaved step"), { intro: false });
+  handle.close();
+  await h.settle();
+  await h.fail(h.calls.at(-1)!, NETWORK);
+  for (const delay of SAVE_RETRY_DELAYS_MS) {
+    await h.advance(delay);
+    await h.fail(h.calls.at(-1)!, NETWORK);
+  }
+  assert.equal(h.registry.statusFor("board-1").kind, "failed");
+  const sent = h.calls.length;
+  const kept = h.registry.reopen("board-1");
+  assert.equal(kept.length, 1, "the unsaved lesson is handed back to the restore");
+  const local = kept[0]!;
+  assert(local.source === "local" && local.turnId === handle.turnId, "as the local copy, under the saved turn's id");
+  assert.equal(local.turn.status, "stopped");
+  assert.deepEqual(local.rows.filter((r) => !isClear(r)).map((r) => r.narration), ["saved step", "unsaved step"],
+    "with every row the student saw, not only the ones the server holds");
+  assert.equal(h.calls.length, sent + 1, "and the save is sent again");
+  assert.equal(h.registry.statusFor("board-1").kind, "saving");
+  await h.ack(h.calls.at(-1)!);
+  assert.equal(h.registry.statusFor("board-1").kind, "saved");
+  assert.deepEqual(h.registry.reopen("board-1"), [], "once the server holds it all, the server copy is enough");
+  assert.equal(h.calls.length, sent + 1);
+
+  // A final failure (storage full): kept locally, not sent again.
+  const q = harness();
+  const quota = begin(q, { generation: 1 });
+  q.registry.recordRow(owner, 1, row("step"), { intro: false });
+  quota.handle.close();
+  await q.settle();
+  await q.fail(q.calls[0]!, { ok: false, status: 413, error: "storage quota exceeded", reason: "quota", retryable: false });
+  assert.equal(q.registry.reopen("board-1").length, 1, "a lesson the server refused still shows on its board");
+  assert.equal(q.calls.length, 1, "a quota failure is not retried on its own");
+  assert.deepEqual(q.registry.reopen("board-2"), [], "never another board's turn");
+}
+
 async function keepaliveCloseFitsTheBudget() {
   assert(KEEPALIVE_CLOSE_MAX_BYTES + MAX_PAGE_AWAY_TELEMETRY_BYTES <= 64 * 1024,
     "the lesson close and telemetry's page away body fit one 64 KiB keepalive budget together");
@@ -655,9 +781,12 @@ async function main() {
   await refusedFigureSavesOnceAsText();
   await conflictResendsFromServerCount();
   await cutRowAndLiveTurn();
+  await cutFirstStepOfDoubtOrResumeIsKept();
+  await hungCheckpointTimesOut();
+  await reopenKeepsUnsavedTurns();
   await keepaliveCloseFitsTheBudget();
   await drainAndStatus();
-  console.log("verify-live-turn-save: coalescing, intro hold, close, doubt queue, backoff, offline, text only fallback, 409, cut row, keepalive budget, mirror, export and status verified");
+  console.log("verify-live-turn-save: coalescing, intro hold, close, doubt queue, backoff, offline, text only fallback, 409, cut row, cut first step of a doubt or resume, hung checkpoint timeout, reopen keeps unsaved turns, keepalive budget, mirror, export and status verified");
 }
 
 void main().catch((error) => {

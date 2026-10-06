@@ -71,6 +71,27 @@ export interface LiveTurnSaveEnv {
 export const SAVE_RETRY_DELAYS_MS: readonly number[] = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000];
 /** 409 resends in a row before a conflict is treated like any other retryable failure. */
 const MAX_CONFLICT_RESENDS = 3;
+/**
+ * How long a stopped turn with nothing saved waits for the segment Stop cut
+ * off. Stop closes the turn at once; the cut segment records its row from its
+ * own async cleanup a moment later. Only then may an empty doubt or resume be
+ * dropped.
+ */
+export const CUT_ROW_GRACE_MS = 5_000;
+/**
+ * A checkpoint that has not answered by then is aborted and retried, so a hung
+ * connection never holds up Stop, completion or Try again. Clips add time at
+ * a slow upload rate.
+ */
+export const CHECKPOINT_TIMEOUT_MS = 30_000;
+const CHECKPOINT_TIMEOUT_MAX_MS = 120_000;
+const CHECKPOINT_SLOW_UPLOAD_BYTES_PER_S = 50_000;
+
+/** The timeout for one checkpoint carrying `audioBytes` bytes of clips. */
+export function checkpointTimeoutMs(audioBytes: number): number {
+  const upload = Math.ceil(Math.max(0, audioBytes) / CHECKPOINT_SLOW_UPLOAD_BYTES_PER_S) * 1_000;
+  return Math.min(CHECKPOINT_TIMEOUT_MAX_MS, CHECKPOINT_TIMEOUT_MS + upload);
+}
 
 export interface LiveTurnBeginInput {
   /** The session that owns the turn (one per shell; the shell's cancel ref). */
@@ -179,6 +200,9 @@ interface LiveTurn {
   keepaliveCovered: number;
   retryTimer: unknown;
   hasRetryTimer: boolean;
+  /** Stopped with nothing to save yet: waiting for the cut segment's row. */
+  cutGraceTimer: unknown;
+  hasCutGrace: boolean;
   waitingOnline: boolean;
   attempt: number;
   conflicts: number;
@@ -313,6 +337,8 @@ export class LiveTurnSaveRegistry {
       keepaliveCovered: -1,
       retryTimer: null,
       hasRetryTimer: false,
+      cutGraceTimer: null,
+      hasCutGrace: false,
       waitingOnline: false,
       attempt: 0,
       conflicts: 0,
@@ -332,7 +358,7 @@ export class LiveTurnSaveRegistry {
       setPage: (page) => {
         turn.page = page;
       },
-      close: () => this.closeTurn(turn),
+      close: () => this.closeTurn(turn, { stopped: false }),
       complete: (completion) => this.completeTurn(turn, completion.rawResponse),
       submittedRows: () => this.previewRows(turn, { includeCut: true }),
     };
@@ -355,6 +381,7 @@ export class LiveTurnSaveRegistry {
     const turn = this.find(owner, generation);
     if (!turn || turn.status === "complete" || turn.cutRow || turn.final) return;
     turn.cutRow = { ...row, audioBytes: null, timings: null };
+    this.endCutGrace(turn);
     if (turn.status === "stopped") {
       this.mirrorLocal(turn);
       this.emit();
@@ -386,7 +413,7 @@ export class LiveTurnSaveRegistry {
   /** Close every open turn of `owner` as stopped (Stop, board switch). */
   closeOwner(owner: object): void {
     for (const turn of [...this.turns]) {
-      if (turn.owner === owner && turn.status === "live") this.closeTurn(turn);
+      if (turn.owner === owner && turn.status === "live") this.closeTurn(turn, { stopped: true });
     }
   }
 
@@ -550,6 +577,38 @@ export class LiveTurnSaveRegistry {
         audioBytes: row.audioBytes,
       })),
     };
+  }
+
+  /**
+   * The board is being reopened from the server. Returns the local copies of
+   * its ended turns the server does not hold in full yet (a failed or slow
+   * save), so the restore keeps them over the older server copy, and sends
+   * again the saves that gave up on a failure a retry can fix.
+   */
+  reopen(boardId: string): LiveTurnMirrorEvent[] {
+    const events: LiveTurnMirrorEvent[] = [];
+    for (const turn of [...this.turns]) {
+      if (turn.boardId !== boardId || turn.status === "live" || turn.abandoned) continue;
+      if (!this.hasUnsent(turn)) continue;
+      events.push(this.localEvent(turn));
+      if (turn.failure?.retryable) {
+        turn.failure = null;
+        turn.attempt = 0;
+        turn.conflicts = 0;
+        this.pump(turn);
+      }
+    }
+    this.emit();
+    return events;
+  }
+
+  /**
+   * This tab is still teaching the turn `turnId`. A saved turn that reads
+   * `live` but is not live here was left by a tab that died or lost its
+   * keepalive close: it is stopped, whatever its age.
+   */
+  isLiveHere(turnId: string): boolean {
+    return this.turns.some((turn) => turn.turnId === turnId && turn.status === "live");
   }
 
   hasLiveTurn(owner: object, boardId: string | null | undefined): boolean {
@@ -743,6 +802,7 @@ export class LiveTurnSaveRegistry {
   /** An ended turn with nothing worth saving is dropped, so it never holds up the board. */
   private abandonIfEmpty(turn: LiveTurn): boolean {
     if (turn.status === "live" || !this.notWorthCreating(turn, this.previewRows(turn, { includeCut: true }))) return false;
+    this.endCutGrace(turn);
     turn.abandoned = true;
     turn.final = true;
     this.releaseQueue(turn);
@@ -758,13 +818,39 @@ export class LiveTurnSaveRegistry {
     return turn.audioAcked.some((acked, index) => !acked && index < turn.ackedCount);
   }
 
-  private closeTurn(turn: LiveTurn): void {
+  /**
+   * `stopped`: Stop or a board switch closed the turn, so a segment may have
+   * been cut off. A turn that ended on its own has no cut row to wait for.
+   */
+  private closeTurn(turn: LiveTurn, options: { stopped: boolean }): void {
     if (turn.status !== "live") return;
     turn.status = "stopped";
-    if (this.abandonIfEmpty(turn)) return;
+    if (!options.stopped && this.abandonIfEmpty(turn)) return;
+    if (this.notWorthCreating(turn, this.previewRows(turn, { includeCut: true }))) {
+      // Nothing to save yet, but the segment Stop cut off records its row from
+      // its own cleanup, after this close (the handler returns without waiting
+      // for it). Keep the turn open for it; drop the turn only if no row came.
+      turn.hasCutGrace = true;
+      turn.cutGraceTimer = this.env.setTimer(() => {
+        turn.hasCutGrace = false;
+        turn.cutGraceTimer = null;
+        if (this.abandonIfEmpty(turn)) return;
+        this.mirrorLocal(turn);
+        this.emit();
+        this.pump(turn);
+      }, CUT_ROW_GRACE_MS);
+      return;
+    }
     this.mirrorLocal(turn);
     this.emit();
     this.pump(turn);
+  }
+
+  private endCutGrace(turn: LiveTurn): void {
+    if (!turn.hasCutGrace) return;
+    this.env.clearTimer(turn.cutGraceTimer);
+    turn.hasCutGrace = false;
+    turn.cutGraceTimer = null;
   }
 
   private completeTurn(turn: LiveTurn, rawResponse: string): Promise<SaveTurnResult> {
@@ -831,13 +917,32 @@ export class LiveTurnSaveRegistry {
       ...(resumeDirty ? { resumeState: turn.resumeState ?? null } : {}),
     };
     const textOnly = turn.textOnly;
-    const request = this.env.transport.checkpoint(turn.boardId, turn.turnId, input).catch((error: unknown) => ({
-      ok: false as const,
-      status: 0,
-      error: error instanceof Error ? error.message : String(error),
-      reason: "network" as const,
-      retryable: true,
-    }));
+    // A hung connection must not hold the turn: abort it after a bounded wait
+    // and take the retry path, so later rows, Stop, completion and Try again
+    // can always send. A late answer from the aborted request is ignored.
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const audioBytes = [...rows.map((row) => row.audioBytes), ...(input.lateAudio ?? []).map((late) => late.audioBytes)]
+      .reduce((sum, bytes) => sum + (bytes?.length ?? 0), 0);
+    let timeoutTimer: unknown = null;
+    const timedOut = new Promise<TurnCheckpointResult>((resolve) => {
+      timeoutTimer = this.env.setTimer(() => {
+        controller?.abort();
+        resolve({ ok: false, status: 0, error: "the save timed out", reason: "network", retryable: true });
+      }, checkpointTimeoutMs(audioBytes));
+    });
+    const answered = this.env.transport
+      .checkpoint(turn.boardId, turn.turnId, controller ? { ...input, signal: controller.signal } : input)
+      .catch((error: unknown): TurnCheckpointResult => ({
+        ok: false as const,
+        status: 0,
+        error: error instanceof Error ? error.message : String(error),
+        reason: "network" as const,
+        retryable: true,
+      }));
+    const request = Promise.race([answered, timedOut]).then((result) => {
+      this.env.clearTimer(timeoutTimer);
+      return result;
+    });
     turn.inflight = request.then((result) => {
       turn.inflight = null;
       if (!result.ok && resumeDirty) turn.resumeDirty = true;
@@ -963,21 +1068,25 @@ export class LiveTurnSaveRegistry {
     }
   }
 
+  private localEvent(turn: LiveTurn): LiveTurnMirrorEvent {
+    const scene = this.sceneFor(turn);
+    const rows = this.previewRows(turn, { includeCut: true });
+    return {
+      source: "local",
+      boardId: turn.boardId,
+      turnId: turn.turnId,
+      preview: turn.preview,
+      turn: this.turnHeader(turn, scene),
+      rows: (scene.visualStatus === "validated" ? rows : partialTurnSegments(rows, scene))
+        .map((row, orderIndex) => ({ ...row, orderIndex })),
+    };
+  }
+
   private mirrorLocal(turn: LiveTurn): void {
     const hooks = this.owners.get(turn.owner);
     if (!hooks || hooks.openBoardId() !== turn.boardId) return;
-    const scene = this.sceneFor(turn);
-    const rows = this.previewRows(turn, { includeCut: true });
     try {
-      hooks.mirror({
-        source: "local",
-        boardId: turn.boardId,
-        turnId: turn.turnId,
-        preview: turn.preview,
-        turn: this.turnHeader(turn, scene),
-        rows: (scene.visualStatus === "validated" ? rows : partialTurnSegments(rows, scene))
-          .map((row, orderIndex) => ({ ...row, orderIndex })),
-      });
+      hooks.mirror(this.localEvent(turn));
     } catch {
       // The mirror is a convenience; the save goes on.
     }

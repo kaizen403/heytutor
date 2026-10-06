@@ -577,7 +577,14 @@ export function useBoardSession({
           return;
         }
 
-        const turns = detail?.turns ?? [];
+        // The server copy, with this tab's own ended turns laid over it where
+        // their save failed or has not landed yet: the board, replay, notes
+        // and Continue keep what the student saw, and the save goes on.
+        storedTurnsRef.current = detail?.turns ?? [];
+        if (!draft) {
+          for (const local of liveTurnSave().reopen(boardId)) mirrorLiveTurnRef.current(local);
+        }
+        const turns = storedTurnsRef.current;
 
         storedTurnsRef.current = turns;
         setStoredTurnsCount(turns.length);

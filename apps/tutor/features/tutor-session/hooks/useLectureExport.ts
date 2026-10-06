@@ -14,6 +14,7 @@ import { storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
 import { lecturePageCacheKey } from "@/lib/lecture-export/canExportLectureMp4";
 import {
   buildLectureExportSource,
+  captureLocalClips,
   lectureExportCueBytes,
   lectureExportHasContent,
   lessonDownloadFilename,
@@ -311,6 +312,9 @@ export function useLectureExport({
     // releases, cannot change or starve this file.
     const source = snapshotSource();
     const turns = source.turns;
+    // The saved turns' in-tab clips are blob URLs a later lesson may revoke:
+    // read them all now, into the snapshot.
+    const localClips = captureLocalClips(source);
     const partial = source.partial || phaseRef.current !== "idle";
     const started = dispatch({ type: "start", file: "video", partial });
     const generation = started.generation;
@@ -360,6 +364,9 @@ export function useLectureExport({
           fail(BOARD_NOT_READY);
           return;
         }
+
+        await localClips;
+        if (!current()) return;
 
         const clock = createVirtualWhiteboardClock(0);
         clockRef.current = clock;

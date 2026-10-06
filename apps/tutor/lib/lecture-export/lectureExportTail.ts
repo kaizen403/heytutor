@@ -52,9 +52,10 @@ const yieldMacrotask = (): Promise<void> =>
  * until the drawing settles, Cancel is pressed, or `limitMs` of lesson time has
  * passed. It never awaits the drawing unguarded.
  *
- * When the drawing is already done at `startMs`, no step is reported, so a
- * lesson whose audio covered its ink encodes exactly as before. Otherwise every
- * step is reported, including the one where the last mark lands.
+ * When the drawing was already done before the tail moved the clock, no step
+ * is reported, so a lesson whose audio covered its ink encodes exactly as
+ * before. Otherwise every step is reported, including the one where the last
+ * mark lands, even when that is the very first advance.
  */
 export async function drainExportTail(options: {
   clock: ExportTailClock;
@@ -83,6 +84,12 @@ export async function drainExportTail(options: {
     },
   );
 
+  // Let a drawing that already finished say so before the clock moves: only
+  // then may the tail add no frame. One that finishes on an advance below
+  // gets the frame of that advance, or its last marks are not in the file.
+  await Promise.resolve();
+  const doneBeforeTail = settled;
+
   let extraMs = 0;
   let steps = 0;
   for (;;) {
@@ -92,12 +99,12 @@ export async function drainExportTail(options: {
       await yieldToHost();
       return { settled, cancelled: true, extraMs, steps, error };
     }
+    if (doneBeforeTail) {
+      return { settled, cancelled: false, extraMs, steps, error };
+    }
     options.clock.setNow(options.startMs + extraMs);
     await pumpExportClock(options.clock);
     await yieldToHost();
-    if (settled && steps === 0) {
-      return { settled, cancelled: false, extraMs, steps, error };
-    }
     await options.onStep?.(options.startMs + extraMs, steps);
     steps += 1;
     if (settled) {
