@@ -100,7 +100,6 @@ function wholePartExtents(scene: RenderScene, id: string): Extents | null {
     if (
       primitive.entityId !== id ||
       primitive.kind === "dimension" ||
-      primitive.provenance?.annotation ||
       primitive.provenance?.dsaExtent === true
     )
       continue;
@@ -110,7 +109,6 @@ function wholePartExtents(scene: RenderScene, id: string): Extents | null {
       continue;
     const complete = primitiveExtents(primitive);
     if (!complete) return null;
-    if (primitive.kind !== "label") hasBody = true;
     // Cache/label consistency is required, but the cache alone is never proof.
     // Allow only floating-point roundoff from the compiler's bounds unions.
     const tolerance =
@@ -132,6 +130,11 @@ function wholePartExtents(scene: RenderScene, id: string): Extents | null {
     bounds.top = Math.min(bounds.top, complete.top);
     bounds.right = Math.max(bounds.right, complete.right);
     bounds.bottom = Math.max(bounds.bottom, complete.bottom);
+    // Entity provenance also reaches actual rendered source bodies. Validate
+    // and enclose their complete geometry before excluding annotation evidence;
+    // a same-entity generated tick cannot prove an excluded body's completeness.
+    if (primitive.provenance?.annotation) continue;
+    if (primitive.kind !== "label") hasBody = true;
   }
   return hasBody ? bounds : null;
 }
