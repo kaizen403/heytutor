@@ -1,0 +1,17 @@
+{
+  "question": "Does the point (4,2) lie on, inside or outside the circle (x-1)^2+(y+2)^2=25?",
+  "plan": {
+    "givens": [],
+    "lawIds": [],
+    "derived": [],
+    "question": "Does the point (4,2) lie on, inside or outside the circle (x-1)^2+(y+2)^2=25?",
+    "unknowns": [],
+    "assumptions": [
+      "Turn-plan model was unavailable; visual requirement was classified conservatively."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [],
+    "visualRequirement": "required"
+  },
+  "problem": null
+}

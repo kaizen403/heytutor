@@ -1,0 +1,358 @@
+{
+  "question": "For 0.000000000001x^2+0.000000000001y^2-0.000000000006x+0.000000000004y-0.000000000012=0, find the centre and radius.",
+  "problem": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "fresh",
+    "question": "For 0.000000000001x^2+0.000000000001y^2-0.000000000006x+0.000000000004y-0.000000000012=0, find the centre and radius.",
+    "facts": [
+      {
+        "id": "eq",
+        "kind": "given",
+        "statement": "0.000000000001x^2+0.000000000001y^2-0.000000000006x+0.000000000004y-0.000000000012=0",
+        "evidence": {
+          "source": "question",
+          "start": 4,
+          "end": 88,
+          "quote": "0.000000000001x^2+0.000000000001y^2-0.000000000006x+0.000000000004y-0.000000000012=0"
+        }
+      },
+      {
+        "id": "ask",
+        "kind": "requested",
+        "statement": "find the centre and radius.",
+        "evidence": {
+          "source": "question",
+          "start": 90,
+          "end": 117,
+          "quote": "find the centre and radius."
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "curve",
+        "kind": "curve",
+        "label": "circle",
+        "evidenceFactIds": [
+          "eq"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "h",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "unary",
+            "operator": "-",
+            "operand": {
+              "kind": "number",
+              "value": -6e-12
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 1e-12
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq",
+          "ask"
+        ]
+      },
+      {
+        "id": "k",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "unary",
+            "operator": "-",
+            "operand": {
+              "kind": "number",
+              "value": 4e-12
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 1e-12
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq",
+          "ask"
+        ]
+      },
+      {
+        "id": "r",
+        "valueType": "scalar",
+        "root": {
+          "kind": "call",
+          "function": "sqrt",
+          "argument": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "unary",
+                    "operator": "-",
+                    "operand": {
+                      "kind": "number",
+                      "value": -6e-12
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1e-12
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "^",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "unary",
+                    "operator": "-",
+                    "operand": {
+                      "kind": "number",
+                      "value": 4e-12
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1e-12
+                    }
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": -1.2e-11
+              },
+              "right": {
+                "kind": "number",
+                "value": 1e-12
+              }
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "eq",
+          "ask"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "graph",
+        "kind": "graph",
+        "entityIds": [
+          "curve"
+        ],
+        "evidenceFactIds": [
+          "eq",
+          "ask"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "solve_h",
+        "kind": "evaluate",
+        "expressionId": "h",
+        "resultBinding": {
+          "turnPlanQuantityId": "h",
+          "symbol": "h",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq",
+            "ask"
+          ]
+        }
+      },
+      {
+        "id": "solve_k",
+        "kind": "evaluate",
+        "expressionId": "k",
+        "resultBinding": {
+          "turnPlanQuantityId": "k",
+          "symbol": "k",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq",
+            "ask"
+          ]
+        }
+      },
+      {
+        "id": "solve_r",
+        "kind": "evaluate",
+        "expressionId": "r",
+        "resultBinding": {
+          "turnPlanQuantityId": "r",
+          "symbol": "r",
+          "unit": "1",
+          "evidenceFactIds": [
+            "eq",
+            "ask"
+          ]
+        }
+      }
+    ]
+  },
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For 0.000000000001x^2+0.000000000001y^2-0.000000000006x+0.000000000004y-0.000000000012=0, find the centre and radius.",
+    "givens": [
+      {
+        "id": "A",
+        "symbol": "A",
+        "unit": "1",
+        "value": 0,
+        "provenance": "given",
+        "sourceText": "coefficient of x^2 and y^2"
+      },
+      {
+        "id": "D",
+        "symbol": "D",
+        "unit": "1",
+        "value": 0,
+        "provenance": "given",
+        "sourceText": "coefficient of x"
+      },
+      {
+        "id": "E",
+        "symbol": "E",
+        "unit": "1",
+        "value": 0,
+        "provenance": "given",
+        "sourceText": "coefficient of y"
+      },
+      {
+        "id": "F",
+        "symbol": "F",
+        "unit": "1",
+        "value": 0,
+        "provenance": "given",
+        "sourceText": "constant term"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "h",
+        "symbol": "h",
+        "unit": "1"
+      },
+      {
+        "id": "k",
+        "symbol": "k",
+        "unit": "1"
+      },
+      {
+        "id": "r",
+        "symbol": "r",
+        "unit": "1"
+      }
+    ],
+    "derived": [
+      {
+        "id": "h",
+        "symbol": "h",
+        "unit": "1",
+        "value": 3,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "D"
+        ]
+      },
+      {
+        "id": "k",
+        "symbol": "k",
+        "unit": "1",
+        "value": -2,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "E"
+        ]
+      },
+      {
+        "id": "r",
+        "symbol": "r",
+        "unit": "1",
+        "value": 5,
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "D",
+          "E",
+          "F"
+        ]
+      }
+    ],
+    "qualitativeClaims": [],
+    "lawIds": [],
+    "assumptions": [],
+    "visualRequirement": "required"
+  }
+}

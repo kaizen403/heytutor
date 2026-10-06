@@ -32,7 +32,6 @@ import {verifyMeasurementSourceAuthority,readScrewGaugeQuestion} from "./measure
 import { applyStaticContactTriangleAuthority } from "./staticContactTriangleAuthority";
 import {circlePlanSourceIssues,circleCallerIssues} from "./circleCallerAuthority";
 import {readCircleSourceProgram} from "./circleSourceProgram";
-import {applyCircleSourceAuthority} from "./circleSourceAuthority";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import { bindStatedCircuitProblem } from "./statedCircuitProblemBinding";
 import { applyStatedCircuitAuthority, claimsStatedResistorCircuit, readStatedCircuitProblemSource } from "./statedCircuitAuthority";
@@ -195,19 +194,11 @@ export const SOURCE_QUANTITY_AUTHORITIES: readonly SourceQuantityAuthority[] = [
   {
     topic:"cartesian-circle-source",
     apply({question,plan,problemIR}) {
-      if(readCircleSourceProgram(question).status!=="none"){
-        const issues=problemIR==null?circlePlanSourceIssues(question,plan):circleCallerIssues(question,problemIR,plan);
-        if(issues.length)return {topic:this.topic,plan,corrections:[],declineFigure:true,issueCodes:issues.map(v=>v.code)};
-      }
-      const result=applyCircleSourceAuthority(question,plan,problemIR ?? undefined);
-      if (!result) return null;
-      const previous=new Map([...plan.givens,...plan.derived].map(row=>[row.id,row]));
-      return {topic:this.topic,plan:result.plan,
-        corrections:result.plan.derived.flatMap(row=> {
-          const old=previous.get(row.id);
-          return old && old.value!==row.value?[{quantityId:row.id,symbol:row.symbol,previous:old.value,corrected:row.value,unit:row.unit}]:[];
-        }),
-        declineFigure:result.issues.some(issue=>issue.code!=="circle_value_corrected"),issueCodes:result.issues.map(issue=>issue.code)};
+      if(readCircleSourceProgram(question).status==="none")return null;
+      const issues=problemIR==null?circlePlanSourceIssues(question,plan):circleCallerIssues(question,problemIR,plan);
+      // Whole admission already proves every original value and obligation.
+      // Neither admitted nor refused data may enter the legacy pruning helper.
+      return {topic:this.topic,plan,corrections:[],declineFigure:issues.length>0,issueCodes:issues.map(v=>v.code)};
     },
   },
   staticContactTriangleAuthority,

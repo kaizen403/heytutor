@@ -8,7 +8,14 @@ import {numeric} from "./circleSourceMath";
 import type {SceneIssue} from "../types";
 const issue=(path:string,message:string):SceneIssue=>({code:"circle_caller_authority",severity:"fatal",path:`sourceAuthority.${path}`,message});
 const coefficientText=(text:string)=>/^(?:(?:the )?constant (?:term|coefficient)|coefficient of (?:x\^2(?: and y\^2)?|xy|x\*y|y\^2|x|y))$/.test(text.trim().replace(/²/g,"^2").replace(/\s+/g," ").toLowerCase());
-const same=(a:number,b:number)=>Math.abs(a-b)<=1e-10*Math.max(1,Math.abs(a),Math.abs(b));
+// Literal/source values must match the same deterministic conversion used by
+// the solver and source programme. An absolute epsilon must never make a
+// nonzero coefficient or coordinate zero.
+const same=(a:number,b:number)=>a===b;
+const transportContext = "Turn-plan model was unavailable; visual requirement was classified conservatively.";
+function sourceOnlyPlan(sourceAsks: readonly CircleValueRole[], plan: TurnPlanV3): boolean {
+ return sourceAsks.length===0 && plan.givens.length===0 && plan.derived.length===0 && plan.unknowns.length===0 && plan.qualitativeClaims.length===0 && plan.lawIds.length===0 && !plan.teachingSequenceHints?.length && plan.assumptions.every(text=>text===transportContext);
+}
 /** Own-data original Plan admission. Unsupported textual/graph obligations
  * decline as a whole before legacy reconciliation can remove them. */
 export function circlePlanSourceIssues(question:string,rawPlan:unknown):SceneIssue[]{
@@ -21,6 +28,10 @@ function circlePlanSourceIssuesFromData(question:string,rawPlan:unknown):SceneIs
  if(!hasOnlyFiniteBinomialPlanFields(raw))return [issue("turnPlan","Every original Plan field must have known source semantics")];
  const checked=validateTurnPlanV3(raw,question);if(!checked.valid||!checked.plan||checked.plan.question!==question)return [issue("turnPlan","Complete valid original Plan is required")];
  const plan=raw as TurnPlanV3,source=read.source;
+ // This legacy transport note carries no mathematical proposition or numeric
+ // authority. An empty original caller can use only the whole source geometry
+ // programme when there is no numeric ask; its original data remains intact.
+ if(sourceOnlyPlan(source.asks,plan))return [];
  if(plan.qualitativeClaims.length||plan.lawIds.length||plan.assumptions.length||plan.teachingSequenceHints?.length)return [issue("turnPlan","No circle claim, law, assumption or teaching hint has an independent whole-proposition proof in this profile")];
  const roles=new Map<string,CircleValueRole>();
  const rows=[...plan.givens,...plan.derived];
@@ -62,6 +73,7 @@ function circleCallerIssuesFromData(question:string,rawProblem:unknown,rawPlan:u
  const read=readCircleSourceProgram(question);if(read.status==="none")return [];
  const planIssues=circlePlanSourceIssues(question,rawPlan);if(planIssues.length)return planIssues;
  let data:{problem:unknown;plan:TurnPlanV3};try{data=snapshotMathSourceData({problem:rawProblem,plan:rawPlan as TurnPlanV3});}catch{return [issue("problemIR","Whole original caller must remain bounded own data")];}
+ if(data.problem==null && read.status==="ok" && sourceOnlyPlan(read.source.asks,data.plan))return [];
  const checked=validateProblemIR(data.problem,question);if(!checked.valid||!checked.problem||!hasOnlyEvaluateProblemFields(checked.problem))return [issue("problemIR","Every original circle IR field must have supported whole-source semantics")];
  const binding=bindCircleSourceProblem(question,data.problem);if(!binding)return [issue("problemIR","Every original circle graph obligation must bind the complete source")];
  if(read.status!=="ok"||read.source.asks.some(role=>binding.requestBindings.filter(v=>v.role===role).length!==1))return [issue("problemIR.solveRequests","Every whole-source numeric ask needs its original complete typed request")];

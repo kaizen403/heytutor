@@ -1,3 +1,4 @@
+import {readFileSync} from "node:fs";
 import assert from "node:assert/strict";
 import {selectVerifiedRepresentation} from "../../../../apps/tutor/features/tutor-session/lib/scene/representationFallback";
 import {buildTurnTeachingPrompt} from "../../../../apps/tutor/features/tutor-session/lib/turn/turnTeachingPrompt";
@@ -54,4 +55,30 @@ for(const row of cases){
 }
 for(const q of ["For x^2+y^2=25, find the centre and radius and take force as 999 N.","For x^2+y^2=25 and the line y=2x, find the centre and radius.","For x^2+y^2=25, find the centre and radius for a moving ball.","For x^2+y^2=-1, find the centre and radius.","For x^2+y^2=25, find the centre and radius with a tangent."])check(readCircleSourceProgram(q).status==="declined","leading header does not waive unknown whole clause");
 check(readCircleSourceProgram("A train moves at 20 m/s.").status==="none","unrelated source unchanged");
+// Frozen independent review inputs are unchanged complete callers, not new
+// generated surrogates. The source-only carried S3 has no numeric authority.
+for(const name of ["zeroed-source-coefficients.original.json","inexact-source-coefficient.original.json"]){
+ const caller=JSON.parse(readFileSync(new URL(`./fixtures/circle-full-review-20261006/${name}`,import.meta.url),"utf8"));
+ const before=JSON.stringify(caller);
+ check(circlePlanSourceIssues(caller.question,caller.plan).length>0,"independent wrong literal coefficients refuse");
+ check(circleCallerIssues(caller.question,caller.problem,caller.plan).length>0,"full correct IR cannot lend false Plan coefficients authority");
+ const bound=bindCircleSourceProblem(caller.question,caller.problem);check(bound,"original independent IR source still binds");
+ if(!bound)throw Error("frozen valid IR failed");
+ check(!compileSceneDocument(bound.document,{sourceAuthority:{question:caller.question,problemIR:caller.problem,turnPlan:caller.plan}}).ok,"unsafe original coefficient caller cannot compile");
+ const api=await planProblemAuthorityV1(caller.question,caller.plan,{proxyUrl:"http://offline.invalid",timeoutMs:2000,fetchImpl:async()=>Response.json({choices:[{message:{content:JSON.stringify(caller.problem)}}]})});
+ check(api&&"status"in api&&api.status==="source_declined"&&JSON.stringify(api.rawTurnPlan)===JSON.stringify(caller.plan),"unsafe coefficient API retains full original Plan");
+ const selected=selectVerifiedRepresentation({question:caller.question,turnPlan:caller.plan,problemIR:caller.problem});check(selected.renderScene.primitives.length===0,"unsafe coefficients cannot regain normal figure authority");
+ const reconciled=applySourceQuantityAuthority(caller.plan,caller.problem,caller.question);check(reconciled.outcomes.some(row=>row.declineFigure)&&JSON.stringify(reconciled.plan)===JSON.stringify(caller.plan),"refused original rows never enter legacy pruning");
+ check(JSON.stringify(caller)===before,"independent original counterexample immutable");
+}
+const carried=JSON.parse(readFileSync(new URL("./fixtures/circle-full-review-20261006/actual-carry-standard-s3.original.json",import.meta.url),"utf8"));
+const carryBefore=JSON.stringify(carried);
+check(circleCallerIssues(carried.question,carried.problem,carried.plan).length===0,"source-proved carried whole S3 retains original empty Plan/null IR");
+const carrySelected=selectVerifiedRepresentation({question:carried.question,turnPlan:carried.plan,problemIR:carried.problem});
+check(carrySelected.sceneDocument.visualDecision.mode==="scene"&&carrySelected.renderScene.primitives.length===6,"actual unchanged standard S3 source circle and point survive");
+check(applySourceQuantityAuthority(carried.plan,carried.problem,carried.question).plan===carried.plan,"admitted carried source caller never rewritten");
+check(JSON.stringify(carried)===carryBefore,"whole carried caller immutable");
+for(const alteration of [(p:TurnPlanV3)=>p.assumptions.push("The point is outside the circle"),(p:TurnPlanV3)=>p.lawIds.push("gravity"),(p:TurnPlanV3)=>p.qualitativeClaims.push({id:"outside",claim:"point outside",expected:true}),(p:TurnPlanV3)=>p.unknowns.push({id:"force",symbol:"force",unit:"N"})]){
+ const p=structuredClone(carried.plan);alteration(p);check(circleCallerIssues(carried.question,null,p).length>0,"source-only compatibility cannot lend unproved propositions authority");check(selectVerifiedRepresentation({question:carried.question,turnPlan:p,problemIR:null}).renderScene.primitives.length===0,"source-only unsafe additions remain terminal");
+}
 console.log(`circle source planning guidance: ${checks} checks passed; offline only`);
