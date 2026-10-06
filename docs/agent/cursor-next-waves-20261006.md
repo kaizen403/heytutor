@@ -6,14 +6,14 @@ Published primary paths: `docs/agent/cursor-next-waves-20261006.md` (this refere
 
 Publication receipt:
 
-- `PUBLISHED_PR_URL`: PUBLISHED_PR_URL
+- `https://github.com/kaizen403/heytutor/pull/91`: https://github.com/kaizen403/heytutor/pull/91
 - Merge SHA: resolve the actual merged commit from the PR after merge; the published document cannot embed its own eventual merge SHA.
 
 The parent fills the PR reference once open and the external paste prompt's actual SHA after merge. An open PR is not proof of publication. User authorization overrides BRIEF's no-push restriction for current handoff publication only; prepare future work locally unless separately authorized. Commit as user only, without coauthors.
 
-Before engineering, resolve the merged PR's actual SHA, compare any external receipt, verify remote main contains it and approved handoff content survived. Fetch refs without changing dirty `/Users/kaizen/heytutor`. Create a fresh worktree from verified current `origin/main`. Preserve upstream `78c2abbf` Sarvam Hinglish/Cartesia and OCR/startup changes; older handoff provider configuration is not the baseline. Record fetched full SHA and integration diff. Resolve missing/conflicting receipts with the parent before dependent work.
+Before engineering, resolve the merged PR's actual SHA, compare any external receipt, verify remote main contains it and approved handoff content survived. Fetch refs without changing dirty `/Users/kaizen/heytutor`. Create a fresh worktree from verified current `origin/main`. Preserve upstream `9165e39c` (PR #88 numeric authority and PR #89 startup orchestration), Sarvam Hinglish/Cartesia and OCR changes; older handoff provider configuration is not the baseline. Record fetched full SHA and integration diff. Resolve missing/conflicting receipts with the parent before dependent work.
 
-Parent publication update: conflicts resolved retaining upstream early solver reconciliation and section/source authority **before `planningTurnPlan`**, plus startup gates. Raw archive and unused `/tmp`-dependent scratch `_c03-select.ts` are excluded. Actual local main protection receipt HEAD is **682eb26**, superseding checkpoint613b417e; neither is the engineering baseline. Preserve these resolutions and start from fresh verified origin/main.
+Parent publication update: conflicts resolved retaining upstream early solver reconciliation and section/source authority before final scene gates within the current planning-overlap orchestration, plus startup gates. Raw archive and unused `/tmp`-dependent scratch `_c03-select.ts` are excluded. Actual local main protection receipt HEAD is **682eb26**, superseding checkpoint613b417e; neither is the engineering baseline. Preserve these resolutions and start from fresh verified origin/main.
 
 Parent reports publication typecheck **12/12 PASS** after removing that diagnostic. Publication also corrects whole-fraction grouping, refreshes final solver audits/projections, and registers section source checks at actual restore/replay and all admission tiers. Contradictions use the existing cleanup/stop path before teaching. The new publication gates and PR CI receipt establish those fixes; they do not certify remaining topic gaps.
 
