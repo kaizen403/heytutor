@@ -3,6 +3,7 @@
  * family. Geometry comes from operators and plan quantities — never from
  * planner-authored pixels.
  */
+import { staticContactTriangleDocument } from "../ir/staticContactTriangle";
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { compileSceneDocument } from "../compile/compiler";
 import { bindStatedCircuitProblem } from "../ir/statedCircuitProblemBinding";
@@ -12,7 +13,7 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import { levelRelationSource } from "../physics/levelRelationSource";
-import { relativeMotionSource } from "../physics/relativeMotionSource";
+import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
 import { projectileLaunchAngle } from "../physics/projectileLaunchSource";
 import { relativeMotionPlanConflicts } from "../physics/motionPlanAgreement";
 import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked } from "../physics/riverCrossingSource";
@@ -70,6 +71,7 @@ import { synthesizeUniformCircularScene } from "./uniformCircularFamily";
 import {
   SCENE_DOCUMENT_VERSION,
   type RenderScene,
+  type CompileOptions,
   type SceneAnnotation,
   type SceneAssertion,
   type SceneConstruction,
@@ -224,6 +226,14 @@ function synthesizeFromFamilies(
     return { ...compiled, tier: "question_representation", nonMetric: true,
       reason: "Bound the complete source circuit and ProblemIR to exact electrical values and physical components.", family: "circuit_network" };
   }
+  const contactTriangle = staticContactTriangleDocument(question, input.turnPlan, input.problemIR);
+  if (contactTriangle) {
+    const compiled = tryCompile(contactTriangle, {sourceAuthority: {question, problemIR: input.problemIR}});
+    if (!compiled || demandRejection(compiled.document, demand)
+      || (obligations && visualObligationRejection(obligations, compiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined))) return null;
+    return {...compiled,tier:"qualitative_verified",nonMetric:true,
+      reason:"Constructed the static perpendicular contact triangle from every stated source side.",family:"contact_body"};
+  }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
   const sectionDocument = sectionReading?.status === "ok"
@@ -254,6 +264,7 @@ function synthesizeFromFamilies(
   // two-car sketches, which now draw only an explicitly stated direction.
   const relativeMotion = relativeMotionSource(question);
   if (relativeMotion?.status === "admitted") {
+    if (isFullProblemIRStructure(input.problemIR) && !relativeMotionSourceEntityBindings(question, input.problemIR)) return null;
     // A plan that would narrate a different vAB, time or position than the
     // source computes keeps the figure off the board.
     if (relativeMotionPlanConflicts(relativeMotion.source, input.turnPlan, question).length > 0) return null;
@@ -3156,35 +3167,8 @@ function hangingWiresLoadDocument(question: string): SceneDocument {
   });
 }
 
-function ladderDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
-  const theta = angleDegrees(quantities, question) ?? 60;
-  const floorSpan = 2.4;
-  const wallSpan = floorSpan * Math.tan(theta * Math.PI / 180);
-  return baseDocument({
-    question,
-    reason: "ladder leaning on a floor and a wall",
-    quantities: [{ id: "theta", symbol: "theta", value: theta, unit: "degree" }],
-    entities: [
-      { id: "corner", kind: "point", role: "wall-floor corner" },
-      { id: "floor_end", kind: "point", role: "floor contact" },
-      { id: "wall_end", kind: "point", role: "wall contact" },
-      { id: "floor", kind: "segment", role: "floor" },
-      { id: "wall", kind: "segment", role: "wall" },
-      { id: "ladder", kind: "segment", role: "ladder" },
-    ],
-    constructions: [
-      pointAt("corner", 0, 0),
-      pointAt("floor_end", floorSpan, 0),
-      pointAt("wall_end", 0, Math.min(4.2, Math.max(1.2, wallSpan))),
-      { id: "make_floor", operator: "segment", inputs: { start: "corner", end: "floor_end" }, outputs: ["floor"] },
-      { id: "make_wall", operator: "segment", inputs: { start: "corner", end: "wall_end" }, outputs: ["wall"] },
-      { id: "make_ladder", operator: "segment", inputs: { start: "floor_end", end: "wall_end" }, outputs: ["ladder"] },
-    ],
-    assertions: [
-      { id: "ladder_exists", predicate: "exists", entities: ["ladder"], expected: true, severity: "fatal" },
-      { id: "floor_exists", predicate: "exists", entities: ["floor"], expected: true, severity: "fatal" },
-    ],
-  });
+function ladderDocument(question: string, quantities: PlanQuantity[]): SceneDocument | null {
+  return staticContactTriangleDocument(question, {givens:quantities});
 }
 
 function wheelOnRoadDocument(question: string): SceneDocument {
@@ -4479,7 +4463,7 @@ function axesOnly(question: string, reason: string): SceneDocument {
   });
 }
 
-function tryCompile(document: SceneDocument): {
+function tryCompile(document: SceneDocument, options: CompileOptions = {}): {
   document: SceneDocument;
   renderScene: RenderScene;
   validationReport: ValidationReport;
@@ -4487,7 +4471,7 @@ function tryCompile(document: SceneDocument): {
   const pruned = pruneDeadSceneEntities(document as unknown as Record<string, unknown>);
   const validated = validateSceneDocument(pruned);
   if (!validated.document) return null;
-  const compiled = compileSceneDocument(validated.document);
+  const compiled = compileSceneDocument(validated.document, options);
   if (
     !compiled.ok
     || !compiled.renderScene

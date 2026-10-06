@@ -15,6 +15,11 @@ import {
   sourceMensurationStructure,
   hasMatrixSourceProgram,
   readPointLineProgram,
+  constantAccelerationSourceProgram,
+  readSectionFormulaSource,
+  staticContactTriangleDocument,
+  readStatedCircuitProblemSource,
+  relativeMotionSource,
   SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
   PLANNER_VISIBLE_SCENE_PROOF_PREDICATES,
 } from "@heytutor/scene-engine";
@@ -282,6 +287,28 @@ export function inferSceneCapabilities(
       constructionOperators: SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.filter((operator) => operator.startsWith("matrix_")),
       proofPredicates: ["exists", "label_attached"],
       planningGuidance: ["Preserve the complete submitted matrix source and every named given. Use source-bound matrix_array/add/scale/product/transpose constructions only, retain ordered requested expressions, and never substitute derived results for source givens. Unresolved original claims remain outside-component in a nonmetric question representation."],
+    };
+  }
+  const acceleration = constantAccelerationSourceProgram(question);
+  const section = readSectionFormulaSource(question);
+  const circuit = readStatedCircuitProblemSource(question);
+  const motion = relativeMotionSource(question);
+  const triangle = staticContactTriangleDocument(question);
+  const sourceDocument = acceleration ?? circuit?.document ?? triangle;
+  if (sourceDocument || section?.status === "ok" || motion?.status === "admitted") {
+    // Availability comes from successfully executing a source program, never
+    // a chapter identifier. Final full-IR/numeric/scene gates still decide ink.
+    const operators = sourceDocument ? [...new Set(sourceDocument.constructions.map(row => row.operator))]
+      : section?.status === "ok" ? ["axes", "point", "segment", "section_point"]
+      : ["axes", "point", "segment", "collinear_velocity_pair"];
+    return {
+      visualRequired: hints.turnPlan?.visualRequirement !== "none", hasSourceProgram: true,
+      families: sourceDocument ? acceleration ? ["analytic_curve"] : triangle ? ["contact_body"] : ["circuit_network"]
+        : section?.status === "ok" ? ["coordinate_figure"] : ["vector_diagram"],
+      constructionOperators: operators.filter(operator => SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.some(supported => supported === operator)),
+      proofPredicates: sourceDocument ? [...new Set(sourceDocument.assertions.map(row => row.predicate))]
+        .filter(predicate => PLANNER_VISIBLE_SCENE_PROOF_PREDICATES.some(supported => supported === predicate)) : ["collinear", "on"],
+      planningGuidance: ["An engine source program is available. Preserve the complete original ProblemIR, all bodies, quantities, conditions and requested results; source availability does not certify a partial scene. Every figure still passes full numeric/source/visual obligations."],
     };
   }
   const lawIds = hints.lawIds ?? hints.turnPlan?.lawIds ?? [];

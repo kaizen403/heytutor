@@ -15,6 +15,7 @@
 import {
   displayedSceneQuantityTexts,
   validateSceneSourceAuthority,
+  validateStaticContactTriangleSource, readStaticContactTriangle,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -83,7 +84,7 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
   // source programs check plan values by physical role before synthesis, then
   // validate the complete computed state. Different roles may share a unit
   // (initial position and encounter position, for example).
-  const roleCheckedSource =
+  const roleCheckedSource = (readStaticContactTriangle(question) !== null && validateStaticContactTriangleSource(fresh.document, question).length === 0) ||
     (source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL && validateRelativeMotionSourceInputs(fresh.document, question).length === 0)
     || (source.archetype === "uniform_circular_motion_source" && validateUniformCircularSourceInputs(fresh.document, question).length === 0);
   const derived = turnPlan.derived.map((quantity) => ({ value: quantity.value, unit: unitKey(quantity.unit) }));

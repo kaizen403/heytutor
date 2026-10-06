@@ -26,11 +26,11 @@ const ALIASES: Record<RightTriangleRole | "theta", readonly string[]> = {
   length: ["l", "length", "ladderlength"], distance: ["d", "x", "distance", "footdistance", "base"],
   height: ["h", "y", "height", "topheight"], theta: ["theta", "angle", "θ"],
 };
-function roleOf(quantity: PlanQuantity): RightTriangleRole | "theta" | null {
+export function rightTriangleQuantityRole(quantity: PlanQuantity): RightTriangleRole | "theta" | null {
   const clean = (s: string) => s.toLowerCase().replace(/[\s_{}\\]/g, "");
   return (Object.keys(ALIASES) as (RightTriangleRole | "theta")[]).find(role => ALIASES[role].includes(clean(quantity.id)) || ALIASES[role].includes(clean(quantity.symbol))) ?? null;
 }
-function claimValue(quantity: PlanQuantity, role: RightTriangleRole | "theta"): number | null {
+export function rightTriangleClaimSIValue(quantity: PlanQuantity, role: RightTriangleRole | "theta"): number | null {
   if (!Number.isFinite(quantity.value)) return null;
   const unit = normalized(quantity.unit ?? "");
   if (role === "theta") return /^(?:degree|degrees|deg|°)$/.test(unit) ? quantity.value : /^(?:rad|radian|radians)$/.test(unit) ? quantity.value * 180 / Math.PI : null;
@@ -81,9 +81,9 @@ export function resolveLadderSource(question: string, quantities: readonly PlanQ
     if (angle === null || !near(angle, state.theta)) return decline("stated angle disagrees with the source sides");
   }
   for (const quantity of quantities) {
-    const role = roleOf(quantity);
+    const role = rightTriangleQuantityRole(quantity);
     if (!role) continue;
-    const value = claimValue(quantity, role);
+    const value = rightTriangleClaimSIValue(quantity, role);
     if (value === null || !near(value, state[role])) return decline(`plan ${role} is unsupported or disagrees with source geometry`);
   }
   const footLeft = /\b(?:foot|base|bottom)\b[^.;]*\b(?:to|on) the left (?:of|side of) (?:the )?wall\b/.test(text);

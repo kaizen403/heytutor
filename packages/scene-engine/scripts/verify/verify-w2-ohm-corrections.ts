@@ -158,7 +158,7 @@ for (const [question, resistance, current, drops, branchCurrents] of [
   assert.equal(binding.solution.sourceCurrent?.exact, current);
   assert.deepEqual(binding.solution.resistors.map(row => row.voltage?.value), [...drops]);
   assert.deepEqual(binding.solution.resistors.map(row => row.current?.value), [...branchCurrents]);
-  assert.equal(checkVisualObligations(deriveVisualObligations(problem), binding.document).satisfied, true);
+  assert.equal(checkVisualObligations(deriveVisualObligations(problem), binding.document, problem).satisfied, true);
   assert.equal(compileSceneDocument(binding.document).ok, true);
   assert.deepEqual(checkStatedCircuitProblemBinding(question, problem, binding.document), []);
 });
@@ -170,7 +170,7 @@ for (const problem of [meters, tree]) check(`original full IR ${problem.id}`, ()
   assert.equal(binding.factBindings.length, problem.facts.length);
   assert.equal(binding.entityBindings.length, problem.entities.length);
   assert.equal(binding.expressionBindings.length, problem.expressions.length);
-  assert.equal(checkVisualObligations(deriveVisualObligations(problem), binding.document).satisfied, true);
+  assert.equal(checkVisualObligations(deriveVisualObligations(problem), binding.document, problem).satisfied, true);
   assert.equal(compileSceneDocument(binding.document).ok, true);
   assert.deepEqual(checkStatedCircuitProblemBinding(problem.question, problem, binding.document), []);
 });

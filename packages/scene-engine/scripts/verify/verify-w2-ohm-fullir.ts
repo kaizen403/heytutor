@@ -29,7 +29,7 @@ for (const name of ["meters", "tree"]) {
   assert.equal(checkVisualObligations(deriveVisualObligations(problem), stock).satisfied, false);
   const binding = bindStatedCircuitProblem(problem.question, problem);
   assert.ok(binding, `${name}: full original IR binds`);
-  const obligations = checkVisualObligations(deriveVisualObligations(problem), binding.document);
+  const obligations = checkVisualObligations(deriveVisualObligations(problem), binding.document, problem);
   assert.equal(obligations.satisfied, true, JSON.stringify(obligations));
   const compiled = compileSceneDocument(binding.document);
   assert.equal(compiled.ok, true, JSON.stringify(compiled));
@@ -115,7 +115,7 @@ for (const item of cases) check(`${item.id}: independent values, electrical topo
     assert.equal(solution.ammeter?.exact, "1/2");
     assert.equal(solution.voltmeter?.exact, "5");
   }
-  assert.equal(checkVisualObligations(deriveVisualObligations(item.problem), binding.document).satisfied, true);
+  assert.equal(checkVisualObligations(deriveVisualObligations(item.problem), binding.document, item.problem).satisfied, true);
   const compiled = compileSceneDocument(binding.document);
   assert.ok(compiled.ok && compiled.renderScene, JSON.stringify(compiled.report.issues));
   for (const entity of binding.entityBindings) assert.ok(compiled.renderScene.primitives.some(primitive => primitive.entityId === entity.sceneEntityId), `visible ${entity.problemEntityId}`);

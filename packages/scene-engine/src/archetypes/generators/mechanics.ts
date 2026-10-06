@@ -600,33 +600,10 @@ function hingedRod(context: GeneratorContext) {
   return scene.build();
 }
 
-function ladderWall(context: GeneratorContext) {
-  const theta = Math.min(Math.max(num(context, "theta", 60), 20), 85);
-  const L = 4;
-  const foot = { x: L * Math.cos(theta * DEG), y: 0 };
-  const top = { x: 0, y: L * Math.sin(theta * DEG) };
-  const scene = new SceneBuilder(context.question, `ladder leaning on a wall at ${fmt(theta)}° to the floor`, "ladder_wall");
-  scene.quantity("theta", "theta", theta, "degree");
-  scene.point("corner", { x: 0, y: 0 }, "wall foot");
-  scene.point("floor_end", { x: foot.x + 1.2, y: 0 }, "floor end");
-  scene.point("wall_top", { x: 0, y: top.y + 1 }, "wall top");
-  scene.segment("floor", "corner", "floor_end", "floor");
-  scene.segment("wall", "corner", "wall_top", "wall");
-  scene.point("A", foot, "ladder foot", "A");
-  scene.point("B", top, "ladder top", "B");
-  scene.segment("ladder", "A", "B", "ladder", valueLabel(context, "length", "L", "m"));
-  scene.midpoint("G", "A", "B", "centre of mass", "G");
-  scene.point("floor_at_A", { x: foot.x, y: 0 }, "floor contact");
-  scene.segment("floor_ref", "A", "corner", "floor reference");
-  scene.angleMark("angle", "A", "ladder", "floor_ref", angleLabel(context, "theta"));
-  scene.vector("weight", "G", { direction: { x: 0, y: -1 }, length: 1.2 }, "weight", "mg");
-  scene.vector("N_wall", "B", { direction: { x: 1, y: 0 }, length: 1.0 }, "normal reaction from the wall", "N1");
-  scene.vector("N_floor", "A", { direction: { x: 0, y: 1 }, length: 1.2 }, "normal reaction from the floor", "N2");
-  scene.vector("friction", "A", { direction: { x: -1, y: 0 }, length: 0.9 }, "friction at the floor", "f");
-  scene.assert("ladder_angle", "angle_between", ["ladder", "floor_ref"], angleExpected(theta));
-  scene.assert("wall_perp", "perpendicular", ["wall", "floor"]);
-  scene.labelled("weight", "N_wall");
-  return scene.build();
+function ladderWall(_context: GeneratorContext) {
+  // The static source program is selected with full caller IR in familyScene.
+  // A stock length/angle/force picture cannot represent an unsupported ladder.
+  return null;
 }
 
 function relativeMotionLine(context: GeneratorContext) {

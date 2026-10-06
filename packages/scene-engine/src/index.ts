@@ -56,3 +56,11 @@ export * from "./dsa/detectAlgorithm";
 export * from "./dsa/exampleSlots";
 export * from "./dsa/traceToScene";
 export * from "./dsa/familyTeaching";
+
+export { constantAccelerationSourceProgram } from "./archetypes/generators/constantAcceleration";
+export * from "./ir/ladderSourceProgram";
+export * from "./ir/rightTriangleSource";
+
+export * from "./ir/staticContactTriangle";
+
+export * from "./ir/staticContactTriangleAuthority";

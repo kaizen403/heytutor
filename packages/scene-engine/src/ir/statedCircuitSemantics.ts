@@ -31,6 +31,20 @@ function flatConnection(tree: ResistorTree, kind: string, members: string[]): bo
     tree.children.some(child => flatConnection(child, kind, members));
 }
 
+/** A count names the members of one explicit flat combination. The legacy
+ * resistor reader cannot expand repeated leaves; do not let it erase their
+ * multiplicity while reading a valid grouping window. */
+function networkCardinalityIsBound(network: string, tree: ResistorTree): boolean {
+  const counts = [...network.matchAll(/\b(two|three|four)\b/gi)];
+  if (!counts.length) return true;
+  const declaration = /^(?:(?:a|an|the)\s+)?(series|parallel) combination of (two|three|four) resistors of (?=#0\b)/i.exec(network);
+  if (!declaration || counts.length !== 1 || tree.kind === "leaf") return false;
+  const count = { two: 2, three: 3, four: 4 }[declaration[2]!.toLowerCase() as "two" | "three" | "four"];
+  return counts[0]!.index === declaration[0].toLowerCase().lastIndexOf(declaration[2]!.toLowerCase()) &&
+    tree.kind === declaration[1]!.toLowerCase() && tree.children.length === count &&
+    tree.children.every(child => child.kind === "leaf");
+}
+
 /** All request clauses must parse; a recognized first clause is insufficient. */
 export function readCircuitAsks(text: string, solution: StatedCircuitSolution): CircuitAsk[] | null {
   const body = clean(text).replace(/^(?:find|calculate|compute|determine)\s+/i, "");
@@ -99,7 +113,7 @@ export function readCircuitSourceSemantics(question: string, solution: StatedCir
     let restored = network;
     rs.forEach((row, i) => { restored = restored.replace(`#${i}`, `${row.si} ohm`); });
     tree = readResistorTree(restored);
-    if (!tree) return null;
+    if (!tree || !networkCardinalityIsBound(network, tree)) return null;
     const groups: Array<{ kind: string; members: string[] }> = [];
     const visit = (node: ResistorTree): void => { if (node.kind !== "leaf") { groups.push({ kind: node.kind, members: ids(node) }); node.children.forEach(visit); } };
     visit(tree);

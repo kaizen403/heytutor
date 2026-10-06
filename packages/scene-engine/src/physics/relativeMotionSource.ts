@@ -635,7 +635,7 @@ export function relativeMotionCue(question: string): boolean {
 export function relativeMotionSourceEntityBindings(question: string, problemIR: unknown): ReadonlyMap<string, string> | null {
   const validation = validateProblemIR(problemIR, question);
   const admission = relativeMotionSource(question);
-  if (!validation.problem || admission?.status !== "admitted") return null;
+  if (!validation.valid || !validation.problem || admission?.status !== "admitted") return null;
   const actors = [admission.source.subject, admission.source.reference, ...(admission.source.observer ? [admission.source.observer] : [])];
   const names = new Set(actors.map((actor) => actor.name));
   const aliases = new Map<string, string>();
@@ -651,7 +651,8 @@ export function relativeMotionSourceEntityBindings(question: string, problemIR: 
   }
   const bindings = new Map<string, string>();
   const used = new Set<string>();
-  for (const entity of validation.problem.entities.filter((entry) => entry.kind === "body" || entry.kind === "point")) {
+  for (const entity of validation.problem.entities) {
+    if (entity.kind !== "body" && entity.kind !== "point") return null;
     const label = entity.label?.trim();
     const actor = label && (aliases.get(label) ?? aliases.get(label.replace(/^\w+/, (noun) => noun.toLowerCase())));
     if (!actor || used.has(actor)) return null;

@@ -14,6 +14,7 @@ import {
 } from "./statedCircuitAuthority";
 import { bindCircuitFact, readCircuitAsks } from "./statedCircuitSemantics";
 import type { SceneDocument, SceneIssue } from "../types";
+import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 
 type Role = "resistor" | "battery" | "ammeter" | "voltmeter";
 type Literal = ReturnType<typeof readCircuitLiterals>[number];
@@ -122,7 +123,7 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
       if (namedMembers.some((id) => !group.resistorIds.includes(id))) return null;
       const id = `circuit_group_${entity.id}`;
       if (document.entities.some((row) => row.id === id)) return null;
-      document.entities.push({ id, kind: "group", role: `${kind} circuit combination`, label: entity.label,
+      document.entities.push({ id, kind: "group", role: entity.label ?? `${kind} circuit combination`, label: kind === "series" ? "Rs" : "Rp",
         semantic: { memberIds: [...group.resistorIds] } });
       document.annotations.push({ id: `${id}_label`, kind: "label", targetIds: [id],
         text: `${kind === "series" ? "Rs" : "Rp"}(${group.resistorIds.join(",")})=${group.resistance.value} Ω`,
@@ -231,9 +232,20 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
   }
   if (problem.representationIntents.some((intent) => intent.kind !== "network" && intent.kind !== "apparatus")) return null;
   for (const bound of result.entityBindings) {
-    if (!document.requiredEntityIds.includes(bound.sceneEntityId)) document.requiredEntityIds.push(bound.sceneEntityId);
+    // A group is a semantic aggregate, not an independent drawable primitive.
+    // Its exact source members, enclosure and attached value badge carry it.
+    // Declare each physical member rather than an ownership entry the normal
+    // structural compiler would remove from this virtual entity.
+    for (const id of bound.memberIds.length ? bound.memberIds : [bound.sceneEntityId]) {
+      if (!document.requiredEntityIds.includes(id)) document.requiredEntityIds.push(id);
+    }
     if (!document.revealGroups.some((group) => group.entityIds.includes(bound.sceneEntityId))) document.revealGroups[0]!.entityIds.push(bound.sceneEntityId);
   }
+  // Canonicalize only the independently rebuilt source program. Submitted
+  // candidates still face exact comparison; they receive no repair authority.
+  const canonical = validateSceneDocument(pruneDeadSceneEntities(structuredClone(document) as unknown as Record<string, unknown>)).document;
+  if (!canonical) return null;
+  result.document = canonical;
   return result;
 }
 

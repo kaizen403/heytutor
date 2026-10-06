@@ -24,6 +24,7 @@
  * returned. Topics are disjoint by construction, so order only matters for
  * telemetry. To register a topic, add one entry to SOURCE_QUANTITY_AUTHORITIES.
  */
+import { applyStaticContactTriangleAuthority } from "./staticContactTriangleAuthority";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import { bindStatedCircuitProblem } from "./statedCircuitProblemBinding";
 import { applyStatedCircuitAuthority, readStatedCircuitProblemSource, readCircuitUnit } from "./statedCircuitAuthority";
@@ -134,7 +135,17 @@ const riverCrossingAuthority: SourceQuantityAuthority = {
   },
 };
 
+const staticContactTriangleAuthority:SourceQuantityAuthority = {
+  topic:"static-contact-triangle",
+  apply({question,plan}) {
+    const result=applyStaticContactTriangleAuthority(question,plan);
+    return result?{topic:this.topic,plan:result.plan,corrections:result.corrections,declineFigure:result.declineFigure,
+      issueCodes:result.withdrawn.map(()=>"contact_triangle_value_withdrawn")}:null;
+  },
+};
+
 export const SOURCE_QUANTITY_AUTHORITIES: readonly SourceQuantityAuthority[] = [
+  staticContactTriangleAuthority,
   circuitAuthority,
   uniformCircularAuthority,
   relativeMotionAuthority,

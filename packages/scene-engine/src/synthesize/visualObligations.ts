@@ -37,6 +37,7 @@ import {
 import type { ExpressionNodeIR, ProblemIR } from "../ir/problemIR";
 import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
 import { matrixLiteralSourceEntityIsCarried, matrixLiteralSourceDimensionIsCarried } from "../ir/matrixLiteralSource";
+import { bindStatedCircuitProblem, checkStatedCircuitProblemBinding } from "../ir/statedCircuitProblemBinding";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
 import { validateRelativeMotionSourceInputs } from "./relativeMotionScene";
 import { uniformCircularProblemEntitySceneId, uniformCircularSourceDimensionIsCarried } from "../physics/uniformCircularIdentity";
@@ -253,6 +254,10 @@ export function checkVisualObligations(
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
   const mapping = mapProblemEntities(set, document, problem);
+  const circuit = problem ? bindStatedCircuitProblem(problem.question, problem) : null;
+  const sourceGroups = circuit && !checkStatedCircuitProblemBinding(problem!.question, problem, document).some(issue => issue.severity === "fatal")
+    ? new Map(circuit.entityBindings.filter(row => document.entities.find(entity => entity.id === row.sceneEntityId)?.kind === "group")
+      .map(row => [row.problemEntityId, row.memberIds])) : null;
 
   for (const obligation of set.obligations) {
     if (!obligation.supported) {
@@ -269,7 +274,9 @@ export function checkVisualObligations(
     if (obligation.kind !== "named_body" || !obligation.supported) continue;
     const sceneId = mapping.get(obligation.problemEntityId);
     if (!sceneId) continue;
-    if (!document.requiredEntityIds.includes(sceneId)) {
+    const members = sourceGroups?.get(obligation.problemEntityId);
+    const requiredIds = members ?? [sceneId];
+    if (!requiredIds.every(id => document.requiredEntityIds.includes(id))) {
       missing.push({
         obligationId: obligation.id,
         kind: obligation.kind,
@@ -278,7 +285,7 @@ export function checkVisualObligations(
         problemEntityIds: [obligation.problemEntityId],
       });
     }
-    const revealed = document.revealGroups.some((group) => group.entityIds.includes(sceneId));
+    const revealed = [sceneId, ...(members ?? [])].every(id => document.revealGroups.some((group) => group.entityIds.includes(id)));
     if (!revealed) {
       missing.push({
         obligationId: obligation.id,
@@ -452,6 +459,12 @@ function mapProblemEntities(
   const motion = problem ? relativeMotionSource(problem.question) : null;
   const motionBindings = problem && motion?.status === "admitted" && !validateRelativeMotionSourceInputs(document, problem.question).some(issue => issue.severity === "fatal")
     ? relativeMotionSourceEntityBindings(problem.question, problem) : null;
+  // Compact badges may name source-proved combinations. Establish the whole
+  // circuit correspondence afresh; a badge, role or membership marker alone
+  // cannot authorize an identity join.
+  const circuit = problem ? bindStatedCircuitProblem(problem.question, problem) : null;
+  const circuitBindings = circuit && !checkStatedCircuitProblemBinding(problem!.question, problem, document).some(issue => issue.severity === "fatal")
+    ? new Map(circuit.entityBindings.map(row => [row.problemEntityId, row.sceneEntityId])) : null;
   const labelHolds = (entity: SceneDocument["entities"][number], problemLabel: string | null): boolean =>
     problemLabel === null ||
     (typeof entity.label === "string" &&
@@ -474,6 +487,11 @@ function mapProblemEntities(
   };
   for (const obligation of set.obligations) {
     if (obligation.kind !== "named_body") continue;
+    const circuitId = circuitBindings?.get(obligation.problemEntityId);
+    const circuitEntity = circuitId ? byId.get(circuitId) : null;
+    if (circuitEntity && kindHolds(circuitEntity, obligation) && !consumed.has(circuitEntity.id)) {
+      mapping.set(obligation.problemEntityId, circuitEntity.id); consumed.add(circuitEntity.id); continue;
+    }
     const circularId = problem ? uniformCircularProblemEntitySceneId(document, problem, obligation.problemEntityId) : null;
     const circularEntity = circularId ? byId.get(circularId) : null;
     if (circularEntity && kindHolds(circularEntity, obligation) && !consumed.has(circularEntity.id)) {
