@@ -368,7 +368,11 @@ export function readUniformCircularSource(question: string, options: UniformCirc
   if (omegas.some((entry) => !relativeClose(entry.omega, first.omega))) return reject("contradictory_rates", "the stated speed, angular speed, period or acceleration disagree for this radius");
 
   const angularSpeed = first.omega;
-  const speed = angularSpeed * radiusM;
+  // Canonical source equation tree: (2πr)/T, then v²/r. SourceIR uses the
+  // same order; the scoped restore proof handles earlier binary64 drift.
+  const speed = first.source === "speed" ? speeds[0]!.value * speeds[0]!.factor
+    : first.source === "period" ? TWO_PI * radiusM / ((period as Mention).value * (period as Mention).factor)
+    : angularSpeed * radiusM;
   if (!(speed > 0) || speed > MAX_SPEED || !Number.isFinite(angularSpeed)) return reject("out_of_range", "the derived speed is outside the supported nonrelativistic range");
   const mass = masses.length === 1 ? masses[0]!.value * masses[0]!.factor : null;
   if (masses.length > 1) return reject("contradictory_rates", "more than one mass is stated for one body");
@@ -398,7 +402,8 @@ export function readUniformCircularSource(question: string, options: UniformCirc
     rateSource: first.source,
     speed,
     angularSpeed,
-    period: TWO_PI / angularSpeed,
+    period: first.source === "period" ? (period as Mention).value * (period as Mention).factor
+      : first.source === "speed" ? TWO_PI * radiusM / speed : TWO_PI / angularSpeed,
     frequency: angularSpeed / TWO_PI,
     centripetalAcceleration,
     mass,

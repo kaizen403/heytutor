@@ -9,6 +9,7 @@
  * rationals, and the encounter outcome is computed here, never read from a
  * model answer.
  */
+import { validateProblemIR } from "../ir/problemIR";
 
 export interface MotionRational { readonly n: bigint; readonly d: bigint }
 
@@ -45,7 +46,7 @@ export interface RelativeMotionSource {
   /** v_subject − v_reference, m/s. */
   readonly relativeVelocity: MotionRational;
   readonly encounter: EncounterOutcome;
-  readonly requests: { readonly relativeVelocity: boolean; readonly encounter: boolean; readonly observer: boolean };
+  readonly requests: { readonly relativeVelocity: boolean; readonly encounter: boolean; readonly observer: boolean; readonly travelActors?: readonly string[] };
 }
 
 export type RelativeMotionAdmission =
@@ -86,7 +87,7 @@ interface Draft {
   order: string[];
   observer?: string;
   pendingDirected: string[];
-  requests: { relativeVelocity: boolean; encounter: boolean; observer: boolean; pair?: [string, string] };
+  requests: { relativeVelocity: boolean; encounter: boolean; observer: boolean; pair?: [string, string]; travelActors?: string[] };
   engaged: number;
   /** Textbook wording: the bodies' relative sense of motion, unsigned speeds and a gap. */
   relation?: "same" | "towards" | "away";
@@ -383,6 +384,30 @@ function readRequest(sentence: string, draft: Draft): void {
   if (/\d/.test(rest) || /\b(?:if|instead|now|suppose|supposing|assum\w*|given\s+that|unless|provided|had|were|later|doubl\w*|halv\w*|twice|thrice|half|times)\b/i.test(rest)) {
     throw new OutOfModel(`the question sentence carries a premise: "${sentence.slice(0, 60)}"`);
   }
+  // New catch/travel wording consumes the entire request. Actor names are
+  // source roles, never inferred from whichever speed happens to match.
+  if (/\bcatch(?:es)?\s+(?!up\b)|\bdistance\s+travel(?:led|ed)\b/i.test(text)) {
+    const clauses = text.replace(REQUEST_LEAD, "").replace(/[.?!]$/, "").trim().split(/\s+and\s+/i);
+    const travel: string[] = [];
+    let chaseFound = false;
+    for (const clause of clauses) {
+      const chase = /^(?:the\s+)?time\s+for\s+([A-Z])\s+to\s+(?:catch(?:\s+up\s+with)?|overtake|reach)\s+([A-Z])$/.exec(clause);
+      const distance = /^(?:the\s+)?distance\s+travel(?:led|ed)\s+by\s+(?:train\s+|car\s+)?([A-Z])$/.exec(clause);
+      if (chase) {
+        const pair: [string, string] = [chase[1]!, chase[2]!];
+        if (pair[0] === pair[1] || !pair.every((name) => draft.bodies.has(name) && name !== draft.observer)) reject("catch request needs two stated actors");
+        if (draft.requests.pair && draft.requests.pair.some((name, i) => name !== pair[i])) reject("conflicting requested pairs");
+        draft.requests.pair = pair;
+        draft.requests.encounter = true;
+        chaseFound = true;
+      } else if (distance) travel.push(distance[1]!);
+      else reject(`unsupported catch/travel request: "${clause}"`);
+    }
+    if (!chaseFound && !draft.requests.encounter) reject("travel distance needs a stated encounter time request");
+    if (travel.some((name) => !draft.requests.pair?.includes(name))) reject("travel request names an actor outside the encounter pair");
+    if (travel.length) draft.requests.travelActors = [...new Set([...(draft.requests.travelActors ?? []), ...travel])];
+    return;
+  }
   const named = /\bv([A-Z])([A-Z])\b/g;
   let match: RegExpExecArray | null;
   while ((match = named.exec(text))) {
@@ -496,7 +521,7 @@ export function relativeMotionSource(question: unknown): RelativeMotionAdmission
         observer,
         relativeVelocity: sub(subject.v, reference.v),
         encounter: encounterOutcome(subject, reference),
-        requests: { relativeVelocity: draft.requests.relativeVelocity, encounter: draft.requests.encounter, observer: draft.requests.observer },
+        requests: { relativeVelocity: draft.requests.relativeVelocity, encounter: draft.requests.encounter, observer: draft.requests.observer, ...(draft.requests.travelActors ? { travelActors: draft.requests.travelActors } : {}) },
       },
     };
   } catch (error) {
@@ -564,7 +589,7 @@ function conventional(draft: Draft): RelativeMotionAdmission {
       observer: null,
       relativeVelocity: sub(a.v, b.v),
       encounter: encounterOutcome(a, b),
-      requests: { relativeVelocity: draft.requests.relativeVelocity, encounter: draft.requests.encounter, observer: false },
+      requests: { relativeVelocity: draft.requests.relativeVelocity, encounter: draft.requests.encounter, observer: false, ...(draft.requests.travelActors ? { travelActors: draft.requests.travelActors } : {}) },
     },
   };
 }
@@ -599,4 +624,39 @@ export function relativeMotionCue(question: string): boolean {
     || /\b(?:[Cc]ar|[Tt]rain|[Bb]us|[Bb]ody|[Pp]article|[Pp]oint)s?\s+[A-Z]\b/.test(question)
     || /\b[A-Z]\s+and\s+[A-Z]\b/.test(question);
   return relative && pair;
+}
+
+/**
+ * Parent obligation glue: resolve actual IR body identities against the
+ * independently parsed source, without removing entities or accepting label
+ * provenance. This only supplies identity joins; every non-body obligation
+ * and all quantities/geometry still need their existing proofs.
+ */
+export function relativeMotionSourceEntityBindings(question: string, problemIR: unknown): ReadonlyMap<string, string> | null {
+  const validation = validateProblemIR(problemIR, question);
+  const admission = relativeMotionSource(question);
+  if (!validation.problem || admission?.status !== "admitted") return null;
+  const actors = [admission.source.subject, admission.source.reference, ...(admission.source.observer ? [admission.source.observer] : [])];
+  const names = new Set(actors.map((actor) => actor.name));
+  const aliases = new Map<string, string>();
+  for (const actor of actors) aliases.set(actor.name, actor.name);
+  // The noun in a parsed introduction is an alias for the same actor, never
+  // an extra body. These patterns bind identities only, not topic selection.
+  for (const match of question.matchAll(/\b(car|train|bus|body|particle|point|cyclist|runner|observer)\s+([A-Z])\b/gi)) {
+    if (names.has(match[2]!)) aliases.set(`${match[1]!.toLowerCase()} ${match[2]}`, match[2]!);
+  }
+  for (const match of question.matchAll(/\b[Tt]wo\s+(cars|trains|buses|bodies|particles|points|cyclists|runners)\s+([A-Z])\s+and\s+([A-Z])\b/g)) {
+    const singular: Record<string, string> = { cars: "car", trains: "train", buses: "bus", bodies: "body", particles: "particle", points: "point", cyclists: "cyclist", runners: "runner" };
+    for (const name of [match[2]!, match[3]!]) if (names.has(name)) aliases.set(`${singular[match[1]!.toLowerCase()]} ${name}`, name);
+  }
+  const bindings = new Map<string, string>();
+  const used = new Set<string>();
+  for (const entity of validation.problem.entities.filter((entry) => entry.kind === "body" || entry.kind === "point")) {
+    const label = entity.label?.trim();
+    const actor = label && (aliases.get(label) ?? aliases.get(label.replace(/^\w+/, (noun) => noun.toLowerCase())));
+    if (!actor || used.has(actor)) return null;
+    bindings.set(entity.id, actor);
+    used.add(actor);
+  }
+  return used.size === names.size ? bindings : null;
 }

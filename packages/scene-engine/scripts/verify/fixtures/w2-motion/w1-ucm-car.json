@@ -1,0 +1,525 @@
+{
+  "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution.",
+  "rawIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "circCarAccel",
+    "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution.",
+    "facts": [
+      {
+        "id": "fSpeed",
+        "kind": "given",
+        "statement": "The car moves at a constant speed of 20 m/s.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 41,
+          "quote": "A car moves at a constant speed of 20 m/s"
+        }
+      },
+      {
+        "id": "fRadius",
+        "kind": "given",
+        "statement": "The circular track has radius 50 m.",
+        "evidence": {
+          "source": "question",
+          "start": 45,
+          "end": 77,
+          "quote": "circular track of radius 50 m"
+        }
+      },
+      {
+        "id": "fFindAccel",
+        "kind": "requested",
+        "statement": "Find the centripetal acceleration.",
+        "evidence": {
+          "source": "question",
+          "start": 79,
+          "end": 105,
+          "quote": "Find its centripetal acceleration"
+        }
+      },
+      {
+        "id": "fFindPeriod",
+        "kind": "requested",
+        "statement": "Find the time for one revolution.",
+        "evidence": {
+          "source": "question",
+          "start": 110,
+          "end": 135,
+          "quote": "time for one revolution"
+        }
+      },
+      {
+        "id": "fUniformCircular",
+        "kind": "assumption",
+        "statement": "The car undergoes uniform circular motion at constant speed.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 77,
+          "quote": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "car",
+        "kind": "body",
+        "label": "car",
+        "evidenceFactIds": [
+          "fSpeed"
+        ]
+      },
+      {
+        "id": "track",
+        "kind": "curve",
+        "label": "circular track",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      },
+      {
+        "id": "center",
+        "kind": "point",
+        "label": "center of circular track",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "exprSpeed",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 20
+        },
+        "evidenceFactIds": [
+          "fSpeed"
+        ]
+      },
+      {
+        "id": "exprRadius",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 50
+        },
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      },
+      {
+        "id": "exprCentripetalAccel",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "binary",
+            "op": "^",
+            "left": {
+              "kind": "variable",
+              "name": "v"
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          },
+          "right": {
+            "kind": "variable",
+            "name": "r"
+          }
+        },
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius",
+          "fUniformCircular"
+        ]
+      },
+      {
+        "id": "exprPeriod",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "binary",
+            "op": "*",
+            "left": {
+              "kind": "binary",
+              "op": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "constant",
+                "name": "pi"
+              }
+            },
+            "right": {
+              "kind": "variable",
+              "name": "r"
+            }
+          },
+          "right": {
+            "kind": "variable",
+            "name": "v"
+          }
+        },
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius",
+          "fUniformCircular"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "riCircularMotion",
+        "kind": "conceptual",
+        "entityIds": [
+          "car",
+          "track",
+          "center"
+        ],
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius",
+          "fUniformCircular"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "srCentripetalAccel",
+        "kind": "evaluate",
+        "expressionId": "exprCentripetalAccel",
+        "resultBinding": {
+          "turnPlanQuantityId": "u1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius",
+            "fUniformCircular"
+          ]
+        }
+      },
+      {
+        "id": "srPeriod",
+        "kind": "evaluate",
+        "expressionId": "exprPeriod",
+        "resultBinding": {
+          "turnPlanQuantityId": "u2",
+          "symbol": "T",
+          "unit": "s",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius",
+            "fUniformCircular"
+          ]
+        }
+      }
+    ]
+  },
+  "normalizedIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "circCarAccel",
+    "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution.",
+    "facts": [
+      {
+        "id": "fSpeed",
+        "kind": "given",
+        "statement": "The car moves at a constant speed of 20 m/s.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 41,
+          "quote": "A car moves at a constant speed of 20 m/s"
+        }
+      },
+      {
+        "id": "fRadius",
+        "kind": "given",
+        "statement": "The circular track has radius 50 m.",
+        "evidence": {
+          "source": "question",
+          "start": 51,
+          "end": 80,
+          "quote": "circular track of radius 50 m"
+        }
+      },
+      {
+        "id": "fFindAccel",
+        "kind": "requested",
+        "statement": "Find the centripetal acceleration.",
+        "evidence": {
+          "source": "question",
+          "start": 82,
+          "end": 115,
+          "quote": "Find its centripetal acceleration"
+        }
+      },
+      {
+        "id": "fFindPeriod",
+        "kind": "requested",
+        "statement": "Find the time for one revolution.",
+        "evidence": {
+          "source": "question",
+          "start": 120,
+          "end": 143,
+          "quote": "time for one revolution"
+        }
+      },
+      {
+        "id": "fUniformCircular",
+        "kind": "assumption",
+        "statement": "The car undergoes uniform circular motion at constant speed.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 80,
+          "quote": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "car",
+        "kind": "body",
+        "label": "car",
+        "evidenceFactIds": [
+          "fSpeed"
+        ]
+      },
+      {
+        "id": "track",
+        "kind": "curve",
+        "label": "circular track",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      },
+      {
+        "id": "center",
+        "kind": "point",
+        "label": "center of circular track",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "exprSpeed",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 20
+        },
+        "evidenceFactIds": [
+          "fSpeed"
+        ]
+      },
+      {
+        "id": "exprRadius",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 50
+        },
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "riCircularMotion",
+        "kind": "conceptual",
+        "entityIds": [
+          "car",
+          "track",
+          "center"
+        ],
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius",
+          "fUniformCircular"
+        ]
+      }
+    ],
+    "solveRequests": []
+  },
+  "savedIR": {
+    "id": "circCarAccel",
+    "facts": [
+      {
+        "id": "fSpeed",
+        "kind": "given",
+        "evidence": {
+          "end": 41,
+          "quote": "A car moves at a constant speed of 20 m/s",
+          "start": 0,
+          "source": "question"
+        },
+        "statement": "The car moves at a constant speed of 20 m/s."
+      },
+      {
+        "id": "fRadius",
+        "kind": "given",
+        "evidence": {
+          "end": 80,
+          "quote": "circular track of radius 50 m",
+          "start": 51,
+          "source": "question"
+        },
+        "statement": "The circular track has radius 50 m."
+      },
+      {
+        "id": "fFindAccel",
+        "kind": "requested",
+        "evidence": {
+          "end": 115,
+          "quote": "Find its centripetal acceleration",
+          "start": 82,
+          "source": "question"
+        },
+        "statement": "Find the centripetal acceleration."
+      },
+      {
+        "id": "fFindPeriod",
+        "kind": "requested",
+        "evidence": {
+          "end": 143,
+          "quote": "time for one revolution",
+          "start": 120,
+          "source": "question"
+        },
+        "statement": "Find the time for one revolution."
+      },
+      {
+        "id": "fUniformCircular",
+        "kind": "assumption",
+        "evidence": {
+          "end": 80,
+          "quote": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m",
+          "start": 0,
+          "source": "question"
+        },
+        "statement": "The car undergoes uniform circular motion at constant speed."
+      }
+    ],
+    "entities": [
+      {
+        "id": "car",
+        "kind": "body",
+        "label": "car",
+        "evidenceFactIds": [
+          "fSpeed"
+        ]
+      },
+      {
+        "id": "track",
+        "kind": "curve",
+        "label": "circular track",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      },
+      {
+        "id": "center",
+        "kind": "point",
+        "label": "center of circular track",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "question": "A car moves at a constant speed of 20 m/s around a circular track of radius 50 m. Find its centripetal acceleration and time for one revolution.",
+    "constraints": [],
+    "expressions": [
+      {
+        "id": "exprSpeed",
+        "root": {
+          "kind": "number",
+          "value": 20
+        },
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fSpeed"
+        ]
+      },
+      {
+        "id": "exprRadius",
+        "root": {
+          "kind": "number",
+          "value": 50
+        },
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fRadius"
+        ]
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "solveRequests": [],
+    "representationIntents": [
+      {
+        "id": "riCircularMotion",
+        "kind": "conceptual",
+        "entityIds": [
+          "car",
+          "track",
+          "center"
+        ],
+        "evidenceFactIds": [
+          "fSpeed",
+          "fRadius",
+          "fUniformCircular"
+        ]
+      }
+    ]
+  },
+  "savedSolver": {
+    "issues": [],
+    "proofs": [],
+    "status": "solved",
+    "values": [],
+    "problemId": "circCarAccel",
+    "providerId": "local-deterministic/v1",
+    "schemaVersion": "solver-result/v1"
+  },
+  "offlineSolverReconstruction": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "circCarAccel",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+  },
+  "offlineAuthorityAudit": {
+    "status": "incomplete",
+    "issues": [
+      {
+        "code": "unbound_unknown",
+        "message": "numeric unknown u1 has no explicit solver binding",
+        "quantityId": "u1"
+      },
+      {
+        "code": "unbound_unknown",
+        "message": "numeric unknown u2 has no explicit solver binding",
+        "quantityId": "u2"
+      }
+    ],
+    "bindings": []
+  },
+  "qualification": "Selected actual captured full IR and local diagnostics; no new student or lifecycle evidence."
+}

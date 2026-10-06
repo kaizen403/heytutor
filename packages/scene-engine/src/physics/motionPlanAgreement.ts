@@ -210,6 +210,8 @@ export function relativeMotionBindings(source: RelativeMotionSource): MotionBind
   bound.set(`v${b}${a}`, { dimension: "velocity", si: -vAB, signed: true });
   bound.set(`v${a}`, { dimension: "velocity", si: motionRationalNumber(source.subject.v) });
   bound.set(`v${b}`, { dimension: "velocity", si: motionRationalNumber(source.reference.v) });
+  bound.set(`v${a}ms`, { dimension: "velocity", si: motionRationalNumber(source.subject.v) });
+  bound.set(`v${b}ms`, { dimension: "velocity", si: motionRationalNumber(source.reference.v) });
   if (source.observer) {
     const o = source.observer.name.toLowerCase(); const vO = motionRationalNumber(source.observer.v);
     bound.set(`v${o}`, { dimension: "velocity", si: vO });
@@ -221,6 +223,12 @@ export function relativeMotionBindings(source: RelativeMotionSource): MotionBind
   }
   const encounter = source.encounter;
   if (encounter.kind === "future" || encounter.kind === "initial") {
+    const time = motionRationalNumber(encounter.time);
+    for (const actor of [source.subject, source.reference]) {
+      const name = actor.name.toLowerCase();
+      const distance = Math.abs(motionRationalNumber(actor.v)) * time;
+      for (const key of [`d${name}`, `s${name}`, `distance${name}`]) bound.set(key, { dimension: "length", si: distance });
+    }
     for (const name of ["t", "tmeet", "tmeeting", "tencounter", "tcatch", "tcatchup", "tovertake", "tm"]) bound.set(name, { dimension: "time", si: motionRationalNumber(encounter.time) });
     for (const name of ["xmeet", "xmeeting", "xencounter", "xm"]) bound.set(name, { dimension: "length", si: motionRationalNumber(encounter.position) });
   }

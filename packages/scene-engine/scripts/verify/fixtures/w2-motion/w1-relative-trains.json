@@ -1,0 +1,641 @@
+{
+  "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+  "rawIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "trainCatch",
+    "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+    "facts": [
+      {
+        "id": "f1",
+        "kind": "given",
+        "statement": "Train A moves at 72 km/h.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 63,
+          "quote": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively."
+        }
+      },
+      {
+        "id": "f2",
+        "kind": "given",
+        "statement": "Train B moves at 54 km/h.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 63,
+          "quote": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively."
+        }
+      },
+      {
+        "id": "f3",
+        "kind": "given",
+        "statement": "A is initially 100 m behind B.",
+        "evidence": {
+          "source": "question",
+          "start": 65,
+          "end": 93,
+          "quote": "A is initially 100 m behind B."
+        }
+      },
+      {
+        "id": "f4",
+        "kind": "requested",
+        "statement": "Find the time for A to catch B.",
+        "evidence": {
+          "source": "question",
+          "start": 94,
+          "end": 123,
+          "quote": "Find the time for A to catch B"
+        }
+      },
+      {
+        "id": "f5",
+        "kind": "requested",
+        "statement": "Find the distance travelled by A.",
+        "evidence": {
+          "source": "question",
+          "start": 128,
+          "end": 156,
+          "quote": "the distance travelled by A."
+        }
+      },
+      {
+        "id": "f6",
+        "kind": "assumption",
+        "statement": "Trains maintain constant speeds.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 63,
+          "quote": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively."
+        }
+      },
+      {
+        "id": "f7",
+        "kind": "assumption",
+        "statement": "Trains are treated as point masses or the distance refers to the gap between their fronts/backs consistently.",
+        "evidence": {
+          "source": "question",
+          "start": 65,
+          "end": 93,
+          "quote": "A is initially 100 m behind B."
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "trainA",
+        "kind": "body",
+        "label": "Train A",
+        "evidenceFactIds": [
+          "f1",
+          "f3"
+        ]
+      },
+      {
+        "id": "trainB",
+        "kind": "body",
+        "label": "Train B",
+        "evidenceFactIds": [
+          "f2",
+          "f3"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "e1",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "binary",
+            "op": "*",
+            "left": {
+              "kind": "number",
+              "value": 72
+            },
+            "right": {
+              "kind": "number",
+              "value": 1000
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 3600
+          }
+        },
+        "evidenceFactIds": [
+          "f1"
+        ]
+      },
+      {
+        "id": "e2",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "binary",
+            "op": "*",
+            "left": {
+              "kind": "number",
+              "value": 54
+            },
+            "right": {
+              "kind": "number",
+              "value": 1000
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 3600
+          }
+        },
+        "evidenceFactIds": [
+          "f2"
+        ]
+      },
+      {
+        "id": "e3",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "op": "-",
+          "left": {
+            "kind": "variable",
+            "name": "v_A_ms"
+          },
+          "right": {
+            "kind": "variable",
+            "name": "v_B_ms"
+          }
+        },
+        "evidenceFactIds": [
+          "f1",
+          "f2"
+        ]
+      },
+      {
+        "id": "e4",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "number",
+            "value": 100
+          },
+          "right": {
+            "kind": "variable",
+            "name": "v_rel"
+          }
+        },
+        "evidenceFactIds": [
+          "f3"
+        ]
+      },
+      {
+        "id": "e5",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "op": "*",
+          "left": {
+            "kind": "variable",
+            "name": "v_A_ms"
+          },
+          "right": {
+            "kind": "variable",
+            "name": "t"
+          }
+        },
+        "evidenceFactIds": [
+          "f1",
+          "f4"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "ri1",
+        "kind": "conceptual",
+        "entityIds": [
+          "trainA",
+          "trainB"
+        ],
+        "evidenceFactIds": [
+          "f1",
+          "f2",
+          "f3"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sr1",
+        "kind": "evaluate",
+        "expressionId": "e4",
+        "resultBinding": {
+          "turnPlanQuantityId": "u1",
+          "symbol": "t",
+          "unit": "s",
+          "evidenceFactIds": [
+            "f3",
+            "f1",
+            "f2"
+          ]
+        }
+      },
+      {
+        "id": "sr2",
+        "kind": "evaluate",
+        "expressionId": "e5",
+        "resultBinding": {
+          "turnPlanQuantityId": "u2",
+          "symbol": "d_A",
+          "unit": "m",
+          "evidenceFactIds": [
+            "f1",
+            "f4"
+          ]
+        }
+      }
+    ]
+  },
+  "normalizedIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "trainCatch",
+    "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+    "facts": [
+      {
+        "id": "f1",
+        "kind": "given",
+        "statement": "Train A moves at 72 km/h.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 82,
+          "quote": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively."
+        }
+      },
+      {
+        "id": "f2",
+        "kind": "given",
+        "statement": "Train B moves at 54 km/h.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 82,
+          "quote": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively."
+        }
+      },
+      {
+        "id": "f3",
+        "kind": "given",
+        "statement": "A is initially 100 m behind B.",
+        "evidence": {
+          "source": "question",
+          "start": 83,
+          "end": 113,
+          "quote": "A is initially 100 m behind B."
+        }
+      },
+      {
+        "id": "f4",
+        "kind": "requested",
+        "statement": "Find the time for A to catch B.",
+        "evidence": {
+          "source": "question",
+          "start": 114,
+          "end": 144,
+          "quote": "Find the time for A to catch B"
+        }
+      },
+      {
+        "id": "f5",
+        "kind": "requested",
+        "statement": "Find the distance travelled by A.",
+        "evidence": {
+          "source": "question",
+          "start": 149,
+          "end": 177,
+          "quote": "the distance travelled by A."
+        }
+      },
+      {
+        "id": "f6",
+        "kind": "assumption",
+        "statement": "Trains maintain constant speeds.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 82,
+          "quote": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively."
+        }
+      },
+      {
+        "id": "f7",
+        "kind": "assumption",
+        "statement": "Trains are treated as point masses or the distance refers to the gap between their fronts/backs consistently.",
+        "evidence": {
+          "source": "question",
+          "start": 83,
+          "end": 113,
+          "quote": "A is initially 100 m behind B."
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "trainA",
+        "kind": "body",
+        "label": "Train A",
+        "evidenceFactIds": [
+          "f1",
+          "f3"
+        ]
+      },
+      {
+        "id": "trainB",
+        "kind": "body",
+        "label": "Train B",
+        "evidenceFactIds": [
+          "f2",
+          "f3"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "e1",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "left": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 72
+            },
+            "right": {
+              "kind": "number",
+              "value": 1000
+            },
+            "operator": "*"
+          },
+          "right": {
+            "kind": "number",
+            "value": 3600
+          },
+          "operator": "/"
+        },
+        "evidenceFactIds": [
+          "f1"
+        ]
+      },
+      {
+        "id": "e2",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "left": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 54
+            },
+            "right": {
+              "kind": "number",
+              "value": 1000
+            },
+            "operator": "*"
+          },
+          "right": {
+            "kind": "number",
+            "value": 3600
+          },
+          "operator": "/"
+        },
+        "evidenceFactIds": [
+          "f2"
+        ]
+      },
+      {
+        "id": "e4",
+        "valueType": "scalar",
+        "root": {
+          "kind": "binary",
+          "left": {
+            "kind": "number",
+            "value": 100
+          },
+          "right": {
+            "kind": "variable",
+            "name": "v_rel"
+          },
+          "operator": "/"
+        },
+        "evidenceFactIds": [
+          "f3"
+        ]
+      }
+    ],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "ri1",
+        "kind": "conceptual",
+        "entityIds": [
+          "trainA",
+          "trainB"
+        ],
+        "evidenceFactIds": [
+          "f1",
+          "f2",
+          "f3"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sr1",
+        "kind": "evaluate",
+        "expressionId": "e4",
+        "resultBinding": {
+          "turnPlanQuantityId": "u1",
+          "symbol": "t",
+          "unit": "s",
+          "evidenceFactIds": [
+            "f3",
+            "f1",
+            "f2"
+          ]
+        }
+      }
+    ]
+  },
+  "savedIR": null,
+  "savedSolver": null,
+  "offlineSolverReconstruction": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "trainCatch",
+    "providerId": "local-deterministic/v1",
+    "status": "failed",
+    "values": [],
+    "proofs": [],
+    "issues": [
+      {
+        "code": "unsupported_or_invalid_request",
+        "path": "solveRequests.sr1",
+        "message": "unsupported free variable v_rel",
+        "requestId": "sr1"
+      }
+    ]
+  },
+  "offlineAuthorityAudit": {
+    "status": "incomplete",
+    "issues": [
+      {
+        "code": "invalid_solver_result",
+        "message": "solver result is not a complete validated solution"
+      }
+    ],
+    "bindings": []
+  },
+  "qualification": "Selected actual captured full IR and local diagnostics; no new student or lifecycle evidence.",
+  "actualPlan": {
+    "givens": [
+      {
+        "id": "g1",
+        "unit": "km/h",
+        "value": 72,
+        "symbol": "v_A",
+        "provenance": "given",
+        "sourceText": "Speed of train A"
+      },
+      {
+        "id": "g2",
+        "unit": "km/h",
+        "value": 54,
+        "symbol": "v_B",
+        "provenance": "given",
+        "sourceText": "Speed of train B"
+      },
+      {
+        "id": "g3",
+        "unit": "m",
+        "value": 100,
+        "symbol": "d0",
+        "provenance": "given",
+        "sourceText": "Initial distance A is behind B"
+      }
+    ],
+    "lawIds": [
+      "Relative Velocity",
+      "Distance = Speed \u00d7 Time",
+      "Unit Conversion (km/h to m/s)"
+    ],
+    "derived": [
+      {
+        "id": "u1",
+        "unit": "s",
+        "value": 20,
+        "symbol": "t",
+        "dependsOn": [
+          "g3",
+          "d3"
+        ],
+        "provenance": "derived",
+        "sourceText": "t = d0 / v_rel = 100 / 5 = 20 s"
+      },
+      {
+        "id": "u2",
+        "unit": "m",
+        "value": 400,
+        "symbol": "d_A",
+        "dependsOn": [
+          "d1",
+          "u1"
+        ],
+        "provenance": "derived",
+        "sourceText": "d_A = v_A_ms * t = 20 * 20 = 400 m"
+      },
+      {
+        "id": "d1",
+        "unit": "m/s",
+        "value": 20,
+        "symbol": "v_A_ms",
+        "dependsOn": [
+          "g1"
+        ],
+        "provenance": "derived",
+        "sourceText": "72 km/h * (1000 m / 3600 s) = 20 m/s"
+      },
+      {
+        "id": "d2",
+        "unit": "m/s",
+        "value": 15,
+        "symbol": "v_B_ms",
+        "dependsOn": [
+          "g2"
+        ],
+        "provenance": "derived",
+        "sourceText": "54 km/h * (1000 m / 3600 s) = 15 m/s"
+      },
+      {
+        "id": "d3",
+        "unit": "m/s",
+        "value": 5,
+        "symbol": "v_rel",
+        "dependsOn": [
+          "d1",
+          "d2"
+        ],
+        "provenance": "derived",
+        "sourceText": "v_A_ms - v_B_ms = 20 - 15 = 5 m/s"
+      }
+    ],
+    "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+    "unknowns": [
+      {
+        "id": "u1",
+        "unit": "s",
+        "symbol": "t"
+      },
+      {
+        "id": "u2",
+        "unit": "m",
+        "symbol": "d_A"
+      }
+    ],
+    "assumptions": [
+      "Trains maintain constant speeds.",
+      "Trains are treated as point masses or the distance refers to the gap between their fronts/backs consistently."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Train A is faster than Train B, so it will eventually catch up.",
+        "expected": "v_A > v_B",
+        "relatedQuantityIds": [
+          "g1",
+          "g2"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "The relative speed of A with respect to B is the difference in their speeds since they move in the same direction.",
+        "expected": "v_rel = v_A - v_B",
+        "relatedQuantityIds": [
+          "d3"
+        ]
+      }
+    ],
+    "visualRequirement": "optional"
+  }
+}
