@@ -52,6 +52,8 @@ export interface StatedCircuitSolution {
   power?: CircuitValue;
   /** Source-computable subtrees, including the whole network. */
   groups: Array<{ kind: "series" | "parallel"; resistorIds: string[]; resistance: CircuitValue }>;
+  /** A shared per-load given, only for an explicit identical-load declaration. */
+  identicalResistance?: CircuitValue;
 }
 
 export interface CircuitAuthorityIssue {
@@ -172,17 +174,60 @@ export function solveStatedResistorCircuit(question: string): StatedCircuitSolut
  * uncommitted candidate: full IR binding, obligations and compilation remain
  * mandatory before it may render. No submitted graph or scalar is accepted.
  */
-export function readStatedCircuitProblemSource(question: string): { document: SceneDocument; solution: StatedCircuitSolution; match: ArchetypeMatch; semantics: CircuitSourceSemantics } | null {
-  const match = detectArchetype(question, { turnPlan: null });
+type CircuitLiteral = ReturnType<typeof readCircuitLiterals>[number];
+export interface StatedCircuitProblemSource {
+  document: SceneDocument;
+  solution: StatedCircuitSolution;
+  match: ArchetypeMatch;
+  semantics: CircuitSourceSemantics;
+  /** Original source spans, one per physical resistor, including multiplicity. */
+  resistorLiterals: CircuitLiteral[];
+  identicalCount?: number;
+}
+
+/** Commutation and explicit equal-load expansion in the closed source grammar.
+ * Only source clauses are normalized; submitted IR and evidence stay intact.
+ * The resulting clause still passes the existing whole-source semantics gate.
+ */
+function circuitSourceForm(question: string): { question: string; identicalCount?: number } {
+  const literals = readCircuitLiterals(question);
+  let marked = question;
+  for (const row of [...literals].reverse()) marked = marked.slice(0, row.start) +
+    (row.dimension === "resistance" ? "@R" : row.dimension === "voltage" ? "@V" : "@X") + marked.slice(row.end);
+  const literal = (dimension: "resistance" | "voltage"): string | null => {
+    const rows = literals.filter(row => row.dimension === dimension);
+    return rows.length === 1 ? question.slice(rows[0]!.start, rows[0]!.end) : null;
+  };
+  const resistance = literal("resistance"), voltage = literal("voltage");
+  if (!resistance || !voltage || literals.length !== 2) return { question };
+  const batteryFirst = /^(?:a|an|the) @V (cell|battery) (?:is )?connected across (?:a|an|the) @R resistor[.?!]?\s+((?:find|calculate|compute|determine)\s+.+)$/i.exec(marked);
+  if (batteryFirst) return { question: `A ${resistance} resistor is connected across a ${voltage} ${batteryFirst[1]}. ${batteryFirst[2]}` };
+  const repeated = /^(two|three|four) (?:identical|equal) resistors each of @R are connected in (series|parallel) across (?:a|an|the) @V (cell|battery)[.?!]?\s+((?:find|calculate|compute|determine)\s+.+)$/i.exec(marked);
+  if (!repeated) return { question };
+  const count = { two: 2, three: 3, four: 4 }[repeated[1]!.toLowerCase() as "two" | "three" | "four"];
+  const leaves = Array.from({ length: count }, () => `${resistance} resistor`);
+  return { question: `A ${leaves.slice(0, -1).join(", ")} and a ${leaves.at(-1)} are connected in ${repeated[2]} across a ${voltage} ${repeated[3]}. ${repeated[4]}`, identicalCount: count };
+}
+
+export function readStatedCircuitProblemSource(question: string): StatedCircuitProblemSource | null {
+  if (question.length > 8000) return null;
+  const form = circuitSourceForm(question);
+  const match = detectArchetype(form.question, { turnPlan: null });
   if (match?.id !== "resistor_network") return null;
   const generate = generatorFor(match.id);
   if (!generate) return null;
   try {
-    const document = generate({ question, slots: match.slots, sources: match.sources, quantities: [], schematic: false });
+    const document = generate({ question: form.question, slots: match.slots, sources: match.sources, quantities: [], schematic: false });
     if (!document) return null;
-    const solution = solveCircuitGraph(question, document, match);
-    const semantics = solution && readCircuitSourceSemantics(question, solution, readCircuitLiterals);
-    return solution && semantics ? { document, solution, match, semantics } : null;
+    const solution = solveCircuitGraph(form.question, document, match);
+    const semantics = solution && readCircuitSourceSemantics(form.question, solution, readCircuitLiterals);
+    const originals = readCircuitLiterals(question).filter(row => row.dimension === "resistance");
+    const resistorLiterals = form.identicalCount ? Array.from({ length: form.identicalCount }, () => originals[0]!) : originals;
+    if (!solution || !semantics || resistorLiterals.length !== solution.resistors.length) return null;
+    if (form.identicalCount) solution.identicalResistance = { ...solution.resistors[0]!.resistance };
+    // Canonical source order is internal only. Public source retains the stem.
+    document.source.question = question;
+    return { document, solution, match, semantics, resistorLiterals, ...(form.identicalCount ? { identicalCount: form.identicalCount } : {}) };
   } catch {
     return null;
   }
@@ -351,7 +396,7 @@ export function statedCircuitBoundValue(solution: StatedCircuitSolution, dimensi
   if (dimension === "voltage" && /^(?:V_?V|V_?voltmeter|voltmeter)$/i.test(key)) return solution.voltmeter;
   if (dimension === "resistance") {
     if (/^R_?(?:eq|equiv|equivalent|total|tot|net|eff|effective)$/i.test(key)) return solution.equivalentResistance;
-    return single && /^R$/.test(key) ? solution.resistors[0]!.resistance : undefined;
+    return /^R$/.test(key) ? (single ? solution.resistors[0]!.resistance : solution.identicalResistance) : undefined;
   }
   if (dimension === "current") {
     if (/^I_?(?:total|tot|net|main|source|src|battery|cell|drawn)$/i.test(key)) return solution.sourceCurrent;
@@ -377,6 +422,7 @@ const groupOwner = (solution: StatedCircuitSolution, members: string[]): string 
 const sameOwner = (a: CircuitQuantityBinding, b: CircuitQuantityBinding): boolean => a.dimension === b.dimension && a.owner === b.owner;
 function bindingForValue(solution: StatedCircuitSolution, dimension: Dimension, value: CircuitValue): CircuitQuantityBinding | undefined {
   const members = solution.resistors.map(row => row.id);
+  if (dimension === "resistance" && value === solution.identicalResistance) return { dimension, owner: "resistor_set", memberIds: members, value };
   // Distinct CircuitValue objects retain distinct physical roles even if equal.
   if (dimension === "resistance" && value === solution.equivalentResistance) return { dimension, owner: "network", memberIds: members, value };
   if ((dimension === "voltage" && value === solution.sourceVoltage) || (dimension === "current" && value === solution.sourceCurrent) || (dimension === "power" && value === solution.power)) return { dimension, owner: "battery", memberIds: members, value };
@@ -570,7 +616,7 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
     const owner = boundValue(solution, dimension[0], quantity.symbol)
       ?? (dimension[0] === "voltage" && quantity.symbol === "V" ? solution.sourceVoltage : undefined);
     const identity = owner && bindingForValue(solution, dimension[0], owner);
-    const sourceRole = identity && ((dimension[0] === "resistance" && solution.resistors.some(row => row.id === identity.owner)) ||
+    const sourceRole = identity && ((dimension[0] === "resistance" && (solution.resistors.some(row => row.id === identity.owner) || identity.owner === "resistor_set")) ||
       (dimension[0] === "voltage" && identity.owner === "battery"));
     if (allowed.some((value) => close(value, quantity.value * dimension[1])) &&
       (!options.requireBoundClaims || (sourceRole && Math.abs(owner!.value - quantity.value * dimension[1]) <= 1e-12 * Math.abs(owner!.value)))) return true;
