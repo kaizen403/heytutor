@@ -438,10 +438,26 @@ function mapProblemEntities(
     problemLabel === null ||
     (typeof entity.label === "string" &&
       sameObligationLabel(entity.label, problemLabel));
+  // Text is not a physical body. Structural kinds constrain identity even
+  // when the label is exact: a trajectory's name on a point cannot name a curve.
+  const kindHolds = (entity: SceneDocument["entities"][number], obligation: NamedBodyObligation): boolean => {
+    switch (obligation.problemKind) {
+      case "point": return entity.kind === "point";
+      // Analytic straight lines may be rendered as sampled function curves.
+      case "line": return ["line", "segment", "ray", "polyline"].includes(entity.kind);
+      case "curve": return ["polyline", "circle", "arc", "line", "segment", "ray"].includes(entity.kind);
+      case "body":
+      case "solid":
+      case "component":
+      case "region":
+      case "field": return !["label", "group", "dimension", "angle_mark", "right_angle_mark", "axes"].includes(entity.kind);
+      default: return true;
+    }
+  };
   for (const obligation of set.obligations) {
     if (obligation.kind !== "named_body") continue;
     const direct = byId.get(obligation.problemEntityId);
-    if (direct && !consumed.has(direct.id) && labelHolds(direct, obligation.problemLabel)) {
+    if (direct && !consumed.has(direct.id) && kindHolds(direct, obligation) && labelHolds(direct, obligation.problemLabel)) {
       mapping.set(obligation.problemEntityId, direct.id);
       consumed.add(direct.id);
       continue;
@@ -451,6 +467,7 @@ function mapProblemEntities(
     const labelled = document.entities.find(
       (entity) =>
         !consumed.has(entity.id) &&
+        kindHolds(entity, obligation) &&
         typeof entity.label === "string" &&
         sameObligationLabel(entity.label, wanted),
     );
