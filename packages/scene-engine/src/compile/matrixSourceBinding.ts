@@ -2,6 +2,7 @@ import type { SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import { evaluateMatrixArrayConstruction, matrixEntryDouble, MATRIX_ARRAY_OPERATORS, type MatrixArrayGeometry } from "./matrixArrayGeometry";
 import { snapshotMathSourceData } from "./mathSourceData";
 import { parseMathExpression2D } from "../math/expression";
+import type { TurnPlanV3 } from "../contracts/contractsV3";
 
 type Expression = { name: string } | { operation: string; operands: Expression[]; scalar?: string; scalarLiteral?: string; scalarName?: string };
 interface MatrixSource {
@@ -13,6 +14,7 @@ interface MatrixSource {
   entryPrefixes?: Map<string, string>;
   unresolved?: string;
   literals?: Map<string, string[][]>;
+  requestedCells?: Array<{ name: string; row: number; column: number }>;
 }
 const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?";
 const NAME = "[A-Za-z][A-Za-z0-9_]{0,15}";
@@ -159,7 +161,7 @@ function parseExpression(text: string, start: number, source: MatrixSource): { e
 function parseSource(question: string): MatrixSource {
   if (question.length > 8192) fail("Source matrix question exceeds8192 characters");
   let text = question.replace(/\$/g, "").replace(/\\(?:left|right)\s*[[\]()|]?/g, "").replace(/[−–]/g, "-").replace(/[×·]/g, "*");
-  const source: MatrixSource = { matrices: new Map(), expressions: new Map(), scalars: new Map(), requests: [], declaredTypes: new Map(), literals: new Map() };
+  const source: MatrixSource = { matrices: new Map(), expressions: new Map(), scalars: new Map(), requests: [], declaredTypes: new Map(), literals: new Map(), requestedCells: [] };
   const erase = (start: number, end: number): void => { text = text.slice(0, start) + " ".repeat(end - start) + text.slice(end); };
   const assignment = new RegExp(`\\b(${NAME})\\s*=\\s*`, "g");
   for (const match of text.matchAll(assignment)) {
@@ -245,6 +247,7 @@ function parseSource(question: string): MatrixSource {
       const row = Number(match[1] ?? match[3]);
       const column = Number(match[2] ?? match[4]);
       if (row < 1 || column < 1 || row > matrix.matrixArray.rows || column > matrix.matrixArray.columns) fail(`Requested element ${match[0]} lies outside the ${matrix.matrixArray.rows}x${matrix.matrixArray.columns} source matrix ${name}`);
+      source.requestedCells!.push({ name, row, column });
       erase(match.index!, match.index! + match[0].length);
     }
   }
@@ -331,10 +334,61 @@ export function hasMatrixSourceProgram(question: string): boolean {
   }
 }
 
-function cellRole(name: string, row: number, column: number, quantity: Record<string, unknown>, entryPrefix?: string): boolean {
+function cellRole(name: string, row: number, column: number, quantity: { id?: unknown; symbol?: unknown }, entryPrefix?: string): boolean {
   const roles = [`${name.toLowerCase()}${row + 1}${column + 1}`, `${name}${row + 1}${column + 1}`, `${name}_${row + 1}_${column + 1}`, `${name.toLowerCase()}_${row + 1}_${column + 1}`, `${name}_{${row + 1}${column + 1}}`];
   if (entryPrefix) roles.push(`${entryPrefix}${row + 1}${column + 1}`, `${entryPrefix}_${row + 1}_${column + 1}`, `${entryPrefix}_{${row + 1}${column + 1}}`);
   return roles.includes(String(quantity.id)) || typeof quantity.symbol === "string" && roles.includes(quantity.symbol);
+}
+
+/** Bounded literal-only view of the existing whole-source grammar, for IR authority. */
+export function readMatrixLiteralSourceProgram(question: string): {
+  matrices: Array<{ name: string; entries: string[][]; geometry: MatrixArrayGeometry; quote: string }>;
+  requestedCells: Array<{ name: string; row: number; column: number }>;
+} | null {
+  try {
+    const source = parseSource(question);
+    if (source.scalars.size || [...source.expressions.values(), ...source.requests].some((expression) => !("name" in expression))) return null;
+    const matrices = [...source.matrices].map(([name, geometry]) => {
+      // Evidence is cut from the unchanged source, never synthesized from cells.
+      const assignments = [...question.matchAll(new RegExp(`\\b${name}\\s*=\\s*`, "g"))];
+      if (assignments.length !== 1) fail("Literal source evidence is ambiguous");
+      const assignment = assignments[0]!;
+      const literal = matrixLiteral(question, assignment.index! + assignment[0].length);
+      if (!literal || !sameEntries(literalGeometry(literal.entries), geometry)) fail("Literal source evidence cannot be recovered unchanged");
+      return { name, entries: literal.entries, geometry, quote: question.slice(assignment.index!, literal.end) };
+    });
+    return { matrices, requestedCells: source.requestedCells ?? [] };
+  } catch { return null; }
+}
+
+/**
+ * Repair only fabricated evidence spellings for uniquely identified literal
+ * cells. Roles, values, units, ownership and the entire plan remain checked by
+ * the original binder. A wrong value/role is rejected, never corrected away.
+ */
+export function recoverMatrixLiteralPlanEvidence(question: string, raw: TurnPlanV3): TurnPlanV3 | null {
+  try {
+    const plan = structuredClone(snapshotMathSourceData(raw));
+    const source = readMatrixLiteralSourceProgram(question);
+    if (!source || plan.question !== question || !Array.isArray(plan.givens)) return null;
+    for (const quantity of plan.givens) {
+      const owners = source.matrices.filter(({ name, entries }) => entries.some((row, i) => row.some((_, j) => cellRole(name, i, j, { symbol: quantity.symbol }))));
+      if (owners.length !== 1) return null;
+      if (typeof quantity.sourceText !== "string" || !quantity.sourceText.trim()) return null;
+      if (!question.includes(quantity.sourceText)) {
+        // Recover only the captured indexed-assignment spelling. Wrong values,
+        // matrices or indices in that spelling are contradictions, not evidence
+        // formatting defects to erase. Arbitrary fabricated prose stays unsupported.
+        const assignment = new RegExp(`^(${NAME})\\[([1-6])\\]\\[([1-6])\\]\\s*=\\s*(${CELL})$`, "i").exec(quantity.sourceText.trim());
+        const owner = owners[0]!;
+        if (!assignment || assignment[1] !== owner.name || !cellRole(owner.name, Number(assignment[2]) - 1, Number(assignment[3]) - 1, { symbol: quantity.symbol })) return null;
+        const expected = owner.entries[Number(assignment[2]) - 1]?.[Number(assignment[3]) - 1];
+        if (!expected || !sameEntries(scalarGeometry(assignment[4]), scalarGeometry(expected))) return null;
+        quantity.sourceText = owner.quote;
+      }
+    }
+    return buildMatrixSourceDocument(question, plan) ? plan : null;
+  } catch { return null; }
 }
 
 export function validateMatrixSourceBinding(document: SceneDocument, authoritativeQuestion?: unknown, turnPlan?: unknown): SceneIssue[] {

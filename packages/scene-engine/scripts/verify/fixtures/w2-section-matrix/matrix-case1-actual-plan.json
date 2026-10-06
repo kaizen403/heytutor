@@ -1,0 +1,230 @@
+{
+  "givens": [
+    {
+      "id": "a11",
+      "value": 2,
+      "symbol": "a11",
+      "provenance": "given",
+      "sourceText": "A[1][1]=2"
+    },
+    {
+      "id": "a12",
+      "value": 5,
+      "symbol": "a12",
+      "provenance": "given",
+      "sourceText": "A[1][2]=5"
+    },
+    {
+      "id": "a13g",
+      "value": 19,
+      "symbol": "a13",
+      "provenance": "given",
+      "sourceText": "A[1][3]=19"
+    },
+    {
+      "id": "a14",
+      "sign": "negative",
+      "value": -7,
+      "symbol": "a14",
+      "provenance": "given",
+      "sourceText": "A[1][4]=-7"
+    },
+    {
+      "id": "a21g",
+      "value": 35,
+      "symbol": "a21",
+      "provenance": "given",
+      "sourceText": "A[2][1]=35"
+    },
+    {
+      "id": "a22",
+      "sign": "negative",
+      "value": -2,
+      "symbol": "a22",
+      "provenance": "given",
+      "sourceText": "A[2][2]=-2"
+    },
+    {
+      "id": "a23g",
+      "value": 2.5,
+      "symbol": "a23",
+      "provenance": "given",
+      "sourceText": "A[2][3]=2.5"
+    },
+    {
+      "id": "a24g",
+      "value": 12,
+      "symbol": "a24",
+      "provenance": "given",
+      "sourceText": "A[2][4]=12"
+    },
+    {
+      "id": "a31",
+      "value": 1.5,
+      "symbol": "a31",
+      "provenance": "given",
+      "sourceText": "A[3][1]=1.5"
+    },
+    {
+      "id": "a32",
+      "value": 1,
+      "symbol": "a32",
+      "provenance": "given",
+      "sourceText": "A[3][2]=1"
+    },
+    {
+      "id": "a33g",
+      "sign": "negative",
+      "value": -5,
+      "symbol": "a33",
+      "provenance": "given",
+      "sourceText": "A[3][3]=-5"
+    },
+    {
+      "id": "a34",
+      "value": 17,
+      "symbol": "a34",
+      "provenance": "given",
+      "sourceText": "A[3][4]=17"
+    }
+  ],
+  "lawIds": [
+    "matrix-order-definition",
+    "matrix-element-indexing"
+  ],
+  "derived": [
+    {
+      "id": "a13",
+      "value": 19,
+      "symbol": "a13",
+      "dependsOn": [
+        "a13g"
+      ],
+      "provenance": "derived",
+      "sourceText": "element in row 1, column 3 = 19"
+    },
+    {
+      "id": "a21",
+      "value": 35,
+      "symbol": "a21",
+      "dependsOn": [
+        "a21g"
+      ],
+      "provenance": "derived",
+      "sourceText": "element in row 2, column 1 = 35"
+    },
+    {
+      "id": "a33",
+      "sign": "negative",
+      "value": -5,
+      "symbol": "a33",
+      "dependsOn": [
+        "a33g"
+      ],
+      "provenance": "derived",
+      "sourceText": "element in row 3, column 3 = -5"
+    },
+    {
+      "id": "a24",
+      "value": 12,
+      "symbol": "a24",
+      "dependsOn": [
+        "a24g"
+      ],
+      "provenance": "derived",
+      "sourceText": "element in row 2, column 4 = 12"
+    },
+    {
+      "id": "a23",
+      "value": 2.5,
+      "symbol": "a23",
+      "dependsOn": [
+        "a23g"
+      ],
+      "provenance": "derived",
+      "sourceText": "element in row 2, column 3 = 2.5"
+    }
+  ],
+  "question": "A=[[2,5,19,-7],[35,-2,2.5,12],[1.5,1,-5,17]]. Show the matrix A, state its order and write the elements a13, a21, a33, a24 and a23.",
+  "unknowns": [
+    {
+      "id": "order",
+      "symbol": "order"
+    },
+    {
+      "id": "a13",
+      "symbol": "a13"
+    },
+    {
+      "id": "a21",
+      "symbol": "a21"
+    },
+    {
+      "id": "a33",
+      "symbol": "a33"
+    },
+    {
+      "id": "a24",
+      "symbol": "a24"
+    },
+    {
+      "id": "a23",
+      "symbol": "a23"
+    }
+  ],
+  "assumptions": [
+    "Rows are counted top to bottom and columns left to right, so aij denotes row i, column j."
+  ],
+  "schemaVersion": "turn-plan/v3",
+  "qualitativeClaims": [
+    {
+      "id": "c1",
+      "claim": "Matrix A has 3 rows and 4 columns, so its order is 3 x 4.",
+      "expected": "3 x 4",
+      "relatedQuantityIds": [
+        "order"
+      ]
+    },
+    {
+      "id": "c2",
+      "claim": "a13 is the entry in row 1, column 3, which is 19.",
+      "expected": "19",
+      "relatedQuantityIds": [
+        "a13"
+      ]
+    },
+    {
+      "id": "c3",
+      "claim": "a21 is the entry in row 2, column 1, which is 35.",
+      "expected": "35",
+      "relatedQuantityIds": [
+        "a21"
+      ]
+    },
+    {
+      "id": "c4",
+      "claim": "a33 is the entry in row 3, column 3, which is -5.",
+      "expected": "-5",
+      "relatedQuantityIds": [
+        "a33"
+      ]
+    },
+    {
+      "id": "c5",
+      "claim": "a24 is the entry in row 2, column 4, which is 12.",
+      "expected": "12",
+      "relatedQuantityIds": [
+        "a24"
+      ]
+    },
+    {
+      "id": "c6",
+      "claim": "a23 is the entry in row 2, column 3, which is 2.5.",
+      "expected": "2.5",
+      "relatedQuantityIds": [
+        "a23"
+      ]
+    }
+  ],
+  "visualRequirement": "optional"
+}

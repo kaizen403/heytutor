@@ -1,0 +1,566 @@
+{
+  "schemaVersion": "problem-ir/v1",
+  "id": "matrixOrderElements",
+  "question": "A=[[2,5,19,-7],[35,-2,2.5,12],[1.5,1,-5,17]]. Show the matrix A, state its order and write the elements a13, a21, a33, a24 and a23.",
+  "facts": [
+    {
+      "id": "fMatrixGiven",
+      "kind": "given",
+      "statement": "A=[[2,5,19,-7],[35,-2,2.5,12],[1.5,1,-5,17]]",
+      "evidence": {
+        "source": "question",
+        "start": 0,
+        "end": 58,
+        "quote": "A=[[2,5,19,-7],[35,-2,2.5,12],[1.5,1,-5,17]]"
+      }
+    },
+    {
+      "id": "fShowMatrix",
+      "kind": "requested",
+      "statement": "Show the matrix A",
+      "evidence": {
+        "source": "question",
+        "start": 60,
+        "end": 76,
+        "quote": "Show the matrix A"
+      }
+    },
+    {
+      "id": "fStateOrder",
+      "kind": "requested",
+      "statement": "state its order",
+      "evidence": {
+        "source": "question",
+        "start": 78,
+        "end": 93,
+        "quote": "state its order"
+      }
+    },
+    {
+      "id": "fWriteElements",
+      "kind": "requested",
+      "statement": "write the elements a13, a21, a33, a24 and a23",
+      "evidence": {
+        "source": "question",
+        "start": 98,
+        "end": 144,
+        "quote": "write the elements a13, a21, a33, a24 and a23"
+      }
+    },
+    {
+      "id": "fRowColConvention",
+      "kind": "assumption",
+      "statement": "Rows are counted top to bottom and columns left to right, so aij denotes row i, column j.",
+      "evidence": {
+        "source": "question",
+        "start": 0,
+        "end": 58,
+        "quote": "A=[[2,5,19,-7],[35,-2,2.5,12],[1.5,1,-5,17]]"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "matrixA",
+      "kind": "other",
+      "label": "A",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "row1",
+      "kind": "other",
+      "label": "row 1",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "row2",
+      "kind": "other",
+      "label": "row 2",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "row3",
+      "kind": "other",
+      "label": "row 3",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "col1",
+      "kind": "other",
+      "label": "column 1",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "col2",
+      "kind": "other",
+      "label": "column 2",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "col3",
+      "kind": "other",
+      "label": "column 3",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "col4",
+      "kind": "other",
+      "label": "column 4",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry11",
+      "kind": "other",
+      "label": "a11",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry12",
+      "kind": "other",
+      "label": "a12",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry13",
+      "kind": "other",
+      "label": "a13",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry14",
+      "kind": "other",
+      "label": "a14",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry21",
+      "kind": "other",
+      "label": "a21",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry22",
+      "kind": "other",
+      "label": "a22",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry23",
+      "kind": "other",
+      "label": "a23",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry24",
+      "kind": "other",
+      "label": "a24",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry31",
+      "kind": "other",
+      "label": "a31",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry32",
+      "kind": "other",
+      "label": "a32",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry33",
+      "kind": "other",
+      "label": "a33",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "entry34",
+      "kind": "other",
+      "label": "a34",
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "e11",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 2
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e12",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 5
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e13",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 19
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e14",
+      "valueType": "scalar",
+      "root": {
+        "kind": "unary",
+        "op": "-",
+        "operand": {
+          "kind": "number",
+          "value": 7
+        }
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e21",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 35
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e22",
+      "valueType": "scalar",
+      "root": {
+        "kind": "unary",
+        "op": "-",
+        "operand": {
+          "kind": "number",
+          "value": 2
+        }
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e23",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 2.5
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e24",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 12
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e31",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 1.5
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e32",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 1
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e33",
+      "valueType": "scalar",
+      "root": {
+        "kind": "unary",
+        "op": "-",
+        "operand": {
+          "kind": "number",
+          "value": 5
+        }
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "e34",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 17
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "eOrderRows",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 3
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "eOrderCols",
+      "valueType": "scalar",
+      "root": {
+        "kind": "number",
+        "value": 4
+      },
+      "evidenceFactIds": [
+        "fMatrixGiven"
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "id": "cOrder",
+      "kind": "equation",
+      "lhs": "order",
+      "rhs": "3 x 4",
+      "evidenceFactIds": [
+        "fStateOrder",
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "cA13",
+      "kind": "equation",
+      "lhs": "a13",
+      "rhs": "19",
+      "evidenceFactIds": [
+        "fWriteElements",
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "cA21",
+      "kind": "equation",
+      "lhs": "a21",
+      "rhs": "35",
+      "evidenceFactIds": [
+        "fWriteElements",
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "cA33",
+      "kind": "equation",
+      "lhs": "a33",
+      "rhs": "-5",
+      "evidenceFactIds": [
+        "fWriteElements",
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "cA24",
+      "kind": "equation",
+      "lhs": "a24",
+      "rhs": "12",
+      "evidenceFactIds": [
+        "fWriteElements",
+        "fMatrixGiven"
+      ]
+    },
+    {
+      "id": "cA23",
+      "kind": "equation",
+      "lhs": "a23",
+      "rhs": "2.5",
+      "evidenceFactIds": [
+        "fWriteElements",
+        "fMatrixGiven"
+      ]
+    }
+  ],
+  "representationIntents": [
+    {
+      "id": "riMatrix",
+      "kind": "graph",
+      "entityIds": [
+        "matrixA",
+        "row1",
+        "row2",
+        "row3",
+        "col1",
+        "col2",
+        "col3",
+        "col4",
+        "entry11",
+        "entry12",
+        "entry13",
+        "entry14",
+        "entry21",
+        "entry22",
+        "entry23",
+        "entry24",
+        "entry31",
+        "entry32",
+        "entry33",
+        "entry34"
+      ],
+      "evidenceFactIds": [
+        "fMatrixGiven",
+        "fShowMatrix"
+      ]
+    }
+  ],
+  "solveRequests": [
+    {
+      "id": "srOrder",
+      "kind": "evaluate",
+      "expressionId": "eOrderRows",
+      "resultBinding": {
+        "turnPlanQuantityId": "order",
+        "symbol": "order",
+        "evidenceFactIds": [
+          "fStateOrder",
+          "fMatrixGiven"
+        ]
+      }
+    },
+    {
+      "id": "srA13",
+      "kind": "evaluate",
+      "expressionId": "e13",
+      "resultBinding": {
+        "turnPlanQuantityId": "a13",
+        "symbol": "a13",
+        "evidenceFactIds": [
+          "fWriteElements",
+          "fMatrixGiven"
+        ]
+      }
+    },
+    {
+      "id": "srA21",
+      "kind": "evaluate",
+      "expressionId": "e21",
+      "resultBinding": {
+        "turnPlanQuantityId": "a21",
+        "symbol": "a21",
+        "evidenceFactIds": [
+          "fWriteElements",
+          "fMatrixGiven"
+        ]
+      }
+    },
+    {
+      "id": "srA33",
+      "kind": "evaluate",
+      "expressionId": "e33",
+      "resultBinding": {
+        "turnPlanQuantityId": "a33",
+        "symbol": "a33",
+        "evidenceFactIds": [
+          "fWriteElements",
+          "fMatrixGiven"
+        ]
+      }
+    },
+    {
+      "id": "srA24",
+      "kind": "evaluate",
+      "expressionId": "e24",
+      "resultBinding": {
+        "turnPlanQuantityId": "a24",
+        "symbol": "a24",
+        "evidenceFactIds": [
+          "fWriteElements",
+          "fMatrixGiven"
+        ]
+      }
+    },
+    {
+      "id": "srA23",
+      "kind": "evaluate",
+      "expressionId": "e23",
+      "resultBinding": {
+        "turnPlanQuantityId": "a23",
+        "symbol": "a23",
+        "evidenceFactIds": [
+          "fWriteElements",
+          "fMatrixGiven"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,306 @@
+{
+  "id": "extDivPt",
+  "facts": [
+    {
+      "id": "fA",
+      "kind": "given",
+      "evidence": {
+        "end": 66,
+        "quote": "A(1,2)",
+        "start": 60,
+        "source": "question"
+      },
+      "statement": "Point A has coordinates (1,2)."
+    },
+    {
+      "id": "fB",
+      "kind": "given",
+      "evidence": {
+        "end": 77,
+        "quote": "B(4,5)",
+        "start": 71,
+        "source": "question"
+      },
+      "statement": "Point B has coordinates (4,5)."
+    },
+    {
+      "id": "fRatio",
+      "kind": "given",
+      "evidence": {
+        "end": 105,
+        "quote": "2:1",
+        "start": 102,
+        "source": "question"
+      },
+      "statement": "The division ratio is 2:1."
+    },
+    {
+      "id": "fExternal",
+      "kind": "given",
+      "evidence": {
+        "end": 88,
+        "quote": "externally",
+        "start": 78,
+        "source": "question"
+      },
+      "statement": "The point divides the join externally."
+    },
+    {
+      "id": "fFind",
+      "kind": "requested",
+      "evidence": {
+        "end": 4,
+        "quote": "Find",
+        "start": 0,
+        "source": "question"
+      },
+      "statement": "Find the coordinates of the dividing point."
+    }
+  ],
+  "entities": [
+    {
+      "id": "ptA",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+        "fA"
+      ]
+    },
+    {
+      "id": "ptB",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+        "fB"
+      ]
+    },
+    {
+      "id": "ptP",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+        "fFind",
+        "fExternal",
+        "fRatio"
+      ]
+    },
+    {
+      "id": "lineAB",
+      "kind": "line",
+      "label": "AB",
+      "evidenceFactIds": [
+        "fA",
+        "fB"
+      ]
+    }
+  ],
+  "question": "Find the coordinates of the point which divides the join of A(1,2) and B(4,5) externally in the ratio 2:1.",
+  "constraints": [],
+  "expressions": [
+    {
+      "id": "eAx",
+      "root": {
+        "kind": "number",
+        "value": 1
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fA"
+      ]
+    },
+    {
+      "id": "eAy",
+      "root": {
+        "kind": "number",
+        "value": 2
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fA"
+      ]
+    },
+    {
+      "id": "eBx",
+      "root": {
+        "kind": "number",
+        "value": 4
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fB"
+      ]
+    },
+    {
+      "id": "eBy",
+      "root": {
+        "kind": "number",
+        "value": 5
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fB"
+      ]
+    },
+    {
+      "id": "eM",
+      "root": {
+        "kind": "number",
+        "value": 2
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fRatio"
+      ]
+    },
+    {
+      "id": "eN",
+      "root": {
+        "kind": "number",
+        "value": 1
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fRatio"
+      ]
+    },
+    {
+      "id": "ePx",
+      "root": {
+        "kind": "binary",
+        "left": {
+          "kind": "binary",
+          "left": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 4
+            },
+            "operator": "*"
+          },
+          "right": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 1
+            },
+            "right": {
+              "kind": "number",
+              "value": 1
+            },
+            "operator": "*"
+          },
+          "operator": "-"
+        },
+        "right": {
+          "kind": "binary",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "number",
+            "value": 1
+          },
+          "operator": "-"
+        },
+        "operator": "/"
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fA",
+        "fB",
+        "fRatio",
+        "fExternal"
+      ]
+    },
+    {
+      "id": "ePy",
+      "root": {
+        "kind": "binary",
+        "left": {
+          "kind": "binary",
+          "left": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 5
+            },
+            "operator": "*"
+          },
+          "right": {
+            "kind": "binary",
+            "left": {
+              "kind": "number",
+              "value": 1
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            },
+            "operator": "*"
+          },
+          "operator": "-"
+        },
+        "right": {
+          "kind": "binary",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "number",
+            "value": 1
+          },
+          "operator": "-"
+        },
+        "operator": "/"
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fA",
+        "fB",
+        "fRatio",
+        "fExternal"
+      ]
+    }
+  ],
+  "schemaVersion": "problem-ir/v1",
+  "solveRequests": [
+    {
+      "id": "srPx",
+      "kind": "evaluate",
+      "expressionId": "ePx"
+    },
+    {
+      "id": "srPy",
+      "kind": "evaluate",
+      "expressionId": "ePy"
+    }
+  ],
+  "representationIntents": [
+    {
+      "id": "riGraph",
+      "kind": "graph",
+      "entityIds": [
+        "ptA",
+        "ptB",
+        "ptP",
+        "lineAB"
+      ],
+      "evidenceFactIds": [
+        "fA",
+        "fB",
+        "fExternal",
+        "fRatio"
+      ]
+    }
+  ]
+}

@@ -14,7 +14,7 @@
  */
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { derivedLabelTargets, readDerivedCoordinateLabelClaim, validateEvaluatedDerivedValueLabels } from "../compile/derivedValueLabels";
-import { validateProblemIR, type ProblemIR } from "./problemIR";
+import { validateProblemIR, type ExpressionNodeIR, type ProblemIR } from "./problemIR";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
 
 type Rational = { n: bigint; d: bigint };
@@ -335,12 +335,19 @@ export function sectionFormulaScene(question: string, problemIR?: ProblemIR | nu
     document.requiredEntityIds.push("seg_extension");
     document.revealGroups[1]!.entityIds.push("seg_extension");
   }
-  if (problemIR && !bindSectionProblem(document, source, problemIR)) return null;
+  if (problemIR) {
+    try { if (!bindSectionProblem(document, source, problemIR)) return null; }
+    catch { return null; }
+  }
   return document;
 }
 
 /** Scalar roles come from the named source point, never from value membership. */
 function sectionDimension(source: SectionFormulaSource, id: string, question: string): { symbol: string; value: number } | null {
+  // The captured IR prefixes expression roles with e (eAx, eM). This is a
+  // spelling of the role, not a numeric-membership or arbitrary-id fallback.
+  if (/^e(?:[A-Z](?:_?\d)?'?_?[xy]|[MN])$/.test(id)) id = id.slice(1);
+  if (id === "M" || id === "N") id = id.toLowerCase();
   const statedPoint = [...question.matchAll(NAMED_POINT)].some((match) => match[1] === source.point.name);
   const points = [source.a, source.b, ...(statedPoint ? [source.point] : [])];
   for (const point of points) {
@@ -388,14 +395,35 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   if (!source.a.named || !source.b.named || endpoints.some((entity) => !entity)) return false;
   const endpointIds = endpoints.map((entity) => entity!.id);
   const intent = problem.representationIntents.find((candidate) => ["section", "graph", "conceptual"].includes(candidate.kind)
-    && candidate.entityIds.length === 3 && endpointIds.every((id) => candidate.entityIds.includes(id)));
+    && endpointIds.every((id) => candidate.entityIds.includes(id)));
   if (!intent) return false;
-  const result = problem.entities.find((entity) => intent.entityIds.includes(entity.id) && !endpointIds.includes(entity.id));
+  const results = problem.entities.filter((entity) => intent.entityIds.includes(entity.id)
+    && !endpointIds.includes(entity.id) && entity.kind === "point");
+  if (results.length !== 1) return false;
+  const result = results[0];
   if (!result || result.kind !== "point" || !result.label || !/^[A-Z](?:_?\d)?'?$/.test(result.label)
     || !result.evidenceFactIds.some((id) => facts.get(id)?.kind === "requested")
     || [source.a.name, source.b.name].includes(result.label)) return false;
   const question = String(document.source.question);
   if (source.pointNameEvidence && result.label !== source.pointNameEvidence.name) return false;
+
+  const hasPointEvidence = (ids: string[], point: SectionFormulaSource["a"]): boolean => ids.some((id) =>
+    facts.get(id)?.kind === "given" && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
+  if (!endpoints.every((entity, i) => hasPointEvidence(entity!.evidenceFactIds, [source.a, source.b][i]!))) return false;
+  const lines = problem.entities.filter((entity) => entity.kind === "line");
+  if (lines.length > 1 || lines.some((line) => line.label !== `${source.a.name}${source.b.name}`
+    || !hasPointEvidence(line.evidenceFactIds, source.a) || !hasPointEvidence(line.evidenceFactIds, source.b))) return false;
+  const admittedIds = [...endpointIds, result.id, ...lines.map((line) => line.id)];
+  if (problem.entities.some((entity) => !admittedIds.includes(entity.id))
+    || problem.representationIntents.some((candidate) => !["section", "graph", "conceptual"].includes(candidate.kind)
+      || candidate.entityIds.some((id) => !admittedIds.includes(id)))) return false;
+  // A line intent gets a real joining segment, not a text-only obligation
+  // witness. Its lineage records the original entity and both source points.
+  if (lines[0]) {
+    const join = document.entities.find((entity) => entity.id === "seg_join")!;
+    join.label = lines[0].label;
+    join.provenance = { problemEntityId: lines[0].id, evidenceFactIds: [...lines[0].evidenceFactIds] };
+  }
 
   const section = document.constructions.find((construction) => construction.operator === "section_point")!;
   const resultId = section.outputs[0]!;
@@ -406,7 +434,25 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
     document.annotations.push({ id: `coordinates_${id}`, kind: "label", targetIds: [id], text: id === resultId ? text.replace(source.point.name, name!) : text });
   }
   for (const expression of problem.expressions) {
-    if (expression.valueType !== "scalar" || !expression.evidenceFactIds.some((id) => facts.get(id)?.kind === "given")) continue;
+    if (expression.valueType !== "scalar") return false;
+    const axis = ["x", "y"].find((axis) => [`${result.label}${axis}`, `e${result.label}${axis}`].includes(expression.id)) as "x" | "y" | undefined;
+    if (axis && expression.root.kind !== "number") {
+      const expected = source.point.exact[axis];
+      const permitted = [source.a[axis], source.b[axis], source.m, source.n];
+      const evaluate = (root: ExpressionNodeIR): Rational | null => {
+        if (root.kind === "number") return permitted.includes(root.value) ? decimal(String(root.value)) : null;
+        if (root.kind !== "binary" || !["+", "-", "*", "/"].includes(root.operator)) return null;
+        const a = evaluate(root.left), b = evaluate(root.right);
+        if (!a || !b || root.operator === "/" && isZero(b)) return null;
+        return root.operator === "+" ? add(a, b) : root.operator === "-" ? sub(a, b) : root.operator === "*" ? mul(a, b) : div(a, b);
+      };
+      const value = evaluate(expression.root);
+      if (!value || text(value) !== expected || !hasPointEvidence(expression.evidenceFactIds, source.a)
+        || !hasPointEvidence(expression.evidenceFactIds, source.b)
+        || source.mode !== "midpoint" && !expression.evidenceFactIds.some((id) => dimensionEvidence(source, "m", facts.get(id)!.evidence.quote))
+        || source.mode === "external" && !expression.evidenceFactIds.some((id) => /\bexternally?\b/i.test(facts.get(id)!.evidence.quote))) return false;
+      continue;
+    }
     // This bounded source contract admits literal coordinate roles only.
     // An opaque id or compound given is a declared gap, never an ignored fact.
     const dimension = sectionDimension(source, expression.id, question);
@@ -490,6 +536,19 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
   }
   const { source } = reading;
   const issues: SceneIssue[] = [];
+  // AB is a sourced geometric join. A forged lineage flag or matching caption
+  // cannot stand in for the actual endpoints, including on restored documents.
+  for (const [index, entity] of document.entities.entries()) {
+    if (entity.label !== `${source.a.name}${source.b.name}` || !["line", "segment"].includes(entity.kind)) continue;
+    const producer = document.constructions.filter((item) => item.outputs.includes(entity.id));
+    const inputs = producer[0]?.inputs;
+    const ends = inputs ? [pointAt(inputs.start ?? inputs.a), pointAt(inputs.end ?? inputs.b)] : [];
+    const matches = (a: { x: number; y: number } | null | undefined, b: { x: number; y: number }): boolean => Boolean(a && a.x === b.x && a.y === b.y);
+    if (producer.length !== 1 || !["segment", "line"].includes(producer[0]!.operator)
+      || !(matches(ends[0], source.a) && matches(ends[1], source.b) || matches(ends[0], source.b) && matches(ends[1], source.a))) {
+      issues.push({ code: "section_source_mismatch", severity: "fatal", path: `entities[${index}]`, message: "The sourced joining line must have both source endpoints" });
+    }
+  }
   const constructedLabelTexts = (id: string): Array<string | undefined> => {
     const targets = derivedLabelTargets(document, id);
     return [
