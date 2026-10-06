@@ -14,6 +14,7 @@ import {
   familiesFromProblemStructure,
   sourceMensurationStructure,
   hasMatrixSourceProgram,
+  readPointLineProgram,
   SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
   PLANNER_VISIBLE_SCENE_PROOF_PREDICATES,
 } from "@heytutor/scene-engine";
@@ -263,6 +264,16 @@ export function inferSceneCapabilities(
   lawIdsOrHints: readonly string[] | SceneStructureHints = [],
 ): SceneCapabilityRequirements {
   const hints = normalizeHints(lawIdsOrHints);
+  if (readPointLineProgram(question).status === "ok") {
+    return {
+      visualRequired: hints.turnPlan?.visualRequirement !== "none",
+      hasSourceProgram: true,
+      families: ["coordinate_figure"],
+      constructionOperators: ["axes", "point", "line_equation", "project", "point_line_distance"],
+      proofPredicates: ["on", "perpendicular"],
+      planningGuidance: ["Preserve the full stated coordinate point and linear equation. The engine computes their perpendicular projection and distance in world coordinates; every ProblemIR body and given remains required. Decline ambiguous or unsupported source roles."],
+    };
+  }
   if (hasMatrixSourceProgram(question)) {
     return {
       visualRequired: hints.turnPlan?.visualRequirement !== "none",

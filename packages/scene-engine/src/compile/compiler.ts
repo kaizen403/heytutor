@@ -30,6 +30,8 @@ import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
+import { validatePointLineSourceInputs } from "../ir/pointLineSource";
+import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
   isometricProject,
@@ -208,6 +210,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     // the one that source computes; a stale relative velocity cannot compile.
     ...validateRelativeMotionSourceInputs(document, document.source.question),
     ...validateUniformCircularSourceInputs(document, document.source.question),
+    ...validatePointLineSourceInputs(document, document.source.question),
+    ...validateSectionPointSourceInputs(document, document.source.question),
   ];
   if (matrixSourceIssues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, [...structural.report.issues, ...matrixSourceIssues], 0) };
   const circleSourceIssues = validateCircleSourceBinding(document);

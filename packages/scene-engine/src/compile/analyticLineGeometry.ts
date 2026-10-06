@@ -139,7 +139,7 @@ function invalid(key: string, message: string): never {
   throw new AnalyticLineInputError(key, message);
 }
 
-function isAnalyticLineOperator(operator: string): operator is AnalyticLineOperator {
+export function isAnalyticLineOperator(operator: string): operator is AnalyticLineOperator {
   return (ANALYTIC_LINE_OPERATORS as readonly string[]).includes(operator);
 }
 
@@ -1155,6 +1155,7 @@ export function validateAnalyticLineConstruction(
     add("outputs", `${operator} requires exactly one output id`, construction.outputs);
   }
   const visiting = new Set<string>();
+  const memo = new Map<string, unknown>();
   const context: AnalyticLineEvaluationContext = {
     number(value) { return validationNumber(value, document); },
     point(value) {
@@ -1163,9 +1164,27 @@ export function validateAnalyticLineConstruction(
     },
     geometry(value) {
       if (typeof value !== "string") return undefined;
-      return { kind: "point", point: resolvePoint(value) };
+      return resolveGeometry(value);
     },
   };
+  function resolveGeometry(id: string): unknown {
+    if (memo.has(id)) return memo.get(id);
+    if (visiting.has(id) || visiting.size >= 32) invalid("reference", "geometry references must be bounded and acyclic");
+    const producer = constructionByOutput.get(id);
+    const entity = document.entities.find(candidate => candidate.id === id);
+    if (!producer || !entity || producer.outputs.length !== 1) invalid("reference", `${id} must reference one constructed geometry`);
+    visiting.add(id);
+    try {
+      const result = producer.operator === "point" && entity.kind === "point"
+        ? { kind: "point", point: checkedPoint({ x: validationNumber(producer.inputs.x, document), y: validationNumber(producer.inputs.y, document) }, "point") }
+        : isAnalyticLineOperator(producer.operator)
+          ? evaluateAnalyticLineConstruction(producer.operator, producer.inputs, context)[0]
+          : undefined;
+      if (!result) throw new UnresolvedAnalyticLine();
+      memo.set(id, result);
+      return result;
+    } finally { visiting.delete(id); }
+  }
   function resolvePoint(id: string): RenderPoint {
     if (visiting.has(id) || visiting.size > 32) invalid("reference", "point references must be acyclic");
     const producer = constructionByOutput.get(id);
@@ -1199,7 +1218,7 @@ export function validateAnalyticLineConstruction(
       // same scalar distance from another line is a different figure.
       const measured = geometry.analyticLine.coefficients;
       const drawn = document.constructions.some((candidate) => {
-        if (candidate === construction || (candidate.operator !== "line_equation" && candidate.operator !== "line_intercepts") || !isRecord(candidate.inputs)) return false;
+        if (candidate === construction || !["line_equation", "line_intercepts", "line_relation"].includes(candidate.operator) || !isRecord(candidate.inputs)) return false;
         try {
           return evaluateAnalyticLineConstruction(candidate.operator, candidate.inputs, context).some((line) => {
             const coefficients = line.kind === "path" && line.infinite ? line.analyticLine.coefficients : undefined;
@@ -1209,7 +1228,7 @@ export function validateAnalyticLineConstruction(
           return false;
         }
       });
-      if (!drawn) add("a", "point_line_distance must measure to a drawn line_equation or line_intercepts line with the same coefficients up to scale");
+      if (!drawn) add("a", "point_line_distance must measure to a drawn certified infinite line with the same coefficients up to scale");
     }
     const actualKind = document.entities.find((entity) => entity.id === outputs[0])?.kind;
     if (!entityKinds(geometry).includes(actualKind ?? "")) {

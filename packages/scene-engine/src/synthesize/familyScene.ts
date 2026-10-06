@@ -56,6 +56,7 @@ import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchema
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
+import { readPointLineProgram, pointLineSourceDocument } from "../ir/pointLineProgram";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
 import { detectArchetype } from "../archetypes/detect";
@@ -218,6 +219,16 @@ function synthesizeFromFamilies(
         reason: "Compiled the stated endpoints and the section point from the question's coordinates and ratio.", family: "coordinate_figure" };
     }
     return null;
+  }
+  const pointLineReading = readPointLineProgram(question);
+  if (pointLineReading.status !== "none") {
+    const document = pointLineReading.status === "ok"
+      ? pointLineSourceDocument(question, isFullProblemIRStructure(input.problemIR) ? input.problemIR : null) : null;
+    const compiled = document ? tryCompile(document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+    return { ...compiled, tier: "exact_verified", nonMetric: false,
+      reason: "Computed the perpendicular projection from the complete source point and linear equation.", family: "coordinate_figure" };
   }
   // Constant-velocity relative motion on one line: an admitted source owns
   // the whole figure. A rejected source still reaches the qualitative
