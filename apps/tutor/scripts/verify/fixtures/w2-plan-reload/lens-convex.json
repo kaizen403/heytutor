@@ -1,0 +1,837 @@
+{
+  "p": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "independentOptics",
+    "question": "An object is placed 300 mm in front of a convex lens of focal length 0.1 m. Find the image distance and magnification.",
+    "facts": [
+      {
+        "id": "setup",
+        "kind": "given",
+        "statement": "An object is placed 300 mm in front of a convex lens of focal length 0.1 m. ",
+        "evidence": {
+          "source": "question",
+          "quote": "An object is placed 300 mm in front of a convex lens of focal length 0.1 m. ",
+          "start": 0,
+          "end": 76
+        }
+      },
+      {
+        "id": "ask",
+        "kind": "requested",
+        "statement": "Find the image distance and magnification.",
+        "evidence": {
+          "source": "question",
+          "quote": "Find the image distance and magnification.",
+          "start": 76,
+          "end": 118
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "sourceObject",
+        "kind": "body",
+        "label": "object",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "sourceDevice",
+        "kind": "body",
+        "label": "lens",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      }
+    ],
+    "expressions": [],
+    "solveRequests": [],
+    "constraints": [],
+    "representationIntents": [
+      {
+        "id": "apparatus",
+        "kind": "apparatus",
+        "entityIds": [
+          "sourceObject",
+          "sourceDevice"
+        ],
+        "evidenceFactIds": [
+          "setup"
+        ]
+      }
+    ]
+  },
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "An object is placed 300 mm in front of a convex lens of focal length 0.1 m. Find the image distance and magnification.",
+    "givens": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": 300,
+        "unit": "mm",
+        "provenance": "given"
+      },
+      {
+        "id": "f",
+        "symbol": "f",
+        "value": 0.1,
+        "unit": "m",
+        "provenance": "given"
+      }
+    ],
+    "derived": [
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": 15,
+        "unit": "cm",
+        "provenance": "derived",
+        "dependsOn": [
+          "u",
+          "f"
+        ]
+      },
+      {
+        "id": "magnification",
+        "symbol": "magnification",
+        "value": -0.5,
+        "unit": "1",
+        "provenance": "derived",
+        "dependsOn": [
+          "u",
+          "f"
+        ]
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "v",
+        "symbol": "v",
+        "unit": "cm"
+      }
+    ],
+    "qualitativeClaims": [],
+    "assumptions": [],
+    "lawIds": [],
+    "visualRequirement": "required"
+  },
+  "d": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "convex lens ray diagram from the lens formula (u=30, f=10)"
+    },
+    "source": {
+      "question": "An object is placed 300 mm in front of a convex lens of focal length 0.1 m. Find the image distance and magnification.",
+      "synthesizedFamily": true,
+      "archetype": "thin_lens",
+      "slotSources": {
+        "u": "stem",
+        "f": "stem"
+      },
+      "derivedSlots": {
+        "v": [
+          "u",
+          "f"
+        ]
+      }
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": -30,
+        "unit": "cm"
+      },
+      {
+        "id": "f",
+        "symbol": "f",
+        "value": 10,
+        "unit": "cm"
+      },
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": 15,
+        "unit": "cm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "axis",
+        "kind": "line",
+        "role": "principal axis"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "optical centre",
+        "label": "O"
+      },
+      {
+        "id": "lens",
+        "kind": "polygon",
+        "role": "convex lens",
+        "label": "lens"
+      },
+      {
+        "id": "F1",
+        "kind": "point",
+        "role": "first focus",
+        "label": "F"
+      },
+      {
+        "id": "F2",
+        "kind": "point",
+        "role": "second focus",
+        "label": "F'"
+      },
+      {
+        "id": "O_base",
+        "kind": "point",
+        "role": "object foot",
+        "label": "A"
+      },
+      {
+        "id": "object",
+        "kind": "vector",
+        "role": "object",
+        "label": "object"
+      },
+      {
+        "id": "I_base",
+        "kind": "point",
+        "role": "image foot",
+        "label": "A'"
+      },
+      {
+        "id": "image",
+        "kind": "vector",
+        "role": "real image"
+      },
+      {
+        "id": "ray1_in",
+        "kind": "segment",
+        "role": "ray parallel to the axis"
+      },
+      {
+        "id": "ray2_in",
+        "kind": "segment",
+        "role": "ray through the optical centre"
+      },
+      {
+        "id": "ray1_out",
+        "kind": "segment",
+        "role": "refracted ray through F' (paraxial)"
+      },
+      {
+        "id": "ray2_out",
+        "kind": "segment",
+        "role": "undeviated ray through the optical centre"
+      },
+      {
+        "id": "dim_u",
+        "kind": "dimension",
+        "role": "object distance",
+        "label": "u=30 cm"
+      },
+      {
+        "id": "dim_v",
+        "kind": "dimension",
+        "role": "image distance",
+        "label": "v=15 cm"
+      },
+      {
+        "id": "axis_l",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "axis_r",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "O_tip",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "I_tip",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "L1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_u_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_u_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_v_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_v_b",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axis_l",
+        "operator": "point",
+        "inputs": {
+          "x": -34.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "axis_l"
+        ]
+      },
+      {
+        "id": "make_axis_r",
+        "operator": "point",
+        "inputs": {
+          "x": 24.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "axis_r"
+        ]
+      },
+      {
+        "id": "make_axis",
+        "operator": "line",
+        "inputs": {
+          "start": "axis_l",
+          "end": "axis_r"
+        },
+        "outputs": [
+          "axis"
+        ]
+      },
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_lens",
+        "operator": "lens_section",
+        "inputs": {
+          "center": "O",
+          "axis": "axis",
+          "radius1": 10.752,
+          "radius2": -10.752,
+          "halfHeight": 4.48
+        },
+        "outputs": [
+          "lens"
+        ]
+      },
+      {
+        "id": "make_F1",
+        "operator": "point",
+        "inputs": {
+          "x": -10,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "F1"
+        ]
+      },
+      {
+        "id": "make_F2",
+        "operator": "point",
+        "inputs": {
+          "x": 10,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "F2"
+        ]
+      },
+      {
+        "id": "make_O_base",
+        "operator": "point",
+        "inputs": {
+          "x": -30,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O_base"
+        ]
+      },
+      {
+        "id": "make_O_tip",
+        "operator": "point",
+        "inputs": {
+          "x": -30,
+          "y": 2.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O_tip"
+        ]
+      },
+      {
+        "id": "make_object",
+        "operator": "vector",
+        "inputs": {
+          "start": "O_base",
+          "end": "O_tip"
+        },
+        "outputs": [
+          "object"
+        ]
+      },
+      {
+        "id": "make_I_base",
+        "operator": "point",
+        "inputs": {
+          "x": 15,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "I_base"
+        ]
+      },
+      {
+        "id": "make_I_tip",
+        "operator": "point",
+        "inputs": {
+          "x": 15,
+          "y": -1.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "I_tip"
+        ]
+      },
+      {
+        "id": "make_image",
+        "operator": "vector",
+        "inputs": {
+          "start": "I_base",
+          "end": "I_tip"
+        },
+        "outputs": [
+          "image"
+        ]
+      },
+      {
+        "id": "make_L1",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "L1"
+        ]
+      },
+      {
+        "id": "make_ray1_in",
+        "operator": "segment",
+        "inputs": {
+          "start": "O_tip",
+          "end": "L1"
+        },
+        "outputs": [
+          "ray1_in"
+        ]
+      },
+      {
+        "id": "make_ray2_in",
+        "operator": "segment",
+        "inputs": {
+          "start": "O_tip",
+          "end": "O"
+        },
+        "outputs": [
+          "ray2_in"
+        ]
+      },
+      {
+        "id": "make_ray1_out",
+        "operator": "segment",
+        "inputs": {
+          "start": "L1",
+          "end": "I_tip",
+          "approximation": "paraxial"
+        },
+        "outputs": [
+          "ray1_out"
+        ]
+      },
+      {
+        "id": "make_ray2_out",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "I_tip"
+        },
+        "outputs": [
+          "ray2_out"
+        ]
+      },
+      {
+        "id": "make_dim_u_a",
+        "operator": "point",
+        "inputs": {
+          "x": -30,
+          "y": 12.3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_u_a"
+        ]
+      },
+      {
+        "id": "make_dim_u_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 12.3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_u_b"
+        ]
+      },
+      {
+        "id": "make_dim_u",
+        "operator": "dimension",
+        "inputs": {
+          "start": "dim_u_a",
+          "end": "dim_u_b"
+        },
+        "outputs": [
+          "dim_u"
+        ]
+      },
+      {
+        "id": "make_dim_v_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -10.9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_v_a"
+        ]
+      },
+      {
+        "id": "make_dim_v_b",
+        "operator": "point",
+        "inputs": {
+          "x": 15,
+          "y": -10.9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_v_b"
+        ]
+      },
+      {
+        "id": "make_dim_v",
+        "operator": "dimension",
+        "inputs": {
+          "start": "dim_v_a",
+          "end": "dim_v_b"
+        },
+        "outputs": [
+          "dim_v"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "rays_converge",
+        "predicate": "converges",
+        "entities": [
+          "ray1_out",
+          "ray2_out"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "centre_on_axis",
+        "predicate": "on",
+        "entities": [
+          "O",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "object_on_axis",
+        "predicate": "on",
+        "entities": [
+          "O_base",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "image_on_axis",
+        "predicate": "on",
+        "entities": [
+          "I_base",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "ray1_in_parallel",
+        "predicate": "parallel",
+        "entities": [
+          "ray1_in",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "image_distance",
+        "predicate": "distance_ratio",
+        "entities": [
+          "O",
+          "I_base",
+          "O",
+          "O_base"
+        ],
+        "expected": 0.5,
+        "severity": "fatal"
+      },
+      {
+        "id": "focal_ratio",
+        "predicate": "distance_ratio",
+        "entities": [
+          "O",
+          "F2",
+          "O",
+          "O_base"
+        ],
+        "expected": 0.333333,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_O",
+        "predicate": "label_attached",
+        "entities": [
+          "O"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_F1",
+        "predicate": "label_attached",
+        "entities": [
+          "F1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_F2",
+        "predicate": "label_attached",
+        "entities": [
+          "F2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_O_base",
+        "predicate": "label_attached",
+        "entities": [
+          "O_base"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_I_base",
+        "predicate": "label_attached",
+        "entities": [
+          "I_base"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_O",
+        "predicate": "label_attached",
+        "entities": [
+          "O"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_F1",
+        "predicate": "label_attached",
+        "entities": [
+          "F1"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_F2",
+        "predicate": "label_attached",
+        "entities": [
+          "F2"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_O_base",
+        "predicate": "label_attached",
+        "entities": [
+          "O_base"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_I_base",
+        "predicate": "label_attached",
+        "entities": [
+          "I_base"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "axis",
+      "O",
+      "lens",
+      "F1",
+      "F2",
+      "O_base",
+      "object",
+      "I_base",
+      "image",
+      "ray1_in",
+      "ray2_in",
+      "ray1_out",
+      "ray2_out",
+      "dim_u",
+      "dim_v"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "axis",
+          "O",
+          "lens",
+          "F1",
+          "F2",
+          "O_base",
+          "object",
+          "dim_u",
+          "I_base"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the lens, its foci and the object"
+      },
+      {
+        "id": "rays",
+        "entityIds": [
+          "ray1_in",
+          "ray2_in",
+          "ray1_out",
+          "ray2_out"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "two principal rays locate the image"
+      },
+      {
+        "id": "image_group",
+        "entityIds": [
+          "I_base",
+          "image",
+          "dim_v"
+        ],
+        "dependsOn": [
+          "rays"
+        ],
+        "narrationCue": "the real, inverted image"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the lens, its foci and the object"
+      },
+      {
+        "id": "reveal_rays",
+        "action": "reveal",
+        "targetId": "rays",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "two principal rays locate the image"
+      },
+      {
+        "id": "reveal_image_group",
+        "action": "reveal",
+        "targetId": "image_group",
+        "dependsOn": [
+          "reveal_rays"
+        ],
+        "narrationIntent": "the real, inverted image"
+      }
+    ]
+  }
+}
