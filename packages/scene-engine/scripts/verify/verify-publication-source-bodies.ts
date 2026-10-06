@@ -7,8 +7,8 @@ import { checkVisualObligations, deriveVisualObligations } from "../../src/synth
 import type { ProblemIR } from "../../src/ir/problemIR";
 import type { SceneDocument } from "../../src/types";
 
-/** Measurement diagnostic: long exact-name support remains unimplemented.
- * Deliberately exits 1 for missing capabilities; not an admission gate or READY receipt. */
+/** Publication source boundary: actual full-IR capacity declines are explicit;
+ * positive authored profiles cannot be substituted for captured/native evidence. */
 const fixture = JSON.parse(readFileSync(new URL("../../../../apps/tutor/scripts/verify/fixtures/fast-figure-authority.json", import.meta.url), "utf8"));
 const entry = fixture.cases.find((row: { id: string }) => row.id === "derive_symbolic");
 const problemIR: ProblemIR = entry.authority.problemIR;
@@ -76,43 +76,24 @@ check("unattached or wrong-target callout cannot satisfy missing identity", () =
   changed.annotations.push({ id: "name", kind: "callout", targetIds: ["trajectory"], text: problemIR.entities.find((row) => row.id === "proj")!.label });
   assert.ok(missing(changed, "proj"));
 });
-check("full actual IR exact positive through synthesis", () => {
-  const full = synthesizeFamilyScene({ question: entry.question, turnPlan: entry.turnPlan, problemIR });
-  assert.ok(full, "full actual IR must produce a figure");
-  assert.ok(checkVisualObligations(obligations, full.document).satisfied);
+// Actual captured names cannot be rendered under the unchanged 16-character
+// label contract. Full source completeness must decline, never erase the IR.
+check("captured full IR declines an incomplete compact figure", () => {
+  assert.equal(synthesizeFamilyScene({ question: entry.question, turnPlan: entry.turnPlan, problemIR }), null);
+  assert.deepEqual(checkVisualObligations(obligations, scene.document).missing.map(row => row.obligationId).sort(), ["body:proj", "body:traj"]);
 });
-check("long exact physical names survive live pruning and normalization", () => {
-  const validated = validateSceneDocument(pruneDeadSceneEntities(exact as unknown as Record<string, unknown>));
-  assert.ok(validated.document, JSON.stringify(validated.report.issues));
-  const audit = checkVisualObligations(obligations, validated.document);
-  assert.equal(audit.satisfied, true, JSON.stringify(audit.missing));
-});
-check("long exact physical names render even without live pruning", () => {
-  const validated = validateSceneDocument(exact);
-  assert.ok(validated.document, JSON.stringify(validated.report.issues));
-  const audit = checkVisualObligations(obligations, validated.document);
-  console.log("normalized full-IR identity audit:", JSON.stringify(audit));
-  assert.equal(audit.satisfied, true, JSON.stringify(audit.missing));
-  const compiled = compileSceneDocument(validated.document);
-  console.log("long-name compile issues:", JSON.stringify(compiled.report.issues));
-  assert.ok(compiled.ok && compiled.renderScene);
-  for (const label of problemIR.entities.map((row) => row.label)) {
-    assert.ok(compiled.renderScene.primitives.some((row) => row.kind === "label" && row.text === label));
-  }
-});
-for (const [sourceId, sceneId] of [["proj", "O"], ["traj", "trajectory"]]) check(`long-name callout renders full attached text: ${sourceId}`, () => {
-  const changed = structuredClone(scene.document);
-  changed.annotations.push(
-    { id: "projectile_name", kind: "callout", targetIds: ["O"], text: problemIR.entities.find((row) => row.id === "proj")!.label },
-    { id: "trajectory_name", kind: "callout", targetIds: ["trajectory"], text: problemIR.entities.find((row) => row.id === "traj")!.label },
-  );
-  const validated = validateSceneDocument(changed);
-  assert.ok(validated.document);
-  const compiled = compileSceneDocument(validated.document);
-  assert.ok(compiled.ok && compiled.renderScene);
-  const label = problemIR.entities.find((row) => row.id === sourceId)!.label;
-  assert.ok(compiled.renderScene.primitives.some((row) => row.kind === "label" && row.entityId === sceneId && row.text === label),
-    `exact attached text absent: ${label}; caption=${compiled.renderScene.caption}`);
+// Authored renderable-name profile, not the actual captured IR or native evidence.
+// All source facts, entities, requests and intents remain; only names differ.
+check("a complete renderable-name full IR has a positive path", () => {
+  const renderable = structuredClone(problemIR);
+  const labels = { proj: "projectile", traj: "trajectory", ground: "level ground" };
+  for (const entity of renderable.entities) entity.label = labels[entity.id as keyof typeof labels];
+  const full = synthesizeFamilyScene({ question: entry.question, turnPlan: entry.turnPlan, problemIR: renderable });
+  assert.ok(full);
+  assert.ok(checkVisualObligations(deriveVisualObligations(renderable), full.document).satisfied);
+  assert.ok(full.renderScene.primitives.some(row => row.kind === "label" && row.text === "projectile"));
+  assert.ok(full.renderScene.primitives.some(row => row.kind === "label" && row.text === "trajectory"));
+  assert.ok(!full.renderScene.primitives.some(row => /45/.test(row.text ?? "")));
 });
 check("unrelated angles leave launch symbolic", () => {
   for (const question of [

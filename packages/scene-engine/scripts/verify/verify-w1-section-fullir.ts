@@ -117,7 +117,7 @@ function verifyRequestedNames(): void {
         const caption: SceneDocument = structuredClone(scene.document);
         const annotation = caption.annotations.find((item) => item.targetIds.includes(result))!;
         annotation.kind = kind;
-        annotation.text = "AP:PB=2:1";
+        annotation.text = "AQ:QB=2:1";
         assert.deepEqual(validateSectionPointSourceInputs(caption, c.question), [], "zero-pair ratio caption remains valid");
       }
       for (const target of ["entity", "annotation", "both"] as const) {

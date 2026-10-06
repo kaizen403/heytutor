@@ -10,8 +10,8 @@ const PAIR = new RegExp(`^([([])\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*([)\\]])(
 const EPSILON = 64 * Number.EPSILON;
 type Dimension = { length: number; time: number; factor: number; identity?: string };
 type Value = { raw: number; dimension: Dimension };
-type Authority = { allowSource: boolean; values: Map<string, Value>; tuple?: [Value, Value]; tupleKeys: Set<string>; reserved: Set<string>; bare?: Value };
-type Claim = { key: string; values: number[]; unit: string; approximate: boolean; tokens: string[] };
+type Authority = { allowSource: boolean; values: Map<string, Value>; tuple?: [Value, Value]; tupleKeys: Set<string>; reserved: Set<string>; bare?: Value; namedRatios?: Map<string, number> };
+type Claim = { key: string; values: number[]; unit: string; approximate: boolean; tokens: string[]; namedRatio?: true };
 const UNITLESS: Dimension = { length: 0, time: 0, factor: 1 };
 const LENGTH_FACTORS: Readonly<Record<string, number>> = { m: 1, meter: 1, meters: 1, metre: 1, metres: 1, cm: 0.01, centimeter: 0.01, centimeters: 0.01, centimetre: 0.01, centimetres: 0.01, mm: 0.001, millimeter: 0.001, millimeters: 0.001, millimetre: 0.001, millimetres: 0.001, km: 1000, kilometer: 1000, kilometers: 1000, kilometre: 1000, kilometres: 1000, um: 1e-6, "µm": 1e-6, "μm": 1e-6, micrometer: 1e-6, micrometers: 1e-6, nm: 1e-9, nanometer: 1e-9, nanometers: 1e-9, ft: 0.3048, foot: 0.3048, feet: 0.3048, in: 0.0254, inch: 0.0254, inches: 0.0254 };
 const TIME_FACTORS: Readonly<Record<string, number>> = { s: 1, sec: 1, second: 1, seconds: 1, ms: 0.001, millisecond: 0.001, milliseconds: 0.001, us: 1e-6, "µs": 1e-6, "μs": 1e-6, microsecond: 1e-6, microseconds: 1e-6, min: 60, minute: 60, minutes: 60, h: 3600, hr: 3600, hour: 3600, hours: 3600 };
@@ -113,7 +113,21 @@ function authorityFor(construction: SceneConstruction, geometry: unknown, docume
     put(result, ["x"], geometry.point.x); put(result, ["y"], geometry.point.y);
     if (typeof section.m === "number") put(result, ["m"], section.m);
     if (typeof section.n === "number") put(result, ["n"], section.n);
-    if (typeof section.m === "number" && typeof section.n === "number" && section.n !== 0) put(result, ["ratio"], section.m / section.n);
+    if (typeof section.m === "number" && typeof section.n === "number" && section.m > 0 && section.n > 0) {
+      put(result, ["m/n"], section.m / section.n);
+      const endpointName = (input: unknown): string | undefined => {
+        if (typeof input !== "string") return undefined;
+        const label = document.entities.find((entity) => entity.id === input)?.label?.trim();
+        return /^([\p{L}][\p{L}\p{N}_'′]*)(?:\s*[=≈:]|$)/u.exec(label ?? "")?.[1];
+      };
+      const a = endpointName(construction.inputs.a); const b = endpointName(construction.inputs.b);
+      if (a && b && identity && a !== b && identity !== a && identity !== b) {
+        result.namedRatios = new Map([
+          [`${a}${identity}:${identity}${b}`, section.m / section.n],
+          [`${b}${identity}:${identity}${a}`, section.n / section.m],
+        ]);
+      }
+    }
     if (typeof section.parameter === "number") put(result, ["t", "parameter"], section.parameter);
     return result;
   }
@@ -191,13 +205,13 @@ function parse(text: unknown): Claim | null {
   const normalized = text.trim();
   if (/(?:\bNaN\b|\bInfinity\b|∞)/i.test(normalized)) fail("Derived quantitative labels must be finite");
   // This is ratio notation, not a coordinate tuple or a scalar named AP.
-  const ratio = new RegExp(`^(?:ratio|AP\\s*:\\s*PB)\\s*=\\s*(${NUMBER})\\s*:\\s*(${NUMBER})$`, "i").exec(normalized);
+  const ratio = new RegExp(`^([\\p{L}][\\p{L}\\p{N}_'′]*\\s*:\\s*[\\p{L}][\\p{L}\\p{N}_'′]*)\\s*=\\s*(${NUMBER})\\s*:\\s*(${NUMBER})$`, "u").exec(normalized);
   if (ratio) {
-    preserveLiteral(ratio[1]); preserveLiteral(ratio[2]);
-    const numerator = Number(ratio[1]); const denominator = Number(ratio[2]);
-    if (!(numerator > 0 && denominator > 0) || !Number.isFinite(numerator / denominator)) fail("Section distance ratios must retain finite positive weights");
+    preserveLiteral(ratio[2]); preserveLiteral(ratio[3]);
+    const numerator = Number(ratio[2]); const denominator = Number(ratio[3]);
+    if (!(numerator > 0 && denominator > 0 && numerator / denominator > 0) || !Number.isFinite(numerator / denominator)) fail("Section distance ratios must retain finite positive weights");
     const value = numerator / denominator;
-    return { key: "ratio", values: [value], unit: "", approximate: false, tokens: [String(value)] };
+    return { key: ratio[1]!.replace(/\s+/g, ""), namedRatio: true, values: [value], unit: "", approximate: false, tokens: [String(value)] };
   }
   // Digits in an identifier or a symbolic function argument are identifiers,
   // not scalar claims. Equality/numeric tuples and bare numbers are claims.
@@ -259,6 +273,11 @@ function sourceClaim(claim: Claim, document: SceneDocument): boolean {
   return true;
 }
 function checkClaim(claim: Claim, authority: Authority, document: SceneDocument, allowSource: boolean): void {
+  if (claim.namedRatio) {
+    const expected = authority.namedRatios?.get(claim.key);
+    if (expected === undefined) fail("Named distance ratio requires certified endpoint and dividing-point identities");
+    close(claim.values[0]!, { raw: expected, dimension: UNITLESS }, claim.unit, false, claim.tokens[0]); return;
+  }
   if (claim.values.length === 2) {
     if (!authority.tuple || !authority.tupleKeys.has(claim.key)) fail("Derived coordinate/component tuple has no unambiguous evaluated authority");
     claim.values.forEach((value, index) => close(value, authority.tuple![index]!, claim.unit, claim.approximate, claim.tokens[index])); return;

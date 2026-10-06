@@ -75,6 +75,37 @@ assert(restoreVerifiedPresentationFromTurn(turn));
 assert.equal(sourceCheckedStoredTurn(turn), turn);
 assert(buildReplayTimeline([turn]).cues.some((cue) => cue.trustedDiagramGeometry)); checks += 3;
 const result = selection.sceneDocument.constructions.find((construction) => construction.operator === "section_point")!.outputs[0]!;
+for (const reversed of [false, true]) {
+  for (const [text, valid] of [["AQ:QB=2:1", true], ["AQ:QB=1:2", false], ["BQ:QA=1:2", true], ["BQ:QA=2:1", false], ["AP:PB=2:1", false], [reversed ? "t=-1" : "t=2", true], [reversed ? "t=2" : "t=-1", false]] as const) {
+    for (const hops of [1, 2]) {
+      const document = structuredClone(selection.sceneDocument);
+      const section = document.constructions.find((construction) => construction.operator === "section_point")!;
+      if (reversed) {
+        [section.inputs.a, section.inputs.b] = [section.inputs.b, section.inputs.a];
+        section.inputs.m = 1; section.inputs.n = 2;
+      }
+      let target = result;
+      for (let hop = 0; hop < hops; hop++) {
+        const next = `ratio_caption_${hop}`;
+        document.entities.push({ id: next, kind: "label", role: "computed caption", label: "computed" });
+        document.constructions.push({ id: `make_${next}`, operator: "label", inputs: { target, text: "computed" }, outputs: [next] });
+        document.requiredEntityIds.push(next); document.revealGroups[0]!.entityIds.push(next); target = next;
+      }
+      document.annotations.push({ id: "named_ratio", kind: "callout", targetIds: [target], text });
+      const message = `${reversed ? "reversed" : "forward"} ${hops}-hop ${text}`;
+      const compiled = compileSceneDocument(document);
+      assert.equal(compiled.ok, valid, `${message}: ${JSON.stringify(compiled.report.issues)}`);
+      const copy = structuredClone(turn); copy.sceneDocument = document;
+      assert.equal(storedTurnSourceIssues(document, copy).some((issue) => issue.severity === "fatal"), !valid, message);
+      assert.equal(restoreVerifiedPresentationFromTurn(copy) !== null, valid, message);
+      assert.equal(sourceCheckedStoredTurn(copy).visualStatus === "retry_required", !valid, message);
+      assert.equal(buildReplayTimeline([copy]).cues.some((cue) => cue.trustedDiagramGeometry), valid, message); checks += 5;
+      for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+        assert.equal(Boolean(sceneSaveAdmissionFailure({ document, question, turnPlan: null, tier })), !valid, message); checks++;
+      }
+    }
+  }
+}
 for (const hops of [1, 2]) {
   for (const channel of ["label", "callout", "quantity", "constructed", "entity"] as const) {
     for (const [text, valid] of [["x=7", true], ["x=99", false], ["Q=(7,8)", true], ["R=(7,8)", false], ["Q=(4,5)", false]] as const) {

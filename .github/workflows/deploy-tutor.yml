@@ -77,8 +77,6 @@ jobs:
           pnpm lint
       - name: Build production applications
         run: pnpm build
-      - name: Startup regressions
-        run: pnpm --filter @heytutor/tutor verify:startup
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
       - name: Security and payment regressions

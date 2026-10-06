@@ -583,7 +583,7 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
     // every result label/quantity channel to freshly read source coordinates.
     validateEvaluatedDerivedValueLabels(construction, index, document, construction.outputs.map(() => ({
       kind: "point", point: source.point,
-      analyticLine: { section: { m, n, parameter: source.mode === "midpoint" ? 0.5 : source.m / (source.mode === "external" ? source.m - source.n : source.m + source.n) } },
+      analyticLine: { section: { m, n, parameter: inputs.mode === "midpoint" ? 0.5 : m / (inputs.mode === "external" ? m - n : m + n) } },
     })), issues);
     } catch (error) {
       issues.push({ code: "section_source_unsupported", severity: "fatal", path: `constructions[${index}].outputs`, message: error instanceof Error ? error.message : "Section label provenance is unsupported" });
