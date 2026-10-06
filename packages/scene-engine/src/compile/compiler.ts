@@ -1,3 +1,4 @@
+import { evaluateFiniteBinomialConstruction, finiteBinomialGeometryValue, finiteBinomialPrimitives, type FiniteBinomialAuthority } from "./binomialExpansionGeometry";
 import {
   SCENE_ENGINE_VERSION,
   type CompileOptions,
@@ -6,6 +7,7 @@ import {
   type RenderPrimitive,
   type SceneAssertion,
   type SceneDocument,
+  type SceneConstruction,
   type SceneIssue,
   type ValidationReport,
 } from "../types";
@@ -129,6 +131,7 @@ type SampledCurve = {
   derivative?: (parameter: number) => Point;
 };
 type DerivedGeometryMetadata = {
+  finiteBinomial?: { nonmetric: true; primitives: RenderPrimitive[]; selectedValue: number | null };
   combinatoricsGraph?: CombinatoricsGraphDefinition;
   combinatoricsNode?: CombinatoricsNodeDefinition;
   combinatoricsEdge?: CombinatoricsEdgeDefinition;
@@ -205,7 +208,7 @@ export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
-  const structural = validateSceneDocument(document);
+  const structural = validateSceneDocument(document, options);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
   const trustedQuestion = options.sourceAuthority?.question ?? document.source.question;
   const callerIssues = options.sourceAuthority
@@ -254,7 +257,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric)) {
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
-      const outputs = evaluateConstruction(operator, inputs, geometry, quantities);
+      const outputs = evaluateConstruction(operator, inputs, geometry, quantities, { construction, document, authority: options.sourceAuthority });
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
         if (override) outputs[0] = { kind: "point", point: override };
@@ -713,6 +716,28 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           labelCollisionBounds: placement.collisionBounds ?? placement.bounds,
         };
       }
+    }
+  }
+
+  const polynomialLabels = primitives.filter(primitive => primitive.kind === "label" && primitive.provenance?.finitePolynomial === true);
+  if (polynomialLabels.length) {
+    const owners: LabelOwner[] = polynomialLabels.map(primitive => ({labelId: primitive.id, entityId: primitive.id,
+      anchor: primitive.points[0]!, text: primitive.text!, viewBounds: transformPlan.viewportFor(primitive.entityId),
+      pinToAnchor: true, allowLeader: false, useOwnerBounds: false}));
+    const obstacles = [...obstaclesFromPrimitives(primitives.filter(primitive => !polynomialLabels.includes(primitive))), workColumnObstacle()];
+    const layout = (fontPx: number) => placeLabels(owners, obstacles, {fontHeightPx: fontPx, maxLabelChars: 100,
+      measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk});
+    let fontPx = 24, labels = layout(fontPx);
+    while (!labels.ok && fontPx > 12) labels = layout(--fontPx);
+    for (const issue of labels.issues) {
+      const primitive = polynomialLabels.find(primitive => primitive.id === issue.entityId);
+      issues.push({code: issue.code, message: issue.message, severity: "fatal", entityIds: primitive ? [primitive.entityId] : []});
+    }
+    if (labels.ok) for (const placement of labels.placements) {
+      const primitive = polynomialLabels.find(primitive => primitive.id === placement.labelId)!;
+      primitive.labelPlacement = "absolute";
+      primitive.provenance = {...primitive.provenance, fontPx, labelBounds: placement.bounds,
+        labelCollisionBounds: placement.collisionBounds ?? placement.bounds};
     }
   }
 
@@ -1290,6 +1315,7 @@ function evaluateConstruction(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  sourceContext: { construction: SceneConstruction; document: SceneDocument; authority?: FiniteBinomialAuthority },
 ): Geometry[] {
   const point = (names: string[]): Point => resolvePoint(first(inputs, names), geometry);
   const number = (names: string[]): number => resolveNumber(first(inputs, names), quantities);
@@ -1299,6 +1325,25 @@ function evaluateConstruction(
     geometry: (value: unknown) => resolveGeometry(value, geometry, true),
   };
   switch (operator) {
+    case "finite_polynomial_expansion": {
+      const {authority, construction, document} = sourceContext;
+      if (!authority) throw new Error("caller-owned finite polynomial source authority is required");
+      return evaluateFiniteBinomialConstruction(operator, inputs, authority).map((value, index): Geometry => {
+        const entityId = construction.outputs[index]!;
+        const groupId = document.revealGroups.find(group => group.entityIds.includes(entityId))!.id;
+        // Table anchors are normalized left edges. Measured glyph extents,
+        // rather than hidden fixed-pixel anchors, participate in the normal fit.
+        const primitives = finiteBinomialPrimitives(value, entityId, groupId, authority).map(primitive => {
+          const width = measureTextWidth(primitive.text!, 1) + .8;
+          return {...primitive, points: primitive.points.map(point => ({x: point.x + width / 2, y: point.y}))};
+        });
+        const paths = primitives.map(primitive => {
+          const center = primitive.points[0]!, halfWidth = (measureTextWidth(primitive.text!, 1) + .8) / 2;
+          return [{x: center.x - halfWidth, y: center.y - .8}, {x: center.x + halfWidth, y: center.y + .8}];
+        });
+        return {kind: "multi_path", paths, finiteBinomial: {nonmetric: true, primitives, selectedValue: finiteBinomialGeometryValue(value, authority)}};
+      });
+    }
     case "permutation_cycles":
     case "subset_lattice": return evaluateCombinatoricsConstruction(operator, inputs, constructionContext);
     case "elastic_profile":
@@ -2233,6 +2278,9 @@ function pushDegenerateProjectedGeometryIssues(
 }
 
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+  if ("finiteBinomial" in value && value.finiteBinomial) {
+    return value.finiteBinomial.primitives.map(primitive => ({...primitive, points: primitive.points.map(transform)}));
+  }
   if (value.kind === "matrix_array") {
     const sourceProvenance = { ...provenance };
     delete sourceProvenance.matrixCell;

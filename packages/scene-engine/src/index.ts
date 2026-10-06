@@ -68,3 +68,8 @@ export * from "./ir/rightTriangleSource";
 export * from "./ir/staticContactTriangle";
 
 export * from "./ir/staticContactTriangleAuthority";
+
+export * from "./math/finitePolynomialExpansion";
+export * from "./ir/finiteBinomialProgram";
+export * from "./compile/binomialExpansionGeometry";
+export * from "./contracts/finiteBinomialContract";

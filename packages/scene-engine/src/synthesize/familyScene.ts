@@ -1,3 +1,4 @@
+import { finiteBinomialSourceDocument, readFiniteBinomialProgram } from "../ir/finiteBinomialProgram";
 /**
  * Compile a verified scene from the question, turn plan, and inferred visual
  * family. Geometry comes from operators and plan quantities — never from
@@ -167,6 +168,16 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  // The complete arithmetic source program, rather than a lexical family cue,
+  // owns this candidate. The actual full IR is retained and audited unchanged.
+  if (readFiniteBinomialProgram(input.question).status === "ok") {
+    const document = finiteBinomialSourceDocument(input.question, input.problemIR);
+    const compiled = document ? tryCompile(document, {sourceAuthority: {question: input.question, problemIR: input.problemIR}}) : null;
+    if (!compiled || !isFullProblemIRStructure(input.problemIR)
+      || visualObligationRejection(deriveVisualObligations(input.problemIR), compiled.document, input.problemIR)) return null;
+    return {...compiled, tier: "exact_verified", nonMetric: true, family: "finite_polynomial_expansion",
+      reason: "Exact source-derived finite polynomial coefficients; table spacing is nonmetric."};
+  }
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   // A section stem that cannot be read whole, whose stated point disagrees
@@ -4484,7 +4495,7 @@ function tryCompile(document: SceneDocument, options: CompileOptions = {}): {
   validationReport: ValidationReport;
 } | null {
   const pruned = pruneDeadSceneEntities(document as unknown as Record<string, unknown>);
-  const validated = validateSceneDocument(pruned);
+  const validated = validateSceneDocument(pruned, options);
   if (!validated.document) return null;
   const compiled = compileSceneDocument(validated.document, options);
   if (

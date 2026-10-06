@@ -1,3 +1,5 @@
+import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
+import { admitFiniteBinomialProblem, validateFiniteBinomialSourceDocument } from "../ir/finiteBinomialProgram";
 /**
  * Required visual obligations (DCP-02) — the "is this figure complete?" seam.
  *
@@ -252,6 +254,11 @@ export function checkVisualObligations(
   document: SceneDocument,
   problem?: ProblemIR,
 ): VisualObligationCheckResult {
+  const sourceIssues = finiteBinomialDocumentIssues(document, problem ? {question: problem.question, problemIR: problem} : undefined);
+  if (sourceIssues.length) return {satisfied: false, satisfiedIds: [],
+    missing: sourceIssues.map(issue => ({obligationId: "finite_polynomial_source", kind: "named_body", code: issue.code,
+      message: issue.message, problemEntityIds: problem?.entities.map(entity => entity.id) ?? []})),
+    unsupportedIds: set.obligations.filter(obligation => !obligation.supported).map(obligation => obligation.id)};
   const satisfiedIds: string[] = [];
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
@@ -467,6 +474,9 @@ function mapProblemEntities(
   // Compact badges may name source-proved combinations. Establish the whole
   // circuit correspondence afresh; a badge, role or membership marker alone
   // cannot authorize an identity join.
+  const polynomial = problem ? admitFiniteBinomialProblem(problem.question, problem) : null;
+  const polynomialId = problem && polynomial?.status === "ok"
+    && validateFiniteBinomialSourceDocument(document, problem.question, problem).length === 0 ? polynomial.polynomialEntityId : null;
   const circuit = problem ? bindStatedCircuitProblem(problem.question, problem) : null;
   const circuitBindings = circuit && !checkStatedCircuitProblemBinding(problem!.question, problem, document).some(issue => issue.severity === "fatal")
     ? new Map(circuit.entityBindings.map(row => [row.problemEntityId, row.sceneEntityId])) : null;
@@ -492,6 +502,9 @@ function mapProblemEntities(
   };
   for (const obligation of set.obligations) {
     if (obligation.kind !== "named_body") continue;
+    if (polynomialId === obligation.problemEntityId && byId.has(polynomialId) && !consumed.has(polynomialId)) {
+      mapping.set(obligation.problemEntityId, polynomialId); consumed.add(polynomialId); continue;
+    }
     const circuitId = circuitBindings?.get(obligation.problemEntityId);
     const circuitEntity = circuitId ? byId.get(circuitId) : null;
     if (circuitEntity && kindHolds(circuitEntity, obligation) && !consumed.has(circuitEntity.id)) {

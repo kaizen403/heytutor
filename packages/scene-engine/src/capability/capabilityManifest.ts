@@ -208,6 +208,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "process_state",
     "permutation_cycles",
     "subset_lattice",
+    "finite_polynomial_expansion",
     "elastic_profile",
     "elastic_state",
     "flux_process",

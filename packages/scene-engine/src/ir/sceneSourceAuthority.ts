@@ -1,3 +1,4 @@
+import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
 import { validateStaticContactTriangleSource } from "./staticContactTriangle";
 import { validateOpticalConjugateSource } from "./opticalConjugateProgram";
 import { validatePointLineProgramSource } from "./pointLineProgram";
@@ -14,6 +15,7 @@ import type { SceneDocument, SceneIssue } from "../types";
 /** Re-establish the actual caller's whole-IR authority at each scene boundary. */
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown): SceneIssue[] {
   const issues = [
+    ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem}),
     ...validateOpticalConjugateSource(document, question, rawProblem),
     ...validatePointLineProgramSource(document, question, rawProblem),
     ...validateSectionFormulaProblemSource(document,question,rawProblem),

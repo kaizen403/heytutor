@@ -230,10 +230,11 @@ const issues: SceneIssue[] = [];
 validateFiniteBinomialConstruction(invalid.constructions[0]!, 0, invalid, issues, authority);
 check(issues.some(issue => issue.severity === "fatal"), "validator catches incomplete output atomically");
 
-// Parent wiring is intentionally absent: demonstrate the current real compiler gap.
-for (const candidate of [document, nativeDocument]) {
-  const compiled = compileSceneDocument(candidate);
-  equal(compiled.ok, false, "current unwired real compiler explicitly declines");
-  equal(compiled.renderScene, null, "unwired current compiler has no partial render");
+// Historical unwired evidence remains in the worker log. Reviewed engine
+// contract now requires the actual caller source, and complete normal ink.
+for (const [candidate, sourceAuthority] of [[document, authority], [nativeDocument, nativeAuthority]] as const) {
+  const compiled = compileSceneDocument(candidate, {sourceAuthority});
+  equal(compiled.ok, true, "source-authorized real compiler accepts reviewed finite contract");
+  check(compiled.renderScene && candidate.requiredEntityIds.every(id => compiled.renderScene!.primitives.some(p => p.entityId === id)), "every required source mark renders through normal compiler");
 }
-console.log(`Wave3 finite binomial foundations verified (${esm ? "built ESM" : "source"}): ${checks} checks; 4 authored core cases + preserved native2014P2Q43; READY=0 countdelta=0 (compiler/live/save/reopen acceptance pending)`);
+console.log(`Wave3 finite binomial foundations verified (${esm ? "built ESM" : "source"}): ${checks} checks; 4 authored core cases + preserved native2014P2Q43; READY=0 countdelta=0 (live/save/reopen acceptance pending)`);

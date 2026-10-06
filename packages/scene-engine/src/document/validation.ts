@@ -1,3 +1,5 @@
+import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
+import { validateFiniteBinomialConstruction, type FiniteBinomialAuthority } from "../compile/binomialExpansionGeometry";
 import {
   SCENE_ANNOTATION_KINDS,
   SCENE_DOCUMENT_VERSION,
@@ -4015,11 +4017,13 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function validateSceneDocument(raw: unknown): ValidationResult {
+export function validateSceneDocument(raw: unknown, options: { sourceAuthority?: FiniteBinomialAuthority } = {}): ValidationResult {
   const issues: SceneIssue[] = [];
   if (!isRecord(raw)) {
     return result(null, [{ code: "invalid_document", message: "SceneDocument must be an object", severity: "fatal", path: "$" }]);
   }
+  const sourceIssues = finiteBinomialDocumentIssues(raw, options.sourceAuthority);
+  if (sourceIssues.length) return result(null, sourceIssues);
   const normalizedRaw: Record<string, unknown> = normalizeGenericPlannerSchema({
     ...raw,
     quantities: raw.quantities ?? [],
@@ -4328,6 +4332,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       }
     }
     if (isRecord(construction.inputs)) {
+      if (construction.operator === "finite_polynomial_expansion" && options.sourceAuthority) validateFiniteBinomialConstruction(construction, index, document, issues, options.sourceAuthority);
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
       if (MAGNETIC_CONSTRUCTIONS.has(construction.operator)) validateMagneticConstruction(construction, index, document, constructionByOutput, issues);
       if (RELATIVE_MOTION_CONSTRUCTIONS.has(construction.operator)) validateRelativeMotionConstruction(construction, index, document, constructionByOutput, issues);
