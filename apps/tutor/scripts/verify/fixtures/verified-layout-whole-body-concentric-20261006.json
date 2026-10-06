@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+    "mode": "scene",
+    "reason": "two explicit circles"
+  },
+  "source": {
+    "question": "Two concentric circles A and B"
+  },
+  "quantities": [],
+  "entities": [
+    {
+      "id": "O",
+      "kind": "point",
+      "role": "centre"
+    },
+    {
+      "id": "A",
+      "kind": "circle",
+      "role": "outer circle",
+      "label": "A",
+      "provenance": {
+        "summary": true
+      }
+    },
+    {
+      "id": "B",
+      "kind": "circle",
+      "role": "inner circle",
+      "label": "B"
+    }
+  ],
+  "constructions": [
+    {
+      "id": "makeO",
+      "operator": "point",
+      "inputs": {
+        "x": 0,
+        "y": 0,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "O"
+      ]
+    },
+    {
+      "id": "makeA",
+      "operator": "circle",
+      "inputs": {
+        "center": "O",
+        "radius": 3
+      },
+      "outputs": [
+        "A"
+      ]
+    },
+    {
+      "id": "makeB",
+      "operator": "circle",
+      "inputs": {
+        "center": "O",
+        "radius": 1
+      },
+      "outputs": [
+        "B"
+      ]
+    }
+  ],
+  "relations": [],
+  "assertions": [],
+  "annotations": [],
+  "requiredEntityIds": [
+    "A",
+    "B"
+  ],
+  "revealGroups": [
+    {
+      "id": "setup",
+      "entityIds": [
+        "A",
+        "B"
+      ],
+      "dependsOn": [],
+      "narrationCue": "circles A and B"
+    }
+  ],
+  "teachingTimeline": []
+}
