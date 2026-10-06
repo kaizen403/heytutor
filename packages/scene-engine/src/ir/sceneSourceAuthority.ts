@@ -1,4 +1,5 @@
 import { relativeMotionCallerIssues } from "../physics/relativeMotionCallerAuthority";
+import {circleCallerIssues} from "./circleCallerAuthority";
 import {finiteBinomialPlanIssues} from "./finiteBinomialPlanAuthority";
 import { finiteProgressionDocumentIssues } from "../contracts/finiteProgressionContract";
 import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
@@ -40,7 +41,7 @@ export function validateSceneSourceAuthority(document: SceneDocument, question: 
     ...validateOpticalConjugateSource(document, question, rawProblem),
     ...validatePointLineProgramSource(document, question, rawProblem),
     ...validateSectionFormulaProblemSource(document,question,rawProblem),
-    ...(circleReading.status==="ok" ? checkCircleSourceProblemBinding(question,rawProblem,document):[]),
+    ...(circleReading.status==="ok" ? [...circleCallerIssues(question,rawProblem,rawPlan),...checkCircleSourceProblemBinding(question,rawProblem,document)]:[]),
     ...validateStaticContactTriangleSource(document, question, rawProblem),
     ...(claimsStatedResistorCircuit(question) ? checkStatedCircuitProblemBinding(question, rawProblem, document) : []),
   ];

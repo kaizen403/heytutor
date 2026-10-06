@@ -30,7 +30,7 @@ import {
   isConceptLessonQuestion,
   isQuotedPhysicalConstant,
   lessonScopePromptAddon,
-  questionStatesValue,
+  questionStatesPlanGiven,
   remainingCodeLessonBeats,
   LESSON_OPENING_PROMPT_ADDON,
   resolveLessonBudget,
@@ -146,7 +146,7 @@ function turnPlanPromptAddons(
         const row = given as { value?: unknown; symbol?: unknown; id?: unknown };
         const value = row.value;
         if (typeof value !== "number" || !Number.isFinite(value)) return [];
-        if (questionStatesValue(question, value)) return [];
+        if (questionStatesPlanGiven(question, turnPlan, row.id, value)) return [];
         const symbol = typeof row.symbol === "string" ? row.symbol
           : typeof row.id === "string" ? row.id
           : null;

@@ -26,6 +26,7 @@ export * from "./physics/opticalConjugateSource";
 export * from "./ir/opticalConjugateProgram";
 export * from "./ir/circleSourceProgram";
 export * from "./ir/circleSourceAuthority";
+export * from "./ir/circleCallerAuthority";
 export * from "./ir/statedCircuitProblemBinding";
 export * from "./ir/sceneSourceAuthority";
 export * from "./ir/sourceQuantityAuthority";

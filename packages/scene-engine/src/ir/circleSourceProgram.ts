@@ -54,6 +54,8 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
     if (question.length > 1600 || Array.from(question).some(char => char.charCodeAt(0) < 32)) return decline("source length/control budget");
     const consumed = Array.from(question, () => false);
     const consume = (start: number, end: number): void => { for (let i = start; i < end; i++) consumed[i] = true; };
+    const leadingFor = /^\s*For\s+(?=[(\d.+\-xy])/i.exec(question);
+    if (leadingFor) consume(0, leadingFor[0].length);
     const declarations: QuestionSourceEvidence[] = [];
     let centerDeclaration: { x: CircleRational; y: CircleRational } | undefined;
     let radiusDeclaration: CircleRational | undefined;
@@ -182,7 +184,7 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
 /** Literal coefficient identities use the polynomial slot, never scalar equality. */
 export function circleCoefficientRole(text: string): CircleValueRole | null {
   const role = norm(text).toLowerCase();
-  if (/^(?:the )?(?:constant term|constant coefficient)(?:\b|$)/.test(role)) return "F";
+  if (/^(?:the )?(?:constant term|constant coefficient)$/.test(role)) return "F";
   if (!/^coefficient of\b/.test(role)) return null;
   const tail = role.replace(/^coefficient of\s+/, "");
   if (/^x\^2(?: and y\^2)?$/.test(tail)) return "A";
@@ -242,6 +244,9 @@ function resultFormula(source: CircleWholeSource, role: CircleValueRole): Expres
   if (role === "center_x" || role === "center_y") return center(role === "center_x" ? "D" : "E");
   const squared = bin("-", bin("+", bin("^", center("D"), num(exact(2n))), bin("^", center("E"), num(exact(2n)))), bin("/", num(source.values.F), num(source.values.A)));
   return role === "radius" ? { kind: "call", function: "sqrt", argument: squared } : squared;
+}
+export function circleSourceResultFormula(source: CircleWholeSource, role: "center_x" | "center_y" | "radius" | "radius_squared"): ExpressionNodeIR {
+  return resultFormula(source, role);
 }
 export function circleRoleValue(source: CircleWholeSource, role: CircleValueRole): number { return role === "radius" ? source.radius : numeric(source.values[role]); }
 

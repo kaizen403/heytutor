@@ -1,5 +1,6 @@
 import {
   LocalDeterministicSolverProvider,
+  readCircleSourceProgram,circlePlanSourceIssues,circleCallerIssues,
   readFiniteBinomialProgram,solveFiniteBinomialProblem,
   readFiniteProgressionSource,readScrewGaugeQuestion,verifyMeasurementSourceAuthority,measurementPlanSourceIssueCodes,
   readUniformCircularRuntimeContract,uniformCircularCallerIssues,uniformCircularRuntimePlanConflicts,
@@ -25,6 +26,7 @@ import { finitePolynomialPlanningGuidance } from "./finitePolynomialGuidance";
 import { finiteProgressionPlanningGuidance } from "./finiteProgressionGuidance";
 import { measurementPlanningGuidance } from "./measurementGuidance";
 import { matrixProductPlanningGuidance } from "./matrixProductGuidance";
+import { circleSourcePlanningGuidance } from "./circleSourceGuidance";
 import { readMatrixProductSourceProgram, matrixProductFullIRIssues } from "@heytutor/scene-engine";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
@@ -69,6 +71,7 @@ export type ProblemAuthorityV1Outcome = ProblemAuthorityV1Response | ProblemAuth
 /** Refuse the original caller before reconciliation can erase a conflicting
  * textual or graph obligation. This grants no authority on unsupported lanes. */
 export function sourceProblemAdmissionIssueCodes(question:string,problem:unknown,plan:unknown):string[]{
+  if(readCircleSourceProgram(question).status!=="none")return circleCallerIssues(question,problem,plan).map(issue=>issue.code);
   const circular=readUniformCircularRuntimeContract(question);
   if(circular) return uniformCircularCallerIssues(question,problem,plan).map(issue=>issue.code);
   if(readScrewGaugeQuestion(question).status!=="none"){
@@ -83,6 +86,8 @@ export function refuseSourcePlan(question:string,plan:TurnPlanV3):ProblemAuthori
   const issueCodes = !capture.ok ? ["invalid_source_data"] : measurementPlanSourceIssueCodes(question, capture.data);
   if (issueCodes.length) return {status:"source_declined",question,rawProblemIR:null,
     rawTurnPlan:capture.ok?capture.data:capture.evidence,rawContent:"",issueCodes,elapsedMs:0};
+  const circleCodes=circlePlanSourceIssues(question,capture.ok?capture.data:plan).map(issue=>issue.code);
+  if(circleCodes.length)return {status:"source_declined",question,rawProblemIR:null,rawTurnPlan:capture.ok?capture.data:capture.evidence,rawContent:"",issueCodes:circleCodes,elapsedMs:0};
   return refuseUniformCircularPlan(question, capture.ok ? capture.data : plan);
 }
 export function refuseUniformCircularPlan(question:string,plan:TurnPlanV3):ProblemAuthorityV1Decline|null{
@@ -166,7 +171,7 @@ export async function planProblemAuthorityV1(
         temperature: 0,
         stream: false,
         messages: [
-          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question) },
+          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question) + circleSourcePlanningGuidance(question) },
           { role: "user", content: problemIRUserMessage(question, turnPlan) },
         ],
       }),
@@ -181,7 +186,7 @@ export async function planProblemAuthorityV1(
     const polynomial=readFiniteBinomialProgram(question);
     const matrixProducts=readMatrixProductSourceProgram(question);
     const matrixInput=matrixProducts?liftCompactProblemIR(parsed,question):null;
-    const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null;
+    const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null || readCircleSourceProgram(question).status!=="none";
     const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
       rawProblemIR:parsed,...(turnPlan?{rawTurnPlan:turnPlan}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});

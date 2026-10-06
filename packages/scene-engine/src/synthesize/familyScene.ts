@@ -263,7 +263,7 @@ function synthesizeFromFamilies(
   }
   if (circleReading.status==="ok") {
     const document=circleSourceDocument(question,input.problemIR);
-    const compiled=document?tryCompile(document,{sourceAuthority:{question,problemIR:input.problemIR}}):null;
+    const compiled=document?tryCompile(document,{sourceAuthority:{question,problemIR:input.problemIR,turnPlan:input.turnPlan}}):null;
     if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
     return {...compiled,tier:"question_representation",nonMetric:true,family:"coordinate_figure",reason:"Complete source Cartesian circle and caller geometry obligations."};
   }

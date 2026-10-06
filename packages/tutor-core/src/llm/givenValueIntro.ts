@@ -6,6 +6,7 @@
  * The teaching model must not restate or rewrite this list.
  */
 import { WORK_ZONE, measureTextWidth, workRowFontSize, type TutorSegment } from "@heytutor/drawing";
+import {circlePlanSourceIssues,readCircleSourceProgram} from "@heytutor/scene-engine";
 import { isConceptLessonQuestion } from "./reasoningEffort";
 
 export interface QuestionGiven {
@@ -81,7 +82,7 @@ export function collectQuestionGivens(
   };
 
   if (turnPlan && Array.isArray(turnPlan.givens)) {
-    turnPlan.givens.forEach((row, index) => add(givenFromPlan(row, index, question)));
+    turnPlan.givens.forEach((row, index) => add(givenFromPlan(row, index, question, turnPlan)));
   }
   for (const assignment of assignmentsFromQuestion(statement)) {
     add(assignment);
@@ -180,7 +181,7 @@ Start by saying what each of those symbols physically is, and [WRITE] that meani
 Then write each general formula in symbols before substituting the given values, write the rearranged form, write the substitution with its units, write the result, and close with one line reading what the result means. Write each working line as you speak it. Every step must [WRITE] or [FOCUS] so the marker moves with the voice. Use [EMPHASIZE:last] to box the current work line when you want the student to hold it.`;
 }
 
-function givenFromPlan(raw: unknown, index: number, question: string): QuestionGiven | null {
+function givenFromPlan(raw: unknown, index: number, question: string, owner: TurnPlanLike): QuestionGiven | null {
   if (!isRecord(raw)) return null;
   if (raw.provenance !== undefined && raw.provenance !== "given") return null;
   if (typeof raw.value !== "number" || !Number.isFinite(raw.value)) return null;
@@ -194,7 +195,7 @@ function givenFromPlan(raw: unknown, index: number, question: string): QuestionG
   // provenance "given". A plausible sourceText is not evidence, and a
   // one-letter symbol matched as a substring is worse than none: "m" is inside
   // "the first law of physics", so the old symbol test passed every time.
-  if (!questionStatesValue(question, raw.value)) {
+  if (!questionStatesPlanGiven(question, owner, raw.id, raw.value)) {
     return null;
   }
   const board = `${symbol} = ${formatNumber(raw.value)}${unit ? ` ${unit}` : ""}`;
@@ -449,6 +450,16 @@ export function questionStatesValue(question: string, value: number): boolean {
     if (stated.some((token) => Number(token) === Number(needle))) return true;
   }
   return false;
+}
+
+/** Numeric token presence is insufficient for implicit source coefficients.
+ * The owning complete source/Plan proof can independently establish them; an
+ * unrecognized or partial caller retains the existing conservative text gate. */
+export function questionStatesPlanGiven(question:string,owner:unknown,quantityId:unknown,value:number):boolean {
+  if(questionStatesValue(question,value))return true;
+  if(typeof quantityId!=="string"||readCircleSourceProgram(question).status!=="ok"||circlePlanSourceIssues(question,owner).length)return false;
+  if(!isRecord(owner)||!Array.isArray(owner.givens))return false;
+  return owner.givens.some(row=>isRecord(row)&&row.id===quantityId&&row.value===value);
 }
 
 function questionMentions(question: string, snippet: string): boolean {

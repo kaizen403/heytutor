@@ -1,6 +1,6 @@
 import {
   reconcileTurnPlanV3ExplicitArithmetic,
-  readUniformCircularRuntimeContract,readScrewGaugeQuestion,
+  readUniformCircularRuntimeContract,readScrewGaugeQuestion,readCircleSourceProgram,
   validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
@@ -12,6 +12,7 @@ import { finitePolynomialPlanningGuidance } from "./finitePolynomialGuidance";
 import { finiteProgressionPlanningGuidance } from "./finiteProgressionGuidance";
 import { measurementPlanningGuidance } from "./measurementGuidance";
 import { matrixProductPlanningGuidance } from "./matrixProductGuidance";
+import { circleSourcePlanningGuidance } from "./circleSourceGuidance";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
@@ -193,7 +194,7 @@ async function requestTurnPlanV3(
         messages: [
           {
             role: "system",
-            content: systemPrompt + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question),
+            content: systemPrompt + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question) + circleSourcePlanningGuidance(question),
           },
           {
             role: "user",
@@ -403,6 +404,7 @@ export function parseTurnPlanV3Content(
   trace?: TurnPlanV3ParseTrace,
 ): TurnPlanV3 | null {
   const parsed = parseTurnPlan(content, question, trace);
+  if(readCircleSourceProgram(question).status!=="none")return parsed;
   return parsed ? enforceMinimumVisualRequirement(parsed, question) : null;
 }
 
@@ -417,7 +419,7 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
     const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1)) as unknown;
     // These source authorities need the original whole Plan before any
     // arithmetic rewrite or canonicalization can erase textual obligations.
-    if(readUniformCircularRuntimeContract(question) || readScrewGaugeQuestion(question).status!=="none"){
+    if(readUniformCircularRuntimeContract(question) || readScrewGaugeQuestion(question).status!=="none" || readCircleSourceProgram(question).status!=="none"){
       const actual=validateTurnPlanV3(parsed,question);
       if(trace)trace.normalized=parsed;
       return actual.valid ? parsed as TurnPlanV3 : null;
