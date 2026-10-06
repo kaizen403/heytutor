@@ -11,13 +11,20 @@ import {
 } from "@/lib/lecture-export/drawLectureTimeline";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 
+// Completion writes only engine-owned diagram marks, never narrated WRITE
+// schedules. Both live and export executors accept this narrower option set.
+type CompleteDiagramExecuteCommand = (
+  command: Parameters<ExportExecuteCommand>[0],
+  options?: Pick<NonNullable<Parameters<ExportExecuteCommand>[1]>, "durationScale" | "trustedDiagramGeometry" | "applyLayout" | "inkPace" | "isCancelled">,
+) => Promise<void>;
+
 /** Match the live after-turn flush, after both the last cue's ink and speech. */
 export async function completeReplayDiagramTurn(options: {
   cue: ReplayCue;
   nextCue?: ReplayCue;
   turn: StoredTurn | undefined;
   diagram: VerifiedDiagram | null;
-  executeCommand: ExportExecuteCommand;
+  executeCommand: CompleteDiagramExecuteCommand;
   shouldCancel: () => boolean;
   durationScale?: number;
 }): Promise<void> {

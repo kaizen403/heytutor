@@ -1,0 +1,9 @@
+# Parent replay parity integration — 6 October 2026
+
+Local parent owns useReplay. Integrated worker9c929fe3 as17648297 and applied its exact authorized parent hook patch. Both whole replay and fallback seek invoke verified diagram completion only at a completed turn boundary, after spoken cue/ink; generation cancellation, continuation and code-lane guards remain. Finished-lecture player preserves FOCUS permanent labels during instant catch-up. No table-specific paths or early reveal-all.
+
+Exact patch exposed executor option variance: export WRITE schedules allow omitted charDurationsMs, actual live executor requires it. Completion never writes narrated schedules, so its callback accepts only the five options it supplies. No cast or change to writing schedules.
+
+Immutable worker gate is RED after hook integration: its negative fallbackSeek(false) reads the already-patched hook and can no longer reproduce the original omission. Retained original unchanged and failure log; a NEW parent integrated gate freezes e67bfa1a hook via git show for the negative, and loads actual current hook for positive without any memory patch. Full exact mark parity, last-spoken-cue ordering, source input immutability, actual seek, early FOCUS, idempotence, cancellation/new generation, geometry, continuation and code controls pass. App typecheck and scoped lint pass (one existing unused cancellableDelay warning). Logs coordinator reviews/w3-parent-replay-parity*. Original type/gate failures retained.
+
+Luna independent bounded verification ongoing. Parent authenticated fresh live/save/ownPGrestart/freshAuth whole replay and final PNG review remain required. Old actual2026-10-06T0846-w2-f0d74113 replay semantic FAIL is never rewritten into a pass. READY1/FULLY0/newREADY0 unchanged. No chemistry/remote/main edits.
