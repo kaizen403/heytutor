@@ -115,6 +115,37 @@ check("numeric launch angle remains source bound", () => {
   assert.ok(numeric);
   assert.equal(numeric.document.entities.find((row) => row.id === "angle")?.label, "θ=30°");
 });
+check("unrelated conjunct angles cannot supply launch authority", () => {
+  for (const continuation of ["hits a wall inclined at 30 degrees", "encounters wind directed at 30 degrees", "the angle of the wall is 30 degrees"]) {
+    const question = `A projectile is launched with speed 20 m/s and ${continuation} on level ground. Find its range.`;
+    const symbolic = synthesizeFamilyScene({ question });
+    if (symbolic) {
+      const angleLabel = symbolic.document.entities.find(row => row.id === "angle")?.label;
+      assert.ok(angleLabel === undefined || angleLabel === "θ", continuation);
+      assert.ok(!symbolic.document.quantities.some(row => row.id === "theta"));
+    }
+    const contradicted = synthesizeFamilyScene({ question, turnPlan: { ...entry.turnPlan, question, givens: [
+      { id: "u", symbol: "u", value: 20, unit: "m/s", sourceText: "speed 20 m/s", provenance: "given" },
+      { id: "theta", symbol: "theta", value: 30, unit: "degree", sourceText: continuation, provenance: "given" },
+    ] } });
+    assert.equal(contradicted, null, `${continuation}: unrelated planner angle must decline`);
+  }
+});
+check("launch conjunctions, decimals and parentheses retain their given angle", () => {
+  for (const description of ["at 20 m/s and an angle of 30 degrees", "at 20 m/s and the angle is 30 degrees", "with speed 20 m/s at (30 degrees)", "with speed 20.5 m/s at 30.5 degrees"]) {
+    const question = `A projectile is launched ${description} on level ground. Find its range.`;
+    const angle = description.includes("30.5") ? 30.5 : 30;
+    for (const withPlan of [true, false]) {
+      const numeric = synthesizeFamilyScene({ question, ...(withPlan ? { turnPlan: { ...entry.turnPlan, question, givens: [
+        { id: "u", symbol: "u", value: description.includes("20.5") ? 20.5 : 20, unit: "m/s", sourceText: description, provenance: "given" },
+        { id: "theta", symbol: "theta", value: angle, unit: "degree", sourceText: description, provenance: "given" },
+      ] } } : {}) });
+      assert.ok(numeric, `${description}: plan=${withPlan}`);
+      assert.equal(numeric.document.quantities.find(row => row.id === "theta")?.value, angle);
+      assert.equal(numeric.document.entities.find(row => row.id === "angle")?.label, `θ=${angle}°`);
+    }
+  }
+});
 assert.equal(JSON.stringify(problemIR), snapshot, "actual source IR must remain unchanged");
 console.log(JSON.stringify({ passed, failed: failures.length, failures }));
 if (failures.length) process.exitCode = 1;

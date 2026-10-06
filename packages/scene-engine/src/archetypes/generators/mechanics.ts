@@ -7,7 +7,7 @@
  * uses a declared display value and the tier rule keeps it qualitative.
  */
 import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked, riverShortestTimeAsked } from "../../physics/riverCrossingSource";
-import { firstAngle } from "../slots";
+import { projectileLaunchAngle } from "../../physics/projectileLaunchSource";
 import { DEG, SceneBuilder, add, fmt, polar, rotate, scale, withUnit, type Vec2 } from "../document";
 import { angleExpected, angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 
@@ -28,10 +28,7 @@ function forceArrow(scene: SceneBuilder, id: string, from: string, direction: Ve
 function projectile(context: GeneratorContext) {
   // A degree elsewhere in the question is not a launch-angle measurement.
   // Read only the launch clause; symbolic theta keeps display geometry symbolic.
-  const launchClause = context.question.match(/\b(?:launched|projected|thrown)\b[^.;!?]*/i)?.[0]
-    .split(/\b(?:and|hence|show|it|maximum)\b|[()]/i)[0] ?? "";
-  const launchAngle = /\bhorizontally\b/i.test(launchClause) ? 0
-    : /(?:\btheta\b|θ)(?!\s*[=:])/i.test(launchClause) ? null : firstAngle(launchClause);
+  const launchAngle = projectileLaunchAngle(context.question);
   if (context.sources.theta === "plan" && (launchAngle === null || launchAngle !== maybeNum(context, "theta"))) return null;
   context = { ...context, slots: { ...context.slots, theta: launchAngle ?? 45 },
     sources: { ...context.sources, theta: launchAngle === null ? "default" : context.sources.theta ?? "stem" } };

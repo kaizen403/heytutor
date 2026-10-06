@@ -4,7 +4,7 @@ PR: https://github.com/kaizen403/heytutor/pull/91. Implementation candidate e757
 
 Integration preserves main b59263b8246876d14ba277a5926dea51219387d9, including newer chapter operators, startup overlap/caps, early numeric reconciliation, OCR and Sarvam/Cartesia. It publishes selected implementation and concise evidence, not private runtime archives or old candidate branch history. Circle c8814e67 and optics2400e4b4 remain excluded. Local main at682eb26 and its dirty work are protected; publication uses an isolated worktree.
 
-Review closed stale final solver projection after source correction, whole-fraction exponent grouping, section identity at actual read/restore/replay and all admission tiers, typed numeric claims through label descendants, and replay cancellation before board readiness or a pending clear. Named section ratios bind to actual endpoint/result identities and orientation; construction weights and named AP/PB are distinct. Parameter is recomputed in the admitted construction's frame. Synthetic text cannot consume a required physical body. Maximum-range and unrelated wind/wall angles cannot label a symbolic launch angle.
+Review closed stale final solver projection after source correction, whole-fraction exponent grouping, section identity at actual read/restore/replay and all admission tiers, typed numeric claims through label descendants, and replay cancellation before board readiness or a pending clear. Named section ratios bind to actual endpoint/result identities and orientation; construction weights and named AP/PB are distinct. Parameter is recomputed in the admitted construction's frame. Synthetic text cannot consume a required physical body. Maximum-range and unrelated wind/wall angles cannot label a symbolic launch angle. A shared launch-clause reader preserves numeric angle conjunctions, parentheses and decimal speeds; declined projectiles cannot borrow unrelated vector/incline or legacy partial figures.
 
 Local receipts are in /Users/kaizen/heytutor-claude-coord/publication/:
 
@@ -12,10 +12,12 @@ Local receipts are in /Users/kaizen/heytutor-claude-coord/publication/:
 - Production build previously7/7; final-head CI runs production build and the publication regression step before security/payment/database/dependency gates. Inspect actual final-head results.
 - Authority/actual compile/admission/stored source/restore/replay659 checks pass, including forward/reversed named ratios and one/two label hops.
 - Derived-label compiler/presentation762 checks across21 operators pass.
-- Source-body13 controls pass: actual captured fullIR remains unchanged and declines incomplete named bodies; the distinct authored compact-name fullIR positive visibly renders. No authored profile is claimed as native evidence.
+- Source-body15 controls pass: actual captured fullIR remains unchanged and declines incomplete named bodies; the distinct authored compact-name fullIR positive visibly renders. No authored profile is claimed as native evidence.
 - Actual hook/Whiteboard replay reproduces66px displacement without settlement. Settlement prevents late restore ink while drawing and before readiness; nine recorded rows retain their coordinates.
 - Section fullIR gate passes six normal cases and five requested-Q forms. Its old caption typo AP:PB under requested Q was corrected to AQ:QB, preserving intended source identities.
 - Drawing/LaTeX, scoped source/selection/persistence/FOCUS gates, matrix native1001, SSM/security/payment, disposable Postgres concurrency and dependency audit pass. Initial setup/fixture failures and prior receipts remain available.
+
+Final CI at1e097 passed build, publication, security/payment and database steps, then reported newly published source-map-js and selector-parser advisories. Remediation pins source-map-js1.2.2 and selector-parser7.1.6, retaining the dependency gate and its existing reviewed braces exception. Real Tailwind3/PostCSS-nested and Tailwind4/PostCSS source-map consumers pass four additional controls, including bounded100000-selector parsing and malformed/nested-offset rejection. The complete dependency gate now passes14 tests and reports zero unmitigated advisories. Root production build with these dependencies passes7/7. Final source candidate and CI results must still be pinned before merge.
 
 ## Explicit limitations
 

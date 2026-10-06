@@ -11,6 +11,7 @@ import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import { levelRelationSource } from "../physics/levelRelationSource";
 import { relativeMotionSource } from "../physics/relativeMotionSource";
+import { projectileLaunchAngle } from "../physics/projectileLaunchSource";
 import { relativeMotionPlanConflicts } from "../physics/motionPlanAgreement";
 import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked } from "../physics/riverCrossingSource";
 import { relativeMotionDocument } from "./relativeMotionScene";
@@ -250,7 +251,9 @@ function synthesizeFromFamilies(
     problemIR: input.problemIR ?? null,
     schematic,
   });
-  const archetype = relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line" ? null : archetypeCandidate;
+  const projectileSource = isProjectileStem(question);
+  const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
+    || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
   if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
     return {
       document: archetype.document,
@@ -262,6 +265,9 @@ function synthesizeFromFamilies(
       family: archetype.family,
     };
   }
+  // A declined launch cannot borrow an unrelated vector/incline sketch or
+  // the legacy partial launch family. The computed projectile owns its angle.
+  if (projectileSource) return null;
   for (const family of families) {
     const builder = FAMILY_BUILDERS[family] ?? chemistryFamilyBuilder(family);
     if (!builder) continue;
@@ -3008,10 +3014,12 @@ function isMotionGraphStem(question: string): boolean {
   return /(?:velocity-?time|position-?time|displacement-?time|v-t graph|s-t graph|x-t graph)/i.test(normalizeStem(question));
 }
 
-function projectileDocument(question: string, quantities: PlanQuantity[]): SceneDocument {
+function projectileDocument(question: string, quantities: PlanQuantity[]): SceneDocument | null {
   const stem = normalizeStem(question);
   const fromHeight = /(?:thrown horizontally|from a \d+(?:\.\d+)?\s*m tower|from a tower)/i.test(stem);
-  const theta = fromHeight ? 0 : (angleDegrees(quantities, question) ?? 45);
+  const theta = projectileLaunchAngle(question);
+  const plannedTheta = firstQuantity(quantities, ["theta", "angle", "alpha"]);
+  if (theta === null || (plannedTheta !== null && plannedTheta !== theta)) return null;
   return baseDocument({
     question,
     reason: fromHeight

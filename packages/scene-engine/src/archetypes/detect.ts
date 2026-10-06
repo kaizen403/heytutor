@@ -623,7 +623,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:at an angle|angle between|inclined at)\b/i, 2],
       [/\b(?:magnitude|units?)\b/i, 1],
     ],
-    vetoes: [/\briver|boat|charge|field|current\b/i],
+    vetoes: [/\briver|boat|charge|field|current|projectile\b/i],
     extract: (stem, plan, bag) => {
       const magnitudes = [...stem.matchAll(/\b(\d+(?:\.\d+)?)\s*(?:units?|N\b|newtons?|m\/s)/gi)].map((match) => Number(match[1]));
       const bare = magnitudes.length >= 2 ? magnitudes : [...stem.matchAll(/\b(?:magnitudes?|of)\s+(\d+(?:\.\d+)?)\s+and\s+(\d+(?:\.\d+)?)/gi)].flatMap((match) => [Number(match[1]), Number(match[2])]);
