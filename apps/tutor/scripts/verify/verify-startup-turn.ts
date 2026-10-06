@@ -74,10 +74,12 @@ assert(selectFastVerifiedRepresentation({ question: recordedPlan.question, turnP
 assert.equal(selectFastVerifiedRepresentation({ question: numericQuestion, turnPlan: numericPlan }), null, "the numeric fixture must retain normal model validation");
 assert.equal(synthesizeFamilyScene({ question: failedCompileQuestion, turnPlan: failedCompilePlan }), null, "the pole-crossing fixture must genuinely fail the deterministic family compile");
 
-type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "resume-no-ink" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only";
+type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "resume-no-ink" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only" | "hedge-wins" | "hedge-primary-wins" | "hedge-fails";
 type Event = { atMs: number; name: string; data?: unknown };
 
-async function scenario(mode: Mode) {
+const HEDGE_MODES: Mode[] = ["hedge-wins", "hedge-primary-wins", "hedge-fails"];
+
+async function scenario(mode: Mode, hedgeEnabled = false) {
   let now = 0;
   let sequence = 0;
   const timers = new Map<number, { at: number; run: () => void }>();
@@ -134,6 +136,8 @@ async function scenario(mode: Mode) {
     controller: ReadableStreamDefaultController<Uint8Array>;
     response: Response;
     retry: boolean;
+    startupRetry: string | null;
+    hedge: boolean;
     signal: AbortSignal | null | undefined;
     cancelled: boolean;
   }> = [];
@@ -194,7 +198,11 @@ async function scenario(mode: Mode) {
       record("scene-model-request", { phase: headers.get("x-scene-planner-phase") });
       return completion({ schemaVersion: "scene-document/v2", source: { question }, entities: [{ id: "invalid-model-mark", kind: "not-a-real-entity" }] });
     }
-    record("teaching-request", { retry: headers.get("x-heytutor-reasoning-retry") === "1" });
+    const hedgeRequest = headers.get("x-heytutor-teaching-hedge") === "1";
+    record("teaching-request", { retry: headers.get("x-heytutor-reasoning-retry") === "1", hedge: hedgeRequest });
+    if (hedgeRequest && mode === "hedge-fails") {
+      return new Response("provider busy", { status: 503 });
+    }
     let controller!: ReadableStreamDefaultController<Uint8Array>;
     const stream = {
       get controller() { return controller; },
@@ -203,6 +211,8 @@ async function scenario(mode: Mode) {
         cancel() { stream.cancelled = true; record("teaching-reader-cancelled"); },
       }), { headers: { "content-type": "text/event-stream", "x-heytutor-trace-id": "offline-teaching-trace" } }),
       retry: headers.get("x-heytutor-reasoning-retry") === "1",
+      startupRetry: headers.get("x-heytutor-startup-retry"),
+      hedge: hedgeRequest,
       signal: init?.signal,
       cancelled: false,
     };
@@ -313,6 +323,10 @@ async function scenario(mode: Mode) {
     return hookModule.exports;
   }
 
+  const savedHedgeFlag = process.env.NEXT_PUBLIC_TEACHING_HEDGE;
+  // The hook reads the flag once at module load, and each scenario loads it fresh.
+  if (hedgeEnabled) process.env.NEXT_PUBLIC_TEACHING_HEDGE = "1";
+  else delete process.env.NEXT_PUBLIC_TEACHING_HEDGE;
   try {
     forgetVerifiedScene(question, { boardId });
     const lifecycle = params as unknown as UseTurnLifecycleParams;
@@ -448,17 +462,51 @@ async function scenario(mode: Mode) {
       assert.equal(outputs().length, 0, "Stop must prevent stale opening, playback, and board work");
     } else {
       let active = 0;
+      let expectedStreams = 1;
       if (["retry", "prefix-stall", "partial-stall", "pause-stall", "retry-expires", "stop-during-retry"].includes(mode)) {
         if (mode === "prefix-stall") content(0, "[STEP]");
         if (mode === "partial-stall") content(0, "[STEP]Abandoned incomplete narration from the first attempt");
         await flush();
         assert.equal(outputs().length, 0, "partial prefixes/narration cannot release the opening");
+        // A primary that has said nothing at all is hedged at 8s; one that
+        // already sent a content token (even a bare prefix) is not.
+        const silent = hedgeEnabled && !["prefix-stall", "partial-stall", "pause-stall"].includes(mode);
+        await advance(8_000);
+        assert.equal(streams.length, silent ? 2 : 1, silent ? "a silent primary must be hedged at 8 seconds"
+          : hedgeEnabled ? "a primary with a content token is never hedged" : "with the hedge flag off no second request opens at 8 seconds");
+        if (silent) {
+          assert.equal(streams[1]!.hedge, true);
+          assert.equal(streams[1]!.retry, true, "the hedge must ask for reasoning off");
+          assert.equal(streams[0]!.signal?.aborted, false, "opening a hedge must not abort the primary");
+        }
         await advance(15_000);
-        assert.equal(streams.length, 2, "a first-content expiry must retry exactly once");
-        assert.equal(streams[0]!.cancelled, true);
-        assert.equal(streams[1]!.retry, true, "the retry must send noReasoning to the actual stream transport");
+        active = silent ? 2 : 1;
+        assert.equal(streams.length, active + 1, "a first-content expiry must retry exactly once");
+        assert(streams.slice(0, active).every((stream) => stream.cancelled), "expiry must cancel the primary and any hedge");
+        assert.equal(streams[active]!.retry, true, "the retry must send noReasoning to the actual stream transport");
+        assert.equal(streams[active]!.hedge, false, "the startup retry is never hedged");
+        assert.equal(streams[active]!.startupRetry, "first_content_timeout",
+          "the startup retry must name itself so the server moves it off the stalled Fast router");
+        assert(streams.slice(0, active).every((stream) => stream.startupRetry === null),
+          "the first request and its hedge are never startup retries");
         assert.equal(outputs().length, 0, "the first expiry must not prematurely enqueue an opening");
-        active = 1;
+        expectedStreams = active + 1;
+      }
+      if (["hedge-wins", "hedge-primary-wins", "hedge-fails"].includes(mode)) {
+        await advance(7_999);
+        assert.equal(events.filter((event) => event.name === "teaching-request").length, 1, "the hedge must wait for its threshold");
+        await advance(8_000);
+        const requests = events.filter((event) => event.name === "teaching-request");
+        assert.equal(requests.length, 2, "a silent primary must be hedged at 8 seconds");
+        assert.deepEqual(requests[1]!.data, { retry: true, hedge: true }, "the hedge must send both hedge and reasoning-off headers");
+        assert.equal(streams[0]!.signal?.aborted, false, "opening a hedge must not abort the primary");
+        assert.equal(outputs().length, 0, "opening a hedge must not release the opening");
+        if (mode === "hedge-wins") {
+          active = 1;
+          expectedStreams = 2;
+        } else {
+          expectedStreams = mode === "hedge-fails" ? 1 : 2;
+        }
       }
       if (mode === "retry-expires") {
         await advance(30_000);
@@ -475,13 +523,19 @@ async function scenario(mode: Mode) {
           assert.equal(outputs().length, 0, "filtered marker-only steps must not release the opening");
           content(active, "[STEP]");
         }
+        if (mode === "hedge-wins" || mode === "hedge-primary-wins") {
+          const loser = mode === "hedge-wins" ? 0 : 1;
+          assert.equal(streams[loser]!.signal?.aborted, true, "the first content token must abort the other request");
+          assert.equal(streams[loser]!.cancelled, true, "the losing paid body must be cancelled");
+          assert.equal(streams[active]!.signal?.aborted, false);
+        }
         record("usable-step-delivered");
         content(active, "The range follows from horizontal motion.[WRITE:R = u t,80,150][/STEP]\n[STEP]The flight time comes from vertical motion.[WRITE:t = 2 u sin(theta) / g,80,205][/STEP]");
         finishStream(active);
       }
       await pump(() => done);
       await turn;
-      assert.equal(streams.length, active + 1, "the one-shot startup retry cannot repeat or silently continue");
+      assert.equal(streams.length, expectedStreams, "the one-shot startup retry cannot repeat or silently continue");
       if (mode === "retry-expires") {
         const error = events.find((event) => event.name === "turn-error");
         assert(error, "a second startup expiry must expose a clear error, not an empty success");
@@ -489,8 +543,7 @@ async function scenario(mode: Mode) {
         assert.equal(outputs().length, 0);
       } else if (mode === "stop-during-retry") {
         assert.equal(outputs().length, 0, "Stop must suppress the retry's stale content and opening");
-        assert.equal(streams[1]!.signal?.aborted, true);
-        assert.equal(streams[1]!.cancelled, true);
+        assert(streams.every((stream) => stream.signal?.aborted && stream.cancelled), "Stop must abort the primary, the hedge and the retry");
       } else {
         const usable = events.findIndex((event) => event.name === "usable-step-delivered");
         assert(outputs().length > 0, "a usable teaching step must actually run through the real queue and provider");
@@ -508,6 +561,41 @@ async function scenario(mode: Mode) {
         assert(spoken, "the real segment runner must play the prefetched opening");
         assert.deepEqual((spoken.data as { voiceSettings: unknown }).voiceSettings, fetched.options.voiceSettings, "prefetch and actual playback must use the same delivery settings");
         assert(!events.some((event) => event.name === "turn-error"));
+        const openings = events.filter((event) => event.name === "enqueue" && (event.data as TutorSegment).delivery === "opening");
+        assert.equal(openings.length, 1, "the opening must be released exactly once");
+        assert(events.filter((event) => event.name === "enqueue-intro").length <= 1, "the figure intro must be released at most once");
+        const narrations = events.filter((event) => event.name === "enqueue").map((event) => (event.data as TutorSegment).narration);
+        assert.equal(narrations.filter((text) => text.startsWith("The range follows")).length, 1, "no teaching step may be queued twice");
+        const marks = telemetry.flatMap((payload) => payload.events ?? []);
+        const named = (name: string) => marks.filter((event) => event.name === name);
+        for (const name of ["teaching-first-token", "teaching-first-step"]) {
+          assert.equal(named(name).length, 1, `${name} must be marked once whatever the hedge flag`);
+        }
+        assert(named("teaching-request").length >= 1, "every teaching request must be marked");
+        if (!hedgeEnabled) {
+          assert.equal(marks.filter((event) => event.name.startsWith("teaching-hedge-")).length, 0, "no hedge marks without a hedge");
+          assert(named("teaching-request").every((event) => event.metadata?.attempt === "primary"));
+        }
+        if (HEDGE_MODES.includes(mode)) {
+          assert.deepEqual(named("teaching-request").map((event) => event.metadata?.attempt), ["primary", "hedge"]);
+          assert.equal(named("teaching-hedge-start").length, 1);
+          assert.equal(named("teaching-hedge-start")[0]!.metadata?.after_ms, 8_000);
+          const winner = named("teaching-hedge-winner");
+          if (mode === "hedge-fails") {
+            assert.equal(winner.length, 1, "a primary that outlives a failed hedge still wins the race");
+            assert.equal(winner[0]!.metadata?.winner, "primary");
+          } else {
+            assert.equal(winner.length, 1);
+            assert.equal(winner[0]!.metadata?.winner, mode === "hedge-wins" ? "hedge" : "primary");
+            assert.equal(typeof winner[0]!.metadata?.first_content_token_ms, "number");
+          }
+          for (const name of ["teaching-first-token", "teaching-first-step"]) {
+            assert.equal(named(name).length, 1, `${name} must be marked once`);
+            assert(Number(named(name)[0]!.metadata?.ms_since_request) >= 8_000, `${name} must be measured from the first request`);
+          }
+          const leaked = JSON.stringify(marks.filter((event) => event.name.startsWith("teaching-")));
+          assert(!leaked.includes("projectile") && !leaked.includes("range follows"), "teaching startup marks carry no student or lesson text");
+        }
         if (mode === "prefix-stall" || mode === "partial-stall") {
           assert(!lifecycle.rawResponseRef.current.includes("Abandoned incomplete narration"), "startup recovery must discard partial failed content");
           assert.equal((lifecycle.rawResponseRef.current.match(/\[STEP\]/g) ?? []).length, 2, "startup recovery must reset the partial STEP parser and markup");
@@ -538,12 +626,18 @@ async function scenario(mode: Mode) {
     assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
     assert.equal(lifecycle.turnTelemetryRef.current, null);
     for (const stream of streams) assert.equal(stream.response.body?.locked, false, "every real stream reader must be released");
+    if (!hedgeEnabled) {
+      assert(streams.every((stream) => !stream.hedge), "the hedge flag is off by default: no hedge request may open");
+      assert(!events.some((event) => event.name === "teaching-request" && (event.data as { hedge: boolean }).hedge), "no hedge request may open");
+    }
     assert.equal(timers.size, 0, `${mode}: settled success/error must not leave startup or queue timers running (${[...timers.values()].map((timer) => timer.at - now).join(", ")} ms remain)`);
     if (mode === "retry") {
       assert(telemetry.some((payload) => payload.events?.some((event) => event.name === "teaching-startup-retry" || event.name === "reasoning-only-retry")), "the actual expiry must emit retry telemetry");
     }
-    return { mode, events: events.length, teachingRequests: streams.length, sceneRequests: sceneRequests.length };
+    return { mode, hedge: hedgeEnabled, events: events.length, teachingRequests: streams.length, sceneRequests: sceneRequests.length };
   } finally {
+    if (savedHedgeFlag === undefined) delete process.env.NEXT_PUBLIC_TEACHING_HEDGE;
+    else process.env.NEXT_PUBLIC_TEACHING_HEDGE = savedHedgeFlag;
     params.clearCancelTimers();
     timers.clear();
     forgetVerifiedScene(question, { boardId });
@@ -558,17 +652,24 @@ async function scenario(mode: Mode) {
 async function main() {
   const selected = process.argv[2];
   const failures: string[] = [];
-  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "resume-no-ink", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only"];
+  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "resume-no-ink", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only", "hedge-wins", "hedge-primary-wins", "hedge-fails"];
+  // Default modes run with the hedge flag off, as shipped. The hedge modes,
+  // and one retry with a silent hedge, run with it forced on.
+  const runs: Array<[Mode, boolean]> = [
+    ...modes.map((mode): [Mode, boolean] => [mode, HEDGE_MODES.includes(mode)]),
+    ["retry", true],
+  ];
   assert(!selected || modes.includes(selected as Mode), `unknown case: ${selected}`);
-  for (const mode of modes) {
+  for (const [mode, hedge] of runs) {
     if (selected && selected !== mode) continue;
-    try { console.log("verify-startup-turn:", await scenario(mode)); }
+    const label = hedge && !HEDGE_MODES.includes(mode) ? `${mode}+hedge` : mode;
+    try { console.log("verify-startup-turn:", await scenario(mode, hedge)); }
     catch (error) {
-      console.error(`verify-startup-turn: ${mode}`, error);
-      failures.push(`${mode}: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`verify-startup-turn: ${label}`, error);
+      failures.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   assert.equal(failures.length, 0, failures.join("\n"));
-  console.log("verify-startup-turn: actual handler, validation, first-step gate, opening delivery, retry, Stop, and cleanup verified");
+  console.log("verify-startup-turn: actual handler, validation, first-step gate, opening delivery, hedge, retry, Stop, and cleanup verified");
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

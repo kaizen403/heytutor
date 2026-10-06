@@ -400,4 +400,34 @@ assert.ok(
   Math.abs(Number(normalizedRefraction?.solverResult.values[0]?.approximate) - 28.125505702055708) < 1e-9,
 );
 
+// Differential: every fixture above takes origin/main's path exactly.
+{
+  const { normalizeProblemIRModelOutput } = await import("../../src/planners/problemPlannerV1");
+  const main = await import("./fixtures/originProblemPlannerV1");
+  const { planAndSolveProblemV1: livePlanner } = await import("../../src/planners/problemPlannerV1");
+  const fixtures: Array<[string, string, TurnPlanV3, unknown]> = [
+    ["addition", question, turnPlan, problem],
+    ["addition contradiction", question, contradictoryPlan, problem],
+    ["substituted question", question, turnPlan, substitutedQuestion],
+    ["calculus model drift", calculusQuestion, calculusPlan, modelDriftProblem],
+    ["refraction", refractionQuestion, refractionPlan, refractionModelProblem],
+  ];
+  for (const [label, fixtureQuestion, fixturePlan, output] of fixtures) {
+    assert.deepEqual(
+      normalizeProblemIRModelOutput(structuredClone(output), fixtureQuestion, fixturePlan),
+      main.normalizeProblemIRModelOutput(structuredClone(output), fixtureQuestion, fixturePlan),
+      `${label}: normalized object differs from origin/main`,
+    );
+    const run = async (planner: typeof livePlanner) => {
+      const result = await planner(fixtureQuestion, fixturePlan, {
+        proxyUrl: "http://localhost/api/chat",
+        timeoutMs: 2_000,
+        fetchImpl: async () => Response.json({ choices: [{ message: { content: JSON.stringify(output) } }] }),
+      });
+      return result && { problemIR: result.problemIR, solverResult: result.solverResult, audit: result.audit, projection: result.projection };
+    };
+    assert.deepEqual(await run(livePlanner), await run(main.planAndSolveProblemV1 as typeof livePlanner), `${label}: outcome differs from origin/main`);
+  }
+}
+
 console.log("problem planner v1 verification passed");
