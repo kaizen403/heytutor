@@ -483,7 +483,7 @@ function compileSourceFigureForCaller(
   candidate: NonNullable<ReturnType<typeof synthesizeFamilyScene>>,
   input: RepresentationSelectionInput,
 ): NonNullable<ReturnType<typeof synthesizeFamilyScene>> | null {
-  if (readSectionFormulaSource(input.question).status !== "ok") return candidate;
+
   if (input.turnPlan != null && sectionFormulaPlanIssues(input.question, input.turnPlan, input.problemIR)
     .some((issue) => issue.severity === "fatal")) return null;
   const compiled = compileWithCallerContext(candidate.document, input.question, input.problemIR, input.turnPlan);
@@ -500,7 +500,7 @@ function compileWithCallerContext(
 ): ReturnType<typeof compileSceneDocument> {
   const structural = validateSceneDocumentForCaller(document, question, problemIR, turnPlan);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
-  return compileSceneDocument(document);
+  return compileSceneDocument(document,{sourceAuthority:{question,problemIR,turnPlan}});
 }
 
 function validateSceneDocumentForCaller(
@@ -509,7 +509,7 @@ function validateSceneDocumentForCaller(
   problemIR?: ProblemStructureView | null,
   turnPlan?: TurnPlanV3 | unknown | null,
 ): ValidationResult {
-  const structural = validateSceneDocument(document);
+  const structural = validateSceneDocument(document,{sourceAuthority:{question,problemIR,turnPlan}});
   if (!structural.document) return structural;
   const issues: SceneIssue[] = [];
   if (turnPlan != null) {

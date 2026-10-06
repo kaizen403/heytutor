@@ -1,5 +1,8 @@
 import { validateTurnPlanV3, type TurnPlanQuantityV3, type TurnPlanV3 } from "../contracts/contractsV3";
 import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemIR } from "./problemIR";
+import {hasOnlyEvaluateProblemFields} from "./evaluateProblemFields";
+import { snapshotMathSourceData } from "../compile/mathSourceData";
+import { hasOnlyFiniteBinomialPlanFields } from "./finiteBinomialPlanAuthority";
 import { evaluateMathExpression } from "../math/expression";
 
 /** Deliberately bounded authority for source-complete micrometer screw-gauge arithmetic. */
@@ -168,11 +171,18 @@ export function readScrewGaugeSource(problem: ProblemIR): SourceRead {
 
 /** Audit all actual IR obligations before granting or correcting bound authority. */
 export function verifyMeasurementSourceAuthority(problemRaw: unknown, planRaw: unknown, expectedQuestion?: string): MeasurementAuthorityResult {
-  const problemResult = validateProblemIR(problemRaw, expectedQuestion);
+  // Snapshot before any validator/property read: caller accessors and inherited
+  // data cannot execute or disappear at the authority boundary.
+  let captured: {problem: unknown; plan: unknown};
+  try { captured = snapshotMathSourceData({problem: problemRaw, plan: planRaw}); }
+  catch { return {status: "declined", problem: null, plan: emptyMeasurementPlan(expectedQuestion ?? ""), values: {}, issues: [{code: "invalid_source_data", message: "The entire measurement caller must be bounded own data."}], numericalAuthority: null}; }
+  const problemResult = validateProblemIR(captured.problem, expectedQuestion);
   const problem = problemResult.problem;
-  const fail = (code: string, message: string, values: Partial<Record<MeasurementRole, MeasurementValue>> = {}): MeasurementAuthorityResult => ({ status: "declined", problem, plan: withdrawUnsupported(planRaw), values, issues: [{ code, message }], numericalAuthority: null });
+  const fail = (code: string, message: string, values: Partial<Record<MeasurementRole, MeasurementValue>> = {}): MeasurementAuthorityResult => ({ status: "declined", problem, plan: withdrawUnsupported(validateTurnPlanV3(captured.plan, expectedQuestion).plan), values, issues: [{ code, message }], numericalAuthority: null });
   if (!problem) return fail("invalid_problem_ir", problemResult.issues.map(i => `${i.path}: ${i.message}`).join("; "));
-  const planResult = validateTurnPlanV3(planRaw, expectedQuestion ?? problem.question);
+  if (!hasOnlyEvaluateProblemFields(problem)) return fail("uncovered_problem_field", "Every actual measurement IR field must have supported source semantics.");
+  if (!hasOnlyFiniteBinomialPlanFields(captured.plan)) return fail("uncovered_plan_field", "The entire actual measurement Plan must use recognized protocol fields.");
+  const planResult = validateTurnPlanV3(captured.plan, expectedQuestion ?? problem.question);
   if (!planResult.plan) return fail("invalid_turn_plan", planResult.issues.map(i => i.message).join("; "));
   const plan = planResult.plan;
   if (problem.entities.some(entity => entity.label !== undefined && typeof entity.label !== "string")) return fail("invalid_entity_label", "Every supplied entity label must be a string before source-role normalization.");
@@ -298,8 +308,11 @@ function retainBoundPlan(plan: TurnPlanV3, target: TurnPlanQuantityV3, expected:
   return { ...plan, derived, unknowns, qualitativeClaims };
 }
 /** Decline gives no residual numeric answer/unknown/claim authority, including malformed plans. */
+function emptyMeasurementPlan(question: string): TurnPlanV3 {
+  return {schemaVersion:"turn-plan/v3",question,givens:[],derived:[],unknowns:[],qualitativeClaims:[],lawIds:[],assumptions:[],visualRequirement:"none"};
+}
 function withdrawUnsupported(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return emptyMeasurementPlan("");
   return { ...raw, derived: [], unknowns: [], qualitativeClaims: [] };
 }
 function decline(code: string, message: string): { issue: MeasurementAuthorityIssue } { return { issue: { code, message } }; }

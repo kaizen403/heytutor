@@ -1,6 +1,8 @@
 import {
   LocalDeterministicSolverProvider,
   readFiniteBinomialProgram,solveFiniteBinomialProblem,
+  readFiniteProgressionSource,readScrewGaugeQuestion,verifyMeasurementSourceAuthority,
+  readUniformCircularRuntimeContract,uniformCircularCallerIssues,uniformCircularRuntimePlanConflicts,
   buildSolverAuthorityProjection,
   evaluateMathExpression,
   expressionToSafeSource,
@@ -61,6 +63,29 @@ export interface ProblemAuthorityV1Decline {
   elapsedMs: number;
 }
 export type ProblemAuthorityV1Outcome = ProblemAuthorityV1Response | ProblemAuthorityV1Decline | null;
+
+/** Refuse the original caller before reconciliation can erase a conflicting
+ * textual or graph obligation. This grants no authority on unsupported lanes. */
+export function sourceProblemAdmissionIssueCodes(question:string,problem:unknown,plan:unknown):string[]{
+  const circular=readUniformCircularRuntimeContract(question);
+  if(circular) return uniformCircularCallerIssues(question,problem,plan).map(issue=>issue.code);
+  if(readScrewGaugeQuestion(question).status!=="none"){
+    const result=verifyMeasurementSourceAuthority(problem,plan,question);
+    if(result.status==="declined")return result.issues.map(issue=>issue.code);
+  }
+  return [];
+}
+/** Original Plan-only refusal also applies when ProblemIR transport fails. */
+export function refuseUniformCircularPlan(question:string,plan:TurnPlanV3):ProblemAuthorityV1Decline|null{
+  const read=readUniformCircularRuntimeContract(question);
+  if(!read)return null;
+  const bad=read.status==="declined" || !hasOnlyFiniteBinomialPlanFields(plan) || uniformCircularRuntimePlanConflicts(question,plan).length>0;
+  return bad?{status:"source_declined",question,rawProblemIR:null,rawTurnPlan:structuredClone(plan),rawContent:JSON.stringify(plan),issueCodes:["ucm_original_plan_declined"],elapsedMs:0}:null;
+}
+export function refuseProblemAuthorityForPlan(question:string,plan:TurnPlanV3,authority:ProblemAuthorityV1Response):ProblemAuthorityV1Decline|null{
+  const issueCodes=sourceProblemAdmissionIssueCodes(question,authority.problemIR,plan);
+  return issueCodes.length?{status:"source_declined",question,rawProblemIR:structuredClone(authority.problemIR),rawTurnPlan:structuredClone(plan),rawContent:authority.rawContent,issueCodes,elapsedMs:authority.elapsedMs}:null;
+}
 
 /** Compatibility for benches consuming only successful solver responses.
  * Live teaching uses the outcome API so a declined input cannot become absent. */
@@ -129,6 +154,7 @@ export async function planProblemAuthorityV1(
     const polynomial=readFiniteBinomialProgram(question);
     const matrixProducts=readMatrixProductSourceProgram(question);
     const matrixInput=matrixProducts?liftCompactProblemIR(parsed,question):null;
+    const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null;
     const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
       rawProblemIR:structuredClone(parsed),...(turnPlan?{rawTurnPlan:structuredClone(turnPlan)}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
@@ -138,7 +164,7 @@ export async function planProblemAuthorityV1(
     // before the legacy normalizer can prune evidence, requests or bindings.
     const polynomialResult=polynomial.status==="ok"?solveFiniteBinomialProblem(question,sourceInput):null;
     if(polynomial.status==="ok" && !polynomialResult)return decline("finite_polynomial_full_input_declined");
-    const normalized = matrixProducts ? matrixInput : polynomial.status==="ok"?sourceInput:normalizeProblemIRModelOutput(parsed, question, turnPlan);
+    const normalized = matrixProducts ? matrixInput : polynomial.status==="ok"?sourceInput:wholeScalarSource?liftCompactProblemIR(parsed,question):normalizeProblemIRModelOutput(parsed, question, turnPlan);
     const problemValidation = validateProblemIR(normalized, question);
     if(polynomial.status==="ok" && turnPlan && problemValidation.problem?.solveRequests.some(request=>{
       const binding=request.resultBinding;if(!binding)return false;
@@ -149,7 +175,11 @@ export async function planProblemAuthorityV1(
       tutorDebug("planner", "ProblemIR v1 rejected", {
         issue_codes: problemValidation.issues.map((issue) => issue.code),
       });
-      return null;
+      return wholeScalarSource?decline("whole_scalar_source_input_declined"):null;
+    }
+    if(turnPlan){
+      const codes=sourceProblemAdmissionIssueCodes(question, problemValidation.problem, turnPlan);
+      if(codes.length)return decline(codes.join(";"));
     }
     if (claimsStatedResistorCircuit(question) && !bindStatedCircuitProblem(question, problemValidation.problem)) {
       return decline("stated_circuit_whole_source_declined");

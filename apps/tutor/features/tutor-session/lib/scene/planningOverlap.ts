@@ -122,7 +122,7 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   parentSpan?: string;
   deriveGate(plan: TurnPlanV3, authority: A | null): G;
   /** Reconcile and audit exactly as the serial path did. */
-  applyAuthority(plan: TurnPlanV3, authority: A): { turnPlan: TurnPlanV3; authority: A } | Promise<{ turnPlan: TurnPlanV3; authority: A }>;
+  applyAuthority(plan: TurnPlanV3, authority: A): { turnPlan: TurnPlanV3; authority: A | null } | Promise<{ turnPlan: TurnPlanV3; authority: A | null }>;
   /** Reconcile a typed rejected input before the final gate; absence is distinct. */
   applyUnavailableAuthority?(plan:TurnPlanV3):TurnPlanV3 | Promise<TurnPlanV3>;
   /** A solver contradiction keeps the deterministic figure off, as before. */

@@ -1,5 +1,6 @@
 import {
   reconcileTurnPlanV3ExplicitArithmetic,
+  readUniformCircularRuntimeContract,readScrewGaugeQuestion,
   validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
@@ -414,6 +415,13 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
     const lastBrace = text.lastIndexOf("}");
     if (firstBrace < 0 || lastBrace <= firstBrace) return null;
     const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1)) as unknown;
+    // These source authorities need the original whole Plan before any
+    // arithmetic rewrite or canonicalization can erase textual obligations.
+    if(readUniformCircularRuntimeContract(question) || readScrewGaugeQuestion(question).status!=="none"){
+      const actual=validateTurnPlanV3(parsed,question);
+      if(trace)trace.normalized=parsed;
+      return actual.valid ? parsed as TurnPlanV3 : null;
+    }
     const normalized = normalizePlannerTurnPlan(parsed, question);
     if (trace) trace.normalized = normalized;
     const reconciled = reconcileTurnPlanV3ExplicitArithmetic(normalized);

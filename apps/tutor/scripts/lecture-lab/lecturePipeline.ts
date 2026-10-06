@@ -1,3 +1,4 @@
+import {liveSceneSaveFailure} from "@/lib/scene/sceneSaveAdmission";
 /**
  * Runs one whole lecture turn without a browser.
  *
@@ -26,6 +27,8 @@ import {
   inferSceneCapabilities,
   normalizeTutorQuestion,
   planProblemAuthorityV1,
+  refuseProblemAuthorityForPlan,
+  refuseUniformCircularPlan,
   planSceneDocumentWithRepair,
   planTurnV3,
   questionRequiresVisual,
@@ -362,7 +365,9 @@ export async function runLecture(
         const retainAuthorityOutcome=(outcome:Awaited<ReturnType<typeof planProblemAuthorityV1>>):ProblemAuthorityV1Response|null=>{
           if(outcome && "status" in outcome){sourceDecline=outcome;return null;}return outcome;
         };
-    if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
+    const originalPlanRefusal=refuseUniformCircularPlan(question,turnPlan);
+    if(originalPlanRefusal){sourceDecline=originalPlanRefusal;turnPlan=withdrawDeclinedProblemAuthority(turnPlan,originalPlanRefusal);}
+    if (plannedTurn && !sourceDecline && turnPlanNeedsNumericAuthority(question, turnPlan)) {
       const remainingAuthorityMs = Math.max(
         1_000,
         SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
@@ -559,6 +564,8 @@ export async function runLecture(
       applyUnavailableAuthority: plan => sourceDecline
         ? withdrawDeclinedProblemAuthority(plan, sourceDecline) : plan,
       applyAuthority: (planToReconcile, authority) => {
+        const refusal=refuseProblemAuthorityForPlan(question,planToReconcile,authority);
+        if(refusal){sourceDecline=refusal;return {turnPlan:withdrawDeclinedProblemAuthority(planToReconcile,refusal),authority:null};}
         const reconciledPlan = applySourceQuantityAuthority(reconcileTurnPlanWithSolver(
           planToReconcile,
           authority.problemIR,
@@ -673,6 +680,8 @@ export async function runLecture(
               }
             : null,
       });
+      const admissionFailure=liveSceneSaveFailure({document:selected.sceneDocument,question,problemIR:problemAuthority?.problemIR ?? null,turnPlan,tier:selected.tier});
+      if(admissionFailure)throw new Error(admissionFailure);
       sceneDocument = selected.sceneDocument;
       // Mirrors the live guard: a figure the student cannot read is not a
       // figure, so the turn teaches as text only.

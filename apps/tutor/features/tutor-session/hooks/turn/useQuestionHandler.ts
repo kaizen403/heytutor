@@ -22,6 +22,8 @@ import {
   revalidateScenePlanWithRepairResult,
   planTurnV3,
   planProblemAuthorityV1,
+  refuseProblemAuthorityForPlan,
+  refuseUniformCircularPlan,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
   normalizeTutorQuestion,
@@ -1304,6 +1306,8 @@ export function useQuestionHandler(
           };
         };
         const applyDeterministicSourceAuthority = (sourcePlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null): TurnPlanV3 => {
+          const planRefusal=refuseUniformCircularPlan(question,sourcePlan);
+          if(planRefusal){sourceDecline ??= planRefusal;return withdrawDeclinedProblemAuthority(sourcePlan,sourceDecline);}
           // Section-formula stems: the point's coordinates (or the asked ratio)
           // are solved exactly from the stated endpoints, and an inconsistent or
           // singular stem withdraws every derived number.
@@ -1362,6 +1366,9 @@ export function useQuestionHandler(
           applyUnavailableAuthority: plan => sourceDecline
             ? withdrawDeclinedProblemAuthority(plan, sourceDecline) : plan,
           applyAuthority: async (planToReconcile, authority) => {
+            if(sourceDecline)return {turnPlan:withdrawDeclinedProblemAuthority(planToReconcile,sourceDecline),authority:null};
+            const refusal=refuseProblemAuthorityForPlan(question,planToReconcile,authority);
+            if(refusal){sourceDecline=refusal;return {turnPlan:withdrawDeclinedProblemAuthority(planToReconcile,refusal),authority:null};}
             // A captured/model full IR is retained and source-bound before
             // recomputing its solver. Never pair repaired facts with old values.
             const prepared = await prepareSourceProblemAuthority(question, planToReconcile, authority);
