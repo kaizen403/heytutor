@@ -15,6 +15,7 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
+import { finitePolynomialPlanningGuidance } from "./finitePolynomialGuidance";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 
@@ -104,7 +105,7 @@ export async function planProblemAuthorityV1(
         temperature: 0,
         stream: false,
         messages: [
-          { role: "system", content: PROBLEM_IR_V1_PROMPT + (readScrewGaugeQuestion(question).status==="ok"?`\n${SCREW_GAUGE_QUESTION_GUIDANCE}`:"") },
+          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + (readScrewGaugeQuestion(question).status==="ok"?`\n${SCREW_GAUGE_QUESTION_GUIDANCE}`:"") },
           { role: "user", content: problemIRUserMessage(question, turnPlan) },
         ],
       }),
