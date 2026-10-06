@@ -66,7 +66,7 @@ export function numericOnlyAuthority(raw: unknown, question: string): NumericOnl
       profile = "circular";
       if (uniformCircularCallerIssues(question, artifacts.problemIR, artifacts.turnPlan).length) return null;
     } else return null;
-    if (!numericPlanObligationsProved(artifacts.turnPlan, question, profile)) return null;
+    if (!numericPlanObligationsProved(artifacts.turnPlan, question, profile, problem)) return null;
 
     const submitted = validateSolverResult(artifacts.solverResult, problem).result;
     if (!submitted || submitted.status !== "solved") return null;

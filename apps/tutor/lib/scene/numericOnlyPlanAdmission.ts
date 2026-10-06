@@ -1,6 +1,11 @@
 import {
+  finiteBinomialPlanIssues,
+  finiteProgressionSourceProgram,
   hasOnlyFiniteBinomialPlanFields,
   readFiniteBinomialProgram,
+  uniformCircularCallerIssues,
+  verifyMeasurementSourceAuthority,
+  type ProblemIR,
   type SolverValue,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -84,6 +89,103 @@ function sameIds(
   );
 }
 
+/** Names are part of the proposition, not opaque caller IDs. The owning
+ * readers prove every given's source role and every original request's AST,
+ * premises and requested role. Only then may that role license an output
+ * alias. No scalar comparison, sourceText echo or identifier syntax is proof.
+ */
+function sourceBoundQuantityNames(
+  plan: TurnPlanV3,
+  problem: ProblemIR,
+  question: string,
+  profile: NumericSourceProfile,
+): boolean {
+  // Join ALL supplied outputs to original requests before interpreting names.
+  // Even a supported alias cannot authorize an orphan or another role's row.
+  const outputs = [...plan.derived, ...plan.unknowns];
+  if (
+    outputs.some((row) => {
+      const requests = problem.solveRequests.filter(
+        (request) => request.resultBinding?.turnPlanQuantityId === row.id,
+      );
+      return (
+        requests.length !== 1 ||
+        requests[0]!.resultBinding!.symbol !== row.symbol ||
+        requests[0]!.resultBinding!.unit !== row.unit
+      );
+    }) ||
+    problem.solveRequests.some((request) => {
+      const binding = request.resultBinding;
+      return (
+        !binding ||
+        !plan.derived.some((row) => row.id === binding.turnPlanQuantityId) ||
+        !plan.unknowns.some((row) => row.id === binding.turnPlanQuantityId)
+      );
+    })
+  )
+    return false;
+
+  if (profile === "measurement") {
+    const proof = verifyMeasurementSourceAuthority(problem, plan, question);
+    if (
+      proof.status !== "verified" ||
+      proof.issues.length ||
+      !proof.values.circular_reading ||
+      !proof.numericalAuthority
+    )
+      return false;
+    // The complete measurement proof owns the four given-name/role joins.
+    // The sole requested role is a count of circular scale divisions, not a
+    // physical force, length or an arbitrary caller-labelled proposition.
+    const countNames = new Set([
+      "N",
+      "n",
+      "C",
+      "c",
+      "count",
+      "circular_reading",
+      "circular_scale_reading",
+    ]);
+    return outputs.every(
+      (row) =>
+        row.id === proof.numericalAuthority!.quantityId &&
+        countNames.has(row.symbol),
+    );
+  }
+  if (profile === "progression") {
+    const proof = finiteProgressionSourceProgram(question, problem, plan);
+    if (proof.status !== "ok") return false;
+    // The owning program proves every given name against its exact source
+    // role. Each output is bound to a specific source ask, including its index
+    // and branch. Result_i denotes that SOURCE ask's zero-based ordinal; caller
+    // request order and equal-valued answers do not establish this association.
+    return outputs.every((row) => {
+      const binding = proof.bindings.find(
+        (binding) => binding.quantityId === row.id,
+      );
+      if (!binding) return false;
+      const ordinal = proof.source.asks.indexOf(binding.ask);
+      if (ordinal < 0) return false;
+      if (row.symbol === `Result_${ordinal}`) return true;
+      const alias =
+        binding.ask.kind === "term"
+          ? binding.ask.symbol
+          : `S_${binding.ask.index}`;
+      const aliases = proof.source.asks.filter(
+        (ask) =>
+          (ask.kind === "term" ? ask.symbol : `S_${ask.index}`) === alias,
+      );
+      return aliases.length === 1 && row.symbol === alias;
+    });
+  }
+  // These readers already prove every supplied symbol's owning quantity role:
+  // coefficient/exponent names (including the source coefficient index), or
+  // circular SI/unit names with exact source input/request roles and ASTs.
+  return profile === "polynomial"
+    ? finiteBinomialPlanIssues(question, problem, plan).length === 0
+    : uniformCircularCallerIssues(question, problem, plan).length === 0;
+}
+
 /** Source-specific readers prove quantities/claims/assumptions and the whole IR.
  * This closes their remaining optional Plan obligations without widening any
  * diagram admission contract. No unresolved entity/view hint has a scene here.
@@ -92,15 +194,9 @@ export function numericPlanObligationsProved(
   plan: TurnPlanV3,
   question: string,
   profile: NumericSourceProfile,
+  problem: ProblemIR,
 ): boolean {
-  // A result binding grants a mathematical quantity name, not permission to
-  // assert arbitrary prose in that name and repeat it in a result declaration.
-  if (
-    [...plan.givens, ...plan.derived, ...plan.unknowns].some(
-      (row) => !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(row.symbol),
-    )
-  )
-    return false;
+  if (!sourceBoundQuantityNames(plan, problem, question, profile)) return false;
   if (
     plan.teachingSequenceHints?.length ||
     plan.qualitativeClaims.some((row) => row.relatedEntityHints?.length) ||
