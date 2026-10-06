@@ -61,6 +61,7 @@ export function opticalConjugateQuantityRole(quantity: { id: string; symbol?: st
     return null;
   };
   const symbolRole = role(quantity.symbol ?? ""), idRole = role(quantity.id);
+  if(quantity.symbol !== undefined && quantity.symbol.trim() && !symbolRole) return idRole?"ambiguous":null;
   return symbolRole && idRole && symbolRole !== idRole ? "ambiguous" : symbolRole ?? idRole;
 }
 

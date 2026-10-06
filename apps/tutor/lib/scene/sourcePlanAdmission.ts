@@ -1,5 +1,7 @@
 import {
   opticalConjugateDocument,
+  circleSourceDocument,readCircleSourceProgram,applyCircleSourceAuthority,
+  sectionFormulaScene,readSectionFormulaSource,sectionFormulaPlanIssues,validateProblemIR,
   opticalConjugatePlanConflicts,
   opticalConjugateQuantityRole,
   opticalLengthInCm,
@@ -32,7 +34,9 @@ export function sourceBoundPlanIssues(
 ): SceneIssue[] {
   const contact = readStaticContactTriangle(question);
   const optics = readOpticalConjugateSource(question);
-  if ((!contact && !optics) || rawPlan == null) return [];
+  const circle = readCircleSourceProgram(question).status === "ok";
+  const section = readSectionFormulaSource(question);
+  if ((!contact && !optics && !circle && section.status!=="ok") || rawPlan == null) return [];
 
   const checked = validateTurnPlanV3(rawPlan, question);
   if (!checked.valid || !checked.plan) {
@@ -41,6 +45,18 @@ export function sourceBoundPlanIssues(
     ));
   }
   const plan = checked.plan;
+  if(section.status==="ok"){
+    const scene=sectionFormulaScene(question,rawProblemIR as Parameters<typeof sectionFormulaScene>[1]);
+    const problem=rawProblemIR==null?null:validateProblemIR(rawProblemIR,question).problem;
+    if(!scene || rawProblemIR!=null && !problem) return [fatal("section_source_plan","sceneArtifacts.turnPlan","Section plan admission requires the complete independently bound source IR")];
+    const planIssues=sectionFormulaPlanIssues(question,plan,rawProblemIR);
+    if(planIssues.length) return planIssues;
+    return [];
+  }
+  if(circle){
+    const authority=applyCircleSourceAuthority(question,plan,rawProblemIR ?? undefined);
+    return authority && authority.issues.length===0 && circleSourceDocument(question,rawProblemIR ?? undefined)?[]:[fatal("circle_source_plan","sceneArtifacts.turnPlan","All circle numeric rows and unknowns must bind fresh source roles, units and values, with or without caller IR")];
+  }
   if (contact) {
     return staticContactTriangleDocument(question, plan, rawProblemIR) ? [] : [fatal(
       "contact_source_plan", "sceneArtifacts.turnPlan",

@@ -12,7 +12,7 @@
  * ambiguous, or whose stated point is not where its stated ratio puts it,
  * yields no section at all.
  */
-import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
+import { validateTurnPlanV3, type TurnPlanQuantityV3, type TurnPlanV3 } from "../contracts/contractsV3";
 import { derivedLabelTargets, readDerivedCoordinateLabelClaim, validateEvaluatedDerivedValueLabels } from "../compile/derivedValueLabels";
 import { validateProblemIR, type ExpressionNodeIR, type ProblemIR, type ProblemFact } from "./problemIR";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
@@ -770,6 +770,51 @@ function roleOf(symbol: string): Role | null {
   if (/^(?:y|y_?[A-Z]|[A-Z]_?y|y_?(?:P|M|section|point))$/i.test(key) && !/^y_?[12]$/i.test(key)) return "y";
   if (/^(?:k|λ|lambda|r|ratio|m\/n|m:n|AP\/PB|AP:PB)$/i.test(key)) return "ratio";
   return null;
+}
+
+/** Recheck every supplied plan row against a named source role. Numeric
+ * coincidence, persisted solver values and quantity IDs do not grant a role. */
+export function sectionFormulaPlanIssues(question:string,rawPlan:unknown,problemIR?:unknown):SceneIssue[]{
+ const reading=readSectionFormulaSource(question);
+ if(reading.status!=="ok") return [];
+ const checked=validateTurnPlanV3(rawPlan,question);
+ if(!checked.valid || !checked.plan) return [{code:"section_source_plan",severity:"fatal",path:"turnPlan",message:"Section caller plan must remain structurally valid"}];
+ const plan=checked.plan;
+ const {source}=reading;
+ const unitOk=(unit:unknown)=>unit===undefined || ["1","coordinate","unit","units"].includes(String(unit));
+ const resultRole=(symbol:string):Role|null=>{
+  const key=symbol.replace(/_/g,"");
+  for(const axis of ["x","y"] as const) if([`${axis}${source.point.name}`,`${source.point.name}${axis}`,axis].includes(key)) return axis;
+  if(source.asks==="ratio" && ["k","λ","lambda","r","ratio","m/n","m:n",`${source.a.name}${source.point.name}/${source.point.name}${source.b.name}`,`${source.a.name}${source.point.name}:${source.point.name}${source.b.name}`].includes(key)) return "ratio";
+  return null;
+ };
+ const issues:SceneIssue[]=[];
+ const fail=(id:string,message:string)=>issues.push({code:"section_source_plan",severity:"fatal",path:`turnPlan.${id}`,message});
+ const close=(actual:number,expected:number)=>Math.abs(actual-expected)<=1e-9*Math.max(1,Math.abs(expected));
+ for(const row of plan.givens){
+  const dimension=sectionDimension(source,row.symbol,question);
+  if(!dimension || !unitOk(row.unit) || !close(row.value,dimension.value)) fail(row.id,"Section givens must bind the named source coordinate or stated ratio component, with its actual value and unit");
+ }
+ for(const row of plan.derived){
+  const role=resultRole(row.symbol),dimension=sectionDimension(source,row.symbol,question);
+  const expected=role==="ratio"?source.ratio:role?source.point[role]:dimension?.value;
+  if(expected===undefined || !unitOk(row.unit) || role==="ratio" && row.unit!==undefined && row.unit!=="1" || !close(row.value,expected)) fail(row.id,"Section derived rows must bind a named source/result role, value and unit");
+ }
+ for(const row of plan.unknowns){
+  const role=resultRole(row.symbol);
+  if(!role || !unitOk(row.unit) || role==="ratio" && row.unit!==undefined && row.unit!=="1") fail(row.id,"Section unknowns must bind the requested source point or dimensionless ratio");
+ }
+ if(problemIR!=null){
+  const problem=validateProblemIR(problemIR,question).problem;
+  if(!problem) fail("problemIR","Section caller IR must remain structurally valid");
+  else for(const request of problem.solveRequests){
+   const binding=request.resultBinding;
+   if(!binding) continue;
+   const rows=[...plan.derived,...plan.unknowns].filter(row=>row.id===binding.turnPlanQuantityId);
+   if(!rows.length || rows.some(row=>row.symbol!==binding.symbol || row.unit!==binding.unit)) fail(binding.turnPlanQuantityId,"Section request bindings must address the actual caller plan identity, symbol and unit");
+  }
+ }
+ return issues;
 }
 
 /**

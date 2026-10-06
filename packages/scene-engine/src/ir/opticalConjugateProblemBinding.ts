@@ -39,6 +39,10 @@ export function bindOpticalConjugateProblem(problem:ProblemIR,source:OpticalConj
  const facts=new Map(problem.facts.map(row=>[row.id,row]));
  if (problem.facts.some(row=>normal(row.statement)!==normal(row.evidence.quote))) return null;
  const requested=new Set(problem.facts.filter(row=>row.kind==="requested" && normal(row.evidence.quote)===normal(source.request)).map(row=>row.id));
+ if(problem.facts.some(row=>row.kind==="requested" && !requested.has(row.id))) return null;
+ const numeric=problem.expressions.length>0 || problem.solveRequests.length>0;
+ if(numeric && !problem.representationIntents.some(row=>problem.entities.every(entity=>row.entityIds.includes(entity.id)))) return null;
+ if(numeric && problem.representationIntents.length===0) return null;
  const usedFacts=new Set<string>(problem.entities.flatMap(row=>row.evidenceFactIds));
  for (const intent of problem.representationIntents) {
   if (!["apparatus","conceptual"].includes(intent.kind)) return null;

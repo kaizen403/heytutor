@@ -10,9 +10,15 @@ import type {StoredTurn} from "../../lib/boards/boardsClient";
 async function main(){
  const cases=JSON.parse(readFileSync(resolve("../../packages/scene-engine/scripts/verify/fixtures/w2-circle-source/authored-full-ir.json"),"utf8")) as Array<{problem:engine.ProblemIR}>;
  let checks=0;
+ // The historical captured planner has distinct unknown/derived IDs. Its
+ // authored full IR intentionally has no evaluate requests; do not let the
+ // empty request loop skip the trust-boundary negatives.
+ const captured=JSON.parse(readFileSync(resolve("../../packages/scene-engine/scripts/verify/fixtures/w2-circle-source/captured-batch6a-plan.json"),"utf8")) as engine.TurnPlanV3;
+ const corrected=engine.applyCircleSourceAuthority(captured.question,captured,cases[0]!.problem)!.plan;
+
  for(const {problem} of cases){
   const question=problem.question,solver=await new engine.LocalDeterministicSolverProvider().solve(problem);
-  const plan:engine.TurnPlanV3={schemaVersion:"turn-plan/v3",question,givens:[],derived:[],unknowns:[],qualitativeClaims:[],assumptions:[],lawIds:[],visualRequirement:"required"};
+  let plan:engine.TurnPlanV3={schemaVersion:"turn-plan/v3",question,givens:[],derived:[],unknowns:[],qualitativeClaims:[],assumptions:[],lawIds:[],visualRequirement:"required"};
   for(const request of problem.solveRequests){
    const binding=request.resultBinding!;
    const value=solver.values.find(row=>row.requestId===request.id)!;
@@ -20,6 +26,7 @@ async function main(){
    plan.unknowns.push({id:binding.turnPlanQuantityId,symbol:binding.symbol,unit:binding.unit});
    plan.derived.push({id:binding.turnPlanQuantityId,symbol:binding.symbol,value:value.approximate!,unit:binding.unit,provenance:"derived"});
   }
+  if(question===captured.question) plan=structuredClone(corrected);
   const scene=engine.synthesizeFamilyScene({question,turnPlan:plan,problemIR:problem});assert.ok(scene,question);
   const audit=engine.verifyTurnPlanAgainstSolver(problem,solver,plan,question);
   assert.equal(audit.status,problem.solveRequests.length?"verified":"not_applicable");
@@ -31,6 +38,22 @@ async function main(){
   const sourceOnly=engine.synthesizeFamilyScene({question});assert.ok(sourceOnly);
   assert.equal(engine.compileSceneDocument(sourceOnly.document,{sourceAuthority:{question,problemIR:undefined}}).ok,true);
   assert.equal(liveSceneSaveFailure({document:sourceOnly.document,question,turnPlan:null,tier:sourceOnly.tier}),null);checks++;
+  if(plan.unknowns.length){
+   for(const defect of ["unknown-unit","unknown-role","stale-value"]){
+    const badPlan=structuredClone(plan);
+    if(defect==="unknown-unit") badPlan.unknowns[0]!.unit="m";
+    if(defect==="unknown-role") badPlan.unknowns[0]!.symbol="speed";
+    if(defect==="stale-value") badPlan.derived[0]!.value+=1;
+    for(const withIR of [true,false]){
+     const candidate:engine.SynthesizedFamilyScene=withIR?scene:sourceOnly;
+     const raw=withIR?problem:undefined;
+     const badArtifacts={...artifacts,turnPlan:badPlan,problemIR:raw};
+     assert.ok(liveSceneSaveFailure({document:candidate.document,question,turnPlan:badPlan,problemIR:raw,tier:candidate.tier}),defect);
+     assert.equal((await canonicalizeTurnSceneMetadata({question,sceneDocument:candidate.document,sceneArtifacts:badArtifacts,visualStatus:"validated",segments:[]})).ok,false,defect);
+     const badTurn={...turn,sceneDocument:candidate.document,sceneArtifacts:badArtifacts};assert.equal(sourceCheckedStoredTurn(badTurn).visualStatus,"retry_required",defect);assert.equal(restoreVerifiedPresentationFromTurn(badTurn),null,defect);checks++;
+    }
+   }
+  }
   const bad=structuredClone(scene.document);bad.requiredEntityIds.pop();
   assert.ok(liveSceneSaveFailure({document:bad,question,turnPlan:plan,problemIR:problem,tier:scene.tier}));
   assert.equal(sourceCheckedStoredTurn({...turn,sceneDocument:bad}).visualStatus,"retry_required");assert.equal(restoreVerifiedPresentationFromTurn({...turn,sceneDocument:bad}),null);checks++;

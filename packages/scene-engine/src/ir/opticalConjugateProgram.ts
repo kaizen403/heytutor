@@ -36,6 +36,7 @@ export function opticalConjugateDocument(question:string,plan?:unknown,problemIR
    if (!physical || label.length>16) return null;
    physical.label=label;
   }
+  if((problem.expressions.length || problem.solveRequests.length) && !["object","image",source.device].every(role=>used.has(role))) return null;
   for (const quantity of joined) {
    const index=document.quantities.findIndex(row=>row.id===quantity.id);
    if (document.entities.some(row=>row.id===quantity.id)) return null;

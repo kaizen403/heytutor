@@ -61,7 +61,7 @@ import {
 import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
-import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
+import { readSectionFormulaSource, sectionFormulaScene, sectionFormulaPlanIssues } from "../ir/sectionFormulaSource";
 import { readPointLineProgram, pointLineSourceDocument } from "../ir/pointLineProgram";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
@@ -255,6 +255,7 @@ function synthesizeFromFamilies(
   }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
+  if(sectionReading?.status === "ok" && input.turnPlan && sectionFormulaPlanIssues(question,input.turnPlan,input.problemIR).length) return null;
   const sectionDocument = sectionReading?.status === "ok"
     ? sectionFormulaScene(question, isFullProblemIRStructure(input.problemIR) ? input.problemIR : null) : null;
   if (sectionReading?.status === "ok" && !sectionDocument) return null;

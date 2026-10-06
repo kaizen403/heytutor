@@ -25,6 +25,19 @@ async function main() {
   const saved=await canonicalizeTurnSceneMetadata({question,sceneDocument:scene.document,sceneArtifacts:artifacts,visualStatus:"validated",segments:[]});assert.ok(saved.ok,saved.ok?"":saved.error);
   const turn:StoredTurn={id:"offline",question,rawResponse:"",orderIndex:0,speedMultiplier:2,traceId:null,segments:[],sceneDocument:scene.document,sceneArtifacts:artifacts,visualStatus:"validated",sceneEngineVersion:null,validationReport:null};
   assert.equal(sourceCheckedStoredTurn(turn).visualStatus,"validated");assert.ok(restoreVerifiedPresentationFromTurn(turn));assert.deepEqual(fixture,snapshot);checks++;
+  for(const defect of ["unknown-unit","unknown-role","given-role-coincidence","derived-role-coincidence","stale-result"]){
+   const badPlan=structuredClone(plan);
+   if(defect==="unknown-unit") badPlan.unknowns[0]!.unit="m";
+   if(defect==="unknown-role") badPlan.unknowns[0]!.symbol="speed";
+   if(defect==="given-role-coincidence") badPlan.givens[0]!.symbol="speed";
+   if(defect==="derived-role-coincidence") badPlan.derived[0]!.symbol="speed";
+   if(defect==="stale-result") badPlan.derived[0]!.value+=1;
+   const badArtifacts={...artifacts,turnPlan:badPlan};
+   assert.ok(liveSceneSaveFailure({document:scene.document,question,turnPlan:badPlan,problemIR:problem,tier:scene.tier}),`${name}/${defect}`);
+   assert.equal((await canonicalizeTurnSceneMetadata({question,sceneDocument:scene.document,sceneArtifacts:badArtifacts,visualStatus:"validated",segments:[]})).ok,false);
+   const badTurn={...turn,sceneArtifacts:badArtifacts};
+   assert.equal(sourceCheckedStoredTurn(badTurn).visualStatus,"retry_required");assert.equal(restoreVerifiedPresentationFromTurn(badTurn),null);checks++;
+  }
   for (const defect of ["line-evidence","foreign-line","physical-point","line-proof","extra-equation","extra-assumption","wrong-result-symbol","wrong-result-id"] as const) {
    const badIR:built.ProblemIR=structuredClone(problem),badDoc:built.SceneDocument=structuredClone(scene.document);
 

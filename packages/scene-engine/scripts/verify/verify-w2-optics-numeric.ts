@@ -51,7 +51,7 @@ async function main() {
   const badPlan=structuredClone(plan);badPlan.unknowns[0]!.unit="m";
   assert.equal(opticalConjugateDocument(question,badPlan,problem),null);checks++;
   const solved=await new LocalDeterministicSolverProvider().solve(problem);assert.equal(verifyTurnPlanAgainstSolver(problem,solved,plan,question).status,"verified");assert.deepEqual({problem,plan},before);checks++;
-  for (const defect of ["same-answer","literal-answer","unit","missing-result","given-role","extra-entity","unbound-fact","reveal"] as const) {
+  for (const defect of ["same-answer","literal-answer","unit","missing-result","given-role","extra-entity","unbound-fact","missing-entities","missing-intents","hidden-requested-fact","masked-binding-symbol","reveal"] as const) {
    const bad=structuredClone(problem),candidate=structuredClone(document);
    if (defect==="same-answer") bad.expressions[2]!.root=b("+",n(expectedV-1),n(1));
    if (defect==="literal-answer") bad.expressions[2]!.root=n(expectedV);
@@ -60,6 +60,10 @@ async function main() {
    if (defect==="given-role") bad.expressions[0]!.id="eF";
    if (defect==="extra-entity") bad.entities.push({id:"otherObject",kind:"body",label:"object",evidenceFactIds:["setup"]});
    if (defect==="unbound-fact") bad.facts.push({...bad.facts[0]!,id:"orphan"});
+   if (defect==="missing-entities") {bad.entities=[];bad.representationIntents=[];}
+   if (defect==="missing-intents") bad.representationIntents=[];
+   if (defect==="hidden-requested-fact") {const quote=`focal length ${mixed?"0.1 m":"10 cm"}`,start=question.indexOf(quote);bad.facts.push({id:"hiddenAsk",kind:"requested",statement:quote,evidence:{source:"question",quote,start,end:start+quote.length}});bad.entities[1]!.evidenceFactIds.push("hiddenAsk");}
+   if (defect==="masked-binding-symbol") {bad.solveRequests[0]!.resultBinding!.turnPlanQuantityId="v";bad.solveRequests[0]!.resultBinding!.symbol="speed";}
    if (defect==="reveal") candidate.revealGroups[0]!.entityIds.pop();
    if (defect!=="reveal") assert.equal(opticalConjugateDocument(question,plan,bad),null,defect);
    assert.equal(compileSceneDocument(candidate,{sourceAuthority:{question,problemIR:bad}}).ok,false,defect);checks++;

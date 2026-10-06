@@ -144,9 +144,9 @@ export function sceneSaveAdmissionFailure(input: {
     })) return "Optical unknown units or identities do not bind source roles";
     const conjugateDocument=conjugate?opticalConjugateDocument(question,turnPlan,input.problemIR):null;
     const conjugateTexts=new Set(conjugateDocument?displayedSceneText(conjugateDocument):[]);
-    const circleDocument=input.problemIR!=null?circleSourceDocument(question,input.problemIR):null;
+    const circleDocument=circleSourceDocument(question,input.problemIR ?? undefined);
     if (circleDocument) {
-      const authority=applyCircleSourceAuthority(question,turnPlan,input.problemIR);
+      const authority=applyCircleSourceAuthority(question,turnPlan,input.problemIR ?? undefined);
       if (!authority || authority.issues.length) return "Circle plan quantities must first match their independently bound source roles";
     }
     const circleTexts=new Set(circleDocument?displayedSceneText(circleDocument):[]);
