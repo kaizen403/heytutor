@@ -10,7 +10,7 @@ one source point, plural points requires a nonempty proved source set. The whole
 source and requested-fact clause parsers receive the proved source point count.
 Unbound or ambiguous callers decline atomically; no invented target or partial ink.
 
-Own source/public gate590 pass; unchanged independent35 complete callers282
+Own source/public gate590 pass; unchanged independent35 complete callers284
 assertions both source/public have failed arrays empty. Engine/core own fresh
 builds, types and scoped production lint pass. Prior independent red outputs are
 unchanged. New results only in
