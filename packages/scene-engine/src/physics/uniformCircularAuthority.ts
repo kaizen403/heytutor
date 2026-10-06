@@ -286,7 +286,7 @@ function supportedPlanAssertion(contract: UniformCircularRuntimeContract, text: 
     const distance = parseSourceMath(revolution[1]!);
     const circumference = parseSourceMath("2*pi*r")!;
     if (!distance || !provesSourceMath(contract, distance, circumference, sourceTrees(contract))) return false;
-    return revolution[2] === undefined || supportedDerivedSourceText(contract, { sourceText: revolution[2], unit: "s" }, "period");
+    return revolution[2] === undefined || supportedDerivedSourceText(contract, { sourceText: revolution[2], unit: "s" }, "period", false);
   }
   if (/^(?:the )?speed is constant(?: in uniform circular motion| because the period and radius are fixed)?$/.test(phrase)) return true;
   if (phrase === "constant speed") return true;
@@ -318,25 +318,28 @@ function supportedPlanAssertion(contract: UniformCircularRuntimeContract, text: 
  * Symbolic members must be circular identities; numeric members carry their
  * own SI units. Rounding is allowed only following an explicit approx sign.
  */
-function supportedClaimExpected(contract: UniformCircularRuntimeContract, expected: unknown): boolean {
+function supportedClaimExpected(contract: UniformCircularRuntimeContract, expected: unknown, proposition: ClaimProposition): boolean {
   if (expected === true) return true;
   if (typeof expected !== "string") return false;
-  if (supportedPlanAssertion(contract, expected)) return true;
+  if (supportedPlanAssertion(contract, expected)) {
+    const result = claimProposition(contract, expected);
+    return !!result && result.results.length > 0 && result.results.every(role => proposition.results.includes(role));
+  }
   const text = expected.replace(/²/g, "^2").replace(/ω/g, "omega").replace(/−/g, "-").trim();
   const signed = / if signed; magnitude /.test(text);
   if (signed) {
-    if (contract.source.sense !== "clockwise") return false;
+    if (contract.source.sense !== "clockwise" || !proposition.results.includes("angular_speed")) return false;
     const match = /^omega = (-[\d.]+) rad\/s if signed; magnitude ([\d.]+) rad\/s$/.exec(text);
     return !!match && Number(match[1]) === -contract.source.angularSpeed && Number(match[2]) === contract.source.angularSpeed;
   }
   // Zero is the tangential component only. An a_c=0 claim still goes
   // through the source's nonzero centripetal magnitude below.
-  if (/^a_t\s*=\s*0(?:\s+m\/s\^2)?$/.test(text)) return true;
+  if (/^a_t\s*=\s*0(?:\s+m\/s\^2)?$/.test(text)) return proposition.results.includes("tangential_acceleration");
   const symbol = text.split(/\s*(?:=|≈)\s*/)[0]!.trim();
   const role = roleSymbols[symbol];
-  if (!role) return false;
+  if (!role || !proposition.results.includes(role)) return false;
   const unit: Record<Role, string> = {radius:"m",speed:"m/s",period:"s",angular_speed:"rad/s",acceleration:"m/s^2"};
-  return supportedDerivedSourceText(contract, { sourceText: text, unit: unit[role] }, role);
+  return supportedDerivedSourceText(contract, { sourceText: text, unit: unit[role] }, role, false);
 }
 
 /** Bounded source-role math. No value-only join of arbitrary expressions:
@@ -423,7 +426,7 @@ const circularFormulaSources: Record<Role, string[]> = {
  * Unsupported prose/equations, wrong roles and false intermediate arithmetic
  * decline. Approximation is a terminal decimal display, never a new operand.
  */
-function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role): boolean {
+function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role, allowAssertions = true): boolean {
   if (row.sourceText === undefined) return true;
   if (typeof row.sourceText !== "string" || !row.sourceText.trim() || row.sourceText.length > 2048) return false;
   const unit = String(row.unit).replace(/²/g, "^2").normalize("NFKC").replace(/\s/g, "");
@@ -431,18 +434,19 @@ function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, ro
   const trees = sourceTrees(contract);
   const normalize = (text: string) => text.replace(/²/g, "^2").replace(/π/g, "pi").replace(/ω/g, "omega").replace(/−/g, "-");
   const clauses = normalize(row.sourceText).trim().split(/;|\n/);
-  return clauses.every(raw => {
+  let equation = false;
+  const complete = clauses.every(raw => {
     let clause = raw.trim().replace(/\.$/, "");
     if (!clause) return false;
-    if (supportedPlanAssertion(contract, clause)) return true;
+    if (supportedPlanAssertion(contract, clause)) return allowAssertions;
     // This suffix asserts direction too, and is consumed as a whole.
     const inwardSuffix = /(?:, directed radially inward| directed inward)$/;
     if (inwardSuffix.test(clause) && role !== "acceleration") return false;
     clause = clause.replace(inwardSuffix, "");
-    clause = clause.replace(/^Source-verified /, "");
     const parts = clause.split(/\s*(=|≈)\s*/);
     const lhs = parts.shift()?.trim();
     if (!lhs || roleSymbols[lhs] !== role || parts.length < 2 || unit !== siUnit[role]) return false;
+    equation = true;
     const expected = sourceRoleValue(contract, role);
     for (let i = 0; i < parts.length; i += 2) {
       let member = parts[i + 1]!.trim();
@@ -465,6 +469,7 @@ function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, ro
     }
     return true;
   });
+  return complete && equation;
 }
 
 /** A scalar's decimal display cannot replace its source derivation. This
@@ -491,6 +496,107 @@ export function uniformCircularRuntimeDerivedDisplayMatches(contract: UniformCir
   const expected = uniformCircularRuntimeQuantityValue(contract.source, { symbol: row.symbol, unit: row.unit });
   return expected !== null && Math.abs(row.value - expected) <= .5 * 10 ** -decimals;
 }
+
+type ClaimRole = Role | "tangential_acceleration";
+interface ClaimProposition { results: ClaimRole[]; quantities: Role[]; formula: boolean }
+
+/** Attach meaning only after the complete assertion has been proved. Result
+ * positions cannot delegate to arbitrary true prose; no noun substring proves
+ * a role. Composition retains the meanings of every consumed clause. */
+function claimProposition(contract: UniformCircularRuntimeContract, text: string): ClaimProposition | null {
+  if (!supportedPlanAssertion(contract, text)) return null;
+  const phrase = phraseText(text).replace(/²/g, "^2").replace(/ω/g, "omega");
+  const result = (results: ClaimRole[], quantities: Role[], formula = false): ClaimProposition => ({ results, quantities, formula });
+  const inward = "(?:toward|towards) the (?:center|centre)(?: of the (?:circle|circular track))?";
+  if (new RegExp(`^(?:the )?(?:centripetal )?acceleration (?:points|is directed|directed) (?:radially inward(?: ${inward})?|${inward})(?:, perpendicular to (?:the )?velocity)?$`).test(phrase)
+    || /^(?:the )?acceleration is purely centripetal$/.test(phrase)
+    || /^(?:centripetal )?acceleration is perpendicular to (?:the )?velocity$/.test(phrase)) return result(["acceleration"], ["acceleration", "speed", "radius"]);
+  if (/^(?:the )?tangential acceleration is zero$/.test(phrase)) return result(["tangential_acceleration"], ["speed"]);
+  if (/^(?:the )?speed is constant(?: in uniform circular motion| because the period and radius are fixed)?$/.test(phrase)
+    || phrase === "constant speed") return result(["speed"], ["speed"]);
+  if (/^speed is constant in uniform circular motion and equals circumference divided by period$/.test(phrase)) return result(["speed"], ["speed", "radius", "period"], true);
+  if (/^speed is constant, so the period is circumference divided by speed$/.test(phrase)) return result(["period"], ["period", "radius", "speed"], true);
+  if (/^one (?:complete )?revolution covers the circumference (.+?) at constant speed v(?:, giving period (.+))?$/.test(phrase)) return result(["period"], ["period", "radius", "speed"], true);
+  if (new RegExp(`^centripetal acceleration points ${inward} and has magnitude v\\^2/r$`).test(phrase)) return result(["acceleration"], ["acceleration", "speed", "radius"], true);
+  if (/^angular speed is omega = v\/r$/.test(phrase)) return result(["angular_speed"], ["angular_speed", "speed", "radius"], true);
+  if (new RegExp(`^centripetal acceleration magnitude is a_c = v\\^2/r = omega\\^2r, directed radially inward ${inward}$`).test(phrase)) return result(["acceleration"], ["acceleration", "speed", "radius", "angular_speed"], true);
+  if (contract.source.sense === "clockwise" && phrase === "clockwise motion sets the sign of angular velocity (negative by the usual counterclockwise-positive convention) but does not change the magnitudes") return result(["angular_speed"], ["angular_speed"]);
+  const clauses = text.split(/;|,\s+so\s+/i);
+  if (clauses.length > 1) {
+    const meanings = clauses.map(clause => claimProposition(contract, clause.trim()));
+    if (meanings.some(row => !row)) return null;
+    return result([...new Set(meanings.flatMap(row => row!.results))], [...new Set(meanings.flatMap(row => row!.quantities))], meanings.some(row => row!.formula));
+  }
+  // Existing complete qualitative/setup assertions may be true without a
+  // scalar result. They keep their optional-link policy, but cannot discharge
+  // an expected equation with an independently selected physical role.
+  return result([], []);
+}
+
+const rowRole = (row: Record<string, unknown>): Role | null => typeof row.symbol === "string"
+  ? uniformCircularRuntimeQuantityRole({ symbol: row.symbol, unit: typeof row.unit === "string" ? row.unit : undefined }) : null;
+function mathRoles(node: SourceMath): Role[] {
+  return node.kind === "role" ? [node.role] : node.kind === "binary" ? [...new Set([...mathRoles(node.left), ...mathRoles(node.right)])] : [];
+}
+const sourceOperands = (contract: UniformCircularRuntimeContract, role: Role): Role[] =>
+  role === "radius" || role === contract.source.rateSource ? [role] : ["radius", contract.source.rateSource as Role];
+
+/** Read physical operand alternatives from the submitted first equation.
+ * Numeric-only or omitted text uses the deterministic source law. Dependencies
+ * name actual given/derived rows, never a requested result with no derivation. */
+function derivedOperands(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role): Role[][] {
+  if (typeof row.sourceText === "string") {
+    const clause = row.sourceText.replace(/ω/g, "omega").replace(/²/g, "^2").split(/;|\n/)[0]!;
+    const member = clause.split(/\s*(?:=|≈)\s*/)[1];
+    const math = member && parseSourceMath(member.replace(/\s+(?:m\/s\^2|rad\/s|m\/s|m|s)$/, ""));
+    if (math) {
+      // A numeric expansion may use an existing intermediate (v from r/T).
+      // Match its physical law structurally before accepting those graph edges;
+      // equal-valued unrelated operands cannot name a dependency.
+      const options = circularFormulaSources[role].map(formula => parseSourceMath(formula)!)
+        .filter(formula => !mathRoles(formula).includes(role) && provesSourceMath(contract, math, formula, sourceTrees(contract)))
+        .map(mathRoles);
+      if (options.length) return options;
+    }
+  }
+  return [sourceOperands(contract, role)];
+}
+
+function planGraphProved(contract: UniformCircularRuntimeContract, givens: Record<string, unknown>[], derived: Record<string, unknown>[]): boolean {
+  const graph = new Map<string, Record<string, unknown>>();
+  for (const row of [...givens, ...derived]) {
+    if (typeof row.id !== "string" || graph.has(row.id) || !rowRole(row)) return false;
+    graph.set(row.id, row);
+  }
+  const visiting = new Set<string>(), proved = new Set<string>();
+  const visit = (row: Record<string, unknown>): boolean => {
+    const id = String(row.id);
+    if (visiting.has(id)) return false;
+    if (proved.has(id)) return true;
+    const dependencies = row.dependsOn;
+    if (givens.includes(row)) return dependencies === undefined || Array.isArray(dependencies) && dependencies.length === 0;
+    if (!Array.isArray(dependencies) || new Set(dependencies).size !== dependencies.length) return false;
+    const operands = derivedOperands(contract, row, rowRole(row)!);
+    const parents = dependencies.map(id => typeof id === "string" ? graph.get(id) : undefined);
+    if (parents.some(parent => !parent) || !operands.some(roles => sameSceneValue(parents.map(parent => rowRole(parent!)).sort(), [...roles].sort()))) return false;
+    visiting.add(id);
+    if (!parents.every(parent => visit(parent!))) return false;
+    visiting.delete(id); proved.add(id);
+    return true;
+  };
+  return [...graph.values()].every(visit);
+}
+
+/** Hints are original authoritative fields, so each whole string must name a
+ * source entity or be a complete source-proved teaching assertion. */
+function entityHintProved(contract: UniformCircularRuntimeContract, value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const hint = phraseText(value);
+  return [contract.actor, `the ${contract.actor}`, `moving ${contract.actor}`, contract.path, `the ${contract.path}`,
+    "centre", "center", `centre of the ${contract.path}`, `center of the ${contract.path}`].includes(hint);
+}
+const circularLaws = new Set(["uniform_circular_motion", "centripetal_acceleration", "circumference_of_circle",
+  "uniform_circular_motion_speed", "uniform_circular_motion_period", "uniform_circular_motion_angular_speed", "period_from_speed_and_distance"]);
 
 /** Unknown rows are obligations too; do not delete them to obtain admission. */
 export function uniformCircularRuntimePlanConflicts(question: string, rawPlan: unknown): Array<{ id: string; symbol: string; planValue: number; sourceValue: number; unit: string }> {
@@ -521,10 +627,43 @@ export function uniformCircularRuntimePlanConflicts(question: string, rawPlan: u
   const unknowns = rows("unknowns");
   const roles = unknowns.map(row => typeof row.symbol === "string" ? uniformCircularRuntimeQuantityRole({ symbol: row.symbol, unit: typeof row.unit === "string" ? row.unit : undefined }) : null);
   if (roles.length !== new Set(roles).size || reading.contract.requested.some(role => !roles.includes(role))) add({id:"unknowns"});
+  const contract = reading.contract;
+  if (!planGraphProved(contract, rows("givens"), rows("derived"))) add({id:"dependencies"});
+  const quantities = [...rows("givens"), ...rows("derived"), ...unknowns];
   for (const claim of rows("qualitativeClaims")) {
-    if (typeof claim.claim !== "string" || !supportedPlanAssertion(reading.contract, claim.claim)
-      || !supportedClaimExpected(reading.contract, claim.expected)) add(claim);
+    const proposition = typeof claim.claim === "string" ? claimProposition(contract, claim.claim) : null;
+    if (!proposition || !supportedClaimExpected(contract, claim.expected, proposition)) { add(claim); continue; }
+    const links = claim.relatedQuantityIds;
+    const linked = Array.isArray(links) ? links.map(id => quantities.find(row => row.id === id)) : [];
+    const linkedRoles = linked.flatMap(row => row && rowRole(row) ? [rowRole(row)!] : []);
+    // Equational results require both the result and its physical operands.
+    // Pure qualitative booleans keep the existing optional-link policy.
+    const required: Role[] = proposition.formula ? [...proposition.quantities] : [];
+    if (proposition.results.includes("tangential_acceleration")) required.push("speed");
+    if (linked.length) required.push(...proposition.results.filter((role): role is Role => role !== "tangential_acceleration"));
+    const expectedMeaning = typeof claim.expected === "string" ? claimProposition(contract, claim.expected) : null;
+    if (expectedMeaning?.formula) required.push(...expectedMeaning.quantities);
+    const expectedRole = typeof claim.expected === "string" ? roleSymbols[claim.expected.replace(/ω/g,"omega").split(/\s*(?:=|≈)\s*/)[0]!.trim()] : null;
+    if (expectedRole && typeof claim.expected === "string" && !/ if signed; magnitude /.test(claim.expected)) {
+      required.push(expectedRole, ...sourceOperands(contract, expectedRole));
+      const members = claim.expected.replace(/ω/g, "omega").replace(/²/g, "^2").split(/\s*(?:=|≈)\s*/).slice(1);
+      for (const member of members) {
+        const math = parseSourceMath(member.replace(/(?:, directed radially inward| directed inward)$/, "")
+          .replace(/\s+(?:m\/s\^2|rad\/s|m\/s|m|s)$/, ""));
+        if (math) required.push(...mathRoles(math));
+      }
+    }
+    // Extra links may name other proved quantities of this same source
+    // state (constant speed also relates to centripetal acceleration).
+    // They cannot replace the proposition/result operand requirements.
+    if ((links !== undefined && (!Array.isArray(links) || new Set(links).size !== links.length))
+      || linked.some(row => !row || !rowRole(row)) || required.some(role => !linkedRoles.includes(role))) add(claim);
+    if (claim.relatedEntityHints !== undefined && (!Array.isArray(claim.relatedEntityHints)
+      || claim.relatedEntityHints.some(value => !entityHintProved(contract, value)))) add(claim);
   }
+  if (!Array.isArray(plan.lawIds) || plan.lawIds.some(law => typeof law !== "string" || !circularLaws.has(law))) add({id:"lawIds"});
+  if (plan.teachingSequenceHints !== undefined && (!Array.isArray(plan.teachingSequenceHints)
+    || plan.teachingSequenceHints.some(text => typeof text !== "string" || !supportedPlanAssertion(contract, text)))) add({id:"teachingSequenceHints"});
   if (!Array.isArray(plan.assumptions) || plan.assumptions.some(text => typeof text !== "string" || !supportedPlanAssertion(reading.contract, text))) add({id:"assumptions"});
   return conflicts;
 }

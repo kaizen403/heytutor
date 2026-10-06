@@ -1,0 +1,17 @@
+{
+  "periodResultPositions": [
+    "Speed is constant.",
+    "Tangential acceleration is zero.",
+    "Use pi ≈ 3.141592653589793.",
+    "One revolution covers the circumference 2*pi*r at constant speed v, giving period Speed is constant.",
+    "T = 2*pi*r/v; Speed is constant",
+    "T = 2*pi*r/v; Tangential acceleration is zero",
+    "r = 50 m"
+  ],
+  "accelerationExpected": ["r = 50 m", "v = 20 m/s", "T = 5*pi s", "a_t = 0", "Speed is constant"],
+  "foreignLaws": ["centripetal_force_equals_8_newtons", "conservation_of_mechanical_energy", "centripetal_acceleration and mass is 1 kg"],
+  "foreignEntities": ["a second circle carrying a 1 kg mass", "car has mass 1 kg", "car; force is 8 N", "unknown-view"],
+  "foreignTeaching": ["The car has mass 1 kg, force 8 N, and moves clockwise.", "Speed is constant; Force is 8 N", "car; clockwise", "unknown-view"],
+  "badPeriodDependencies": [["a_c"], ["v"], [], ["r"], ["v", "r", "a_c"], ["v", "v", "r"], ["v", "missing"]],
+  "badPeriodClaimLinks": [null, [], ["v"], ["T", "v"], ["T", "r"], ["T", "v", "missing"]]
+}
