@@ -65,7 +65,7 @@ import {
 import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
-import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
+import { readSectionFormulaSource, sectionFormulaScene, sectionFormulaPlanIssues } from "../ir/sectionFormulaSource";
 import { readPointLineProgram, pointLineSourceDocument } from "../ir/pointLineProgram";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
@@ -191,6 +191,10 @@ function synthesizeFromFamilies(
     return {document: admitted.document, renderScene: compiled.renderScene, validationReport: compiled.report, tier: "exact_verified", nonMetric: true, family: "indexed_progression",
       reason: "Complete source-derived finite progression; discrete table spacing is nonmetric."};
   }
+  const circleReading = readCircleSourceProgram(question);
+  // A recognized whole circle cannot borrow a partial older family, even
+  // when that family would compile valid geometry for only some of the source.
+  if (circleReading.status === "declined") return null;
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   // A section stem that cannot be read whole, whose stated point disagrees
@@ -241,7 +245,7 @@ function synthesizeFromFamilies(
     if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
     return {...compiled,tier:"question_representation",nonMetric:true,reason:"Source-bound Cartesian conjugates with explicitly paraxial principal rays.",family:"ray_path"};
   }
-  if (readCircleSourceProgram(question).status==="ok") {
+  if (circleReading.status==="ok") {
     const document=circleSourceDocument(question,input.problemIR);
     const compiled=document?tryCompile(document,{sourceAuthority:{question,problemIR:input.problemIR}}):null;
     if (!compiled || demandRejection(compiled.document,demand) || (obligations && visualObligationRejection(obligations,compiled.document,isFullProblemIRStructure(input.problemIR)?input.problemIR:undefined))) return null;
@@ -275,6 +279,7 @@ function synthesizeFromFamilies(
   }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
+  if(sectionReading?.status === "ok" && input.turnPlan && sectionFormulaPlanIssues(question,input.turnPlan,input.problemIR).length) return null;
   const sectionDocument = sectionReading?.status === "ok"
     ? sectionFormulaScene(question, isFullProblemIRStructure(input.problemIR) ? input.problemIR : null) : null;
   if (sectionReading?.status === "ok" && !sectionDocument) return null;

@@ -1,0 +1,378 @@
+{
+  "p": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "independentProjection",
+    "question": "Find the perpendicular foot Q of P(0,0) from 3x+4y-25=0.",
+    "facts": [
+      {
+        "id": "p",
+        "kind": "given",
+        "statement": "P(0,0)",
+        "evidence": {
+          "source": "question",
+          "start": 33,
+          "end": 39,
+          "quote": "P(0,0)"
+        }
+      },
+      {
+        "id": "l",
+        "kind": "given",
+        "statement": "3x+4y-25=0",
+        "evidence": {
+          "source": "question",
+          "start": 45,
+          "end": 55,
+          "quote": "3x+4y-25=0"
+        }
+      },
+      {
+        "id": "r",
+        "kind": "requested",
+        "statement": "perpendicular foot Q",
+        "evidence": {
+          "source": "question",
+          "start": 9,
+          "end": 29,
+          "quote": "perpendicular foot Q"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "givenP",
+        "kind": "point",
+        "label": "P",
+        "evidenceFactIds": [
+          "p"
+        ]
+      },
+      {
+        "id": "givenL",
+        "kind": "line",
+        "label": "L",
+        "evidenceFactIds": [
+          "l"
+        ]
+      },
+      {
+        "id": "askedQ",
+        "kind": "point",
+        "label": "Q",
+        "evidenceFactIds": [
+          "r"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "xQ",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 3
+        },
+        "evidenceFactIds": [
+          "p",
+          "l",
+          "r"
+        ]
+      },
+      {
+        "id": "yQ",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 4
+        },
+        "evidenceFactIds": [
+          "p",
+          "l",
+          "r"
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "incidence",
+        "kind": "incident",
+        "entityIds": [
+          "askedQ",
+          "givenL"
+        ],
+        "evidenceFactIds": [
+          "r"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "xQReq",
+        "kind": "evaluate",
+        "expressionId": "xQ",
+        "resultBinding": {
+          "turnPlanQuantityId": "xQ",
+          "symbol": "xQ",
+          "unit": "1",
+          "evidenceFactIds": [
+            "r"
+          ]
+        }
+      },
+      {
+        "id": "yQReq",
+        "kind": "evaluate",
+        "expressionId": "yQ",
+        "resultBinding": {
+          "turnPlanQuantityId": "yQ",
+          "symbol": "yQ",
+          "unit": "1",
+          "evidenceFactIds": [
+            "r"
+          ]
+        }
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "projection",
+        "kind": "graph",
+        "entityIds": [
+          "givenP",
+          "givenL",
+          "askedQ"
+        ],
+        "evidenceFactIds": [
+          "p",
+          "l",
+          "r"
+        ]
+      }
+    ]
+  },
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Find the perpendicular foot Q of P(0,0) from 3x+4y-25=0.",
+    "givens": [],
+    "derived": [
+      {
+        "id": "xQ",
+        "symbol": "xQ",
+        "value": 3,
+        "unit": "1",
+        "provenance": "derived",
+        "dependsOn": []
+      },
+      {
+        "id": "yQ",
+        "symbol": "yQ",
+        "value": 4,
+        "unit": "1",
+        "provenance": "derived",
+        "dependsOn": []
+      }
+    ],
+    "unknowns": [],
+    "qualitativeClaims": [],
+    "assumptions": [],
+    "lawIds": [],
+    "visualRequirement": "required"
+  },
+  "d": {
+    "schemaVersion": "scene-document/v2",
+    "source": {
+      "question": "Find the perpendicular foot Q of P(0,0) from 3x+4y-25=0."
+    },
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "The complete stated point, infinite line, and certified perpendicular projection."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "projection_axes",
+        "kind": "axes",
+        "role": "coordinate frame"
+      },
+      {
+        "id": "givenP",
+        "kind": "point",
+        "role": "source point",
+        "label": "P"
+      },
+      {
+        "id": "givenL",
+        "kind": "line",
+        "role": "source infinite line",
+        "label": "L"
+      },
+      {
+        "id": "askedQ",
+        "kind": "point",
+        "role": "perpendicular foot",
+        "label": "Q"
+      },
+      {
+        "id": "projection_distance",
+        "kind": "segment",
+        "role": "perpendicular distance",
+        "label": "d"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "projection_frame",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -1,
+          "xMax": 4,
+          "yMin": -1,
+          "yMax": 5
+        },
+        "outputs": [
+          "projection_axes"
+        ]
+      },
+      {
+        "id": "place_source_point",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "givenP"
+        ]
+      },
+      {
+        "id": "construct_source_line",
+        "operator": "line_equation",
+        "inputs": {
+          "form": "general",
+          "a": 3,
+          "b": 4,
+          "c": -25
+        },
+        "outputs": [
+          "givenL"
+        ]
+      },
+      {
+        "id": "project_source_point",
+        "operator": "project",
+        "inputs": {
+          "point": "givenP",
+          "line": "givenL"
+        },
+        "outputs": [
+          "askedQ"
+        ]
+      },
+      {
+        "id": "measure_projection",
+        "operator": "point_line_distance",
+        "inputs": {
+          "point": "givenP",
+          "a": 3,
+          "b": 4,
+          "c": -25
+        },
+        "outputs": [
+          "projection_distance"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "foot_on_line",
+        "predicate": "on",
+        "entities": [
+          "askedQ",
+          "givenL"
+        ],
+        "severity": "fatal"
+      },
+      {
+        "id": "normal_distance",
+        "predicate": "perpendicular",
+        "entities": [
+          "projection_distance",
+          "givenL"
+        ],
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_givenP",
+        "predicate": "label_attached",
+        "entities": [
+          "givenP"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_askedQ",
+        "predicate": "label_attached",
+        "entities": [
+          "askedQ"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "givenP",
+      "givenL",
+      "askedQ",
+      "projection_distance",
+      "projection_axes"
+    ],
+    "revealGroups": [
+      {
+        "id": "source_geometry",
+        "entityIds": [
+          "projection_axes",
+          "givenP",
+          "givenL",
+          "askedQ"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Plot the stated point and line."
+      },
+      {
+        "id": "projection",
+        "entityIds": [
+          "askedQ",
+          "projection_distance"
+        ],
+        "dependsOn": [
+          "source_geometry"
+        ],
+        "narrationCue": "Show the perpendicular foot and shortest distance."
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show_source_geometry",
+        "action": "reveal",
+        "targetId": "source_geometry",
+        "dependsOn": [],
+        "narrationIntent": "Show the source geometry."
+      },
+      {
+        "id": "show_projection",
+        "action": "reveal",
+        "targetId": "projection",
+        "dependsOn": [
+          "show_source_geometry"
+        ],
+        "narrationIntent": "Show the verified perpendicular projection."
+      }
+    ]
+  }
+}

@@ -35,13 +35,20 @@ const literal = (text: string): CircleRational => {
   return parts.length === 1 ? numerator : divide(numerator, decimalExact(parts[1]!));
 };
 const evidence = (question: string, start: number, end: number): QuestionSourceEvidence => ({ source: "question", start, end, quote: question.slice(start, end) });
+const isCirclePolynomial = (p: CirclePolynomial): boolean => {
+  const a = coefficient(p, 2, 0);
+  return a.n !== 0n && coefficient(p, 1, 1).n === 0n && sameExact(a, coefficient(p, 0, 2));
+};
 
 /** This is a grammar for one numeric Cartesian locus, never a topic/template router. */
 export function readCircleSourceProgram(question: string): CircleProgramReading {
   const xSquare = /(?:x\s*(?:\^2|²|\?)|\(x[^()]*\)\s*(?:\^2|²))/.test(question);
   const ySquare = /(?:y\s*(?:\^2|²|\?)|\(y[^()]*\)\s*(?:\^2|²))/.test(question);
-  const circleDefinition = /\bcircle\b/i.test(question) && (/[xy][\s\S]*=/.test(question) || /\([^()]*,[^()]*\)/.test(question));
-  if (!(xSquare && ySquare) && !circleDefinition && !/\bcent(?:er|re)\b[^.;]*\(/i.test(question)) return { status: "none" };
+  const circleDefinition = /\bcircle\b/i.test(question) && (/[xy](?![A-Za-z])[\s\S]*=/.test(question) || /\bcent(?:er|re)\b[^.;]*\(/i.test(question));
+  const circleRequest = xSquare && ySquare && /\bcent(?:er|re)\b/i.test(question) && /\bradius\b/i.test(question);
+  const circleIntent = circleDefinition || circleRequest;
+  if (!(xSquare && ySquare) && !circleDefinition) return { status: "none" };
+  let recognizedCircle = circleIntent;
   const decline = (reason: string): CircleProgramReading => ({ status: "declined", reason });
   try {
     if (question.length > 1600 || Array.from(question).some(char => char.charCodeAt(0) < 32)) return decline("source length/control budget");
@@ -81,7 +88,6 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
       points.push({ name: "O", x: 0, y: 0, exactX: exact(0n), exactY: exact(0n), evidence: span });
       consume(span.start, span.end);
     }
-    if (points.length > 8 || new Set(points.filter(p => p.name).map(p => p.name)).size !== points.filter(p => p.name).length) return decline("ambiguous/oversized point identities");
     const equations: CircleWholeSource["equations"] = [];
     const expressionCharacter = /[0-9xy+\-*/^().\s²−–—]/;
     const canScan = (i: number): boolean => expressionCharacter.test(question[i]!) && !(/[xy]/.test(question[i]!) && /[a-wzA-Z]/.test((question[i - 1] ?? "") + (question[i + 1] ?? "")));
@@ -92,9 +98,22 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
       while (end < question.length && !consumed[end] && canScan(end)) end++;
       start++;
       const left = question.slice(start, i).trim(), right = question.slice(i + 1, end).trim().replace(/\.$/, "");
-      if (!/[xy]/.test(left + right)) return decline("unbound equality");
-      const leftPolynomial = polynomialOfSource(left), rightPolynomial = polynomialOfSource(right);
+      if (!/[xy]/.test(left + right)) return recognizedCircle ? decline("unbound equality") : { status: "none" };
+      let leftPolynomial: CirclePolynomial, rightPolynomial: CirclePolynomial;
+      try {
+        leftPolynomial = polynomialOfSource(left);
+        recognizedCircle ||= isCirclePolynomial(leftPolynomial);
+        rightPolynomial = polynomialOfSource(right);
+      } catch {
+        // Numeric Cartesian syntax with unreadable arithmetic cannot use a
+        // missing circle keyword to escape the domain guard. Symbolic conics
+        // outside this numeric grammar remain unhandled by this reader.
+        const numericCartesian = xSquare && ySquare && /x/.test(left + right) && /y/.test(left + right)
+          && /^[0-9xy+\-*/^().\s²−–—]+$/.test(left + right);
+        return recognizedCircle || numericCartesian ? decline("unsupported or unreadable exact source") : { status: "none" };
+      }
       const polynomial = addPolynomial(leftPolynomial, rightPolynomial, -1);
+      recognizedCircle ||= isCirclePolynomial(polynomial);
       const span = evidence(question, start + question.slice(start, i).indexOf(left), i + 1 + question.slice(i + 1, end).indexOf(right) + right.length);
       equations.push({ polynomial, left: leftPolynomial, right: rightPolynomial, evidence: span }); consume(start, end);
     }
@@ -104,6 +123,11 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
       const x = centerDeclaration!.x, y = centerDeclaration!.y, r = radiusDeclaration!;
       polynomial = new Map([["2,0", exact(1n)], ["0,2", exact(1n)], ["1,0", times(exact(-2n), x)], ["0,1", times(exact(-2n), y)], ["0,0", plus(plus(times(x, x), times(y, y)), negate(times(r, r)))]].filter(([, v]) => (v as CircleRational).n !== 0n) as Array<[string, CircleRational]>);
     }
+    // Both squared variables also occur in other conics. They do not make
+    // this circle reader authoritative unless a circle is actually defined
+    // or requested. A recognized circle with extra obligations still declines.
+    if (!circleIntent && !equations.some(row => isCirclePolynomial(row.polynomial))) return { status: "none" };
+    if (points.length > 8 || new Set(points.filter(p => p.name).map(p => p.name)).size !== points.filter(p => p.name).length) return decline("ambiguous/oversized point identities");
     if (equations.some(row => !equivalentPolynomial(row.polynomial, polynomial!, true))) return decline("second different locus");
     const A = coefficient(polynomial, 2, 0), B = coefficient(polynomial, 1, 1), C = coefficient(polynomial, 0, 2);
     const D = coefficient(polynomial, 1, 0), E = coefficient(polynomial, 0, 1), F = coefficient(polynomial, 0, 0);
@@ -150,7 +174,9 @@ export function readCircleSourceProgram(question: string): CircleProgramReading 
     }
     return { status: "ok", source: { question, name, ...(centerName ? { centerName } : {}), polynomial, equations, declarations, center, radius, radiusSquared, singleton: squared.n === 0n,
       values: { A, B, C, D, E, F, center_x: x, center_y: y, radius_squared: squared, radius: radiusDeclaration ?? exact(0n) }, points: classified, asks } };
-  } catch { return decline("unsupported or unreadable exact source"); }
+  } catch {
+    return recognizedCircle ? decline("unsupported or unreadable exact source") : { status: "none" };
+  }
 }
 
 /** Literal coefficient identities use the polynomial slot, never scalar equality. */

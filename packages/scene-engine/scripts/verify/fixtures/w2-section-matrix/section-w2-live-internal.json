@@ -1,0 +1,392 @@
+{
+  "input": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0529-w2-660e85e6/evidence/w2-sf-internal-planner-exchanges.json",
+  "question": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally in the ratio 1:2.",
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally in the ratio 1:2.",
+    "givens": [
+      {
+        "id": "ax",
+        "symbol": "A_x",
+        "value": 2,
+        "provenance": "given",
+        "sourceText": "A(2,-1)"
+      },
+      {
+        "id": "ay",
+        "symbol": "A_y",
+        "value": -1,
+        "provenance": "given",
+        "sourceText": "A(2,-1)"
+      },
+      {
+        "id": "bx",
+        "symbol": "B_x",
+        "value": 8,
+        "provenance": "given",
+        "sourceText": "B(8,5)"
+      },
+      {
+        "id": "by",
+        "symbol": "B_y",
+        "value": 5,
+        "provenance": "given",
+        "sourceText": "B(8,5)"
+      },
+      {
+        "id": "m",
+        "symbol": "m",
+        "value": 1,
+        "provenance": "given",
+        "sourceText": "ratio 1:2"
+      },
+      {
+        "id": "n",
+        "symbol": "n",
+        "value": 2,
+        "provenance": "given",
+        "sourceText": "ratio 1:2"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "px",
+        "symbol": "P_x"
+      },
+      {
+        "id": "py",
+        "symbol": "P_y"
+      }
+    ],
+    "derived": [
+      {
+        "id": "px",
+        "symbol": "P_x",
+        "value": 4,
+        "provenance": "derived",
+        "dependsOn": [
+          "ax",
+          "bx",
+          "m",
+          "n"
+        ],
+        "sourceText": "P_x=(m*B_x+n*A_x)/(m+n)=(1*8+2*2)/3=12/3=4"
+      },
+      {
+        "id": "py",
+        "symbol": "P_y",
+        "value": 1,
+        "provenance": "derived",
+        "dependsOn": [
+          "ay",
+          "by",
+          "m",
+          "n"
+        ],
+        "sourceText": "P_y=(m*B_y+n*A_y)/(m+n)=(1*5+2*(-1))/3=3/3=1"
+      }
+    ],
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "P divides AB internally in ratio AP:PB = 1:2, so P lies one-third of the way from A to B.",
+        "expected": "P=(4,1)",
+        "relatedQuantityIds": [
+          "px",
+          "py"
+        ],
+        "relatedEntityHints": [
+          "point P",
+          "segment AB"
+        ]
+      }
+    ],
+    "lawIds": [
+      "internal section formula"
+    ],
+    "assumptions": [
+      "Ratio 1:2 means AP:PB = 1:2",
+      "Points are in a Cartesian plane"
+    ],
+    "visualRequirement": "optional"
+  },
+  "problem": {
+    "facts": [
+      {
+        "id": "fAx",
+        "kind": "given",
+        "statement": "A has x-coordinate 2",
+        "evidence": {
+          "source": "question",
+          "start": 56,
+          "end": 63,
+          "quote": "A(2,-1)"
+        }
+      },
+      {
+        "id": "fAy",
+        "kind": "given",
+        "statement": "A has y-coordinate -1",
+        "evidence": {
+          "source": "question",
+          "start": 56,
+          "end": 63,
+          "quote": "A(2,-1)"
+        }
+      },
+      {
+        "id": "fBx",
+        "kind": "given",
+        "statement": "B has x-coordinate 8",
+        "evidence": {
+          "source": "question",
+          "start": 68,
+          "end": 74,
+          "quote": "B(8,5)"
+        }
+      },
+      {
+        "id": "fBy",
+        "kind": "given",
+        "statement": "B has y-coordinate 5",
+        "evidence": {
+          "source": "question",
+          "start": 68,
+          "end": 74,
+          "quote": "B(8,5)"
+        }
+      },
+      {
+        "id": "fRatio",
+        "kind": "given",
+        "statement": "P divides AB internally in ratio 1:2",
+        "evidence": {
+          "source": "question",
+          "start": 75,
+          "end": 102,
+          "quote": "internally in the ratio 1:2"
+        }
+      },
+      {
+        "id": "fFind",
+        "kind": "requested",
+        "statement": "Find the point P",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 16,
+          "quote": "Find the point P"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "ptA",
+        "kind": "point",
+        "label": "A",
+        "evidenceFactIds": [
+          "fAx",
+          "fAy"
+        ]
+      },
+      {
+        "id": "ptB",
+        "kind": "point",
+        "label": "B",
+        "evidenceFactIds": [
+          "fBx",
+          "fBy"
+        ]
+      },
+      {
+        "id": "ptP",
+        "kind": "point",
+        "label": "P",
+        "evidenceFactIds": [
+          "fRatio",
+          "fFind"
+        ]
+      },
+      {
+        "id": "segAB",
+        "kind": "line",
+        "label": "segment AB",
+        "evidenceFactIds": [
+          "fAx",
+          "fBx"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "ePx",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fAx",
+          "fBx",
+          "fRatio"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 1
+              },
+              "right": {
+                "kind": "number",
+                "value": 8
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "number",
+              "value": 1
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          }
+        }
+      },
+      {
+        "id": "ePy",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fAy",
+          "fBy",
+          "fRatio"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 1
+              },
+              "right": {
+                "kind": "number",
+                "value": 5
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "number",
+                  "value": 1
+                }
+              }
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "number",
+              "value": 1
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          }
+        }
+      }
+    ],
+    "constraints": [
+      {
+        "id": "cOnSeg",
+        "kind": "incident",
+        "entityIds": [
+          "ptP",
+          "segAB"
+        ],
+        "evidenceFactIds": [
+          "fRatio"
+        ]
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "iSeg",
+        "kind": "graph",
+        "entityIds": [
+          "ptA",
+          "ptB",
+          "ptP",
+          "segAB"
+        ],
+        "evidenceFactIds": [
+          "fAx",
+          "fBx",
+          "fRatio"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sPx",
+        "kind": "evaluate",
+        "expressionId": "ePx",
+        "resultBinding": {
+          "turnPlanQuantityId": "px",
+          "symbol": "P_x",
+          "evidenceFactIds": [
+            "fFind"
+          ]
+        }
+      },
+      {
+        "id": "sPy",
+        "kind": "evaluate",
+        "expressionId": "ePy",
+        "resultBinding": {
+          "turnPlanQuantityId": "py",
+          "symbol": "P_y",
+          "evidenceFactIds": [
+            "fFind"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally in the ratio 1:2."
+  }
+}

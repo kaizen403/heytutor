@@ -1,0 +1,876 @@
+{
+  "p": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "independentContact",
+    "question": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor. Find the height reached.",
+    "facts": [
+      {
+        "id": "setup",
+        "kind": "given",
+        "statement": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor.",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 107,
+          "quote": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor."
+        }
+      },
+      {
+        "id": "request",
+        "kind": "requested",
+        "statement": "Find the height reached.",
+        "evidence": {
+          "source": "question",
+          "start": 108,
+          "end": 132,
+          "quote": "Find the height reached."
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "ladderBody",
+        "kind": "body",
+        "label": "ladder",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "wallLine",
+        "kind": "line",
+        "label": "wall",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "floorLine",
+        "kind": "line",
+        "label": "floor",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "footPoint",
+        "kind": "point",
+        "label": "foot",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "topPoint",
+        "kind": "point",
+        "label": "top",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "cornerPoint",
+        "kind": "point",
+        "label": "corner",
+        "evidenceFactIds": [
+          "setup"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "eL",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 13
+        },
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "eD",
+        "valueType": "scalar",
+        "root": {
+          "kind": "number",
+          "value": 5
+        },
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "computedH",
+        "valueType": "scalar",
+        "root": {
+          "kind": "call",
+          "function": "sqrt",
+          "argument": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "number",
+                "value": 13
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+                "kind": "number",
+                "value": 5
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          }
+        },
+        "evidenceFactIds": [
+          "setup",
+          "request"
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "floorWall",
+        "kind": "perpendicular",
+        "entityIds": [
+          "floorLine",
+          "wallLine"
+        ],
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "footFloor",
+        "kind": "incident",
+        "entityIds": [
+          "footPoint",
+          "floorLine"
+        ],
+        "evidenceFactIds": [
+          "setup"
+        ]
+      },
+      {
+        "id": "topWall",
+        "kind": "incident",
+        "entityIds": [
+          "topPoint",
+          "wallLine"
+        ],
+        "evidenceFactIds": [
+          "setup"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "heightAsk",
+        "kind": "evaluate",
+        "expressionId": "computedH",
+        "resultBinding": {
+          "turnPlanQuantityId": "requestedH",
+          "symbol": "height",
+          "unit": "m",
+          "evidenceFactIds": [
+            "request"
+          ]
+        }
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "contact",
+        "kind": "conceptual",
+        "entityIds": [
+          "ladderBody",
+          "wallLine",
+          "floorLine",
+          "footPoint",
+          "topPoint",
+          "cornerPoint"
+        ],
+        "evidenceFactIds": [
+          "setup"
+        ]
+      }
+    ]
+  },
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor. Find the height reached.",
+    "givens": [
+      {
+        "id": "L",
+        "symbol": "L",
+        "value": 13,
+        "unit": "m",
+        "provenance": "given"
+      },
+      {
+        "id": "D",
+        "symbol": "d",
+        "value": 5,
+        "unit": "m",
+        "provenance": "given"
+      }
+    ],
+    "derived": [
+      {
+        "id": "requestedH",
+        "symbol": "height",
+        "value": 12,
+        "unit": "m",
+        "provenance": "derived",
+        "dependsOn": [
+          "L",
+          "D"
+        ]
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "requestedH",
+        "symbol": "height",
+        "unit": "m"
+      }
+    ],
+    "qualitativeClaims": [],
+    "assumptions": [],
+    "lawIds": [],
+    "visualRequirement": "required"
+  },
+  "d": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "static right triangle from stated ladder dimensions"
+    },
+    "source": {
+      "question": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor. Find the height reached.",
+      "synthesizedFamily": true,
+      "archetype": "ladder_wall",
+      "sourceSideEvidence": [
+        {
+          "role": "length",
+          "value": 13,
+          "start": 19,
+          "end": 23,
+          "quote": "13 m"
+        },
+        {
+          "role": "distance",
+          "value": 5,
+          "start": 67,
+          "end": 70,
+          "quote": "5 m"
+        }
+      ],
+      "orientationStated": false,
+      "sourceSide": 1,
+      "slotSources": {
+        "length": "stem",
+        "distance": "stem",
+        "height": "stem",
+        "theta": "stem",
+        "eL": "stem",
+        "eD": "stem",
+        "requestedH": "stem"
+      }
+    },
+    "quantities": [
+      {
+        "id": "length",
+        "symbol": "L",
+        "value": 13,
+        "unit": "m"
+      },
+      {
+        "id": "distance",
+        "symbol": "d",
+        "value": 5,
+        "unit": "m"
+      },
+      {
+        "id": "height",
+        "symbol": "h",
+        "value": 12,
+        "unit": "m"
+      },
+      {
+        "id": "theta",
+        "symbol": "theta",
+        "value": 67.38013505195958,
+        "unit": "degree"
+      },
+      {
+        "id": "eL",
+        "symbol": "length",
+        "value": 13,
+        "unit": "m",
+        "evidenceFactIds": [
+          "setup"
+        ],
+        "provenance": "given",
+        "sourceText": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor."
+      },
+      {
+        "id": "eD",
+        "symbol": "distance",
+        "value": 5,
+        "unit": "m",
+        "evidenceFactIds": [
+          "setup"
+        ],
+        "provenance": "given",
+        "sourceText": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor."
+      },
+      {
+        "id": "requestedH",
+        "symbol": "height",
+        "value": 12,
+        "unit": "m",
+        "evidenceFactIds": [
+          "setup",
+          "request"
+        ],
+        "provenance": "derived",
+        "sourceText": "A ladder of length 13 m leans against a vertical wall. Its foot is 5 m from the wall on a horizontal floor. Find the height reached."
+      }
+    ],
+    "entities": [
+      {
+        "id": "corner",
+        "kind": "point",
+        "role": "wall-floor intersection",
+        "label": "corner"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "ladder foot",
+        "label": "foot"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "ladder top",
+        "label": "top"
+      },
+      {
+        "id": "floor",
+        "kind": "segment",
+        "role": "horizontal floor",
+        "label": "floor"
+      },
+      {
+        "id": "wall",
+        "kind": "segment",
+        "role": "vertical wall",
+        "label": "wall"
+      },
+      {
+        "id": "ladder",
+        "kind": "segment",
+        "role": "ladder",
+        "label": "ladder"
+      },
+      {
+        "id": "foot_distance",
+        "kind": "dimension",
+        "role": "stated or computed foot distance",
+        "label": "d=5 m"
+      },
+      {
+        "id": "top_height",
+        "kind": "dimension",
+        "role": "stated or computed top height",
+        "label": "h=12 m"
+      },
+      {
+        "id": "angle",
+        "kind": "angle_mark",
+        "role": "angle mark",
+        "label": "\u03b8\u224867.4\u00b0"
+      },
+      {
+        "id": "right_angle",
+        "kind": "right_angle_mark",
+        "role": "right angle mark"
+      },
+      {
+        "id": "contact_value_eL",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "L=13 m"
+      },
+      {
+        "id": "contact_value_eD",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "d=5 m"
+      },
+      {
+        "id": "contact_value_requestedH",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "h=12 m"
+      },
+      {
+        "id": "ladder_source_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "ladder"
+      },
+      {
+        "id": "wall_source_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "wall"
+      },
+      {
+        "id": "floor_source_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "floor"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_corner",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corner"
+        ]
+      },
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_floor",
+        "operator": "segment",
+        "inputs": {
+          "start": "corner",
+          "end": "A"
+        },
+        "outputs": [
+          "floor"
+        ]
+      },
+      {
+        "id": "make_wall",
+        "operator": "segment",
+        "inputs": {
+          "start": "corner",
+          "end": "B"
+        },
+        "outputs": [
+          "wall"
+        ]
+      },
+      {
+        "id": "make_ladder",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "ladder"
+        ]
+      },
+      {
+        "id": "make_foot_distance",
+        "operator": "dimension",
+        "inputs": {
+          "start": "corner",
+          "end": "A"
+        },
+        "outputs": [
+          "foot_distance"
+        ]
+      },
+      {
+        "id": "make_top_height",
+        "operator": "dimension",
+        "inputs": {
+          "start": "corner",
+          "end": "B"
+        },
+        "outputs": [
+          "top_height"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "A",
+          "a": "ladder",
+          "b": "floor"
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "make_right_angle",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "corner",
+          "a": "wall",
+          "b": "floor"
+        },
+        "outputs": [
+          "right_angle"
+        ]
+      },
+      {
+        "id": "make_contact_value_eL",
+        "operator": "label",
+        "inputs": {
+          "target": "ladder",
+          "text": "L=13 m"
+        },
+        "outputs": [
+          "contact_value_eL"
+        ]
+      },
+      {
+        "id": "make_contact_value_eD",
+        "operator": "label",
+        "inputs": {
+          "target": "foot_distance",
+          "text": "d=5 m"
+        },
+        "outputs": [
+          "contact_value_eD"
+        ]
+      },
+      {
+        "id": "make_contact_value_requestedH",
+        "operator": "label",
+        "inputs": {
+          "target": "top_height",
+          "text": "h=12 m"
+        },
+        "outputs": [
+          "contact_value_requestedH"
+        ]
+      },
+      {
+        "id": "make_ladder_source_name",
+        "operator": "label",
+        "inputs": {
+          "target": "ladder",
+          "text": "ladder"
+        },
+        "outputs": [
+          "ladder_source_name"
+        ]
+      },
+      {
+        "id": "make_wall_source_name",
+        "operator": "label",
+        "inputs": {
+          "target": "wall",
+          "text": "wall"
+        },
+        "outputs": [
+          "wall_source_name"
+        ]
+      },
+      {
+        "id": "make_floor_source_name",
+        "operator": "label",
+        "inputs": {
+          "target": "floor",
+          "text": "floor"
+        },
+        "outputs": [
+          "floor_source_name"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "wall_floor_perpendicular",
+        "predicate": "perpendicular",
+        "entities": [
+          "wall",
+          "floor"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "ladder_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "ladder",
+          "floor"
+        ],
+        "expected": {
+          "value": 67.38013505195958,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "base_ratio",
+        "predicate": "distance_ratio",
+        "entities": [
+          "corner",
+          "A",
+          "A",
+          "B"
+        ],
+        "expected": 0.38461538461538464,
+        "severity": "fatal"
+      },
+      {
+        "id": "height_ratio",
+        "predicate": "distance_ratio",
+        "entities": [
+          "corner",
+          "B",
+          "A",
+          "B"
+        ],
+        "expected": 0.9230769230769231,
+        "severity": "fatal"
+      },
+      {
+        "id": "foot_on_floor",
+        "predicate": "on",
+        "entities": [
+          "A",
+          "floor"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "top_on_wall",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "wall"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_A",
+        "predicate": "label_attached",
+        "entities": [
+          "A"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_B",
+        "predicate": "label_attached",
+        "entities": [
+          "B"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_ladder",
+        "predicate": "label_attached",
+        "entities": [
+          "ladder"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_foot_distance",
+        "predicate": "label_attached",
+        "entities": [
+          "foot_distance"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_top_height",
+        "predicate": "label_attached",
+        "entities": [
+          "top_height"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_corner",
+        "predicate": "label_attached",
+        "entities": [
+          "corner"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_A",
+        "predicate": "label_attached",
+        "entities": [
+          "A"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_B",
+        "predicate": "label_attached",
+        "entities": [
+          "B"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "contact_dimension_eL",
+        "kind": "label",
+        "targetIds": [
+          "ladder"
+        ],
+        "quantityId": "eL"
+      },
+      {
+        "id": "contact_dimension_eD",
+        "kind": "label",
+        "targetIds": [
+          "foot_distance"
+        ],
+        "quantityId": "eD"
+      },
+      {
+        "id": "contact_dimension_requestedH",
+        "kind": "label",
+        "targetIds": [
+          "top_height"
+        ],
+        "quantityId": "requestedH"
+      }
+    ],
+    "requiredEntityIds": [
+      "corner",
+      "A",
+      "B",
+      "floor",
+      "wall",
+      "ladder",
+      "foot_distance",
+      "top_height",
+      "angle",
+      "right_angle",
+      "contact_value_eL",
+      "contact_value_eD",
+      "contact_value_requestedH",
+      "ladder_source_name",
+      "wall_source_name",
+      "floor_source_name"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "corner",
+          "floor",
+          "wall",
+          "A",
+          "B",
+          "ladder",
+          "right_angle",
+          "ladder_source_name",
+          "wall_source_name",
+          "floor_source_name"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the source contact triangle"
+      },
+      {
+        "id": "dimensions",
+        "entityIds": [
+          "foot_distance",
+          "top_height",
+          "angle",
+          "contact_value_eL",
+          "contact_value_eD",
+          "contact_value_requestedH"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "stated sides and deterministically computed height and angle"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the source contact triangle"
+      },
+      {
+        "id": "reveal_dimensions",
+        "action": "reveal",
+        "targetId": "dimensions",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "stated sides and deterministically computed height and angle"
+      }
+    ]
+  }
+}

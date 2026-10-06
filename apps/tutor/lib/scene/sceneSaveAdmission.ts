@@ -31,6 +31,8 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 
+import {sourceBoundPlanIssues} from "./sourcePlanAdmission";
+
 export type SaveAdmissionTier = "exact_verified" | "qualitative_verified" | "question_representation";
 
 export function displayedSceneText(document: SceneDocument): string[] {
@@ -121,6 +123,7 @@ export function sceneSaveAdmissionFailure(input: {
   // The actual question and complete caller IR establish source structure
   // before any quantity correspondence can admit signed setup magnitudes.
   const sourceInputIssues = [
+    ...sourceBoundPlanIssues(document,question,turnPlan,input.problemIR),
     ...validateSceneSourceAuthority(document, question, input.problemIR,turnPlan),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
@@ -141,9 +144,9 @@ export function sceneSaveAdmissionFailure(input: {
     })) return "Optical unknown units or identities do not bind source roles";
     const conjugateDocument=conjugate?opticalConjugateDocument(question,turnPlan,input.problemIR):null;
     const conjugateTexts=new Set(conjugateDocument?displayedSceneText(conjugateDocument):[]);
-    const circleDocument=input.problemIR!=null?circleSourceDocument(question,input.problemIR):null;
+    const circleDocument=circleSourceDocument(question,input.problemIR ?? undefined);
     if (circleDocument) {
-      const authority=applyCircleSourceAuthority(question,turnPlan,input.problemIR);
+      const authority=applyCircleSourceAuthority(question,turnPlan,input.problemIR ?? undefined);
       if (!authority || authority.issues.length) return "Circle plan quantities must first match their independently bound source roles";
     }
     const circleTexts=new Set(circleDocument?displayedSceneText(circleDocument):[]);

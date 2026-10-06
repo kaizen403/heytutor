@@ -1,0 +1,314 @@
+{
+  "input": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0529-w2-660e85e6/evidence/w2-sf-midpoint-planner-exchanges.json",
+  "question": "Find the midpoint P of the line segment joining A(-4,6) and B(8,-2).",
+  "plan": {
+    "givens": [
+      {
+        "id": "ax",
+        "value": -4,
+        "symbol": "x_A",
+        "provenance": "given",
+        "sourceText": "A(-4,6)"
+      },
+      {
+        "id": "ay",
+        "value": 6,
+        "symbol": "y_A",
+        "provenance": "given",
+        "sourceText": "A(-4,6)"
+      },
+      {
+        "id": "bx",
+        "value": 8,
+        "symbol": "x_B",
+        "provenance": "given",
+        "sourceText": "B(8,-2)"
+      },
+      {
+        "id": "by",
+        "value": -2,
+        "symbol": "y_B",
+        "provenance": "given",
+        "sourceText": "B(8,-2)"
+      }
+    ],
+    "lawIds": [
+      "midpoint formula: P = ((x1+x2)/2, (y1+y2)/2)"
+    ],
+    "derived": [
+      {
+        "id": "px",
+        "value": 2,
+        "symbol": "x_P",
+        "dependsOn": [
+          "ax",
+          "bx"
+        ],
+        "provenance": "derived",
+        "sourceText": "x_P = (-4 + 8)/2 = 4/2 = 2"
+      },
+      {
+        "id": "py",
+        "value": 2,
+        "symbol": "y_P",
+        "dependsOn": [
+          "ay",
+          "by"
+        ],
+        "provenance": "derived",
+        "sourceText": "y_P = (6 + (-2))/2 = 4/2 = 2"
+      }
+    ],
+    "question": "Find the midpoint P of the line segment joining A(-4,6) and B(8,-2).",
+    "unknowns": [
+      {
+        "id": "px",
+        "symbol": "x_P"
+      },
+      {
+        "id": "py",
+        "symbol": "y_P"
+      }
+    ],
+    "assumptions": [
+      "Standard Cartesian coordinate plane",
+      "Midpoint means the point equidistant from both endpoints on the segment",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "The midpoint P has coordinates (2, 2), the average of the endpoint coordinates.",
+        "expected": "P = ((x_A+x_B)/2, (y_A+y_B)/2) = (2, 2)",
+        "relatedEntityHints": [
+          "point A",
+          "point B",
+          "midpoint P",
+          "segment AB"
+        ],
+        "relatedQuantityIds": [
+          "px",
+          "py",
+          "ax",
+          "ay",
+          "bx",
+          "by"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "problem": {
+    "facts": [
+      {
+        "id": "fA",
+        "kind": "given",
+        "statement": "Point A has coordinates (-4,6)",
+        "evidence": {
+          "source": "question",
+          "start": 48,
+          "end": 55,
+          "quote": "A(-4,6)"
+        }
+      },
+      {
+        "id": "fB",
+        "kind": "given",
+        "statement": "Point B has coordinates (8,-2)",
+        "evidence": {
+          "source": "question",
+          "start": 60,
+          "end": 67,
+          "quote": "B(8,-2)"
+        }
+      },
+      {
+        "id": "fMid",
+        "kind": "requested",
+        "statement": "Find midpoint P of segment AB",
+        "evidence": {
+          "source": "question",
+          "start": 0,
+          "end": 47,
+          "quote": "Find the midpoint P of the line segment joining"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "ptA",
+        "kind": "point",
+        "label": "A",
+        "evidenceFactIds": [
+          "fA"
+        ]
+      },
+      {
+        "id": "ptB",
+        "kind": "point",
+        "label": "B",
+        "evidenceFactIds": [
+          "fB"
+        ]
+      },
+      {
+        "id": "ptP",
+        "kind": "point",
+        "label": "P",
+        "evidenceFactIds": [
+          "fMid"
+        ]
+      },
+      {
+        "id": "segAB",
+        "kind": "line",
+        "label": "AB",
+        "evidenceFactIds": [
+          "fMid",
+          "fA",
+          "fB"
+        ]
+      }
+    ],
+    "expressions": [
+      {
+        "id": "ePx",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fA",
+          "fB"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "unary",
+              "operator": "-",
+              "operand": {
+                "kind": "number",
+                "value": 4
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 8
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2
+          }
+        }
+      },
+      {
+        "id": "ePy",
+        "valueType": "scalar",
+        "evidenceFactIds": [
+          "fA",
+          "fB"
+        ],
+        "root": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "number",
+              "value": 6
+            },
+            "right": {
+              "kind": "unary",
+              "operator": "-",
+              "operand": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2
+          }
+        }
+      }
+    ],
+    "constraints": [
+      {
+        "id": "cOnSeg",
+        "kind": "incident",
+        "entityIds": [
+          "ptP",
+          "segAB"
+        ],
+        "evidenceFactIds": [
+          "fMid"
+        ]
+      },
+      {
+        "id": "cEnds",
+        "kind": "connected",
+        "entityIds": [
+          "segAB",
+          "ptA",
+          "ptB"
+        ],
+        "evidenceFactIds": [
+          "fMid",
+          "fA",
+          "fB"
+        ]
+      }
+    ],
+    "representationIntents": [
+      {
+        "id": "iSeg",
+        "kind": "graph",
+        "entityIds": [
+          "segAB",
+          "ptA",
+          "ptB",
+          "ptP"
+        ],
+        "evidenceFactIds": [
+          "fMid",
+          "fA",
+          "fB"
+        ]
+      }
+    ],
+    "solveRequests": [
+      {
+        "id": "sPx",
+        "kind": "evaluate",
+        "expressionId": "ePx",
+        "resultBinding": {
+          "turnPlanQuantityId": "px",
+          "symbol": "x_P",
+          "evidenceFactIds": [
+            "fMid"
+          ]
+        }
+      },
+      {
+        "id": "sPy",
+        "kind": "evaluate",
+        "expressionId": "ePy",
+        "resultBinding": {
+          "turnPlanQuantityId": "py",
+          "symbol": "y_P",
+          "evidenceFactIds": [
+            "fMid"
+          ]
+        }
+      }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Find the midpoint P of the line segment joining A(-4,6) and B(8,-2)."
+  }
+}

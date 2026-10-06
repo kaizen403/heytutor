@@ -1,6 +1,7 @@
 import { canonicalizeUniformCircularSourceDocument, validateSceneSourceAuthority, validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument, type SceneIssue } from "@heytutor/scene-engine";
 import { isBlockedVerifiedDiagramCommand, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { sourceBoundPlanIssues } from "./sourcePlanAdmission";
 
 export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pick<StoredTurn, "question" | "sceneArtifacts">>) {
   const artifacts = turn.sceneArtifacts;
@@ -11,6 +12,7 @@ export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pi
   const problemIR = artifacts && typeof artifacts === "object"
     ? Object.getOwnPropertyDescriptor(artifacts, "problemIR")?.value : undefined;
   const issues = [
+    ...(typeof question === "string" ? sourceBoundPlanIssues(document, question, plan, problemIR) : []),
     ...(typeof question === "string" ? validateSceneSourceAuthority(document, question, problemIR,plan) : []),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),

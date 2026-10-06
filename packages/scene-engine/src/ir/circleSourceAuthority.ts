@@ -6,7 +6,7 @@ import {
 } from "./circleSourceProgram";
 import { numeric } from "./circleSourceMath";
 
-export interface CircleAuthorityIssue { code: "circle_given_withdrawn" | "circle_value_withdrawn" | "circle_value_corrected"; quantityId: string; message: string }
+export interface CircleAuthorityIssue { code: "circle_given_withdrawn" | "circle_value_withdrawn" | "circle_value_corrected" | "circle_unknown_withdrawn"; quantityId: string; message: string }
 export interface CircleAuthorityResult { plan: TurnPlanV3; issues: CircleAuthorityIssue[]; source: CircleWholeSource }
 const COEFFICIENTS = new Set<CircleValueRole>(["A", "B", "C", "D", "E", "F"]);
 const dependencies: Record<string, readonly CircleValueRole[]> = {
@@ -71,11 +71,19 @@ export function applyCircleSourceAuthority(question: string, plan: TurnPlanV3, p
     return true;
   };
   for (const row of plan.derived) check(row.id);
+  const conflictingUnknowns=new Set<string>();
+  for(const unknown of plan.unknowns){
+    const role=circleResultRole(unknown.symbol);
+    if(!role || !source.asks.includes(role) || !circleRoleUnit(role,unknown.unit)){
+      conflictingUnknowns.add(unknown.id);changed.add(unknown.id);
+      issues.push({code:"circle_unknown_withdrawn",quantityId:unknown.id,message:"unknown identity or unit does not bind a requested source circle role"});
+    }
+  }
   // Claims linked to any changed or withdrawn premise cannot survive correction.
   const qualitativeClaims = plan.qualitativeClaims.filter(claim => (claim.relatedQuantityIds ?? []).every(id => retained.has(id) && !changed.has(id)));
   const unknowns = plan.unknowns.filter(unknown => {
     const role = circleResultRole(unknown.symbol);
-    return role && source.asks.includes(role) && circleRoleUnit(role, unknown.unit) && !changed.has(unknown.id) && (!byId.has(unknown.id) || retained.has(unknown.id));
+    return !conflictingUnknowns.has(unknown.id) && role && source.asks.includes(role) && circleRoleUnit(role, unknown.unit) && !changed.has(unknown.id) && (!byId.has(unknown.id) || retained.has(unknown.id));
   });
   return { source, issues, plan: { ...plan, givens: plan.givens.filter(row => retained.has(row.id)).map(row => retained.get(row.id)!), derived: plan.derived.filter(row => retained.has(row.id)).map(row => retained.get(row.id)!), unknowns, qualitativeClaims } };
 }

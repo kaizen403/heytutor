@@ -1,15 +1,20 @@
 import {OPTICS_GENERATORS} from "../archetypes/generators/optics";
 import {collectPlanQuantities} from "../archetypes/slots";
 import {pruneDeadSceneEntities,validateSceneDocument} from "../document/validation";
-import {readOpticalConjugateSource,opticalConjugatePlanConflicts} from "../physics/opticalConjugateSource";
+import {readOpticalConjugateSource,opticalConjugatePlanConflicts,opticalConjugateUnknownConflicts} from "../physics/opticalConjugateSource";
+import {validateTurnPlanV3} from "../contracts/contractsV3";
 import {validateProblemIR} from "./problemIR";
+import {bindOpticalConjugateProblem} from "./opticalConjugateProblemBinding";
 import type {SceneDocument,SceneIssue} from "../types";
 
-/** Source-only and bounded conceptual IR correspondence. Numeric full IR
- * remains a deliberate decline until every expression/request has a typed join. */
+/** Source-only, conceptual and bounded numerical whole-IR correspondence. */
 export function opticalConjugateDocument(question:string,plan?:unknown,problemIR?:unknown):SceneDocument|null {
  const source=readOpticalConjugateSource(question);
  if (!source || opticalConjugatePlanConflicts(source,collectPlanQuantities(plan)).length) return null;
+ if (plan != null) {
+  const checked=validateTurnPlanV3(plan);
+  if (!checked.valid || !checked.plan || opticalConjugateUnknownConflicts(checked.plan.unknowns).length) return null;
+ }
  const id=source.device==="mirror"?"spherical_mirror":"thin_lens";
  const document=OPTICS_GENERATORS[id]!({question,slots:{kind:source.kind,u:Math.abs(source.u),f:Math.abs(source.f)},sources:{u:"stem",f:"stem"},quantities:[],schematic:true});
  if (!document) return null;
@@ -17,7 +22,8 @@ export function opticalConjugateDocument(question:string,plan?:unknown,problemIR
   const checked=validateProblemIR(problemIR,question);
   if (!checked.valid || !checked.problem) return null;
   const problem=checked.problem;
-  if (problem.expressions.length || problem.solveRequests.length || problem.constraints.length) return null;
+  const joined=bindOpticalConjugateProblem(problem,source,plan);
+  if (!joined) return null;
   if (problem.facts.some(row=>row.statement.trim().replace(/[.!?]$/,"")!==row.evidence.quote.trim().replace(/[.!?]$/,""))) return null;
   const used=new Set<string>();
   for (const entity of problem.entities) {
@@ -29,6 +35,14 @@ export function opticalConjugateDocument(question:string,plan?:unknown,problemIR
    const physical=document.entities.find(row=>row.id===target)!;
    if (!physical || label.length>16) return null;
    physical.label=label;
+  }
+  if((problem.expressions.length || problem.solveRequests.length) && !["object","image",source.device].every(role=>used.has(role))) return null;
+  for (const quantity of joined) {
+   const index=document.quantities.findIndex(row=>row.id===quantity.id);
+   if (document.entities.some(row=>row.id===quantity.id)) return null;
+   if (index<0) document.quantities.push(quantity);else document.quantities[index]=quantity;
+   const target=quantity.provenance==="given"?(quantity.symbol==="u"?"dim_u":source.device==="mirror"?"dim_f":"F2"):"I_base";
+   document.annotations.push({id:`optical_value_${quantity.id}`,kind:"label",quantityId:quantity.id,targetIds:[target]});
   }
  }
  document.source.slotSources={u:"stem",f:"stem"};

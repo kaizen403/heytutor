@@ -5,7 +5,7 @@ import { validateStaticContactTriangleSource } from "./staticContactTriangle";
 import { validateOpticalConjugateSource } from "./opticalConjugateProgram";
 import { validatePointLineProgramSource } from "./pointLineProgram";
 import {readCircleSourceProgram,checkCircleSourceProblemBinding} from "./circleSourceProgram";
-import {validateSectionFormulaProblemSource} from "./sectionFormulaSource";
+import {validateSectionFormulaProblemSource,readSectionFormulaSource} from "./sectionFormulaSource";
 import { validateProblemIR } from "./problemIR";
 import { checkStatedCircuitProblemBinding } from "./statedCircuitProblemBinding";
 import { readStatedCircuitProblemSource } from "./statedCircuitAuthority";
@@ -18,13 +18,21 @@ import type { SceneDocument, SceneIssue } from "../types";
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown, rawPlan?: unknown): SceneIssue[] {
   const progressionIssues = finiteProgressionDocumentIssues(document, {question, problemIR: rawProblem, turnPlan: rawPlan});
   if (progressionIssues.length) return progressionIssues;
+  const sectionReading=readSectionFormulaSource(question);
+  if(sectionReading.status==="declined")return [{code:"section_source_declined",severity:"fatal",message:`Whole section source is unsupported: ${sectionReading.reason}`,path:"sourceAuthority.question"}];
+  const circleReading = readCircleSourceProgram(question);
+  if (circleReading.status === "declined") return [{
+    code: "circle_source_declined", severity: "fatal",
+    message: `Whole Cartesian circle source is unsupported: ${circleReading.reason}`,
+    path: "sourceAuthority.question",
+  }];
   const issues = [
     ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem}),
     ...(rawPlan==null?[]:finiteBinomialPlanIssues(question,rawProblem,rawPlan)),
     ...validateOpticalConjugateSource(document, question, rawProblem),
     ...validatePointLineProgramSource(document, question, rawProblem),
     ...validateSectionFormulaProblemSource(document,question,rawProblem),
-    ...(readCircleSourceProgram(question).status==="ok" ? checkCircleSourceProblemBinding(question,rawProblem,document):[]),
+    ...(circleReading.status==="ok" ? checkCircleSourceProblemBinding(question,rawProblem,document):[]),
     ...validateStaticContactTriangleSource(document, question, rawProblem),
     ...(readStatedCircuitProblemSource(question) ? checkStatedCircuitProblemBinding(question, rawProblem, document) : []),
   ];

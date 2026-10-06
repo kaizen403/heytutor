@@ -12,9 +12,9 @@
  * ambiguous, or whose stated point is not where its stated ratio puts it,
  * yields no section at all.
  */
-import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
+import { validateTurnPlanV3, type TurnPlanQuantityV3, type TurnPlanV3 } from "../contracts/contractsV3";
 import { derivedLabelTargets, readDerivedCoordinateLabelClaim, validateEvaluatedDerivedValueLabels } from "../compile/derivedValueLabels";
-import { validateProblemIR, type ExpressionNodeIR, type ProblemIR } from "./problemIR";
+import { validateProblemIR, type ExpressionNodeIR, type ProblemIR, type ProblemFact } from "./problemIR";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
 import {pruneDeadSceneEntities,validateSceneDocument} from "../document/validation";
 import {sameSceneValue} from "../document/valueEquality";
@@ -190,6 +190,34 @@ export function readSectionFormulaSource(question: string): SectionFormulaReadin
   const unboundName = [...question.matchAll(/(?<![A-Za-z0-9_])([A-Z](?:_?\d)?'?)(?![A-Za-z0-9_'])/g)]
     .find((match) => ![a.name, b.name, pointNameEvidence?.name].includes(match[1]!));
   if (unboundName) return { status: "declined", reason: POINT_IDENTITY_FAILURES.unbound };
+  // Consume one complete supported request and its endpoint relationship.
+  // A vocabulary match cannot account for another ask made of the same words.
+  let clause = stem.replace(NAMED_POINT, (_match, name: string) =>
+    name === a.name ? "ENDPOINT_A" : name === b.name ? "ENDPOINT_B" : "DIVIDER");
+  if (!a.named && !b.named) {
+    let index = 0;
+    clause = clause.replace(BARE_PAIR, () => {
+      const point = points[index++]!;
+      return point === divider ? "DIVIDER" : point === a ? "ENDPOINT_A" : "ENDPOINT_B";
+    });
+  }
+  clause = clause.replace(RATIO, "WEIGHTS").replace(FRACTION_RATIO, "ratio WEIGHTS");
+  if (pointNameEvidence) clause = clause.replace(new RegExp(`(?<![A-Za-z0-9_])${pointNameEvidence.name}(?![A-Za-z0-9_'])`, "g"), "RESULT");
+  clause = clause.trim().replace(/[.!?]$/, "").replace(/\s+/g, " ").toLowerCase();
+  const join = "(?:(?:the )?(?:line )?segment joining endpoint_a and endpoint_b|(?:the )?(?:line )?segment from endpoint_a to endpoint_b|(?:the )?line joining endpoint_a and endpoint_b|(?:the )?join of endpoint_a and endpoint_b|endpoint_a and endpoint_b)";
+  const command = "(?:find|calculate|determine) (?:the )?";
+  const pointAsk = "(?:coordinates? of (?:the )?(?:point )?(?:result )?|point (?:result )?)";
+  const division = `(?:(?:which|that) )?divid(?:es|ing) ${join} (?:internally |externally )?in (?:the )?ratio weights`;
+  const supported = [
+    `${command}${pointAsk}${division}`,
+    `${command}(?:mid-? ?point|middle point) (?:result )?of ${join}`,
+    `in what ratio does (?:the point )?divider divide (?:internally |externally )?${join}`,
+    // A stated divider followed by the same coordinate ask is one operation.
+    `(?:the )?point divider divides ${join} (?:internally |externally )?in (?:the )?ratio weights[.] ${command}coordinates? of (?:the )?(?:point )?result`,
+  ];
+  if (!supported.some(pattern => new RegExp(`^${pattern}$`).test(clause))) {
+    return { status: "declined", reason: "unconsumed section source clause or obligation" };
+  }
   const mode: SectionFormulaSource["mode"] = midpoint && !stated && !asksRatio ? "midpoint" : external ? "external" : "internal";
 
   let m: Rational;
@@ -365,6 +393,22 @@ function sectionDimension(source: SectionFormulaSource, id: string, question: st
   return null;
 }
 
+/** Indexed endpoint spellings require the matching named-point source quote. */
+function sectionGivenDimension(source:SectionFormulaSource,row:TurnPlanQuantityV3,question:string):{symbol:string;value:number}|null{
+ const named=sectionDimension(source,row.symbol,question);if(named)return named;
+ const indexed=/^([xy])_?([12])$/.exec(row.symbol);
+ if(!indexed || typeof row.sourceText!=="string")return null;
+ const point=indexed[2]==="1"?source.a:source.b,axis=indexed[1] as "x"|"y";
+ if(!dimensionEvidence(source,`${point.name}_${axis}`,row.sourceText))return null;
+ return {symbol:`${point.name}_${axis}`,value:point[axis]};
+}
+function sectionPointLabelMatches(label:string|undefined,point:SectionFormulaSource["a"]):boolean{
+ if(label===point.name)return true;
+ if(typeof label!=="string")return false;
+ const matches=[...label.matchAll(NAMED_POINT)];
+ return matches.length===1 && matches[0]![0]===label.trim() && matches[0]![1]===point.name && num(decimal(matches[0]![2]!))===point.x && num(decimal(matches[0]![3]!))===point.y;
+}
+
 function dimensionEvidence(source: SectionFormulaSource, symbol: string, quote: string): boolean {
   if (symbol === "m" || symbol === "n") {
     const ratios = [...quote.matchAll(RATIO)];
@@ -387,13 +431,109 @@ function dimensionEvidence(source: SectionFormulaSource, symbol: string, quote: 
  * result may take its name from the section intent's single requested point.
  * No facts, intents, or additional obligations are discarded.
  */
+/** Preserve operand order for subtraction/division. Signed numeric literals
+ * have one canonical form; only addition/multiplication commute and associate. */
+function sectionExpressionKey(root:ExpressionNodeIR):string {
+ if(root.kind==="number") return `number:${Object.is(root.value,-0)?0:root.value}`;
+ if(root.kind==="unary" && root.operand.kind==="number") return sectionExpressionKey({kind:"number",value:root.operator==="-"?-root.operand.value:root.operand.value});
+ if(root.kind==="binary") {
+  const flatten=(node:ExpressionNodeIR):ExpressionNodeIR[]=>["+","*"].includes(root.operator) && node.kind==="binary" && node.operator===root.operator?[...flatten(node.left),...flatten(node.right)]:[node];
+  const parts=[...flatten(root.left),...flatten(root.right)].map(sectionExpressionKey);
+  return `${root.operator}(${(["+","*"].includes(root.operator)?parts.sort():parts).join(",")})`;
+ }
+ if(root.kind==="unary") return `${root.operator}(${sectionExpressionKey(root.operand)})`;
+ if(root.kind==="call") return `${root.function}(${sectionExpressionKey(root.argument)})`;
+ return root.kind==="variable"?`variable:${root.name}`:`constant:${root.name}`;
+}
+function sectionRootBindsFormula(source:SectionFormulaSource,axis:"x"|"y",root:ExpressionNodeIR):boolean {
+ const n=(value:number):ExpressionNodeIR=>({kind:"number",value});
+ const b=(operator:"+"|"-"|"*"|"/",left:ExpressionNodeIR,right:ExpressionNodeIR):ExpressionNodeIR=>({kind:"binary",operator,left,right});
+ const a=n(source.a[axis]),end=n(source.b[axis]),m=n(source.m),weight=n(source.n),sign=source.mode==="external"?"-":"+";
+ const denominator=b(sign,m,weight);
+ const forms=[b("/",b(sign,b("*",m,end),b("*",weight,a)),denominator),b("+",a,b("*",b("/",m,denominator),b("-",end,a)))];
+ if(source.mode==="midpoint") forms.push(b("/",b("+",a,end),n(2)),b("*",n(.5),b("+",a,end)));
+ return forms.some(form=>sectionExpressionKey(form)===sectionExpressionKey(root));
+}
+
+/** A requested midpoint clause can source the line only when the complete
+ * clause states the midpoint role, join and both exact named endpoints.
+ * Endpoint tuples alone do not prove a request or joining relationship. */
+function midpointJoinEvidence(source: SectionFormulaSource, quote: string): boolean {
+  if (source.mode !== "midpoint") return false;
+  const points = [...quote.matchAll(NAMED_POINT)];
+  if (points.length !== 2 || !points.every((match, index) => {
+    const point = [source.a, source.b][index]!;
+    return match[1] === point.name && num(decimal(match[2]!)) === point.x
+      && num(decimal(match[3]!)) === point.y;
+  })) return false;
+  const clause = quote.replace(NAMED_POINT, "ENDPOINT").trim().replace(/[.!?]$/, "").replace(/\s+/g, " ");
+  return new RegExp(`^(?:(?:find|calculate|determine) (?:the )?)?midpoint ${source.point.name} of (?:the )?(?:line )?segment joining ENDPOINT and ENDPOINT$`, "i").test(clause);
+}
+
+function sectionFactIsBound(source:SectionFormulaSource,question:string,fact:ProblemFact):boolean {
+ if(fact.kind==="assumption") return false;
+ const norm=(value:string)=>value.trim().replace(/[.!?]$/,"").replace(/\s+/g," ").toLowerCase();
+ const statement=norm(fact.statement),quote=fact.evidence.quote;
+ if(fact.kind==="requested") {
+  // The full source was already consumed as one operation by the reader.
+  if(statement===norm(question) && norm(quote)===norm(question)) return true;
+  const name=source.point.name.toLowerCase(),join=`${source.a.name.toLowerCase()}${source.b.name.toLowerCase()}`;
+  if(source.mode==="midpoint") {
+   const request=new RegExp(`^(?:(find|calculate|determine) (?:the )?)?midpoint ${name} of (?:the )?(?:line )?segment ${join}$`).exec(statement);
+   if(request) return midpointJoinEvidence(source,quote) || Boolean(request[1] && norm(quote)===`find the midpoint ${name} of the line segment joining`);
+   return midpointJoinEvidence(source,fact.statement) && midpointJoinEvidence(source,quote);
+  }
+  if(source.asks!=="point") return false;
+  // An anonymous coordinate ask can cite just its command word. The whole
+  // source independently establishes the single dividing-point operation;
+  // this spelling cannot assert a new name, mode, ratio or extra ask.
+  const anonymous=/^(find|calculate|determine) (?:the )?coordinates? of (?:the )?dividing point$/.exec(statement);
+  if(!source.pointNameEvidence && anonymous && norm(quote)===anonymous[1]
+    && fact.evidence.start===0) return true;
+  const request=new RegExp(`^(?:find|calculate|determine) (?:the )?(?:coordinates? of (?:the )?(?:point )?${name}|(?:dividing )?point ${name})(?: (?:which divides|dividing) (?:the )?(?:line )?segment(?: ${join})?(?: (internally|externally))?(?: in (?:the )?ratio (${PART})\\s*:\\s*(${PART}))?)?$`).exec(statement);
+  if(!request || request[1] && request[1]!==`${source.mode}ly`
+    || request[2] && (num(part(request[2]))!==source.m || num(part(request[3]!))!==source.n)) return false;
+  if(request[1] && !new RegExp(`\\b${source.mode}ly\\b`,"i").test(quote)) return false;
+  if(request[2] && !dimensionEvidence(source,"m",quote)) return false;
+  // Retain captured request prefixes, but require their complete named role.
+  const prefix=`(?:find|calculate|determine) (?:the )?(?:coordinates? of (?:the )?(?:point )?${name}|point ${name})`;
+  if(new RegExp(`^${prefix}(?: (?:which divides|dividing) (?:the )?(?:line )?segment)?$`).test(norm(quote))) return true;
+  const points=[...quote.matchAll(NAMED_POINT)];
+  if(points.length!==2 || !points.every((match,index)=>{
+   const point=[source.a,source.b][index]!;
+   return match[1]===point.name && num(decimal(match[2]!))===point.x && num(decimal(match[3]!))===point.y;
+  })) return false;
+  const clause=norm(quote.replace(NAMED_POINT,"ENDPOINT"));
+  return new RegExp(`^${prefix} (?:which divides|dividing) (?:the )?(?:line )?segment joining endpoint and endpoint(?: ${source.mode}ly)?(?: in (?:the )?ratio (${PART})\\s*:\\s*(${PART}))?$`).test(clause)
+    && (!/\bratio\b/.test(clause) || dimensionEvidence(source,"m",quote));
+ }
+ if(statement===norm(quote) || statement===norm(question)) return true;
+ for(const point of [source.a,source.b]){
+  const name=point.name.toLowerCase();
+  const pair=new RegExp(`^(?:point )?${name} (?:has|is at|is given with) (?:the )?coordinates?\\s*\\(\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*\\)$`).exec(statement);
+  if(pair && num(decimal(pair[1]!))===point.x && num(decimal(pair[2]!))===point.y && dimensionEvidence(source,`${point.name}_x`,quote)) return true;
+  const axis=new RegExp(`^(?:point )?${name} has ([xy])[- ]coordinate (${NUMBER})$`).exec(statement);
+  if(axis && num(decimal(axis[2]!))===point[axis[1] as "x"|"y"] && dimensionEvidence(source,`${point.name}_${axis[1]}`,quote)) return true;
+  const coordinateOf=new RegExp(`^([xy])[- ]coordinate of ${name} is (${NUMBER})$`).exec(statement);
+  if(fact.kind==="given" && coordinateOf && num(decimal(coordinateOf[2]!))===point[coordinateOf[1] as "x"|"y"]
+    && dimensionEvidence(source,`${point.name}_${coordinateOf[1]}`,quote)) return true;
+ }
+ const division=new RegExp(`^${source.point.name.toLowerCase()} divides (?:the )?(?:segment|line segment|join|${source.a.name.toLowerCase()}${source.b.name.toLowerCase()}) ${source.mode}ly in (?:the )?ratio (${PART})\\s*:\\s*(${PART})$`).exec(statement);
+ if(source.mode!=="midpoint" && division && num(part(division[1]!))===source.m && num(part(division[2]!))===source.n && dimensionEvidence(source,"m",quote) && new RegExp(`\\b${source.mode}ly\\b`,"i").test(quote))return true;
+ const ratio=new RegExp(`^(?:the )?(?:(?:external|internal) )?division ratio (?:is |equals )?(${PART})\\s*:\\s*(${PART})$`).exec(statement);
+ if(ratio && num(part(ratio[1]!))===source.m && num(part(ratio[2]!))===source.n && dimensionEvidence(source,"m",quote)) return true;
+ if(source.mode!=="midpoint" && new RegExp(`^(?:the point|${source.point.name.toLowerCase()}) divides (?:the join|${source.a.name.toLowerCase()}${source.b.name.toLowerCase()}) ${source.mode}ly(?: in (?:the )?ratio ${source.m}:${source.n})?$`).test(statement)) return new RegExp(`\\b${source.mode}(?:ly)?\\b`,"i").test(quote);
+ return false;
+}
+
 function bindSectionProblem(document: SceneDocument, source: SectionFormulaSource, raw: ProblemIR): boolean {
   const validation = validateProblemIR(raw, String(document.source.question));
   if (!validation.valid || !validation.problem) return false;
   const problem = validation.problem;
   const facts = new Map(problem.facts.map((fact) => [fact.id, fact]));
+  if(problem.facts.some(fact=>!sectionFactIsBound(source,String(document.source.question),fact))) return false;
   const endpoints = [source.a, source.b].map((point) => problem.entities.find((entity) =>
-    entity.kind === "point" && entity.label === point.name));
+    entity.kind === "point" && sectionPointLabelMatches(entity.label,point)));
   if (!source.a.named || !source.b.named || endpoints.some((entity) => !entity)) return false;
   const endpointIds = endpoints.map((entity) => entity!.id);
   const intent = problem.representationIntents.find((candidate) => ["section", "graph", "conceptual"].includes(candidate.kind)
@@ -409,16 +549,23 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   const question = String(document.source.question);
   if (source.pointNameEvidence && result.label !== source.pointNameEvidence.name) return false;
 
-  const hasPointEvidence = (ids: string[], point: SectionFormulaSource["a"]): boolean => ids.some((id) =>
-    facts.get(id)?.kind === "given" && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
+  const hasPointEvidence = (ids: string[], point: SectionFormulaSource["a"], wholeQuestionRequest=false): boolean => ids.some((id) =>
+    (facts.get(id)?.kind === "given" || wholeQuestionRequest && facts.get(id)?.kind==="requested" && (source.mode==="midpoint" ? midpointJoinEvidence(source,facts.get(id)!.evidence.quote) : facts.get(id)!.evidence.quote.trim()===question.trim())) && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
   if (!endpoints.every((entity, i) => hasPointEvidence(entity!.evidenceFactIds, [source.a, source.b][i]!))) return false;
   const lines = problem.entities.filter((entity) => entity.kind === "line");
   if (lines.length > 1 || lines.some((line) => ![`${source.a.name}${source.b.name}`,`segment ${source.a.name}${source.b.name}`,`line ${source.a.name}${source.b.name}`,`line segment ${source.a.name}${source.b.name}`].includes(line.label ?? "")
-    || !hasPointEvidence(line.evidenceFactIds, source.a) || !hasPointEvidence(line.evidenceFactIds, source.b))) return false;
+    || !hasPointEvidence(line.evidenceFactIds, source.a,true) || !hasPointEvidence(line.evidenceFactIds, source.b,true))) return false;
   const admittedIds = [...endpointIds, result.id, ...lines.map((line) => line.id)];
   if (problem.entities.some((entity) => !admittedIds.includes(entity.id))
     || problem.representationIntents.some((candidate) => !["section", "graph", "conceptual"].includes(candidate.kind)
       || candidate.entityIds.some((id) => !admittedIds.includes(id)))) return false;
+  for(const constraint of problem.constraints){
+    const ids="entityIds" in constraint?constraint.entityIds:[];
+    const line=lines[0];
+    const incident=constraint.kind==="incident" && line && ids.length===2 && ids.includes(line.id) && [result.id,...endpointIds].some(id=>ids.includes(id));
+    const joined=constraint.kind==="connected" && line && ids.length===3 && ids.includes(line.id) && endpointIds.every(id=>ids.includes(id));
+    if((!incident && !joined) || !constraint.evidenceFactIds.length) return false;
+  }
   // A line intent gets a real joining segment, not a text-only obligation
   // witness. Its lineage records the original entity and both source points.
   if (lines[0]) {
@@ -430,6 +577,13 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
     join.label = lines[0].label;
     join.provenance = { problemEntityId: lines[0].id, evidenceFactIds: [...lines[0].evidenceFactIds] };
     document.assertions.push({id:"section_on_source_line",predicate:"on",entities:[`pt_${source.point.name}`,"seg_join"],severity:"fatal"});
+    for(const constraint of problem.constraints){
+      if(constraint.kind!=="incident")continue;
+      const pointId=constraint.entityIds.find(id=>id!==lines[0]!.id)!;
+      const name=pointId===result.id?source.point.name:pointId===endpointIds[0]?source.a.name:source.b.name;
+      document.assertions.push({id:`source_incidence_${constraint.id}`,predicate:"on",entities:[`pt_${name}`,"seg_join"],severity:"fatal"});
+    }
+
   }
 
   const section = document.constructions.find((construction) => construction.operator === "section_point")!;
@@ -437,7 +591,9 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   for (const [id, name] of [[`pt_${source.a.name}`, source.a.name], [`pt_${source.b.name}`, source.b.name], [resultId, result.label]]) {
     const entity = document.entities.find((candidate) => candidate.id === id)!;
     const text = entity.label!;
-    entity.label = name;
+    const endpoint=id===`pt_${source.a.name}`?endpoints[0]:id===`pt_${source.b.name}`?endpoints[1]:undefined;
+    entity.label = endpoint?.label ?? name;
+    if(entity.label!==name)continue; // exact source tuple already carries both name and coordinates
     document.annotations.push({ id: `coordinates_${id}`, kind: "label", targetIds: [id], text: id === resultId ? text.replace(source.point.name, name!) : text });
   }
   for (const expression of problem.expressions) {
@@ -445,16 +601,20 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
     const axis = ["x", "y"].find((axis) => [`${result.label}${axis}`, `e${result.label}${axis}`].includes(expression.id)) as "x" | "y" | undefined;
     if (axis && expression.root.kind !== "number") {
       const expected = source.point.exact[axis];
-      const permitted = [source.a[axis], source.b[axis], source.m, source.n];
+      const permitted = [source.a[axis], source.b[axis], source.m, source.n,...(source.mode==="midpoint"?[2,.5]:[])];
       const evaluate = (root: ExpressionNodeIR): Rational | null => {
         if (root.kind === "number") return permitted.includes(root.value) ? decimal(String(root.value)) : null;
+        if (root.kind === "unary" && root.operand.kind === "number") {
+          const signed=root.operator==="-"?-root.operand.value:root.operand.value;
+          return permitted.includes(signed)?decimal(String(signed)):null;
+        }
         if (root.kind !== "binary" || !["+", "-", "*", "/"].includes(root.operator)) return null;
         const a = evaluate(root.left), b = evaluate(root.right);
         if (!a || !b || root.operator === "/" && isZero(b)) return null;
         return root.operator === "+" ? add(a, b) : root.operator === "-" ? sub(a, b) : root.operator === "*" ? mul(a, b) : div(a, b);
       };
       const value = evaluate(expression.root);
-      if (!value || text(value) !== expected || !hasPointEvidence(expression.evidenceFactIds, source.a)
+      if (!value || text(value) !== expected || !sectionRootBindsFormula(source,axis,expression.root) || !hasPointEvidence(expression.evidenceFactIds, source.a)
         || !hasPointEvidence(expression.evidenceFactIds, source.b)
         || source.mode !== "midpoint" && !expression.evidenceFactIds.some((id) => dimensionEvidence(source, "m", facts.get(id)!.evidence.quote))
         || source.mode === "external" && !expression.evidenceFactIds.some((id) => /\bexternally?\b/i.test(facts.get(id)!.evidence.quote))) return false;
@@ -471,6 +631,23 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
       evidenceFactIds: [...expression.evidenceFactIds],
       sourceText: expression.evidenceFactIds.map((id) => facts.get(id)!.evidence.quote).join("\n"),
     });
+  }
+  const usedFacts=new Set([...problem.entities.flatMap(row=>row.evidenceFactIds),...problem.expressions.flatMap(row=>row.evidenceFactIds),...problem.constraints.flatMap(row=>row.evidenceFactIds),...problem.representationIntents.flatMap(row=>row.evidenceFactIds),...problem.solveRequests.flatMap(row=>row.resultBinding?.evidenceFactIds ?? [])]);
+  if(problem.facts.some(row=>!usedFacts.has(row.id))) return false;
+  const requestedAxes=new Set<string>(),boundIds=new Set<string>();
+  for(const request of problem.solveRequests){
+    if(request.kind!=="evaluate") return false;
+    const expression=problem.expressions.find(row=>row.id===request.expressionId);
+    const axis=["x","y"].find(axis=>[`${result.label}${axis}`,`e${result.label}${axis}`].includes(expression?.id ?? "")) as "x"|"y"|undefined;
+    if(!axis || !expression || !sectionRootBindsFormula(source,axis,expression.root) || requestedAxes.has(axis)) return false;
+    requestedAxes.add(axis);
+    const binding=request.resultBinding;
+    if(!binding) continue; // legacy source geometry can prove an unbound evaluate ask
+    const symbol=binding.symbol.replace(/_/g,"");
+    if(![`${result.label}${axis}`,`${axis}${result.label}`,axis].includes(symbol) || binding.unit && !["1","coordinate","unit","units"].includes(binding.unit)
+      || boundIds.has(binding.turnPlanQuantityId) || !binding.evidenceFactIds.length || !binding.evidenceFactIds.every(id=>facts.get(id)?.kind==="requested")) return false;
+    boundIds.add(binding.turnPlanQuantityId);
+    document.quantities.push({id:binding.turnPlanQuantityId,symbol:binding.symbol,value:source.point[axis],...(binding.unit?{unit:binding.unit}:{}),provenance:"derived",evidenceFactIds:[...binding.evidenceFactIds],sourceText:binding.evidenceFactIds.map(id=>facts.get(id)!.evidence.quote).join("\n")});
   }
   return true;
 }
@@ -508,7 +685,7 @@ export function sectionFormulaRequestedDimensionIsCarried(document:SceneDocument
   const binding=request[0]!.resultBinding!;
   if (!binding.evidenceFactIds.length || !binding.evidenceFactIds.every(id=>problem.facts.some(row=>row.id===id && row.kind==="requested"))) return null;
   const symbol=binding.symbol.replace(/_/g,""),name=reading.source.point.name;
-  const axis=["x","y"].find(axis=>[`${axis}${name}`,`${name}${axis}`].includes(symbol)) as "x"|"y"|undefined;
+  const axis=["x","y"].find(axis=>[`${axis}${name}`,`${name}${axis}`,axis].includes(symbol)) as "x"|"y"|undefined;
   if (!axis) return null;
   if (binding.unit && !["1","unit","units","coordinate"].includes(binding.unit)) return false;
   return value===reading.source.point[axis] && sectionFormulaSourceProgramIsBound(document,problem);
@@ -519,7 +696,15 @@ function sectionFormulaSourceProgramIsBound(document:SceneDocument,problem:Probl
   if (!expected) return false;
   const canonical=validateSceneDocument(pruneDeadSceneEntities(expected as unknown as Record<string,unknown>)).document;
   if (!canonical) return false;
-  const shape=(scene:SceneDocument)=>({entities:scene.entities.map(({provenance:_provenance,...row})=>row),quantities:scene.quantities,constructions:scene.constructions,annotations:scene.annotations,assertions:scene.assertions,relations:scene.relations,requiredEntityIds:scene.requiredEntityIds,revealGroups:scene.revealGroups,teachingTimeline:scene.teachingTimeline});
+  const shape=(scene:SceneDocument)=>({entities:scene.entities.map(({provenance:_provenance,...row})=>row),quantities:scene.quantities,constructions:scene.constructions,annotations:scene.annotations.map(row=>{
+    const oracle=canonical.annotations.find(candidate=>candidate.id===row.id && sameSceneValue(candidate.targetIds,row.targetIds));
+    if(!oracle || !["label","callout","badge"].includes(row.kind))return row;
+    try{
+      const claim=readDerivedCoordinateLabelClaim(row.text ?? ""),expectedClaim=readDerivedCoordinateLabelClaim(oracle.text ?? "");
+      if(claim && expectedClaim && claim.name===expectedClaim.name && claim.unit===expectedClaim.unit && sameSceneValue(claim.values,expectedClaim.values))return {...row,kind:oracle.kind,text:oracle.text};
+    }catch{ /* unparsed claims remain unequal and decline */ }
+    return row;
+  }),assertions:scene.assertions,relations:scene.relations,requiredEntityIds:scene.requiredEntityIds,revealGroups:scene.revealGroups,teachingTimeline:scene.teachingTimeline});
   return document.source.question===problem.question && sameSceneValue(shape(document),shape(canonical));
 }
 
@@ -543,8 +728,8 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
     return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: "section_point requires the source question" }];
   }
   const reading = readSectionFormulaSource(question);
-  if (reading.status === "declined" && Object.values(POINT_IDENTITY_FAILURES).includes(reading.reason)) {
-    return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: `the stem's dividing-point identity is unsupported (${reading.reason})` }];
+  if (reading.status === "declined") {
+    return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: `the stem's complete section request is unsupported (${reading.reason})` }];
   }
   if (reading.status === "inconsistent" || reading.status === "singular") {
     return [{ code: "section_source_unsupported", severity: "fatal", path: "source.question", message: `the stem's section has no consistent finite point (${reading.reason})` }];
@@ -692,19 +877,60 @@ export function validateSectionPointSourceInputs(document: SceneDocument, questi
 
 type Role = "x" | "y" | "ratio";
 
-function roleOf(symbol: string): Role | null {
-  const key = symbol.normalize("NFKC").replace(/\\(?:mathrm|text|operatorname)\s*/g, "").replace(/[{}\\\s]/g, "");
-  if (/^(?:x|x_?[A-Z]|[A-Z]_?x|x_?(?:P|M|section|point))$/i.test(key) && !/^x_?[12]$/i.test(key)) return "x";
-  if (/^(?:y|y_?[A-Z]|[A-Z]_?y|y_?(?:P|M|section|point))$/i.test(key) && !/^y_?[12]$/i.test(key)) return "y";
-  if (/^(?:k|λ|lambda|r|ratio|m\/n|m:n|AP\/PB|AP:PB)$/i.test(key)) return "ratio";
-  return null;
+
+function sectionResultRole(source:SectionFormulaSource,symbol:string):Role|null{
+ const key=symbol.replace(/_/g,"");
+ for(const axis of ["x","y"] as const) if([`${axis}${source.point.name}`,`${source.point.name}${axis}`,axis].includes(key))return axis;
+ if(source.asks==="ratio" && ["k","λ","lambda","r","ratio","m/n","m:n",`${source.a.name}${source.point.name}/${source.point.name}${source.b.name}`,`${source.a.name}${source.point.name}:${source.point.name}${source.b.name}`].includes(key))return "ratio";
+ return null;
+}
+const sectionUnitIsCoordinate=(unit:unknown)=>unit===undefined || ["1","coordinate","unit","units"].includes(String(unit));
+
+/** Recheck every supplied plan row against a named source role. Numeric
+ * coincidence, persisted solver values and quantity IDs do not grant a role. */
+export function sectionFormulaPlanIssues(question:string,rawPlan:unknown,problemIR?:unknown):SceneIssue[]{
+ const reading=readSectionFormulaSource(question);
+ if(reading.status!=="ok") return [];
+ const checked=validateTurnPlanV3(rawPlan,question);
+ if(!checked.valid || !checked.plan) return [{code:"section_source_plan",severity:"fatal",path:"turnPlan",message:"Section caller plan must remain structurally valid"}];
+ const plan=checked.plan;
+ const {source}=reading;
+ const unitOk=sectionUnitIsCoordinate;
+ const resultRole=(symbol:string)=>sectionResultRole(source,symbol);
+ const issues:SceneIssue[]=[];
+ const fail=(id:string,message:string)=>issues.push({code:"section_source_plan",severity:"fatal",path:`turnPlan.${id}`,message});
+ const close=(actual:number,expected:number)=>Math.abs(actual-expected)<=1e-9*Math.max(1,Math.abs(expected));
+ for(const row of plan.givens){
+  const dimension=sectionGivenDimension(source,row,question);
+  if(!dimension || !unitOk(row.unit) || !close(row.value,dimension.value)) fail(row.id,"Section givens must bind the named source coordinate or stated ratio component, with its actual value and unit");
+ }
+ for(const row of plan.derived){
+  const role=resultRole(row.symbol),dimension=sectionDimension(source,row.symbol,question);
+  const expected=role==="ratio"?source.ratio:role?source.point[role]:dimension?.value;
+  if(expected===undefined || !unitOk(row.unit) || role==="ratio" && row.unit!==undefined && row.unit!=="1" || !close(row.value,expected)) fail(row.id,"Section derived rows must bind a named source/result role, value and unit");
+ }
+ for(const row of plan.unknowns){
+  const role=resultRole(row.symbol);
+  if(!role || !unitOk(row.unit) || role==="ratio" && row.unit!==undefined && row.unit!=="1") fail(row.id,"Section unknowns must bind the requested source point or dimensionless ratio");
+ }
+ if(problemIR!=null){
+  const problem=validateProblemIR(problemIR,question).problem;
+  if(!problem) fail("problemIR","Section caller IR must remain structurally valid");
+  else for(const request of problem.solveRequests){
+   const binding=request.resultBinding;
+   if(!binding) continue;
+   const rows=[...plan.derived,...plan.unknowns].filter(row=>row.id===binding.turnPlanQuantityId);
+   if(!rows.length || rows.some(row=>row.symbol!==binding.symbol || row.unit!==binding.unit)) fail(binding.turnPlanQuantityId,"Section request bindings must address the actual caller plan identity, symbol and unit");
+  }
+ }
+ return issues;
 }
 
 /**
  * Hold the turn plan to the stem's section. Coordinates of the section point
  * and the ratio a ratio question asks for are corrected to the exact values;
- * givens must be numbers the stem states; any other number that is not a
- * stated or solved value is withdrawn. The solved coordinates (and ratio) are
+ * givens must bind their named source roles and units; unrelated numerical
+ * rows and claims are withdrawn. The solved coordinates (and ratio) are
  * added when missing. An inconsistent or singular stem withdraws every derived
  * number, because no finite answer agrees with the stem.
  */
@@ -718,12 +944,10 @@ export function applySectionFormulaAuthority(question: string, plan: TurnPlanV3)
   const issues: Array<{ code: string; quantityId: string; message: string }> = [];
   if (reading.status !== "ok") {
     for (const quantity of plan.derived) issues.push({ code: "section_value_withdrawn", quantityId: quantity.id, message: `${reading.status}: ${reading.reason}` });
-    return { plan: { ...plan, derived: [], unknowns: [] }, reading, issues };
+    return { plan: { ...plan, derived: [], unknowns: [],qualitativeClaims:[] }, reading, issues };
   }
   const { source } = reading;
-  const statedNumbers = [...question.replace(/−/g, "-").matchAll(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g)].map((match) => Number(match[0]));
   const solved: Record<Role, number> = { x: source.point.x, y: source.point.y, ratio: source.ratio };
-  const known = [...statedNumbers, source.point.x, source.point.y, source.ratio, source.m, source.n];
   const agrees = (expected: number, value: number): boolean => {
     if (Math.abs(expected - value) <= 1e-9 * Math.max(1, Math.abs(expected))) return true;
     const decimals = (String(value).split(".")[1] ?? "").length;
@@ -731,38 +955,55 @@ export function applySectionFormulaAuthority(question: string, plan: TurnPlanV3)
     return significant >= 2 && Number(expected.toFixed(decimals)) === value;
   };
   const givens = plan.givens.filter((quantity) => {
-    if (statedNumbers.some((value) => agrees(value, quantity.value))) return true;
-    issues.push({ code: "section_given_conflict", quantityId: quantity.id, message: `given ${quantity.symbol}=${quantity.value} is not a number the stem states` });
+    const dimension=sectionGivenDimension(source,quantity,question);
+    if(dimension && sectionUnitIsCoordinate(quantity.unit) && agrees(dimension.value,quantity.value))return true;
+    issues.push({ code: "section_given_conflict", quantityId: quantity.id, message: `given ${quantity.symbol}=${quantity.value} does not bind its stated source role, value and unit` });
     return false;
   });
   const derived: TurnPlanQuantityV3[] = [];
   for (const quantity of plan.derived) {
-    const role = roleOf(quantity.symbol);
-    if (role && Number.isFinite(solved[role])) {
+    const role = sectionResultRole(source,quantity.symbol);
+    if (role && Number.isFinite(solved[role]) && sectionUnitIsCoordinate(quantity.unit) && (role!=="ratio" || quantity.unit===undefined || quantity.unit==="1")) {
       if (agrees(solved[role], quantity.value)) derived.push(quantity);
       else {
         const value = Number(solved[role].toPrecision(10));
         issues.push({ code: "section_value_corrected", quantityId: quantity.id, message: `${quantity.symbol}: ${quantity.value} -> ${value}` });
         derived.push({ ...quantity, value, sourceText: `Section-verified ${quantity.symbol} = ${value}` });
       }
-    } else if (known.some((value) => agrees(value, quantity.value))) {
+    } else if (!role && sectionDimension(source,quantity.symbol,question) && sectionUnitIsCoordinate(quantity.unit) && agrees(sectionDimension(source,quantity.symbol,question)!.value,quantity.value)) {
       derived.push(quantity);
     } else {
       issues.push({ code: "section_value_withdrawn", quantityId: quantity.id, message: `${quantity.symbol}=${quantity.value} is neither stated nor solved` });
     }
   }
-  const present = (value: number): boolean => [...givens, ...derived].some((quantity) => agrees(value, quantity.value) && roleOf(quantity.symbol) !== null);
+  // A named result coordinate has a dimensionless coordinate unit. Bind a
+  // missing derived unit to its explicitly matched unknown before IR planning;
+  // never infer metric units or convert a stated conflicting unit.
+  for(let i=0;i<derived.length;i++){
+    const row=derived[i]!,unknown=plan.unknowns.find(candidate=>candidate.id===row.id && candidate.symbol===row.symbol);
+    const role=sectionResultRole(source,row.symbol);
+    if(row.unit===undefined && unknown?.unit==="coordinate" && (role==="x" || role==="y")) derived[i]={...row,unit:"coordinate"};
+  }
+  const present = (value: number): boolean => [...givens, ...derived].some((quantity) => agrees(value, quantity.value) && sectionResultRole(source,quantity.symbol) !== null);
   const name = source.point.name;
   const additions: Array<[string, string, number]> = source.asks === "ratio"
     ? [["section_ratio", "k", source.ratio]]
     : [["section_x", `x_${name}`, source.point.x], ["section_y", `y_${name}`, source.point.y]];
   for (const [id, symbol, value] of additions) {
-    if (present(value) && derived.some((quantity) => roleOf(quantity.symbol) === roleOf(symbol))) continue;
+    if (present(value) && derived.some((quantity) => sectionResultRole(source,quantity.symbol) === sectionResultRole(source,symbol))) continue;
     const rounded = Number(value.toPrecision(10));
     derived.push({ id, symbol, value: rounded, provenance: "derived", sourceText: `Section-verified ${symbol} = ${rounded}` });
     issues.push({ code: "section_value_added", quantityId: id, message: `${symbol} = ${rounded}` });
   }
   const kept = new Set([...givens, ...derived].map((quantity) => quantity.id));
-  const unknowns = plan.unknowns.filter((unknown) => kept.has(unknown.id));
-  return { plan: { ...plan, givens, derived, unknowns }, reading, issues };
+  const unknowns = plan.unknowns.filter(unknown=>{
+    const role=sectionResultRole(source,unknown.symbol);
+    const valid=kept.has(unknown.id) && role!==null && sectionUnitIsCoordinate(unknown.unit) && (role!=="ratio" || unknown.unit===undefined || unknown.unit==="1");
+    if(!valid)issues.push({code:"section_unknown_withdrawn",quantityId:unknown.id,message:"Unknown does not bind the requested source role and unit"});
+    return valid;
+  });
+  const changed=new Set(issues.filter(issue=>issue.code!=="section_value_added").map(issue=>issue.quantityId));
+  const cleanDerived=derived.map(row=>row.dependsOn?{...row,dependsOn:row.dependsOn.filter(id=>kept.has(id))}:row);
+  const qualitativeClaims=plan.qualitativeClaims.filter(claim=>!(claim.relatedQuantityIds ?? []).some(id=>changed.has(id) || !kept.has(id) && !unknowns.some(row=>row.id===id)));
+  return { plan: { ...plan, givens, derived:cleanDerived, unknowns,qualitativeClaims }, reading, issues };
 }
