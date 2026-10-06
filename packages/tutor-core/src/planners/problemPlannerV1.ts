@@ -42,6 +42,23 @@ export interface ProblemAuthorityV1Response {
   traceId?: string;
 }
 
+export interface ProblemAuthorityV1Decline {
+  status: "source_declined";
+  question: string;
+  rawProblemIR: unknown;
+  rawContent: string;
+  issueCodes: string[];
+  elapsedMs: number;
+}
+export type ProblemAuthorityV1Outcome = ProblemAuthorityV1Response | ProblemAuthorityV1Decline | null;
+
+/** Compatibility for benches consuming only successful solver responses.
+ * Live teaching uses the outcome API so a declined input cannot become absent. */
+export async function planAndSolveProblemV1(question:string,turnPlan:TurnPlanV3|null,options:ProblemPlannerV1Options):Promise<ProblemAuthorityV1Response|null>{
+ const outcome=await planProblemAuthorityV1(question,turnPlan,options);
+ return outcome && "status" in outcome ? null : outcome;
+}
+
 /**
  * Formulate the question as ProblemIR and solve it deterministically.
  *
@@ -51,11 +68,11 @@ export interface ProblemAuthorityV1Response {
  * quantity itself and the result must be joined with `bindProblemIRToTurnPlan`
  * before any audit. The live hook always passes a plan.
  */
-export async function planAndSolveProblemV1(
+export async function planProblemAuthorityV1(
   question: string,
   turnPlan: TurnPlanV3 | null,
   options: ProblemPlannerV1Options,
-): Promise<ProblemAuthorityV1Response | null> {
+): Promise<ProblemAuthorityV1Outcome> {
   const startedAt = Date.now();
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(
@@ -99,8 +116,21 @@ export async function planAndSolveProblemV1(
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string") return null;
     const parsed = parseJsonObject(content);
-    const normalized = normalizeProblemIRModelOutput(parsed, question, turnPlan);
+    const polynomial=readFiniteBinomialProgram(question);
+    const sourceInput=polynomial.status==="ok"?liftCompactProblemIR(parsed,question):null;
+    const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
+      rawProblemIR:structuredClone(parsed),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
+    // Syntax lifting preserves every submitted record/unknown field. Audit it
+    // before the legacy normalizer can prune evidence, requests or bindings.
+    const polynomialResult=polynomial.status==="ok"?solveFiniteBinomialProblem(question,sourceInput):null;
+    if(polynomial.status==="ok" && !polynomialResult)return decline("finite_polynomial_full_input_declined");
+    const normalized = polynomial.status==="ok"?sourceInput:normalizeProblemIRModelOutput(parsed, question, turnPlan);
     const problemValidation = validateProblemIR(normalized, question);
+    if(polynomial.status==="ok" && turnPlan && problemValidation.problem?.solveRequests.some(request=>{
+      const binding=request.resultBinding;if(!binding)return false;
+      const row=turnPlan.unknowns.find(unknown=>unknown.id===binding.turnPlanQuantityId);
+      return !row || row.symbol!==binding.symbol || row.unit!==binding.unit;
+    }))return decline("finite_polynomial_caller_binding_declined");
     if (!problemValidation.problem) {
       tutorDebug("planner", "ProblemIR v1 rejected", {
         issue_codes: problemValidation.issues.map((issue) => issue.code),
@@ -109,11 +139,7 @@ export async function planAndSolveProblemV1(
     }
     const elapsedBeforeSolve = Date.now() - startedAt;
     const remainingMs = Math.max(1, options.timeoutMs - elapsedBeforeSolve);
-    const polynomial=readFiniteBinomialProgram(question);
-    // Recognition never permits a generic expression solver to certify a
-    // guessed coefficient in an incomplete original polynomial graph.
-    const polynomialResult=polynomial.status==="ok"?solveFiniteBinomialProblem(question,problemValidation.problem):null;
-    if(polynomial.status==="ok" && !polynomialResult)return null;
+
     const provider:SolverProvider=polynomialResult?{id:polynomialResult.providerId,async solve(){return polynomialResult;}}:options.provider ?? new LocalDeterministicSolverProvider();
     const solverResult = await solveWithDeadline(
       provider,

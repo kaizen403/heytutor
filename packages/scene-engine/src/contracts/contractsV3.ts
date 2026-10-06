@@ -4371,6 +4371,8 @@ export interface SceneArtifactsV3 {
   schemaVersion: typeof SCENE_ARTIFACTS_V3_VERSION;
   turnPlan?: TurnPlanV3 | null;
   problemIR?: ProblemIR | null;
+  /** Rejected whole model input is evidence of refusal, never solver authority. */
+  problemIRRejection?: {status:"source_declined";question:string;rawProblemIR:unknown;rawContent:string;issueCodes:string[];elapsedMs:number};
   solverResult?: SolverResult | null;
   solverAuthority?: SolverAuthorityAudit | null;
   /** Confidence tier selected for the committed canvas representation. */

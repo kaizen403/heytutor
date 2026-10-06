@@ -128,11 +128,12 @@ export async function canonicalizeTurnSceneMetadata(
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
+    const rejection = validatedProblemIRRejection(metadata.sceneArtifacts,question);
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
-    const baseArtifacts = retryRequired || degradation || codeLesson || continuation
+    const baseArtifacts = retryRequired || degradation || codeLesson || continuation || rejection
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -149,6 +150,7 @@ export async function canonicalizeTurnSceneMetadata(
         sceneArtifacts: baseArtifacts
           ? {
               ...baseArtifacts,
+              ...(rejection ? {problemIRRejection:rejection} : {}),
               ...(codeLesson ? { codeLesson } : {}),
               ...(continuation ? { boardContinuation: continuation } : {}),
             }
@@ -876,4 +878,17 @@ function failure(error: string): { ok: false; error: string } {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Retain refusal evidence only; it cannot authorize any saved diagram. */
+function validatedProblemIRRejection(artifacts:unknown,question:string):SceneArtifactsV3["problemIRRejection"]|undefined {
+ if(!isRecord(artifacts)||!isRecord(artifacts.problemIRRejection))return undefined;
+ const row=artifacts.problemIRRejection;
+ if(row.status!=="source_declined"||row.question!==question||typeof row.rawContent!=="string"||row.rawContent.length>200000
+  ||!Array.isArray(row.issueCodes)||!row.issueCodes.length||!row.issueCodes.every(code=>typeof code==="string"&&code.length<=128)
+  ||typeof row.elapsedMs!=="number"||!Number.isFinite(row.elapsedMs)||row.elapsedMs<0)return undefined;
+ try{
+  const raw=JSON.stringify(row.rawProblemIR);if(!raw||raw.length>200000)return undefined;
+  return {status:"source_declined",question,rawProblemIR:JSON.parse(raw),rawContent:row.rawContent,issueCodes:[...row.issueCodes],elapsedMs:row.elapsedMs};
+ }catch{return undefined;}
 }

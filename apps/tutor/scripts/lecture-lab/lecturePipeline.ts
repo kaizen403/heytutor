@@ -25,19 +25,21 @@ import {
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
   normalizeTutorQuestion,
-  planAndSolveProblemV1,
+  planProblemAuthorityV1,
   planSceneDocumentWithRepair,
   planTurnV3,
   questionRequiresVisual,
   revalidateScenePlanWithRepairResult,
   streamLLMResponse,
   type ProblemAuthorityV1Response,
+  type ProblemAuthorityV1Decline,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
 import {
   ARCHETYPES,
+  applySourceQuantityAuthority,
   buildSolverAuthorityProjection,
   compileSceneDocument,
   detectArchetype,
@@ -356,18 +358,22 @@ export async function runLecture(
     // authority, started from the selected plan. The bench has no visual-need
     // service, so the planner's own visual requirement stands.
     let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
+        let sourceDecline:ProblemAuthorityV1Decline|null=null;
+        const retainAuthorityOutcome=(outcome:Awaited<ReturnType<typeof planProblemAuthorityV1>>):ProblemAuthorityV1Response|null=>{
+          if(outcome && "status" in outcome){sourceDecline=outcome;return null;}return outcome;
+        };
     if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
       const remainingAuthorityMs = Math.max(
         1_000,
         SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
       );
       const problemIrStartedAt = Date.now();
-      problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
+      problemAuthorityPromise = planProblemAuthorityV1(question, turnPlan, {
         proxyUrl: plannerUrl,
         timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, remainingAuthorityMs),
         fastMode,
         traceId,
-      })
+      }).then(retainAuthorityOutcome)
         .catch(() => null)
         .then((authority) => {
           stages.problemIrMs = Date.now() - problemIrStartedAt;
@@ -550,6 +556,8 @@ export async function runLecture(
       plannerStartedAt,
       deadlineMs: SCENE_PLANNER_DEADLINE_MS,
       deriveGate: deriveSceneGate,
+      applyUnavailableAuthority: plan => sourceDecline
+        ? applySourceQuantityAuthority(plan,sourceDecline.rawProblemIR,question).plan : plan,
       applyAuthority: (planToReconcile, authority) => {
         const reconciledPlan = reconcileTurnPlanWithSolver(
           planToReconcile,

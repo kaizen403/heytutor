@@ -8,7 +8,7 @@ import {readCircleSourceProgram,checkCircleSourceProblemBinding} from "./circleS
 import {validateSectionFormulaProblemSource,readSectionFormulaSource} from "./sectionFormulaSource";
 import { validateProblemIR } from "./problemIR";
 import { checkStatedCircuitProblemBinding } from "./statedCircuitProblemBinding";
-import { readStatedCircuitProblemSource } from "./statedCircuitAuthority";
+import { claimsStatedResistorCircuit } from "./statedCircuitAuthority";
 import { visualObligationIssues } from "../synthesize/visualObligations";
 import { uniformCircularProblemSourceIssues } from "../physics/uniformCircularIdentity";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
@@ -27,14 +27,14 @@ export function validateSceneSourceAuthority(document: SceneDocument, question: 
     path: "sourceAuthority.question",
   }];
   const issues = [
-    ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem}),
-    ...(rawPlan==null?[]:finiteBinomialPlanIssues(question,rawProblem,rawPlan)),
+    ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem, turnPlan:rawPlan}),
+    ...finiteBinomialPlanIssues(question,rawProblem,rawPlan),
     ...validateOpticalConjugateSource(document, question, rawProblem),
     ...validatePointLineProgramSource(document, question, rawProblem),
     ...validateSectionFormulaProblemSource(document,question,rawProblem),
     ...(circleReading.status==="ok" ? checkCircleSourceProblemBinding(question,rawProblem,document):[]),
     ...validateStaticContactTriangleSource(document, question, rawProblem),
-    ...(readStatedCircuitProblemSource(question) ? checkStatedCircuitProblemBinding(question, rawProblem, document) : []),
+    ...(claimsStatedResistorCircuit(question) ? checkStatedCircuitProblemBinding(question, rawProblem, document) : []),
   ];
   if (rawProblem == null) return issues;
   const checked = validateProblemIR(rawProblem, question);

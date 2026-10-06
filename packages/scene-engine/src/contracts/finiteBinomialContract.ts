@@ -25,5 +25,5 @@ export function finiteBinomialDocumentIssues(raw: unknown, authority?: FiniteBin
   if (!claimed && readFiniteBinomialProgram(authority.question).status !== "ok") return [];
   // The source proof compares all fields before inspecting quantities; malformed
   // and normalized-away payloads must fail as well as mathematically wrong ones.
-  return [...validateFiniteBinomialSourceDocument(raw as SceneDocument, authority.question, authority.problemIR),...(authority.turnPlan==null?[]:finiteBinomialPlanIssues(authority.question,authority.problemIR,authority.turnPlan))];
+  return [...validateFiniteBinomialSourceDocument(raw as SceneDocument, authority.question, authority.problemIR),...finiteBinomialPlanIssues(authority.question,authority.problemIR,authority.turnPlan)];
 }

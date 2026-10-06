@@ -209,6 +209,14 @@ function circuitSourceForm(question: string): { question: string; identicalCount
   return { question: `A ${leaves.slice(0, -1).join(", ")} and a ${leaves.at(-1)} are connected in ${repeated[2]} across a ${voltage} ${repeated[3]}. ${repeated[4]}`, identicalCount: count };
 }
 
+/** Source recognition demands a whole program; it never grants proof.
+ * Keep a declined numeric resistor/source question out of generic sketches. */
+export function claimsStatedResistorCircuit(question:string):boolean {
+ const literals=readCircuitLiterals(question);
+ return literals.some(row=>row.dimension==="resistance") && literals.some(row=>row.dimension==="voltage")
+  && /\bresistors?\b/i.test(question) && /\b(?:battery|cell)\b/i.test(question);
+}
+
 export function readStatedCircuitProblemSource(question: string): StatedCircuitProblemSource | null {
   if (question.length > 8000) return null;
   const form = circuitSourceForm(question);
