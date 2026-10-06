@@ -440,9 +440,12 @@ export function useQuestionHandler(
       // The home board becomes real here: this question writes its row and
       // takes over the URL. Kicked off now, awaited before the board epoch, so
       // the thinking overlay is not waiting on a round trip.
-      const boardCommitted = commitDraftBoard
+      // A network failure here must not escape as an unhandled rejection: the
+      // billing call just below fails on the same network and tells the student.
+      const boardCommitted = (commitDraftBoard
         ? commitDraftBoard()
-        : Promise.resolve(false);
+        : Promise.resolve(false)
+      ).catch(() => false);
 
       const boardIdForName = sessionId;
       if (boardIdForName) {
