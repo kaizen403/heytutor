@@ -19,6 +19,7 @@ import { generatorFor } from "../archetypes/generators";
 import { numbersWithUnit, UNIT, STEM_NUMBER, parseStemNumber } from "../archetypes/slots";
 import { parseResistorTree, type ResistorTree } from "../archetypes/resistorTree";
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
+import { readCircuitSourceSemantics, type CircuitSourceSemantics } from "./statedCircuitSemantics";
 import type { SceneDocument } from "../types";
 
 type Rational = { n: bigint; d: bigint };
@@ -171,7 +172,7 @@ export function solveStatedResistorCircuit(question: string): StatedCircuitSolut
  * uncommitted candidate: full IR binding, obligations and compilation remain
  * mandatory before it may render. No submitted graph or scalar is accepted.
  */
-export function readStatedCircuitProblemSource(question: string): { document: SceneDocument; solution: StatedCircuitSolution; match: ArchetypeMatch } | null {
+export function readStatedCircuitProblemSource(question: string): { document: SceneDocument; solution: StatedCircuitSolution; match: ArchetypeMatch; semantics: CircuitSourceSemantics } | null {
   const match = detectArchetype(question, { turnPlan: null });
   if (match?.id !== "resistor_network") return null;
   const generate = generatorFor(match.id);
@@ -180,7 +181,8 @@ export function readStatedCircuitProblemSource(question: string): { document: Sc
     const document = generate({ question, slots: match.slots, sources: match.sources, quantities: [], schematic: false });
     if (!document) return null;
     const solution = solveCircuitGraph(question, document, match);
-    return solution ? { document, solution, match } : null;
+    const semantics = solution && readCircuitSourceSemantics(question, solution, readCircuitLiterals);
+    return solution && semantics ? { document, solution, match, semantics } : null;
   } catch {
     return null;
   }
@@ -362,28 +364,105 @@ export function statedCircuitBoundValue(solution: StatedCircuitSolution, dimensi
 }
 const boundValue = statedCircuitBoundValue;
 
-/** Dependency identities, not a matching scalar or claimed provenance, bind a subtree. */
-function intermediateValue(solution: StatedCircuitSolution, quantity: TurnPlanQuantityV3, givens: TurnPlanQuantityV3[], derived: TurnPlanQuantityV3[]): CircuitValue | undefined {
-  if (dimensionOf(quantity.unit)?.[0] !== "resistance" || !quantity.dependsOn?.length) return undefined;
+/** Physical identity travels with a value, never inferred from scalar equality. */
+export interface CircuitQuantityBinding {
+  dimension: Dimension;
+  owner: string;
+  value: CircuitValue;
+  memberIds: string[];
+  kind?: "series" | "parallel";
+}
+const groupOwner = (solution: StatedCircuitSolution, members: string[]): string => members.length === solution.resistors.length
+  ? "network" : `group:${[...members].sort().join(",")}`;
+const sameOwner = (a: CircuitQuantityBinding, b: CircuitQuantityBinding): boolean => a.dimension === b.dimension && a.owner === b.owner;
+function bindingForValue(solution: StatedCircuitSolution, dimension: Dimension, value: CircuitValue): CircuitQuantityBinding | undefined {
+  const members = solution.resistors.map(row => row.id);
+  // Distinct CircuitValue objects retain distinct physical roles even if equal.
+  if (dimension === "resistance" && value === solution.equivalentResistance) return { dimension, owner: "network", memberIds: members, value };
+  if ((dimension === "voltage" && value === solution.sourceVoltage) || (dimension === "current" && value === solution.sourceCurrent) || (dimension === "power" && value === solution.power)) return { dimension, owner: "battery", memberIds: members, value };
+  if (dimension === "current" && value === solution.ammeter) return { dimension, owner: "ammeter", memberIds: members, value };
+  if (dimension === "voltage" && value === solution.voltmeter) return { dimension, owner: "voltmeter", memberIds: members, value };
+  for (const part of solution.resistors) {
+    if (value === (dimension === "resistance" ? part.resistance : dimension === "voltage" ? part.voltage : dimension === "current" ? part.current : part.power)) return { dimension, owner: part.id, memberIds: [part.id], value };
+  }
+  return undefined;
+}
+export function statedCircuitSymbolBinding(solution: StatedCircuitSolution, dimension: Dimension, symbol: string): CircuitQuantityBinding | undefined {
+  const value = boundValue(solution, dimension, symbol);
+  return value && bindingForValue(solution, dimension, value);
+}
+
+/** Reuse the recursive dependency tree once, carrying its group kind/members. */
+function intermediateBinding(solution: StatedCircuitSolution, quantity: TurnPlanQuantityV3, givens: TurnPlanQuantityV3[], derived: TurnPlanQuantityV3[]): CircuitQuantityBinding | undefined {
   let budget = 512;
-  const leaves = (id: string, visiting: Set<string>): string[] | null => {
-    if (--budget < 0 || visiting.has(id)) return null;
-    const given = givens.find((row) => row.id === id);
-    const part = given && /^R_?(\d)$/.exec(given.symbol);
-    const resistor = part ? solution.resistors[Number(part[1]) - 1] : undefined;
-    const unit = given && dimensionOf(given.unit);
-    if (given) return resistor && unit?.[0] === "resistance" && close(resistor.resistance.value, given.value * unit[1]) ? [resistor.id] : null;
-    const subtotal = derived.find((row) => row.id === id);
-    if (!subtotal?.dependsOn?.length || dimensionOf(subtotal.unit)?.[0] !== "resistance") return null;
-    const children = subtotal.dependsOn.map((dependency) => leaves(dependency, new Set([...visiting, id])));
-    return children.some((child) => child === null) ? null : children.flatMap((child) => child!);
+  const resolve = (row: TurnPlanQuantityV3, visiting: Set<string>): CircuitQuantityBinding | undefined => {
+    if (--budget < 0 || visiting.has(row.id) || dimensionOf(row.unit)?.[0] !== "resistance") return undefined;
+    const symbol = statedCircuitSymbolBinding(solution, "resistance", row.symbol);
+    if (givens.includes(row)) return symbol && close(symbol.value.value, row.value * dimensionOf(row.unit)![1]) ? symbol : undefined;
+    if (!row.dependsOn?.length) return undefined;
+    const parts = row.dependsOn.map(id => {
+      const candidates = [...givens, ...derived].filter(other => other.id === id);
+      return candidates.length === 1 ? resolve(candidates[0]!, new Set([...visiting, row.id])) : undefined;
+    });
+    if (parts.some(part => !part)) return undefined;
+    const members = parts.flatMap(part => part!.memberIds);
+    if (new Set(members).size !== members.length) return undefined;
+    const groups = solution.groups.filter(group => group.resistorIds.length === members.length && group.resistorIds.every(id => members.includes(id)));
+    if (groups.length !== 1) return undefined;
+    const group = groups[0]!;
+    const result: CircuitQuantityBinding = { dimension: "resistance", owner: groupOwner(solution, members), memberIds: [...group.resistorIds], kind: group.kind, value: group.resistance };
+    if (symbol && !sameOwner(symbol, result)) return undefined;
+    if (/series|parallel/i.test(row.symbol) && group.kind !== (/series/i.test(row.symbol) ? "series" : "parallel")) return undefined;
+    return result;
   };
-  const parts = quantity.dependsOn.map((id) => leaves(id, new Set([quantity.id])));
-  if (parts.some((part) => part === null)) return undefined;
-  const ids = parts.flatMap((part) => part!);
-  if (new Set(ids).size !== ids.length) return undefined;
-  const candidates = solution.groups.filter((group) => group.resistorIds.length === ids.length && group.resistorIds.every((id) => ids.includes(id)));
-  return candidates.length === 1 ? candidates[0]!.resistance : undefined;
+  return resolve(quantity, new Set());
+}
+
+/** Strict policy supports explicit R composition, V/R, I*R and V*I only.
+ * Other dependency semantics withdraw honestly rather than treating existence
+ * or a matching result as a calculation proof. Values are recomputed separately.
+ */
+function strictDependencyBinding(solution: StatedCircuitSolution, quantity: TurnPlanQuantityV3, givens: TurnPlanQuantityV3[], derived: TurnPlanQuantityV3[], answers: Map<string, CircuitQuantityBinding>): CircuitQuantityBinding | undefined {
+  let budget = 512;
+  const resolve = (row: TurnPlanQuantityV3, visiting: Set<string>): CircuitQuantityBinding | undefined => {
+    if (--budget < 0 || visiting.has(row.id)) return undefined;
+    const dimension = dimensionOf(row.unit)?.[0];
+    if (!dimension) return undefined;
+    const symbol = statedCircuitSymbolBinding(solution, dimension, row.symbol)
+      ?? (givens.includes(row) && dimension === "voltage" && row.symbol === "V" && solution.sourceVoltage ? bindingForValue(solution, "voltage", solution.sourceVoltage) : undefined);
+    const asked = answers.get(row.id);
+    if (symbol && asked && !sameOwner(symbol, asked)) return undefined;
+    if (givens.includes(row)) return symbol;
+    if (dimension === "resistance") {
+      const intermediate = intermediateBinding(solution, row, givens, derived);
+      return intermediate && (!asked || sameOwner(intermediate, asked)) ? intermediate : undefined;
+    }
+    const target = symbol ?? asked;
+    if (!target || row.dependsOn?.length !== 2 || new Set(row.dependsOn).size !== 2) return undefined;
+    const parts = row.dependsOn.map(id => {
+      const candidates = [...givens, ...derived].filter(other => other.id === id);
+      return candidates.length === 1 ? resolve(candidates[0]!, new Set([...visiting, row.id])) : undefined;
+    });
+    if (parts.some(part => !part)) return undefined;
+    const part = (kind: Dimension) => parts.find(item => item!.dimension === kind);
+    const resistance = part("resistance"), voltage = part("voltage"), current = part("current");
+    const single = solution.resistors.length === 1;
+    const networkResistance = resistance && (resistance.owner === "network" || (single && resistance.owner === "R1"));
+    if (dimension === "current" && voltage && resistance) {
+      if (target.owner === "battery" && voltage.owner === "battery" && networkResistance) return target;
+      if (target.owner === "ammeter" && single && voltage.owner === "battery" && networkResistance) return target;
+      const acrossSource = single || solution.groups.some(group => group.kind === "parallel" && group.resistorIds.length === solution.resistors.length && !solution.groups.some(child => child.resistorIds.length < group.resistorIds.length && child.resistorIds.includes(target.owner)));
+      if (resistance.owner === target.owner && (voltage.owner === target.owner || (voltage.owner === "battery" && acrossSource))) return target;
+    }
+    if (dimension === "voltage" && current && resistance) {
+      if (target.owner === "battery" && current.owner === "battery" && networkResistance) return target;
+      if (target.owner === "voltmeter" && single && current.owner === "battery" && networkResistance) return target;
+      if (resistance.owner === target.owner && (current.owner === target.owner || (current.owner === "battery" && (single || solution.topology === "series")))) return target;
+    }
+    if (dimension === "power" && voltage && current && voltage.owner === target.owner && current.owner === target.owner) return target;
+    return undefined;
+  };
+  return resolve(quantity, new Set());
 }
 
 /**
@@ -465,7 +544,8 @@ function fmt(value: number): string {
  * preserves the legacy unbound-value policy for existing callers.
  */
 export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, options: { requireBoundClaims?: boolean } = {}): CircuitAuthorityResult | null {
-  const solution = options.requireBoundClaims ? readStatedCircuitProblemSource(question)?.solution : solveStatedResistorCircuit(question);
+  const source = options.requireBoundClaims ? readStatedCircuitProblemSource(question) : null;
+  const solution = options.requireBoundClaims ? source?.solution : solveStatedResistorCircuit(question);
   if (!solution) return null;
   const issues: CircuitAuthorityIssue[] = [];
   const quantityIds = [...plan.givens, ...plan.derived].map((row) => row.id);
@@ -489,8 +569,11 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
     const allowed = stated.get(dimension[0]) ?? [];
     const owner = boundValue(solution, dimension[0], quantity.symbol)
       ?? (dimension[0] === "voltage" && quantity.symbol === "V" ? solution.sourceVoltage : undefined);
+    const identity = owner && bindingForValue(solution, dimension[0], owner);
+    const sourceRole = identity && ((dimension[0] === "resistance" && solution.resistors.some(row => row.id === identity.owner)) ||
+      (dimension[0] === "voltage" && identity.owner === "battery"));
     if (allowed.some((value) => close(value, quantity.value * dimension[1])) &&
-      (!options.requireBoundClaims || (owner && Math.abs(owner.value - quantity.value * dimension[1]) <= 1e-12 * Math.abs(owner.value)))) return true;
+      (!options.requireBoundClaims || (sourceRole && Math.abs(owner!.value - quantity.value * dimension[1]) <= 1e-12 * Math.abs(owner!.value)))) return true;
     issues.push({ code: "circuit_given_conflict", quantityId: quantity.id, message: `given ${quantity.symbol}=${quantity.value} ${quantity.unit} is not a value the stem states` });
     return false;
   });
@@ -498,12 +581,18 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
   // it binds to the asked quantity even under a bare symbol, so a value that
   // equals some other quantity of the class (a branch current for the battery
   // current) is corrected rather than kept.
-  const asked = askedQuantities(question, solution);
+  const asked = options.requireBoundClaims ? new Map<Dimension, CircuitValue>(source!.semantics.asks.map(ask => [ask.unit === "A" ? "current" : "resistance", ask.value])) : askedQuantities(question, solution);
   const answerOf = new Map<string, CircuitValue>();
   for (const [dimension, value] of asked) {
     const answers = plan.unknowns.filter((unknown) => dimensionOf(unknown.unit)?.[0] === dimension
       || (unknown.unit === undefined && plan.derived.some((quantity) => quantity.id === unknown.id && dimensionOf(quantity.unit)?.[0] === dimension)));
     if (answers.length === 1) answerOf.set(answers[0]!.id, value);
+  }
+  const answerBindings = new Map<string, CircuitQuantityBinding>();
+  for (const [id, value] of answerOf) {
+    const dimension = [...asked].find(([, askedValue]) => askedValue === value)![0];
+    const binding = bindingForValue(solution, dimension, value);
+    if (binding) answerBindings.set(id, binding);
   }
   const derived: TurnPlanQuantityV3[] = [];
   for (const quantity of plan.derived) {
@@ -519,23 +608,17 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
     }
     // A symbol bound without doubt to a drawn quantity is corrected to it; an
     // unbound one stands only if it equals a recomputed value of its class.
-    const intermediate = intermediateValue(solution, quantity, givens, plan.derived);
-    const target = boundValue(solution, dimension[0], quantity.symbol) ?? answerOf.get(quantity.id) ?? intermediate;
-    if (options.requireBoundClaims && dimension[0] === "resistance" && quantity.dependsOn?.length &&
-      (!intermediate || !target || Math.abs(intermediate.value - target.value) > 1e-12 * Math.abs(target.value))) {
-      issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: `${quantity.symbol} dependencies do not bind its source resistance` });
+    const intermediate = options.requireBoundClaims ? undefined : intermediateBinding(solution, quantity, givens, plan.derived);
+    const strict = options.requireBoundClaims ? strictDependencyBinding(solution, quantity, givens, plan.derived, answerBindings) : undefined;
+    // Requested IDs and their declared unknown symbol must agree with the
+    // source request and dependency role, independently of the numeric result.
+    const unknown = plan.unknowns.find(row => row.id === quantity.id);
+    const unknownBinding = unknown && statedCircuitSymbolBinding(solution, dimension[0], unknown.symbol);
+    if (options.requireBoundClaims && (!strict || (unknownBinding && !sameOwner(unknownBinding, strict)))) {
+      issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: `${quantity.symbol} request/symbol/dependencies do not bind one source role` });
       continue;
     }
-    // A named series/parallel subtotal must have the source's actual kind,
-    // not merely the same resistance as some other source subtree.
-    if (intermediate && /series|parallel/i.test(quantity.symbol)) {
-      const kind = /series/i.test(quantity.symbol) ? "series" : "parallel";
-      const ids = quantity.dependsOn!.map((id) => givens.find((given) => given.id === id)?.symbol.replace(/^R_?/, "R"));
-      if (!solution.groups.some((group) => group.kind === kind && group.resistorIds.length === ids.length && group.resistorIds.every((id) => ids.includes(id)))) {
-        issues.push({ code: "circuit_value_withdrawn", quantityId: quantity.id, message: `${quantity.symbol} names the wrong source subtree kind` });
-        continue;
-      }
-    }
+    const target = options.requireBoundClaims ? strict!.value : boundValue(solution, dimension[0], quantity.symbol) ?? answerOf.get(quantity.id) ?? intermediate?.value;
     if (!target) {
       // Unbound but of a class the circuit recomputes: it stands only if it is
       // one of the recomputed values; otherwise it is a number the drawn
@@ -562,7 +645,7 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3, 
       const unit = dimensionOf(quantity.unit);
       const owner = boundValue(solution, dimension, quantity.symbol) ?? answerOf.get(quantity.id);
       return unit?.[0] === dimension && close(value.value, quantity.value * unit[1]) &&
-        (!options.requireBoundClaims || owner === value);
+        (!options.requireBoundClaims || (owner && bindingForValue(solution, dimension, owner)?.owner === bindingForValue(solution, dimension, value)?.owner));
     });
   const additions: Array<[string, string, CircuitValue | undefined, Dimension, string]> = [
     ["circuit_I", "I_total", solution.sourceCurrent, "current", "A"],

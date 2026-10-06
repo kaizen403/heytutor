@@ -5,13 +5,14 @@
  * bind. Scene candidates are regenerated and compared without trusting markers.
  */
 import { STEM_NUMBER } from "../archetypes/slots";
-import { parseResistorTree, type ResistorTree } from "../archetypes/resistorTree";
+import { type ResistorTree } from "../archetypes/resistorTree";
 import { evaluateMathExpression } from "../math/expression";
-import { expressionToSafeSource, validateProblemIR, type ProblemIR, type ProblemFact, type ExpressionNodeIR } from "./problemIR";
+import { expressionToSafeSource, validateProblemIR, type ProblemIR, type ExpressionNodeIR } from "./problemIR";
 import {
-  readCircuitLiterals, readCircuitUnit, readStatedCircuitProblemSource, statedCircuitBoundValue,
+  readCircuitLiterals, readCircuitUnit, readStatedCircuitProblemSource, statedCircuitSymbolBinding,
   type CircuitValue, type StatedCircuitSolution,
 } from "./statedCircuitAuthority";
+import { bindCircuitFact, readCircuitAsks } from "./statedCircuitSemantics";
 import type { SceneDocument, SceneIssue } from "../types";
 
 type Role = "resistor" | "battery" | "ammeter" | "voltmeter";
@@ -29,7 +30,6 @@ export interface CircuitProblemBinding {
 
 const normalized = (text: string): string => text.trim().replace(/\s+/g, " ");
 const equal = (a: number, b: number): boolean => a === b || Math.abs(a - b) <= 1e-10 * Math.max(Math.abs(a), Math.abs(b));
-const signature = (literal: Literal): string => `${literal.dimension}:${literal.si}`;
 const roles = (text: string): Role[] => {
   const found = new Set<Role>();
   for (const match of text.matchAll(/\b(resistors?|cells?|batter(?:y|ies)|ammeters?|voltmeters?)\b/gi)) {
@@ -41,9 +41,6 @@ const roles = (text: string): Role[] => {
 // Outside the source graph's component vocabulary. This bounds a circuit
 // grammar; it does not select a chapter or a picture.
 const extraComponent = /\b(capacitors?|inductors?|diodes?|transistors?|switch(?:es)?|motors?|bulbs?|galvanometers?|rheostats?)\b/i;
-const arrangement = (text: string): "series" | "parallel" | undefined =>
-  /\b(?:connected|joined|placed|arranged) in (series|parallel)\b/i.exec(text)?.[1]?.toLowerCase() as "series" | "parallel" | undefined;
-
 type CircuitFormula = string | { operator: "+" | "*" | "/"; parts: CircuitFormula[] };
 function formulaKey(formula: CircuitFormula): string {
   if (typeof formula === "string") return formula;
@@ -72,18 +69,6 @@ function expressionFormula(root: ExpressionNodeIR, resistances: Literal[], volta
   if (root.kind !== "binary" || !["+", "*", "/"].includes(root.operator)) return null;
   const left = expressionFormula(root.left, resistances, voltage), right = expressionFormula(root.right, resistances, voltage);
   return left && right ? { operator: root.operator as "+" | "*" | "/", parts: [left, right] } : null;
-}
-
-function requested(text: string, solution: StatedCircuitSolution): { unit: string; value: CircuitValue } | null {
-  if (/\b(?:equivalent|total|effective) resistance\b/i.test(text)) return { unit: "ohm", value: solution.equivalentResistance };
-  if (/\btotal current\b|\bcurrent (?:drawn|supplied|delivered|from)\b/i.test(text) ||
-    (solution.topology === "series" && /\bcurrent in the circuit\b/i.test(text)) ||
-    (solution.resistors.length === 1 && /\bcurrent\b/i.test(text))) {
-    return solution.sourceCurrent ? { unit: "A", value: solution.sourceCurrent } : null;
-  }
-  if (/\bammeter\b/i.test(text) && /\breading\b/i.test(text)) return solution.ammeter ? { unit: "A", value: solution.ammeter } : null;
-  if (/\bvoltmeter\b/i.test(text) && /\breading\b/i.test(text)) return solution.voltmeter ? { unit: "V", value: solution.voltmeter } : null;
-  return null;
 }
 
 /** Null is an honest decline: callers must retain all generic/full-IR gates. */
@@ -117,10 +102,7 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
   const resistances = literals.filter((literal) => literal.dimension === "resistance");
   if (resistances.length !== solution.resistors.length || resistances.some((literal, index) => !equal(literal.si, solution.resistors[index]!.resistance.value))) return null;
   if (literals.some((literal) => !["resistance", "voltage"].includes(literal.dimension))) return null;
-  const tree: ResistorTree | null = solution.topology === "tree" ? parseResistorTree(String(source.match.slots.tree))
-    : solution.resistors.length === 1 ? { kind: "leaf", index: 0 }
-      : { kind: solution.topology === "parallel" ? "parallel" : "series", children: solution.resistors.map((_, index) => ({ kind: "leaf", index })) };
-  if (!tree) return null;
+  const tree = source.semantics.tree;
   const resistanceFormula = treeFormula(tree);
 
   const result: CircuitProblemBinding = { problem, document, solution, entityBindings: [], expressionBindings: [], factBindings: [], requestBindings: [] };
@@ -174,21 +156,17 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
   if (physical.some((part) => !used.has(part.id))) return null;
 
   for (const fact of problem.facts) {
-    const bound = bindFact(fact, question, solution, literals);
+    const bound = bindCircuitFact(fact, source.semantics, solution, readCircuitLiterals);
     if (!bound) return null;
     result.factBindings.push({ factId: fact.id, ownerIds: bound });
     if (fact.kind === "requested") {
-      const target = requested(fact.evidence.quote, solution)!;
-      result.requestBindings.push({ factId: fact.id, ...target });
+      for (const target of readCircuitAsks(fact.evidence.quote, solution)!) result.requestBindings.push({ factId: fact.id, ...target });
     }
   }
-  // Account for the whole request clause, even when the IR omits an ask.
-  const requestClause = /\b(?:find|calculate|compute|determine)\s+(.+)$/i.exec(question)?.[1];
-  if (!requestClause) return null;
-  for (const clause of requestClause.replace(/[.?!]+$/, "").split(/\s+and\s+/i)) {
-    if (!/^(?:the\s+)?(?:(?:equivalent|effective|total) resistance|(?:total )?current(?: (?:through the resistor|in the circuit|drawn from the (?:cell|battery)|from the (?:cell|battery)))?)$/i.test(clause.trim())) return null;
-    const ask = requested(clause, solution);
-    if (!ask || !result.requestBindings.some((binding) => binding.unit === ask.unit && equal(binding.value.value, ask.value.value))) return null;
+  // Every typed source ask must be present in the full IR; identity is not
+  // inferred from coincident scalar answers.
+  for (const ask of source.semantics.asks) {
+    if (!result.requestBindings.some(binding => binding.unit === ask.unit && binding.value === ask.value)) return null;
   }
 
   // Carry genuine physical quantities on their owners, including source voltage.
@@ -223,11 +201,12 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
     if (request.kind !== "evaluate" || !request.resultBinding) return null;
     const binding = request.resultBinding;
     const unit = readCircuitUnit(binding.unit);
-    const target = unit && statedCircuitBoundValue(solution, unit[0], binding.symbol);
+    const target = unit && statedCircuitSymbolBinding(solution, unit[0], binding.symbol);
     const requestFacts = binding.evidenceFactIds.map((id) => facts.get(id)!).filter((fact) => fact.kind === "requested");
     if (!unit || !target || requestFacts.length !== 1) return null;
-    const asked = requested(requestFacts[0]!.evidence.quote, solution);
-    if (!asked || readCircuitUnit(asked.unit)?.[0] !== unit[0] || !equal(asked.value.value, target.value)) return null;
+    const asks = readCircuitAsks(requestFacts[0]!.evidence.quote, solution);
+    const asked = asks?.length === 1 ? asks[0] : undefined;
+    if (!asked || readCircuitUnit(asked.unit)?.[0] !== unit[0] || asked.owner !== target.owner) return null;
     const expression = problem.expressions.find((row) => row.id === request.expressionId)!;
     const formula = expressionFormula(expression.root, resistances, voltages[0]!);
     const expectedFormula: CircuitFormula | null = unit[0] === "resistance" ? resistanceFormula
@@ -235,7 +214,7 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
     if (!formula || !expectedFormula || formulaKey(formula) !== formulaKey(expectedFormula)) return null;
     let value: number;
     try { value = evaluateMathExpression(expressionToSafeSource(expression.root), 0); } catch { return null; }
-    if (!equal(value * unit[1], target.value)) return null;
+    if (!equal(value * unit[1], target.value.value)) return null;
     // Every literal leaf must come from the request's physical source evidence.
     const allowed = readCircuitLiterals(quotes(expression.evidenceFactIds)).map((literal) => literal.value);
     const visit = (node: typeof expression.root): boolean => node.kind === "number" ? allowed.some((number) => equal(number, node.value))
@@ -243,7 +222,7 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
     if (!visit(expression.root)) return null;
     const id = `circuit_expression_${expression.id}`;
     document.quantities.push({ id, symbol: binding.symbol, value, unit: binding.unit });
-    result.expressionBindings.push({ expressionId: expression.id, sceneQuantityId: id, ownerId: "battery", unit: binding.unit!, value });
+    result.expressionBindings.push({ expressionId: expression.id, sceneQuantityId: id, ownerId: target.owner, unit: binding.unit!, value });
   }
   // Unsupported constraints decline rather than disappearing behind a circuit exemption.
   for (const constraint of problem.constraints) {
@@ -256,53 +235,6 @@ export function bindStatedCircuitProblem(question: string, rawProblem: unknown):
     if (!document.revealGroups.some((group) => group.entityIds.includes(bound.sceneEntityId))) document.revealGroups[0]!.entityIds.push(bound.sceneEntityId);
   }
   return result;
-}
-
-function bindFact(fact: ProblemFact, question: string, solution: StatedCircuitSolution, sourceLiterals: Literal[]): string[] | null {
-  const quote = fact.evidence.quote;
-  const statement = fact.statement;
-  if (extraComponent.test(statement)) return null;
-  const quotedLiterals = readCircuitLiterals(quote);
-  const statementLiterals = readCircuitLiterals(statement);
-  if (statementLiterals.some((literal) => !sourceLiterals.some((source) => signature(source) === signature(literal)))) return null;
-  if (quotedLiterals.length && fact.kind !== "requested" && statementLiterals.length &&
-    statementLiterals.some((literal) => !quotedLiterals.some((source) => signature(source) === signature(literal)))) return null;
-  const statedArrangement = arrangement(statement);
-  if (statedArrangement && statedArrangement !== arrangement(quote)) return null;
-  if (fact.kind === "requested") {
-    const sourceAsk = requested(quote, solution);
-    const claimAsk = requested(statement, solution);
-    return sourceAsk && claimAsk && sourceAsk.unit === claimAsk.unit && equal(sourceAsk.value.value, claimAsk.value.value) ? ["battery"] : null;
-  }
-  const quoteRoles = roles(quote);
-  if (quotedLiterals.length && roles(statement).some((role) => !quoteRoles.includes(role))) return null;
-  if (roles(statement).some((role) => !roles(question).includes(role))) return null;
-  if (fact.kind === "assumption") {
-    if (/\bammeter\b/i.test(statement)) return quoteRoles.includes("ammeter") && /^(?:the )?ammeter is ideal with zero (?:internal )?resistance\.?$/i.test(statement) ? ["ammeter"] : null;
-    if (/\bvoltmeter\b/i.test(statement)) return quoteRoles.includes("voltmeter") && /^(?:the )?voltmeter is ideal with infinite (?:internal )?resistance\.?$/i.test(statement) ? ["voltmeter"] : null;
-    if (/\bcell\b|\bbattery\b/i.test(statement)) return quoteRoles.includes("battery") && /^(?:the )?(?:cell|battery) (?:has|is ideal with) negligible internal resistance\.?$/i.test(statement) ? ["battery"] : null;
-    if (/^(?:the )?resistors? obey Ohm['’]s law\.?$/i.test(statement)) return quoteRoles.includes("resistor") ? solution.resistors.map((part) => part.id) : null;
-    return null;
-  }
-  if (statedArrangement) {
-    const groups = solution.groups.filter((group) => group.kind === statedArrangement);
-    if (groups.length !== 1) return null;
-    const group = groups[0]!;
-    if (statementLiterals.filter((literal) => literal.dimension === "resistance").some((literal) =>
-      !group.resistorIds.some((id) => equal(solution.resistors.find((part) => part.id === id)!.resistance.value, literal.si)))) return null;
-    return [...group.resistorIds];
-  }
-  if (/\bammeter\b/i.test(statement)) return quoteRoles.includes("ammeter") && /\bin series\b/i.test(quote) && /\bin series\b/i.test(statement) ? ["ammeter"] : null;
-  if (/\bvoltmeter\b/i.test(statement)) return quoteRoles.includes("voltmeter") && /\bacross\b/i.test(quote) && /\bacross\b/i.test(statement) ? ["voltmeter"] : null;
-  if (quotedLiterals.length === 1 && statementLiterals.length >= 1) {
-    const literal = quotedLiterals[0]!;
-    if (literal.dimension === "voltage" && quoteRoles.includes("battery")) return ["battery"];
-    if (literal.dimension === "resistance" && quoteRoles.includes("resistor")) {
-      const parts = solution.resistors.filter((part) => equal(part.resistance.value, literal.si));
-      return parts.length === 1 ? [parts[0]!.id] : null;
-    }
-  }
-  return null;
 }
 
 /**
