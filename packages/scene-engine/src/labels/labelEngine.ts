@@ -131,6 +131,151 @@ const DEFAULTS = {
   maxLabelChars: 16,
 };
 
+export type TextInkBoundsMeasure = NonNullable<LabelEngineOptions["measureTextInkBounds"]>;
+
+export interface TextInkBoundsCacheStats {
+  calls: number;
+  hits: number;
+  evictions: number;
+  size: number;
+  capacity: number;
+}
+
+export interface TextInkBoundsCache {
+  /** Same signature and same answers as the measure it wraps. */
+  measure: TextInkBoundsMeasure;
+  stats(): TextInkBoundsCacheStats;
+  /** Drop every entry and zero the counters. */
+  clear(): void;
+}
+
+/**
+ * At least the newest half (16k boxes) is always held. One compile measures
+ * a median 3.4k distinct boxes and 9k at the 95th percentile of the scene
+ * corpus, so recompiling the same document, which the live turn does after
+ * the planner's own compile, is answered from memory. About 4 MB when full.
+ */
+export const TEXT_INK_CACHE_CAPACITY = 1 << 15;
+
+/**
+ * Exact-argument memo for a pure ink measure.
+ *
+ * Label search asks for the ink of every candidate box, and the live turn
+ * compiles the same document more than once, so the same (text, x, y, size)
+ * comes back. The key is the exact arguments: no rounding, no translation of
+ * a cached run, and `-0` kept apart from `0`, so a hit returns precisely what
+ * the measure would, and every answer is a fresh object, so a caller that
+ * edits its bounds cannot change what the next caller reads.
+ *
+ * Two generations of `capacity / 2` entries each hold at most `capacity`
+ * boxes: when the newer one fills it becomes the older one and the oldest is
+ * dropped whole, and a hit in the older one is copied forward. Nothing is
+ * ever deleted from a Map one key at a time: a per-key LRU did that on every
+ * hit and every miss, and cost more than its hits saved. Boxes live in typed arrays (doubles are
+ * stored exactly), about 130 bytes an entry.
+ */
+export function createTextInkBoundsCache(
+  measure: TextInkBoundsMeasure,
+  capacity = TEXT_INK_CACHE_CAPACITY,
+): TextInkBoundsCache {
+  const generationSize = Math.max(1, Math.floor(capacity / 2));
+  let newer: InkGeneration | null = null;
+  let older: InkGeneration | null = null;
+  let calls = 0;
+  let hits = 0;
+  let evictions = 0;
+  // Keys copied forward from the older generation sit in both until the
+  // older one is dropped; they are one entry, not two.
+  let promoted = 0;
+  const store = (key: string, bounds: LabelBounds | null): void => {
+    if (capacity < 2) return;
+    newer ??= createInkGeneration(generationSize);
+    if (newer.slots.size >= generationSize) {
+      const recycled: InkGeneration = older ?? createInkGeneration(generationSize);
+      evictions += (older?.slots.size ?? 0) - promoted;
+      promoted = 0;
+      recycled.slots.clear();
+      older = newer;
+      newer = recycled;
+    }
+    writeInkSlot(newer, key, bounds);
+  };
+  return {
+    measure(text, x, y, fontHeightPx) {
+      calls += 1;
+      const key = `${exactNumberKey(x)}\u0000${exactNumberKey(y)}\u0000${exactNumberKey(fontHeightPx)}\u0000${text}`;
+      const recent = newer?.slots.get(key);
+      if (recent !== undefined) {
+        hits += 1;
+        return readInkSlot(newer!, recent);
+      }
+      const aged = older?.slots.get(key);
+      if (aged !== undefined) {
+        hits += 1;
+        const bounds = readInkSlot(older!, aged);
+        store(key, bounds);
+        // Unless filling the newer generation just dropped the older one.
+        if (older?.slots.has(key)) promoted += 1;
+        return bounds ? { ...bounds } : null;
+      }
+      const bounds = measure(text, x, y, fontHeightPx);
+      const copy = bounds ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } : null;
+      store(key, copy);
+      return copy ? { ...copy } : null;
+    },
+    stats: () => ({
+      calls,
+      hits,
+      evictions,
+      size: (newer?.slots.size ?? 0) + (older?.slots.size ?? 0) - promoted,
+      capacity,
+    }),
+    clear() {
+      newer?.slots.clear();
+      older?.slots.clear();
+      promoted = 0;
+      calls = 0;
+      hits = 0;
+      evictions = 0;
+    },
+  };
+}
+
+interface InkGeneration {
+  /** Key to slot; a slot is never reused until the whole generation is. */
+  slots: Map<string, number>;
+  boxes: Float64Array;
+  measured: Uint8Array;
+}
+
+function createInkGeneration(size: number): InkGeneration {
+  return { slots: new Map(), boxes: new Float64Array(size * 4), measured: new Uint8Array(size) };
+}
+
+function writeInkSlot(generation: InkGeneration, key: string, bounds: LabelBounds | null): void {
+  const slot = generation.slots.size;
+  generation.slots.set(key, slot);
+  generation.measured[slot] = bounds ? 1 : 0;
+  if (!bounds) return;
+  const base = slot * 4;
+  generation.boxes[base] = bounds.x;
+  generation.boxes[base + 1] = bounds.y;
+  generation.boxes[base + 2] = bounds.width;
+  generation.boxes[base + 3] = bounds.height;
+}
+
+function readInkSlot(generation: InkGeneration, slot: number): LabelBounds | null {
+  if (generation.measured[slot] === 0) return null;
+  const base = slot * 4;
+  const { boxes } = generation;
+  return { x: boxes[base]!, y: boxes[base + 1]!, width: boxes[base + 2]!, height: boxes[base + 3]! };
+}
+
+/** `String` is exact for every double except that it prints `-0` as `0`. */
+function exactNumberKey(value: number): string {
+  return Object.is(value, -0) ? "-0" : String(value);
+}
+
 export const POINT_LABEL_TETHER_PX = 56;
 const INCIDENT_ALIGN = Math.cos((25 * Math.PI) / 180);
 

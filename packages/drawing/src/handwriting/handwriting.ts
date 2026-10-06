@@ -1090,6 +1090,14 @@ function syntheticMathChar(
   };
 }
 
+/**
+ * A stroke laid out for measuring only: the path is left unprinted and its
+ * unrounded coordinates ride along instead. Never handed to a renderer.
+ */
+interface LaidOutStroke extends StrokePath {
+  coordinates?: number[];
+}
+
 export interface StrokePath {
   pathData: string;
   startX: number;
@@ -1116,31 +1124,55 @@ function polylineToSVGPath(
   offsetX: number,
   offsetY: number,
 ): string {
-  if (points.length === 0) return "";
+  return printPolylinePath(polylinePathCoordinates(points, scaleX, scaleY, offsetX, offsetY));
+}
+
+/**
+ * Every coordinate pair `polylineToSVGPath` prints, in print order and before
+ * rounding: the M point, then for a longer run a Q control and its midpoint per
+ * interior point, then the L point.
+ */
+function polylinePathCoordinates(
+  points: [number, number, number][],
+  scaleX: number,
+  scaleY: number,
+  offsetX: number,
+  offsetY: number,
+): number[] {
+  const coordinates: number[] = [];
+  if (points.length === 0) return coordinates;
 
   const mapped = points.map(([px, py]) => ({
     x: offsetX + px * scaleX,
     y: offsetY + py * scaleY,
   }));
   const first = mapped[0]!;
-  if (mapped.length === 1) {
-    return `M ${first.x.toFixed(2)} ${first.y.toFixed(2)}`;
-  }
-  if (mapped.length === 2) {
-    const last = mapped[1]!;
-    return `M ${first.x.toFixed(2)} ${first.y.toFixed(2)} L ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
-  }
-
+  coordinates.push(first.x, first.y);
+  if (mapped.length === 1) return coordinates;
   // Midpoint quadratics — a chain of L segments reads as a faceted plot,
   // not a pen stroke. The same smoother the idle doodle already uses.
-  let data = `M ${first.x.toFixed(2)} ${first.y.toFixed(2)}`;
   for (let index = 1; index < mapped.length - 1; index++) {
     const current = mapped[index]!;
     const next = mapped[index + 1]!;
-    data += ` Q ${current.x.toFixed(2)} ${current.y.toFixed(2)} ${((current.x + next.x) / 2).toFixed(2)} ${((current.y + next.y) / 2).toFixed(2)}`;
+    coordinates.push(current.x, current.y, (current.x + next.x) / 2, (current.y + next.y) / 2);
   }
   const last = mapped[mapped.length - 1]!;
-  return `${data} L ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+  coordinates.push(last.x, last.y);
+  return coordinates;
+}
+
+/** `M` for one point, `M L` for two, `M (Q)* L` for a longer run. */
+function printPolylinePath(coordinates: number[]): string {
+  if (coordinates.length === 0) return "";
+  const pair = (index: number): string =>
+    `${coordinates[index]!.toFixed(2)} ${coordinates[index + 1]!.toFixed(2)}`;
+  if (coordinates.length === 2) return `M ${pair(0)}`;
+  if (coordinates.length === 4) return `M ${pair(0)} L ${pair(2)}`;
+  let data = `M ${pair(0)}`;
+  for (let index = 2; index < coordinates.length - 2; index += 4) {
+    data += ` Q ${pair(index)} ${pair(index + 2)}`;
+  }
+  return `${data} L ${pair(coordinates.length - 2)}`;
 }
 
 /**
@@ -1357,19 +1389,7 @@ function applyHandVariation(
 ): CharacterPath {
   if (path.strokes.length === 0) return path;
 
-  const glyphSize = path.fontSize ?? fontSize;
-  const angle = style.slantDeg * (Math.PI / 180);
-  const hand: HandTransform = {
-    cos: Math.cos(angle),
-    sin: Math.sin(angle),
-    scale: style.size,
-    centreX: path.x + path.width / 2,
-    // Roughly the middle of the x-height: rolling about the letter's own body
-    // keeps a tall glyph from swinging its ascender out of the word.
-    centreY: path.y + ASCENDER * (glyphSize / UNITS_PER_EM) - glyphSize * 0.25,
-    dx: handSigned(seed + 211) * glyphSize * OFFSET_X_GLYPH,
-    dy: handSigned(seed + 307) * glyphSize * OFFSET_Y_GLYPH + driftY,
-  };
+  const hand = handTransformFor(path, seed, fontSize, driftY, style);
   const widthScale = style.weight;
 
   return {
@@ -1381,10 +1401,36 @@ function applyHandVariation(
         pathData: transformPathData(stroke.pathData, hand),
         startX: start.x,
         startY: start.y,
-        width: Math.max(stroke.width * widthScale, NIB_MIN_PX),
+        width: handStrokeWidth(stroke.width, widthScale),
       };
     }),
   };
+}
+
+function handTransformFor(
+  path: CharacterPath,
+  seed: number,
+  fontSize: number,
+  driftY: number,
+  style: HandStyle,
+): HandTransform {
+  const glyphSize = path.fontSize ?? fontSize;
+  const angle = style.slantDeg * (Math.PI / 180);
+  return {
+    cos: Math.cos(angle),
+    sin: Math.sin(angle),
+    scale: style.size,
+    centreX: path.x + path.width / 2,
+    // Roughly the middle of the x-height: rolling about the letter's own body
+    // keeps a tall glyph from swinging its ascender out of the word.
+    centreY: path.y + ASCENDER * (glyphSize / UNITS_PER_EM) - glyphSize * 0.25,
+    dx: handSigned(seed + 211) * glyphSize * OFFSET_X_GLYPH,
+    dy: handSigned(seed + 307) * glyphSize * OFFSET_Y_GLYPH + driftY,
+  };
+}
+
+function handStrokeWidth(width: number, widthScale: number): number {
+  return Math.max(width * widthScale, NIB_MIN_PX);
 }
 
 /** Fraction of normal font size used for superscript / subscript characters. */
@@ -1412,6 +1458,7 @@ function renderChar(
   topY: number,
   fontScale: number,
   fontSize: number,
+  print = true,
 ): { path: CharacterPath; advance: number } {
   if (SYNTHETIC_GREEK_CHARS.has(char)) {
     const synthetic = syntheticGreekChar(char, currentX, baselineY, topY, fontScale, fontSize);
@@ -1439,12 +1486,12 @@ function renderChar(
 
   const advanceWidth = glyph.w * fontScale;
 
-  const strokes: StrokePath[] = glyph.s.map((s) => {
+  const strokes: LaidOutStroke[] = glyph.s.map((s) => {
     const points = s.p;
     const pressures = points.map((p) => p[2]);
     const avgPressure = pressures.reduce((a, b) => a + b, 0) / Math.max(pressures.length, 1);
 
-    const pathData = polylineToSVGPath(
+    const coordinates = polylinePathCoordinates(
       points,
       fontScale,
       fontScale,
@@ -1457,13 +1504,14 @@ function renderChar(
     const startY = baselineY + firstPoint[1] * fontScale;
 
     return {
-      pathData,
+      pathData: print ? printPolylinePath(coordinates) : "",
       startX,
       startY,
       width: strokeWidthPx(avgPressure, fontSize),
       delay: s.d,
       duration: s.a,
       priority: s.r ?? 0,
+      ...(print ? {} : { coordinates }),
     };
   });
 
@@ -1556,6 +1604,7 @@ function renderScriptRun(
   topY: number,
   scriptScale: number,
   scriptFontSize: number,
+  print = true,
 ): { paths: CharacterPath[]; width: number } {
   const paths: CharacterPath[] = [];
   let cursorX = startX;
@@ -1577,6 +1626,7 @@ function renderScriptRun(
       topY,
       scriptScale,
       scriptFontSize,
+      print,
     );
     paths.push(path);
     cursorX += pairAdvancePx(
@@ -1654,6 +1704,42 @@ function buildStrokePathsSync(
   y: number,
   fontSize: number,
 ): CharacterPath[] {
+  const { text, paths } = layOutStrokePaths(rawText, x, y, fontSize);
+  // The font laid the row out; the hand writes it. Nothing above this line
+  // knows about the wobble, so layout, measurement and label boxes all stay
+  // exactly where the typography layer put them.
+  const lineSeed = lineSeedFor(text, x, y, fontSize);
+  return paths.map((path, index) => {
+    const hand = handAt(path, index, x, fontSize, lineSeed);
+    return applyHandVariation(path, hand.seed, fontSize, hand.driftY, hand.style);
+  });
+}
+
+/** The per glyph hand inputs, shared by the writer and the ink measurer. */
+function handAt(
+  path: CharacterPath,
+  index: number,
+  x: number,
+  fontSize: number,
+  lineSeed: number,
+): { seed: number; driftY: number; style: HandStyle } {
+  const glyphSeed = lineSeed + index * 977 + (path.char.codePointAt(0) ?? 0) * 13;
+  const emAlongLine = (path.x - x) / Math.max(fontSize, 1);
+  return {
+    seed: glyphSeed,
+    driftY: baselineDrift(path.x, x, fontSize, lineSeed),
+    style: handStyleAt(emAlongLine, lineSeed, glyphSeed),
+  };
+}
+
+/** Typography only: where every glyph's untouched strokes sit, before the hand. */
+function layOutStrokePaths(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  print = true,
+): { text: string; paths: CharacterPath[] } {
   const text = normalizeStrokeText(rawText);
   const scale = fontSize / UNITS_PER_EM;
   const baselineY = y + ASCENDER * scale;
@@ -1697,6 +1783,7 @@ function buildStrokePathsSync(
         superTopY,
         scriptScale,
         scriptFontSize,
+        print,
       );
       results.push(...rendered.paths);
       currentX += rendered.width + fontSize * SCRIPT_KERN_AFTER_RATIO;
@@ -1717,6 +1804,7 @@ function buildStrokePathsSync(
         subTopY,
         scriptScale,
         scriptFontSize,
+        print,
       );
       results.push(...rendered.paths);
       currentX += rendered.width + fontSize * SCRIPT_KERN_AFTER_RATIO;
@@ -1731,7 +1819,7 @@ function buildStrokePathsSync(
     }
 
     // Normal character
-    const { path } = renderChar(char, currentX, baselineY, y, scale, fontSize);
+    const { path } = renderChar(char, currentX, baselineY, y, scale, fontSize, print);
     results.push(path);
     currentX += pairAdvancePx(char, nextPairChar(text, i + 1), scale, fontSize);
     i++;
@@ -1762,6 +1850,7 @@ function buildStrokePathsSync(
             superTopY,
             scriptScale,
             scriptFontSize,
+            print,
           );
           results.push(...rendered.paths);
           limitWidth = Math.max(limitWidth, rendered.width);
@@ -1774,6 +1863,7 @@ function buildStrokePathsSync(
             subTopY,
             scriptScale,
             scriptFontSize,
+            print,
           );
           results.push(...rendered.paths);
           limitWidth = Math.max(limitWidth, rendered.width);
@@ -1783,21 +1873,7 @@ function buildStrokePathsSync(
     }
   }
 
-  // The font laid the row out; the hand writes it. Nothing above this line
-  // knows about the wobble, so layout, measurement and label boxes all stay
-  // exactly where the typography layer put them.
-  const lineSeed = lineSeedFor(text, x, y, fontSize);
-  return results.map((path, index) => {
-    const glyphSeed = lineSeed + index * 977 + (path.char.codePointAt(0) ?? 0) * 13;
-    const emAlongLine = (path.x - x) / Math.max(fontSize, 1);
-    return applyHandVariation(
-      path,
-      glyphSeed,
-      fontSize,
-      baselineDrift(path.x, x, fontSize, lineSeed),
-      handStyleAt(emAlongLine, lineSeed, glyphSeed),
-    );
-  });
+  return { text, paths: results };
 }
 
 export interface TextInkBounds {
@@ -1811,6 +1887,13 @@ export interface TextInkBounds {
  * Reserve the actual handwritten ink, including scripts and hand variation.
  * Coordinates match textToStrokePaths: x/y are the run's top-left position.
  * Curve control points give conservative bounds without guessing an em box.
+ *
+ * Label placement asks this for every candidate box, so it is the hottest call
+ * in a compile. It walks the same layout and the same hand as the writer, but
+ * takes each point as the number the written path would spell (`toFixed(2)`)
+ * instead of printing a path string and parsing it back, twice per point.
+ * Any token the shortcut cannot reproduce exactly sends the whole run down the
+ * writer's own path, so the answer never depends on which route produced it.
  */
 export function measureTextInkBounds(
   rawText: string,
@@ -1818,22 +1901,149 @@ export function measureTextInkBounds(
   y: number,
   fontSize: number,
 ): TextInkBounds | null {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  const include = (px: number, py: number, pad: number) => {
-    minX = Math.min(minX, px - pad);
-    minY = Math.min(minY, py - pad);
-    maxX = Math.max(maxX, px + pad);
-    maxY = Math.max(maxY, py + pad);
-  };
+  const ink = new InkExtent();
+  const { text, paths } = layOutStrokePaths(rawText, x, y, fontSize, false);
+  const lineSeed = lineSeedFor(text, x, y, fontSize);
+  for (let index = 0; index < paths.length; index++) {
+    const character = paths[index]!;
+    if (character.strokes.length === 0) {
+      ink.includeBox(character, fontSize);
+      continue;
+    }
+    const { seed, driftY, style } = handAt(character, index, x, fontSize, lineSeed);
+    const hand = handTransformFor(character, seed, fontSize, driftY, style);
+    for (const stroke of character.strokes) {
+      const pad = handStrokeWidth(stroke.width, style.weight) / 2;
+      if (!includeHandwrittenStroke(stroke, hand, pad, ink)) {
+        return measureWrittenTextInkBounds(rawText, x, y, fontSize);
+      }
+    }
+  }
+  return ink.bounds();
+}
+
+class InkExtent {
+  minX = Number.POSITIVE_INFINITY;
+  minY = Number.POSITIVE_INFINITY;
+  maxX = Number.NEGATIVE_INFINITY;
+  maxY = Number.NEGATIVE_INFINITY;
+
+  include(px: number, py: number, pad: number): void {
+    this.minX = Math.min(this.minX, px - pad);
+    this.minY = Math.min(this.minY, py - pad);
+    this.maxX = Math.max(this.maxX, px + pad);
+    this.maxY = Math.max(this.maxY, py + pad);
+  }
+
+  /**
+   * Unknown glyphs are rendered as text by the board. Keep their full
+   * character box rather than claiming an unmeasured symbol has no ink.
+   */
+  includeBox(character: CharacterPath, fontSize: number): void {
+    this.include(character.x, character.y, 0);
+    this.include(character.x + character.width, character.y + (character.fontSize ?? fontSize), 0);
+  }
+
+  bounds(): TextInkBounds | null {
+    return Number.isFinite(this.minX) && Number.isFinite(this.minY)
+      ? { x: this.minX, y: this.minY, width: this.maxX - this.minX, height: this.maxY - this.minY }
+      : null;
+  }
+}
+
+/**
+ * The points `transformPathData` would print for this stroke, read back as
+ * numbers. Pairing, letter resets and the dropped odd coordinate follow that
+ * function token for token. An unprinted font stroke supplies its coordinates
+ * directly; its printed path is `M`, `Q` and `L` with whole pairs, so the pairs
+ * are the same. A finite number always prints as one token that parses back to
+ * `Number(toFixed(2))`; anything else (a non-finite coordinate, or a point that
+ * overflows) returns false so the caller can measure the printed path instead.
+ */
+function includeHandwrittenStroke(
+  stroke: LaidOutStroke,
+  hand: HandTransform,
+  pad: number,
+  ink: InkExtent,
+): boolean {
+  const coordinates = stroke.coordinates;
+  if (coordinates) {
+    for (let index = 0; index + 1 < coordinates.length; index += 2) {
+      const sourceX = printedHundredths(coordinates[index]!);
+      const sourceY = printedHundredths(coordinates[index + 1]!);
+      if (!Number.isFinite(sourceX) || !Number.isFinite(sourceY)) return false;
+      if (!includeHandPoint(sourceX, sourceY, hand, pad, ink)) return false;
+    }
+    return true;
+  }
+  const tokens = stroke.pathData.match(PATH_TOKEN);
+  if (!tokens) return true;
+  let pendingX: number | null = null;
+  for (const token of tokens) {
+    if (/^[A-Za-z]$/.test(token)) {
+      pendingX = null;
+      continue;
+    }
+    const value = Number(token);
+    if (!Number.isFinite(value)) return false;
+    if (pendingX === null) {
+      pendingX = value;
+      continue;
+    }
+    if (!includeHandPoint(pendingX, value, hand, pad, ink)) return false;
+    pendingX = null;
+  }
+  return true;
+}
+
+function includeHandPoint(x: number, y: number, hand: HandTransform, pad: number, ink: InkExtent): boolean {
+  const point = transformPoint(x, y, hand);
+  const px = printedHundredths(point.x);
+  const py = printedHundredths(point.y);
+  if (!Number.isFinite(px) || !Number.isFinite(py)) return false;
+  ink.include(px, py, pad);
+  return true;
+}
+
+/**
+ * `Number(value.toFixed(2))` without printing. `toFixed` rounds the exact
+ * binary value to the nearest hundredth; away from a half step the scaled
+ * product, which is off by at most half an ulp, rounds to the same integer, and
+ * `n / 100` is the correctly rounded double of the decimal `toFixed` prints.
+ * A product too close to a half step, or too large for the bound, is printed.
+ */
+function printedHundredths(value: number): number {
+  const scaled = value * 100;
+  if (!(Math.abs(scaled) < HUNDREDTHS_EXACT_LIMIT)) return Number(value.toFixed(2));
+  const floor = Math.floor(scaled);
+  const fraction = scaled - floor;
+  if (Math.abs(fraction - 0.5) <= Math.abs(scaled) * HUNDREDTHS_TIE_MARGIN) return Number(value.toFixed(2));
+  const hundredths = fraction > 0.5 ? floor + 1 : floor;
+  // toFixed keeps the sign of a negative value that rounds to zero ("-0.00").
+  if (hundredths === 0) return value < 0 ? -0 : 0;
+  return hundredths / 100;
+}
+
+/** Integers below this are exact, and so is `scaled - floor(scaled)`. */
+const HUNDREDTHS_EXACT_LIMIT = 2 ** 50;
+/** Twice the relative rounding error of `value * 100`. */
+const HUNDREDTHS_TIE_MARGIN = 2 ** -52;
+
+/**
+ * The same ink read off the strokes exactly as the writer prints them: build
+ * every path string, then parse it back. Slower than `measureTextInkBounds`
+ * and always equal to it; it is that function's fallback and its reference.
+ */
+export function measureWrittenTextInkBounds(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+): TextInkBounds | null {
+  const ink = new InkExtent();
   for (const character of buildStrokePathsSync(rawText, x, y, fontSize)) {
     if (character.strokes.length === 0) {
-      // Unknown glyphs are rendered as text by the board. Keep their full
-      // character box rather than claiming an unmeasured symbol has no ink.
-      include(character.x, character.y, 0);
-      include(character.x + character.width, character.y + (character.fontSize ?? fontSize), 0);
+      ink.includeBox(character, fontSize);
       continue;
     }
     for (const stroke of character.strokes) {
@@ -1844,13 +2054,11 @@ export function measureTextInkBounds(
         const value = Number(token);
         if (!Number.isFinite(value)) continue;
         if (pendingX === null) pendingX = value;
-        else { include(pendingX, value, stroke.width / 2); pendingX = null; }
+        else { ink.include(pendingX, value, stroke.width / 2); pendingX = null; }
       }
     }
   }
-  return Number.isFinite(minX) && Number.isFinite(minY)
-    ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
-    : null;
+  return ink.bounds();
 }
 
 /**

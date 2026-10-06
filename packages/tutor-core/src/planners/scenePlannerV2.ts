@@ -55,6 +55,10 @@ export interface ScenePlanWithRepairResult<T> {
   response: ScenePlannerResponse;
   validation: SceneCandidateValidation<T>;
   repaired: boolean;
+  /** Repair batches launched by the search (each is REPAIR_CANDIDATES_PER_ROUND calls). */
+  repairRounds?: number;
+  /** The selected candidate is itself a repair (`repaired` only says a round produced one). */
+  selectedFromRepair?: boolean;
   candidates: ScenePlanCandidateResult<T>[];
 }
 
@@ -248,34 +252,143 @@ function summarizeSceneCandidateForRepair(
 }
 
 /**
- * Plan, validate, and conditionally replace twice within one shared time budget.
+ * Plan, validate, and conditionally replace within one shared time budget.
  * The caller supplies scene-engine validation to keep this package transport-only.
+ *
+ * Repair starts as soon as a candidate is evaluated invalid. It used to wait
+ * for both initial candidates: when neither was valid the slower one (up to
+ * the 30s candidate cap) gated every repair, so a turn whose first candidate
+ * failed at 10s sat idle until the second failed too. Now:
+ *
+ * - A repair round is one batch of REPAIR_CANDIDATES_PER_ROUND parallel
+ *   replacements seeded from a single invalid candidate, and at most
+ *   MAX_SCENE_REPAIR_ROUNDS batches are launched per search, so the repair
+ *   call ceiling (2 x 2) is unchanged. Each batch is seeded from the best
+ *   invalid candidate evaluated so far that has not seeded a batch yet; the
+ *   first batch can therefore start while the other initial candidate is
+ *   still pending.
+ * - The next batch launches when every call of the previous batch has
+ *   settled, or as soon as one of them has settled and a strictly better seed
+ *   than the previous batch's is waiting. A first batch seeded early from the
+ *   worse initial candidate no longer holds the better one back for a whole
+ *   round, and one stalled call cannot starve the second round.
+ * - Every repair call is capped at INITIAL_CANDIDATE_TIMEOUT_MS, like the
+ *   initial candidates, instead of the whole remaining budget (up to ~50s).
+ * - Candidates that have already arrived are evaluated before a seed is
+ *   picked, so two answers that land together are still compared first.
+ * - The first valid candidate anywhere (initial or repair) stops new repair
+ *   batches, opens the 750ms grace window, and every request still pending
+ *   when it closes is aborted.
+ * - Selection is compareValidations over every evaluated candidate.
+ *
+ * `holdValidationUntil` lets a speculative caller fetch initial candidates
+ * without spending anything else on them: they are neither validated nor
+ * repaired until it settles true, and never if it settles false. Validation
+ * compiles every candidate, which costs 1 to 3 s of main thread each, so a
+ * discarded speculative run must not have compiled anything. A held search
+ * with fetched candidates waits for the decision instead of returning.
+ *
+ * Billing admits at most four "ai" calls in flight per user and twelve
+ * planner calls per trace, and refuses the rest. `maxConcurrentRequests`
+ * bounds this search's own requests in flight (a repair batch waits rather
+ * than exceed it), and `requestBudget` is a counter shared by every search in
+ * the turn: each request spends one, and a search that has none left stops
+ * launching (a repair batch shrinks to what is left).
  */
 export async function planSceneDocumentWithRepair<T>(
   question: string,
   validate: SceneCandidateValidator<T>,
-  options: ScenePlannerOptions,
+  options: ScenePlannerOptions & {
+    holdValidationUntil?: Promise<boolean>;
+    maxConcurrentRequests?: number;
+    requestBudget?: { remaining: number };
+  },
 ): Promise<ScenePlanWithRepairResult<T> | null> {
   const startedAt = Date.now();
-  const timeoutMs = options.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
+  const { holdValidationUntil, maxConcurrentRequests, requestBudget, ...plannerOptions } = options;
+  const maxInFlight = maxConcurrentRequests ?? Number.POSITIVE_INFINITY;
+  const budgetLeft = () => requestBudget?.remaining ?? Number.POSITIVE_INFINITY;
+  const timeoutMs = plannerOptions.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
+  const remainingMs = () => timeoutMs - (Date.now() - startedAt);
   const initialStrategies = [
     "Build the smallest sufficient scene. Derive every result, and add only assertions required to prove the question's stated relationships.",
     "Start from the exact quantities and invariants, then synthesize a minimal construction graph whose outputs satisfy them without duplicate geometry.",
     "Construct the proof obligations first, then add only the geometry needed to satisfy them; add compact annotations last.",
     "Use the fewest deterministic operators possible, audit every reference and sign, and omit all optional helpers or decorative ink.",
   ].slice(0, INITIAL_SCENE_CANDIDATES);
-  const evaluatedPlans: Array<{
+  const repairStrategies = [
+    "Apply the smallest coherent correction that resolves every error while preserving valid geometry.",
+    "Rebuild the failing construction subgraph from first principles; reuse valid entities but remove duplicate or weakly justified geometry.",
+  ].slice(0, REPAIR_CANDIDATES_PER_ROUND);
+
+  type Evaluated = {
     response: ScenePlannerResponse;
     validation: SceneCandidateValidation<T>;
-  }> = [];
-  const allEvaluated: Array<{
-    response: ScenePlannerResponse;
-    validation: SceneCandidateValidation<T>;
-  }> = [];
-  const evaluateCandidate = async (
-    candidate: ScenePlannerResponse | null,
-  ): Promise<SceneCandidateValidation<T> | null> => {
-    if (!candidate) return null;
+    seededRepair: boolean;
+  };
+  type Round = { seed: Evaluated; calls: number; settled: number };
+  type Settled = { key: number; candidate: ScenePlannerResponse | null };
+  type InFlight = {
+    kind: "plan" | "repair";
+    round: Round | null;
+    controller: AbortController;
+    promise: Promise<Settled>;
+    settled: Settled | null;
+  };
+  const evaluated: Evaluated[] = [];
+  const inFlight = new Map<number, InFlight>();
+  const rounds: Round[] = [];
+  let nextKey = 0;
+  let firstValidAt: number | null = null;
+  let fallbackPlanLaunched = false;
+  let released = holdValidationUntil === undefined;
+  const releaseMarker: unique symbol = Symbol("validation-released");
+  const releaseDecision = holdValidationUntil?.then(
+    (release): typeof releaseMarker => {
+      released = release;
+      return releaseMarker;
+    },
+    (): typeof releaseMarker => releaseMarker,
+  );
+  let releaseDecided = holdValidationUntil === undefined;
+  /** Fetched while held, in arrival order; validated only once released. */
+  const held: ScenePlannerResponse[] = [];
+  void releaseDecision?.then(() => {
+    releaseDecided = true;
+  });
+
+  const launch = (
+    kind: InFlight["kind"],
+    round: Round | null,
+    request: (signal: AbortSignal) => Promise<ScenePlannerResponse | null>,
+  ) => {
+    const key = nextKey;
+    nextKey += 1;
+    if (requestBudget) requestBudget.remaining -= 1;
+    const controller = new AbortController();
+    const signal = plannerOptions.signal
+      ? mergeAbortSignals(plannerOptions.signal, controller.signal)
+      : controller.signal;
+    const entry: InFlight = {
+      kind,
+      round,
+      controller,
+      settled: null,
+      promise: request(signal).then((candidate) => {
+        entry.settled = { key, candidate };
+        return entry.settled;
+      }),
+    };
+    inFlight.set(key, entry);
+  };
+
+  const collect = (settled: Settled): ScenePlannerResponse | null => {
+    const round = inFlight.get(settled.key)?.round;
+    inFlight.delete(settled.key);
+    if (round) round.settled += 1;
+    return settled.candidate;
+  };
+  const evaluate = async (candidate: ScenePlannerResponse) => {
     const candidateValidation = await validate(candidate.document);
     tutorDebug("planner", "semantic scene candidate validation", {
       phase: candidate.phase,
@@ -283,171 +396,145 @@ export async function planSceneDocumentWithRepair<T>(
       error_codes: candidateValidation.errors.map((error) => error.code),
       fatal_count: candidateValidation.errors.filter((error) => error.severity === "fatal").length,
     });
-    evaluatedPlans.push({
-      response: candidate,
-      validation: candidateValidation,
+    evaluated.push({ response: candidate, validation: candidateValidation, seededRepair: false });
+    if (candidateValidation.valid && firstValidAt === null) firstValidAt = Date.now();
+  };
+
+  // Every initial plan settled without a parseable candidate: one serial plan
+  // with the rest of the budget, exactly as before.
+  const maybeLaunchFallbackPlan = () => {
+    if (fallbackPlanLaunched || evaluated.length > 0 || held.length > 0 || inFlight.size > 0) return;
+    if (plannerOptions.signal?.aborted || budgetLeft() < 1) return;
+    const budgetMs = remainingMs();
+    if (budgetMs <= 0) return;
+    fallbackPlanLaunched = true;
+    launch("plan", null, (signal) => planSceneDocument(question, { ...plannerOptions, signal, timeoutMs: budgetMs }));
+  };
+
+  const nextSeed = () => evaluated
+    .filter((entry) => !entry.validation.valid && entry.validation.errors.length > 0 && !entry.seededRepair)
+    .sort((a, b) => compareValidations(a.validation, b.validation))[0];
+  /** Rounds remain and a seed exists: only the hold or the previous round stand in the way. */
+  const repairPossible = () =>
+    firstValidAt === null && rounds.length < MAX_SCENE_REPAIR_ROUNDS && budgetLeft() >= 1 &&
+    nextSeed() !== undefined;
+
+  const maybeLaunchRepairRound = () => {
+    if (!released || !repairPossible()) return;
+    if (plannerOptions.signal?.aborted) return;
+    const budgetMs = remainingMs();
+    if (budgetMs <= 0) return;
+    const roundStrategies = repairStrategies.slice(0, Math.min(repairStrategies.length, budgetLeft()));
+    if (inFlight.size + roundStrategies.length > maxInFlight) return;
+    const seed = nextSeed()!;
+    const previous = rounds.at(-1);
+    if (previous && previous.settled < previous.calls) {
+      const strictlyBetter = compareValidations(seed.validation, previous.seed.validation) < 0;
+      if (previous.settled === 0 || !strictlyBetter) return;
+    }
+    seed.seededRepair = true;
+    const round: Round = { seed, calls: roundStrategies.length, settled: 0 };
+    rounds.push(round);
+    tutorDebug("planner", "semantic scene repair round", {
+      round: rounds.length,
+      seed_phase: seed.response.phase,
+      pending_initial: [...inFlight.values()].filter((entry) => entry.kind === "plan").length,
+      fatal_count: seed.validation.errors.filter((error) => error.severity === "fatal").length,
     });
-    allEvaluated.push({ response: candidate, validation: candidateValidation });
-    return candidateValidation;
+    const callTimeoutMs = Math.min(budgetMs, INITIAL_CANDIDATE_TIMEOUT_MS);
+    roundStrategies.forEach((strategy, index) => {
+      launch("repair", round, (signal) => repairSceneDocument(
+        question,
+        seed.response.document,
+        seed.validation.errors,
+        { ...plannerOptions, signal, timeoutMs: callTimeoutMs },
+        strategy,
+        index === 0 ? "primary" : "alternate",
+      ));
+    });
   };
 
   const candidateTimeoutMs = Math.min(timeoutMs, INITIAL_CANDIDATE_TIMEOUT_MS);
-  const candidateControllers = initialStrategies.map(() => new AbortController());
-  const pendingCandidates = new Map(initialStrategies.map((strategy, index) => {
-    const controller = candidateControllers[index]!;
-    const signal = options.signal
-      ? mergeAbortSignals(options.signal, controller.signal)
-      : controller.signal;
-    const promise = planSceneDocument(
+  initialStrategies.slice(0, Math.max(0, Math.min(budgetLeft(), maxInFlight))).forEach((strategy, index) => {
+    launch("plan", null, (signal) => planSceneDocument(
       question,
-      { ...options, signal, timeoutMs: candidateTimeoutMs },
+      { ...plannerOptions, signal, timeoutMs: candidateTimeoutMs },
       strategy,
       index === 0 ? "primary" : "alternate",
-    ).then((candidate) => ({ candidate, index }));
-    return [index, promise] as const;
-  }));
+    ));
+  });
 
-  let firstValidAt: number | null = null;
-  while (pendingCandidates.size > 0) {
-    const remainingMs = timeoutMs - (Date.now() - startedAt);
-    const validGraceRemainingMs = firstValidAt === null
-      ? remainingMs
-      : Math.min(
-          remainingMs,
-          VALID_CANDIDATE_GRACE_MS - (Date.now() - firstValidAt),
-        );
-    if (validGraceRemainingMs <= 0 || options.signal?.aborted) break;
+  for (;;) {
+    const hardRemainingMs = remainingMs();
+    const waitMs = firstValidAt === null
+      ? hardRemainingMs
+      : Math.min(hardRemainingMs, VALID_CANDIDATE_GRACE_MS - (Date.now() - firstValidAt));
+    if (waitMs <= 0 || plannerOptions.signal?.aborted) break;
+
+    // Evaluate everything that has already arrived before choosing a seed.
+    const arrived = [...inFlight.values()].flatMap((entry) => entry.settled ? [entry.settled] : []);
+    for (const settled of arrived) {
+      const candidate = collect(settled);
+      if (!candidate) continue;
+      if (released) await evaluate(candidate);
+      else held.push(candidate);
+    }
+    if (released && held.length > 0) {
+      for (const candidate of held.splice(0)) await evaluate(candidate);
+      continue;
+    }
+    if (arrived.length > 0) continue;
+    if (releaseDecided && !released) break;
+
+    maybeLaunchFallbackPlan();
+    maybeLaunchRepairRound();
+    const awaitingRelease = !releaseDecided && held.length > 0;
+    if (inFlight.size === 0 && !awaitingRelease) break;
 
     const timeoutMarker = Symbol("candidate-wait-timeout");
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const settled = await Promise.race([
-      ...pendingCandidates.values(),
+      ...[...inFlight.values()].filter((entry) => !entry.settled).map((entry) => entry.promise),
+      ...(releaseDecision && !releaseDecided ? [releaseDecision] : []),
       new Promise<typeof timeoutMarker>((resolve) => {
-        timeoutId = setTimeout(() => resolve(timeoutMarker), validGraceRemainingMs);
+        timeoutId = setTimeout(() => resolve(timeoutMarker), waitMs);
       }),
     ]);
     if (timeoutId) clearTimeout(timeoutId);
     if (settled === timeoutMarker) break;
-
-    pendingCandidates.delete(settled.index);
-    const candidateValidation = await evaluateCandidate(settled.candidate);
-    if (candidateValidation?.valid && firstValidAt === null) firstValidAt = Date.now();
-  }
-  for (const index of pendingCandidates.keys()) {
-    candidateControllers[index]?.abort();
-  }
-
-  if (evaluatedPlans.length === 0 && !options.signal?.aborted) {
-    const remainingMs = timeoutMs - (Date.now() - startedAt);
-    if (remainingMs > 0) {
-      await evaluateCandidate(await planSceneDocument(
-        question,
-        { ...options, timeoutMs: remainingMs },
-      ));
+    if (settled === releaseMarker) {
+      releaseDecided = true;
+      continue;
     }
+    // The arrived scan at the top collects it, in arrival order.
   }
-  if (evaluatedPlans.length === 0) return null;
-  evaluatedPlans.sort((a, b) => compareValidations(a.validation, b.validation));
+  for (const entry of inFlight.values()) entry.controller.abort();
 
-  let response = evaluatedPlans[0]!.response;
-  let validation = evaluatedPlans[0]!.validation;
-  let repairCount = 0;
+  if (evaluated.length === 0) return null;
+  const ranked = [...evaluated].sort((a, b) => compareValidations(a.validation, b.validation));
+  const selected = ranked[0]!;
+  const { response, validation } = selected;
+  tutorDebug("planner", "semantic scene validation", {
+    phase: response.phase,
+    valid: validation.valid,
+    error_codes: validation.errors.map((error) => error.code),
+    fatal_count: validation.errors.filter((error) => error.severity === "fatal").length,
+    repair_rounds: rounds.length,
+  });
 
-  const logValidation = () => {
-    tutorDebug("planner", "semantic scene validation", {
-      phase: response.phase,
-      valid: validation.valid,
-      error_codes: validation.errors.map((error) => error.code),
-      fatal_count: validation.errors.filter((error) => error.severity === "fatal").length,
-    });
-  };
-  logValidation();
-
-  while (!validation.valid && validation.errors.length > 0 && repairCount < MAX_SCENE_REPAIR_ROUNDS) {
-    const remainingMs = timeoutMs - (Date.now() - startedAt);
-    if (remainingMs <= 0 || options.signal?.aborted) break;
-
-    const strategies = [
-      "Apply the smallest coherent correction that resolves every error while preserving valid geometry.",
-      "Rebuild the failing construction subgraph from first principles; reuse valid entities but remove duplicate or weakly justified geometry.",
-    ].slice(0, REPAIR_CANDIDATES_PER_ROUND);
-    const repairSources = strategies.map(() => ({ response, validation }));
-    const repairControllers = strategies.map(() => new AbortController());
-    const pendingRepairs = new Map(strategies.map((strategy, index) => {
-      const controller = repairControllers[index]!;
-      const signal = options.signal
-        ? mergeAbortSignals(options.signal, controller.signal)
-        : controller.signal;
-      const promise = repairSceneDocument(
-        question,
-        repairSources[index]?.response.document ?? response.document,
-        repairSources[index]?.validation.errors ?? validation.errors,
-        { ...options, signal, timeoutMs: remainingMs },
-        strategy,
-        index === 0 ? "primary" : "alternate",
-      ).then((candidate) => ({ candidate, index }));
-      return [index, promise] as const;
-    }));
-    const evaluated: Array<{
-      response: ScenePlannerResponse;
-      validation: SceneCandidateValidation<T>;
-    }> = [];
-
-    let firstValidRepairAt: number | null = null;
-    while (pendingRepairs.size > 0) {
-      const hardRemainingMs = timeoutMs - (Date.now() - startedAt);
-      const waitMs = firstValidRepairAt === null
-        ? hardRemainingMs
-        : Math.min(
-            hardRemainingMs,
-            VALID_CANDIDATE_GRACE_MS - (Date.now() - firstValidRepairAt),
-          );
-      if (waitMs <= 0 || options.signal?.aborted) break;
-
-      const timeoutMarker = Symbol("repair-wait-timeout");
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      const settled = await Promise.race([
-        ...pendingRepairs.values(),
-        new Promise<typeof timeoutMarker>((resolve) => {
-          timeoutId = setTimeout(() => resolve(timeoutMarker), waitMs);
-        }),
-      ]);
-      if (timeoutId) clearTimeout(timeoutId);
-      if (settled === timeoutMarker) break;
-      pendingRepairs.delete(settled.index);
-      if (!settled.candidate) continue;
-      const candidateValidation = await validate(settled.candidate.document);
-      evaluated.push({
-        response: settled.candidate,
-        validation: candidateValidation,
-      });
-      if (candidateValidation.valid && firstValidRepairAt === null) {
-        firstValidRepairAt = Date.now();
-      }
-    }
-    for (const index of pendingRepairs.keys()) {
-      repairControllers[index]?.abort();
-    }
-    if (evaluated.length === 0) break;
-    allEvaluated.push(...evaluated);
-    evaluated.sort((a, b) => compareValidations(a.validation, b.validation));
-    response = evaluated[0]!.response;
-    validation = evaluated[0]!.validation;
-    repairCount += 1;
-    logValidation();
-  }
-
-  const selectedResponse = response;
   return {
     response,
     validation,
-    repaired: repairCount > 0,
-    candidates: allEvaluated.map((candidate, index) => ({
+    // As before: a repair round ran and produced at least one candidate.
+    repaired: evaluated.some((candidate) => candidate.response.phase === "repair"),
+    selectedFromRepair: response.phase === "repair",
+    repairRounds: rounds.length,
+    candidates: evaluated.map((candidate, index) => ({
       candidateId: `candidate-${index + 1}`,
       response: candidate.response,
       validation: candidate.validation,
       score: validationScore(candidate.validation),
-      selected: candidate.response === selectedResponse,
+      selected: candidate === selected,
     })),
   };
 }
@@ -471,6 +558,8 @@ export async function revalidateScenePlanWithRepairResult<T>(
     response: selected.response,
     validation: selected.validation,
     repaired: result.repaired,
+    selectedFromRepair: selected.response.phase === "repair",
+    repairRounds: result.repairRounds,
     candidates: candidates.map((candidate) => ({
       ...candidate,
       score: validationScore(candidate.validation),

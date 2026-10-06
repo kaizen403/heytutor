@@ -152,6 +152,12 @@ export function verifyTurnPlanAgainstSolver(
       });
     }
   }
+  // A symbolic formulation with no numeric requests has no numeric second
+  // opinion. Still run the stated-equation checks above before preserving
+  // this status; symbolic planner unknowns are not missing scalar answers.
+  if (validatedProblem.solveRequests.length === 0 && issues.length === 0) {
+    return { status: "not_applicable", issues: [], bindings: [] };
+  }
   for (const request of validatedProblem.solveRequests) {
     const binding = request.resultBinding;
     if (!binding) continue;

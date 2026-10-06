@@ -6,7 +6,14 @@ import {
   type TutorVoiceKey,
   type TutorVoicePreferences,
 } from "./voiceLanguage";
-import type { AudioTimings, PrewarmOptions, SpeakSegmentOptions, TTSClient } from "./speechClient";
+import type {
+  AudioTimings,
+  FirstAudioByteInfo,
+  PlaybackStartSignal,
+  PrewarmOptions,
+  SpeakSegmentOptions,
+  TTSClient,
+} from "./speechClient";
 import {
   SpeechSynthesisTTSClient,
   mergeAudioTimingChunk,
@@ -104,6 +111,11 @@ interface SegmentJob {
   decodedAudio: boolean;
   chunkOffsetSec: number;
   startedAt: number;
+  /** performance.now() when this job's first audio bytes arrived; telemetry. */
+  firstAudioByteAt?: number;
+  firstAudioByteReported?: boolean;
+  /** Created by the lookahead, before the runner asked for it. */
+  lookahead?: boolean;
 }
 
 /**
@@ -176,6 +188,8 @@ interface HttpPrefetch {
   error?: unknown;
   /** True until the audio is in hand. Only these count against the cap. */
   generating: boolean;
+  /** Request to first audio bytes; telemetry only. */
+  firstByteMs?: number;
 }
 
 function readAudioBase64(chunk: TimestampChunkPayload): string | undefined {
@@ -441,6 +455,8 @@ export class StreamingSpeechClient implements TTSClient {
   /** HTTP playback origin so getPlaybackPositionMs works without a WS job. */
   private httpPlaybackOriginCtxTime: number | null = null;
   private readonly httpGate = createHttpTtsGate();
+  /** What the latest onStart was based on; read by latency telemetry only. */
+  private lastPlaybackStart: PlaybackStartSignal | null = null;
 
   async prewarm(options: PrewarmOptions = {}): Promise<void> {
     this.halted = false;
@@ -539,6 +555,7 @@ export class StreamingSpeechClient implements TTSClient {
       voiceSettings: options.voiceSettings,
     });
     job.claimed = false;
+    job.lookahead = true;
     this.jobs.push(job);
     void this.pumpJobQueue();
   }
@@ -596,6 +613,7 @@ export class StreamingSpeechClient implements TTSClient {
       job.resolve = resolve;
       job.reject = reject;
       job.timingsEmitted = false;
+      this.reportJobFirstAudioByte(job);
       this.emitAudioReady(job);
       this.emitTimings(job);
       tutorDebug("tts", "ws segment claimed from lookahead", {
@@ -680,6 +698,7 @@ export class StreamingSpeechClient implements TTSClient {
               if (attemptPauseEpoch !== this.pauseEpoch || this.speakGeneration !== generation) return;
               if (!announced) {
                 announced = true;
+                this.notePlaybackStart("speech-synthesis-start", 0);
                 options.onStart?.();
               }
             },
@@ -732,6 +751,8 @@ export class StreamingSpeechClient implements TTSClient {
 
   async speakSegment(text: string, options: SpeakSegmentOptions = {}): Promise<void> {
     this.halted = false;
+    // A start signal belongs to one segment; a fallback must not read the last.
+    this.lastPlaybackStart = null;
     const spokenText = mathToSpeech(text.trim());
     const generation = this.speakGeneration;
     const callbacks = options;
@@ -749,6 +770,7 @@ export class StreamingSpeechClient implements TTSClient {
       onError: (error) => { if (this.speakGeneration === generation) callbacks.onError?.(error); },
       onTimings: (timings) => { if (this.speakGeneration === generation) callbacks.onTimings?.(timings); },
       onAudioCaptured: (audio) => { if (this.speakGeneration === generation) callbacks.onAudioCaptured?.(audio); },
+      onFirstAudioByte: (info) => { if (this.speakGeneration === generation) callbacks.onFirstAudioByte?.(info); },
       onPlaybackBlocked: callbacks.onPlaybackBlocked ? (blocked) => {
         if (this.speakGeneration === generation && (!blocked || (!this.paused && !this.muted && !this.halted))) {
           callbacks.onPlaybackBlocked?.(blocked);
@@ -1559,10 +1581,15 @@ export class StreamingSpeechClient implements TTSClient {
     for (const audioBuffer of playable) {
       this.scheduleBufferSource(ctx, job, audioBuffer);
     }
+    this.notePlaybackStart("audio-context-scheduled", (job.audibleStartCtxTime ?? ctx.currentTime) - ctx.currentTime);
     notifyStart();
   }
 
   private queueAudioIngest(ctx: AudioContext, job: SegmentJob, data: ArrayBuffer | Blob): Promise<void> {
+    if (job.firstAudioByteAt === undefined && !job.settled) {
+      job.firstAudioByteAt = performance.now();
+      this.reportJobFirstAudioByte(job);
+    }
     const preceding = job.pendingAudioIngestPromises.at(-1) ?? Promise.resolve();
     // Register before conversion starts, and retain arrival order even if a
     // later Blob's arrayBuffer promise resolves before an earlier one.
@@ -1836,6 +1863,7 @@ export class StreamingSpeechClient implements TTSClient {
   ): Promise<void> {
     try {
       const ingested = await this.ingestHttpAudio(entry.spokenText, options, entry.controller);
+      entry.firstByteMs = ingested.firstByteMs;
       entry.buffers = ingested.buffers;
       entry.chunks = ingested.chunks;
       entry.timings = ingested.timings;
@@ -1850,6 +1878,9 @@ export class StreamingSpeechClient implements TTSClient {
     generation: number,
   ): Promise<void> {
     if (this.speakGeneration !== generation) return;
+    if (entry.firstByteMs !== undefined) {
+      this.reportFirstAudioByte(options, { transport: "http", sinceRequestMs: entry.firstByteMs, prefetched: true });
+    }
     if (entry.chunks.some((chunk) => chunk.length > 0)) options.onAudioReady?.();
     if (!(await this.waitWhileUnpaused(generation))) return;
     // HTTP has no WS job to reset the media clock. Start each sentence at zero.
@@ -1879,6 +1910,7 @@ export class StreamingSpeechClient implements TTSClient {
         }
         sourceDonePromises.push(this.scheduleDecodedBuffer(ctx, audioBuffer));
       }
+      this.notePlaybackStart("audio-context-scheduled", (this.httpPlaybackOriginCtxTime ?? ctx.currentTime) - ctx.currentTime);
       options.onStart?.();
     }
     if (entry.chunks.length > 0) {
@@ -1962,7 +1994,9 @@ export class StreamingSpeechClient implements TTSClient {
     spokenText: string,
     options: SpeakSegmentOptions,
     controller: AbortController,
-  ): Promise<{ buffers: AudioBuffer[]; chunks: Uint8Array[]; timings: AudioTimings }> {
+  ): Promise<{ buffers: AudioBuffer[]; chunks: Uint8Array[]; timings: AudioTimings; firstByteMs?: number }> {
+    const requestedAt = performance.now();
+    let firstByteMs: number | undefined;
     await this.httpGate.acquire(controller.signal);
     try {
       const response = await this.fetchHttpTtsStream(spokenText, options, controller.signal);
@@ -1991,6 +2025,7 @@ export class StreamingSpeechClient implements TTSClient {
         const payload = parseHttpTimestampPayload(line);
         const audioBase64 = payload ? readAudioBase64(payload) : undefined;
         if (!audioBase64 || !payload) return;
+        firstByteMs ??= Math.round(performance.now() - requestedAt);
         const bytes = base64ToUint8Array(audioBase64);
         chunks.push(bytes);
         chunkOffsetSec = mergeChunkTimings(timings, payload, chunkOffsetSec);
@@ -2012,7 +2047,7 @@ export class StreamingSpeechClient implements TTSClient {
       if (chunks.length === 0) {
         throw new Error("TTS stream returned no audio");
       }
-      return { buffers: [], chunks, timings };
+      return { buffers: [], chunks, timings, firstByteMs };
     } finally {
       this.httpGate.release();
     }
@@ -2036,6 +2071,7 @@ export class StreamingSpeechClient implements TTSClient {
     };
 
     let httpSlotHeld = false;
+    const requestedAt = performance.now();
     try {
       throwIfStopped();
       this.mediaClock = createRateMediaClock(this.playbackRate);
@@ -2102,6 +2138,7 @@ export class StreamingSpeechClient implements TTSClient {
         for (const audioBuffer of playable) {
           sourceDonePromises.push(this.scheduleDecodedBuffer(ctx, audioBuffer));
         }
+        this.notePlaybackStart("audio-context-scheduled", (this.httpPlaybackOriginCtxTime ?? ctx.currentTime) - ctx.currentTime);
         options.onStart?.();
       };
 
@@ -2110,6 +2147,13 @@ export class StreamingSpeechClient implements TTSClient {
         const audioBase64 = payload ? readAudioBase64(payload) : undefined;
         if (!audioBase64 || !payload) return;
         throwIfStopped();
+        if (capturedChunks.length === 0) {
+          this.reportFirstAudioByte(options, {
+            transport: "http",
+            sinceRequestMs: Math.round(performance.now() - requestedAt),
+            prefetched: false,
+          });
+        }
         const bytes = base64ToUint8Array(audioBase64);
         capturedChunks.push(bytes);
         chunkOffsetSec = mergeChunkTimings(timings, payload, chunkOffsetSec);
@@ -2193,6 +2237,7 @@ export class StreamingSpeechClient implements TTSClient {
       this.activeSources.push(source);
       this.playing = true;
       source.start(startAt);
+      this.notePlaybackStart("audio-context-scheduled", startAt - ctx.currentTime);
       options.onStart?.();
       this.totalScheduledMediaSec += audioBuffer.duration;
       this.scheduledEnd = startAt + remainingWallSec(audioBuffer.duration, this.playbackRate);
@@ -2254,6 +2299,7 @@ export class StreamingSpeechClient implements TTSClient {
         if (this.paused) { audio.pause(); return; }
         if (announced) return;
         announced = true;
+        this.notePlaybackStart("html-audio-playing", 0);
         onStart?.();
         playbackBlockedCallback?.(null);
       };
@@ -2357,6 +2403,41 @@ export class StreamingSpeechClient implements TTSClient {
 
   getAudioContextState(): AudioContextState | "interrupted" | null {
     return this.audioContext?.state ?? null;
+  }
+
+  getLastPlaybackStart(): PlaybackStartSignal | null {
+    return this.lastPlaybackStart;
+  }
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
+  private notePlaybackStart(signal: PlaybackStartSignal["signal"], leadSec: number): void {
+    this.lastPlaybackStart = {
+      signal,
+      leadMs: Number.isFinite(leadSec) ? Math.max(0, Math.round(leadSec * 1000)) : 0,
+    };
+  }
+
+  /** Telemetry callback; a throwing listener must never break playback. */
+  private reportFirstAudioByte(options: SpeakSegmentOptions, info: FirstAudioByteInfo): void {
+    try {
+      options.onFirstAudioByte?.(info);
+    } catch {
+      // ignore
+    }
+  }
+
+  /** Reports a WS job's first bytes once it is claimed, now or on arrival. */
+  private reportJobFirstAudioByte(job: SegmentJob): void {
+    if (!job.claimed || job.firstAudioByteReported || job.firstAudioByteAt === undefined) return;
+    job.firstAudioByteReported = true;
+    this.reportFirstAudioByte(job.options, {
+      transport: "ws",
+      sinceRequestMs: Math.round(job.firstAudioByteAt - job.startedAt),
+      prefetched: job.lookahead === true,
+    });
   }
 
   private holdBlockedHtmlAudio(error: unknown, audio: HTMLAudioElement): boolean {

@@ -10,6 +10,7 @@ import {
   type ValidationReport,
 } from "../types";
 import {
+  createTextInkBoundsCache,
   obstaclesFromPrimitives,
   placeLabels,
   stackLabelRows,
@@ -18,6 +19,7 @@ import {
   type LabelEngineOptions,
   type LabelObstacle,
   type LabelOwner,
+  type TextInkBoundsMeasure,
 } from "../labels/labelEngine";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
@@ -177,7 +179,15 @@ type Geometry =
 
 const EPSILON = 1e-6;
 
+/**
+ * Label ink shared by every compile in this process. The live turn compiles
+ * the planner's document again before it commits, and placement measures the
+ * same boxes each time; see `createTextInkBoundsCache` for why a hit is exact.
+ */
+export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
+
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
   const matrixSourceIssues = [
@@ -416,7 +426,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   // Moving one lane also moves its witnesses. Recheck earlier dimensions
   // against that final ink until the bounded lane search is stable.
   for (let pass = 0; pass <= dimensionLanes.size; pass++) {
-    const changed = relocateObstructedDimensions(document, geometry, primitives, transformPlan, dimensionLanes, issues);
+    const changed = relocateObstructedDimensions(document, geometry, primitives, transformPlan, dimensionLanes, issues, measureLabelInk);
     if (!changed || issues.some((issue) => issue.severity === "fatal")) break;
   }
   assertDimensionViewport(primitives, transformPlan, issues);
@@ -723,8 +733,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here
     // rejected labels the document had already accepted.
-    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds }
-    : { measureTextPx: measureTextWidth, measureTextInkBounds };
+    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }
+    : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk };
   const stackedOwners = pinDsaLabels
     ? null
     : stackSummaryLabelOwners(document, placementOwners, summaryLabelIds, primitives, labelObstacles, labelOptions);
@@ -2432,6 +2442,7 @@ function relocateObstructedDimensions(
   transformPlan: EntityTransformPlan,
   dimensionLanes: Map<string, number>,
   issues: SceneIssue[],
+  measureLabelInk: TextInkBoundsMeasure,
 ): boolean {
   let changed = false;
   const fontHeightPx = document.source.synthesizedDsa === true ? DSA_LABEL_FONT_PX : 24;
@@ -2468,7 +2479,7 @@ function relocateObstructedDimensions(
       // Other endpoint witnesses are real ink too. A free bar alone is not
       // enough if its label would straddle another measurement's connection.
       return placeLabels([owner], [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
-        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds }).ok;
+        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }).ok;
     };
     if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);

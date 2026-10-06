@@ -113,6 +113,21 @@ const RELATION_PREDICATES = [
   "incident",
 ] as const;
 
+/**
+ * A standard constant (g, c, h, ...) the planner supplied for a question that
+ * never stated it. It is not a measurement the student gave, so it does not
+ * make a symbolic question numeric. A constant the question does state stays
+ * a given: "take g = 10" is part of the problem, and an overloaded letter such
+ * as a stated R = 8.31 ohm is a resistance, not the gas constant.
+ */
+export function isPlannerQuotedConstant(
+  question: string,
+  given: Pick<TurnPlanV3["givens"][number], "symbol" | "value">,
+): boolean {
+  return isQuotedPhysicalConstant(given.symbol, given.value) &&
+    !questionStatesValue(question, given.value);
+}
+
 export function selectFastVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation | null {
@@ -129,7 +144,7 @@ export function selectFastVerifiedRepresentation(
   if (!result?.validationReport.valid || result.tier === "question_representation" ||
       !result.renderScene.primitives.some((primitive) =>
         (primitive.kind === "label" || primitive.kind === "dimension") && primitive.text?.trim())) return null;
-  if (result.tier !== "exact_verified" && (plan.givens.length > 0 ||
+  if (result.tier !== "exact_verified" && (plan.givens.some((given) => !isPlannerQuotedConstant(input.question, given)) ||
       plan.derived.some((quantity) => !questionStatesValue(input.question, quantity.value)))) return null;
   const agreement = validateSceneQuantityAgreement(result.document.quantities, plan,
     result.renderScene.primitives.flatMap((primitive) =>
