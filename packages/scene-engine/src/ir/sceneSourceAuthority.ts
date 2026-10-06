@@ -1,5 +1,6 @@
 import { relativeMotionCallerIssues } from "../physics/relativeMotionCallerAuthority";
 import {circleCallerIssues} from "./circleCallerAuthority";
+import { pointLineCallerIssues } from "./pointLineCallerAuthority";
 import {finiteBinomialPlanIssues} from "./finiteBinomialPlanAuthority";
 import { finiteProgressionDocumentIssues } from "../contracts/finiteProgressionContract";
 import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
@@ -23,6 +24,8 @@ import type { SceneDocument, SceneIssue } from "../types";
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown, rawPlan?: unknown): SceneIssue[] {
   const relativeIssues = relativeMotionCallerIssues(question, rawProblem, rawPlan, document);
   if (relativeIssues.length) return relativeIssues;
+  const pointLineIssues=pointLineCallerIssues(question,rawProblem,rawPlan);
+  if(pointLineIssues.length)return pointLineIssues;
   if (readMatrixProductSourceProgram(question)) return matrixProductSourceDocumentIssues(document, question, rawProblem, rawPlan);
   const progressionIssues = finiteProgressionDocumentIssues(document, {question, problemIR: rawProblem, turnPlan: rawPlan});
   if (progressionIssues.length) return progressionIssues;

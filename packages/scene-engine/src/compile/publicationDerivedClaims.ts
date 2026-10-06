@@ -1,3 +1,4 @@
+import { parseLinearEquation } from "../ir/pointLineSource";
 import type { SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
 /** A claim can use only a meaning explicitly supplied by evaluated typed metadata. */
@@ -41,6 +42,7 @@ function quantityValue(id: string, document: SceneDocument, seen = new Set<unkno
 export function validatePublicationDerivedClaims(
   construction: SceneConstruction, index: number, document: SceneDocument,
   authorities: readonly PublicationClaimAuthority[], issues: SceneIssue[],
+  lineEquations?: readonly ({a:number;b:number;c:number} | undefined)[],
 ): void {
   construction.outputs.forEach((id, outputIndex) => {
     const authority = new Map(Object.entries(authorities[outputIndex] ?? {}).map(([name, value]) => [key(name), value]));
@@ -49,6 +51,20 @@ export function validatePublicationDerivedClaims(
       if (typeof text !== "string") fail("Derived labels must be text");
       if (/(?:\bNaN\b|\bInfinity\b|∞)/i.test(text)) fail("Derived claims must be finite");
       if (/^[\p{L}][\p{L}\p{N}_'′]*$/u.test(text.trim()) || !/[0-9]/.test(text)) return;
+      // An equation caption carries the evaluated infinite line, not a scalar
+      // named by its left-hand side. Require exact linear syntax and the same
+      // coefficients up to a finite nonzero common scale.
+      const equationAuthority=lineEquations?.[outputIndex];
+      if(equationAuthority && text.includes("=")){
+        const caption=parseLinearEquation(text);
+        if(caption){
+          const keys=["a","b","c"] as const;
+          const pivot=Math.abs(equationAuthority.a)>=Math.abs(equationAuthority.b)?"a":"b";
+          const scale=caption[pivot]/equationAuthority[pivot];
+          if(!Number.isFinite(scale) || scale===0 || keys.some(k=>Math.abs(caption[k]-scale*equationAuthority[k])>128*Number.EPSILON*Math.max(Math.abs(caption[k]),Math.abs(scale*equationAuthority[k]))))fail("Line equation caption contradicts evaluated coefficients");
+          return;
+        }
+      }
       const match = /^\s*([^=≈:]*?)\s*([=≈:])\s*(.*?)\s*$/.exec(text);
       const name = match ? key(match[1]!) : "";
       const expected = authority.get(name);

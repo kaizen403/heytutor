@@ -1280,7 +1280,8 @@ export function validateEvaluatedAnalyticLineLabels(construction: SceneConstruct
     // section_point and point_line_distance retain the existing specialized validator.
     return values;
     });
-    validatePublicationDerivedClaims(construction, index, document, authorities, issues);
+    const equations=outputs.map(output=>isRecord(output) && output.kind==="path" && output.infinite===true && isAnalyticLineRecord(output.analyticLine)?output.analyticLine.coefficients:undefined);
+    validatePublicationDerivedClaims(construction, index, document, authorities, issues, equations);
   } catch (error) {
     issues.push({ code: "invalid_publication_derived_label", severity: "fatal", message: error instanceof Error ? error.message : "Invalid typed label authority", path: `constructions[${index}].outputs` });
   }

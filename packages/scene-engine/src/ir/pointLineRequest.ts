@@ -26,6 +26,11 @@ export function readPointLineRequest(question: unknown, source: PointLineRequest
   for (const span of [...source.spans].sort((a, b) => b.start - a.start)) residue = residue.slice(0, span.start) + (span.kind === "point" ? "@P" : "@L") + residue.slice(span.end);
   const footRequest = String.raw`(?:perpendicular\s+foot|foot\s+of\s+(?:the\s+)?perpendicular)(?:\s+([A-Za-z][A-Za-z]?\d?'?))?`;
   const request = new RegExp(String.raw`^(?:In Cartesian coordinate units,\s*)?(?:Find|Calculate|Determine)\s+(?:the\s+)?(?:(?:perpendicular\s+)?distance(?:\s+and\s+(?:the\s+)?${footRequest})?|${footRequest}(?:\s+and\s+(?:the\s+)?distance)?)\s+(?:of|from)\s+(?:the\s+)?(?:point\s+)?@P\s+(?:from|to)\s+(?:the\s+)?(?:line\s+)?@L[.?!]?$`, "i");
+  // A trailing second ask is the same complete projection request. Keep its
+  // captured identifier, and consume the whole sentence before construction.
+  const trailing = new RegExp(String.raw`^(.*@L),?\s+and\s+(?:the\s+)?(${footRequest})[.?!]?$`, "i").exec(residue.trim());
+  if (trailing) residue = trailing[1]!.replace(/^(Find|Calculate|Determine)\s+(?:the\s+)?((?:perpendicular\s+)?distance)/i,
+    (_all, verb: string, distance: string) => `${verb} ${distance} and ${trailing[2]}`);
   const matched = request.exec(residue.trim());
   if (!matched) return { status: "declined", reason: "the complete requested projection is not consumed by the source grammar" };
   const point = source.points[0]!;

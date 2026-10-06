@@ -1,3 +1,4 @@
+import { pointLineCallerIssues } from "../ir/pointLineCallerAuthority";
 import { readScrewGaugeQuestion } from "../ir/measurementSourceAuthority";
 import {finiteBinomialPlanIssues} from "../ir/finiteBinomialPlanAuthority";
 import { finiteProgressionSourceProgram } from "../ir/finiteProgressionSourceProgram";
@@ -311,9 +312,10 @@ function synthesizeFromFamilies(
   }
   const pointLineReading = readPointLineProgram(question);
   if (pointLineReading.status !== "none") {
+    if(pointLineCallerIssues(question,input.problemIR,input.turnPlan).length)return null;
     const document = pointLineReading.status === "ok"
       ? pointLineSourceDocument(question, isFullProblemIRStructure(input.problemIR) ? input.problemIR : null) : null;
-    const compiled = document ? tryCompile(document) : null;
+    const compiled = document ? tryCompile(document, {sourceAuthority:{question,problemIR:input.problemIR,turnPlan:input.turnPlan}}) : null;
     if (!compiled || demandRejection(compiled.document, demand)
       || (obligations && visualObligationRejection(obligations, compiled.document, isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined))) return null;
     return { ...compiled, tier: "exact_verified", nonMetric: false,

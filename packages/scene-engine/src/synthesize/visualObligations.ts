@@ -40,7 +40,7 @@ import {
 import type { ExpressionNodeIR, ProblemIR } from "../ir/problemIR";
 import { sectionFormulaProblemLineSceneId, sectionFormulaDimensionIsCarried, sectionFormulaRequestedDimensionIsCarried } from "../ir/sectionFormulaSource";
 import { matrixLiteralSourceEntityIsCarried, matrixLiteralSourceDimensionIsCarried } from "../ir/matrixLiteralSource";
-import {pointLineRequestedDimensionIsCarried} from "../ir/pointLineProgram";
+import {pointLineRequestedDimensionIsCarried,pointLineDerivedRelationIsCarried} from "../ir/pointLineProgram";
 import {circleSourceProblemEntitySceneId,circleSourceDimensionIsCarried} from "../ir/circleSourceProgram";
 import { bindStatedCircuitProblem, checkStatedCircuitProblemBinding } from "../ir/statedCircuitProblemBinding";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
@@ -429,6 +429,8 @@ function checkObligation(
           };
     }
     case "spatial_relation": {
+      const projectionProof=problem ? pointLineDerivedRelationIsCarried(document,problem,obligation.problemConstraintId):null;
+      if(projectionProof!==null)return projectionProof?null:{obligationId:obligation.id,kind:obligation.kind,code:"missing_spatial_relation",message:"Derived PF must be the complete source-bound orthogonal projection",problemEntityIds:[...obligation.problemEntityIds]};
       const sceneIds = lookupSceneIds(obligation.problemEntityIds, document, mapping);
       if (!sceneIds) {
         return {

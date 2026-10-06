@@ -10,6 +10,7 @@ export * from "./contracts/contractsV3";
 export * from "./ir/coordinateDistanceSource";
 export * from "./ir/pointLineSource";
 export * from "./ir/pointLineProgram";
+export * from "./ir/pointLineCallerAuthority";
 export * from "./ir/matrixLiteralSource";
 export * from "./ir/matrixProductSourceAuthority";
 export * from "./ir/sectionFormulaSource";

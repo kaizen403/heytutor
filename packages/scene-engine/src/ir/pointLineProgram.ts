@@ -2,8 +2,8 @@
 import { readPointLineRequest } from "./pointLineRequest";
 import { certifiedPointLineProjection } from "../compile/analyticLineGeometry";
 import { readPointLineSourceLiterals, validatePointLineSourceInputs } from "./pointLineSource";
-import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemIR, type SolveResultBinding } from "./problemIR";
-import { parseMathExpression } from "../math/expression";
+import { validateProblemIR, type ProblemIR, type SolveResultBinding } from "./problemIR";
+import { bindPointLineCaller } from "./pointLineCallerAuthority";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
 import {pruneDeadSceneEntities,validateSceneDocument} from "../document/validation";
 import {sameSceneValue} from "../document/valueEquality";
@@ -64,10 +64,8 @@ export function pointLineRequestedDimensionIsCarried(document:SceneDocument,prob
   if (requests.length!==1) return null;
   const binding=requests[0]!.resultBinding!;
   if (!binding.evidenceFactIds.length || !binding.evidenceFactIds.every(id=>problem.facts.some(row=>row.id===id && row.kind==="requested"))) return null;
-  const symbol=binding.symbol.replace(/_/g,"").toLowerCase(),foot=(reading.footName ?? "H").toLowerCase();
-  const expected=[`x${foot}`,`${foot}x`,"xfoot","footx"].includes(symbol)?reading.foot.x
-    : [`y${foot}`,`${foot}y`,"yfoot","footy"].includes(symbol)?reading.foot.y
-    : reading.requests.distance && ["d","distance"].includes(symbol)?reading.distance:null;
+  const caller=bindPointLineCaller(problem.question,problem);
+  const expected=caller?.outputs.find(output=>output.expressionId===expressionId)?.value ?? null;
   if (expected===null) return null;
   return value===expected && pointLineSourceProgramIsBound(document,problem.question,problem);
 }
@@ -142,7 +140,7 @@ export function pointLineSourceDocument(question: string, raw?: ProblemIR | null
   const margin = Math.max(1, span * .25);
   const dId = "projection_distance";
   const distanceQuantity = distanceBinding ? { id: distanceBinding.turnPlanQuantityId, symbol: distanceBinding.symbol,
-    ...(distanceBinding.unit ? { unit: distanceBinding.unit } : {}), value: distance, provenance: "derived",
+    ...(distanceBinding.unit ? { unit: distanceBinding.unit==="length" ? "units" : distanceBinding.unit } : {}), value: distance, provenance: "derived",
     evidenceFactIds: [...distanceBinding.evidenceFactIds], sourceText: question }
     : !raw ? { id: "projection_d", symbol: "d", value: distance, provenance: "derived", sourceText: question } : undefined;
   if (distanceQuantity) {
@@ -185,7 +183,11 @@ export function pointLineSourceDocument(question: string, raw?: ProblemIR | null
     for (const constraint of raw.constraints) {
       if (constraint.kind === "equation" || constraint.kind === "inequality") continue;
       if (!constraint.entityIds.every(id => mapping.has(id))) return null;
-      if (constraint.kind === "incident" && constraint.entityIds.includes(footId) && constraint.entityIds.includes(lineId)) continue;
+      if (constraint.kind === "incident" && constraint.entityIds.length===2 && constraint.entityIds.includes(footId) && constraint.entityIds.includes(lineId)) continue;
+      // bindPointLineCaller already proves this exact derived PF relation;
+      // the visual obligation checks its complete canonical program again.
+      if (constraint.kind === "perpendicular" && constraint.entityIds.length===3
+        && constraint.entityIds[0]===pointId && constraint.entityIds[1]===footId && constraint.entityIds[2]===lineId) continue;
       // No fabricated spatial assertion covers an unsupported relation.
       return null;
     }
@@ -194,39 +196,27 @@ export function pointLineSourceDocument(question: string, raw?: ProblemIR | null
     : validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>)).document;
 }
 
-function hasVariable(node: ExpressionNodeIR): boolean {
-  if (node.kind === "variable") return true;
-  if (node.kind === "binary") return hasVariable(node.left) || hasVariable(node.right);
-  if (node.kind === "unary") return hasVariable(node.operand);
-  if (node.kind === "call") return hasVariable(node.argument);
-  return false;
+/** Full source program audit includes the original unsimplified ASTs. */
+export function pointLineProblemAgreement(problem: ProblemIR, reading = readPointLineProgram(problem.question)): boolean {
+  return reading.status === "ok" && bindPointLineCaller(problem.question,problem)!==null;
 }
 
-/** Source recomputation audits each bound numeric answer, not its request id. */
-export function pointLineProblemAgreement(problem: ProblemIR, reading = readPointLineProgram(problem.question)): boolean {
-  if (reading.status !== "ok") return false;
-  const expressions = new Map(problem.expressions.map(expression => [expression.id, expression]));
-  const facts = new Map(problem.facts.map(fact => [fact.id, fact]));
-  for (const request of problem.solveRequests) {
-    if (request.kind !== "evaluate" || !request.resultBinding) return false;
-    const expression = expressions.get(request.expressionId);
-    const binding = request.resultBinding;
-    const symbol = binding.symbol.replace(/_/g, "").toLowerCase();
-    const requested = binding.evidenceFactIds.map(id => facts.get(id));
-    if (!expression || hasVariable(expression.root) || requested.some(fact => !fact || fact.kind !== "requested")) return false;
-    const asksDistance = requested.some(fact => /\bdistance\b/i.test(fact!.evidence.quote));
-    const asksFoot = requested.some(fact => /\b(?:perpendicular\s+foot|foot\s+of\s+(?:the\s+)?perpendicular)\b/i.test(fact!.evidence.quote));
-    const foot = (reading.footName ?? "H").toLowerCase();
-    const expected = asksDistance && ["d", "distance"].includes(symbol) ? reading.distance
-      : asksFoot && [`x${foot}`, `${foot}x`, "xfoot", "footx"].includes(symbol) ? reading.foot.x
-        : asksFoot && [`y${foot}`, `${foot}y`, "yfoot", "footy"].includes(symbol) ? reading.foot.y : null;
-    if (expected === null || binding.unit && !["1", "unit", "units"].includes(binding.unit)) return false;
-    try {
-      const result = parseMathExpression(expressionToSafeSource(expression.root)).evaluate(0);
-      if (Math.abs(result - expected) > 64 * Number.EPSILON * Math.max(1, Math.abs(expected))) return false;
-    } catch { return false; }
-  }
-  return true;
+/** A three-entity IR perpendicular constraint describes derived PF, not three
+ * independent lines. Audit exact typed operands and evidence, reconstruct the
+ * complete document, then prove the displacement is along the line normal.
+ * At incidence the zero displacement is orthogonal without inventing an angle. */
+export function pointLineDerivedRelationIsCarried(document:SceneDocument,problem:ProblemIR,constraintId:string):boolean|null {
+  if(readPointLineProgram(problem.question).status!=="ok")return null;
+  const constraint=problem.constraints.find(row=>row.id===constraintId);
+  if(constraint?.kind!=="perpendicular" || constraint.entityIds.length!==3)return null;
+  const caller=bindPointLineCaller(problem.question,problem);
+  if(!caller || !caller.footId || !pointLineSourceProgramIsBound(document,problem.question,problem))return false;
+  const {point,line,foot,distance}=caller.reading;
+  const dx=foot.x-point.x,dy=foot.y-point.y;
+  const tolerance=64*Number.EPSILON*Math.max(1,Math.abs(dx*line.b),Math.abs(dy*line.a));
+  return constraint.entityIds[0]===caller.pointId && constraint.entityIds[1]===caller.footId && constraint.entityIds[2]===caller.lineId
+    && Math.abs(dx*line.b-dy*line.a)<=tolerance
+    && (distance!==0 || dx===0 && dy===0);
 }
 
 function pointLineDimension(id: string, name: string, reading: Extract<PointLineProgramReading, { status: "ok" }>): { symbol: string; value: number } | null {

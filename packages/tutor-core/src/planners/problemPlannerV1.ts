@@ -1,6 +1,7 @@
 import {
   LocalDeterministicSolverProvider,
   readCircleSourceProgram,circlePlanSourceIssues,circleCallerIssues,
+  readPointLineProgram, pointLineCallerIssues,
   readFiniteBinomialProgram,solveFiniteBinomialProblem,
   readFiniteProgressionSource,readScrewGaugeQuestion,verifyMeasurementSourceAuthority,measurementPlanSourceIssueCodes,
   readUniformCircularRuntimeContract,uniformCircularCallerIssues,uniformCircularRuntimePlanConflicts,
@@ -72,6 +73,7 @@ export type ProblemAuthorityV1Outcome = ProblemAuthorityV1Response | ProblemAuth
  * textual or graph obligation. This grants no authority on unsupported lanes. */
 export function sourceProblemAdmissionIssueCodes(question:string,problem:unknown,plan:unknown):string[]{
   if(readCircleSourceProgram(question).status!=="none")return circleCallerIssues(question,problem,plan).map(issue=>issue.code);
+  if(readPointLineProgram(question).status!=="none")return pointLineCallerIssues(question,problem,plan).map(issue=>issue.code);
   const circular=readUniformCircularRuntimeContract(question);
   if(circular) return uniformCircularCallerIssues(question,problem,plan).map(issue=>issue.code);
   if(readScrewGaugeQuestion(question).status!=="none"){
@@ -186,7 +188,7 @@ export async function planProblemAuthorityV1(
     const polynomial=readFiniteBinomialProgram(question);
     const matrixProducts=readMatrixProductSourceProgram(question);
     const matrixInput=matrixProducts?liftCompactProblemIR(parsed,question):null;
-    const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null || readCircleSourceProgram(question).status!=="none";
+    const wholeScalarSource=readFiniteProgressionSource(question).status==="ok" || readScrewGaugeQuestion(question).status!=="none" || readUniformCircularRuntimeContract(question)!=null || readCircleSourceProgram(question).status!=="none" || readPointLineProgram(question).status!=="none";
     const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
       rawProblemIR:parsed,...(turnPlan?{rawTurnPlan:turnPlan}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
@@ -197,6 +199,10 @@ export async function planProblemAuthorityV1(
     const polynomialResult=polynomial.status==="ok"?solveFiniteBinomialProblem(question,sourceInput):null;
     if(polynomial.status==="ok" && !polynomialResult)return decline("finite_polynomial_full_input_declined");
     const normalized = matrixProducts ? matrixInput : polynomial.status==="ok"?sourceInput:wholeScalarSource?liftCompactProblemIR(parsed,question):normalizeProblemIRModelOutput(parsed, question, turnPlan);
+    if(readPointLineProgram(question).status!=="none"){
+      const codes=pointLineCallerIssues(question,normalized,turnPlan);
+      if(codes.length)return decline(codes.map(issue=>issue.code).join(";"));
+    }
     const problemValidation = validateProblemIR(normalized, question);
     if(polynomial.status==="ok" && turnPlan && problemValidation.problem?.solveRequests.some(request=>{
       const binding=request.resultBinding;if(!binding)return false;
