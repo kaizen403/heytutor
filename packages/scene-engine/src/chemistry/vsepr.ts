@@ -18,6 +18,15 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type BondStyle, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import {
+  buildDipoleScene,
+  buildFajanScene,
+  dipoleAccount,
+  dipoleIsTheAsk,
+  fajanAsked,
+  shapeIsTheAsk,
+  type DipoleInput,
+} from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
 import { isMonovalent, valenceElectrons, type ElementRecord } from "./elements";
 
@@ -117,6 +126,7 @@ const SHAPES: Record<string, [VseprShape, string]> = {
   "6-0": ["octahedral", "octahedral"],
   "6-1": ["square pyramidal", "sq. pyramidal"],
   "6-2": ["square planar", "sq. planar"],
+  "6-3": ["T-shaped", "T-shaped"],
   "7-0": ["pentagonal bipyramidal", "pent. bipyr."],
   "7-1": ["distorted octahedral", "dist. octahedral"],
   "7-2": ["pentagonal planar", "pent. planar"],
@@ -315,6 +325,7 @@ export function vseprGeometry(formulaText: string): VseprResult | null {
     case "6-0": bondAngle = identical ? "90°" : null; drawnAngle = 90; break;
     case "6-1": bondAngle = identical && allMonovalent && !cation ? "<90°" : null; drawnAngle = 90; break;
     case "6-2": bondAngle = identical ? "90°" : null; drawnAngle = 90; break;
+    case "6-3": bondAngle = identical && allMonovalent && !cation ? "<90°" : null; drawnAngle = 90; break;
     default: bondAngle = null; drawnAngle = 0;
   }
   return {
@@ -469,9 +480,24 @@ export function vseprSpecies(question: string): VseprResult[] {
   return narrowed;
 }
 
-/** True when the stem asks about hybridisation, shape, angle or lone pairs of a species this family can draw. */
+function dipoleInputs(question: string): DipoleInput[] {
+  return vseprSpecies(question).map((result) => ({
+    formula: result.formula,
+    label: result.label,
+    central: result.central.symbol,
+    centralEn: result.central.electronegativity,
+    bondPairs: result.bondPairs,
+    lonePairs: result.lonePairs,
+    ligands: result.ligands.map((ligand) => ({ symbol: ligand.symbol, en: ligand.electronegativity, count: ligand.count })),
+  }));
+}
+
+/** True when the stem asks about hybridisation, shape, angle, lone pairs, a dipole direction, or Fajan factors. */
 export function isVseprStem(question: string): boolean {
   const stem = chemStem(question);
+  if (HARD_VETO.test(stem) || ORGANIC_VETO.test(stem)) return false;
+  if (!shapeIsTheAsk(stem) && fajanAsked(stem)) return true;
+  if (dipoleIsTheAsk(stem) && dipoleInputs(question).some((input) => dipoleAccount(input) !== null)) return true;
   if (!CUE.test(stem)) return false;
   return vseprSpecies(question).length > 0;
 }
@@ -621,6 +647,16 @@ function layoutFor(result: VseprResult): Layout | null {
         lonePairs: [{ deg: 90, dist: 0.45 }, { deg: 270, dist: 0.45 }],
         angle: [3, 0],
       };
+    case "6-3":
+      return {
+        bonds: [
+          { deg: 90, len: 1, style: "plain", seat: "axial" },
+          { deg: 270, len: 1, style: "plain", seat: "axial" },
+          { deg: 0, len: 1, style: "plain", seat: "equatorial" },
+        ],
+        lonePairs: [{ deg: 150, dist: 0.42 }, { deg: 210, dist: 0.42 }, { deg: 180, dist: 0.72 }],
+        angle: null,
+      };
     case "7-0":
       return {
         bonds: [{ deg: 90, len: 1, style: "plain", seat: "axial" }, { deg: 270, len: 1, style: "plain", seat: "axial" }, ...pentagonSlots()],
@@ -759,16 +795,25 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   const titleY = maxY + TITLE_GAP;
   const hybridY = minY - CAPTION_GAP;
   const shapeY = hybridY - CAPTION_STEP;
+  const domainY = shapeY - CAPTION_STEP;
+  const claim = result.bondAngle ? angleClaim(result.bondAngle) : null;
+  const claimY = claim ? domainY - CAPTION_STEP : domainY;
   const titleId = c.text(`${tag}_title`, { x: origin.x, y: titleY }, result.label, "species formula");
   frameIds.push(titleId);
   const hybridId = c.text(`${tag}_hyb`, { x: origin.x, y: hybridY }, result.hybridisationLabel, "hybridisation");
   const shapeId = c.text(`${tag}_shape`, { x: origin.x, y: shapeY }, result.shapeLabel, "molecular shape");
-  detailIds.push(hybridId, shapeId);
+  const domainId = c.text(`${tag}_dom`, { x: origin.x, y: domainY }, ELECTRON_GEOMETRY_LABEL[result.electronGeometry], "electron geometry");
+  detailIds.push(hybridId, shapeId, domainId);
+  let claimId: string | null = null;
+  if (claim) {
+    claimId = c.text(`${tag}_claim`, { x: origin.x, y: claimY }, claim, "angle is ideal, an inequality, or a quoted value");
+    detailIds.push(claimId);
+  }
   const top = titleY + PANEL_END;
-  const bottom = shapeY - PANEL_END;
+  const bottom = claimY - PANEL_END;
   const halfWidth = Math.max(reachX + PANEL_SIDE, 1.45);
   frameIds.push(panel(c, `${tag}_panel`, { x: origin.x, y: (top + bottom) / 2 }, 2 * halfWidth, top - bottom));
-  c.scene.labelled(centralId, titleId, hybridId, shapeId);
+  c.scene.labelled(centralId, titleId, hybridId, shapeId, domainId, ...(claimId ? [claimId] : []));
   return { ids: [...frameIds, ...detailIds], frameIds, detailIds };
 }
 
@@ -776,7 +821,22 @@ function speciesCue(result: VseprResult): string {
   const pairs = result.unpairedElectron
     ? `${result.lonePairs - 1} lone pair${result.lonePairs - 1 === 1 ? "" : "s"} and one unpaired electron`
     : `${result.lonePairs} lone pair${result.lonePairs === 1 ? "" : "s"}`;
-  return `${result.formula}: ${result.central.symbol} with ${result.bondPairs} bond pairs and ${pairs}, steric number ${result.stericNumber}, ${result.hybridisation}, ${result.shape}`;
+  return `${result.formula}: ${result.central.symbol} with ${result.bondPairs} bond pairs and ${pairs}, steric number ${result.stericNumber}, ${result.electronGeometry} electron geometry, ${result.shape} molecular shape, ${result.hybridisation}`;
+}
+
+const ELECTRON_GEOMETRY_LABEL: Record<ElectronGeometry, string> = {
+  linear: "e: linear",
+  "trigonal planar": "e: trig. planar",
+  tetrahedral: "e: tetrahedral",
+  "trigonal bipyramidal": "e: TBP",
+  octahedral: "e: octahedral",
+  "pentagonal bipyramidal": "e: pent. bipyr.",
+};
+
+function angleClaim(bondAngle: string): "ideal" | "quoted" | "inequality" {
+  if (bondAngle.startsWith("<") || bondAngle.startsWith(">")) return "inequality";
+  if (bondAngle === "180°" || bondAngle === "120°" || bondAngle === "109.5°" || bondAngle === "90°") return "ideal";
+  return "quoted";
 }
 
 const SPECIES_PITCH = 3.6;
@@ -788,6 +848,15 @@ const SPECIES_PITCH = 3.6;
 export function buildVseprScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   void quantities;
   void schematic;
+  const stem = chemStem(question);
+  if (!shapeIsTheAsk(stem) && fajanAsked(stem)) {
+    const fajan = buildFajanScene(question);
+    if (fajan) return fajan;
+  }
+  if (dipoleIsTheAsk(stem)) {
+    const dipole = buildDipoleScene(question, dipoleInputs(question));
+    if (dipole) return dipole;
+  }
   const species = vseprSpecies(question);
   if (species.length === 0) return null;
   const single = species.length === 1;

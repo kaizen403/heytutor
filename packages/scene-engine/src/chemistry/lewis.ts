@@ -19,6 +19,20 @@ import type { SceneDocument } from "../types";
 import { type ElementRecord, isMetal, valenceElectrons } from "./elements";
 import { complexTokens, formulaTokens, parseFormula, type ParsedFormula } from "./formula";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import {
+  buildBondTopologyScene,
+  buildHydrogenBondScene,
+  buildIonicTransferScene,
+  buildMetallicScene,
+  buildOverlapScene,
+  hydrogenBondAsked,
+  ionicTransferAsked,
+  metallicBondAsked,
+  overlapAsked,
+  parseExamBondLines,
+  topologyAsked,
+  type OverlapFacts,
+} from "./bondingFigures";
 
 export const LEWIS_FAMILY = "chem_lewis" as const;
 
@@ -88,6 +102,11 @@ const LEWIS_CUES: readonly RegExp[] = [
   /sigma and pi|σ and π|sigma bond|pi bond|σ[- ]bond|π[- ]bond|number of (?:sigma|pi|σ|π)|(?:sigma|pi|σ|π)\s*\(?\s*(?:bonds?|and)/,
   /resonan(?:ce|t|ting)\s+(?:struct|form|hybrid)|resonating struct|canonical (?:struct|form)|contributing struct/,
   /bond[- ]pair/, /octet/,
+  /kossel|electrovalen|electron transfer|ionic bond/,
+  /orbital overlap|head-?on|sideways overlap|end-?on overlap|axial overlap|lateral overlap/,
+  /hydrogen bond/,
+  /metallic bond|electron sea/,
+  /bond length|bond energy|bond enthalpy/,
 ];
 
 const LEWIS_VETOES: readonly RegExp[] = [
@@ -96,7 +115,7 @@ const LEWIS_VETOES: readonly RegExp[] = [
   /[a-z]+(?:anol|anone|anal|anoic|amine|amide)\b|\bether\b|\bester\b|\bketone\b|\baldehyde\b|\balcohol\b/,
   /alkane|alkene|alkyne|carbocation|carbanion|hyperconjugat|electromeric|inductive|mesomeric|\bs[_ ]?n[12]\b(?![+-])|\be[12]\b/,
   /molecular orbital|\bmo\b|\bmot\b|bond order|\bhomo\b|\blumo\b|paramagnetic|diamagnetic/,
-  /hydrogen bond|three[- ]cent|3[- ]cent|banana bond|\bdimer/,
+  /three[- ]cent|3[- ]cent|banana bond/,
   /\[[a-z]{1,2}(?:\(|[a-z0-9]*\d)/,
 ];
 
@@ -105,6 +124,7 @@ export function isLewisStem(question: string): boolean {
   const stem = chemStem(question);
   if (!LEWIS_CUES.some((cue) => cue.test(stem))) return false;
   if (LEWIS_VETOES.some((veto) => veto.test(stem))) return false;
+  if (/\bdimer\b/.test(stem) && !hydrogenBondAsked(stem)) return false;
   if (complexTokens(question).length > 0) return false;
   return true;
 }
@@ -1029,11 +1049,39 @@ function captionFor(result: LewisResult): string {
  * The Lewis figure for the stem, or null when the stem names no species the
  * solver can place (or names more than four).
  */
+function overlapFacts(question: string): OverlapFacts | null {
+  const stem = chemStem(question);
+  const result = stemSpecies(question)[0];
+  if (!result) return null;
+  if (/sideways|lateral/.test(stem) && result.piBonds < 1) return null;
+  const centre = result.atoms.find((atom) => atom.symbol === "C") ?? result.atoms[0];
+  if (!centre) return null;
+  const domains = centre.neighbours.length + centre.lonePairs;
+  if (centre.element.period === 2 && domains > 4) return null;
+  const hybridLabel = domains === 2 ? "sp" : domains === 3 ? "sp^2" : domains === 4 ? "sp^3" : domains === 5 ? "sp^3d" : domains === 6 ? "sp^3d^2" : null;
+  return { label: result.label, sigma: result.sigmaBonds, pi: result.piBonds, hybridLabel };
+}
+
 export function buildLewisScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   void quantities;
   void schematic;
   if (!isLewisStem(question)) return null;
   const stem = chemStem(question);
+  if (hydrogenBondAsked(stem)) return buildHydrogenBondScene(question);
+  if (metallicBondAsked(stem)) return buildMetallicScene(question);
+  if (ionicTransferAsked(stem)) {
+    const ionic = buildIonicTransferScene(question);
+    if (ionic) return ionic;
+  }
+  if (overlapAsked(stem)) {
+    const facts = overlapFacts(question);
+    return facts ? buildOverlapScene(question, facts) : null;
+  }
+  const bondLines = parseExamBondLines(question);
+  if (bondLines.length > 0 && topologyAsked(stem)) {
+    const topology = buildBondTopologyScene(question, bondLines);
+    if (topology) return topology;
+  }
   const species = stemSpecies(question);
   if (species.length === 0) return null;
 
