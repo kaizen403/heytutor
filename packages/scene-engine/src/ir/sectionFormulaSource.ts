@@ -14,7 +14,7 @@
  */
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { derivedLabelTargets, readDerivedCoordinateLabelClaim, validateEvaluatedDerivedValueLabels } from "../compile/derivedValueLabels";
-import { validateProblemIR, type ExpressionNodeIR, type ProblemIR } from "./problemIR";
+import { validateProblemIR, type ExpressionNodeIR, type ProblemIR, type ProblemFact } from "./problemIR";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument, type SceneIssue } from "../types";
 import {pruneDeadSceneEntities,validateSceneDocument} from "../document/validation";
 import {sameSceneValue} from "../document/valueEquality";
@@ -387,11 +387,55 @@ function dimensionEvidence(source: SectionFormulaSource, symbol: string, quote: 
  * result may take its name from the section intent's single requested point.
  * No facts, intents, or additional obligations are discarded.
  */
+/** Preserve operand order for subtraction/division. Signed numeric literals
+ * have one canonical form; only addition/multiplication commute and associate. */
+function sectionExpressionKey(root:ExpressionNodeIR):string {
+ if(root.kind==="number") return `number:${Object.is(root.value,-0)?0:root.value}`;
+ if(root.kind==="unary" && root.operand.kind==="number") return sectionExpressionKey({kind:"number",value:root.operator==="-"?-root.operand.value:root.operand.value});
+ if(root.kind==="binary") {
+  const flatten=(node:ExpressionNodeIR):ExpressionNodeIR[]=>["+","*"].includes(root.operator) && node.kind==="binary" && node.operator===root.operator?[...flatten(node.left),...flatten(node.right)]:[node];
+  const parts=[...flatten(root.left),...flatten(root.right)].map(sectionExpressionKey);
+  return `${root.operator}(${(["+","*"].includes(root.operator)?parts.sort():parts).join(",")})`;
+ }
+ if(root.kind==="unary") return `${root.operator}(${sectionExpressionKey(root.operand)})`;
+ if(root.kind==="call") return `${root.function}(${sectionExpressionKey(root.argument)})`;
+ return root.kind==="variable"?`variable:${root.name}`:`constant:${root.name}`;
+}
+function sectionRootBindsFormula(source:SectionFormulaSource,axis:"x"|"y",root:ExpressionNodeIR):boolean {
+ const n=(value:number):ExpressionNodeIR=>({kind:"number",value});
+ const b=(operator:"+"|"-"|"*"|"/",left:ExpressionNodeIR,right:ExpressionNodeIR):ExpressionNodeIR=>({kind:"binary",operator,left,right});
+ const a=n(source.a[axis]),end=n(source.b[axis]),m=n(source.m),weight=n(source.n),sign=source.mode==="external"?"-":"+";
+ const denominator=b(sign,m,weight);
+ const forms=[b("/",b(sign,b("*",m,end),b("*",weight,a)),denominator),b("+",a,b("*",b("/",m,denominator),b("-",end,a)))];
+ if(source.mode==="midpoint") forms.push(b("/",b("+",a,end),n(2)),b("*",n(.5),b("+",a,end)));
+ return forms.some(form=>sectionExpressionKey(form)===sectionExpressionKey(root));
+}
+
+function sectionFactIsBound(source:SectionFormulaSource,question:string,fact:ProblemFact):boolean {
+ if(fact.kind==="assumption") return false;
+ const norm=(value:string)=>value.trim().replace(/[.!?]$/,"").replace(/\s+/g," ").toLowerCase();
+ const statement=norm(fact.statement),quote=fact.evidence.quote;
+ if(statement===norm(quote) || statement===norm(question)) return true;
+ if(fact.kind==="requested") return /^(?:find|calculate|determine|in what ratio) (?:the )?(?:coordinates|point|midpoint|ratio|dividing point)\b/.test(statement) && !/\b(?:circle|perpendicular|parallel|radius|area|slope|distance)\b/.test(statement);
+ for(const point of [source.a,source.b]){
+  const name=point.name.toLowerCase();
+  const pair=new RegExp(`^(?:point )?${name} (?:has|is at|is given with) (?:the )?coordinates?\\s*\\(\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*\\)$`).exec(statement);
+  if(pair && num(decimal(pair[1]!))===point.x && num(decimal(pair[2]!))===point.y && dimensionEvidence(source,`${point.name}_x`,quote)) return true;
+  const axis=new RegExp(`^(?:point )?${name} has ([xy])[- ]coordinate (${NUMBER})$`).exec(statement);
+  if(axis && num(decimal(axis[2]!))===point[axis[1] as "x"|"y"] && dimensionEvidence(source,`${point.name}_${axis[1]}`,quote)) return true;
+ }
+ const ratio=new RegExp(`^(?:the )?(?:(?:external|internal) )?division ratio (?:is |equals )?(${PART})\\s*:\\s*(${PART})$`).exec(statement);
+ if(ratio && num(part(ratio[1]!))===source.m && num(part(ratio[2]!))===source.n && dimensionEvidence(source,"m",quote)) return true;
+ if(source.mode!=="midpoint" && new RegExp(`^(?:the point|${source.point.name.toLowerCase()}) divides (?:the join|${source.a.name.toLowerCase()}${source.b.name.toLowerCase()}) ${source.mode}ly(?: in (?:the )?ratio ${source.m}:${source.n})?$`).test(statement)) return new RegExp(`\\b${source.mode}(?:ly)?\\b`,"i").test(quote);
+ return false;
+}
+
 function bindSectionProblem(document: SceneDocument, source: SectionFormulaSource, raw: ProblemIR): boolean {
   const validation = validateProblemIR(raw, String(document.source.question));
   if (!validation.valid || !validation.problem) return false;
   const problem = validation.problem;
   const facts = new Map(problem.facts.map((fact) => [fact.id, fact]));
+  if(problem.facts.some(fact=>!sectionFactIsBound(source,String(document.source.question),fact))) return false;
   const endpoints = [source.a, source.b].map((point) => problem.entities.find((entity) =>
     entity.kind === "point" && entity.label === point.name));
   if (!source.a.named || !source.b.named || endpoints.some((entity) => !entity)) return false;
@@ -419,6 +463,13 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   if (problem.entities.some((entity) => !admittedIds.includes(entity.id))
     || problem.representationIntents.some((candidate) => !["section", "graph", "conceptual"].includes(candidate.kind)
       || candidate.entityIds.some((id) => !admittedIds.includes(id)))) return false;
+  for(const constraint of problem.constraints){
+    const ids="entityIds" in constraint?constraint.entityIds:[];
+    const line=lines[0];
+    const incident=constraint.kind==="incident" && line && ids.length===2 && ids.includes(line.id) && ids.includes(result.id);
+    const joined=constraint.kind==="connected" && line && ids.length===3 && ids.includes(line.id) && endpointIds.every(id=>ids.includes(id));
+    if((!incident && !joined) || !constraint.evidenceFactIds.length) return false;
+  }
   // A line intent gets a real joining segment, not a text-only obligation
   // witness. Its lineage records the original entity and both source points.
   if (lines[0]) {
@@ -445,16 +496,20 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
     const axis = ["x", "y"].find((axis) => [`${result.label}${axis}`, `e${result.label}${axis}`].includes(expression.id)) as "x" | "y" | undefined;
     if (axis && expression.root.kind !== "number") {
       const expected = source.point.exact[axis];
-      const permitted = [source.a[axis], source.b[axis], source.m, source.n];
+      const permitted = [source.a[axis], source.b[axis], source.m, source.n,...(source.mode==="midpoint"?[2,.5]:[])];
       const evaluate = (root: ExpressionNodeIR): Rational | null => {
         if (root.kind === "number") return permitted.includes(root.value) ? decimal(String(root.value)) : null;
+        if (root.kind === "unary" && root.operand.kind === "number") {
+          const signed=root.operator==="-"?-root.operand.value:root.operand.value;
+          return permitted.includes(signed)?decimal(String(signed)):null;
+        }
         if (root.kind !== "binary" || !["+", "-", "*", "/"].includes(root.operator)) return null;
         const a = evaluate(root.left), b = evaluate(root.right);
         if (!a || !b || root.operator === "/" && isZero(b)) return null;
         return root.operator === "+" ? add(a, b) : root.operator === "-" ? sub(a, b) : root.operator === "*" ? mul(a, b) : div(a, b);
       };
       const value = evaluate(expression.root);
-      if (!value || text(value) !== expected || !hasPointEvidence(expression.evidenceFactIds, source.a)
+      if (!value || text(value) !== expected || !sectionRootBindsFormula(source,axis,expression.root) || !hasPointEvidence(expression.evidenceFactIds, source.a)
         || !hasPointEvidence(expression.evidenceFactIds, source.b)
         || source.mode !== "midpoint" && !expression.evidenceFactIds.some((id) => dimensionEvidence(source, "m", facts.get(id)!.evidence.quote))
         || source.mode === "external" && !expression.evidenceFactIds.some((id) => /\bexternally?\b/i.test(facts.get(id)!.evidence.quote))) return false;
@@ -471,6 +526,23 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
       evidenceFactIds: [...expression.evidenceFactIds],
       sourceText: expression.evidenceFactIds.map((id) => facts.get(id)!.evidence.quote).join("\n"),
     });
+  }
+  const usedFacts=new Set([...problem.entities.flatMap(row=>row.evidenceFactIds),...problem.expressions.flatMap(row=>row.evidenceFactIds),...problem.constraints.flatMap(row=>row.evidenceFactIds),...problem.representationIntents.flatMap(row=>row.evidenceFactIds),...problem.solveRequests.flatMap(row=>row.resultBinding?.evidenceFactIds ?? [])]);
+  if(problem.facts.some(row=>!usedFacts.has(row.id))) return false;
+  const requestedAxes=new Set<string>(),boundIds=new Set<string>();
+  for(const request of problem.solveRequests){
+    if(request.kind!=="evaluate") return false;
+    const expression=problem.expressions.find(row=>row.id===request.expressionId);
+    const axis=["x","y"].find(axis=>[`${result.label}${axis}`,`e${result.label}${axis}`].includes(expression?.id ?? "")) as "x"|"y"|undefined;
+    if(!axis || !expression || !sectionRootBindsFormula(source,axis,expression.root) || requestedAxes.has(axis)) return false;
+    requestedAxes.add(axis);
+    const binding=request.resultBinding;
+    if(!binding) continue; // legacy source geometry can prove an unbound evaluate ask
+    const symbol=binding.symbol.replace(/_/g,"");
+    if(![`${result.label}${axis}`,`${axis}${result.label}`].includes(symbol) || binding.unit && !["1","coordinate","unit","units"].includes(binding.unit)
+      || boundIds.has(binding.turnPlanQuantityId) || !binding.evidenceFactIds.length || !binding.evidenceFactIds.every(id=>facts.get(id)?.kind==="requested")) return false;
+    boundIds.add(binding.turnPlanQuantityId);
+    document.quantities.push({id:binding.turnPlanQuantityId,symbol:binding.symbol,value:source.point[axis],...(binding.unit?{unit:binding.unit}:{}),provenance:"derived",evidenceFactIds:[...binding.evidenceFactIds],sourceText:binding.evidenceFactIds.map(id=>facts.get(id)!.evidence.quote).join("\n")});
   }
   return true;
 }
