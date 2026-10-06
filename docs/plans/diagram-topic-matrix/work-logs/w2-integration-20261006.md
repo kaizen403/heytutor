@@ -1,0 +1,11 @@
+# Wave2 integration — work in progress, 6 October2026
+
+The user authorized the current owner to continue Waves2 and3 after publication, excluding Chemistry and using Sol/Luna only. PR91 merged atdcb9be95403e5ec19da1b3c1f6f87c2b0ae9d523 after final PR CI37402470029 passed atc94e96cb; remote main contains the approved head. Local dirty main protection hashes still match. Production deployment remains separately pending, not established by PR checks.
+
+Wave2 repairs Coordinate Geometry maths10, Matrices maths3, Kinematics physics2 and Current Electricity physics12. These are chapter targets, not four completed chapters. The nine carried topics remain READY1/FULLY0/newREADY0;13 accepted Chemistry rows are preserved unchanged. No accepted rows or counts are added by assignment.
+
+Frozen evaluation: inherited2026-topic-matrix-v1 exam/taxonomy/variant boundaries; representative core repairs use unmodified normal source prompts and actual full-IR captures from the Wave1 runtime. Authored controls and native evidence remain distinct. Three to five independent source cases and negatives, a normal student render including narration/WRITE/reveal, relevant checks and one shared authenticated save/Postgres restart/fresh login/reopen/earliest whole Replay are required before scoped READY. Every runtime case has an independent120-second guard. Remaining exhaustive/native/holdout requirements stay explicit.
+
+Ownership announced: integrator alone owns shared synthesize/document/capability/compiler/export/planner/source-authority/selection/persistence/replay seams and runtime. Sol section/matrix, Ohm and motion workers own disjoint source helpers/new gates and their own logs; maximum3 fresh agents, no forks. Worker packets may propose a helper/export/glue change but do not edit shared seams or other gates. All work uses isolated trees and user-only commits, no stash, remote publication or protected runtime access. Future waves remain local unless separately authorized.
+
+Integration results, reviewed commit pins and actual case receipts will be recorded here as they complete. This allocation record is not evidence of completion. Historical Wave1 captures, reviews and original branches remain preserved.
