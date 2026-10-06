@@ -8,6 +8,7 @@ import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodePanelFrameSpec } from "@/lib/code-render/renderCodeToCanvas";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 
 /**
  * Frame-accurate typing timeline for MP4 export. Character offsets come from
@@ -58,6 +59,61 @@ export function buildCodeLessonExportTrack(
   }
 
   return { plan, blocks };
+}
+
+/** A board page's code panel, shown from the page's first cue to the next page. */
+export interface CodeLessonExportSpan {
+  startMs: number;
+  endMs: number;
+  track: CodeLessonExportTrack;
+}
+
+/**
+ * One code track per board page. A page's panel is the plan its opening turn
+ * (or the first of its doubts that has one) committed; a page without a plan
+ * shows no panel, so a later page's code never paints over an earlier lesson.
+ */
+export function buildCodeLessonExportSpans(
+  turns: readonly StoredTurn[],
+  cues: ReplayCue[],
+): CodeLessonExportSpan[] {
+  const pages: number[][] = [];
+  turns.forEach((turn, index) => {
+    if (index === 0 || !storedTurnContinuesBoard(turn)) {
+      pages.push([index]);
+    } else {
+      pages[pages.length - 1]!.push(index);
+    }
+  });
+  const pageStarts = pages.map((page) => {
+    const first = cues.find((cue) => page.includes(cue.turnIndex));
+    return first?.startMs ?? null;
+  });
+  const spans: CodeLessonExportSpan[] = [];
+  pages.forEach((page, pageIndex) => {
+    const startMs = pageStarts[pageIndex];
+    if (startMs == null) return;
+    const pageCues = cues.filter((cue) => page.includes(cue.turnIndex));
+    let track: CodeLessonExportTrack | null = null;
+    for (const turnIndex of page) {
+      track = buildCodeLessonExportTrack(turns[turnIndex]!, pageCues);
+      if (track) break;
+    }
+    if (!track) return;
+    const nextStart = pageStarts.slice(pageIndex + 1).find((ms) => ms != null);
+    spans.push({ startMs, endMs: nextStart ?? Number.POSITIVE_INFINITY, track });
+  });
+  return spans;
+}
+
+export function codeLessonSpanAt(
+  spans: readonly CodeLessonExportSpan[],
+  timeMs: number,
+): CodeLessonExportTrack | null {
+  for (const span of spans) {
+    if (timeMs >= span.startMs && timeMs < span.endMs) return span.track;
+  }
+  return null;
 }
 
 function revealedCharsAt(block: CodeLessonBlockTiming, timeMs: number): number {

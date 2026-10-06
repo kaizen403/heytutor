@@ -80,12 +80,17 @@ export function lecturePageCacheKey(
   return fileType === "mp4" ? base : `${base}.${fileType}`;
 }
 
+/**
+ * Only the student's Cancel (or leaving the board) stops a download. A lesson
+ * starting, stopping or being replayed does not: the export draws on its own
+ * hidden board from a snapshot taken at the click.
+ */
 export function shouldCancelLectureExport(state: {
   cancelled: boolean;
-  phase: TutorPhase;
-  isReplaying: boolean;
+  phase?: TutorPhase;
+  isReplaying?: boolean;
 }): boolean {
-  return state.cancelled || state.phase !== "idle" || state.isReplaying;
+  return state.cancelled;
 }
 
 export function lectureDownloadFilename(

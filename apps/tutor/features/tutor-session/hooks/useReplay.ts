@@ -15,7 +15,6 @@ import {
   type ReplayCue,
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { fetchBoardDetail } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { notesPdfSectionsFromStoredTurns, notesPdfSlideImages } from "../lib/notes/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
@@ -800,10 +799,10 @@ export function useReplay({
         timestampMs: Date.now(),
       });
     }
-    // Stored turns are the authority after a reload — epochs only supply
-    // board images captured this session.
-    const detail = await fetchBoardDetail(sessionId);
-    const storedTurns = detail?.turns.length ? detail.turns : storedTurnsRef.current;
+    // Stored turns are the authority: restore loads every saved turn into the
+    // ref, so the click needs no round trip and works offline. Epochs only
+    // supply board images captured this session.
+    const storedTurns = storedTurnsRef.current;
     const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);
     // DSA turns keep their code in a DOM panel the board snapshot cannot
     // see; render each section's code as its own notes page.
@@ -815,7 +814,6 @@ export function useReplay({
     narrationSinceEpochRef,
     liveQuestionRef,
     storedTurnsRef,
-    sessionId,
   ]);
 
   const downloadNotesPdf = useCallback(() => {

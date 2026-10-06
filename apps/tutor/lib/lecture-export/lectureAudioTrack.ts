@@ -148,6 +148,26 @@ export function mixCueAudio(options: {
   };
 }
 
+/** A clip that has not arrived in this long becomes silence, not a stuck "Preparing". */
+export const LECTURE_AUDIO_FETCH_TIMEOUT_MS = 15_000;
+export const LECTURE_AUDIO_DECODE_TIMEOUT_MS = 10_000;
+
+/** Resolves to null when `work` takes longer than `timeoutMs` or throws. */
+export async function withLectureAudioTimeout<T>(
+  work: Promise<T | null>,
+  timeoutMs: number,
+): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), Math.max(0, timeoutMs));
+  });
+  try {
+    return await Promise.race([work.catch(() => null), timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export async function fetchLectureAudioBytes(url: string): Promise<Uint8Array | null> {
   // In-tab clips are blob: or data: URLs. fetch() of those is connect-src, and
   // a policy of 'self' turns every spoken cue into silence in the download.
@@ -160,7 +180,11 @@ export async function fetchLectureAudioBytes(url: string): Promise<Uint8Array | 
     return dataUrlToBytes(url);
   }
   try {
-    const response = await fetch(lectureAudioFetchUrl(url));
+    const signal =
+      typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+        ? AbortSignal.timeout(LECTURE_AUDIO_FETCH_TIMEOUT_MS)
+        : undefined;
+    const response = await fetch(lectureAudioFetchUrl(url), signal ? { signal } : undefined);
     if (!response.ok) {
       return null;
     }
@@ -181,6 +205,10 @@ export type BuiltLectureAudioTrack = {
   sampleRate: number;
   durationMs: number;
   missingAudioCues: number;
+  /** Cues with narration. */
+  spokenCues: number;
+  /** Spoken cues whose recorded voice made it into the track. */
+  voicedCues: number;
 };
 
 export async function buildLectureAudioTrack(options: {
@@ -188,32 +216,51 @@ export async function buildLectureAudioTrack(options: {
   sampleRate?: number;
   fetchBytes?: (url: string) => Promise<Uint8Array | null>;
   decodeBytes?: (data: ArrayBuffer) => Promise<PcmTrack | null>;
+  /** In-memory clip for a cue (a live turn's audio), read before its URL. */
+  cueBytes?: (cue: ReplayCue) => Uint8Array | null;
+  fetchTimeoutMs?: number;
+  decodeTimeoutMs?: number;
+  /** Stop fetching once the export is cancelled; the rest becomes silence. */
+  shouldCancel?: () => boolean;
 }): Promise<BuiltLectureAudioTrack> {
   const sampleRate = options.sampleRate ?? LECTURE_EXPORT_SAMPLE_RATE;
   const fetchBytes = options.fetchBytes ?? fetchLectureAudioBytes;
   const decodeBytes = options.decodeBytes;
+  const fetchTimeoutMs = options.fetchTimeoutMs ?? LECTURE_AUDIO_FETCH_TIMEOUT_MS;
+  const decodeTimeoutMs = options.decodeTimeoutMs ?? LECTURE_AUDIO_DECODE_TIMEOUT_MS;
   const parts: Float32Array[][] = [];
   let channelCount = 1;
   let missingAudioCues = 0;
+  let spokenCues = 0;
+  let voicedCues = 0;
 
   const decodedTracks: Array<PcmTrack | null> = [];
   for (const cue of options.cues) {
     const spoken = cue.narration.trim().length > 0;
+    if (spoken) spokenCues += 1;
+    const held = spoken ? options.cueBytes?.(cue) ?? null : null;
     const url = resolveLectureAudioUrl(cue);
-    if (!spoken || !url || !decodeBytes) {
+    const hasSource = Boolean(held?.length) || Boolean(url);
+    if (!spoken || !hasSource || !decodeBytes || options.shouldCancel?.()) {
       decodedTracks.push(null);
-      if (spoken && !url) {
+      if (spoken && (!hasSource || options.shouldCancel?.())) {
         missingAudioCues += 1;
       }
       continue;
     }
-    const bytes = await fetchBytes(url);
-    const decoded = bytes ? await decodeBytes(bytesToArrayBuffer(bytes)) : null;
+    const bytes = held?.length
+      ? held
+      : await withLectureAudioTimeout(fetchBytes(url!), fetchTimeoutMs);
+    // Empty bytes make decodeAudioData reject; they are silence, not an error.
+    const decoded = bytes && bytes.length > 0
+      ? await withLectureAudioTimeout(decodeBytes(bytesToArrayBuffer(bytes)), decodeTimeoutMs)
+      : null;
     if (!decoded) {
       decodedTracks.push(null);
       missingAudioCues += 1;
       continue;
     }
+    voicedCues += 1;
     channelCount = Math.max(channelCount, decoded.channels.length);
     decodedTracks.push(decoded);
   }
@@ -236,5 +283,7 @@ export async function buildLectureAudioTrack(options: {
     sampleRate,
     durationMs,
     missingAudioCues,
+    spokenCues,
+    voicedCues,
   };
 }
