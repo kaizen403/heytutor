@@ -1,0 +1,296 @@
+{
+  "provenance": {
+    "capture": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0731-w2-03574f88/evidence/followup-matrix-product-planner-exchanges.json",
+    "captureSha256": "7c8d08e30f1f0b1c6bd9dd7f205628ded20d0e2bc5c9a9d959d3411a6c286753",
+    "diagnosis": "/Users/kaizen/heytutor-claude-coord/reviews/w2-matrix-actual-20261006/diagnosis.json",
+    "diagnosisSha256": "d3b62f6e9aef8628b08c1dd1dbf6db9dce3d68ebaad67a0b79f1823eb140a76d",
+    "planChannel": "first scene-document-v2 request authoritative plan",
+    "problemChannel": "diagnosis.ir (unchanged captured full original IR)"
+  },
+  "question": "Let A=[[1,2],[3,4]] and B=[[2,0],[1,2]]. Find AB and BA.",
+  "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Let A=[[1,2],[3,4]] and B=[[2,0],[1,2]]. Find AB and BA.",
+    "givens": [
+      {
+        "id": "A",
+        "symbol": "A",
+        "value": 0,
+        "sourceText": "A=[[1,2],[3,4]]",
+        "provenance": "given"
+      },
+      {
+        "id": "B",
+        "symbol": "B",
+        "value": 0,
+        "sourceText": "B=[[2,0],[1,2]]",
+        "provenance": "given"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "AB",
+        "symbol": "AB"
+      },
+      {
+        "id": "BA",
+        "symbol": "BA"
+      }
+    ],
+    "derived": [
+      {
+        "id": "AB11",
+        "symbol": "(AB)11",
+        "value": 4,
+        "sourceText": "1*2+2*1=4",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      },
+      {
+        "id": "AB12",
+        "symbol": "(AB)12",
+        "value": 4,
+        "sourceText": "1*0+2*2=4",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      },
+      {
+        "id": "AB21",
+        "symbol": "(AB)21",
+        "value": 10,
+        "sourceText": "3*2+4*1=10",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      },
+      {
+        "id": "AB22",
+        "symbol": "(AB)22",
+        "value": 8,
+        "sourceText": "3*0+4*2=8",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      },
+      {
+        "id": "BA11",
+        "symbol": "(BA)11",
+        "value": 2,
+        "sourceText": "2*1+0*3=2",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      },
+      {
+        "id": "BA12",
+        "symbol": "(BA)12",
+        "value": 4,
+        "sourceText": "2*2+0*4=4",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      },
+      {
+        "id": "BA21",
+        "symbol": "(BA)21",
+        "value": 7,
+        "sourceText": "1*1+2*3=7",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      },
+      {
+        "id": "BA22",
+        "symbol": "(BA)22",
+        "value": 10,
+        "sourceText": "1*2+2*4=10",
+        "provenance": "derived",
+        "dependsOn": [
+          "A",
+          "B"
+        ]
+      }
+    ],
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "AB is the matrix product A times B",
+        "expected": "AB=[[4,4],[10,8]]",
+        "relatedQuantityIds": [
+          "AB",
+          "AB11",
+          "AB12",
+          "AB21",
+          "AB22"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "BA is the matrix product B times A",
+        "expected": "BA=[[2,4],[7,10]]",
+        "relatedQuantityIds": [
+          "BA",
+          "BA11",
+          "BA12",
+          "BA21",
+          "BA22"
+        ]
+      },
+      {
+        "id": "c3",
+        "claim": "Matrix multiplication is not commutative here",
+        "expected": "AB != BA",
+        "relatedQuantityIds": [
+          "AB",
+          "BA"
+        ]
+      }
+    ],
+    "lawIds": [
+      "matrix multiplication definition: (AB)ij = sum_k A_ik B_kj"
+    ],
+    "assumptions": [
+      "Standard row-by-column matrix multiplication over the real numbers"
+    ],
+    "visualRequirement": "optional"
+  },
+  "problemIR": {
+    "facts": [
+      {
+        "id": "fA",
+        "kind": "given",
+        "statement": "Matrix A is [[1,2],[3,4]]",
+        "evidence": {
+          "source": "question",
+          "start": 4,
+          "end": 19,
+          "quote": "A=[[1,2],[3,4]]"
+        }
+      },
+      {
+        "id": "fB",
+        "kind": "given",
+        "statement": "Matrix B is [[2,0],[1,2]]",
+        "evidence": {
+          "source": "question",
+          "start": 24,
+          "end": 39,
+          "quote": "B=[[2,0],[1,2]]"
+        }
+      },
+      {
+        "id": "fAB",
+        "kind": "requested",
+        "statement": "Find product AB",
+        "evidence": {
+          "source": "question",
+          "start": 41,
+          "end": 48,
+          "quote": "Find AB"
+        }
+      },
+      {
+        "id": "fBA",
+        "kind": "requested",
+        "statement": "Find product BA",
+        "evidence": {
+          "source": "question",
+          "start": 53,
+          "end": 55,
+          "quote": "BA"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "matA",
+        "kind": "other",
+        "label": "A",
+        "evidenceFactIds": [
+          "fA"
+        ]
+      },
+      {
+        "id": "matB",
+        "kind": "other",
+        "label": "B",
+        "evidenceFactIds": [
+          "fB"
+        ]
+      }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": [],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Let A=[[1,2],[3,4]] and B=[[2,0],[1,2]]. Find AB and BA."
+  },
+  "rawProblemResponse": {
+    "facts": [
+      {
+        "id": "fA",
+        "kind": "given",
+        "statement": "Matrix A is [[1,2],[3,4]]",
+        "quote": "A=[[1,2],[3,4]]"
+      },
+      {
+        "id": "fB",
+        "kind": "given",
+        "statement": "Matrix B is [[2,0],[1,2]]",
+        "quote": "B=[[2,0],[1,2]]"
+      },
+      {
+        "id": "fAB",
+        "kind": "requested",
+        "statement": "Find product AB",
+        "quote": "Find AB"
+      },
+      {
+        "id": "fBA",
+        "kind": "requested",
+        "statement": "Find product BA",
+        "quote": "BA"
+      }
+    ],
+    "entities": [
+      {
+        "id": "matA",
+        "kind": "other",
+        "label": "A",
+        "evidenceFactIds": [
+          "fA"
+        ]
+      },
+      {
+        "id": "matB",
+        "kind": "other",
+        "label": "B",
+        "evidenceFactIds": [
+          "fB"
+        ]
+      }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": []
+  }
+}

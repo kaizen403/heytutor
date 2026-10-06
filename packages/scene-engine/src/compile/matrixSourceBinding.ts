@@ -15,6 +15,7 @@ interface MatrixSource {
   unresolved?: string;
   literals?: Map<string, string[][]>;
   requestedCells?: Array<{ name: string; row: number; column: number }>;
+  nonAlgebraRequests?: boolean;
 }
 const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?";
 const NAME = "[A-Za-z][A-Za-z0-9_]{0,15}";
@@ -220,11 +221,12 @@ function parseSource(question: string): MatrixSource {
       const declared = source.declaredTypes!.get(match[1]!) ?? new Set<string>();
       declared.add(type);
       source.declaredTypes!.set(match[1]!, declared);
-    }
+    } else source.nonAlgebraRequests = true;
     erase(match.index!, match.index! + match[0].length);
   }
   const predicate = new RegExp(`\\b(is|whether)\\s+(?:the\\s+)?(?:matrix\\s+)?(${NAME})\\s+(?:an?\\s+)?(${TYPE})(?:\\s+matrix)?(?:\\s+or\\s+(?:an?\\s+)?(?:${TYPE})(?:\\s+matrix)?)*`, "gi");
   for (const match of text.matchAll(predicate)) {
+    source.nonAlgebraRequests = true;
     if (!source.expressions.has(match[2]!)) fail("Source type question refers to an unknown matrix");
     const tail = text.slice(match.index! + match[0].length).trim();
     if (match[1]!.toLowerCase() === "is" && !tail.startsWith("?")) fail("Declarative source type clauses require an affirmative literal type witness");
@@ -275,6 +277,11 @@ function parseSource(question: string): MatrixSource {
     }
   }
   const residual = text.replace(/[.,;:?!]/g, " ").trim();
+  // The general matrix reader also permits type/order/cell teaching tasks.
+  // Retain those obligations so a product-only authority view cannot silently
+  // treat them as filler after consuming its algebra expressions.
+  if (residual.split(/\s+/).some(word => /^(?:state|type|types|order|rows|columns|entry|entries|dimensions|dimension|whether|classify|classification|identify|element|elements)$/i.test(word)
+    && !source.expressions.has(word) && !source.scalars.has(word))) source.nonAlgebraRequests = true;
   for (const word of residual.split(/\s+/).filter(Boolean)) {
     if (source.expressions.has(word) || source.scalars.has(word) || WORDS.has(word.toLowerCase())) continue;
     fail(`Unsupported or unowned matrix source obligation: ${word.slice(0, 64)}`);
@@ -335,9 +342,45 @@ export function hasMatrixSourceProgram(question: string): boolean {
 }
 
 function cellRole(name: string, row: number, column: number, quantity: { id?: unknown; symbol?: unknown }, entryPrefix?: string): boolean {
-  const roles = [`${name.toLowerCase()}${row + 1}${column + 1}`, `${name}${row + 1}${column + 1}`, `${name}_${row + 1}_${column + 1}`, `${name.toLowerCase()}_${row + 1}_${column + 1}`, `${name}_{${row + 1}${column + 1}}`];
+  const roles = [`${name.toLowerCase()}${row + 1}${column + 1}`, `${name}${row + 1}${column + 1}`, `${name}_${row + 1}_${column + 1}`, `${name.toLowerCase()}_${row + 1}_${column + 1}`, `${name}_{${row + 1}${column + 1}}`, `(${name})${row + 1}${column + 1}`];
   if (entryPrefix) roles.push(`${entryPrefix}${row + 1}${column + 1}`, `${entryPrefix}_${row + 1}_${column + 1}`, `${entryPrefix}_{${row + 1}${column + 1}}`);
   return roles.includes(String(quantity.id)) || typeof quantity.symbol === "string" && roles.includes(quantity.symbol);
+}
+
+/** Whole-question view of ordered binary products, reusing the closed parser
+ * and exact matrix operators. Unsupported algebra declines this contract only.
+ */
+export function readMatrixProductSourceProgram(question: string): {
+  matrices: Array<{ name: string; entries: string[][]; geometry: MatrixArrayGeometry; quote: string }>;
+  products: Array<{ name: string; left: string; right: string; geometry: MatrixArrayGeometry }>;
+} | null {
+  try {
+    const source = parseSource(question);
+    if (source.scalars.size || source.requestedCells?.length || source.nonAlgebraRequests || !source.requests.length
+      || source.expressions.size !== source.matrices.size) return null;
+    const matrices = [...source.matrices].map(([name, geometry]) => {
+      const assignments = [...question.matchAll(new RegExp(`\\b${name}\\s*=\\s*`, "g"))];
+      if (assignments.length !== 1) fail("Literal source evidence is ambiguous");
+      const assignment = assignments[0]!;
+      const literal = matrixLiteral(question, assignment.index! + assignment[0].length);
+      if (!literal || !sameEntries(literalGeometry(literal.entries), geometry)) fail("Source literal quote cannot be recovered unchanged");
+      return { name, entries: literal.entries, geometry, quote: question.slice(assignment.index!, literal.end) };
+    });
+    const products = source.requests.map((request) => {
+      if ("name" in request || request.operation !== "matrix_product" || request.operands.length !== 2) fail("Only ordered binary products are supported");
+      const [left, right] = request.operands;
+      if (!left || !right || !("name" in left) || !("name" in right)) fail("Products require two literal source operands");
+      const name = expressionText(request);
+      const geometry = evaluateMatrixArrayConstruction("matrix_product", { left: left.name, right: right.name, origin: [0, 0], displayScale: 1 }, {
+        scalar() { return fail("Product source has no scalar references"); },
+        geometry(id) { return source.matrices.get(id); },
+      })[0]!;
+      return { name, left: left.name, right: right.name, geometry };
+    });
+    if (new Set(products.map((product) => product.name)).size !== products.length
+      || products.some((product) => source.matrices.has(product.name))) return null;
+    return { matrices, products };
+  } catch { return null; }
 }
 
 /** Bounded literal-only view of the existing whole-source grammar, for IR authority. */
@@ -451,7 +494,19 @@ export function validateMatrixSourceBinding(document: SceneDocument, authoritati
     witnessCache.set(expression, result);
     return result;
   };
-  try { for (const [name, expression] of source.expressions) sourceWitnesses.set(name, witness(expression)); }
+  try {
+    for (const [name, expression] of source.expressions) sourceWitnesses.set(name, witness(expression));
+    // Requested products own their scalar entry roles even without a result
+    // assignment: AB11 and (AB)11 must not float past numeric source checks.
+    for (const request of source.requests) {
+      if (!("name" in request) && request.operation === "matrix_product") {
+        const name = expressionText(request);
+        const geometry = witness(request);
+        if (sourceWitnesses.has(name) && !sameEntries(sourceWitnesses.get(name)!, geometry)) fail("Requested product identity conflicts with a named source matrix");
+        sourceWitnesses.set(name, geometry);
+      }
+    }
+  }
   catch (error) { return issue("matrix_source_unsupported", error instanceof Error ? error.message : "Source matrix expression cannot be evaluated exactly"); }
   let planGivens: Record<string, unknown>[] = [];
   let planQuantities: Record<string, unknown>[] = [];
