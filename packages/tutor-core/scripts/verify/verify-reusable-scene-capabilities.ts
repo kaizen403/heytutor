@@ -78,6 +78,38 @@ const cases = [
     question: "Plot an isothermal process and a constant-volume thermodynamic process and mark a state.",
     operators: ["polytropic_process", "isochoric_process", "process_state"],
   },
+  {
+    question: "Draw the river banks and the two velocity triangles for a boat crossing a current.",
+    operators: ["crossing_strategies", "parallel_guides"],
+  },
+  {
+    question: "Draw the Kirchhoff two-loop network and solve the branch currents.",
+    operators: ["kirchhoff_network"],
+  },
+  {
+    question: "Draw the free-body diagram of a block on a rough incline.",
+    operators: ["free_body"],
+  },
+  {
+    question: "Draw the magnetic field of a long straight wire using the Biot-Savart law.",
+    operators: ["current_element_field"],
+  },
+  {
+    question: "Draw the velocity triangles and the velocity of A relative to B.",
+    operators: ["relative_velocity"],
+  },
+  {
+    question: "Plot the position-time graph of the motion.",
+    operators: ["motion_graph"],
+  },
+  {
+    question: "Draw the metre bridge and mark the balance length.",
+    operators: ["metre_bridge"],
+  },
+  {
+    question: "Draw the cyclotron orbit for the given charge and field.",
+    operators: ["cyclotron"],
+  },
 ];
 
 let contractChecks = 0;
