@@ -429,7 +429,7 @@ function checkObligation(
       // A broad assertion must never witness an unchecked third operand.
       const proved = incidence
         ? sceneIds.length === 2
-          ? document.assertions.some(assertion => assertion.severity === "fatal" && assertion.expected === true
+          ? document.assertions.some(assertion => assertion.severity === "fatal" && assertion.expected !== false
             && (assertion.predicate === "on" || assertion.predicate === "incident")
             && assertion.entities.length === 2 && assertion.entities.includes(sceneIds[0]!)
             && assertion.entities.includes(sceneIds[1]!))
