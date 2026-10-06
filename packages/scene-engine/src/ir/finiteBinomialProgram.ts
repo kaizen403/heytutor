@@ -100,6 +100,44 @@ function variableIn(root: ExpressionNodeIR): boolean {
   }
 }
 
+/** Closed field vocabulary at every level of the actual caller graph.
+ * Preserving an unknown field in source metadata does not prove its meaning. */
+function auditFiniteBinomialFields(problem: ProblemIR): void {
+  const fields = (value: object, allowed: readonly string[]): void => {
+    if (Object.keys(value).some(key => !allowed.includes(key))) throw new Error("uncovered actual finite polynomial IR field");
+  };
+  fields(problem, ["schemaVersion", "id", "question", "facts", "entities", "expressions", "constraints", "representationIntents", "solveRequests"]);
+  for (const fact of problem.facts) {
+    fields(fact, ["id", "kind", "statement", "evidence"]);
+    fields(fact.evidence, ["source", "start", "end", "quote"]);
+  }
+  problem.entities.forEach(entity => fields(entity, ["id", "kind", "label", "evidenceFactIds"]));
+  const nodeFields = (node: ExpressionNodeIR): void => {
+    switch (node.kind) {
+      case "number": fields(node, ["kind", "value"]); break;
+      case "constant": case "variable": fields(node, ["kind", "name"]); break;
+      case "unary": fields(node, ["kind", "operator", "operand"]); nodeFields(node.operand); break;
+      case "binary": fields(node, ["kind", "operator", "left", "right"]); nodeFields(node.left); nodeFields(node.right); break;
+      case "call": fields(node, ["kind", "function", "argument"]); nodeFields(node.argument); break;
+    }
+  };
+  for (const expression of problem.expressions) {
+    fields(expression, ["id", "valueType", "root", "evidenceFactIds"]);
+    nodeFields(expression.root);
+  }
+  for (const constraint of problem.constraints) {
+    fields(constraint, constraint.kind === "equation" || constraint.kind === "inequality"
+      ? ["id", "kind", "leftExpressionId", "rightExpressionId", "evidenceFactIds", ...(constraint.kind === "inequality" ? ["relation"] : [])]
+      : ["id", "kind", "entityIds", "evidenceFactIds"]);
+  }
+  problem.representationIntents.forEach(intent => fields(intent, ["id", "kind", "entityIds", "evidenceFactIds"]));
+  for (const request of problem.solveRequests) {
+    if (request.kind !== "evaluate" || !request.resultBinding) throw new Error("unsupported or missing requested result binding");
+    fields(request, ["id", "kind", "expressionId", "resultBinding"]);
+    fields(request.resultBinding, ["turnPlanQuantityId", "symbol", "unit", "evidenceFactIds"]);
+  }
+}
+
 /** Retains and audits the entire actual graph. Unknown roles never disappear. */
 export function admitFiniteBinomialProblem(question: string, raw: unknown): FiniteBinomialAdmission {
   try {
@@ -108,8 +146,8 @@ export function admitFiniteBinomialProblem(question: string, raw: unknown): Fini
     const checked = validateProblemIR(raw, question);
     if (!checked.valid || !checked.problem || checked.problem.question !== question) throw new Error("invalid or nonidentical full ProblemIR source");
     const problem = checked.problem, source = reading.source;
-    stable(problem); // No cycles, dropped fields or non-JSON authority across restore.
-    if (Object.keys(problem).sort().join(",") !== "constraints,entities,expressions,facts,id,question,representationIntents,schemaVersion,solveRequests") throw new Error("unknown full-IR top-level obligations");
+    stable(problem); // Bounded finite JSON; equality alone is not semantic proof.
+    auditFiniteBinomialFields(problem);
     const given = new Set<string>(), requested = new Set<string>();
     for (const fact of problem.facts) {
       // Advisory source offsets in base IR are strengthened here to exact spans.

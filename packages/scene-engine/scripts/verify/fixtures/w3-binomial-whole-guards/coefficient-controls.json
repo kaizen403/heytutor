@@ -1,0 +1,49 @@
+[
+  {
+    "name": "signed",
+    "expression": "(3-2x)^5",
+    "exponent": 3,
+    "numerator": -720,
+    "denominator": 1,
+    "a": 3,
+    "b": -2,
+    "n": 5
+  },
+  {
+    "name": "positive",
+    "expression": "(2+x)^6",
+    "exponent": 2,
+    "numerator": 240,
+    "denominator": 1,
+    "a": 2,
+    "b": 1,
+    "n": 6
+  },
+  {
+    "name": "pascal",
+    "expression": "(1+x)^7",
+    "exponent": 3,
+    "numerator": 35,
+    "denominator": 1,
+    "a": 1,
+    "b": 1,
+    "n": 7
+  },
+  {
+    "name": "rational",
+    "expression": "(1/2+x/4)^4",
+    "exponent": 2,
+    "numerator": 3,
+    "denominator": 32
+  },
+  {
+    "name": "out-of-degree-zero",
+    "expression": "(2-x)^2",
+    "exponent": 5,
+    "numerator": 0,
+    "denominator": 1,
+    "a": 2,
+    "b": -1,
+    "n": 2
+  }
+]
