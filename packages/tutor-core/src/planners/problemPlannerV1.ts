@@ -7,6 +7,7 @@ import {
   parseFinitePolynomialExpression,
   claimsStatedResistorCircuit,
   bindStatedCircuitProblem,
+  hasOnlyFiniteBinomialPlanFields,
   solveWithDeadline,
   validateProblemIR,
   validateSolverResult,
@@ -52,6 +53,7 @@ export interface ProblemAuthorityV1Decline {
   status: "source_declined";
   question: string;
   rawProblemIR: unknown;
+  rawTurnPlan?: unknown;
   rawContent: string;
   issueCodes: string[];
   elapsedMs: number;
@@ -125,7 +127,8 @@ export async function planProblemAuthorityV1(
     const polynomial=readFiniteBinomialProgram(question);
     const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
-      rawProblemIR:structuredClone(parsed),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
+      rawProblemIR:structuredClone(parsed),...(turnPlan?{rawTurnPlan:structuredClone(turnPlan)}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
+    if(polynomial.status==="ok" && turnPlan && !hasOnlyFiniteBinomialPlanFields(turnPlan))return decline("finite_polynomial_actual_plan_fields_declined");
     // Syntax lifting preserves every submitted record/unknown field. Audit it
     // before the legacy normalizer can prune evidence, requests or bindings.
     const polynomialResult=polynomial.status==="ok"?solveFiniteBinomialProblem(question,sourceInput):null;

@@ -38,7 +38,7 @@ function plainArray(value:unknown):value is unknown[]{
 }
 /** The generic plan validator canonicalizes known fields. Keep this source
  * lane closed before that can erase an obligation from the caller's payload. */
-function hasOnlyFiniteBinomialPlanFields(raw:unknown):boolean{
+export function hasOnlyFiniteBinomialPlanFields(raw:unknown):boolean{
  if(!closedRecord(raw,PLAN_FIELDS))return false;
  const plan=raw;
  if(!plainArray(plan.givens) || !plainArray(plan.unknowns) || !plainArray(plan.derived) || !plainArray(plan.qualitativeClaims))return false;

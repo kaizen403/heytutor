@@ -73,6 +73,20 @@ async function main(){
    equal(refused.status,"source_declined",`${mode}: numeric compact lexeme cannot round into authority`);
    equal(refused.rawProblemIR,raw,"complete original compact input retained");
   }
+  for(const placement of ["root","derived","unknown","given"] as const){
+   const bad=structuredClone(positive.plan);
+   if(placement==="given")bad.givens.push({id:"actual_exponent",symbol:"n",value:6,unit:"1",provenance:"given",sourceText:"(2+x)^6"});
+   equal(engine.finiteBinomialPlanIssues(positive.question,positive.problem,bad),[],"Plan mutation begins with an independently valid source control");
+   const row=placement==="root"?bad:placement==="derived"?bad.derived[0]!:placement==="unknown"?bad.unknowns[0]!:bad.givens[0]!;
+   (row as unknown as Record<string,unknown>).extraObligations=["Find another coefficient and prove its sign"];
+   const refused=await api.planProblemAuthorityV1(positive.question,bad,{proxyUrl:"https://offline.invalid",timeoutMs:3000,fetchImpl:async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(positive.problem)}}]}),{status:200})});
+   assert(refused&&"status" in refused);
+   equal(refused.rawTurnPlan,bad,`${mode}: complete refused caller Plan is evidence, not a pruned source permission`);
+   const cleaned=withdrawDeclinedProblemAuthority(bad,refused);
+   equal([cleaned.derived.length,cleaned.unknowns.length,cleaned.qualitativeClaims.length],[0,0,0],"unmodeled actual Plan never retains final numeric authority");
+   const saved=await canonicalizeTurnSceneMetadata({question:positive.question,visualStatus:"text_only",segments:[],sceneDocument:null,sceneArtifacts:{schemaVersion:"scene-artifacts/v3",turnPlan:cleaned,problemIRRejection:refused,candidates:[],diagramResultStatus:"text_only"}});
+   assert(saved.ok);equal(saved.value.sceneArtifacts?.problemIRRejection?.rawTurnPlan,bad,"original whole Plan survives bounded refusal persistence");
+  }
  }
  console.log(`PASS ${checks} typed rejection, complete raw graph, overlap withdrawal and mandatory Plan TS/public ESM controls; no native credit`);
 }

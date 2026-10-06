@@ -889,6 +889,8 @@ function validatedProblemIRRejection(artifacts:unknown,question:string):SceneArt
   ||typeof row.elapsedMs!=="number"||!Number.isFinite(row.elapsedMs)||row.elapsedMs<0)return undefined;
  try{
   const raw=JSON.stringify(row.rawProblemIR);if(!raw||raw.length>200000)return undefined;
-  return {status:"source_declined",question,rawProblemIR:JSON.parse(raw),rawContent:row.rawContent,issueCodes:[...row.issueCodes],elapsedMs:row.elapsedMs};
+  const rawPlan=row.rawTurnPlan===undefined?undefined:JSON.stringify(row.rawTurnPlan);
+  if(rawPlan!==undefined && (!rawPlan || rawPlan.length>200000))return undefined;
+  return {status:"source_declined",question,rawProblemIR:JSON.parse(raw),...(rawPlan===undefined?{}:{rawTurnPlan:JSON.parse(rawPlan)}),rawContent:row.rawContent,issueCodes:[...row.issueCodes],elapsedMs:row.elapsedMs};
  }catch{return undefined;}
 }
