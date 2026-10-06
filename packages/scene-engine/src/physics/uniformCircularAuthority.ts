@@ -1,4 +1,3 @@
-import { evaluateMathExpression } from "../math/expression";
 import { sameSceneValue } from "../document/valueEquality";
 import type { ExpressionNodeIR, ProblemIR, ProblemFact } from "../ir/problemIR";
 import type { SceneIssue } from "../types";
@@ -269,10 +268,26 @@ export function uniformCircularRuntimeProblemIssues(contract: UniformCircularRun
  * state, not question/fixture templates; no IDs or authored metadata confer truth.
  */
 function supportedPlanAssertion(contract: UniformCircularRuntimeContract, text: string): boolean {
+  if (!text.trim() || text.length > 2048) return false;
   const phrase = phraseText(text).replace(/²/g, "^2").replace(/ω/g, "omega");
   const inward = "(?:toward|towards) the (?:center|centre)(?: of the (?:circle|circular track))?";
   const acceleration = new RegExp(`^(?:the )?(?:centripetal )?acceleration (?:points|is directed|directed) (?:radially inward(?: ${inward})?|${inward})(?:, perpendicular to (?:the )?velocity)?$`);
   if (acceleration.test(phrase)) return true;
+  // Composition consumes every clause. In the admitted fixed-radius,
+  // constant-rate state, dv/dt = 0 and a = a_c; neither requires a sense,
+  // starting phase or a mass. No unread suffix becomes assertion authority.
+  if (/^(?:the )?tangential acceleration is zero$/.test(phrase)) return true;
+  if (/^(?:the )?acceleration is purely centripetal$/.test(phrase)) return true;
+  // A circle's arc length for one revolution is 2*pi*r. Bind that
+  // expression structurally, then prove the complete period equation using
+  // the same source-operand proof as a derived quantity.
+  const revolution = /^one (?:complete )?revolution covers the circumference (.+?) at constant speed v(?:, giving period (.+))?[.]?$/i.exec(text.trim().replace(/[.]$/, ""));
+  if (revolution) {
+    const distance = parseSourceMath(revolution[1]!);
+    const circumference = parseSourceMath("2*pi*r")!;
+    if (!distance || !provesSourceMath(contract, distance, circumference, sourceTrees(contract))) return false;
+    return revolution[2] === undefined || supportedDerivedSourceText(contract, { sourceText: revolution[2], unit: "s" }, "period");
+  }
   if (/^(?:the )?speed is constant(?: in uniform circular motion| because the period and radius are fixed)?$/.test(phrase)) return true;
   if (phrase === "constant speed") return true;
   if (new RegExp(`^(?:the )?${escapePattern(contract.actor)} (?:undergoes|moves in) uniform circular motion(?: with constant speed)?$`).test(phrase)) return true;
@@ -287,13 +302,15 @@ function supportedPlanAssertion(contract: UniformCircularRuntimeContract, text: 
   if (new RegExp(`^centripetal acceleration magnitude is a_c = v\\^2/r = omega\\^2r, directed radially inward ${inward}$`).test(phrase)) return true;
   if (contract.source.sense === "clockwise" && phrase === "clockwise motion sets the sign of angular velocity (negative by the usual counterclockwise-positive convention) but does not change the magnitudes") return true;
   if (phrase === "a verified illustration is required by the question's spatial or explicit visual request") return true;
-  const piDisplay = /^pi approx (3\.\d+)$/.exec(phrase);
+  const piDisplay = /^(?:use )?pi (?:approx|≈) (3\.\d+)$/.exec(phrase);
   if (piDisplay) return Math.abs(Number(piDisplay[1]) - Math.PI) <= .5 * 10 ** -(piDisplay[1]!.length - 2);
   if (new RegExp(`^${escapePattern(contract.actor)} treated as a point particle$`).test(phrase)) return true;
   const radius = contract.source.givens.find(given => given.role === "radius")!;
   if (contract.path === "circular track" && phrase === `track is a perfect circle of radius ${radius.text.toLowerCase()}`) return true;
   const speed = contract.source.givens.find(given => given.role === "speed");
   if (speed && phrase === `speed is constant at ${speed.text.toLowerCase()} (uniform circular motion)`) return true;
+  const clauses = text.split(/;|,\s+so\s+/i);
+  if (clauses.length > 1) return clauses.length <= 8 && clauses.every(clause => supportedPlanAssertion(contract, clause.trim()));
   return !!contract.source.sense && new RegExp(`^(?:(?:the )?(?:${escapePattern(contract.actor)}|body) )?moves ${contract.source.sense}$`).test(phrase);
 }
 
@@ -305,35 +322,21 @@ function supportedClaimExpected(contract: UniformCircularRuntimeContract, expect
   if (expected === true) return true;
   if (typeof expected !== "string") return false;
   if (supportedPlanAssertion(contract, expected)) return true;
-  let text = expected.replace(/²/g, "^2").replace(/ω/g, "omega").replace(/−/g, "-").trim();
+  const text = expected.replace(/²/g, "^2").replace(/ω/g, "omega").replace(/−/g, "-").trim();
   const signed = / if signed; magnitude /.test(text);
   if (signed) {
     if (contract.source.sense !== "clockwise") return false;
     const match = /^omega = (-[\d.]+) rad\/s if signed; magnitude ([\d.]+) rad\/s$/.exec(text);
     return !!match && Number(match[1]) === -contract.source.angularSpeed && Number(match[2]) === contract.source.angularSpeed;
   }
-  text = text.replace(/, directed radially inward$/, "");
-  const parts = text.split(/\s*(=|≈)\s*/);
-  const symbol = parts.shift()!.trim();
-  const role: Role | null = symbol === "a_c" ? "acceleration" : symbol === "T" ? "period" : symbol === "v" ? "speed" : symbol === "omega" ? "angular_speed" : null;
-  if (!role || parts.length < 2) return false;
-  const identities: Record<Role, string[]> = {
-    radius: ["r"], speed: ["2*pi*r/T"], period: ["2*pi*r/v"], angular_speed: ["v/r", "2*pi/T"],
-    acceleration: ["v^2/r", "omega^2r", "omega^2*r", "4*pi^2*r/T^2"],
-  };
+  // Zero is the tangential component only. An a_c=0 claim still goes
+  // through the source's nonzero centripetal magnitude below.
+  if (/^a_t\s*=\s*0(?:\s+m\/s\^2)?$/.test(text)) return true;
+  const symbol = text.split(/\s*(?:=|≈)\s*/)[0]!.trim();
+  const role = roleSymbols[symbol];
+  if (!role) return false;
   const unit: Record<Role, string> = {radius:"m",speed:"m/s",period:"s",angular_speed:"rad/s",acceleration:"m/s^2"};
-  const value = uniformCircularRuntimeQuantityValue(contract.source, {symbol,unit:unit[role]})!;
-  for (let i = 0; i < parts.length; i += 2) {
-    const member = parts[i + 1]!.replace(/\s/g, "");
-    if (identities[role].includes(member) && parts[i] === "=") continue;
-    if (!member.endsWith(unit[role])) return false;
-    const literal = member.slice(0, -unit[role].length);
-    if (!/^-?(?:\d+(?:\.\d+)?)(?:\*pi)?$/.test(literal)) return false;
-    const digits = /\.(\d+)/.exec(literal)?.[1]?.length ?? 0;
-    const tolerance = parts[i] === "≈" ? .5 * 10 ** -digits : 8 * Number.EPSILON * Math.max(1, Math.abs(value));
-    try { if (Math.abs(evaluateMathExpression(literal, 0) - value) > tolerance) return false; } catch { return false; }
-  }
-  return true;
+  return supportedDerivedSourceText(contract, { sourceText: text, unit: unit[role] }, role);
 }
 
 /** Bounded source-role math. No value-only join of arbitrary expressions:
@@ -433,8 +436,9 @@ function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, ro
     if (!clause) return false;
     if (supportedPlanAssertion(contract, clause)) return true;
     // This suffix asserts direction too, and is consumed as a whole.
-    if (/, directed radially inward$/.test(clause) && role !== "acceleration") return false;
-    clause = clause.replace(/, directed radially inward$/, "");
+    const inwardSuffix = /(?:, directed radially inward| directed inward)$/;
+    if (inwardSuffix.test(clause) && role !== "acceleration") return false;
+    clause = clause.replace(inwardSuffix, "");
     clause = clause.replace(/^Source-verified /, "");
     const parts = clause.split(/\s*(=|≈)\s*/);
     const lhs = parts.shift()?.trim();
@@ -461,6 +465,31 @@ function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, ro
     }
     return true;
   });
+}
+
+/** A scalar's decimal display cannot replace its source derivation. This
+ * allowance is only for derived rows with a complete proved equation chain
+ * and an explicit terminal approximation. Inputs remain exact; the solver
+ * and scene still use the independently recomputed source value.
+ */
+export function uniformCircularRuntimeDerivedDisplayMatches(contract: UniformCircularRuntimeContract, row: Record<string, unknown>): boolean {
+  if (row.provenance !== "derived" || typeof row.symbol !== "string" || typeof row.unit !== "string"
+    || typeof row.value !== "number" || !Number.isFinite(row.value) || row.value <= 0 || typeof row.sourceText !== "string") return false;
+  const role = uniformCircularRuntimeQuantityRole({ symbol: row.symbol, unit: row.unit });
+  if (!role || !supportedDerivedSourceText(contract, row, role)) return false;
+  // Require the actual quantity's equation, not merely some true prose.
+  const chain = row.sourceText.split(/;|\n/).some(clause => {
+    const lhs = clause.trim().split(/\s*(?:=|≈)\s*/)[0]!;
+    return roleSymbols[lhs] === role && clause.includes("=") && clause.includes("≈");
+  });
+  if (!chain) return false;
+  const written = String(row.value);
+  // Scientific notation needs a separate significant-digit proof; keep
+  // this display contract to ordinary, nonintegral decimal literals.
+  if (!/^\d+\.\d+$/.test(written)) return false;
+  const decimals = written.split(".")[1]!.length;
+  const expected = uniformCircularRuntimeQuantityValue(contract.source, { symbol: row.symbol, unit: row.unit });
+  return expected !== null && Math.abs(row.value - expected) <= .5 * 10 ** -decimals;
 }
 
 /** Unknown rows are obligations too; do not delete them to obtain admission. */

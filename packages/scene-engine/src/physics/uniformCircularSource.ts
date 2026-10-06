@@ -14,7 +14,7 @@
  * pendula, charged particles, orbits under gravitation) keep their own paths.
  */
 
-import { readUniformCircularRuntimeContract, uniformCircularRuntimePlanConflicts, uniformCircularRuntimeQuantityValue } from "./uniformCircularAuthority";
+import { readUniformCircularRuntimeContract, uniformCircularRuntimePlanConflicts, uniformCircularRuntimeQuantityValue, uniformCircularRuntimeDerivedDisplayMatches } from "./uniformCircularAuthority";
 import { STEM_NUMBER, TUPLE_COMPONENT_NUMBER, parseStemNumber } from "../archetypes/slots";
 
 export type RotationSense = "clockwise" | "anticlockwise";
@@ -541,7 +541,7 @@ export function stalePlanQuantities(source: UniformCircularNumeric, turnPlan: un
       if (expected !== null) {
         const u = Number.EPSILON / 2;
         const allowance = quantity.provenance === "given" ? 0 : 8 * u / (1 - 8 * u) * Math.abs(expected);
-        if (Math.abs(quantity.value - expected) > allowance) stale.push({ id: String(quantity.id ?? ""), symbol: quantity.symbol, planValue: quantity.value, sourceValue: expected, unit: String(quantity.unit ?? "") });
+        if (Math.abs(quantity.value - expected) > allowance && !uniformCircularRuntimeDerivedDisplayMatches(runtime.contract, quantity)) stale.push({ id: String(quantity.id ?? ""), symbol: quantity.symbol, planValue: quantity.value, sourceValue: expected, unit: String(quantity.unit ?? "") });
         continue;
       }
     }
