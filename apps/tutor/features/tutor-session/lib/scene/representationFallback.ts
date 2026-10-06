@@ -143,16 +143,19 @@ export function selectFastVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation | null {
   if (readScrewGaugeQuestion(input.question).status !== "none") return null;
+  const sourceRelative = relativeMotionSource(input.question)?.status === "admitted";
+  if (sourceRelative && motionPlanConflict(input.question, input.turnPlan)) return null;
   const plan = validateTurnPlanV3(input.turnPlan, input.question).plan;
   if (!plan || plan.visualRequirement === "none") return null;
   if (plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
       !isQuotedPhysicalConstant(given.symbol, given.value))) return null;
-  const result = synthesizeFamilyScene({
+  const synthesized = synthesizeFamilyScene({
     question: input.question,
     turnPlan: plan,
     families: input.families,
     problemIR: input.problemIR ?? null,
   });
+  const result = sourceRelative && synthesized ? compileSourceFigureForCaller(synthesized, input) : synthesized;
   if (!result?.validationReport.valid || result.tier === "question_representation" ||
       !result.renderScene.primitives.some((primitive) =>
         (primitive.kind === "label" || primitive.kind === "dimension") && primitive.text?.trim())) return null;
@@ -161,7 +164,10 @@ export function selectFastVerifiedRepresentation(
   const agreement = validateSceneQuantityAgreement(result.document.quantities, plan,
     result.renderScene.primitives.flatMap((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string"
-        ? [primitive.text] : []));
+        ? [primitive.text] : []),
+    sourceRelative ? {
+      question: input.question, problemIR: input.problemIR, document: result.document,
+    } : undefined);
   if (agreement.length > 0 || (result.tier === "exact_verified" &&
       validateTurnPlanSceneProofs(result.document, plan).some((issue) => issue.severity === "fatal"))) return null;
   return {

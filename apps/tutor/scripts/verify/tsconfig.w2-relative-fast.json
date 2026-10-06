@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "../../next-env.d.ts",
+    "../../app/**/*.ts",
+    "../../app/**/*.tsx",
+    "../../features/**/*.ts",
+    "../../features/**/*.tsx",
+    "../../lib/**/*.ts",
+    "./verify-w2-relative-fast-source.ts"
+  ],
+  "exclude": [
+    "../../node_modules",
+    "../../autumn.config.ts"
+  ]
+}

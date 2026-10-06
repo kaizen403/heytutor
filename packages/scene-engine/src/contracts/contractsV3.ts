@@ -5,6 +5,7 @@
  * Full expression-tree CAS and vision-gated ready are deferred.
  */
 
+import { provedSourceSceneQuantityValues, type SourceSceneQuantityContext } from "./sourceSceneQuantityAgreement";
 import { validateCoordinateDistanceSourceInputs } from "../ir/coordinateDistanceSource";
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
@@ -2065,7 +2066,10 @@ export function validateSceneQuantityAgreement(
   sceneQuantities: Array<Record<string, unknown> & { id: string }>,
   plan: TurnPlanV3,
   displayedTexts: string[] = [],
+  sourceContext?: SourceSceneQuantityContext,
 ): TurnPlanValidationIssue[] {
+  const proved = sourceContext ? provedSourceSceneQuantityValues(sceneQuantities, plan, displayedTexts, sourceContext) : [];
+  if (proved === null) return [{code: "scene_quantity_source_context", path: "sourceAuthority", message: "Complete caller source programme and compiled label proof must agree"}];
   const issues: TurnPlanValidationIssue[] = [];
   const planQuantities = [...plan.givens, ...plan.derived];
   const qualitativeEvidence = plan.qualitativeClaims.flatMap((claim) => [
@@ -2079,7 +2083,7 @@ export function validateSceneQuantityAgreement(
       ? quantity.value
       : null;
     const compatible = planned ?? (numericValue !== null
-      ? planQuantities.find((candidate) =>
+      ? [...planQuantities, ...proved].find((candidate) =>
           equivalentMeasuredQuantity(candidate.value, candidate.unit, numericValue, quantity.unit))
       : undefined);
     if (!planned && compatible) return;
@@ -2109,7 +2113,7 @@ export function validateSceneQuantityAgreement(
     }
   });
 
-  const supportedDisplays = planQuantities.map((quantity) => ({
+  const supportedDisplays = [...planQuantities, ...proved].map((quantity) => ({
     value: quantity.value,
     unit: normalizeUnit(quantity.unit),
   })).concat(qualitativeEvidence);
