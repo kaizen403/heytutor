@@ -1,0 +1,1534 @@
+{
+  "captures": [
+    {
+      "name": "external",
+      "question": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally in the ratio 2:1.",
+      "rawIR": {
+        "facts": [
+          {
+            "id": "fA",
+            "kind": "given",
+            "statement": "Point A has coordinates (1,2)",
+            "quote": "A(1,2)"
+          },
+          {
+            "id": "fB",
+            "kind": "given",
+            "statement": "Point B has coordinates (4,5)",
+            "quote": "B(4,5)"
+          },
+          {
+            "id": "fRatio",
+            "kind": "given",
+            "statement": "External division ratio is 2:1",
+            "quote": "externally in the ratio 2:1"
+          },
+          {
+            "id": "fP",
+            "kind": "requested",
+            "statement": "Find point P dividing segment externally",
+            "quote": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally"
+          }
+        ],
+        "entities": [
+          {
+            "id": "ptA",
+            "kind": "point",
+            "label": "A",
+            "evidenceFactIds": [
+              "fA"
+            ]
+          },
+          {
+            "id": "ptB",
+            "kind": "point",
+            "label": "B",
+            "evidenceFactIds": [
+              "fB"
+            ]
+          },
+          {
+            "id": "ptP",
+            "kind": "point",
+            "label": "P",
+            "evidenceFactIds": [
+              "fP"
+            ]
+          },
+          {
+            "id": "segAB",
+            "kind": "line",
+            "label": "line through A and B",
+            "evidenceFactIds": [
+              "fA",
+              "fB"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "ePx",
+            "valueType": "scalar",
+            "expr": "(2*4-1*1)/(2-1)",
+            "evidenceFactIds": [
+              "fA",
+              "fB",
+              "fRatio"
+            ]
+          },
+          {
+            "id": "ePy",
+            "valueType": "scalar",
+            "expr": "(2*5-1*2)/(2-1)",
+            "evidenceFactIds": [
+              "fA",
+              "fB",
+              "fRatio"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iLine",
+            "kind": "graph",
+            "entityIds": [
+              "ptA",
+              "ptB",
+              "ptP",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fA",
+              "fB",
+              "fP"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sPx",
+            "kind": "evaluate",
+            "expressionId": "ePx",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "P_x",
+              "evidenceFactIds": [
+                "fP"
+              ]
+            }
+          },
+          {
+            "id": "sPy",
+            "kind": "evaluate",
+            "expressionId": "ePy",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "P_y",
+              "evidenceFactIds": [
+                "fP"
+              ]
+            }
+          }
+        ]
+      },
+      "runtimeIR": {
+        "facts": [
+          {
+            "id": "fA",
+            "kind": "given",
+            "statement": "Point A has coordinates (1,2)",
+            "evidence": {
+              "source": "question",
+              "start": 56,
+              "end": 62,
+              "quote": "A(1,2)"
+            }
+          },
+          {
+            "id": "fB",
+            "kind": "given",
+            "statement": "Point B has coordinates (4,5)",
+            "evidence": {
+              "source": "question",
+              "start": 67,
+              "end": 73,
+              "quote": "B(4,5)"
+            }
+          },
+          {
+            "id": "fRatio",
+            "kind": "given",
+            "statement": "External division ratio is 2:1",
+            "evidence": {
+              "source": "question",
+              "start": 74,
+              "end": 101,
+              "quote": "externally in the ratio 2:1"
+            }
+          },
+          {
+            "id": "fP",
+            "kind": "requested",
+            "statement": "Find point P dividing segment externally",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 84,
+              "quote": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "ptA",
+            "kind": "point",
+            "label": "A",
+            "evidenceFactIds": [
+              "fA"
+            ]
+          },
+          {
+            "id": "ptB",
+            "kind": "point",
+            "label": "B",
+            "evidenceFactIds": [
+              "fB"
+            ]
+          },
+          {
+            "id": "ptP",
+            "kind": "point",
+            "label": "P",
+            "evidenceFactIds": [
+              "fP"
+            ]
+          },
+          {
+            "id": "segAB",
+            "kind": "line",
+            "label": "line through A and B",
+            "evidenceFactIds": [
+              "fA",
+              "fB"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "ePx",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fA",
+              "fB",
+              "fRatio"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 4
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 1
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 1
+                }
+              }
+            }
+          },
+          {
+            "id": "ePy",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fA",
+              "fB",
+              "fRatio"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 5
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 1
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iLine",
+            "kind": "graph",
+            "entityIds": [
+              "ptA",
+              "ptB",
+              "ptP",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fA",
+              "fB",
+              "fP"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sPx",
+            "kind": "evaluate",
+            "expressionId": "ePx",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "P_x",
+              "evidenceFactIds": [
+                "fP"
+              ]
+            }
+          },
+          {
+            "id": "sPy",
+            "kind": "evaluate",
+            "expressionId": "ePy",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "P_y",
+              "evidenceFactIds": [
+                "fP"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally in the ratio 2:1."
+      },
+      "canonicalPlan": {
+        "givens": [
+          {
+            "id": "g3",
+            "value": 2,
+            "symbol": "m",
+            "provenance": "given",
+            "sourceText": "ratio 2:1"
+          },
+          {
+            "id": "g4",
+            "value": 1,
+            "symbol": "n",
+            "provenance": "given",
+            "sourceText": "ratio 2:1"
+          }
+        ],
+        "lawIds": [
+          "external_section_formula"
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "value": 7,
+            "symbol": "P_x",
+            "dependsOn": [
+              "g3",
+              "g4"
+            ],
+            "provenance": "derived",
+            "sourceText": "(2*4 - 1*1)/(2-1) = (8-1)/1 = 7"
+          },
+          {
+            "id": "u2",
+            "value": 8,
+            "symbol": "P_y",
+            "dependsOn": [
+              "g3",
+              "g4"
+            ],
+            "provenance": "derived",
+            "sourceText": "(2*5 - 1*2)/(2-1) = (10-2)/1 = 8"
+          }
+        ],
+        "question": "Find the point P which divides the line segment joining A(1,2) and B(4,5) externally in the ratio 2:1.",
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "P_x"
+          },
+          {
+            "id": "u2",
+            "symbol": "P_y"
+          }
+        ],
+        "assumptions": [
+          "External division means P lies outside segment AB on the line through A and B",
+          "Ratio 2:1 means AP:BP = 2:1 with P beyond B",
+          "Removed 4 invalid planner dependency references.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "schemaVersion": "turn-plan/v3",
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "External division formula: P = ((m*x2 - n*x1)/(m-n), (m*y2 - n*y1)/(m-n))",
+            "expected": "P = ((m*x2 - n*x1)/(m-n), (m*y2 - n*y1)/(m-n))",
+            "relatedQuantityIds": [
+              "u1",
+              "u2",
+              "g3",
+              "g4"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "P lies on line AB extended beyond B since m > n",
+            "expected": "P(7,8) is collinear with A and B, located past B",
+            "relatedQuantityIds": [
+              "u1",
+              "u2"
+            ]
+          }
+        ],
+        "visualRequirement": "required"
+      },
+      "oracle": [
+        7,
+        8
+      ]
+    },
+    {
+      "name": "internal",
+      "question": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally in the ratio 1:2.",
+      "rawIR": {
+        "facts": [
+          {
+            "id": "fAx",
+            "kind": "given",
+            "statement": "x-coordinate of A is 2",
+            "quote": "A(2,-1)"
+          },
+          {
+            "id": "fAy",
+            "kind": "given",
+            "statement": "y-coordinate of A is -1",
+            "quote": "A(2,-1)"
+          },
+          {
+            "id": "fBx",
+            "kind": "given",
+            "statement": "x-coordinate of B is 8",
+            "quote": "B(8,5)"
+          },
+          {
+            "id": "fBy",
+            "kind": "given",
+            "statement": "y-coordinate of B is 5",
+            "quote": "B(8,5)"
+          },
+          {
+            "id": "fRatio",
+            "kind": "given",
+            "statement": "internal division ratio is 1:2",
+            "quote": "internally in the ratio 1:2"
+          },
+          {
+            "id": "fFind",
+            "kind": "requested",
+            "statement": "find point P dividing segment internally",
+            "quote": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally"
+          }
+        ],
+        "entities": [
+          {
+            "id": "ptA",
+            "kind": "point",
+            "label": "A",
+            "evidenceFactIds": [
+              "fAx",
+              "fAy"
+            ]
+          },
+          {
+            "id": "ptB",
+            "kind": "point",
+            "label": "B",
+            "evidenceFactIds": [
+              "fBx",
+              "fBy"
+            ]
+          },
+          {
+            "id": "ptP",
+            "kind": "point",
+            "label": "P",
+            "evidenceFactIds": [
+              "fFind"
+            ]
+          },
+          {
+            "id": "segAB",
+            "kind": "line",
+            "label": "AB",
+            "evidenceFactIds": [
+              "fFind"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "ePx",
+            "valueType": "scalar",
+            "expr": "(1*8+2*2)/(1+2)",
+            "evidenceFactIds": [
+              "fAx",
+              "fBx",
+              "fRatio"
+            ]
+          },
+          {
+            "id": "ePy",
+            "valueType": "scalar",
+            "expr": "(1*5+2*(-1))/(1+2)",
+            "evidenceFactIds": [
+              "fAy",
+              "fBy",
+              "fRatio"
+            ]
+          }
+        ],
+        "constraints": [
+          {
+            "id": "cJoin",
+            "kind": "incident",
+            "entityIds": [
+              "ptA",
+              "segAB",
+              "ptB"
+            ],
+            "evidenceFactIds": [
+              "fFind"
+            ]
+          },
+          {
+            "id": "cOnSeg",
+            "kind": "incident",
+            "entityIds": [
+              "ptP",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fFind",
+              "fRatio"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "iSeg",
+            "kind": "graph",
+            "entityIds": [
+              "ptA",
+              "ptB",
+              "ptP",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fFind",
+              "fRatio"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sPx",
+            "kind": "evaluate",
+            "expressionId": "ePx",
+            "resultBinding": {
+              "turnPlanQuantityId": "px",
+              "symbol": "x_P",
+              "evidenceFactIds": [
+                "fFind"
+              ]
+            }
+          },
+          {
+            "id": "sPy",
+            "kind": "evaluate",
+            "expressionId": "ePy",
+            "resultBinding": {
+              "turnPlanQuantityId": "py",
+              "symbol": "y_P",
+              "evidenceFactIds": [
+                "fFind"
+              ]
+            }
+          }
+        ]
+      },
+      "runtimeIR": {
+        "facts": [
+          {
+            "id": "fAx",
+            "kind": "given",
+            "statement": "x-coordinate of A is 2",
+            "evidence": {
+              "source": "question",
+              "start": 56,
+              "end": 63,
+              "quote": "A(2,-1)"
+            }
+          },
+          {
+            "id": "fAy",
+            "kind": "given",
+            "statement": "y-coordinate of A is -1",
+            "evidence": {
+              "source": "question",
+              "start": 56,
+              "end": 63,
+              "quote": "A(2,-1)"
+            }
+          },
+          {
+            "id": "fBx",
+            "kind": "given",
+            "statement": "x-coordinate of B is 8",
+            "evidence": {
+              "source": "question",
+              "start": 68,
+              "end": 74,
+              "quote": "B(8,5)"
+            }
+          },
+          {
+            "id": "fBy",
+            "kind": "given",
+            "statement": "y-coordinate of B is 5",
+            "evidence": {
+              "source": "question",
+              "start": 68,
+              "end": 74,
+              "quote": "B(8,5)"
+            }
+          },
+          {
+            "id": "fRatio",
+            "kind": "given",
+            "statement": "internal division ratio is 1:2",
+            "evidence": {
+              "source": "question",
+              "start": 75,
+              "end": 102,
+              "quote": "internally in the ratio 1:2"
+            }
+          },
+          {
+            "id": "fFind",
+            "kind": "requested",
+            "statement": "find point P dividing segment internally",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 85,
+              "quote": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "ptA",
+            "kind": "point",
+            "label": "A",
+            "evidenceFactIds": [
+              "fAx",
+              "fAy"
+            ]
+          },
+          {
+            "id": "ptB",
+            "kind": "point",
+            "label": "B",
+            "evidenceFactIds": [
+              "fBx",
+              "fBy"
+            ]
+          },
+          {
+            "id": "ptP",
+            "kind": "point",
+            "label": "P",
+            "evidenceFactIds": [
+              "fFind"
+            ]
+          },
+          {
+            "id": "segAB",
+            "kind": "line",
+            "label": "AB",
+            "evidenceFactIds": [
+              "fFind"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "ePx",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fAx",
+              "fBx",
+              "fRatio"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 8
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 1
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            }
+          },
+          {
+            "id": "ePy",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fAy",
+              "fBy",
+              "fRatio"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 1
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 5
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "unary",
+                    "operator": "-",
+                    "operand": {
+                      "kind": "number",
+                      "value": 1
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 1
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [
+          {
+            "id": "cJoin",
+            "kind": "incident",
+            "entityIds": [
+              "ptA",
+              "segAB",
+              "ptB"
+            ],
+            "evidenceFactIds": [
+              "fFind"
+            ]
+          },
+          {
+            "id": "cOnSeg",
+            "kind": "incident",
+            "entityIds": [
+              "ptP",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fFind",
+              "fRatio"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "iSeg",
+            "kind": "graph",
+            "entityIds": [
+              "ptA",
+              "ptB",
+              "ptP",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fFind",
+              "fRatio"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sPx",
+            "kind": "evaluate",
+            "expressionId": "ePx",
+            "resultBinding": {
+              "turnPlanQuantityId": "px",
+              "symbol": "x_P",
+              "evidenceFactIds": [
+                "fFind"
+              ]
+            }
+          },
+          {
+            "id": "sPy",
+            "kind": "evaluate",
+            "expressionId": "ePy",
+            "resultBinding": {
+              "turnPlanQuantityId": "py",
+              "symbol": "y_P",
+              "evidenceFactIds": [
+                "fFind"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally in the ratio 1:2."
+      },
+      "canonicalPlan": {
+        "givens": [
+          {
+            "id": "ax",
+            "value": 2,
+            "symbol": "x_A",
+            "provenance": "given",
+            "sourceText": "A(2,-1)"
+          },
+          {
+            "id": "ay",
+            "sign": "negative",
+            "value": -1,
+            "symbol": "y_A",
+            "provenance": "given",
+            "sourceText": "A(2,-1)"
+          },
+          {
+            "id": "bx",
+            "value": 8,
+            "symbol": "x_B",
+            "provenance": "given",
+            "sourceText": "B(8,5)"
+          },
+          {
+            "id": "by",
+            "value": 5,
+            "symbol": "y_B",
+            "provenance": "given",
+            "sourceText": "B(8,5)"
+          },
+          {
+            "id": "m",
+            "value": 1,
+            "symbol": "m",
+            "provenance": "given",
+            "sourceText": "ratio 1:2"
+          },
+          {
+            "id": "n",
+            "value": 2,
+            "symbol": "n",
+            "provenance": "given",
+            "sourceText": "ratio 1:2"
+          }
+        ],
+        "lawIds": [
+          "internal section formula: P=((m*x_B+n*x_A)/(m+n),(m*y_B+n*y_A)/(m+n))"
+        ],
+        "derived": [
+          {
+            "id": "px",
+            "value": 4,
+            "symbol": "x_P",
+            "dependsOn": [
+              "ax",
+              "bx",
+              "m",
+              "n"
+            ],
+            "provenance": "derived",
+            "sourceText": "(1*8+2*2)/(1+2)=(8+4)/3=12/3=4"
+          },
+          {
+            "id": "py",
+            "value": 1,
+            "symbol": "y_P",
+            "dependsOn": [
+              "ay",
+              "by",
+              "m",
+              "n"
+            ],
+            "provenance": "derived",
+            "sourceText": "(1*5+2*(-1))/(1+2)=(5-2)/3=3/3=1"
+          }
+        ],
+        "question": "Find the point P which divides the line segment joining A(2,-1) and B(8,5) internally in the ratio 1:2.",
+        "unknowns": [
+          {
+            "id": "px",
+            "symbol": "x_P"
+          },
+          {
+            "id": "py",
+            "symbol": "y_P"
+          }
+        ],
+        "assumptions": [
+          "Ratio 1:2 means AP:PB=1:2",
+          "Cartesian plane with standard coordinates",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "schemaVersion": "turn-plan/v3",
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "P divides AB internally in ratio 1:2, so P lies between A and B, closer to A.",
+            "expected": "P=(4,1) lies on segment AB with AP:PB=1:2",
+            "relatedQuantityIds": [
+              "px",
+              "py",
+              "ax",
+              "ay",
+              "bx",
+              "by"
+            ]
+          }
+        ],
+        "visualRequirement": "required"
+      },
+      "oracle": [
+        4,
+        1
+      ]
+    },
+    {
+      "name": "midpoint",
+      "question": "Find the midpoint P of the line segment joining A(-4,6) and B(8,-2).",
+      "rawIR": {
+        "facts": [
+          {
+            "id": "fAx",
+            "kind": "given",
+            "statement": "x-coordinate of A is -4",
+            "quote": "A(-4,6)"
+          },
+          {
+            "id": "fAy",
+            "kind": "given",
+            "statement": "y-coordinate of A is 6",
+            "quote": "A(-4,6)"
+          },
+          {
+            "id": "fBx",
+            "kind": "given",
+            "statement": "x-coordinate of B is 8",
+            "quote": "B(8,-2)"
+          },
+          {
+            "id": "fBy",
+            "kind": "given",
+            "statement": "y-coordinate of B is -2",
+            "quote": "B(8,-2)"
+          },
+          {
+            "id": "fMid",
+            "kind": "requested",
+            "statement": "midpoint P of segment AB",
+            "quote": "midpoint P of the line segment joining A(-4,6) and B(8,-2)"
+          }
+        ],
+        "entities": [
+          {
+            "id": "A",
+            "kind": "point",
+            "label": "A",
+            "evidenceFactIds": [
+              "fAx",
+              "fAy"
+            ]
+          },
+          {
+            "id": "B",
+            "kind": "point",
+            "label": "B",
+            "evidenceFactIds": [
+              "fBx",
+              "fBy"
+            ]
+          },
+          {
+            "id": "P",
+            "kind": "point",
+            "label": "P",
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          },
+          {
+            "id": "segAB",
+            "kind": "line",
+            "label": "segment AB",
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "ePx",
+            "valueType": "scalar",
+            "expr": "(-4+8)/2",
+            "evidenceFactIds": [
+              "fAx",
+              "fBx",
+              "fMid"
+            ]
+          },
+          {
+            "id": "ePy",
+            "valueType": "scalar",
+            "expr": "(6+(-2))/2",
+            "evidenceFactIds": [
+              "fAy",
+              "fBy",
+              "fMid"
+            ]
+          }
+        ],
+        "constraints": [
+          {
+            "id": "cOnSeg",
+            "kind": "incident",
+            "entityIds": [
+              "P",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          },
+          {
+            "id": "cEnds",
+            "kind": "incident",
+            "entityIds": [
+              "A",
+              "segAB",
+              "B"
+            ],
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "iSeg",
+            "kind": "graph",
+            "entityIds": [
+              "A",
+              "B",
+              "P",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sPx",
+            "kind": "evaluate",
+            "expressionId": "ePx",
+            "resultBinding": {
+              "turnPlanQuantityId": "px",
+              "symbol": "x_P",
+              "evidenceFactIds": [
+                "fMid"
+              ]
+            }
+          },
+          {
+            "id": "sPy",
+            "kind": "evaluate",
+            "expressionId": "ePy",
+            "resultBinding": {
+              "turnPlanQuantityId": "py",
+              "symbol": "y_P",
+              "evidenceFactIds": [
+                "fMid"
+              ]
+            }
+          }
+        ]
+      },
+      "runtimeIR": {
+        "facts": [
+          {
+            "id": "fAx",
+            "kind": "given",
+            "statement": "x-coordinate of A is -4",
+            "evidence": {
+              "source": "question",
+              "start": 48,
+              "end": 55,
+              "quote": "A(-4,6)"
+            }
+          },
+          {
+            "id": "fAy",
+            "kind": "given",
+            "statement": "y-coordinate of A is 6",
+            "evidence": {
+              "source": "question",
+              "start": 48,
+              "end": 55,
+              "quote": "A(-4,6)"
+            }
+          },
+          {
+            "id": "fBx",
+            "kind": "given",
+            "statement": "x-coordinate of B is 8",
+            "evidence": {
+              "source": "question",
+              "start": 60,
+              "end": 67,
+              "quote": "B(8,-2)"
+            }
+          },
+          {
+            "id": "fBy",
+            "kind": "given",
+            "statement": "y-coordinate of B is -2",
+            "evidence": {
+              "source": "question",
+              "start": 60,
+              "end": 67,
+              "quote": "B(8,-2)"
+            }
+          },
+          {
+            "id": "fMid",
+            "kind": "requested",
+            "statement": "midpoint P of segment AB",
+            "evidence": {
+              "source": "question",
+              "start": 9,
+              "end": 67,
+              "quote": "midpoint P of the line segment joining A(-4,6) and B(8,-2)"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "A",
+            "kind": "point",
+            "label": "A",
+            "evidenceFactIds": [
+              "fAx",
+              "fAy"
+            ]
+          },
+          {
+            "id": "B",
+            "kind": "point",
+            "label": "B",
+            "evidenceFactIds": [
+              "fBx",
+              "fBy"
+            ]
+          },
+          {
+            "id": "P",
+            "kind": "point",
+            "label": "P",
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          },
+          {
+            "id": "segAB",
+            "kind": "line",
+            "label": "segment AB",
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "ePx",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fAx",
+              "fBx",
+              "fMid"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "unary",
+                  "operator": "-",
+                  "operand": {
+                    "kind": "number",
+                    "value": 4
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 8
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          {
+            "id": "ePy",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fAy",
+              "fBy",
+              "fMid"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "unary",
+                  "operator": "-",
+                  "operand": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          }
+        ],
+        "constraints": [
+          {
+            "id": "cOnSeg",
+            "kind": "incident",
+            "entityIds": [
+              "P",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          },
+          {
+            "id": "cEnds",
+            "kind": "incident",
+            "entityIds": [
+              "A",
+              "segAB",
+              "B"
+            ],
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          }
+        ],
+        "representationIntents": [
+          {
+            "id": "iSeg",
+            "kind": "graph",
+            "entityIds": [
+              "A",
+              "B",
+              "P",
+              "segAB"
+            ],
+            "evidenceFactIds": [
+              "fMid"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sPx",
+            "kind": "evaluate",
+            "expressionId": "ePx",
+            "resultBinding": {
+              "turnPlanQuantityId": "px",
+              "symbol": "x_P",
+              "evidenceFactIds": [
+                "fMid"
+              ]
+            }
+          },
+          {
+            "id": "sPy",
+            "kind": "evaluate",
+            "expressionId": "ePy",
+            "resultBinding": {
+              "turnPlanQuantityId": "py",
+              "symbol": "y_P",
+              "evidenceFactIds": [
+                "fMid"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Find the midpoint P of the line segment joining A(-4,6) and B(8,-2)."
+      },
+      "canonicalPlan": {
+        "givens": [
+          {
+            "id": "ax",
+            "value": -4,
+            "symbol": "x_A",
+            "provenance": "given",
+            "sourceText": "A(-4,6)"
+          },
+          {
+            "id": "ay",
+            "value": 6,
+            "symbol": "y_A",
+            "provenance": "given",
+            "sourceText": "A(-4,6)"
+          },
+          {
+            "id": "bx",
+            "value": 8,
+            "symbol": "x_B",
+            "provenance": "given",
+            "sourceText": "B(8,-2)"
+          },
+          {
+            "id": "by",
+            "value": -2,
+            "symbol": "y_B",
+            "provenance": "given",
+            "sourceText": "B(8,-2)"
+          }
+        ],
+        "lawIds": [
+          "midpoint_formula"
+        ],
+        "derived": [
+          {
+            "id": "px",
+            "value": 2,
+            "symbol": "x_P",
+            "dependsOn": [
+              "ax",
+              "bx"
+            ],
+            "provenance": "derived",
+            "sourceText": "x_P=(-4+8)/2=2"
+          },
+          {
+            "id": "py",
+            "value": 2,
+            "symbol": "y_P",
+            "dependsOn": [
+              "ay",
+              "by"
+            ],
+            "provenance": "derived",
+            "sourceText": "y_P=(6+(-2))/2=2"
+          }
+        ],
+        "question": "Find the midpoint P of the line segment joining A(-4,6) and B(8,-2).",
+        "unknowns": [
+          {
+            "id": "px",
+            "symbol": "x_P"
+          },
+          {
+            "id": "py",
+            "symbol": "y_P"
+          }
+        ],
+        "assumptions": [
+          "Cartesian coordinate plane",
+          "P lies on segment AB",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "schemaVersion": "turn-plan/v3",
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "Midpoint P is the average of the endpoint coordinates.",
+            "expected": "P=((x_A+x_B)/2,(y_A+y_B)/2)=(2,2)",
+            "relatedEntityHints": [
+              "A",
+              "B",
+              "P"
+            ],
+            "relatedQuantityIds": [
+              "ax",
+              "ay",
+              "bx",
+              "by",
+              "px",
+              "py"
+            ]
+          }
+        ],
+        "visualRequirement": "required"
+      },
+      "oracle": [
+        2,
+        2
+      ]
+    }
+  ]
+}

@@ -38,7 +38,7 @@ import {
   isPlannerVisibleSceneProofPredicate,
 } from "../capability/capabilityManifest";
 import type { ExpressionNodeIR, ProblemIR } from "../ir/problemIR";
-import { sectionFormulaDimensionIsCarried, sectionFormulaRequestedDimensionIsCarried } from "../ir/sectionFormulaSource";
+import { sectionFormulaProblemLineSceneId, sectionFormulaDimensionIsCarried, sectionFormulaRequestedDimensionIsCarried } from "../ir/sectionFormulaSource";
 import { matrixLiteralSourceEntityIsCarried, matrixLiteralSourceDimensionIsCarried } from "../ir/matrixLiteralSource";
 import {pointLineRequestedDimensionIsCarried} from "../ir/pointLineProgram";
 import {circleSourceProblemEntitySceneId,circleSourceDimensionIsCarried} from "../ir/circleSourceProgram";
@@ -439,12 +439,20 @@ function checkObligation(
           problemEntityIds: [...obligation.problemEntityIds],
         };
       }
-      const proved = document.assertions.some(
-        (assertion) =>
-          assertion.severity === "fatal" &&
-          obligation.predicates.includes(assertion.predicate) &&
-          sceneIds.every((id) => assertion.entities.includes(id)),
-      );
+      const incidence = obligation.predicates.includes("on") && obligation.predicates.includes("incident");
+      const points = sceneIds.filter(id => document.entities.find(row => row.id === id)?.kind === "point");
+      const supports = sceneIds.filter(id => !points.includes(id));
+      // The compiler evaluates one point/support pair per on/incident proof.
+      // A broad assertion must never witness an unchecked third operand.
+      const proved = incidence
+        ? supports.length === 1 && points.length === sceneIds.length - 1 && points.length > 0
+          && points.every(point => document.assertions.some(assertion =>
+            assertion.severity === "fatal" && assertion.expected !== false
+            && obligation.predicates.includes(assertion.predicate) && assertion.entities.length === 2
+            && assertion.entities.includes(point) && assertion.entities.includes(supports[0]!)))
+        : document.assertions.some(assertion => assertion.severity === "fatal"
+          && obligation.predicates.includes(assertion.predicate)
+          && sceneIds.every(id => assertion.entities.includes(id)));
       return proved
         ? null
         : {
@@ -537,6 +545,11 @@ function mapProblemEntities(
       if (marker && marker.label === actor && kindHolds(marker, obligation) && !consumed.has(marker.id)) {
         mapping.set(obligation.problemEntityId, marker.id); consumed.add(marker.id); continue;
       }
+    }
+    const sectionLineId = problem ? sectionFormulaProblemLineSceneId(document, problem, obligation.problemEntityId) : null;
+    const sectionLine = sectionLineId ? byId.get(sectionLineId) : undefined;
+    if (sectionLine && kindHolds(sectionLine, obligation) && !consumed.has(sectionLine.id)) {
+      mapping.set(obligation.problemEntityId, sectionLine.id); consumed.add(sectionLine.id); continue;
     }
     const direct = byId.get(obligation.problemEntityId);
     if (direct && !consumed.has(direct.id) && kindHolds(direct, obligation) && labelHolds(direct, obligation.problemLabel)) {

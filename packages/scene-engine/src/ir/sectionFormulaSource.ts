@@ -166,6 +166,7 @@ export function readSectionFormulaSource(question: string): SectionFormulaReadin
   if (stated && (stated.m.n < 0n || stated.n.n < 0n)) return { status: "declined", reason: "signed ratios are outside this reading" };
   if (stated && (isZero(stated.m) !== isZero(stated.n))) return { status: "declined", reason: "a zero part names an endpoint, not a proper division" };
   const external = /\bexternal(?:ly)?\b/i.test(stem);
+  if ([...stem.matchAll(/\b(?:external|internal)(?:ly)?\b/gi)].length > 1) return { status: "declined", reason: "more than one division mode is stated" };
   if (/\bexternal(?:ly)?\b/i.test(stem) && /\binternal(?:ly)?\b/i.test(stem)) return { status: "declined", reason: "both internal and external are stated" };
   // Which named point divides: the one written after "point" or "does", or
   // a third point beside the two the stem joins.
@@ -207,7 +208,7 @@ export function readSectionFormulaSource(question: string): SectionFormulaReadin
   const join = "(?:(?:the )?(?:line )?segment joining endpoint_a and endpoint_b|(?:the )?(?:line )?segment from endpoint_a to endpoint_b|(?:the )?line joining endpoint_a and endpoint_b|(?:the )?join of endpoint_a and endpoint_b|endpoint_a and endpoint_b)";
   const command = "(?:find|calculate|determine) (?:the )?";
   const pointAsk = "(?:coordinates? of (?:the )?(?:point )?(?:result )?|point (?:result )?)";
-  const division = `(?:(?:which|that) )?divid(?:es|ing) ${join} (?:internally |externally )?in (?:the )?ratio weights`;
+  const division = `(?:(?:which|that) )?(?:internally |externally )?divid(?:es|ing) (?:internally |externally )?${join} (?:internally |externally )?in (?:the )?ratio weights(?: internally| externally)?`;
   const supported = [
     `${command}${pointAsk}${division}`,
     `${command}(?:mid-? ?point|middle point) (?:result )?of ${join}`,
@@ -235,6 +236,7 @@ export function readSectionFormulaSource(question: string): SectionFormulaReadin
     if (isZero(rest)) return { status: "singular", reason: `${divider.name} is ${b.name}; the ratio is undefined` };
     const signed = div(t, rest);
     if (signed.n < 0n && external === false && /\binternal(?:ly)?\b/i.test(stem)) return { status: "inconsistent", reason: `${divider.name} lies outside ${a.name}${b.name}, so it cannot divide internally` };
+    if (external && signed.n >= 0n) return { status: "inconsistent", reason: `${divider.name} lies inside ${a.name}${b.name}, so it cannot divide externally` };
     const unsigned = signed.n < 0n ? { n: -signed.n, d: signed.d } : signed;
     [m, n] = lowestTerms(unsigned).map((value) => rational(BigInt(value))) as [Rational, Rational];
     point = { x: divider.x, y: divider.y };
@@ -470,6 +472,20 @@ function midpointJoinEvidence(source: SectionFormulaSource, quote: string): bool
   return new RegExp(`^(?:(?:find|calculate|determine) (?:the )?)?midpoint ${source.point.name} of (?:the )?(?:line )?segment joining ENDPOINT and ENDPOINT$`, "i").test(clause);
 }
 
+function sectionJoinEvidence(source:SectionFormulaSource,quote:string):boolean {
+ if(source.mode==="midpoint")return midpointJoinEvidence(source,quote);
+ const points=[...quote.matchAll(NAMED_POINT)];
+ if(points.length!==2 || !points.every((match,index)=>{
+  const point=[source.a,source.b][index]!;
+  return match[1]===point.name && num(decimal(match[2]!))===point.x && num(decimal(match[3]!))===point.y;
+ }))return false;
+ const clause=quote.replace(NAMED_POINT,"ENDPOINT").trim().replace(/[.!?]$/,"").replace(/\s+/g," ");
+ const request=`(?:find|calculate|determine) (?:the )?(?:coordinates? of (?:the )?(?:point )?${source.point.name}|point ${source.point.name})`;
+ const relation=`(?:which divides|dividing) (?:the )?(?:line )?segment joining ENDPOINT and ENDPOINT`;
+ const matched=new RegExp(`^${request} ${relation}(?: (${source.mode}ly))?(?: in (?:the )?ratio (${PART})\\s*:\\s*(${PART}))?$`,"i").exec(clause);
+ return !!matched && (!matched[2] || num(part(matched[2]))===source.m && num(part(matched[3]!))===source.n);
+}
+
 function sectionFactIsBound(source:SectionFormulaSource,question:string,fact:ProblemFact):boolean {
  if(fact.kind==="assumption") return false;
  const norm=(value:string)=>value.trim().replace(/[.!?]$/,"").replace(/\s+/g," ").toLowerCase();
@@ -550,10 +566,10 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   if (source.pointNameEvidence && result.label !== source.pointNameEvidence.name) return false;
 
   const hasPointEvidence = (ids: string[], point: SectionFormulaSource["a"], wholeQuestionRequest=false): boolean => ids.some((id) =>
-    (facts.get(id)?.kind === "given" || wholeQuestionRequest && facts.get(id)?.kind==="requested" && (source.mode==="midpoint" ? midpointJoinEvidence(source,facts.get(id)!.evidence.quote) : facts.get(id)!.evidence.quote.trim()===question.trim())) && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
+    (facts.get(id)?.kind === "given" || wholeQuestionRequest && facts.get(id)?.kind==="requested" && (sectionJoinEvidence(source,facts.get(id)!.evidence.quote) || facts.get(id)!.evidence.quote.trim()===question.trim())) && dimensionEvidence(source, `${point.name}_x`, facts.get(id)!.evidence.quote));
   if (!endpoints.every((entity, i) => hasPointEvidence(entity!.evidenceFactIds, [source.a, source.b][i]!))) return false;
   const lines = problem.entities.filter((entity) => entity.kind === "line");
-  if (lines.length > 1 || lines.some((line) => ![`${source.a.name}${source.b.name}`,`segment ${source.a.name}${source.b.name}`,`line ${source.a.name}${source.b.name}`,`line segment ${source.a.name}${source.b.name}`].includes(line.label ?? "")
+  if (lines.length > 1 || lines.some((line) => ![`${source.a.name}${source.b.name}`,`segment ${source.a.name}${source.b.name}`,`line ${source.a.name}${source.b.name}`,`line segment ${source.a.name}${source.b.name}`,`line through ${source.a.name} and ${source.b.name}`,`line through ${source.b.name} and ${source.a.name}`].includes(line.label ?? "")
     || !hasPointEvidence(line.evidenceFactIds, source.a,true) || !hasPointEvidence(line.evidenceFactIds, source.b,true))) return false;
   const admittedIds = [...endpointIds, result.id, ...lines.map((line) => line.id)];
   if (problem.entities.some((entity) => !admittedIds.includes(entity.id))
@@ -562,7 +578,7 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
   for(const constraint of problem.constraints){
     const ids="entityIds" in constraint?constraint.entityIds:[];
     const line=lines[0];
-    const incident=constraint.kind==="incident" && line && ids.length===2 && ids.includes(line.id) && [result.id,...endpointIds].some(id=>ids.includes(id));
+    const incident=constraint.kind==="incident" && line && ids.length>=2 && ids.length<=4 && new Set(ids).size===ids.length && ids.includes(line.id) && ids.filter(id=>id!==line.id).every(id=>[result.id,...endpointIds].includes(id));
     const joined=constraint.kind==="connected" && line && ids.length===3 && ids.includes(line.id) && endpointIds.every(id=>ids.includes(id));
     if((!incident && !joined) || !constraint.evidenceFactIds.length) return false;
   }
@@ -574,14 +590,16 @@ function bindSectionProblem(document: SceneDocument, source: SectionFormulaSourc
     // on the line through A/B, not on the finite segment between them.
     join.kind="line";join.role="underlying line through source endpoints";
     document.constructions.find(row=>row.id==="join")!.operator="line";
-    join.label = lines[0].label;
-    join.provenance = { problemEntityId: lines[0].id, evidenceFactIds: [...lines[0].evidenceFactIds] };
+    join.label = `${source.a.name}${source.b.name}`;
+    join.provenance = { problemEntityId: lines[0].id, sourceLabel: lines[0].label, evidenceFactIds: [...lines[0].evidenceFactIds] };
     document.assertions.push({id:"section_on_source_line",predicate:"on",entities:[`pt_${source.point.name}`,"seg_join"],severity:"fatal"});
     for(const constraint of problem.constraints){
       if(constraint.kind!=="incident")continue;
-      const pointId=constraint.entityIds.find(id=>id!==lines[0]!.id)!;
-      const name=pointId===result.id?source.point.name:pointId===endpointIds[0]?source.a.name:source.b.name;
-      document.assertions.push({id:`source_incidence_${constraint.id}`,predicate:"on",entities:[`pt_${name}`,"seg_join"],severity:"fatal"});
+      const pointIds=constraint.entityIds.filter(id=>id!==lines[0]!.id);
+      for(const pointId of pointIds){
+       const name=pointId===result.id?source.point.name:pointId===endpointIds[0]?source.a.name:source.b.name;
+       document.assertions.push({id:`source_incidence_${constraint.id}${pointIds.length===1?"":`_${pointId}`}`,predicate:"on",entities:[`pt_${name}`,"seg_join"],severity:"fatal"});
+      }
     }
 
   }
@@ -706,6 +724,15 @@ function sectionFormulaSourceProgramIsBound(document:SceneDocument,problem:Probl
     return row;
   }),assertions:scene.assertions,relations:scene.relations,requiredEntityIds:scene.requiredEntityIds,revealGroups:scene.revealGroups,teachingTimeline:scene.teachingTimeline});
   return document.source.question===problem.question && sameSceneValue(shape(document),shape(canonical));
+}
+
+/** A compact board identifier may carry a longer caller line name only when
+ * the entire source program independently regenerates with the actual IR. */
+export function sectionFormulaProblemLineSceneId(document:SceneDocument,problem:ProblemIR,entityId:string):string|null {
+ const line=problem.entities.find(row=>row.id===entityId && row.kind==="line");
+ if(!line || !sectionFormulaSourceProgramIsBound(document,problem))return null;
+ const join=document.entities.find(row=>row.id==="seg_join" && row.kind==="line");
+ return join?.provenance?.problemEntityId===line.id && join.provenance.sourceLabel===line.label?join.id:null;
 }
 
 export function validateSectionFormulaProblemSource(document:SceneDocument,question:string,rawProblem?:unknown):SceneIssue[] {
