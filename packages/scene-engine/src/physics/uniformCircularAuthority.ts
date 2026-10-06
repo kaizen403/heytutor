@@ -199,7 +199,13 @@ export function uniformCircularRuntimeProblemIssues(contract: UniformCircularRun
   }
 
   const entityIdentities = problem.entities.map(entity => uniformCircularRuntimeEntityId(contract, problem, entity.id));
-  if (!entityIdentities.includes("body") || !entityIdentities.includes("path")) fail("entities");
+  const usedIdentities = new Set<string>();
+  problem.entities.forEach((entity, index) => {
+    const identity = entityIdentities[index];
+    if (!identity || usedIdentities.has(identity)) fail(`entities.${entity.id}`);
+    else usedIdentities.add(identity);
+  });
+  if (!usedIdentities.has("body") || !usedIdentities.has("path")) fail("entities");
   if (!problem.representationIntents.some(intent => {
     const identities = intent.entityIds.map(id => uniformCircularRuntimeEntityId(contract, problem, id));
     return identities.includes("body") && identities.includes("path");
@@ -426,15 +432,16 @@ const circularFormulaSources: Record<Role, string[]> = {
  * Unsupported prose/equations, wrong roles and false intermediate arithmetic
  * decline. Approximation is a terminal decimal display, never a new operand.
  */
-function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role, allowAssertions = true): boolean {
-  if (row.sourceText === undefined) return true;
-  if (typeof row.sourceText !== "string" || !row.sourceText.trim() || row.sourceText.length > 2048) return false;
+function proveDerivedSourceText(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role, allowAssertions = true): { members: SourceMath[] } | null {
+  if (row.sourceText === undefined) return { members: [] };
+  if (typeof row.sourceText !== "string" || !row.sourceText.trim() || row.sourceText.length > 2048) return null;
   const unit = String(row.unit).replace(/²/g, "^2").normalize("NFKC").replace(/\s/g, "");
   const siUnit: Record<Role, string> = { radius: "m", speed: "m/s", period: "s", angular_speed: "rad/s", acceleration: "m/s^2" };
   const trees = sourceTrees(contract);
   const normalize = (text: string) => text.replace(/²/g, "^2").replace(/π/g, "pi").replace(/ω/g, "omega").replace(/−/g, "-");
   const clauses = normalize(row.sourceText).trim().split(/;|\n/);
   let equation = false;
+  const members: SourceMath[] = [];
   const complete = clauses.every(raw => {
     let clause = raw.trim().replace(/\.$/, "");
     if (!clause) return false;
@@ -466,10 +473,14 @@ function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, ro
       // expression to hide an operand in; verify them against the source.
       const display = /^(?:\d+(?:\.\d+)?|\.\d+)\s*\*\s*pi(?:\^2)?$/.test(member);
       if (!proved && !display) return false;
+      members.push(actual);
     }
     return true;
   });
-  return complete && equation;
+  return complete && equation ? { members } : null;
+}
+function supportedDerivedSourceText(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role, allowAssertions = true): boolean {
+  return proveDerivedSourceText(contract, row, role, allowAssertions) !== null;
 }
 
 /** A scalar's decimal display cannot replace its source derivation. This
@@ -541,25 +552,30 @@ function mathRoles(node: SourceMath): Role[] {
 const sourceOperands = (contract: UniformCircularRuntimeContract, role: Role): Role[] =>
   role === "radius" || role === contract.source.rateSource ? [role] : ["radius", contract.source.rateSource as Role];
 
-/** Read physical operand alternatives from the submitted first equation.
- * Numeric-only or omitted text uses the deterministic source law. Dependencies
- * name actual given/derived rows, never a requested result with no derivation. */
+/** Dependency obligations use the very same complete, normalized equation
+ * proof as scalar/prose admission. Every symbolic member carries its operands;
+ * numeric-only or omitted text may use the deterministic source law. */
 function derivedOperands(contract: UniformCircularRuntimeContract, row: Record<string, unknown>, role: Role): Role[][] {
-  if (typeof row.sourceText === "string") {
-    const clause = row.sourceText.replace(/ω/g, "omega").replace(/²/g, "^2").split(/;|\n/)[0]!;
-    const member = clause.split(/\s*(?:=|≈)\s*/)[1];
-    const math = member && parseSourceMath(member.replace(/\s+(?:m\/s\^2|rad\/s|m\/s|m|s)$/, ""));
-    if (math) {
-      // A numeric expansion may use an existing intermediate (v from r/T).
-      // Match its physical law structurally before accepting those graph edges;
-      // equal-valued unrelated operands cannot name a dependency.
-      const options = circularFormulaSources[role].map(formula => parseSourceMath(formula)!)
-        .filter(formula => !mathRoles(formula).includes(role) && provesSourceMath(contract, math, formula, sourceTrees(contract)))
-        .map(mathRoles);
-      if (options.length) return options;
+  const proof = proveDerivedSourceText(contract, row, role);
+  if (!proof) return [];
+  const symbolic = proof.members.filter(member => mathRoles(member).some(operand => operand !== role));
+  // Reduced scalar displays add no edges, but cannot replace an explicit
+  // intermediate appearing anywhere in the proved equation chain.
+  const members = symbolic.length ? symbolic : proof.members.slice(0, 1);
+  let alternatives: Role[][] = [[]];
+  const trees = sourceTrees(contract);
+  for (const member of members) {
+    const options = circularFormulaSources[role].map(formula => parseSourceMath(formula)!)
+      .filter(formula => !mathRoles(formula).includes(role) && provesSourceMath(contract, member, formula, trees))
+      .map(mathRoles);
+    if (!options.length) {
+      if (symbolic.length) return [];
+      return [sourceOperands(contract, role)];
     }
+    alternatives = alternatives.flatMap(previous => options.map(operands => [...new Set([...previous, ...operands])]));
+    alternatives = alternatives.filter((operands, index) => alternatives.findIndex(other => sameSceneValue([...other].sort(), [...operands].sort())) === index);
   }
-  return [sourceOperands(contract, role)];
+  return members.length ? alternatives : [sourceOperands(contract, role)];
 }
 
 function planGraphProved(contract: UniformCircularRuntimeContract, givens: Record<string, unknown>[], derived: Record<string, unknown>[]): boolean {

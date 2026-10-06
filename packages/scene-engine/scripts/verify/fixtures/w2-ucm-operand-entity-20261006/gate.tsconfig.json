@@ -1,0 +1,9 @@
+{
+  "extends": "../../../../../../apps/tutor/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../../../../..",
+    "noEmit": true,
+    "typeRoots": ["../../../../../../apps/tutor/node_modules/@types"]
+  },
+  "include": ["../../verify-w2-ucm-operand-entity.ts"]
+}
