@@ -41,7 +41,7 @@ const EXPECTED_ROWS = [
   "d = sqrt((4-1)^2 + (2+2)^2)",
   "d = 5",
   "Since d = r, the point lies on the circle.",
-  "KE = 1/2 × 2 × 3^2 = 9 J",
+  "KE = (1/2) × 2 × 3^2 = 9 J",
   "θ = 30°, A = π r^2",
 ];
 

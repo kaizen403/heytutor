@@ -70,7 +70,7 @@ function rewriteCommands(input: string): string {
       const top = braceGroup(text, after);
       const bottom = top ? braceGroup(text, top.end) : null;
       if (top && bottom) {
-        out += `${wrap(rewriteCommands(top.body))}/${wrap(rewriteCommands(bottom.body))}`;
+        out += `(${wrap(rewriteCommands(top.body))}/${wrap(rewriteCommands(bottom.body))})`;
         index = bottom.end;
         continue;
       }

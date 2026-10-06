@@ -387,7 +387,7 @@ async function main(): Promise<void> {
   // Native JEE Advanced 2023 P2 q5, full OCR stem: the indexed rule premise is
   // drawn as its source-proved component M only, as a question representation.
   {
-    const profile = JSON.parse(readFileSync("../../docs/agent/coverage-handoff-20261003/artifacts/HEY-84/matrix-topic-sprint-20261003/source-profile-frozen-v3.json", "utf8")) as { nativeCases: Array<{ id: string; full_source_record: { text: string } }> };
+    const profile = JSON.parse(readFileSync(new URL("./fixtures/matrix-native-source.json", import.meta.url), "utf8")) as { nativeCases: Array<{ id: string; full_source_record: { text: string } }> };
     const question = profile.nativeCases.find((item) => item.id === "q_5bd968dfa0c26f4c016df0dce297d1360bdb665ef7ea10873fe4103c560e8193")!.full_source_record.text;
     // a_ij = 1 iff i divides j+1: row 1 all ones; row 2 j=1,3; row 3 j=2.
     const turnPlan = plan(question, [["a11", 1], ["a22", 0], ["a32", 1]]);

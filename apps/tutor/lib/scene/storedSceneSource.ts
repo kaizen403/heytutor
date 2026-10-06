@@ -1,4 +1,4 @@
-import { validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
+import { validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
 import { isBlockedVerifiedDiagramCommand, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 
@@ -11,6 +11,7 @@ export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pi
   const issues = [
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
+    ...validateSectionPointSourceInputs(document, question),
     ...validateMatrixSourceBinding(document, question, plan),
     ...validateRelativeMotionSourceInputs(document, question),
     ...validateUniformCircularSourceInputs(document, question),

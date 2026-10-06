@@ -135,6 +135,7 @@ import {
   selectVerifiedRepresentation,
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
+import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import {
   finalizeScenePlanAfterAuthority,
@@ -1077,6 +1078,12 @@ export function useQuestionHandler(
           });
         }
 
+        // Source authority may have corrected or withdrawn planner quantities.
+        // Re-audit before scene selection and narration; the old projection is
+        // no longer authoritative, and must not undo those corrections.
+        if (problemAuthority) {
+          problemAuthority = refreshSolverAuthorityForPlan(problemAuthority, turnPlan, question);
+        }
         const planningTurnPlan = turnPlan;
         const sceneCapabilities = inferSceneCapabilities(question, {
           lawIds: planningTurnPlan.lawIds,

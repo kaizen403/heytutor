@@ -18,7 +18,7 @@ import {
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
   validateMatrixSourceBinding,
-  validatePointLineSourceInputs,
+  validatePointLineSourceInputs, validateSectionPointSourceInputs,
   validateRelativeMotionSourceInputs,
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
@@ -138,6 +138,7 @@ export function sceneSaveAdmissionFailure(input: {
   const sourceInputIssues = [
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
+    ...validateSectionPointSourceInputs(document, question),
     ...validateRelativeMotionSourceInputs(document, question),
     ...validateUniformCircularSourceInputs(document, question),
     ...validateMatrixSourceBinding(document, question, turnPlan),

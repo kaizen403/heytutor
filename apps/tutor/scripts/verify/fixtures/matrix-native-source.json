@@ -1,0 +1,11 @@
+{
+  "source": "JEE Advanced 2023, Paper 2, question 5; retained OCR source for component-only regression, not full-topic certification",
+  "nativeCases": [
+    {
+      "id": "q_5bd968dfa0c26f4c016df0dce297d1360bdb665ef7ea10873fe4103c560e8193",
+      "full_source_record": {
+        "text": "Let M  (aij ), i, j  {1, 2,3}, be the 3  3 matrix such that aij  1 if j  1 is divisible by i ,\n            otherwise aij  0 . Then which of the following statements is(are) true?\n\n            (A) M is invertible\n                                                         a1               a1    a1 \n                                                                           \n            (B) There exists a nonzero column matrix  a2  such that M  a2  =   a2 \n                                                                                         \n                                                        a                 a   a \n                                                         3                3  3\n                                                                 0\n            (C) The set { X   : MX  0}  {0} , where 0 =  0 \n                                3                                 \n                                                                 0\n                                                                  \n            (D) The matrix ( M  2 I ) is invertible, where I is the 3  3 identity matrix\n\n                                                                                                                      3/9\nJEE (Advanced) 2023                                                                                        Paper 2"
+      }
+    }
+  ]
+}
