@@ -11,7 +11,7 @@ mandatory. This is not Sequence and Series chapter completion or bank credit.
 Representative independent recurrence cases in the unchanged407 gate include
 AP first5,d3,n20 ->62/670 (actual student); AP first-7,d-2,n6 ->-17/-72;
 AP first-3/2,d1/4,n8 ->1/4/-5; GP first3,r2,n5 ->48/93;
-GP first8,r1/2,n4 ->1/15. Zero, unit-ratio, alternating and fractional controls
+GP first8,r1/2,n4 -> term1,sum15. Zero, unit-ratio, alternating and fractional controls
 are additional checks. Wrong roles, canceled arithmetic, hidden obligations,
 unproved duplicate premises and out-of-range domains refuse atomically.
 
