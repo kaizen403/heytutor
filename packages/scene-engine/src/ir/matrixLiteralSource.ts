@@ -55,6 +55,23 @@ function ownsLiteral(problem: ProblemIR, factIds: readonly string[], matrix: Mat
   return factIds.some((id) => problem.facts.some((fact) => fact.id === id && fact.kind === "given" && fact.evidence.quote.includes(matrix.quote)));
 }
 
+function ownsRequestedOrder(problem: ProblemIR, factIds: readonly string[]): boolean {
+  if (!factIds.length || new Set(factIds).size !== factIds.length) return false;
+  const facts = new Map(problem.facts.map((fact) => [fact.id, fact]));
+  return factIds.every((id) => {
+    const fact = facts.get(id);
+    return fact?.kind === "requested" && /\border\b/i.test(fact.evidence.quote)
+      && problem.question.includes(fact.evidence.quote);
+  });
+}
+
+function orderBindingMatches(problem: ProblemIR, binding: NonNullable<ProblemIR["solveRequests"][number]["resultBinding"]>, matrix: Matrix, role: Role): boolean {
+  if (binding.unit !== undefined || !ownsRequestedOrder(problem, binding.evidenceFactIds)) return false;
+  if (binding.turnPlanQuantityId === "order" && binding.symbol === "order") return true;
+  const symbol = role.kind === "row" ? `rows${matrix.name}` : `cols${matrix.name}`;
+  return binding.turnPlanQuantityId === symbol && binding.symbol === symbol;
+}
+
 /** Preserve a captured full IR only when every entity/expression/request has a source role. */
 function bindProblem(problem: ProblemIR, matrix: Matrix, program: Program): boolean {
   if (problem.constraints.length) return false; // No exemption for unsupported equations/topology.
@@ -77,10 +94,16 @@ function bindProblem(problem: ProblemIR, matrix: Matrix, program: Program): bool
     if (role.kind === "cell") {
       const symbol = `${matrix.name.toLowerCase()}${role.row}${role.column}`;
       if (!program.requestedCells.some((cell) => cell.row === role.row && cell.column === role.column && cell.name === role.name)
-        || binding && (binding.symbol !== symbol || binding.unit !== undefined && binding.unit !== "")) return false;
-    } else if (!/\border\b/i.test(problem.question)
-      || binding && binding.symbol !== "order" && binding.symbol !== `rows${matrix.name}` && binding.symbol !== `cols${matrix.name}`) return false;
+        || binding && (binding.turnPlanQuantityId !== symbol || binding.symbol !== symbol || binding.unit !== undefined && binding.unit !== "")) return false;
+    } else if (!/\border\b/i.test(problem.question) || binding && !orderBindingMatches(problem, binding, matrix, role)) return false;
   }
+  const orderRequests = problem.solveRequests.filter((request) => request.kind === "evaluate"
+    && ["eOrderRows", `rows${matrix.name}`, "eOrderCols", `cols${matrix.name}`].includes(request.expressionId));
+  if (new Set(orderRequests.map((request) => request.kind === "evaluate" ? request.expressionId : "")).size !== orderRequests.length
+    || new Set(orderRequests.flatMap((request) => request.resultBinding ? [request.resultBinding.turnPlanQuantityId] : [])).size
+      !== orderRequests.filter((request) => request.resultBinding).length) return false;
+  const boundQuantityIds = problem.solveRequests.flatMap((request) => request.resultBinding ? [request.resultBinding.turnPlanQuantityId] : []);
+  if (new Set(boundQuantityIds).size !== boundQuantityIds.length) return false;
   for (const cell of program.requestedCells) {
     if (problem.solveRequests.filter((request) => request.kind === "evaluate"
       && JSON.stringify(expressionRole(request.expressionId, matrix)) === JSON.stringify({ name: cell.name, kind: "cell", row: cell.row, column: cell.column })).length !== 1) return false;
@@ -147,6 +170,18 @@ export function prepareMatrixLiteralSourceAuthority(question: string, rawPlan: T
     const order = plan.unknowns.filter((unknown) => unknown.id === "order" && unknown.symbol === "order");
     if (order.length) {
       if (order.length !== 1 || order[0]!.unit || !/\border\b/i.test(question) || plan.derived.some((quantity) => quantity.id === "order")) return null;
+      const orderEvidence = problem.facts.filter((fact) => fact.kind === "requested" && /\border\b/i.test(fact.evidence.quote)
+        && question.includes(fact.evidence.quote)).map((fact) => fact.id);
+      if (!orderEvidence.length) return null;
+      for (const request of problem.solveRequests) {
+        if (request.kind !== "evaluate") continue;
+        const role = expressionRole(request.expressionId, matrix);
+        if (role?.kind !== "row" && role?.kind !== "column") continue;
+        if (request.resultBinding && !orderBindingMatches(problem, request.resultBinding, matrix, role)) return null;
+        if (request.resultBinding?.turnPlanQuantityId === "order"
+          && !plan.unknowns.some((unknown) => unknown.id === request.resultBinding!.turnPlanQuantityId
+            && unknown.symbol === request.resultBinding!.symbol && !unknown.unit)) return null;
+      }
       plan.unknowns = plan.unknowns.filter((unknown) => unknown !== order[0]);
       for (const [symbol, value, expressionId] of [[`rows${matrix.name}`, matrix.entries.length, "eOrderRows"], [`cols${matrix.name}`, matrix.entries[0]!.length, "eOrderCols"]] as const) {
         if ([...plan.givens, ...plan.derived, ...plan.unknowns].some((item) => item.id === symbol)) return null;
@@ -155,8 +190,10 @@ export function prepareMatrixLiteralSourceAuthority(question: string, rawPlan: T
         if (!problem.expressions.some((expression) => expression.id === expressionId)) return null;
         let request = problem.solveRequests.find((request) => request.kind === "evaluate" && request.expressionId === expressionId);
         if (!request) { request = { id: `solve_${symbol}`, kind: "evaluate", expressionId }; problem.solveRequests.push(request); }
-        request.resultBinding = { turnPlanQuantityId: symbol, symbol, evidenceFactIds: problem.facts.filter((fact) => fact.kind === "requested" && /\border\b/i.test(fact.evidence.quote)).map((fact) => fact.id) };
-        if (!request.resultBinding.evidenceFactIds.length) return null;
+        const prior = request.resultBinding;
+        const evidenceFactIds = prior?.evidenceFactIds ?? orderEvidence;
+        if (prior && prior.turnPlanQuantityId !== symbol && prior.turnPlanQuantityId !== "order") return null;
+        request.resultBinding = prior?.turnPlanQuantityId === symbol ? prior : { turnPlanQuantityId: symbol, symbol, evidenceFactIds: [...evidenceFactIds] };
       }
       for (const claim of plan.qualitativeClaims) if (claim.relatedQuantityIds?.includes("order")) claim.relatedQuantityIds = claim.relatedQuantityIds.flatMap((id) => id === "order" ? [`rows${matrix.name}`, `cols${matrix.name}`] : [id]);
     }
