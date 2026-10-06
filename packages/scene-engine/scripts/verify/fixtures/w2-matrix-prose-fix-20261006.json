@@ -1,0 +1,17 @@
+{
+  "falseCue": "Matrix A is the zero matrix. Every entry is zero.",
+  "falseRole": "the zero matrix with every entry equal to zero",
+  "mutations": [
+    "falseCue", "falseRole", "productRole", "missingRole", "roleMetadata",
+    "missingCue", "productCue", "swappedCues", "reverseReveal",
+    "reverseRevealWithDependencies", "missingDependency", "extraDependency",
+    "duplicateDependency", "cycleDependency", "wrongMember", "extraMember",
+    "duplicateMember", "missingGroup", "extraGroup", "duplicateGroupId",
+    "extraRequired", "duplicateRequired", "missingRequired"
+  ],
+  "fresh": [
+    {"id":"signed-fraction","leftName":"M","rightName":"N","left":[[-1,"1/2"],[2,0]],"right":[[0,3],[4,-2]],"products":[[[2,-4],[0,6]],[[6,0],[-8,2]]]},
+    {"id":"rectangular","leftName":"U","rightName":"V","left":[[1,2,3]],"right":[[2],[0],[-1]],"products":[[[-1]],[[2,4,6],[0,0,0],[-1,-2,-3]]]},
+    {"id":"zero-commuting","leftName":"P","rightName":"Q","left":[[0]],"right":[["-3/2"]],"products":[[[0]],[[0]]]}
+  ]
+}

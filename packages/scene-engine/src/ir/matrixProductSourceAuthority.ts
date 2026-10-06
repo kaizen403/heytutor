@@ -258,15 +258,42 @@ export function matrixProductSourceDocumentIssues(document: SceneDocument, quest
     errors.push(...validateMatrixSourceBinding(captured, question, rawPlan));
     if (captured.visualDecision.mode !== "scene" || captured.source.nonMetric !== true || captured.source.question !== question
       || !keys(captured.source, "question representationTier nonMetric")) errors.push(issue("document_tier", "Product documents retain the whole source question and a nonmetric table, with no hidden plan channels"));
-    // Whole source binding proves values/order. The source-owned complete
-    // document additionally witnesses required/revealed identity at every seam.
+    // Whole source binding independently recomputes every literal/product.
+    // Bind presentation semantics to the complete deterministic source document
+    // too: supplied roles/cues become FOCUS meanings and fixed intro narration.
+    // Caller evidence never authorizes alternative prose or reveal sequencing.
     const expected = buildMatrixSourceDocument(question)!;
     if (captured.entities.length !== expected.entities.length || captured.quantities.length
       || captured.annotations.length || captured.relations.length || captured.assertions.length || captured.teachingTimeline.length) errors.push(issue("document_extra_channel", "The initial deterministic product document cannot carry unrelated entities, quantities or annotation/proof channels"));
+    const entityIds = new Map<string, string>();
     for (const entity of expected.entities) {
       const matches = captured.entities.filter(row => row.kind === "matrix_array" && row.label === entity.label);
       if (matches.length !== 1 || !captured.requiredEntityIds.includes(matches[0]!.id)
-        || !captured.revealGroups.some(group => group.entityIds.includes(matches[0]!.id))) errors.push(issue("document_ownership", "Every given and requested product must retain its unique required and revealed matrix identity"));
+        || !captured.revealGroups.some(group => group.entityIds.includes(matches[0]!.id))) {
+        errors.push(issue("document_ownership", "Every given and requested product must retain its unique required and revealed matrix identity"));
+        continue;
+      }
+      const supplied = matches[0]!;
+      entityIds.set(entity.id, supplied.id);
+      if (supplied.role !== entity.role || !keys(supplied, "id kind label role")) errors.push(issue("document_role", "Every matrix role must retain its independently proved source meaning without additional semantic channels", `entities[${captured.entities.indexOf(supplied)}]`));
+    }
+    const requiredIds = expected.requiredEntityIds.map(id => entityIds.get(id));
+    if (!unique(captured.entities.map(entity => entity.id)) || !unique(captured.requiredEntityIds)
+      || captured.requiredEntityIds.length !== requiredIds.length || requiredIds.some(id => id === undefined || !captured.requiredEntityIds.includes(id))) errors.push(issue("document_required", "Required membership must contain exactly the complete source-owned matrix identities", "requiredEntityIds"));
+    // IDs are transport identities, not mathematical authority. A consistent
+    // bijective renaming is allowed; membership and dependency order are not.
+    const groupIds = new Map(expected.revealGroups.map((group, index) => [group.id, captured.revealGroups[index]?.id]));
+    if (captured.revealGroups.length !== expected.revealGroups.length || !unique(captured.revealGroups.map(group => group.id))) errors.push(issue("document_reveal", "Reveal groups must retain every source-owned beat exactly once", "revealGroups"));
+    for (const [index, group] of expected.revealGroups.entries()) {
+      const supplied = captured.revealGroups[index];
+      const members = group.entityIds.map(id => entityIds.get(id));
+      const dependencies = group.dependsOn.map(id => groupIds.get(id));
+      if (!supplied || !keys(supplied, "id entityIds dependsOn narrationCue")
+        || supplied.narrationCue !== group.narrationCue
+        || supplied.entityIds.length !== members.length || members.some((id, i) => id === undefined || supplied.entityIds[i] !== id)
+        || supplied.dependsOn.length !== dependencies.length || dependencies.some((id, i) => id === undefined || supplied.dependsOn[i] !== id)) {
+        errors.push(issue("document_reveal", "Reveal narration, membership, dependencies and order must match the independently proved complete product document", `revealGroups[${index}]`));
+      }
     }
     return errors;
   } catch { return [issue("document_data", "The product document cannot be independently captured")]; }
