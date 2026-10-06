@@ -1,0 +1,28 @@
+# Consolidated publication review, 6 October 2026
+
+PR: https://github.com/kaizen403/heytutor/pull/91. Implementation candidate e757bb9fdb994fcbf646b71b757638a314418841; the final documentation commit preserves its source. Obtain the actual merged commit and latest CI results from the PR. An open PR is not a merge receipt.
+
+Integration preserves main b59263b8246876d14ba277a5926dea51219387d9, including newer chapter operators, startup overlap/caps, early numeric reconciliation, OCR and Sarvam/Cartesia. It publishes selected implementation and concise evidence, not private runtime archives or old candidate branch history. Circle c8814e67 and optics2400e4b4 remain excluded. Local main at682eb26 and its dirty work are protected; publication uses an isolated worktree.
+
+Review closed stale final solver projection after source correction, whole-fraction exponent grouping, section identity at actual read/restore/replay and all admission tiers, typed numeric claims through label descendants, and replay cancellation before board readiness or a pending clear. Named section ratios bind to actual endpoint/result identities and orientation; construction weights and named AP/PB are distinct. Parameter is recomputed in the admitted construction's frame. Synthetic text cannot consume a required physical body. Maximum-range and unrelated wind/wall angles cannot label a symbolic launch angle.
+
+Local receipts are in /Users/kaizen/heytutor-claude-coord/publication/:
+
+- Shared builds, all-package typecheck12/12 and lint12/12 pass; lint has warnings and no errors.
+- Production build previously7/7; final-head CI runs production build and the publication regression step before security/payment/database/dependency gates. Inspect actual final-head results.
+- Authority/actual compile/admission/stored source/restore/replay659 checks pass, including forward/reversed named ratios and one/two label hops.
+- Derived-label compiler/presentation762 checks across21 operators pass.
+- Source-body13 controls pass: actual captured fullIR remains unchanged and declines incomplete named bodies; the distinct authored compact-name fullIR positive visibly renders. No authored profile is claimed as native evidence.
+- Actual hook/Whiteboard replay reproduces66px displacement without settlement. Settlement prevents late restore ink while drawing and before readiness; nine recorded rows retain their coordinates.
+- Section fullIR gate passes six normal cases and five requested-Q forms. Its old caption typo AP:PB under requested Q was corrected to AQ:QB, preserving intended source identities.
+- Drawing/LaTeX, scoped source/selection/persistence/FOCUS gates, matrix native1001, SSM/security/payment, disposable Postgres concurrency and dependency audit pass. Initial setup/fixture failures and prior receipts remain available.
+
+## Explicit limitations
+
+This is not an all-verify-suites-green or chapter certification claim. Upstream verify:startup passes preparation/turn/telemetry/overlap scenarios, then fails its first old fast-figure positive: captured symbolic projectile fullIR requires projectile (point mass) and parabolic trajectory, which cannot survive the unchanged16-character label contract. The candidate intentionally declines the incomplete figure. Full named-body requirements remain supported obligations; builder/display capacity is the gap. Original upstream gate and all label/IR guards are unchanged. The owned publication gate asserts strict rejection and a clearly distinguished renderable fullIR positive. Measurement diagnostic verify-publication-symbolic-figure.ts deliberately remains red for five long-name rendering expectations; it is not an acceptance gate.
+
+Point-line matching through a certified infinite line_relation remains a fail-closed interoperability gap assigned to Wave2; finite segments and unrelated parallel lines must not substitute for the measured source line. This restriction does not admit wrong geometry. Other historical and student failures remain in the Wave1 report and continuation reference.
+
+For the nine carried Maths/Physics topics: READY1, FULLY-CERTIFIED0, newREADY0. Standard circle retains its declared historical scope. Main's13 independently accepted Chemistry rows are preserved unchanged; Chemistry is excluded from future engineering. No new accepted rows are written.
+
+The user canceled the proposed Cursor handoff and authorized this owner to continue automatically with Waves2 and3 after publication, using Sol for complex tasks and Luna for simple bounded work, never Astral. Internal reference: docs/agent/coverage-continuation-20261006.md. Each wave needs independent review, actual student rendering and affected authenticated lifecycle evidence before readiness claims. Future production publication is not inferred from local wave engineering authorization.
