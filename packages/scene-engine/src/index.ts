@@ -37,6 +37,7 @@ export * from "./physics/relativeMotionSource";
 export * from "./physics/motionPlanAgreement";
 export * from "./physics/riverCrossingSource";
 export * from "./physics/uniformCircularSource";
+export * from "./physics/uniformCircularAuthority";
 export * from "./physics/uniformCircularSourceBinding";
 export * from "./physics/uniformCircularSourceIR";
 export * from "./archetypes";
