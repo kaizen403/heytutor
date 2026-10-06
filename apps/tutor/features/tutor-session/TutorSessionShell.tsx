@@ -46,6 +46,10 @@ import { SessionInputChrome } from "./components/SessionInputChrome";
 import { SessionHeader } from "./components/SessionHeader";
 import { NotesChatSidebar } from "./components/NotesChatSidebar";
 import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
+import { UnsavedBoardNotice } from "./components/UnsavedBoardNotice";
+import { taughtSegmentCount, unsavedLessonBoard } from "./lib/board/unsavedBoard";
+import { focusQuestionField } from "./lib/turn/lessonFollowUp";
+import type { DownloadState } from "./lib/download/downloadState";
 import { OutOfCreditsDialog } from "@/features/account/OutOfCreditsDialog";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { rememberBillingFailure } from "@/lib/billing/billingClient";
@@ -142,6 +146,9 @@ export type TutorSessionExportApi = {
   canReplay: boolean;
   canDownload: boolean;
   canDownloadLecture: boolean;
+  /** What the Download control shows; the admin drawer renders the same pill. */
+  downloadState: DownloadState;
+  dismissDownload: () => void;
   lectureFileType: LectureFileType;
   isReplaying: boolean;
   isDownloading: boolean;
@@ -775,6 +782,10 @@ export function TutorSessionShell({
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
     settleBoardRestore,
+    saveStatus,
+    retrySave,
+    getLiveTurn,
+    hasLiveTurn,
   } = useBoardSession({
     sessionId,
     isDraft,
@@ -822,6 +833,8 @@ export function TutorSessionShell({
     handleAskDoubt,
     flushPausedLesson,
     pausedLessonOffer,
+    pausedLessonReason,
+    restorePausedLesson,
   } = useTurnLifecycle({
     sessionId,
     isDraft,
@@ -908,6 +921,39 @@ export function TutorSessionShell({
     registerReplayBlobUrl,
     revokeUnreferencedReplayBlobUrls,
   });
+
+  // A stopped lesson survives a reload: once the board is restored it is
+  // offered, never continued on its own. Not guarded by isDraft: a fresh board
+  // must be marked restored while empty, or a later Stop's live snapshot would
+  // be replaced by the derived one.
+  useEffect(() => {
+    if (!boardLoaded) return;
+    restorePausedLesson(storedTurnsRef.current);
+  }, [boardLoaded, phase, isReplaying, storedTurnsCount, restorePausedLesson, storedTurnsRef]);
+
+  // Teach it again on an old board that kept only its title prefills the
+  // composer rather than sending.
+  const [composerPrefill, setComposerPrefill] = useState<{ text: string; nonce: number } | null>(null);
+  const prefillComposer = useCallback((text: string) => {
+    setInputInteracted(true);
+    setComposerPrefill((previous) => ({ text, nonce: (previous?.nonce ?? 0) + 1 }));
+  }, [setInputInteracted]);
+  // What the unsaved board notice reads: each stored turn's question and the
+  // steps it taught. The turns ref is read on the count that mirrors it.
+  /* eslint-disable react-hooks/refs, react-hooks/exhaustive-deps -- storedTurnsCount mirrors the ref */
+  const unsavedTurns = useMemo(
+    () =>
+      storedTurnsRef.current.map((turn) => ({
+        question: turn.question,
+        segmentCount: taughtSegmentCount(turn.segments),
+      })),
+    [storedTurnsCount, boardLoaded, sessionId],
+  );
+  /* eslint-enable react-hooks/refs, react-hooks/exhaustive-deps */
+  // The unsaved board notice stands aside once the student picks a way on.
+  const [unsavedNoticeDismissedFor, setUnsavedNoticeDismissedFor] = useState<string | null>(null);
+  const [saveBannerDismissed, setSaveBannerDismissed] = useState(false);
+  if (saveBannerDismissed && saveStatus.kind !== "failed") setSaveBannerDismissed(false);
 
   const notesEnabled = can.notes;
   const lectureInProgress = phase !== "idle" && !isReplaying;
@@ -1008,7 +1054,6 @@ export function TutorSessionShell({
   const {
     replayLecture,
     collectNotesSlides,
-    downloadNotesPdf,
     handleReplaySpeedChange: applyReplaySpeed,
   } = useReplay({
     whiteboardRef,
@@ -1094,6 +1139,12 @@ export function TutorSessionShell({
     lectureFileType,
     downloadLectureMp4,
     cancelLectureExport,
+    downloadState,
+    downloadVideo,
+    downloadNotesPdf,
+    cancelDownload,
+    dismissDownload,
+    canDownloadNotes,
   } = useLectureExport({
     storedTurnsRef,
     storedTurnsCount,
@@ -1102,6 +1153,12 @@ export function TutorSessionShell({
     sessionId,
     enabled: !isHeadless,
     lectureFileType: settings.lectureFileType,
+    // Downloads cover the lesson from its start to now, the live or stopped
+    // turn included.
+    getLiveTurn,
+    hasLiveTurn,
+    collectNotesSlides,
+    title: boards.find((board) => board.id === sessionId)?.title ?? "",
   });
 
   /*
@@ -1356,6 +1413,8 @@ export function TutorSessionShell({
     marking.marks.length > 0 ||
     pausedLessonOffer ||
     Boolean(lastError) ||
+    saveStatus.kind === "failed" ||
+    downloadState.kind !== "idle" ||
     settingsOpen ||
     creditsOpen ||
     mobileNavOpen ||
@@ -1393,17 +1452,16 @@ export function TutorSessionShell({
   }, [boardFullscreenApi, can.appChrome, fullscreen, isHeadless, isReplaying, rewindActive]);
 
   const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
-  const canDownload = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
-  const canDownloadNotes =
-    boardLoaded && storedTurnsCount > 0 && !isDownloading && !isExportingLecture;
   useEffect(() => {
     if (!onExportApi) {
       return;
     }
     onExportApi({
       canReplay,
-      canDownload: frameless ? canDownloadNotes : canDownload,
+      canDownload: canDownloadNotes,
       canDownloadLecture,
+      downloadState,
+      dismissDownload,
       lectureFileType,
       isReplaying: isReplaying || lecturePlayerActive,
       isDownloading,
@@ -1420,11 +1478,11 @@ export function TutorSessionShell({
     });
   }, [
     onExportApi,
-    frameless,
     canReplay,
-    canDownload,
     canDownloadNotes,
     canDownloadLecture,
+    downloadState,
+    dismissDownload,
     lectureFileType,
     isReplaying,
     lecturePlayerActive,
@@ -1514,6 +1572,8 @@ export function TutorSessionShell({
       onClearMarks={marking.clear}
       onDisarmMarking={marking.disarm}
       pausedLessonOffer={pausedLessonOffer}
+      pausedLessonReason={pausedLessonReason}
+      prefill={composerPrefill}
       onContinueLecture={flushPausedLesson}
       billingNotice={billingNotice}
       onUpgrade={goUsage}
@@ -1521,8 +1581,22 @@ export function TutorSessionShell({
     />
   );
 
-  const showEmptyLanding = isInputOverlay && storedTurnsCount === 0;
+  // A board whose lesson never saved says so, with its question, instead of
+  // posing as the home page. Not tied to the input overlay: a lesson that died
+  // before its first step restores as a stored turn, which turns that off.
+  const unsavedBoard =
+    can.appChrome && phase === "idle" && !isReplaying && unsavedNoticeDismissedFor !== sessionId
+      ? unsavedLessonBoard({
+          isDraft,
+          boardLoaded,
+          title: activeBoardTitle,
+          preview: activeBoard?.preview ?? "",
+          turns: unsavedTurns,
+        })
+      : null;
+  const showEmptyLanding = isInputOverlay && storedTurnsCount === 0 && !unsavedBoard;
   const fullBleedLanding = showEmptyLanding;
+  const boardCovered = fullBleedLanding || Boolean(unsavedBoard);
 
   /*
     What sits on the deck between the board and the transport.
@@ -1655,15 +1729,20 @@ export function TutorSessionShell({
               setSidebarCollapsed(false);
             }}
             boardTitle={activeBoardTitle}
+            boardStatus={unsavedBoard ? "unsaved" : undefined}
+            saveStatus={saveStatus}
+            onRetrySave={retrySave}
             canReplay={canReplay}
-            canDownload={canDownload}
-            canDownloadLecture={canDownloadLecture}
+            downloadState={downloadState}
+            canDownloadPdf={canDownloadNotes}
+            canDownloadVideo={canDownloadLecture}
+            downloadPartial={phase !== "idle" || hasLiveTurn}
+            onDownloadPdf={downloadNotesPdf}
+            onDownloadVideo={downloadVideo}
+            onCancelDownload={cancelDownload}
+            onDismissDownload={dismissDownload}
             lectureFileType={lectureFileType}
             isReplaying={isReplaying}
-            isDownloading={isDownloading}
-            isExportingLecture={isExportingLecture}
-            lectureExportProgress={lectureExportProgress}
-            lectureExportError={lectureExportError}
             phase={phase}
             compactActions={isCompactNav}
             notesOpen={notesOpen}
@@ -1674,9 +1753,6 @@ export function TutorSessionShell({
             isFullscreen={boardFullscreen}
             onToggleFullscreen={fullscreen.toggle}
             onReplay={startLectureReplay}
-            onDownload={downloadNotesPdf}
-            onDownloadLecture={downloadLectureMp4}
-            onCancelLectureExport={cancelLectureExport}
             onStop={stopTurn}
           />
         ) : null}
@@ -1723,11 +1799,33 @@ export function TutorSessionShell({
               </div>
             )}
 
+            {unsavedBoard && (
+              <div className="glass-deep absolute inset-0 z-20 flex flex-col items-center justify-center overflow-hidden rounded-2xl">
+                <UnsavedBoardNotice
+                  question={unsavedBoard.question}
+                  title={unsavedBoard.title}
+                  onTeachAgain={(text, { exact }) => {
+                    setUnsavedNoticeDismissedFor(sessionId);
+                    if (exact) {
+                      void handleQuestion(text);
+                      return;
+                    }
+                    prefillComposer(text);
+                  }}
+                  onAskSomethingElse={() => {
+                    setUnsavedNoticeDismissedFor(sessionId);
+                    setInputInteracted(true);
+                    requestAnimationFrame(() => focusQuestionField());
+                  }}
+                />
+              </div>
+            )}
+
             <div
               className={`wb-stage flex min-h-0 flex-col items-center ${
-                fullBleedLanding ? "pointer-events-none invisible absolute" : ""
+                boardCovered ? "pointer-events-none invisible absolute" : ""
               }`}
-              aria-hidden={fullBleedLanding || undefined}
+              aria-hidden={boardCovered || undefined}
               style={{
                 ["--board-w" as string]: `${BOARD_WIDTH * boardViewport.scale}px`,
                 ["--board-h" as string]: `${BOARD_HEIGHT * boardViewport.scale}px`,
@@ -1735,7 +1833,7 @@ export function TutorSessionShell({
             >
             <div className="wb-frame relative">
             <div className="wb-surface absolute overflow-hidden">
-            {isInputOverlay && !fullBleedLanding && (
+            {isInputOverlay && !boardCovered && (
               <div className="wb-scrim-strong pointer-events-none absolute inset-0 z-10" />
             )}
 
@@ -1764,7 +1862,7 @@ export function TutorSessionShell({
               </div>
             ) : null}
 
-            {isInputOverlay && storedTurnsCount > 0 && (
+            {isInputOverlay && storedTurnsCount > 0 && !unsavedBoard && (
               <div
                 className="absolute inset-0 z-20 flex flex-col items-center justify-center px-3 sm:px-4"
                 style={{ pointerEvents: "none" }}
@@ -1802,6 +1900,11 @@ export function TutorSessionShell({
               phase={phase}
               currentSegmentText={currentSegmentText}
               lastError={lastError}
+              saveFailure={
+                can.appChrome && saveStatus.kind === "failed" && !saveBannerDismissed
+                  ? { onRetrySave: retrySave, onDismiss: () => setSaveBannerDismissed(true) }
+                  : null
+              }
               isReplaying={isReplaying}
               exportBoardRef={exportBoardRef}
               exportBoardMounted={exportBoardMounted}

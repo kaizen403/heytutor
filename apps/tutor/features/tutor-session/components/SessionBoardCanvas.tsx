@@ -10,7 +10,7 @@ import type { BoardViewport, TutorPhase } from "../types";
 import { DiagramLabelInspector } from "./DiagramLabelInspector";
 import { BoardMarkingLayer } from "./BoardMarkingLayer";
 import { Whiteboard } from "./WhiteboardLoader";
-import { BoardErrorBanner } from "./BoardErrorBanner";
+import { BoardErrorBanner, SaveFailureBanner } from "./BoardErrorBanner";
 import type { BoardMarkingApi } from "../hooks/useBoardMarking";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { isOutOfUsageLock } from "@/lib/billing/studentCopy";
@@ -27,6 +27,8 @@ export interface SessionBoardCanvasProps {
   phase: TutorPhase;
   currentSegmentText: string;
   lastError: { message: string; question: string; billing?: BillingFailure } | null;
+  /** A lesson that did not save: Try again resends it, it never asks again. */
+  saveFailure?: { onRetrySave: () => void; onDismiss: () => void } | null;
   isReplaying: boolean;
   /** Overlay board the past is drawn on while the live lecture stays frozen. */
   rewindBoardRef: RefObject<WhiteboardHandle | null>;
@@ -78,6 +80,7 @@ export function SessionBoardCanvas({
   phase,
   currentSegmentText,
   lastError,
+  saveFailure = null,
   isReplaying,
   rewindBoardRef,
   exportBoardRef,
@@ -344,6 +347,10 @@ export function SessionBoardCanvas({
             onRetry={() => onRetryError(lastError.question)}
             onDismiss={onDismissError}
           />
+        )}
+
+        {phase === "idle" && saveFailure && !lastError && (
+          <SaveFailureBanner onRetrySave={saveFailure.onRetrySave} onDismiss={saveFailure.onDismiss} />
         )}
 
       </div>

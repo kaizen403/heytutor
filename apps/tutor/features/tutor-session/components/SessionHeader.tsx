@@ -2,7 +2,6 @@
 import { Maximize, Minimize } from "lucide-react";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
 import { SaveStatusChip } from "@/features/tutor-session/components/SaveStatusChip";
-import type { LegacyExportProgress } from "@/features/tutor-session/components/download/downloadView";
 import type { DownloadState } from "@/features/tutor-session/lib/download/downloadState";
 import type { SaveStatus } from "@/features/tutor-session/lib/turn/saveStatus";
 import type { LectureFileType } from "@/lib/account/lessonSettings";
@@ -51,10 +50,10 @@ interface SessionHeaderProps {
   onReplay: () => void;
   onStop: () => void;
 
-  /** What the download is doing. When absent it is derived from the legacy props. */
-  downloadState?: DownloadState;
-  canDownloadPdf?: boolean;
-  canDownloadVideo?: boolean;
+  /** What the download is doing. */
+  downloadState: DownloadState;
+  canDownloadPdf: boolean;
+  canDownloadVideo: boolean;
   /** The lesson is live or stopped, so a new file covers it up to now. */
   downloadPartial?: boolean;
   downloadUnavailableReason?: string;
@@ -62,25 +61,6 @@ interface SessionHeaderProps {
   onDownloadVideo?: () => void;
   onCancelDownload?: () => void;
   onDismissDownload?: () => void;
-
-  /** @deprecated Pass `canDownloadPdf`. */
-  canDownload?: boolean;
-  /** @deprecated Pass `canDownloadVideo`. */
-  canDownloadLecture?: boolean;
-  /** @deprecated Pass `downloadState`. */
-  isDownloading?: boolean;
-  /** @deprecated Pass `downloadState`. */
-  isExportingLecture?: boolean;
-  /** @deprecated Pass `downloadState`. */
-  lectureExportProgress?: LegacyExportProgress | null;
-  /** @deprecated Pass `downloadState`. */
-  lectureExportError?: string | null;
-  /** @deprecated Pass `onDownloadPdf`. */
-  onDownload?: () => void;
-  /** @deprecated Pass `onDownloadVideo`. */
-  onDownloadLecture?: () => void;
-  /** @deprecated Pass `onCancelDownload`. */
-  onCancelLectureExport?: () => void;
 }
 
 function displayBoardTitle(title: string): string {
@@ -123,15 +103,6 @@ export function SessionHeader({
   onDownloadVideo,
   onCancelDownload,
   onDismissDownload,
-  canDownload,
-  canDownloadLecture,
-  isDownloading,
-  isExportingLecture,
-  lectureExportProgress,
-  lectureExportError,
-  onDownload,
-  onDownloadLecture,
-  onCancelLectureExport,
 }: SessionHeaderProps) {
   const isLive = phase !== "idle" || isReplaying;
   const title = displayBoardTitle(boardTitle);
@@ -242,15 +213,6 @@ export function SessionHeader({
             onDownloadVideo={onDownloadVideo}
             onCancelDownload={onCancelDownload}
             onDismissDownload={onDismissDownload}
-            canDownload={canDownload}
-            canDownloadLecture={canDownloadLecture}
-            isDownloading={isDownloading}
-            isExportingLecture={isExportingLecture}
-            lectureExportProgress={lectureExportProgress}
-            lectureExportError={lectureExportError}
-            onDownload={onDownload}
-            onDownloadLecture={onDownloadLecture}
-            onCancelLectureExport={onCancelLectureExport}
           />
 
           {onToggleFullscreen ? (

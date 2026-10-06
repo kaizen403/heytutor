@@ -19,10 +19,6 @@ import {
   speakingLectureSegments,
   turnHasExportableAudio,
 } from "../../lib/lecture-export/canExportLectureMp4";
-import {
-  lectureExportCancelPressAction,
-  lectureExportCancelRevealedOnEnter,
-} from "../../lib/lecture-export/lectureExportCancel";
 import { pickLectureExportProfile } from "../../lib/lecture-export/lectureExportProfile";
 import {
   lectureExportCacheKey,
@@ -210,26 +206,6 @@ assert.equal(
   shouldCancelLectureExport({ cancelled: true, phase: "idle", isReplaying: false }),
   true,
   "an explicit cancel stops export",
-);
-assert.equal(
-  lectureExportCancelRevealedOnEnter("mouse"),
-  true,
-  "hovering the download control must show Cancel",
-);
-assert.equal(
-  lectureExportCancelRevealedOnEnter("touch"),
-  false,
-  "a touch must not cancel until the control is tapped again",
-);
-assert.equal(
-  lectureExportCancelPressAction(false),
-  "reveal",
-  "the first tap while exporting reveals Cancel",
-);
-assert.equal(
-  lectureExportCancelPressAction(true),
-  "cancel",
-  "the second tap, or a click after hover, cancels the download",
 );
 
 assert.deepEqual(

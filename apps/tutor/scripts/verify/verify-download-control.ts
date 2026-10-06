@@ -19,7 +19,6 @@ import {
   downloadNoteCopy,
   downloadPercent,
   downloadPillView,
-  downloadStateFromLegacy,
   downloadStatusCopy,
   nextMenuIndex,
 } from "../../features/tutor-session/components/download/downloadView";
@@ -229,36 +228,21 @@ assert.ok(copy.includes("Board and voice, up to now"));
 assert.ok(copy.includes("The whole lesson, with voice"));
 assert.ok(copy.includes("Notes (PDF)") && copy.includes("Video (MP4)"));
 
-// 9. The legacy bridge keeps the shell compiling and honest until it passes downloadState.
-assert.deepEqual(downloadStateFromLegacy({}), { kind: "idle" });
-assert.deepEqual(downloadStateFromLegacy({ isDownloading: true }), { kind: "pdf", stage: "capturing" });
-assert.equal(downloadStateFromLegacy({ isExportingLecture: true }).kind, "video");
-const legacyRecording = downloadStateFromLegacy({
-  isExportingLecture: true,
-  progress: { currentMs: 420, totalMs: 1000, phase: "video" },
-});
-assert.equal(legacyRecording.kind === "video" && legacyRecording.stage, "recording");
-assert.equal(downloadPillView(legacyRecording).figure, "42%");
-assert.equal(
-  downloadStateFromLegacy({ isExportingLecture: true, progress: { currentMs: 0, totalMs: 1, phase: "mux" } }).kind === "video",
-  true,
-);
-assert.deepEqual(downloadStateFromLegacy({ error: "x" }), { kind: "error", file: "video", message: "x" });
-const legacyMarkup = renderToStaticMarkup(
-  createElement(LessonActions, {
-    canReplay: true,
-    onReplay: noop,
-    canDownload: true,
-    canDownloadLecture: true,
-    isExportingLecture: true,
-    lectureExportProgress: { currentMs: 420, totalMs: 1000, phase: "video" },
-    onDownload: noop,
-    onDownloadLecture: noop,
-    onCancelLectureExport: noop,
-  }),
-);
-assert.match(legacyMarkup, /aria-valuenow="42"/, "old props still render through the bridge");
-assert.match(legacyMarkup, /Cancel video download/);
+// 9. One way in: the old export props and their bridge are gone, so a caller
+// cannot render a download the pipeline is not driving.
+for (const path of [
+  "features/tutor-session/components/LessonActions.tsx",
+  "features/tutor-session/components/SessionHeader.tsx",
+  "features/tutor-session/components/download/downloadView.ts",
+  "features/admin/components/WatchDrawer.tsx",
+]) {
+  const source = read(path);
+  assert.doesNotMatch(
+    source,
+    /downloadStateFromLegacy|LegacyExportProgress|lectureExportProgress|onCancelLectureExport=|isExportingLecture=/,
+    `${path}: legacy export props removed`,
+  );
+}
 
 // 10. The header's right side is one family: one height, one radius, one type size.
 const header = renderToStaticMarkup(

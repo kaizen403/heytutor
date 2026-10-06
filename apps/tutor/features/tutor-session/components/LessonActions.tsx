@@ -11,10 +11,6 @@ import {
 } from "@/lib/account/lessonSettings";
 import { cn } from "@/lib/utils";
 import { DownloadControl } from "./download/DownloadControl";
-import {
-  downloadStateFromLegacy,
-  type LegacyExportProgress,
-} from "./download/downloadView";
 
 export interface LessonActionsProps {
   canReplay: boolean;
@@ -25,12 +21,12 @@ export interface LessonActionsProps {
   /** Keep toolbar buttons visible (disabled when unavailable). */
   alwaysVisible?: boolean;
 
-  /** What the download is doing. When absent it is derived from the legacy props below. */
-  downloadState?: DownloadState;
-  /** Notes PDF can start now. Falls back to `canDownload`. */
-  canDownloadPdf?: boolean;
-  /** Video can start now. Falls back to `canDownloadLecture`. */
-  canDownloadVideo?: boolean;
+  /** What the download is doing. */
+  downloadState: DownloadState;
+  /** Notes PDF can start now. */
+  canDownloadPdf: boolean;
+  /** Video can start now. */
+  canDownloadVideo: boolean;
   /** The lesson is live or stopped, so a new file covers it up to now. */
   downloadPartial?: boolean;
   /** Why the files are unavailable, shown on the disabled control. */
@@ -39,25 +35,6 @@ export interface LessonActionsProps {
   onDownloadVideo?: () => void;
   onCancelDownload?: () => void;
   onDismissDownload?: () => void;
-
-  /** @deprecated Pass `canDownloadPdf`. */
-  canDownload?: boolean;
-  /** @deprecated Pass `canDownloadVideo`. */
-  canDownloadLecture?: boolean;
-  /** @deprecated Pass `downloadState`. */
-  isDownloading?: boolean;
-  /** @deprecated Pass `downloadState`. */
-  isExportingLecture?: boolean;
-  /** @deprecated Pass `downloadState`. */
-  lectureExportProgress?: LegacyExportProgress | null;
-  /** @deprecated Pass `downloadState`. */
-  lectureExportError?: string | null;
-  /** @deprecated Pass `onDownloadPdf`. */
-  onDownload?: () => void;
-  /** @deprecated Pass `onDownloadVideo`. */
-  onDownloadLecture?: () => void;
-  /** @deprecated Pass `onCancelDownload`. */
-  onCancelLectureExport?: () => void;
 }
 
 export function LessonActions({
@@ -76,26 +53,10 @@ export function LessonActions({
   onDownloadVideo,
   onCancelDownload,
   onDismissDownload,
-  canDownload = false,
-  canDownloadLecture = false,
-  isDownloading = false,
-  isExportingLecture = false,
-  lectureExportProgress = null,
-  lectureExportError = null,
-  onDownload,
-  onDownloadLecture,
-  onCancelLectureExport,
 }: LessonActionsProps) {
-  const state =
-    downloadState ??
-    downloadStateFromLegacy({
-      isDownloading,
-      isExportingLecture,
-      progress: lectureExportProgress,
-      error: lectureExportError,
-    });
-  const pdfAllowed = canDownloadPdf ?? canDownload;
-  const videoAllowed = canDownloadVideo ?? canDownloadLecture;
+  const state = downloadState;
+  const pdfAllowed = canDownloadPdf;
+  const videoAllowed = canDownloadVideo;
   const busy = downloadIsBusy(state);
 
   const showReplay = alwaysVisible || canReplay;
@@ -140,9 +101,9 @@ export function LessonActions({
           unavailableReason={downloadUnavailableReason}
           blocked={isReplaying}
           compact={compact}
-          onDownloadPdf={onDownloadPdf ?? onDownload}
-          onDownloadVideo={onDownloadVideo ?? onDownloadLecture}
-          onCancel={onCancelDownload ?? onCancelLectureExport}
+          onDownloadPdf={onDownloadPdf}
+          onDownloadVideo={onDownloadVideo}
+          onCancel={onCancelDownload}
           onDismiss={onDismissDownload}
         />
       )}

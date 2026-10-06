@@ -239,40 +239,6 @@ export function nextMenuIndex(key: string, index: number, count: number): number
   }
 }
 
-/** The old export progress shape, kept structural so the bridge does not pin the pipeline's types. */
-export type LegacyExportProgress = {
-  currentMs: number;
-  totalMs: number;
-  phase: "audio" | "video" | "mux";
-};
-
-/** Temporary bridge from the old LessonActions props. */
-export function downloadStateFromLegacy(input: {
-  isDownloading?: boolean;
-  isExportingLecture?: boolean;
-  progress?: LegacyExportProgress | null;
-  error?: string | null;
-}): DownloadState {
-  if (input.isExportingLecture) {
-    const progress = input.progress ?? null;
-    if (!progress || progress.phase === "audio") {
-      return { kind: "video", stage: "preparing", fraction: null, partial: false };
-    }
-    if (progress.phase === "mux") {
-      return { kind: "video", stage: "finishing", fraction: null, partial: false };
-    }
-    return {
-      kind: "video",
-      stage: "recording",
-      fraction: progress.totalMs > 0 ? progress.currentMs / progress.totalMs : null,
-      partial: false,
-    };
-  }
-  if (input.isDownloading) return { kind: "pdf", stage: "capturing" };
-  if (input.error) return { kind: "error", file: "video", message: input.error };
-  return { kind: "idle" };
-}
-
 /** Identity of a popover worth showing for this state, so a dismissal sticks to it. */
 export function downloadPopoverKey(state: DownloadState): string | null {
   if (state.kind === "error") return `error:${state.file}:${state.message}`;

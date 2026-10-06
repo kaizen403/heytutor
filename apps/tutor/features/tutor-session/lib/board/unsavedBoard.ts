@@ -8,7 +8,24 @@
  * the restore fallback for an unknown id, which keeps the title "New board".
  */
 
+import { parseStoredSegmentCommands } from "@heytutor/drawing";
+
 export const NEW_BOARD_TITLE = "New board";
+
+/**
+ * Steps that put something in front of the student: words, or ink other than
+ * the page opening CLEAR. A lesson that died before its first step is saved
+ * with only that CLEAR row, and must still read as nothing taught.
+ */
+export function taughtSegmentCount(
+  segments: readonly { narration?: string | null; command?: unknown }[],
+): number {
+  return segments.filter(
+    (segment) =>
+      Boolean(segment.narration?.trim()) ||
+      parseStoredSegmentCommands(segment.command).some((command) => command.type !== "CLEAR"),
+  ).length;
+}
 
 /** A stored turn as far as this predicate cares. */
 export type UnsavedBoardTurn = {

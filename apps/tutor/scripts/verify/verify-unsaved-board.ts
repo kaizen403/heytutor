@@ -11,6 +11,7 @@ import * as React from "react";
 import { createElement, isValidElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
+  taughtSegmentCount,
   unsavedLessonBoard,
   unsavedNoticeAction,
   type UnsavedBoardInput,
@@ -138,6 +139,9 @@ const headerProps = {
   boardTitle: "Rayleigh scattering",
   onExpandSidebar: noop,
   canReplay: false,
+  downloadState: { kind: "idle" } as const,
+  canDownloadPdf: false,
+  canDownloadVideo: false,
   isReplaying: false,
   phase: "idle" as const,
   onReplay: noop,
@@ -203,14 +207,31 @@ assert.match(
   "the lesson error banner keeps its Retry",
 );
 
-// 5. The shell, once wired: an unsaved board never falls through to the landing.
+// 5. The shell: an unsaved board never falls through to the landing.
 const shell = read("features/tutor-session/TutorSessionShell.tsx");
-if (shell.includes("unsavedLessonBoard")) {
-  assert.match(shell, /showEmptyLanding\s*=[^;]*!unsavedBoard/, "showEmptyLanding must exclude the unsaved board");
-  assert.match(shell, /<UnsavedBoardNotice/, "the shell renders the notice");
-} else {
-  console.log("verify-unsaved-board: shell not wired yet (coordinator); the shell check is pending");
-}
+assert.match(shell, /showEmptyLanding\s*=[^;]*!unsavedBoard/, "showEmptyLanding must exclude the unsaved board");
+assert.match(shell, /<UnsavedBoardNotice/, "the shell renders the notice");
+// A lesson that died before its first step restores as a stored turn, which
+// turns the input overlay off; the notice must not depend on it.
+const unsavedDecl = shell.slice(shell.indexOf("const unsavedBoard ="), shell.indexOf("const showEmptyLanding"));
+assert.ok(unsavedDecl.length > 0 && unsavedDecl.length < 2_000, "unsavedBoard declaration anchors found");
+assert.doesNotMatch(unsavedDecl, /isInputOverlay/, "the notice is not gated on the input overlay");
+assert.match(shell, /segmentCount:\s*taughtSegmentCount\(/, "turns are counted by taught steps, not raw rows");
+
+// 6. A stopped lesson saved with only its page opening CLEAR taught nothing.
+const clearOnly = [{ narration: "", command: { type: "CLEAR", params: [] } }];
+assert.equal(taughtSegmentCount(clearOnly), 0, "a CLEAR row alone is nothing taught");
+assert.equal(taughtSegmentCount([...clearOnly, { narration: "Force is mass times acceleration.", command: null }]), 1);
+assert.equal(
+  taughtSegmentCount([{ narration: "", command: { type: "WRITE", text: "F = ma", params: [90, 145, 19] } }]),
+  1,
+  "silent ink counts as taught",
+);
+assert.deepEqual(
+  unsavedLessonBoard({ ...base, turns: [{ question: "Why is the sky blue?", segmentCount: taughtSegmentCount(clearOnly) }] }),
+  { question: "Why is the sky blue?", title: "Projectile range on a slope" },
+  "a lesson that died before its first step offers Teach it again with its exact question",
+);
 
 Reflect.deleteProperty(globalThis, "React");
 console.log("verify-unsaved-board: honest unsaved board, exact question sent or topic prefilled, save chip and banner never re-teach");
