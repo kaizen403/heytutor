@@ -11,6 +11,45 @@ function coefficientSymbol(question:string,symbol:string):boolean {
 const dimensionless=(unit:unknown)=>unit===undefined || unit==="1";
 const issue=(message:string,path="turnPlan"):SceneIssue=>({code:"finite_binomial_plan",severity:"fatal",message,path});
 const exactCertainty=(row:TurnPlanV3["derived"][number])=>row.uncertainty===undefined || row.uncertainty===0;
+const PLAN_FIELDS=["schemaVersion","question","givens","unknowns","derived","qualitativeClaims","lawIds","assumptions","visualRequirement","teachingSequenceHints"] as const;
+const QUANTITY_FIELDS=["id","symbol","value","unit","sign","sourceText","provenance","dependsOn","uncertainty"] as const;
+const UNKNOWN_FIELDS=["id","symbol","unit"] as const;
+const CLAIM_FIELDS=["id","claim","expected","relatedQuantityIds","relatedEntityHints"] as const;
+function closedRecord(value:unknown,allowed:readonly string[]):value is Record<string,unknown>{
+ if(value===null || typeof value!=="object" || Array.isArray(value))return false;
+ const prototype=Object.getPrototypeOf(value);
+ if(prototype!==Object.prototype && prototype!==null)return false;
+ return Reflect.ownKeys(value).every(key=>{
+  if(typeof key!=="string" || !allowed.includes(key))return false;
+  const descriptor=Object.getOwnPropertyDescriptor(value,key);
+  return !!descriptor && "value" in descriptor;
+ });
+}
+function plainArray(value:unknown):value is unknown[]{
+ if(!Array.isArray(value))return false;
+ const keys=Reflect.ownKeys(value);
+ if(keys.length!==value.length+1)return false;
+ return keys.every(key=>{
+  if(key==="length")return true;
+  if(typeof key!=="string" || !/^(?:0|[1-9]\d*)$/u.test(key) || Number(key)>=value.length)return false;
+  const descriptor=Object.getOwnPropertyDescriptor(value,key);
+  return !!descriptor && "value" in descriptor;
+ });
+}
+/** The generic plan validator canonicalizes known fields. Keep this source
+ * lane closed before that can erase an obligation from the caller's payload. */
+function hasOnlyFiniteBinomialPlanFields(raw:unknown):boolean{
+ if(!closedRecord(raw,PLAN_FIELDS))return false;
+ const plan=raw;
+ if(!plainArray(plan.givens) || !plainArray(plan.unknowns) || !plainArray(plan.derived) || !plainArray(plan.qualitativeClaims))return false;
+ if(!plainArray(plan.lawIds) || !plainArray(plan.assumptions) || plan.lawIds.some(value=>typeof value!=="string") || plan.assumptions.some(value=>typeof value!=="string"))return false;
+ if(plan.teachingSequenceHints!==undefined && (!plainArray(plan.teachingSequenceHints) || plan.teachingSequenceHints.some(value=>typeof value!=="string")))return false;
+ const quantity=(value:unknown)=>closedRecord(value,QUANTITY_FIELDS) && (value.dependsOn===undefined || plainArray(value.dependsOn) && value.dependsOn.every(id=>typeof id==="string"));
+ const claim=(value:unknown)=>closedRecord(value,CLAIM_FIELDS) && (value.relatedQuantityIds===undefined || plainArray(value.relatedQuantityIds) && value.relatedQuantityIds.every(id=>typeof id==="string")) && (value.relatedEntityHints===undefined || plainArray(value.relatedEntityHints) && value.relatedEntityHints.every(id=>typeof id==="string"));
+ if(!plan.givens.every(quantity) || !plan.derived.every(quantity))return false;
+ if(!plan.unknowns.every(value=>closedRecord(value,UNKNOWN_FIELDS)) || !plan.qualitativeClaims.every(claim))return false;
+ return true;
+}
 function sourceAssumptionProved(source:FiniteBinomialSource,assumption:string):boolean {
  // These complete propositions follow from the parsed finite rational AST,
  // including bounded nonnegative integral powers and constant denominators.
@@ -40,6 +79,7 @@ function exponentGiven(question:string,row:TurnPlanV3["givens"][number]):boolean
 /** Actual caller plan joins source roles and original whole-IR request identities. */
 export function finiteBinomialPlanIssues(question:string,rawProblem:unknown,rawPlan:unknown):SceneIssue[]{
  if(readFiniteBinomialProgram(question).status!=="ok")return [];
+ if(!hasOnlyFiniteBinomialPlanFields(rawPlan))return [issue("The complete actual TurnPlanV3 must use only recognized finite-polynomial fields")];
  const admitted=admitFiniteBinomialProblem(question,rawProblem),checked=validateTurnPlanV3(rawPlan,question);
  if(admitted.status!=="ok")return [issue("The complete original polynomial IR must independently bind its source before plan admission")];
  if(!checked.valid || !checked.plan)return [issue("A structurally valid actual caller plan is required")];
@@ -62,9 +102,14 @@ export function finiteBinomialPlanIssues(question:string,rawProblem:unknown,rawP
 /** The question alone can correct a recognized coefficient before IR planning.
  * It never manufactures IR or promotes that correction into whole-IR proof. */
 export function applyFiniteBinomialAuthority(question:string,plan:TurnPlanV3,rawProblem?:unknown):{
- plan:TurnPlanV3;declineFigure:boolean;issueCodes:string[];corrections:Array<{quantityId:string;symbol:string;previous:number;corrected:number;unit?:string}>;
+ plan:TurnPlanV3;declineFigure:boolean;issueCodes:string[];corrections:Array<{quantityId:string;symbol:string;previous:number;corrected:number;unit?:string}>;declinedPlanEvidence?:unknown;
 }|null{
  const reading=readFiniteBinomialProgram(question);if(reading.status!=="ok")return null;
+ const fieldsKnown=hasOnlyFiniteBinomialPlanFields(plan);
+ if(!fieldsKnown){
+  const preserved={...plan,givens:[],derived:[],unknowns:[],qualitativeClaims:[]};
+  return {plan:preserved,declineFigure:true,issueCodes:["finite_binomial_plan_fields_declined"],corrections:[],declinedPlanEvidence:plan};
+ }
  const givens=plan.givens.filter(row=>exponentGiven(question,row));
  const expected=reading.source.request.kind==="coefficient"?exactPolynomialNumber(finitePolynomialCoefficient(reading.source.expansion,reading.source.request.exponent)):null;
  const issueCodes:string[]=givens.length===plan.givens.length?[]:["finite_binomial_given_withdrawn"];

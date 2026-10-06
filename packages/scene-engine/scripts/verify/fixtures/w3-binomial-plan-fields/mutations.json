@@ -1,0 +1,6 @@
+[
+  { "name": "root-extraObligations", "placement": "root" },
+  { "name": "derived-extraObligations", "placement": "derived" },
+  { "name": "unknown-extraObligations", "placement": "unknown" },
+  { "name": "given-extraObligations", "placement": "given" }
+]
