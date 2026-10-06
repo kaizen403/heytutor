@@ -41,7 +41,7 @@ export function matrixProductFullIRIssues(question: string, rawProblem: unknown)
     const roles = new Map<string, string>();
     for (const [index, fact] of ir.facts.entries()) {
       if (!keys(fact, "id kind statement evidence") || !keys(fact.evidence, "source start end quote")
-        || !question.includes(fact.evidence.quote)) return [issue("fact_evidence", "Facts require unchanged source quotes and no unowned fields", `facts[${index}]`)];
+        || question.slice(fact.evidence.start, fact.evidence.end) !== fact.evidence.quote) return [issue("fact_evidence", "Facts require unchanged source quotes at their declared evidence spans and no unowned fields", `facts[${index}]`)];
       if (fact.kind === "given") {
         const owners = source.matrices.filter(matrix => compact(fact.evidence.quote) === compact(matrix.quote)
           && compact(fact.statement.replace(/^Matrix\s+/u, "").replace(/\s+is\s+/u, "=")) === compact(matrix.quote));
@@ -93,34 +93,51 @@ function entryExplanationProved(source: Program, role: CellRole, row: TurnPlanQu
   return [ `${dot}=${result}`, `${dot}=${row.value}` ].includes(compact(row.sourceText));
 }
 
+/** Parse exactly one entire result literal with the existing matrix grammar.
+ * The quote equality prevents residual prose, second assertions or extra asks
+ * from being admitted just because a correct literal occurs within them.
+ */
+function productLiteralProved(product: Product, text: string): boolean {
+  const literal = readMatrixLiteralSourceProgram(`Let ${text}. Show ${product.name}.`);
+  const matrix = literal?.matrices[0];
+  return literal?.matrices.length === 1 && literal.requestedCells.length === 0
+    && matrix?.name === product.name && compact(matrix.quote) === compact(text)
+    && JSON.stringify(matrix.geometry.matrixArray.exactEntries) === JSON.stringify(product.geometry.matrixArray.exactEntries);
+}
+
 function claimProved(source: Program, plan: TurnPlanV3, claim: TurnPlanV3["qualitativeClaims"][number]): boolean {
   if (!keys(claim, "id claim expected relatedQuantityIds relatedEntityHints") || !Array.isArray(claim.relatedQuantityIds) || !claim.relatedQuantityIds.length
-    || !unique(claim.relatedQuantityIds) || claim.relatedEntityHints !== undefined && (!Array.isArray(claim.relatedEntityHints) || claim.relatedEntityHints.length)) return false;
-  const product = source.products.find(candidate => claim.claim === `${candidate.name} is the matrix product ${candidate.left} times ${candidate.right}`);
+    || !unique(claim.relatedQuantityIds) || claim.relatedEntityHints !== undefined && (!Array.isArray(claim.relatedEntityHints) || claim.relatedEntityHints.length)
+    || typeof claim.expected !== "string") return false;
+  const product = source.products.find(candidate => claim.claim === `${candidate.name} is the matrix product ${candidate.left} times ${candidate.right}`
+    || productLiteralProved(candidate, claim.claim));
   if (product) {
-    if (typeof claim.expected !== "string") return false;
-    const literal = readMatrixLiteralSourceProgram(`Let ${claim.expected}. Show ${product.name}.`);
-    const matrix = literal?.matrices[0];
     const ids = [product.name, ...plan.derived.filter(row => cellRole(source, row)?.product.name === product.name).map(row => row.id)];
-    return literal?.matrices.length === 1 && matrix?.name === product.name
-      && JSON.stringify(matrix.geometry.matrixArray.exactEntries) === JSON.stringify(product.geometry.matrixArray.exactEntries)
+    return productLiteralProved(product, claim.expected)
       && claim.relatedQuantityIds.includes(product.name) && claim.relatedQuantityIds.every(id => ids.includes(id));
   }
-  // A statement about this pair, never a global assertion that all matrices differ.
-  if (!["Matrix multiplication is not commutative here", "Matrix multiplication is commutative here"].includes(claim.claim)
-    || typeof claim.expected !== "string" || claim.relatedQuantityIds.length !== 2) return false;
+  // Prove both parts of a local compound: the reversed products differ/equal,
+  // and consequently multiplication for these source operands does not/does
+  // commute. Neither a global assertion nor an additional conjunct is owned.
+  if (claim.relatedQuantityIds.length !== 2) return false;
   const [first, second] = claim.relatedQuantityIds.map(id => source.products.find(product => product.name === id));
   if (!first || !second || first.left !== second.right || first.right !== second.left) return false;
   const equal = JSON.stringify(first.geometry.matrixArray.exactEntries) === JSON.stringify(second.geometry.matrixArray.exactEntries);
-  return (claim.claim === "Matrix multiplication is commutative here") === equal
+  const statement = equal ? "commutative" : "not commutative";
+  const claims = [
+    `Matrix multiplication is ${statement} here`,
+    `${first.name} and ${second.name} ${equal ? "are equal" : "differ"}, so matrix multiplication is ${statement} here`,
+  ];
+  return claims.includes(claim.claim)
     && compact(claim.expected) === `${first.name}${equal ? "=" : "!="}${second.name}`;
 }
 
 function checkedPlan(question: string, rawPlan: unknown): TurnPlanV3 | null {
   try {
     const data = snapshotMathSourceData(rawPlan);
+    if (!data || typeof data !== "object" || !("question" in data) || data.question !== question) return null;
     const checked = validateTurnPlanV3(data, question);
-    if (!checked.valid || !checked.plan || checked.plan.question !== question
+    if (!checked.valid || !checked.plan
       || !keys(data as object, "schemaVersion question givens unknowns derived qualitativeClaims lawIds assumptions visualRequirement teachingSequenceHints")) return null;
     return checked.plan;
   } catch { return null; }
@@ -132,7 +149,7 @@ function planIssues(source: Program, question: string, plan: TurnPlanV3): SceneI
   if (!document) return [issue("source_unsupported", "The complete source document cannot be proved")];
   errors.push(...validateMatrixSourceBinding(document, question, plan));
   if (plan.assumptions.some(text => !["Standard row-by-column matrix multiplication over the real numbers", "Standard row-by-column matrix multiplication over the reals"].includes(text.replace(/[.]$/u, "")))) errors.push(issue("assumption", "Every plan assumption must be a complete proved product proposition", "assumptions"));
-  if (plan.lawIds.some(text => text !== "matrix-multiplication-definition" && !source.products.some(product => text === `matrix multiplication definition: (${product.name})ij = sum_k ${product.left}_ik ${product.right}_kj`))) errors.push(issue("law", "Unowned law tags cannot join product authority", "lawIds"));
+  if (plan.lawIds.some(text => !["matrix-multiplication-definition", "matrix-multiplication"].includes(text) && !source.products.some(product => text === `matrix multiplication definition: (${product.name})ij = sum_k ${product.left}_ik ${product.right}_kj`))) errors.push(issue("law", "Unowned law tags cannot join product authority", "lawIds"));
   if (plan.teachingSequenceHints !== undefined && (!Array.isArray(plan.teachingSequenceHints) || plan.teachingSequenceHints.length)) errors.push(issue("hints", "Unresolved teaching entity hints require parent integration", "teachingSequenceHints"));
   if (plan.unknowns.length !== source.products.length || !unique(plan.unknowns.map(row => row.id))
     || plan.unknowns.some(row => !keys(row, "id symbol unit") || row.id !== row.symbol || !unitless(row.unit) || !source.products.some(product => product.name === row.id))) errors.push(issue("unknown", "Unknowns must retain exactly every requested ordered product", "unknowns"));
@@ -171,7 +188,7 @@ function planIssues(source: Program, question: string, plan: TurnPlanV3): SceneI
   return errors;
 }
 
-/** Strict public seam: accepts corrected plans, never the original scalar zeros. */
+/** Strict public seam: proves whole original plans; scalar matrix zeros decline. */
 export function matrixProductSourcePlanIssues(question: string, rawPlan: unknown): SceneIssue[] {
   const source = readMatrixProductSourceProgram(question);
   if (!source) return [issue("source_unsupported", "The bounded ordered-product source contract does not apply")];
@@ -197,42 +214,17 @@ export interface MatrixProductPlanCorrection {
   };
 }
 
-/** Explicit withdrawal, before teaching/prompt generation. Only zero placeholders
- * with exact whole literal identity qualify. Other errors remain rejections.
- * Source cells replace them in numeric givens; typed aliases retain the original
- * literal identity but carry no scalar value. No IR is generated or modified.
+/** Compatibility admission seam. No placeholder withdrawal, dependency rewrite
+ * or surrogate plan is allowed: the entire original plan either proves or
+ * declines. The empty correction audit explicitly records that nothing changed.
  */
 export function correctMatrixProductSourcePlan(question: string, rawPlan: unknown): MatrixProductPlanCorrection | null {
-  const source = readMatrixProductSourceProgram(question), plan = checkedPlan(question, rawPlan);
-  if (!source || !plan) return null;
-  const sourceAliases: MatrixProductSourceAlias[] = [], withdrawn: TurnPlanQuantityV3[] = [];
-  const givens: TurnPlanV3["givens"] = [];
-  for (const row of plan.givens) {
-    const matrix = source.matrices.find(matrix => row.id === matrix.name && row.symbol === matrix.name);
-    if (!matrix) { givens.push({ ...row }); continue; }
-    if (row.value !== 0 || row.provenance !== "given" || row.sourceText !== matrix.quote || !unitless(row.unit)
-      || row.dependsOn?.length || row.uncertainty !== undefined && row.uncertainty !== 0
-      || row.sign !== undefined && row.sign !== "unsigned" || !keys(row, "id symbol value unit sign sourceText provenance dependsOn uncertainty")) return null;
-    withdrawn.push(structuredClone(row));
-    sourceAliases.push({ kind: "matrix_source_alias", quantityId: row.id, name: matrix.name, quote: matrix.quote, exactEntries: matrix.geometry.matrixArray.exactEntries, numericScalarAuthority: false });
-    matrix.entries.forEach((entries, i) => entries.forEach((_, j) => {
-      const id = `${matrix.name}${i + 1}${j + 1}`;
-      givens.push({ id, symbol: id, value: matrixEntryDouble(matrix.geometry.matrixArray.exactEntries[i]![j]!), sourceText: matrix.quote, provenance: "given" });
-    }));
-  }
-  const dependencies: MatrixProductPlanCorrection["audit"]["dependencies"] = [];
-  const derived = plan.derived.map(row => {
-    const role = cellRole(source, row);
-    if (!role || !row.dependsOn?.some(id => withdrawn.some(given => given.id === id))) return { ...row };
-    const names = [role.product.left, role.product.right];
-    if (row.dependsOn.some(id => !names.includes(id))) return { ...row }; // strict admission rejects the retained defect
-    const corrected = [...new Set(inputCells(source, role))];
-    dependencies.push({ quantityId: row.id, previous: [...row.dependsOn], corrected });
-    return { ...row, dependsOn: corrected };
-  });
-  const corrected: TurnPlanV3 = { ...plan, givens, derived };
-  if (matrixProductSourcePlanIssues(question, corrected).length) return null;
-  return { plan: corrected, sourceAliases, audit: { originalIssues: matrixProductSourcePlanIssues(question, plan), withdrawn, dependencies } };
+  if (matrixProductSourcePlanIssues(question, rawPlan).length) return null;
+  return {
+    plan: rawPlan as TurnPlanV3,
+    sourceAliases: [],
+    audit: { originalIssues: [], withdrawn: [], dependencies: [] },
+  };
 }
 
 /** All-seams sidecar for the parent. Missing/full contradictory IR declines;

@@ -161,10 +161,10 @@ export const SOURCE_QUANTITY_AUTHORITIES: readonly SourceQuantityAuthority[] = [
     if(!readMatrixProductSourceProgram(question))return null;
     const correction=correctMatrixProductSourcePlan(question,plan);
     if(!correction || problemIR!=null && matrixProductFullIRIssues(question,problemIR).length) return {
-      topic:this.topic,plan:{...plan,givens:[],derived:[],unknowns:[],qualitativeClaims:[],assumptions:[]},corrections:[],declineFigure:true,issueCodes:["matrix_product_whole_authority_declined"],
+      topic:this.topic,plan,corrections:[],declineFigure:true,issueCodes:["matrix_product_whole_authority_declined"],
     };
     return {topic:this.topic,plan:correction.plan,sourcePlanCorrection:correction,corrections:[],declineFigure:false,
-      issueCodes:correction.audit.withdrawn.length?["matrix_product_scalar_placeholders_withdrawn"]:[]};
+      issueCodes:[]};
   }},
   {topic:"finite-polynomial-source",apply({question,plan,problemIR}){
     const result=applyFiniteBinomialAuthority(question,plan,problemIR);

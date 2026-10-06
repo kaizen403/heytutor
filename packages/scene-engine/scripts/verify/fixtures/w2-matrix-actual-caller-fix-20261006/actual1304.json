@@ -1,0 +1,544 @@
+{
+  "provenance": {
+    "path": "/Users/kaizen/heytutor-claude-coord/reviews/w3-unit-arithmetic-parent/captured-matrix-api.json",
+    "sha256": "20d5d59bf0591153faca36fab7a8f3aa3832d47f4c18d3947dea12641a20ddad",
+    "plannerExchanges": {
+      "path": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T1304-w2-fa972fa2/evidence/followup-matrix-product-planner-exchanges.json",
+      "sha256": "f992020aa6a6af5531911535f0920c2b5b93cb154c6faeea52ca63cde79633b1"
+    },
+    "savedTurn": {
+      "path": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T1304-w2-fa972fa2/evidence/followup-matrix-product-saved-turn.json",
+      "sha256": "daf62b9cd38e761ec36427c91a0e73f4d2530e9e1f56ff8582c2c09c01361d96"
+    }
+  },
+  "question": "Let A=[[1,2],[3,4]] and B=[[2,0],[1,2]]. Find AB and BA.",
+  "plans": [
+    {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Let A=[[1,2],[3,4]] and B=[[2,0],[1,2]]. Find AB and BA.",
+      "givens": [
+        {
+          "id": "A11",
+          "symbol": "A11",
+          "value": 1,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "A12",
+          "symbol": "A12",
+          "value": 2,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "A21",
+          "symbol": "A21",
+          "value": 3,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "A22",
+          "symbol": "A22",
+          "value": 4,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B11",
+          "symbol": "B11",
+          "value": 2,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B12",
+          "symbol": "B12",
+          "value": 0,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B21",
+          "symbol": "B21",
+          "value": 1,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B22",
+          "symbol": "B22",
+          "value": 2,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "AB",
+          "symbol": "AB",
+          "unit": "1"
+        },
+        {
+          "id": "BA",
+          "symbol": "BA",
+          "unit": "1"
+        }
+      ],
+      "derived": [
+        {
+          "id": "AB11",
+          "symbol": "AB11",
+          "value": 4,
+          "sourceText": "1*2+2*1=4",
+          "provenance": "derived",
+          "dependsOn": [
+            "A11",
+            "A12",
+            "B11",
+            "B21"
+          ]
+        },
+        {
+          "id": "AB12",
+          "symbol": "AB12",
+          "value": 4,
+          "sourceText": "1*0+2*2=4",
+          "provenance": "derived",
+          "dependsOn": [
+            "A11",
+            "A12",
+            "B12",
+            "B22"
+          ]
+        },
+        {
+          "id": "AB21",
+          "symbol": "AB21",
+          "value": 10,
+          "sourceText": "3*2+4*1=10",
+          "provenance": "derived",
+          "dependsOn": [
+            "A21",
+            "A22",
+            "B11",
+            "B21"
+          ]
+        },
+        {
+          "id": "AB22",
+          "symbol": "AB22",
+          "value": 8,
+          "sourceText": "3*0+4*2=8",
+          "provenance": "derived",
+          "dependsOn": [
+            "A21",
+            "A22",
+            "B12",
+            "B22"
+          ]
+        },
+        {
+          "id": "BA11",
+          "symbol": "BA11",
+          "value": 2,
+          "sourceText": "2*1+0*3=2",
+          "provenance": "derived",
+          "dependsOn": [
+            "B11",
+            "B12",
+            "A11",
+            "A21"
+          ]
+        },
+        {
+          "id": "BA12",
+          "symbol": "BA12",
+          "value": 4,
+          "sourceText": "2*2+0*4=4",
+          "provenance": "derived",
+          "dependsOn": [
+            "B11",
+            "B12",
+            "A12",
+            "A22"
+          ]
+        },
+        {
+          "id": "BA21",
+          "symbol": "BA21",
+          "value": 7,
+          "sourceText": "1*1+2*3=7",
+          "provenance": "derived",
+          "dependsOn": [
+            "B21",
+            "B22",
+            "A11",
+            "A21"
+          ]
+        },
+        {
+          "id": "BA22",
+          "symbol": "BA22",
+          "value": 10,
+          "sourceText": "1*2+2*4=10",
+          "provenance": "derived",
+          "dependsOn": [
+            "B21",
+            "B22",
+            "A12",
+            "A22"
+          ]
+        }
+      ],
+      "qualitativeClaims": [],
+      "lawIds": [],
+      "assumptions": [],
+      "visualRequirement": "optional"
+    },
+    {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Let A=[[1,2],[3,4]] and B=[[2,0],[1,2]]. Find AB and BA.",
+      "givens": [
+        {
+          "id": "A11",
+          "symbol": "A11",
+          "value": 1,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "A12",
+          "symbol": "A12",
+          "value": 2,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "A21",
+          "symbol": "A21",
+          "value": 3,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "A22",
+          "symbol": "A22",
+          "value": 4,
+          "sourceText": "A=[[1,2],[3,4]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B11",
+          "symbol": "B11",
+          "value": 2,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B12",
+          "symbol": "B12",
+          "value": 0,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B21",
+          "symbol": "B21",
+          "value": 1,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        },
+        {
+          "id": "B22",
+          "symbol": "B22",
+          "value": 2,
+          "sourceText": "B=[[2,0],[1,2]]",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "AB",
+          "symbol": "AB",
+          "unit": "1"
+        },
+        {
+          "id": "BA",
+          "symbol": "BA",
+          "unit": "1"
+        }
+      ],
+      "derived": [
+        {
+          "id": "AB11",
+          "symbol": "AB11",
+          "value": 4,
+          "sourceText": "1*2+2*1=4",
+          "provenance": "derived",
+          "dependsOn": [
+            "A11",
+            "A12",
+            "B11",
+            "B21"
+          ]
+        },
+        {
+          "id": "AB12",
+          "symbol": "AB12",
+          "value": 4,
+          "sourceText": "1*0+2*2=4",
+          "provenance": "derived",
+          "dependsOn": [
+            "A11",
+            "A12",
+            "B12",
+            "B22"
+          ]
+        },
+        {
+          "id": "AB21",
+          "symbol": "AB21",
+          "value": 10,
+          "sourceText": "3*2+4*1=10",
+          "provenance": "derived",
+          "dependsOn": [
+            "A21",
+            "A22",
+            "B11",
+            "B21"
+          ]
+        },
+        {
+          "id": "AB22",
+          "symbol": "AB22",
+          "value": 8,
+          "sourceText": "3*0+4*2=8",
+          "provenance": "derived",
+          "dependsOn": [
+            "A21",
+            "A22",
+            "B12",
+            "B22"
+          ]
+        },
+        {
+          "id": "BA11",
+          "symbol": "BA11",
+          "value": 2,
+          "sourceText": "2*1+0*3=2",
+          "provenance": "derived",
+          "dependsOn": [
+            "B11",
+            "B12",
+            "A11",
+            "A21"
+          ]
+        },
+        {
+          "id": "BA12",
+          "symbol": "BA12",
+          "value": 4,
+          "sourceText": "2*2+0*4=4",
+          "provenance": "derived",
+          "dependsOn": [
+            "B11",
+            "B12",
+            "A12",
+            "A22"
+          ]
+        },
+        {
+          "id": "BA21",
+          "symbol": "BA21",
+          "value": 7,
+          "sourceText": "1*1+2*3=7",
+          "provenance": "derived",
+          "dependsOn": [
+            "B21",
+            "B22",
+            "A11",
+            "A21"
+          ]
+        },
+        {
+          "id": "BA22",
+          "symbol": "BA22",
+          "value": 10,
+          "sourceText": "1*2+2*4=10",
+          "provenance": "derived",
+          "dependsOn": [
+            "B21",
+            "B22",
+            "A12",
+            "A22"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "C1",
+          "claim": "AB=[[4,4],[10,8]]",
+          "expected": "AB=[[4,4],[10,8]]",
+          "relatedQuantityIds": [
+            "AB",
+            "AB11",
+            "AB12",
+            "AB21",
+            "AB22"
+          ]
+        },
+        {
+          "id": "C2",
+          "claim": "BA=[[2,4],[7,10]]",
+          "expected": "BA=[[2,4],[7,10]]",
+          "relatedQuantityIds": [
+            "BA",
+            "BA11",
+            "BA12",
+            "BA21",
+            "BA22"
+          ]
+        },
+        {
+          "id": "C3",
+          "claim": "AB and BA differ, so matrix multiplication is not commutative here",
+          "expected": "AB != BA",
+          "relatedQuantityIds": [
+            "AB",
+            "BA"
+          ]
+        }
+      ],
+      "lawIds": [
+        "matrix-multiplication"
+      ],
+      "assumptions": [],
+      "visualRequirement": "optional"
+    }
+  ],
+  "problemIR": {
+    "facts": [
+      {
+        "id": "fA",
+        "kind": "given",
+        "statement": "Matrix A is [[1,2],[3,4]]",
+        "evidence": {
+          "source": "question",
+          "start": 4,
+          "end": 19,
+          "quote": "A=[[1,2],[3,4]]"
+        }
+      },
+      {
+        "id": "fB",
+        "kind": "given",
+        "statement": "Matrix B is [[2,0],[1,2]]",
+        "evidence": {
+          "source": "question",
+          "start": 24,
+          "end": 39,
+          "quote": "B=[[2,0],[1,2]]"
+        }
+      },
+      {
+        "id": "fAB",
+        "kind": "requested",
+        "statement": "AB",
+        "evidence": {
+          "source": "question",
+          "start": 46,
+          "end": 48,
+          "quote": "AB"
+        }
+      },
+      {
+        "id": "fBA",
+        "kind": "requested",
+        "statement": "BA",
+        "evidence": {
+          "source": "question",
+          "start": 53,
+          "end": 55,
+          "quote": "BA"
+        }
+      }
+    ],
+    "entities": [
+      {
+        "id": "matA",
+        "kind": "other",
+        "label": "A",
+        "evidenceFactIds": [
+          "fA"
+        ]
+      },
+      {
+        "id": "matB",
+        "kind": "other",
+        "label": "B",
+        "evidenceFactIds": [
+          "fB"
+        ]
+      }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": [],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Let A=[[1,2],[3,4]] and B=[[2,0],[1,2]]. Find AB and BA."
+  },
+  "rawProblemResponse": {
+    "facts": [
+      {
+        "id": "fA",
+        "kind": "given",
+        "statement": "Matrix A is [[1,2],[3,4]]",
+        "quote": "A=[[1,2],[3,4]]"
+      },
+      {
+        "id": "fB",
+        "kind": "given",
+        "statement": "Matrix B is [[2,0],[1,2]]",
+        "quote": "B=[[2,0],[1,2]]"
+      },
+      {
+        "id": "fAB",
+        "kind": "requested",
+        "statement": "AB",
+        "quote": "AB"
+      },
+      {
+        "id": "fBA",
+        "kind": "requested",
+        "statement": "BA",
+        "quote": "BA"
+      }
+    ],
+    "entities": [
+      {
+        "id": "matA",
+        "kind": "other",
+        "label": "A",
+        "evidenceFactIds": [
+          "fA"
+        ]
+      },
+      {
+        "id": "matB",
+        "kind": "other",
+        "label": "B",
+        "evidenceFactIds": [
+          "fB"
+        ]
+      }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": []
+  }
+}
