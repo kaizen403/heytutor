@@ -959,6 +959,24 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
   check("a cos 37 = 0.8 the question states keeps F cos θ = 24",
     reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations.length === 0,
     reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations);
+  // An equality the student is asked about is not an assumption: 20 sin 30° = 12 stays wrong.
+  const askedQuestion = "Is sin 30° = 0.6? Find 20 sin 30°.";
+  const askedEquality = {
+    ...plan([given("theta", 30, "deg", { symbol: "θ" })], [derived("y", 12, undefined, "y = 20 sin 30° = 12")]),
+    question: askedQuestion,
+  };
+  const askedIssues = validateTurnPlanV3(askedEquality, askedQuestion).issues.map((issue) => issue.code);
+  check("a trig equality the question asks about is not a stipulation", askedIssues.length > 0, askedIssues);
+  // A prescribed negative value is the authority: 1000 cos 143° stays -800.
+  const negativeQuestion = "A 1000 N force acts at 143° to the x axis. Take cos 143° = -0.8. Find its x component.";
+  const negativeStipulation = {
+    ...plan([given("F", 1000, "N"), given("theta", 143, "deg", { symbol: "θ" })],
+      [derived("F_x", -800, "N", "F_x = F cos θ = 1000 × (-0.8) = -800")]),
+    question: negativeQuestion,
+  };
+  check("a stipulated negative cos 143° = -0.8 keeps F cos θ = -800",
+    reconcileTurnPlanV3ExplicitArithmetic(negativeStipulation).reconciliations.length === 0,
+    reconcileTurnPlanV3ExplicitArithmetic(negativeStipulation).reconciliations);
 
   const inverse = plan([], [derived("theta", 30, "deg", "theta = sin⁻¹(0.5) = 30°", { symbol: "θ" })]);
   check("sin⁻¹(0.5) = 30° reads degrees",

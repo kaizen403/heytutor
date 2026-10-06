@@ -1634,11 +1634,12 @@ const TRIG_STIPULATIONS = new WeakMap<Map<string, number>, Map<string, number>>(
 
 function collectTrigStipulations(plan: Record<string, unknown>): Map<string, number> {
   const stipulations = new Map<string, number>();
-  const texts: string[] = [];
-  if (typeof plan.question === "string") texts.push(plan.question);
+  // [text, whether a stated equality needs prescriptive wording to count]
+  const texts: Array<[string, boolean]> = [];
+  if (typeof plan.question === "string") texts.push([plan.question, true]);
   for (const given of Array.isArray(plan.givens) ? plan.givens : []) {
     if (!isRecord(given)) continue;
-    if (typeof given.sourceText === "string") texts.push(given.sourceText);
+    if (typeof given.sourceText === "string") texts.push([given.sourceText, false]);
     if (typeof given.value !== "number" || !Number.isFinite(given.value)) continue;
     for (const name of [given.symbol, given.id]) {
       if (typeof name !== "string") continue;
@@ -1648,15 +1649,37 @@ function collectTrigStipulations(plan: Record<string, unknown>): Map<string, num
       if (match) stipulations.set(`${match[1]!.toLowerCase()}:${Number(match[2])}`, given.value);
     }
   }
-  for (const text of texts) {
+  for (const [text, needsPrescription] of texts) {
     for (const match of text.matchAll(
-      /(?<![A-Za-z])(sin|cos|tan)\s*\(?\s*(\d+(?:\.\d+)?)\s*(?:°|deg(?:rees?)?)?\s*\)?\s*(?:=|≈)\s*(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/gi,
+      /(?<![A-Za-z])(sin|cos|tan)\s*\(?\s*(\d+(?:\.\d+)?)\s*(?:°|deg(?:rees?)?)?\s*\)?\s*(?:=|≈)\s*([+\-−]?\s*\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/gi,
     )) {
-      const value = Number(match[3]) / (match[4] === undefined ? 1 : Number(match[4]));
+      if (needsPrescription && !prescribedInItsSentence(text, match.index ?? 0)) continue;
+      const numerator = Number(match[3]!.replace(/\s+/g, "").replace("−", "-"));
+      const value = numerator / (match[4] === undefined ? 1 : Number(match[4]));
       if (Number.isFinite(value)) stipulations.set(`${match[1]!.toLowerCase()}:${Number(match[2])}`, value);
     }
   }
   return stipulations;
+}
+
+/**
+ * A trig equality in the question fixes a value only when the problem
+ * prescribes it ("Take sin 37 = 0.6", "use cos 143° = -0.8"). One the student
+ * is asked about ("Is sin 30° = 0.6?") is not an assumption.
+ */
+function prescribedInItsSentence(text: string, index: number): boolean {
+  // A full stop ends a sentence only before whitespace or the end, so the
+  // decimal point in "0.6" does not split one.
+  const boundary = /[?!;]|\.(?=\s|$)/g;
+  let start = 0;
+  let end = text.length;
+  for (const match of text.matchAll(boundary)) {
+    const at = match.index ?? 0;
+    if (at < index) start = at + 1;
+    else { end = at; break; }
+  }
+  if (text[end] === "?") return false;
+  return /\b(?:take|taking|use|using|assume|assuming|given|let|put|where|with|consider)\b/i.test(text.slice(start, index));
 }
 
 function attachTrigStipulations(bindings: Map<string, number>, plan: Record<string, unknown>): void {
