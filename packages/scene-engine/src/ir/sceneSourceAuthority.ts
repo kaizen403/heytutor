@@ -11,6 +11,7 @@ import { checkStatedCircuitProblemBinding } from "./statedCircuitProblemBinding"
 import { claimsStatedResistorCircuit } from "./statedCircuitAuthority";
 import { visualObligationIssues } from "../synthesize/visualObligations";
 import { uniformCircularProblemSourceIssues } from "../physics/uniformCircularIdentity";
+import { uniformCircularCallerIssues } from "../physics/uniformCircularCallerAuthority";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
 import type { SceneDocument, SceneIssue } from "../types";
 
@@ -27,6 +28,7 @@ export function validateSceneSourceAuthority(document: SceneDocument, question: 
     path: "sourceAuthority.question",
   }];
   const issues = [
+    ...uniformCircularCallerIssues(question, rawProblem, rawPlan),
     ...finiteBinomialDocumentIssues(document, {question, problemIR: rawProblem, turnPlan:rawPlan}),
     ...finiteBinomialPlanIssues(question,rawProblem,rawPlan),
     ...validateOpticalConjugateSource(document, question, rawProblem),

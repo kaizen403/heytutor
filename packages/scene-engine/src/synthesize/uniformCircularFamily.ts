@@ -2,6 +2,8 @@ import { compileSceneDocument } from "../compile/compiler";
 import { validateSceneDocument } from "../document/validation";
 import { planNamesCircularMotion, readUniformCircularSource, stalePlanQuantities } from "../physics/uniformCircularSource";
 import { uniformCircularNumericDocument, uniformCircularSymbolicDocument } from "../physics/uniformCircularScene";
+import { readUniformCircularRuntimeContract } from "../physics/uniformCircularAuthority";
+import { uniformCircularCallerIssues } from "../physics/uniformCircularCallerAuthority";
 import type { SynthesizedFamilyScene } from "./familyScene";
 
 export type UniformCircularSynthesis =
@@ -31,6 +33,10 @@ export interface UniformCircularPlanContext {
  * stale planner number is never paired with this geometry.
  */
 export function synthesizeUniformCircularScene(question: string, plan: UniformCircularPlanContext = {}): UniformCircularSynthesis | null {
+  const runtime = readUniformCircularRuntimeContract(question);
+  if (runtime && uniformCircularCallerIssues(question, plan.problemIR, plan.turnPlan).length) {
+    return { status: "declined", reason: "ucm_caller_authority: complete original IR and actual source-bound plan required" };
+  }
   if (!planNamesCircularMotion(plan.turnPlan, plan.problemIR)) {
     const keyword = readUniformCircularSource(question);
     if (keyword?.status === "numeric" || (keyword?.status === "reject" && keyword.code === "nonpositive_radius")) {
@@ -57,7 +63,7 @@ export function synthesizeUniformCircularScene(question: string, plan: UniformCi
   }
   const validated = validateSceneDocument(document as unknown as Record<string, unknown>);
   if (!validated.document) return { status: "declined", reason: validated.report.issues.map((issue) => issue.code).join(", ") };
-  const compiled = compileSceneDocument(validated.document);
+  const compiled = compileSceneDocument(validated.document, runtime ? { sourceAuthority: { question, problemIR: plan.problemIR, turnPlan: plan.turnPlan } } : undefined);
   if (!compiled.ok || !compiled.renderScene || compiled.renderScene.primitives.length === 0 || compiled.report.issues.some((issue) => issue.severity === "fatal")) {
     return { status: "declined", reason: compiled.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ") || "compile failed" };
   }

@@ -27,6 +27,7 @@ import {
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
   validateTurnPlanSceneProofs,
+  validateProblemIR,
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -68,11 +69,12 @@ function unitKey(unit: unknown): string {
  * contradicts a plan-derived value of the same unit is not supported either,
  * so a stale narration scalar can never pair with the engine's figure.
  */
-function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDerived {
+function engineDerivedValues(question: string, turnPlan: TurnPlanV3, problemIR: unknown): EngineDerived {
   const empty: EngineDerived = { quantities: new Map(), texts: new Set() };
   let fresh: ReturnType<typeof synthesizeFamilyScene>;
   try {
-    fresh = synthesizeFamilyScene({ question, turnPlan });
+    const checkedProblem = problemIR == null ? null : validateProblemIR(problemIR, question).problem;
+    fresh = synthesizeFamilyScene({ question, turnPlan, problemIR: checkedProblem });
   } catch {
     return empty;
   }
@@ -155,7 +157,7 @@ export function sceneSaveAdmissionFailure(input: {
     // authoritative: a plan quantity is always checked against the plan.
     const planIds = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => quantity.id));
     let engine: EngineDerived | null = null;
-    const derivedByEngine = (): EngineDerived => engine ??= engineDerivedValues(question, turnPlan);
+    const derivedByEngine = (): EngineDerived => engine ??= engineDerivedValues(question, turnPlan, input.problemIR);
     const audited = document.quantities.filter((quantity) => {
       const conjugateQuantity=conjugateDocument?.quantities.find(row=>row.id===quantity.id);
       if (conjugateQuantity && conjugateQuantity.value===quantity.value && conjugateQuantity.unit===quantity.unit) return false;

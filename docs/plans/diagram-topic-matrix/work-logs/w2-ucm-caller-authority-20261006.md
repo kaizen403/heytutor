@@ -1,0 +1,9 @@
+# W2 circular runtime caller authority — parent, 6 October 2026
+
+Scope announced before editing the synthesis and verification seams. Original full captured IR and actual Plan are now mandatory at the bounded circular runtime family, central caller source validation/compilation, and live/save/read/restore boundaries. One shared pure guard consumes the whole IR and whole Plan, including all facts, quantities, claims and assumptions, and joins every original resultBinding to its actual requested Plan ID, symbol and unit. Broader historical states and standalone geometry keep their separate contracts; no surrogate IR, dropped request or validator waiver is introduced.
+
+The save helper now forwards independently validated original caller IR when regenerating source-derived quantities. Previously it regenerated only from question/Plan, which the tighter boundary correctly refused, breaking positive car save admission.
+
+New parent gate `apps/tutor/scripts/verify/verify-w2-ucm-full-caller.ts`: three complete actual captures, twelve variants each, eight seams, **288 source / 288 own built ESM checks pass**. Controls include missing IR/Plan, empty Plan, request-ID rebinding, unknown-ID rebinding, wrong symbol/unit, false claim/fact, extra force and stale values. Initial gate typo used a variant variable before definition; retained failed log and corrected it. Subsequent initial positive exposed the real save-helper omission described above; original failure logs preserved.
+
+Engine build/typecheck, app typecheck and scoped engine/app lint pass. Combined W3 normal refusal boundary182 and complete Plan/IR/lifecycle455 checks pass. Work is local. Fresh independent review and real student/render/lifecycle remain outstanding; **no new READY, FULLY-CERTIFIED or chapter credit**. Ledger and Chemistry rows unchanged.

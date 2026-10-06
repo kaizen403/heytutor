@@ -10,8 +10,7 @@ import {
   staticContactTriangleDocument,
   validateTurnPlanV3,
   readUniformCircularRuntimeContract,
-  uniformCircularRuntimePlanConflicts,
-  stalePlanQuantities,
+  uniformCircularCallerIssues,
   type SceneDocument,
   type SceneIssue,
 } from "@heytutor/scene-engine";
@@ -44,10 +43,7 @@ export function sourceBoundPlanIssues(
     return [fatal("ucm_source_plan", "sceneArtifacts.turnPlan", "Circular runtime admission requires the complete supported source and actual plan")];
   }
   if (circular?.status === "bound") {
-    const checked = validateTurnPlanV3(rawPlan, question);
-    if (!checked.valid || !checked.plan) return [fatal("ucm_source_plan_invalid", "sceneArtifacts.turnPlan", "Circular runtime admission requires a valid actual source plan")];
-    const conflicts = [...uniformCircularRuntimePlanConflicts(question, checked.plan), ...stalePlanQuantities(circular.contract.source, checked.plan)];
-    return conflicts.length ? [fatal("ucm_source_plan", "sceneArtifacts.turnPlan", "Every circular plan row and requested role must bind fresh source values and units")] : [];
+    return uniformCircularCallerIssues(question, rawProblemIR, rawPlan);
   }
   if ((!contact && !optics && !circle && section.status!=="ok") || rawPlan == null) return [];
 
