@@ -136,12 +136,21 @@ function planIssues(source: Program, question: string, plan: TurnPlanV3): SceneI
   if (plan.teachingSequenceHints !== undefined && (!Array.isArray(plan.teachingSequenceHints) || plan.teachingSequenceHints.length)) errors.push(issue("hints", "Unresolved teaching entity hints require parent integration", "teachingSequenceHints"));
   if (plan.unknowns.length !== source.products.length || !unique(plan.unknowns.map(row => row.id))
     || plan.unknowns.some(row => !keys(row, "id symbol unit") || row.id !== row.symbol || !unitless(row.unit) || !source.products.some(product => product.name === row.id))) errors.push(issue("unknown", "Unknowns must retain exactly every requested ordered product", "unknowns"));
+  const sourceCellIds = source.matrices.flatMap(matrix => matrix.entries.flatMap((entries, row) => entries.map((_, column) => `${matrix.name}${row + 1}${column + 1}`)));
   const givenIds = new Set(plan.givens.map(row => row.id));
+  if (plan.givens.length !== sourceCellIds.length || !unique(plan.givens.map(row => row.id))
+    || sourceCellIds.some(id => !givenIds.has(id))) errors.push(issue("givens_incomplete", "Numeric givens must contain every exact source input cell exactly once", "givens"));
   for (const [index, row] of plan.givens.entries()) {
-    const owners = source.matrices.flatMap(matrix => matrix.entries.flatMap((entries, i) => entries.flatMap((_, j) => row.id === `${matrix.name}${i + 1}${j + 1}` && row.symbol === row.id ? [matrix] : [])));
-    if (owners.length !== 1 || !keys(row, "id symbol value unit sign sourceText provenance dependsOn uncertainty") || !unitless(row.unit)
+    const owners = source.matrices.flatMap(matrix => matrix.entries.flatMap((entries, i) => entries.flatMap((_, j) => row.id === `${matrix.name}${i + 1}${j + 1}` && row.symbol === row.id
+      ? [{ matrix, row: i, column: j }]
+      : [])));
+    const owner = owners[0];
+    const sourceValue = owner ? matrixEntryDouble(owner.matrix.geometry.matrixArray.exactEntries[owner.row]![owner.column]!) : undefined;
+    if (owners.length !== 1 || !owner || !keys(row, "id symbol value unit sign sourceText provenance dependsOn uncertainty") || !unitless(row.unit)
       || row.provenance !== "given" || row.uncertainty !== undefined && row.uncertainty !== 0 || row.dependsOn?.length
-      || row.sourceText !== owners[0]?.quote) errors.push(issue("given", "Numeric givens must be exact source cells; a scalar matrix placeholder is never authority", `givens[${index}]`));
+      || row.sourceText !== owner.matrix.quote || row.value !== sourceValue) {
+      errors.push(issue("given", "Numeric givens must be exact source cells; a scalar matrix placeholder is never authority", `givens[${index}]`));
+    }
   }
   let cells = 0;
   for (const product of source.products) cells += product.geometry.matrixArray.rows * product.geometry.matrixArray.columns;
@@ -152,7 +161,11 @@ function planIssues(source: Program, question: string, plan: TurnPlanV3): SceneI
       || row.provenance !== "derived" || row.uncertainty !== undefined && row.uncertainty !== 0
       || row.value !== matrixEntryDouble(role.product.geometry.matrixArray.exactEntries[role.row]![role.column]!)
       || !entryExplanationProved(source, role, row)
-      || row.dependsOn?.some(id => !givenIds.has(id) || !inputCells(source, role).includes(id))) errors.push(issue("cell", "Derived identity, value, unit, uncertainty and dependencies must bind one exact product cell", `derived[${index}]`));
+      || !Array.isArray(row.dependsOn) || !unique(row.dependsOn)
+      || row.dependsOn.length !== new Set(inputCells(source, role)).size
+      || [...new Set(inputCells(source, role))].some(id => !givenIds.has(id) || !row.dependsOn!.includes(id))) {
+      errors.push(issue("cell", "Derived identity, value, unit, uncertainty and complete unique dependencies must bind one exact product cell", `derived[${index}]`));
+    }
   }
   if (plan.qualitativeClaims.some(claim => !claimProved(source, plan, claim))) errors.push(issue("claim", "Every claim and its complete expected value must be recomputed from the ordered source products", "qualitativeClaims"));
   return errors;

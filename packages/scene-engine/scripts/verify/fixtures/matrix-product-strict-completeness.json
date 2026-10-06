@@ -1,0 +1,15 @@
+{
+  "givenMutations": [
+    "empty",
+    "missing-first",
+    "duplicate-first",
+    "wrong-value"
+  ],
+  "dependencyMutations": [
+    "missing",
+    "empty",
+    "subset",
+    "duplicate",
+    "substitute"
+  ]
+}
