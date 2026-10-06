@@ -39,6 +39,27 @@ function fail(message: string): never { throw new Error(message); }
 function dimensionless(unit: unknown): unit is string { return unit === "1" || unit === "dimensionless" || unit === "unitless" || unit === "scalar"; }
 function covers(outer: QuestionSourceEvidence, inner: QuestionSourceEvidence): boolean { return outer.start <= inner.start && outer.end >= inner.end; }
 function grounded(question: string, span: QuestionSourceEvidence): boolean { return question.slice(span.start, span.end) === span.quote && span.quote.length > 0; }
+/** A small, complete statement grammar: never infer a premise from its scalar. */
+function assertedRoles(source: FiniteProgressionSource, fact: ProblemFact): ProgressionSourceRole[] {
+  const text = (value: string): string => value.trim().replace(/\.$/, "").replace(/\s+/g, " ");
+  const available = fact.kind === "given" ? source.roles : source.asks;
+  const covered = available.filter(role => covers(fact.evidence, role.evidence));
+  const statement = text(fact.statement);
+  if (fact.kind === "requested") {
+    const tokens = statement.replace(/^(?:Find|Compute|Evaluate) /i, "").split(", ");
+    const asks = tokens.map(token => covered.find(role => text(role.evidence.quote) === token));
+    return asks.every((ask): ask is ProgressionSourceAsk => Boolean(ask)) ? asks : [];
+  }
+  // A complete given quote must start/end on whole role boundaries. Containing
+  // one valid role cannot authorize a clipped neighbouring premise.
+  if (statement === text(fact.evidence.quote) && covered.length
+    && fact.evidence.start === Math.min(...covered.map(role => role.evidence.start))
+    && fact.evidence.end === Math.max(...covered.map(role => role.evidence.end))) return covered;
+  // These wording changes preserve the entire explicit role, not just numbers.
+  const canonical = statement.replace(/^Given /, "").replace(/^([A-Za-z]_n) is (an? (?:arithmetic|geometric) progression with )/, "Let $1 be $2");
+  const matched = covered.find(role => text(role.evidence.quote) === canonical);
+  return matched ? covered.filter(role => covers(matched.evidence, role.evidence)) : [];
+}
 function valueOf(root: ExpressionNodeIR): number { return parseMathExpression(expressionToSafeSource(root)).evaluate(0); }
 function close(a: number, b: number): boolean {
   return Number.isFinite(a) && (a === b || a !== 0 && b !== 0 && Math.sign(a) === Math.sign(b) && Math.abs(a - b) <= 32 * Number.EPSILON * Math.abs(b));
@@ -130,15 +151,25 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
     if (allQuantities.some((quantity) => !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(quantity.id) || !dimensionless(quantity.unit) || !quantity.symbol.trim())) fail("every actual plan quantity requires a unique ID, symbol and explicit dimensionless unit");
     const facts = new Map(problem.facts.map((fact) => [fact.id, fact]));
     const refs = (ids: string[]): ProblemFact[] => ids.map((id) => facts.get(id) ?? fail("missing source fact"));
-    const factCovers = (ids: string[], role: ProgressionSourceRole, kind?: ProblemFact["kind"]): boolean => refs(ids).some((fact) => (!kind || fact.kind === kind) && covers(fact.evidence, role.evidence));
+    const factRoles = new Map<string, ProgressionSourceRole[]>();
+    const usedFacts = new Set<string>();
+    const factCovers = (ids: string[], role: ProgressionSourceRole, kind?: ProblemFact["kind"]): boolean => {
+      const dependencies = refs(ids);
+      if (!dependencies.length || !dependencies.every(fact => (!kind || fact.kind === kind) && factRoles.get(fact.id)?.includes(role))) return false;
+      dependencies.forEach(fact => usedFacts.add(fact.id));
+      return true;
+    };
     const askStart = question.lastIndexOf("Find ");
     for (const fact of problem.facts) {
       if (!grounded(question, fact.evidence)) fail("IR fact span must address its actual source quote");
       if (fact.kind === "assumption") fail("IR assumptions outside explicit progression source are unsupported");
       if (fact.kind === "requested" ? fact.evidence.start < askStart || !source.asks.some((ask) => covers(fact.evidence, ask.evidence)) : fact.evidence.end > askStart || !source.roles.some((role) => covers(fact.evidence, role.evidence))) fail("uncovered full-IR fact role");
+      const roles = assertedRoles(source, fact);
+      if (!roles.length) fail("fact statement has contradictory or unsupported source obligations");
+      factRoles.set(fact.id, roles);
     }
-    if (source.roles.some((role) => !problem.facts.some((fact) => fact.kind === "given" && covers(fact.evidence, role.evidence)))) fail("full IR omits a complete given/model/relation role");
-    if (source.asks.some((ask) => !problem.facts.some((fact) => fact.kind === "requested" && covers(fact.evidence, ask.evidence)))) fail("full IR omits a requested source ask");
+    if (source.roles.some((role) => !problem.facts.some((fact) => fact.kind === "given" && factRoles.get(fact.id)!.includes(role)))) fail("full IR omits a complete given/model/relation role");
+    if (source.asks.some((ask) => !problem.facts.some((fact) => fact.kind === "requested" && factRoles.get(fact.id)!.includes(ask)))) fail("full IR omits a requested source ask");
     const sequenceNames = [source.sequence, source.cumulative?.sequence].filter((name): name is string => Boolean(name));
     for (const entity of problem.entities) {
       const roleName = entity.label === `${source.sequence}_n` ? "model" : "cumulative_relation";
@@ -193,6 +224,7 @@ export function finiteProgressionSourceProgram(question: string, rawProblem: unk
       if (roles.length !== 1 || !close(given.value, valueOf(roles[0]!.root)) || given.provenance !== "given" || given.symbol !== (target(source, roles[0]!) as {name?: string} | null)?.name) fail("plan given must retain its unique source role and value");
     }
     if ([...plan.givens, ...plan.derived].some(quantity => quantity.uncertainty !== undefined && quantity.uncertainty !== 0)) fail("exact finite progression cannot carry uncertain Plan scalars");
+    if (problem.facts.some(fact => !usedFacts.has(fact.id))) fail("every full-IR fact must participate in a proved source dependency");
     const document = makeDocument(source, problem, plan, bindings, captured.placement);
     return { status: "ok", source, problem, plan, bindings, document };
   } catch (error) { return { status: "declined", reason: error instanceof Error ? error.message : "invalid source admission" }; }
@@ -235,7 +267,9 @@ function makeDocument(source: FiniteProgressionSource, problem: ProblemIR, plan:
   });
   bindings.forEach((binding, i) => {
     const id = `result_${i}`, anchor = `result_anchor_${i}`;
-    const sourceSymbol = binding.ask.kind === "sum" ? `S_${binding.ask.index}(${source.cumulative?.sequence ?? source.sequence})` : binding.ask.symbol;
+    const branch = source.geometry.indexedProgression.solutions.length > 1
+      ? `;r${BigInt(source.geometry.indexedProgression.solutions[binding.ask.branch]!.parameter.numerator) < 0n ? "<" : ">"}0` : "";
+    const sourceSymbol = binding.ask.kind === "sum" ? `S_${binding.ask.index}(${source.cumulative?.sequence ?? source.sequence}${branch})` : binding.ask.symbol;
     const text = `${sourceSymbol}=${exactText(binding.ask)}`;
     if (text.length > 80) fail("requested bound label exceeds display capacity");
     document.entities.push({ id, kind: "label", role: `requested ${binding.ask.symbol}`, label: text, provenance: { quantityId: binding.quantityId, symbol: binding.symbol, sourceSymbol: binding.ask.symbol, unit: binding.unit, requestId: binding.requestId, sourceEvidence: binding.ask.evidence, nonmetric: true, pinLabel: true } });
