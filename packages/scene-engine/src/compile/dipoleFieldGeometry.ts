@@ -1,3 +1,4 @@
+import { validatePublicationDerivedClaims, type PublicationClaimAuthority } from "./publicationDerivedClaims";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
 export const DIPOLE_FIELD_OPERATORS = [
@@ -857,5 +858,26 @@ export function validateDipoleFieldConstruction(
   } catch (error) {
     if (error instanceof DeferredDipolePoint) return;
     add(error instanceof DipoleFieldInputError ? error.key : "fields", error instanceof Error ? error.message : "dipole-field inputs are invalid");
+  }
+}
+
+export function validateEvaluatedDipoleLabels(construction: SceneConstruction, index: number, document: SceneDocument, outputs: readonly unknown[], issues: SceneIssue[]): void {
+  try {
+    const authorities: PublicationClaimAuthority[] = outputs.map((output) => {
+    if (!isDipoleGeometry(output) || output.dipoleField.operator !== construction.operator) throw new Error("Missing typed dipole label authority");
+    const meta = output.dipoleField;
+    const values: Record<string, number | readonly [number, number]> = {};
+    const put = (names: string[], value: number | undefined): void => { if (value !== undefined) for (const name of names) values[name] = value; };
+    const vector = (name: string, value: RenderPoint | null | undefined): void => { if (value) { values[name] = [value.x, value.y]; put([`${name}x`], value.x); put([`${name}y`], value.y); } };
+    if (meta.operator === "coulomb_pair") { vector("F", meta.components); put(["F", "|F|", "magnitude"], meta.magnitude); }
+    if (meta.operator === "point_charge_field" || meta.operator === "dipole_field") { vector("E", meta.components); put(["E", "|E|", "magnitude"], meta.magnitude); if (meta.components) values["field"] = [meta.components.x, meta.components.y]; }
+    vector("p", meta.p);
+    put(["tau", "τ"], meta.tau); put(["U", "energy"], meta.U); put(["V", "potential"], meta.V);
+    // Field-line density and scaled arrow length carry no quantitative authority.
+    return values;
+    });
+    validatePublicationDerivedClaims(construction, index, document, authorities, issues);
+  } catch (error) {
+    issues.push({ code: "invalid_publication_derived_label", severity: "fatal", message: error instanceof Error ? error.message : "Invalid typed label authority", path: `constructions[${index}].outputs` });
   }
 }

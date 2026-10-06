@@ -1,3 +1,4 @@
+import { validatePublicationDerivedClaims, type PublicationClaimAuthority } from "./publicationDerivedClaims";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
 export const ANALYTIC_LINE_OPERATORS = [
@@ -1218,5 +1219,27 @@ export function validateAnalyticLineConstruction(
     if (error instanceof UnresolvedAnalyticLine) return;
     const key = error instanceof AnalyticLineInputError ? error.key : "geometry";
     add(key, error instanceof Error ? error.message : "invalid analytic line construction", construction.inputs[key]);
+  }
+}
+
+export function validateEvaluatedAnalyticLineLabels(construction: SceneConstruction, index: number, document: SceneDocument, outputs: readonly unknown[], issues: SceneIssue[]): void {
+  try {
+    const authorities: PublicationClaimAuthority[] = outputs.map((output) => {
+    if (!isRecord(output) || !isAnalyticLineRecord(output.analyticLine)) throw new Error("Missing typed analytic-line label authority");
+    const meta = output.analyticLine;
+    const values: Record<string, number | readonly [number, number]> = {};
+    const put = (names: string[], value: number | null | undefined): void => { if (typeof value === "number") for (const name of names) values[name] = value; };
+    put(["d", "distance"], meta.distance); put(["signedDistance"], meta.signedDistance);
+    put(["m", "slope"], meta.slope); put(["angle", "angleRadians"], meta.angleRadians);
+    if (meta.coefficients) { put(["a"], meta.coefficients.a); put(["b"], meta.coefficients.b); put(["c"], meta.coefficients.c); }
+    if (output.kind === "point" && isRecord(output.point) && typeof output.point.x === "number" && typeof output.point.y === "number") {
+      put(["x"], output.point.x); put(["y"], output.point.y); values.P = [output.point.x, output.point.y];
+    }
+    // section_point and point_line_distance retain the existing specialized validator.
+    return values;
+    });
+    validatePublicationDerivedClaims(construction, index, document, authorities, issues);
+  } catch (error) {
+    issues.push({ code: "invalid_publication_derived_label", severity: "fatal", message: error instanceof Error ? error.message : "Invalid typed label authority", path: `constructions[${index}].outputs` });
   }
 }

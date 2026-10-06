@@ -1,3 +1,4 @@
+import { validatePublicationDerivedClaims, type PublicationClaimAuthority } from "./publicationDerivedClaims";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
 /**
@@ -1185,5 +1186,24 @@ export function validateRigidMassConstruction(
     });
   } catch (error) {
     add(error instanceof RigidMassInputError ? error.key : "fields", error instanceof Error ? error.message : "rigid mass inputs are invalid");
+  }
+}
+
+export function validateEvaluatedRigidMassLabels(construction: SceneConstruction, index: number, document: SceneDocument, outputs: readonly unknown[], issues: SceneIssue[]): void {
+  try {
+    const authorities: PublicationClaimAuthority[] = outputs.map((output) => {
+    if (!isRecord(output) || !isRigidMassRecord(output.rigidMass) || output.rigidMass.operator !== construction.operator) throw new Error("Missing typed rigid-mass label authority");
+    const meta = output.rigidMass;
+    const values: Record<string, number | readonly [number, number]> = {};
+    const put = (names: string[], value: number | undefined): void => { if (value !== undefined) for (const name of names) values[name] = value; };
+    put(["mass", "M"], meta.mass); put(["I", "inertia"], meta.inertia); put(["kSquared", "k^2"], meta.kSquared); put(["k", "radiusOfGyration"], meta.radiusOfGyration);
+    if (meta.mark === "centre" && meta.centre) { values.COM = [meta.centre.x, meta.centre.y]; put(["x", "xCOM"], meta.centre.x); put(["y", "yCOM"], meta.centre.y); }
+    if (meta.mark === "acceleration" && meta.acceleration) { values.a = [meta.acceleration.x, meta.acceleration.y]; put(["ax"], meta.acceleration.x); put(["ay"], meta.acceleration.y); if (meta.acceleration.x === 0 && meta.acceleration.y === 0) values.a = 0; }
+    put(["iCom"], meta.iCom); put(["ix"], meta.ix); put(["iy"], meta.iy); put(["offsetDistance"], meta.offsetDistance);
+    return values;
+    });
+    validatePublicationDerivedClaims(construction, index, document, authorities, issues);
+  } catch (error) {
+    issues.push({ code: "invalid_publication_derived_label", severity: "fatal", message: error instanceof Error ? error.message : "Invalid typed label authority", path: `constructions[${index}].outputs` });
   }
 }
