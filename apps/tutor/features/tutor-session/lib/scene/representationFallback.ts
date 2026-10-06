@@ -16,16 +16,26 @@ import {
   validateSceneQuantityAgreement,
   validateTurnPlanSceneProofs,
   validateTurnPlanV3,
+  validateProblemIR,
   type ProblemStructureView,
   type RenderScene,
   type SceneDocument,
+  type SceneIssue,
   type TurnPlanV3,
   type ValidationReport,
+  type ValidationResult,
   relativeMotionSource,
   relativeMotionPlanConflicts,
   riverCrossingPlanConflicts,
   riverCrossingSpeeds,
   RELATIVE_MOTION_SOURCE_MODEL,
+  deriveVisualObligations,
+  isFullProblemIRStructure,
+  readSectionFormulaSource,
+  sectionFormulaPlanIssues,
+  validateSectionFormulaProblemSource,
+  validateSectionPointSourceInputs,
+  visualObligationRejection,
 } from "@heytutor/scene-engine";
 import { isQuotedPhysicalConstant, questionStatesValue } from "@heytutor/tutor-core";
 
@@ -179,8 +189,16 @@ export function selectVerifiedRepresentation(
     const textOnly = buildTextOnlySelected(input.question);
     return { ...textOnly, reason: motionConflict };
   }
+  if (input.turnPlan != null) {
+    const sectionPlanConflict = sectionFormulaPlanIssues(input.question, input.turnPlan, input.problemIR)
+      .find((issue) => issue.severity === "fatal");
+    if (sectionPlanConflict) {
+      const textOnly = buildTextOnlySelected(input.question);
+      return { ...textOnly, reason: sectionPlanConflict.message };
+    }
+  }
   const currentCompile = input.exact
-    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
+    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR, input.turnPlan)
     : null;
   const families = input.families?.length ? input.families : undefined;
   const synthesize = () => synthesizeFamilyScene({
@@ -200,6 +218,7 @@ export function selectVerifiedRepresentation(
   // qualitative tier: the student sees the figure whose numbers were checked.
   const unprovenPlannerScene = input.exact && currentCompile?.renderScene &&
     tierForForeignDocument(input.exact.sceneDocument).tier !== "exact_verified";
+  const sectionSource = readSectionFormulaSource(input.question);
   // When the plan names circular motion, the source owns the figure: the
   // engine recomputes the state from the stated radius and rate, so a planner
   // scene cannot imply a direction or value the source did not give. A source
@@ -212,12 +231,20 @@ export function selectVerifiedRepresentation(
   // figure (bodies, frame, signed velocities, encounter); a planner scene
   // cannot replace it with differently signed or stale motion.
   const relativeMotion = input.exact && relativeMotionSource(input.question)?.status === "admitted";
-  const sourceFigure = circular?.status === "drawn" ? circular.scene
-    : unprovenMensuration || unprovenPlannerScene || relativeMotion ? synthesize() : null;
+  const requiredVisual = validateTurnPlanV3(input.turnPlan, input.question).plan?.visualRequirement === "required";
+  const sourceCandidate = circular?.status === "drawn" ? circular.scene
+    : unprovenMensuration || unprovenPlannerScene || relativeMotion || (sectionSource.status === "ok" && !input.exact)
+      ? synthesize() : null;
+  if (sectionSource.status === "ok" && requiredVisual &&
+      isFullProblemIRStructure(input.problemIR) && (unprovenPlannerScene || !input.exact) && !sourceCandidate) {
+    const textOnly = buildTextOnlySelected(input.question);
+    return { ...textOnly, reason: "the complete section source could not satisfy every ProblemIR visual obligation" };
+  }
+  const sourceFigure = sourceCandidate ? compileSourceFigureForCaller(sourceCandidate, input) : null;
   const preferSourceFigure = circular?.status === "drawn"
     || sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region"
     || sourceFigure?.document.source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL
-    || (unprovenPlannerScene && sourceFigure?.tier === "exact_verified" && typeof sourceFigure.document.source.archetype === "string");
+    || (unprovenPlannerScene && sourceFigure?.tier === "exact_verified");
   if (input.exact && currentCompile?.renderScene && !preferSourceFigure) {
     // A validated planner scene wins over every fallback, but its tier is
     // earned, not assumed: exact needs a fatal metric proof (an angle, a ratio,
@@ -235,7 +262,8 @@ export function selectVerifiedRepresentation(
     if (document !== input.exact.sceneDocument) {
       document.source = { ...document.source, representationTier: decision.tier, nonMetric: decision.nonMetric };
     }
-    const compiled = document === input.exact.sceneDocument ? currentCompile : compileSceneDocument(document);
+    const compiled = document === input.exact.sceneDocument ? currentCompile
+      : compileWithCallerContext(document, input.question, input.problemIR, input.turnPlan);
     if (compiled.ok && compiled.renderScene) {
       return {
         tier: decision.tier,
@@ -261,7 +289,7 @@ export function selectVerifiedRepresentation(
       ? { tier: "question_representation" as const, nonMetric: true, reason: "source matrix component verified; original outside-component claims remain unverified" }
       : tierForForeignDocument(matrixDocument);
     matrixDocument.source = { ...matrixDocument.source, representationTier: decision.tier, nonMetric: decision.nonMetric };
-    const compiled = compileSceneDocument(matrixDocument);
+    const compiled = compileWithCallerContext(matrixDocument, input.question, input.problemIR, input.turnPlan);
     if (compiled.ok && compiled.renderScene) {
       return {
         tier: decision.tier,
@@ -274,7 +302,8 @@ export function selectVerifiedRepresentation(
     }
   }
 
-  const synthesized = sourceFigure ?? synthesize();
+  const synthesizedCandidate = sourceFigure ?? synthesize();
+  const synthesized = synthesizedCandidate ? compileSourceFigureForCaller(synthesizedCandidate, input) : null;
   if (synthesized) {
     return {
       tier: synthesized.tier,
@@ -402,6 +431,7 @@ function compileUsableExactRepresentation(
   candidate: ExactVerifiedRepresentation,
   expectedQuestion: string,
   problemIR?: ProblemStructureView | null,
+  turnPlan?: TurnPlanV3 | unknown | null,
 ): ReturnType<typeof compileSceneDocument> | null {
   // TypeScript's interface is not a runtime proof: the caller may supply an
   // incomplete, forged or stale report despite the ExactVerifiedRepresentation type.
@@ -413,6 +443,8 @@ function compileUsableExactRepresentation(
   if (demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR))) {
     return null;
   }
+  if (turnPlan != null && sectionFormulaPlanIssues(expectedQuestion, turnPlan, problemIR)
+    .some((issue) => issue.severity === "fatal")) return null;
   const sourceQuestion = candidate.sceneDocument.source.question;
   if (
     typeof sourceQuestion !== "string" ||
@@ -427,14 +459,14 @@ function compileUsableExactRepresentation(
   ) {
     return null;
   }
-  const normalized = validateSceneDocument(candidate.sceneDocument);
+  const normalized = validateSceneDocumentForCaller(candidate.sceneDocument, expectedQuestion, problemIR, turnPlan);
   // The compiler validates a normalized copy, but compiles the supplied document.
   // Do not accept a raw document whose actions, proofs or operands were changed
   // (or dropped) by that normalization while returning the raw document to the tutor.
   if (!normalized.document || !sameJsonStructure(normalized.document, candidate.sceneDocument, true)) {
     return null;
   }
-  const currentCompile = compileSceneDocument(candidate.sceneDocument);
+  const currentCompile = compileWithCallerContext(candidate.sceneDocument, expectedQuestion, problemIR, turnPlan);
   const hasReadableInk = currentCompile.renderScene?.primitives.some((primitive) =>
     (primitive.kind === "label" || primitive.kind === "dimension") &&
     typeof primitive.text === "string" && primitive.text.trim().length > 0);
@@ -445,6 +477,77 @@ function compileUsableExactRepresentation(
     currentCompile.renderScene?.primitives.length && hasReadableInk
     ? currentCompile
     : null;
+}
+
+function compileSourceFigureForCaller(
+  candidate: NonNullable<ReturnType<typeof synthesizeFamilyScene>>,
+  input: RepresentationSelectionInput,
+): NonNullable<ReturnType<typeof synthesizeFamilyScene>> | null {
+  if (readSectionFormulaSource(input.question).status !== "ok") return candidate;
+  if (input.turnPlan != null && sectionFormulaPlanIssues(input.question, input.turnPlan, input.problemIR)
+    .some((issue) => issue.severity === "fatal")) return null;
+  const compiled = compileWithCallerContext(candidate.document, input.question, input.problemIR, input.turnPlan);
+  if (!compiled.ok || !compiled.renderScene || !compiled.report.valid || compiled.report.issues.some((issue) =>
+    issue.severity === "fatal" || issue.code === "assertion_failed")) return null;
+  return { ...candidate, renderScene: compiled.renderScene, validationReport: compiled.report };
+}
+
+function compileWithCallerContext(
+  document: SceneDocument,
+  question: string,
+  problemIR?: ProblemStructureView | null,
+  turnPlan?: TurnPlanV3 | unknown | null,
+): ReturnType<typeof compileSceneDocument> {
+  const structural = validateSceneDocumentForCaller(document, question, problemIR, turnPlan);
+  if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
+  return compileSceneDocument(document);
+}
+
+function validateSceneDocumentForCaller(
+  document: SceneDocument,
+  question: string,
+  problemIR?: ProblemStructureView | null,
+  turnPlan?: TurnPlanV3 | unknown | null,
+): ValidationResult {
+  const structural = validateSceneDocument(document);
+  if (!structural.document) return structural;
+  const issues: SceneIssue[] = [];
+  if (turnPlan != null) {
+    const checkedPlan = validateTurnPlanV3(turnPlan, question);
+    if (!checkedPlan.valid || !checkedPlan.plan) {
+      issues.push({ code: "caller_turn_plan", severity: "fatal" as const,
+        message: "Caller TurnPlan must validate against the actual question", path: "sourceAuthority.turnPlan" });
+    } else {
+      issues.push(...validateTurnPlanSceneProofs(document, checkedPlan.plan));
+    }
+  }
+  if (isFullProblemIRStructure(problemIR)) {
+    const checkedProblem = validateProblemIR(problemIR, question);
+    if (!checkedProblem.valid || !checkedProblem.problem) {
+      issues.push({ code: "caller_problem_ir", severity: "fatal",
+        message: "Caller ProblemIR must validate against the actual question", path: "sourceAuthority.problemIR" });
+    } else {
+      const missing = visualObligationRejection(deriveVisualObligations(checkedProblem.problem), document, checkedProblem.problem);
+      if (missing) issues.push({
+        code: "source_visual_obligation",
+        severity: "fatal",
+        message: missing,
+        path: "sourceAuthority.problemIR",
+      });
+    }
+  }
+  if (readSectionFormulaSource(question).status === "ok") {
+    issues.push(
+      ...validateSectionPointSourceInputs(document, question),
+      ...validateSectionFormulaProblemSource(document, question, isFullProblemIRStructure(problemIR) ? problemIR : null),
+      ...(turnPlan == null ? [] : sectionFormulaPlanIssues(question, turnPlan, problemIR)),
+    );
+  }
+  if (!issues.some((issue) => issue.severity === "fatal")) return structural;
+  return {
+    document: null,
+    report: { ...structural.report, valid: false, issues: [...structural.report.issues, ...issues] },
+  };
 }
 
 function isCurrentEngineReport(value: unknown): value is ValidationReport {
