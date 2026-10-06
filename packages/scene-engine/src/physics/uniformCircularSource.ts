@@ -14,6 +14,7 @@
  * pendula, charged particles, orbits under gravitation) keep their own paths.
  */
 
+import { readUniformCircularRuntimeContract, uniformCircularRuntimePlanConflicts, uniformCircularRuntimeQuantityValue } from "./uniformCircularAuthority";
 import { STEM_NUMBER, TUPLE_COMPONENT_NUMBER, parseStemNumber } from "../archetypes/slots";
 
 export type RotationSense = "clockwise" | "anticlockwise";
@@ -526,16 +527,28 @@ export interface StalePlanQuantity { id: string; symbol: string; planValue: numb
  * Plan givens and derived values that disagree with the source authority.
  * Each plan quantity is matched by its unit dimension and symbol to one
  * recomputed state value; a plan value only counts as agreeing within the
- * rounding its own written digits allow. Unmatched quantities are ignored.
+ * rounding its own written digits allow in the historical extended profile.
+ * The bounded runtime profile instead uses an arithmetic roundoff proof and
+ * declines unknown physical roles, units and requests without removing them.
  */
 export function stalePlanQuantities(source: UniformCircularNumeric, turnPlan: unknown): StalePlanQuantity[] {
   const plan = typeof turnPlan === "object" && turnPlan !== null ? turnPlan as Record<string, unknown> : {};
   const stale: StalePlanQuantity[] = [];
+  const runtime = typeof plan.question === "string" ? readUniformCircularRuntimeContract(plan.question) : null;
   for (const quantity of [...records(plan.givens), ...records(plan.derived)]) {
+    if (runtime?.status === "bound" && typeof quantity.symbol === "string" && typeof quantity.value === "number") {
+      const expected = uniformCircularRuntimeQuantityValue(source, { symbol: quantity.symbol, unit: typeof quantity.unit === "string" ? quantity.unit : undefined });
+      if (expected !== null) {
+        const u = Number.EPSILON / 2;
+        const allowance = quantity.provenance === "given" ? 0 : 8 * u / (1 - 8 * u) * Math.abs(expected);
+        if (Math.abs(quantity.value - expected) > allowance) stale.push({ id: String(quantity.id ?? ""), symbol: quantity.symbol, planValue: quantity.value, sourceValue: expected, unit: String(quantity.unit ?? "") });
+        continue;
+      }
+    }
     const verdict = judgePlanQuantity(source, quantity);
     if (verdict?.agrees === false) stale.push(verdict.stale);
   }
-  return stale;
+  return [...stale, ...(typeof plan.question === "string" ? uniformCircularRuntimePlanConflicts(plan.question, plan) : [])];
 }
 
 type Verdict = { agrees: true } | { agrees: false; bound: boolean; corrected: number | null; stale: StalePlanQuantity };
@@ -640,9 +653,9 @@ export interface UniformCircularPlanAuthority {
   plan: Record<string, unknown>;
   source: UniformCircularNumeric;
   corrections: UniformCircularPlanCorrection[];
-  /** Unbound values of a recomputed class that equal no recomputed value; removed from the plan. */
+  /** Historical extended-profile withdrawals; bounded runtime obligations stay in the plan. */
   withdrawn: StalePlanQuantity[];
-  /** Conflicts still in the plan after correction (none by construction); the figure declines on any. */
+  /** Conflicts or unsupported obligations still in the plan; the figure declines on any. */
   unbound: StalePlanQuantity[];
 }
 
@@ -659,15 +672,29 @@ export function applyUniformCircularAuthority(question: string, turnPlan: unknow
   const source = readUniformCircularSource(question, { planNamesCircularMotion: true });
   if (source?.status !== "numeric") return null;
   const plan = turnPlan as Record<string, unknown>;
+  const runtime = readUniformCircularRuntimeContract(question);
+  if (runtime?.status === "declined") return { plan, source, corrections: [], withdrawn: [], unbound: [
+    { id: "source", symbol: "", planValue: Number.NaN, sourceValue: Number.NaN, unit: "" },
+  ] };
   const corrections: UniformCircularPlanCorrection[] = [];
   const withdrawn: StalePlanQuantity[] = [];
   const review = (list: unknown): unknown => Array.isArray(list) ? list.flatMap((entry) => {
     if (typeof entry !== "object" || entry === null) return [entry];
     const quantity = entry as Record<string, unknown>;
+    if (runtime?.status === "bound" && typeof quantity.symbol === "string" && typeof quantity.value === "number") {
+      const expected = uniformCircularRuntimeQuantityValue(source, { symbol: quantity.symbol, unit: typeof quantity.unit === "string" ? quantity.unit : undefined });
+      if (expected !== null) {
+        if (quantity.value === expected) return [entry];
+        corrections.push({ quantityId: String(quantity.id ?? ""), symbol: quantity.symbol, previous: quantity.value, corrected: expected, unit: String(quantity.unit ?? "") });
+        return [{ ...quantity, value: expected, sourceText: quantity.provenance === "given" ? quantity.sourceText
+          : `Source-verified ${quantity.symbol} = ${expected} ${String(quantity.unit)}` }];
+      }
+      return [entry];
+    }
     const verdict = judgePlanQuantity(source, quantity);
     if (!verdict || verdict.agrees) return [entry];
     if (!verdict.bound || verdict.corrected === null) {
-      // Same class as a recomputed quantity, binds to none, equals none: withdrawn so narration never states it.
+      // Outside the bounded runtime profile, retain the historical policy.
       withdrawn.push(verdict.stale);
       return [];
     }

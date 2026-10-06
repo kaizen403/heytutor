@@ -1,0 +1,174 @@
+{
+  "base": "16b1783e6d690ae2abd54c01caffb840d89842ad",
+  "node": "24.21.0",
+  "pnpm": "10.32.0",
+  "offline": true,
+  "existingGates": {
+    "verify-ucm-ready": {
+      "baselineExit": 1,
+      "patchedExit": 1,
+      "baselineResult": [
+        "AssertionError [ERR_ASSERTION]: the normal family path must return the same figure"
+      ],
+      "patchedResult": [
+        "AssertionError [ERR_ASSERTION]: the normal family path must return the same figure"
+      ],
+      "failureComparison": {
+        "same_first_failure": true,
+        "baseline_digest": "576b6efeeaeedf093aa850936b6e0a52a929de3c796d8323932a54b586ead685",
+        "patched_digest": "576b6efeeaeedf093aa850936b6e0a52a929de3c796d8323932a54b586ead685",
+        "baseline_assertion": "AssertionError [ERR_ASSERTION]: the normal family path must return the same figure",
+        "patched_assertion": "AssertionError [ERR_ASSERTION]: the normal family path must return the same figure"
+      },
+      "baselineLog": "/tmp/w2-ucm-comparison/baseline-verify-ucm-ready.log",
+      "patchedLog": "/tmp/w2-ucm-comparison/patched-verify-ucm-ready.log"
+    },
+    "verify-w1-ucm-identity": {
+      "baselineExit": 1,
+      "patchedExit": 1,
+      "baselineResult": [
+        "AssertionError [ERR_ASSERTION]: {\"sense\":\"anticlockwise\",\"location\":\"P=(1.5,-2)\",\"result\":{\"status\":\"drawn\",\"scene\":{\"document\":{\"schemaVersion\":\"scene-document"
+      ],
+      "patchedResult": [
+        "AssertionError [ERR_ASSERTION]: {\"sense\":\"anticlockwise\",\"location\":\"P=(1.5,-2)\",\"result\":{\"status\":\"drawn\",\"scene\":{\"document\":{\"schemaVersion\":\"scene-document"
+      ],
+      "failureComparison": {
+        "same_first_failure": true,
+        "baseline_digest": "ff7d45d21cc386f71c901c6962a5654857caf9cc3ae2431d97e5c8cfe9166d48",
+        "patched_digest": "ff7d45d21cc386f71c901c6962a5654857caf9cc3ae2431d97e5c8cfe9166d48",
+        "baseline_assertion": "AssertionError [ERR_ASSERTION]: {\"sense\":\"anticlockwise\",\"location\":\"P=(1.5,-2)\",\"result\":{\"status\":\"drawn\",\"scene\":{\"document\":{\"schemaVersion\":\"scene-document/v2\",\"visualDecision",
+        "patched_assertion": "AssertionError [ERR_ASSERTION]: {\"sense\":\"anticlockwise\",\"location\":\"P=(1.5,-2)\",\"result\":{\"status\":\"drawn\",\"scene\":{\"document\":{\"schemaVersion\":\"scene-document/v2\",\"visualDecision"
+      },
+      "baselineLog": "/tmp/w2-ucm-comparison/baseline-verify-w1-ucm-identity.log",
+      "patchedLog": "/tmp/w2-ucm-comparison/patched-verify-w1-ucm-identity.log"
+    },
+    "verify-w2-motion-source": {
+      "baselineExit": 0,
+      "patchedExit": 0,
+      "baselineResult": [
+        "Wave2 motion: 47/47 groups passed (offline)"
+      ],
+      "patchedResult": [
+        "Wave2 motion: 47/47 groups passed (offline)"
+      ],
+      "failureComparison": {
+        "same_first_failure": true,
+        "baseline_digest": null,
+        "patched_digest": null,
+        "baseline_assertion": null,
+        "patched_assertion": null
+      },
+      "baselineLog": "/tmp/w2-ucm-comparison/baseline-verify-w2-motion-source.log",
+      "patchedLog": "/tmp/w2-ucm-comparison/patched-verify-w2-motion-source.log"
+    },
+    "verify-w1-source-trust": {
+      "baselineExit": 1,
+      "patchedExit": 1,
+      "baselineResult": [
+        "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:"
+      ],
+      "patchedResult": [
+        "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:"
+      ],
+      "failureComparison": {
+        "same_first_failure": true,
+        "baseline_digest": "a35e8616f10a73cc585a598fa927ce926d87c27ba93f6300b53823f8b7a4a6bc",
+        "patched_digest": "a35e8616f10a73cc585a598fa927ce926d87c27ba93f6300b53823f8b7a4a6bc",
+        "baseline_assertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(carScene)",
+        "patched_assertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(carScene)"
+      },
+      "baselineLog": "/tmp/w2-ucm-comparison/baseline-verify-w1-source-trust.log",
+      "patchedLog": "/tmp/w2-ucm-comparison/patched-verify-w1-source-trust.log"
+    },
+    "verify-w1-ucm-precision": {
+      "baselineExit": 1,
+      "patchedExit": 1,
+      "baselineResult": [
+        "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:"
+      ],
+      "patchedResult": [
+        "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:"
+      ],
+      "failureComparison": {
+        "same_first_failure": true,
+        "baseline_digest": "2afc1a2bee285008fd649dfff756f58010d676d96b5fd9fd1cedb58987f8e0d1",
+        "patched_digest": "2afc1a2bee285008fd649dfff756f58010d676d96b5fd9fd1cedb58987f8e0d1",
+        "baseline_assertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(scene)",
+        "patched_assertion": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(scene)"
+      },
+      "baselineLog": "/tmp/w2-ucm-comparison/baseline-verify-w1-ucm-precision.log",
+      "patchedLog": "/tmp/w2-ucm-comparison/patched-verify-w1-ucm-precision.log"
+    },
+    "verify-ucm-selection": {
+      "baselineExit": 0,
+      "patchedExit": 0,
+      "baselineResult": [
+        "verify-ucm-selection: 33 checks passed"
+      ],
+      "patchedResult": [
+        "verify-ucm-selection: 33 checks passed"
+      ],
+      "failureComparison": {
+        "same_first_failure": true,
+        "baseline_digest": null,
+        "patched_digest": null,
+        "baseline_assertion": null,
+        "patched_assertion": null
+      },
+      "baselineLog": "/tmp/w2-ucm-comparison/baseline-verify-ucm-selection.log",
+      "patchedLog": "/tmp/w2-ucm-comparison/patched-verify-ucm-selection.log"
+    }
+  },
+  "newGate": {
+    "finalResult": "246 groups; 0 failures",
+    "logSha256": "73fff1241387911a93207c8e4d848f4373482dab9ede929840776370a78e823f",
+    "log": "/tmp/w2-ucm-full-gate.log",
+    "baselineResult": "22 groups; 13 failures",
+    "baselineLog": "/tmp/w2-ucm-comparison/baseline-verify-w2-ucm-live.log"
+  },
+  "parentSeam": {
+    "case": "extra plan-only force obligation",
+    "familyDeclined": true,
+    "liveFailure": "scene quantities disagree with TurnPlanV3: scene_quantity_unverified: omega is not supported by TurnPlanV3",
+    "saveFailure": "scene quantities disagree with TurnPlanV3: scene_quantity_unverified: omega is not supported by TurnPlanV3",
+    "rawReadIssues": [],
+    "restoreAdmitted": true
+  },
+  "checks": {
+    "install": {
+      "result": "PASS",
+      "log": "/tmp/w2-ucm-install.log",
+      "sha256": "8317507edb123507dfd29bf9b4b976b448cea1937d3f8ad9e93fa67dd977ee43"
+    },
+    "drawingBuild": {
+      "result": "PASS",
+      "log": "/tmp/w2-ucm-drawing-build.log",
+      "sha256": "ef3fcf3f9a676fb6212139e8ee072846c88963a09f0795731efc99ba22d3695b"
+    },
+    "engineBuild": {
+      "result": "PASS",
+      "log": "/tmp/w2-ucm-engine-final-build.log",
+      "sha256": "70a9984dc32424b91dcfa62e818d3f1c297399c21d00b49bc2edd49cdf964759"
+    },
+    "coreBuild": {
+      "result": "PASS",
+      "log": "/tmp/w2-ucm-core-final-build.log",
+      "sha256": "012418887664fc008a6429ec381dbdfbfbb3baeb45765d68a69776c53557a537"
+    },
+    "engineTypecheck": {
+      "result": "PASS",
+      "log": "/tmp/w2-ucm-typecheck.log",
+      "sha256": "4b390646c368b5572c495f0254eee422ab2995bf7f13c01de8fdf1e8eb47d998"
+    },
+    "gateGraphTypecheck": {
+      "result": "PASS",
+      "log": "/tmp/w2-ucm-gate-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scopedLint": {
+      "result": "PASS",
+      "log": "/tmp/w2-ucm-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

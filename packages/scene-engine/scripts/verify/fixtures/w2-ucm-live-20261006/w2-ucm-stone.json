@@ -1,0 +1,228 @@
+{
+  "question": "A stone moves in a horizontal circle of radius 0.8 m with a period of 2 s. Find its speed and centripetal acceleration.",
+  "rawIRs": [
+    {
+      "facts": [
+        {
+          "id": "fRadius",
+          "kind": "given",
+          "statement": "circle radius is 0.8 m",
+          "quote": "radius 0.8 m"
+        },
+        {
+          "id": "fPeriod",
+          "kind": "given",
+          "statement": "period of motion is 2 s",
+          "quote": "period of 2 s"
+        },
+        {
+          "id": "fSpeed",
+          "kind": "requested",
+          "statement": "find the stone's speed",
+          "quote": "Find its speed"
+        },
+        {
+          "id": "fAccel",
+          "kind": "requested",
+          "statement": "find the centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "stone",
+          "kind": "body",
+          "label": "stone",
+          "evidenceFactIds": [
+            "fRadius",
+            "fPeriod"
+          ]
+        },
+        {
+          "id": "circle",
+          "kind": "curve",
+          "label": "horizontal circular path",
+          "evidenceFactIds": [
+            "fRadius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eSpeed",
+          "valueType": "scalar",
+          "expr": "2*pi*0.8/2",
+          "evidenceFactIds": [
+            "fRadius",
+            "fPeriod"
+          ]
+        },
+        {
+          "id": "eAccel",
+          "valueType": "scalar",
+          "expr": "(2*pi*0.8/2)^2/0.8",
+          "evidenceFactIds": [
+            "fRadius",
+            "fPeriod"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "iCircle",
+          "kind": "conceptual",
+          "entityIds": [
+            "stone",
+            "circle"
+          ],
+          "evidenceFactIds": [
+            "fRadius",
+            "fPeriod"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sSpeed",
+          "kind": "evaluate",
+          "expressionId": "eSpeed",
+          "resultBinding": {
+            "turnPlanQuantityId": "v",
+            "symbol": "v",
+            "unit": "m/s",
+            "evidenceFactIds": [
+              "fSpeed"
+            ]
+          }
+        },
+        {
+          "id": "sAccel",
+          "kind": "evaluate",
+          "expressionId": "eAccel",
+          "resultBinding": {
+            "turnPlanQuantityId": "ac",
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "fAccel"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "canonicalPlan": {
+    "givens": [
+      {
+        "id": "r",
+        "unit": "m",
+        "value": 0.8,
+        "symbol": "r",
+        "provenance": "given",
+        "sourceText": "radius 0.8 m"
+      },
+      {
+        "id": "T",
+        "unit": "s",
+        "value": 2,
+        "symbol": "T",
+        "provenance": "given",
+        "sourceText": "period of 2 s"
+      }
+    ],
+    "lawIds": [
+      "uniform_circular_motion_speed",
+      "centripetal_acceleration"
+    ],
+    "derived": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "value": 2.513274122871834,
+        "symbol": "v",
+        "dependsOn": [
+          "r",
+          "T"
+        ],
+        "provenance": "derived",
+        "sourceText": "v = 2*pi*r/T = 2*pi*0.8/2 = 2.51327412287"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "value": 7.895683520871486,
+        "symbol": "a_c",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "a_c = v^2/r = (2.513)^2/0.8 = 7.89568352087"
+      }
+    ],
+    "question": "A stone moves in a horizontal circle of radius 0.8 m with a period of 2 s. Find its speed and centripetal acceleration.",
+    "unknowns": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "symbol": "v"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s^2",
+        "symbol": "a_c"
+      }
+    ],
+    "assumptions": [
+      "Uniform circular motion (constant speed)",
+      "pi approx 3.14159",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Speed is constant in uniform circular motion and equals circumference divided by period.",
+        "expected": "v = 2*pi*r/T",
+        "relatedQuantityIds": [
+          "v",
+          "r",
+          "T"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Centripetal acceleration points toward the center of the circle and has magnitude v^2/r.",
+        "expected": "a_c = v^2/r = 4*pi^2*r/T^2",
+        "relatedQuantityIds": [
+          "ac",
+          "v",
+          "r",
+          "T"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "persistedProblemIR": null,
+  "persistedSolverResult": null,
+  "originalVisualStatus": "retry_required",
+  "originalDegradation": {
+    "reason": "candidate_invalid",
+    "issueCodes": [
+      "ucm_source_mismatch",
+      "invalid_uniform_circular_motion_fields",
+      "invalid_id"
+    ],
+    "attemptedTier": "exact_verified",
+    "candidateCount": 6
+  },
+  "evidenceDirectory": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0710-w2-1f53a1c0/evidence",
+  "sha256": {
+    "w2-ucm-stone-live.json": "43ca2ab5207b42fb8aedc6413e53f624a8ebc67d2f116b45cd51257625c5e5a4",
+    "w2-ucm-stone-planner-exchanges.json": "ca9de1a33b96b6156223f15b82a77cb28a3e0813a588e8e93e586132cb91b012",
+    "w2-ucm-stone-problem-ir.json": "74a22aaa3ef07d9eca3c37f0d51fccce8410ee173721f8bd058b04009a0af73e"
+  },
+  "finishedUTC": "2026-10-06T07:14:47.698Z"
+}

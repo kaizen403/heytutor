@@ -1,0 +1,242 @@
+{
+  "question": "A body moves clockwise at a constant speed of 6 m/s in a circle of radius 12 m. Find its angular speed and centripetal acceleration.",
+  "rawIRs": [
+    {
+      "facts": [
+        {
+          "id": "fSpeed",
+          "kind": "given",
+          "statement": "constant speed 6 m/s",
+          "quote": "constant speed of 6 m/s"
+        },
+        {
+          "id": "fRadius",
+          "kind": "given",
+          "statement": "circle radius 12 m",
+          "quote": "circle of radius 12 m"
+        },
+        {
+          "id": "fClockwise",
+          "kind": "given",
+          "statement": "body moves clockwise",
+          "quote": "moves clockwise"
+        },
+        {
+          "id": "fOmega",
+          "kind": "requested",
+          "statement": "find angular speed",
+          "quote": "Find its angular speed"
+        },
+        {
+          "id": "fAc",
+          "kind": "requested",
+          "statement": "find centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "body",
+          "kind": "body",
+          "label": "moving body",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fClockwise"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circular path",
+          "evidenceFactIds": [
+            "fRadius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eOmega",
+          "valueType": "scalar",
+          "expr": "6/12",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius"
+          ]
+        },
+        {
+          "id": "eAc",
+          "valueType": "scalar",
+          "expr": "6^2/12",
+          "evidenceFactIds": [
+            "fSpeed",
+            "fRadius"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "iCircle",
+          "kind": "conceptual",
+          "entityIds": [
+            "body",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "fRadius",
+            "fClockwise"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sOmega",
+          "kind": "evaluate",
+          "expressionId": "eOmega",
+          "resultBinding": {
+            "turnPlanQuantityId": "omega",
+            "symbol": "\u03c9",
+            "unit": "rad/s",
+            "evidenceFactIds": [
+              "fOmega"
+            ]
+          }
+        },
+        {
+          "id": "sAc",
+          "kind": "evaluate",
+          "expressionId": "eAc",
+          "resultBinding": {
+            "turnPlanQuantityId": "ac",
+            "symbol": "a_c",
+            "unit": "m/s\u00b2",
+            "evidenceFactIds": [
+              "fAc"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "canonicalPlan": {
+    "givens": [
+      {
+        "id": "v",
+        "unit": "m/s",
+        "value": 6,
+        "symbol": "v",
+        "provenance": "given",
+        "sourceText": "constant speed of 6 m/s"
+      },
+      {
+        "id": "r",
+        "unit": "m",
+        "value": 12,
+        "symbol": "r",
+        "provenance": "given",
+        "sourceText": "circle of radius 12 m"
+      }
+    ],
+    "lawIds": [
+      "uniform_circular_motion_angular_speed",
+      "centripetal_acceleration"
+    ],
+    "derived": [
+      {
+        "id": "omega",
+        "unit": "rad/s",
+        "value": 0.5,
+        "symbol": "\u03c9",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "\u03c9 = v/r = 6/12 = 0.5"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s\u00b2",
+        "value": 3,
+        "symbol": "a_c",
+        "dependsOn": [
+          "v",
+          "r"
+        ],
+        "provenance": "derived",
+        "sourceText": "a_c = v\u00b2/r = 36/12 = 3"
+      }
+    ],
+    "question": "A body moves clockwise at a constant speed of 6 m/s in a circle of radius 12 m. Find its angular speed and centripetal acceleration.",
+    "unknowns": [
+      {
+        "id": "omega",
+        "unit": "rad/s",
+        "symbol": "\u03c9"
+      },
+      {
+        "id": "ac",
+        "unit": "m/s\u00b2",
+        "symbol": "a_c"
+      }
+    ],
+    "assumptions": [
+      "Uniform circular motion at constant speed",
+      "Centripetal acceleration directed toward the centre of the circle",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Angular speed is \u03c9 = v/r.",
+        "expected": "\u03c9 = v/r = 0.5 rad/s",
+        "relatedQuantityIds": [
+          "omega",
+          "v",
+          "r"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Centripetal acceleration magnitude is a_c = v\u00b2/r = \u03c9\u00b2r, directed radially inward toward the centre.",
+        "expected": "a_c = v\u00b2/r = 3 m/s\u00b2",
+        "relatedQuantityIds": [
+          "ac",
+          "v",
+          "r",
+          "omega"
+        ]
+      },
+      {
+        "id": "c3",
+        "claim": "Clockwise motion sets the sign of angular velocity (negative by the usual counterclockwise-positive convention) but does not change the magnitudes.",
+        "expected": "\u03c9 = \u22120.5 rad/s if signed; magnitude 0.5 rad/s",
+        "relatedQuantityIds": [
+          "omega"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "persistedProblemIR": null,
+  "persistedSolverResult": null,
+  "originalVisualStatus": "retry_required",
+  "originalDegradation": {
+    "reason": "candidate_invalid",
+    "issueCodes": [
+      "scene_quantity_mismatch",
+      "ucm_source_mismatch",
+      "invalid_uniform_circular_motion_fields"
+    ],
+    "attemptedTier": "exact_verified",
+    "candidateCount": 6
+  },
+  "evidenceDirectory": "/Users/kaizen/heytutor-claude-coord/runtime/runs/2026-10-06T0710-w2-1f53a1c0/evidence",
+  "sha256": {
+    "w2-ucm-clockwise-live.json": "2e3cb88c3bf45a2da1c48e40772f3376d66d438a762b770a2a9ba4d286a14810",
+    "w2-ucm-clockwise-planner-exchanges.json": "9906fa45b0e929bbe5a6f36134bf992984ca80598182e17007c3373f7acbea72",
+    "w2-ucm-clockwise-problem-ir.json": "f12a71d652653337ea5863564976db9391bce95670b7f72cce210cfc6630f9dc"
+  },
+  "finishedUTC": "2026-10-06T07:16:44.491Z"
+}

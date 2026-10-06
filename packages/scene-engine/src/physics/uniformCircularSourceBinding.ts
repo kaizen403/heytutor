@@ -1,3 +1,4 @@
+import { readUniformCircularRuntimeContract } from "./uniformCircularAuthority";
 import { validateSceneDocument } from "../document/validation";
 import { sameSceneValue } from "../document/valueEquality";
 import type { SceneDocument, SceneIssue } from "../types";
@@ -20,6 +21,9 @@ export function validateUniformCircularSourceInputs(document: SceneDocument, que
   if (!source || source.status === "reject") {
     return [{ code: "ucm_source_unsupported", severity: "fatal", path: "source.question", message: "A circular source program needs a complete supported radius, rate and stated position." }];
   }
+  if (typeof question === "string" && readUniformCircularRuntimeContract(question)?.status === "declined") {
+    return [{ code: "ucm_source_unsupported", severity: "fatal", path: "source.question", message: "Every circular runtime setup clause and requested quantity must be supported." }];
+  }
   const generated = source.status === "numeric"
     ? uniformCircularNumericDocument(question as string, source)
     : uniformCircularSymbolicDocument(question as string, source);
@@ -28,6 +32,7 @@ export function validateUniformCircularSourceInputs(document: SceneDocument, que
     quantities: scene.quantities,
     constructions: scene.constructions,
     assertions: scene.assertions,
+    relations: scene.relations,
     annotations: scene.annotations ?? [],
     requiredEntityIds: scene.requiredEntityIds,
     revealGroups: scene.revealGroups,

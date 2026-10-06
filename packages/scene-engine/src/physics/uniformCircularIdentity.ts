@@ -3,6 +3,7 @@ import type { SceneDocument, SceneIssue } from "../types";
 import { readUniformCircularSource } from "./uniformCircularSource";
 import { validateUniformCircularSourceInputs } from "./uniformCircularSourceBinding";
 
+import { readUniformCircularRuntimeContract, uniformCircularRuntimeEntityId, uniformCircularRuntimeProblemIssues } from "./uniformCircularAuthority";
 import { uniformCircularSourceNames } from "./uniformCircularSourceNames";
 
 /** An alias is an independently proved physical identity, never an extra text body. */
@@ -11,6 +12,12 @@ export function uniformCircularProblemEntitySceneId(document: SceneDocument, pro
   const source = readUniformCircularSource(problem.question);
   const names = uniformCircularSourceNames(problem.question);
   if (source?.status !== "numeric" || !names || validateUniformCircularSourceInputs(document, problem.question).some(issue => issue.severity === "fatal")) return null;
+  const runtime = readUniformCircularRuntimeContract(problem.question);
+  if (runtime?.status === "declined") return null;
+  if (runtime?.status === "bound") {
+    const bound = uniformCircularRuntimeEntityId(runtime.contract, problem, entityId);
+    return bound === "body" ? (document.entities.some(row => row.id === "body") ? "body" : "P") : bound;
+  }
   const entity = problem.entities.find(candidate => candidate.id === entityId);
   if (!entity) return null;
   const facts = new Map(problem.facts.map(fact => [fact.id, fact]));
@@ -41,6 +48,8 @@ export function uniformCircularSourceDimensionIsCarried(document: SceneDocument,
 /** Account for every physical IR entity, including entities omitted by intents. */
 export function uniformCircularProblemSourceIssues(document: SceneDocument, problem: ProblemIR): SceneIssue[] {
   if (readUniformCircularSource(problem.question)?.status !== "numeric") return [];
+  const runtime = readUniformCircularRuntimeContract(problem.question);
+  if (runtime?.status === "declined") return [{ code: "ucm_problem_source", severity: "fatal", path: "problemIR.question", message: "The circular runtime source contains an unsupported premise or request." }];
   const used = new Set<string>();
   const issues: SceneIssue[] = [];
   for (const entity of problem.entities) {
@@ -49,5 +58,5 @@ export function uniformCircularProblemSourceIssues(document: SceneDocument, prob
       path: `problemIR.entities.${entity.id}`, message: "Every circular source entity needs a distinct physical source binding." });
     else used.add(bound);
   }
-  return issues;
+  return [...issues, ...(runtime?.status === "bound" ? uniformCircularRuntimeProblemIssues(runtime.contract, problem) : [])];
 }

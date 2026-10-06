@@ -1,0 +1,758 @@
+[
+  {
+    "id": "holdout-car",
+    "question": "A car moves at a constant speed of 8 m/s around a circular track of radius 4 m. Find its centripetal acceleration and time for one revolution.",
+    "rawIR": {
+      "facts": [
+        {
+          "id": "radius",
+          "kind": "given",
+          "statement": "radius 4 m",
+          "quote": "radius 4 m"
+        },
+        {
+          "id": "rate",
+          "kind": "given",
+          "statement": "constant speed of 8 m/s",
+          "quote": "constant speed of 8 m/s"
+        },
+        {
+          "id": "request0",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        },
+        {
+          "id": "request1",
+          "kind": "requested",
+          "statement": "time for one revolution",
+          "quote": "time for one revolution"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "car",
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circular track",
+          "evidenceFactIds": [
+            "radius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "expression0",
+          "valueType": "scalar",
+          "expr": "8^2/4",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        },
+        {
+          "id": "expression1",
+          "valueType": "scalar",
+          "expr": "2*pi*4/8",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "motion",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "solve0",
+          "kind": "evaluate",
+          "expressionId": "expression0",
+          "resultBinding": {
+            "turnPlanQuantityId": "result0",
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "request0"
+            ]
+          }
+        },
+        {
+          "id": "solve1",
+          "kind": "evaluate",
+          "expressionId": "expression1",
+          "resultBinding": {
+            "turnPlanQuantityId": "result1",
+            "symbol": "T",
+            "unit": "s",
+            "evidenceFactIds": [
+              "request1"
+            ]
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A car moves at a constant speed of 8 m/s around a circular track of radius 4 m. Find its centripetal acceleration and time for one revolution.",
+      "givens": [
+        {
+          "id": "inputRadius",
+          "symbol": "r",
+          "value": 4.0,
+          "unit": "m",
+          "provenance": "given",
+          "sourceText": "radius 4 m"
+        },
+        {
+          "id": "inputRate",
+          "symbol": "v",
+          "value": 8.0,
+          "unit": "m/s",
+          "provenance": "given",
+          "sourceText": "constant speed of 8 m/s"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "result0",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        },
+        {
+          "id": "result1",
+          "symbol": "T",
+          "unit": "s"
+        }
+      ],
+      "derived": [
+        {
+          "id": "result0",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 16,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        },
+        {
+          "id": "result1",
+          "symbol": "T",
+          "unit": "s",
+          "value": 3.141592653589793,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        }
+      ],
+      "qualitativeClaims": [],
+      "assumptions": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "oracle": {
+      "r": 4,
+      "v": 8,
+      "omega": 2,
+      "a_c": 16,
+      "requested": {
+        "solve0": 16,
+        "solve1": 3.141592653589793
+      },
+      "sense": null
+    }
+  },
+  {
+    "id": "holdout-centimetres",
+    "question": "A bead moves at a constant speed of 40 cm/s in a circle of radius 2 cm. Find its angular speed and centripetal acceleration.",
+    "rawIR": {
+      "facts": [
+        {
+          "id": "radius",
+          "kind": "given",
+          "statement": "radius 2 cm",
+          "quote": "radius 2 cm"
+        },
+        {
+          "id": "rate",
+          "kind": "given",
+          "statement": "constant speed of 40 cm/s",
+          "quote": "constant speed of 40 cm/s"
+        },
+        {
+          "id": "request0",
+          "kind": "requested",
+          "statement": "angular speed",
+          "quote": "angular speed"
+        },
+        {
+          "id": "request1",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "bead",
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "radius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "expression0",
+          "valueType": "scalar",
+          "expr": "(40*0.01)/(2*0.01)",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        },
+        {
+          "id": "expression1",
+          "valueType": "scalar",
+          "expr": "(40*0.01)^2/(2*0.01)",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "motion",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "solve0",
+          "kind": "evaluate",
+          "expressionId": "expression0",
+          "resultBinding": {
+            "turnPlanQuantityId": "result0",
+            "symbol": "omega",
+            "unit": "rad/s",
+            "evidenceFactIds": [
+              "request0"
+            ]
+          }
+        },
+        {
+          "id": "solve1",
+          "kind": "evaluate",
+          "expressionId": "expression1",
+          "resultBinding": {
+            "turnPlanQuantityId": "result1",
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "request1"
+            ]
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A bead moves at a constant speed of 40 cm/s in a circle of radius 2 cm. Find its angular speed and centripetal acceleration.",
+      "givens": [
+        {
+          "id": "inputRadius",
+          "symbol": "r",
+          "value": 2.0,
+          "unit": "cm",
+          "provenance": "given",
+          "sourceText": "radius 2 cm"
+        },
+        {
+          "id": "inputRate",
+          "symbol": "v",
+          "value": 40.0,
+          "unit": "cm/s",
+          "provenance": "given",
+          "sourceText": "constant speed of 40 cm/s"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "result0",
+          "symbol": "omega",
+          "unit": "rad/s"
+        },
+        {
+          "id": "result1",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        }
+      ],
+      "derived": [
+        {
+          "id": "result0",
+          "symbol": "omega",
+          "unit": "rad/s",
+          "value": 20,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        },
+        {
+          "id": "result1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 8,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        }
+      ],
+      "qualitativeClaims": [],
+      "assumptions": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "oracle": {
+      "r": 0.02,
+      "v": 0.4,
+      "omega": 20,
+      "a_c": 8,
+      "requested": {
+        "solve0": 20,
+        "solve1": 8
+      },
+      "sense": null
+    }
+  },
+  {
+    "id": "holdout-fraction-period",
+    "question": "A particle moves in a horizontal circle of radius 1/2 m with a period of 4 s. Find its speed and centripetal acceleration.",
+    "rawIR": {
+      "facts": [
+        {
+          "id": "radius",
+          "kind": "given",
+          "statement": "radius 1/2 m",
+          "quote": "radius 1/2 m"
+        },
+        {
+          "id": "rate",
+          "kind": "given",
+          "statement": "period of 4 s",
+          "quote": "period of 4 s"
+        },
+        {
+          "id": "request0",
+          "kind": "requested",
+          "statement": "speed",
+          "quote": "speed"
+        },
+        {
+          "id": "request1",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "particle",
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "horizontal circle",
+          "evidenceFactIds": [
+            "radius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "expression0",
+          "valueType": "scalar",
+          "expr": "2*pi*0.5/4",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        },
+        {
+          "id": "expression1",
+          "valueType": "scalar",
+          "expr": "(2*pi*0.5/4)^2/0.5",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "motion",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "solve0",
+          "kind": "evaluate",
+          "expressionId": "expression0",
+          "resultBinding": {
+            "turnPlanQuantityId": "result0",
+            "symbol": "v",
+            "unit": "m/s",
+            "evidenceFactIds": [
+              "request0"
+            ]
+          }
+        },
+        {
+          "id": "solve1",
+          "kind": "evaluate",
+          "expressionId": "expression1",
+          "resultBinding": {
+            "turnPlanQuantityId": "result1",
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "request1"
+            ]
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A particle moves in a horizontal circle of radius 1/2 m with a period of 4 s. Find its speed and centripetal acceleration.",
+      "givens": [
+        {
+          "id": "inputRadius",
+          "symbol": "r",
+          "value": 0.5,
+          "unit": "m",
+          "provenance": "given",
+          "sourceText": "radius 1/2 m"
+        },
+        {
+          "id": "inputRate",
+          "symbol": "T",
+          "value": 4.0,
+          "unit": "s",
+          "provenance": "given",
+          "sourceText": "period of 4 s"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "result0",
+          "symbol": "v",
+          "unit": "m/s"
+        },
+        {
+          "id": "result1",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        }
+      ],
+      "derived": [
+        {
+          "id": "result0",
+          "symbol": "v",
+          "unit": "m/s",
+          "value": 0.7853981633974483,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        },
+        {
+          "id": "result1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 1.2337005501361697,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        }
+      ],
+      "qualitativeClaims": [],
+      "assumptions": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "oracle": {
+      "r": 0.5,
+      "v": 0.7853981633974483,
+      "omega": 1.5707963267948966,
+      "a_c": 1.2337005501361697,
+      "requested": {
+        "solve0": 0.7853981633974483,
+        "solve1": 1.2337005501361697
+      },
+      "sense": null
+    }
+  },
+  {
+    "id": "holdout-equal-values",
+    "question": "A body moves anticlockwise at a constant speed of 2 m/s in a circle of radius 2 m. Find its angular speed and centripetal acceleration.",
+    "rawIR": {
+      "facts": [
+        {
+          "id": "radius",
+          "kind": "given",
+          "statement": "radius 2 m",
+          "quote": "radius 2 m"
+        },
+        {
+          "id": "rate",
+          "kind": "given",
+          "statement": "constant speed of 2 m/s",
+          "quote": "constant speed of 2 m/s"
+        },
+        {
+          "id": "request0",
+          "kind": "requested",
+          "statement": "angular speed",
+          "quote": "angular speed"
+        },
+        {
+          "id": "request1",
+          "kind": "requested",
+          "statement": "centripetal acceleration",
+          "quote": "centripetal acceleration"
+        }
+      ],
+      "entities": [
+        {
+          "id": "actor",
+          "kind": "body",
+          "label": "body",
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        },
+        {
+          "id": "path",
+          "kind": "curve",
+          "label": "circle",
+          "evidenceFactIds": [
+            "radius"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "expression0",
+          "valueType": "scalar",
+          "expr": "2/2",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        },
+        {
+          "id": "expression1",
+          "valueType": "scalar",
+          "expr": "2^2/2",
+          "evidenceFactIds": [
+            "radius",
+            "rate"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "motion",
+          "kind": "conceptual",
+          "entityIds": [
+            "actor",
+            "path"
+          ],
+          "evidenceFactIds": [
+            "rate",
+            "radius"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "solve0",
+          "kind": "evaluate",
+          "expressionId": "expression0",
+          "resultBinding": {
+            "turnPlanQuantityId": "result0",
+            "symbol": "omega",
+            "unit": "rad/s",
+            "evidenceFactIds": [
+              "request0"
+            ]
+          }
+        },
+        {
+          "id": "solve1",
+          "kind": "evaluate",
+          "expressionId": "expression1",
+          "resultBinding": {
+            "turnPlanQuantityId": "result1",
+            "symbol": "a_c",
+            "unit": "m/s^2",
+            "evidenceFactIds": [
+              "request1"
+            ]
+          }
+        }
+      ]
+    },
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A body moves anticlockwise at a constant speed of 2 m/s in a circle of radius 2 m. Find its angular speed and centripetal acceleration.",
+      "givens": [
+        {
+          "id": "inputRadius",
+          "symbol": "r",
+          "value": 2.0,
+          "unit": "m",
+          "provenance": "given",
+          "sourceText": "radius 2 m"
+        },
+        {
+          "id": "inputRate",
+          "symbol": "v",
+          "value": 2.0,
+          "unit": "m/s",
+          "provenance": "given",
+          "sourceText": "constant speed of 2 m/s"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "result0",
+          "symbol": "omega",
+          "unit": "rad/s"
+        },
+        {
+          "id": "result1",
+          "symbol": "a_c",
+          "unit": "m/s^2"
+        }
+      ],
+      "derived": [
+        {
+          "id": "result0",
+          "symbol": "omega",
+          "unit": "rad/s",
+          "value": 1,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        },
+        {
+          "id": "result1",
+          "symbol": "a_c",
+          "unit": "m/s^2",
+          "value": 2,
+          "provenance": "derived",
+          "dependsOn": [
+            "inputRadius",
+            "inputRate"
+          ]
+        }
+      ],
+      "qualitativeClaims": [],
+      "assumptions": [],
+      "lawIds": [
+        "uniform_circular_motion"
+      ],
+      "visualRequirement": "required"
+    },
+    "oracle": {
+      "r": 2,
+      "v": 2,
+      "omega": 1,
+      "a_c": 2,
+      "requested": {
+        "solve0": 1,
+        "solve1": 2
+      },
+      "sense": "anticlockwise"
+    }
+  }
+]
