@@ -1,0 +1,4248 @@
+[
+  {
+    "name": "Plan-coincidental-claim",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          },
+          {
+            "id": "coincidence",
+            "claim": "t = gap / (v_B - v_AB - v_AB)",
+            "expected": true,
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d2",
+              "d3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "Plan-coincidental-sourceText",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = gap / (v_B - v_AB - v_AB)",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "Plan-coincidental-hint",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required",
+        "teachingSequenceHints": [
+          "t = gap / (v_B - v_AB - v_AB)"
+        ]
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "Plan-dimensionally-false-equation",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          },
+          {
+            "id": "coincidence",
+            "claim": "t = v_A + (v_B - v_B)",
+            "expected": true
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "Plan-speed-prose-with-negative-velocity",
+    "input": {
+      "question": "Two cars A and B move towards each other at 12 m/s and 8 m/s. They are 240 m apart. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two cars A and B move towards each other at 12 m/s and 8 m/s. They are 240 m apart. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "a",
+            "symbol": "v_A",
+            "value": 12,
+            "unit": "m/s",
+            "provenance": "given"
+          },
+          {
+            "id": "b",
+            "symbol": "v_B",
+            "value": 8,
+            "unit": "m/s",
+            "provenance": "given"
+          }
+        ],
+        "derived": [
+          {
+            "id": "time",
+            "symbol": "t",
+            "value": 12,
+            "unit": "s",
+            "provenance": "derived"
+          },
+          {
+            "id": "distance",
+            "symbol": "d_A",
+            "value": 144,
+            "unit": "m",
+            "provenance": "derived"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "time",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "distance",
+            "symbol": "d_A",
+            "unit": "m"
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "speed",
+            "claim": "B has speed -8 m/s",
+            "expected": true
+          }
+        ],
+        "lawIds": [
+          "uniform_motion"
+        ],
+        "assumptions": [
+          "Motion is at constant velocity on one straight line."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "schemaVersion": "problem-ir/v1",
+        "id": "headon",
+        "question": "Two cars A and B move towards each other at 12 m/s and 8 m/s. They are 240 m apart. Find the time for A to catch B and the distance travelled by A.",
+        "facts": [
+          {
+            "id": "setup",
+            "kind": "given",
+            "statement": "Two cars A and B move towards each other at 12 m/s and 8 m/s. They are 240 m apart. Find the time for A to catch B and the distance travelled by A.",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 147,
+              "quote": "Two cars A and B move towards each other at 12 m/s and 8 m/s. They are 240 m apart. Find the time for A to catch B and the distance travelled by A."
+            }
+          },
+          {
+            "id": "query",
+            "kind": "requested",
+            "statement": "Find encounter time and distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 0,
+              "end": 147,
+              "quote": "Two cars A and B move towards each other at 12 m/s and 8 m/s. They are 240 m apart. Find the time for A to catch B and the distance travelled by A."
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "A",
+            "kind": "body",
+            "label": "A",
+            "evidenceFactIds": [
+              "setup"
+            ]
+          },
+          {
+            "id": "B",
+            "kind": "body",
+            "label": "B",
+            "evidenceFactIds": [
+              "setup"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "timeExpr",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 240
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "number",
+                  "value": 12
+                },
+                "right": {
+                  "kind": "number",
+                  "value": -8
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "setup",
+              "query"
+            ]
+          },
+          {
+            "id": "distanceExpr",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 12
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "number",
+                  "value": 240
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "-",
+                  "left": {
+                    "kind": "number",
+                    "value": 12
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": -8
+                  }
+                }
+              }
+            },
+            "evidenceFactIds": [
+              "setup",
+              "query"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "motion",
+            "kind": "conceptual",
+            "entityIds": [
+              "A",
+              "B"
+            ],
+            "evidenceFactIds": [
+              "setup"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "timeRequest",
+            "kind": "evaluate",
+            "expressionId": "timeExpr",
+            "resultBinding": {
+              "turnPlanQuantityId": "time",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "query"
+              ]
+            }
+          },
+          {
+            "id": "distanceRequest",
+            "kind": "evaluate",
+            "expressionId": "distanceExpr",
+            "resultBinding": {
+              "turnPlanQuantityId": "distance",
+              "symbol": "d_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "query"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "IR-conversion-hidden-field",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "conversion",
+            "valueType": "scalar",
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 72
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 1000,
+                  "extra": {
+                    "kind": "number",
+                    "value": 999
+                  }
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 3600
+              }
+            },
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fTime"
+            ]
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          },
+          {
+            "id": "conversionRequest",
+            "kind": "evaluate",
+            "expressionId": "conversion",
+            "resultBinding": {
+              "turnPlanQuantityId": "d1",
+              "symbol": "v_A",
+              "unit": "m/s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "Plan-unbound-numeric-unknown",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "unit": "m/s"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "Plan-foreign-ownfield",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given",
+            "acceleration": {
+              "value": 999,
+              "unit": "m/s^2"
+            }
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "IR-fact-foreign-ownfield",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            },
+            "acceleration": {
+              "value": 999,
+              "unit": "m/s^2"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ]
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  },
+  {
+    "name": "IR-entity-foreign-ownfield",
+    "input": {
+      "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+      "turnPlan": {
+        "schemaVersion": "turn-plan/v3",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A.",
+        "givens": [
+          {
+            "id": "g1",
+            "symbol": "v_A",
+            "value": 72,
+            "unit": "km/h",
+            "sourceText": "A moves at 72 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g2",
+            "symbol": "v_B",
+            "value": 54,
+            "unit": "km/h",
+            "sourceText": "B moves at 54 km/h",
+            "provenance": "given"
+          },
+          {
+            "id": "g3",
+            "symbol": "d0",
+            "value": 100,
+            "unit": "m",
+            "sourceText": "A is initially 100 m behind B",
+            "provenance": "given"
+          }
+        ],
+        "unknowns": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "unit": "s"
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "unit": "m"
+          }
+        ],
+        "derived": [
+          {
+            "id": "u1",
+            "symbol": "t",
+            "value": 20,
+            "unit": "s",
+            "sourceText": "t = d0/v_rel = 100/5 = 20 s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "u2",
+            "symbol": "s_A",
+            "value": 400,
+            "unit": "m",
+            "sourceText": "s_A = v_A*t = 20*20 = 400 m",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "d1",
+            "symbol": "v_A",
+            "value": 20,
+            "unit": "m/s",
+            "sourceText": "72 km/h = 72*1000/3600 = 20 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g1"
+            ]
+          },
+          {
+            "id": "d2",
+            "symbol": "v_B",
+            "value": 15,
+            "unit": "m/s",
+            "sourceText": "54 km/h = 54*1000/3600 = 15 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "g2"
+            ]
+          },
+          {
+            "id": "d3",
+            "symbol": "v_rel",
+            "value": 5,
+            "unit": "m/s",
+            "sourceText": "v_rel = v_A - v_B = 20 - 15 = 5 m/s",
+            "provenance": "derived",
+            "dependsOn": [
+              "d1",
+              "d2"
+            ]
+          }
+        ],
+        "qualitativeClaims": [
+          {
+            "id": "c1",
+            "claim": "A is faster than B, so the gap closes at the relative speed v_A - v_B.",
+            "expected": "v_rel = v_A - v_B = 5 m/s > 0, so A eventually catches B.",
+            "relatedQuantityIds": [
+              "d1",
+              "d2",
+              "d3"
+            ]
+          },
+          {
+            "id": "c2",
+            "claim": "Catch-up time is the initial gap divided by relative speed.",
+            "expected": "t = d0/(v_A - v_B) = 100/5 = 20 s",
+            "relatedQuantityIds": [
+              "u1",
+              "g3",
+              "d3"
+            ]
+          },
+          {
+            "id": "c3",
+            "claim": "Distance travelled by A during the catch-up time.",
+            "expected": "s_A = v_A*t = 20*20 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d1",
+              "u1"
+            ]
+          },
+          {
+            "id": "c4",
+            "claim": "Consistency check using B's motion: B travels 15*20 = 300 m, and 400 = 300 + 100, matching the initial 100 m gap.",
+            "expected": "s_A = s_B + d0 = 300 + 100 = 400 m",
+            "relatedQuantityIds": [
+              "u2",
+              "d2",
+              "u1",
+              "g3"
+            ]
+          }
+        ],
+        "lawIds": [
+          "uniform_motion",
+          "relative_velocity_same_direction"
+        ],
+        "assumptions": [
+          "Both trains move at constant speeds.",
+          "Motion is along the same straight line in the same direction.",
+          "The 100 m gap is measured along the direction of motion.",
+          "A verified illustration is required by the question's spatial or explicit visual request."
+        ],
+        "visualRequirement": "required"
+      },
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fSpeedA",
+            "kind": "given",
+            "statement": "Train A speed is 72 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 49,
+              "end": 56,
+              "quote": "72 km/h"
+            }
+          },
+          {
+            "id": "fSpeedB",
+            "kind": "given",
+            "statement": "Train B speed is 54 km/h",
+            "evidence": {
+              "source": "question",
+              "start": 61,
+              "end": 68,
+              "quote": "54 km/h"
+            }
+          },
+          {
+            "id": "fGap",
+            "kind": "given",
+            "statement": "A is initially 100 m behind B",
+            "evidence": {
+              "source": "question",
+              "start": 98,
+              "end": 112,
+              "quote": "100 m behind B"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "requested",
+            "statement": "Find the time for A to catch B",
+            "evidence": {
+              "source": "question",
+              "start": 119,
+              "end": 144,
+              "quote": "the time for A to catch B"
+            }
+          },
+          {
+            "id": "fDist",
+            "kind": "requested",
+            "statement": "Find the distance travelled by A",
+            "evidence": {
+              "source": "question",
+              "start": 149,
+              "end": 176,
+              "quote": "the distance travelled by A"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "trainA",
+            "kind": "body",
+            "label": "train A",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fGap"
+            ],
+            "velocity": {
+              "value": 999,
+              "unit": "m/s"
+            }
+          },
+          {
+            "id": "trainB",
+            "kind": "body",
+            "label": "train B",
+            "evidenceFactIds": [
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eTime",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fTime"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "number",
+                "value": 100
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "eDist",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap",
+              "fDist"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 100
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 72
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 54
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 1000
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3600
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iMotion",
+            "kind": "conceptual",
+            "entityIds": [
+              "trainA",
+              "trainB"
+            ],
+            "evidenceFactIds": [
+              "fSpeedA",
+              "fSpeedB",
+              "fGap"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sTime",
+            "kind": "evaluate",
+            "expressionId": "eTime",
+            "resultBinding": {
+              "turnPlanQuantityId": "u1",
+              "symbol": "t",
+              "unit": "s",
+              "evidenceFactIds": [
+                "fTime"
+              ]
+            }
+          },
+          {
+            "id": "sDist",
+            "kind": "evaluate",
+            "expressionId": "eDist",
+            "resultBinding": {
+              "turnPlanQuantityId": "u2",
+              "symbol": "s_A",
+              "unit": "m",
+              "evidenceFactIds": [
+                "fDist"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "Two trains A and B move in the same direction at 72 km/h and 54 km/h respectively. A is initially 100 m behind B. Find the time for A to catch B and the distance travelled by A."
+      }
+    }
+  }
+]

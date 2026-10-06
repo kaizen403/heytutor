@@ -1,11 +1,11 @@
 import { relativeMotionDocument } from "../synthesize/relativeMotionScene";
 import { snapshotMathSourceData } from "../compile/mathSourceData";
 import { validateTurnPlanV3, type TurnPlanV3 } from "../contracts/contractsV3";
-import { validateProblemIR, type ExpressionNodeIR, type ProblemFact, type ProblemIR } from "../ir/problemIR";
+import { validateProblemIR, type ProblemFact, type ProblemIR } from "../ir/problemIR";
 import type { SceneDocument, SceneIssue } from "../types";
 import { motionSymbolKey, motionUnitFactor, relativeMotionBindings, type MotionDimension } from "./motionPlanAgreement";
 import { motionRationalNumber, relativeMotionSource, relativeMotionCue, relativeMotionSourceEntityBindings, type RelativeMotionSource } from "./relativeMotionSource";
-import { evaluateMotionArithmetic, motionConstant, motionOperation, motionVariable, sameMotionFormula, type MotionFormula } from "./relativeMotionAlgebra";
+import { evaluateMotionArithmetic, motionFormulations, motionRoleFormula, sameDimensionalMotionFormula, validateMotionArithmeticShape, motionConstant, motionOperation, motionVariable, sameMotionFormula, type MotionFormula } from "./relativeMotionAlgebra";
 import { proveMotionProse, proveMotionQuantityText } from "./relativeMotionProse";
 export interface MotionRole {
   key: string;
@@ -137,45 +137,78 @@ function queryRoles(fact: ProblemFact, programme: MotionCallerProgramme): Motion
     keys.push(`v${programme.source.subject.name.toLowerCase()}${programme.source.reference.name.toLowerCase()}`);
   return keys.flatMap(key => programme.roles.get(key) ? [programme.roles.get(key)!] : []);
 }
-/** Atom identities are source roles, not a bag of numerically allowed values.
- * Conversions are admitted only as a complete, exact unit conversion subtree. */
-function formulations(node: ExpressionNodeIR, programme: MotionCallerProgramme, evidence: Set<string>): MotionFormula[] {
-  const fields = node.kind === "number" ? ["kind","value"] : node.kind === "variable" ? ["kind","name"] : node.kind === "unary" ? ["kind","operator","operand"] : node.kind === "binary" ? ["kind","operator","left","right"] : [];
-  if (!fields.length || Object.keys(node).some(key=>!fields.includes(key))) throw Error("unsupported original AST fields");
-  if (node.kind === "variable") {
-    const role = programme.roles.get(motionSymbolKey(node.name));
-    return role && role.bases.every(key => evidence.has(key)) ? [role.formula] : [];
+function closedFields(value: object, fields: readonly string[]): void {
+  if (Object.keys(value).some((key) => !fields.includes(key)))
+    throw Error("unsupported original own fields");
+}
+/** Original fields are inspected before any semantic candidate shortcuts. */
+function checkOriginalFields(plan: TurnPlanV3, problem: ProblemIR): void {
+  closedFields(plan, [
+    "schemaVersion",
+    "question",
+    "givens",
+    "derived",
+    "unknowns",
+    "qualitativeClaims",
+    "lawIds",
+    "assumptions",
+    "visualRequirement",
+    "teachingSequenceHints",
+  ]);
+  for (const row of [...plan.givens, ...plan.derived])
+    closedFields(row, [
+      "id",
+      "symbol",
+      "value",
+      "unit",
+      "sign",
+      "sourceText",
+      "provenance",
+      "dependsOn",
+      "uncertainty",
+    ]);
+  for (const row of plan.unknowns) closedFields(row, ["id", "symbol", "unit"]);
+  for (const claim of plan.qualitativeClaims)
+    closedFields(claim, [
+      "id",
+      "claim",
+      "expected",
+      "relatedQuantityIds",
+      "relatedEntityHints",
+    ]);
+  closedFields(problem, [
+    "schemaVersion",
+    "id",
+    "question",
+    "facts",
+    "entities",
+    "expressions",
+    "constraints",
+    "representationIntents",
+    "solveRequests",
+  ]);
+  for (const fact of problem.facts) {
+    closedFields(fact, ["id", "kind", "statement", "evidence"]);
+    closedFields(fact.evidence, ["source", "start", "end", "quote"]);
   }
-  const candidates: MotionFormula[] = [];
-  if (node.kind === "number") {
-    for (const role of [...programme.bases, programme.roles.get("gap")!]) {
-      if (!role.bases.every(key => evidence.has(key)))
-        continue;
-      if (near(node.value, role.si))
-        candidates.push(role.formula);
-      else if (role.dimension === "velocity" && role.si < 0 && near(node.value, -role.si))
-        candidates.push(motionOperation("*", motionConstant(-1), role.formula));
-    }
-    return candidates;
+  for (const entity of problem.entities)
+    closedFields(entity, ["id", "kind", "label", "evidenceFactIds"]);
+  for (const intent of problem.representationIntents)
+    closedFields(intent, ["id", "kind", "entityIds", "evidenceFactIds"]);
+  for (const expression of problem.expressions) {
+    closedFields(expression, ["id", "valueType", "root", "evidenceFactIds"]);
+    validateMotionArithmeticShape(expression.root);
   }
-  // The conversion is part of the source reader's unit contract, not a free
-  // numerical scalar allowance. Arbitrary constant subexpressions cannot fold.
-  if (node.kind === "binary" && node.operator === "/" && node.left.kind === "binary" && node.left.operator === "*" && node.left.left.kind === "number" && node.left.right.kind === "number" && node.left.right.value === 1000 && node.right.kind === "number" && node.right.value === 3600) {
-    for (const role of programme.bases)
-      if (role.dimension === "velocity" && evidence.has(role.key) && /km\/h|kmph/i.test(role.sourceText ?? "") && near(node.left.left.value * 1000 / 3600, Math.abs(role.si)))
-        candidates.push(role.si < 0 ? motionOperation("*", motionConstant(-1), role.formula) : role.formula);
+  for (const request of problem.solveRequests) {
+    closedFields(request, ["id", "kind", "expressionId", "resultBinding"]);
+    if (request.resultBinding)
+      closedFields(request.resultBinding, [
+        "turnPlanQuantityId",
+        "symbol",
+        "unit",
+        "evidenceFactIds",
+      ]);
   }
-  if (node.kind === "unary")
-    return formulations(node.operand, programme, evidence).map(value => node.operator === "-" ? motionOperation("*", motionConstant(-1), value) : value);
-  if (node.kind === "binary") {
-    for (const a of formulations(node.left, programme, evidence))
-      for (const b of formulations(node.right, programme, evidence)) {
-        candidates.push(motionOperation(node.operator, a, b));
-        if (candidates.length > 64)
-          throw Error("ambiguous motion formulation exceeds budget");
-      }
-  }
-  return candidates;
 }
 function checkPlan(plan: TurnPlanV3, programme: MotionCallerProgramme): void {
   const rows = [...plan.givens, ...plan.derived];
@@ -204,7 +237,7 @@ function checkPlan(plan: TurnPlanV3, programme: MotionCallerProgramme): void {
       throw Error(`unproved Plan quantity ${row.id}`);
     if (row.sign && row.sign !== "unsigned" && (row.sign === "positive" ? role.si <= 0 : row.sign === "negative" ? role.si >= 0 : !near(role.si, 0)))
       throw Error(`declared sign contradicts source role ${row.id}`);
-    if (row.sourceText && !proveMotionQuantityText(row.sourceText, role, programme))
+    if (row.sourceText !== undefined && (typeof row.sourceText !== "string" || !proveMotionQuantityText(row.sourceText, role, programme)))
       throw Error(`unproved quantity sourceText ${row.id}`);
     if (row.dependsOn?.length) {
       const dependencies = row.dependsOn.map(id => programme.roles.get(motionSymbolKey(byId.get(id)!.symbol)));
@@ -297,6 +330,7 @@ function checkProblem(problem: ProblemIR, plan: TurnPlanV3, programme: MotionCal
     throw Error("unsupported original visual obligation");
   const expressions = new Map(problem.expressions.map(expression => [expression.id, expression]));
   const boundExpressions = new Set<string>();
+  const boundUnknowns = new Set<string>();
   const rows = new Map([...plan.givens, ...plan.derived].map(row => [row.id, row]));
   for (const request of problem.solveRequests) {
     if (request.kind !== "evaluate" || !request.resultBinding)
@@ -318,7 +352,7 @@ function checkProblem(problem: ProblemIR, plan: TurnPlanV3, programme: MotionCal
     const evidence = new Set(expression.evidenceFactIds.flatMap(id => factRoles.get(id) ?? []));
     if (!role.bases.every(base => evidence.has(base)) || !binding.evidenceFactIds.every(id => expression.evidenceFactIds.includes(id)))
       throw Error("expression lacks its source/query premises");
-    if (!formulations(expression.root, programme, evidence).some(formula => sameMotionFormula(formula, role.formula)))
+    if (!motionFormulations(expression.root, programme.roles, [...programme.bases, programme.roles.get("gap")!], evidence).some(formula => sameDimensionalMotionFormula(formula, motionRoleFormula(role))))
       throw Error("unproved original formulation");
     const variables = new Map([...programme.roles].map(([key, value]) => [key, value.si]));
     for (const quantity of rows.values())
@@ -327,7 +361,23 @@ function checkProblem(problem: ProblemIR, plan: TurnPlanV3, programme: MotionCal
     if (!near(evaluated * unit.factor, role.si) || !near(evaluated, row.value))
       throw Error("original request result contradicts source or Plan");
     boundExpressions.add(expression.id);
+    if (
+      plan.unknowns.some((unknown) => unknown.id === binding.turnPlanQuantityId)
+    ) {
+      const derived = plan.derived.find(
+        (quantity) => quantity.id === binding.turnPlanQuantityId,
+      );
+      if (
+        !derived ||
+        motionSymbolKey(derived.symbol) !== motionSymbolKey(binding.symbol) ||
+        derived.unit !== binding.unit
+      )
+        throw Error("original unknown requires its original derived identity");
+      boundUnknowns.add(binding.turnPlanQuantityId);
+    }
   }
+  if (plan.unknowns.some((unknown) => !boundUnknowns.has(unknown.id)))
+    throw Error("unbound original numeric unknown");
   if (problem.expressions.some(expression => !boundExpressions.has(expression.id)))
     throw Error("unproved extra original expression");
 }
@@ -350,6 +400,7 @@ export function relativeMotionCallerIssues(question: string, rawProblem: unknown
     if (!relativeMotionSourceEntityBindings(captured.question, checkedProblem.problem))
       throw Error("unjoined original source actor aliases");
     const programme = motionCallerProgramme(source.source);
+    checkOriginalFields(checkedPlan.plan, checkedProblem.problem);
     checkPlan(checkedPlan.plan, programme);
     checkProblem(checkedProblem.problem, checkedPlan.plan, programme);
     for (const actualDocument of [relativeMotionDocument(captured.question, source.source), ...(captured.document ? [captured.document] : [])]) {

@@ -1,5 +1,16 @@
 import type { MotionCallerProgramme, MotionRole } from "./relativeMotionCallerAuthority";
-import { evaluateMotionArithmetic, readMotionArithmetic, sameMotionFormula } from "./relativeMotionAlgebra";
+import {
+  evaluateMotionArithmetic,
+  motionFormulations,
+  motionRoleFormula,
+  readMotionArithmetic,
+  sameDimensionalMotionFormula,
+  sameMotionDimensions,
+  sameMotionFormula,
+  validateMotionArithmeticShape,
+  motionDimensions,
+  type DimensionalMotionFormula,
+} from "./relativeMotionAlgebra";
 import { motionSymbolKey, motionUnitFactor } from "./motionPlanAgreement";
 import { motionRationalNumber } from "./relativeMotionSource";
 const near = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
@@ -23,60 +34,97 @@ function measured(text: string): {
   const conversion = match && motionUnitFactor(match[2]);
   return match && conversion ? { value: Number(match[1]) * conversion.factor, dimension: conversion.dimension } : null;
 }
-function roleValue(text: string, role: MotionRole, programme: MotionCallerProgramme): boolean {
+function arithmeticFormulations(
+  text: string,
+  programme: MotionCallerProgramme,
+): DimensionalMotionFormula[] {
+  const node = readMotionArithmetic(text);
+  validateMotionArithmeticShape(node);
+  return motionFormulations(node, programme.roles, [
+    ...programme.roles.values(),
+  ]);
+}
+function measuredFormulations(
+  value: number,
+  dimension: string,
+  programme: MotionCallerProgramme,
+): DimensionalMotionFormula[] {
+  return [...programme.roles.values()]
+    .filter((role) => role.dimension === dimension && near(role.si, value))
+    .map(motionRoleFormula);
+}
+function roleValue(
+  text: string,
+  role: MotionRole,
+  programme: MotionCallerProgramme,
+): boolean {
   const measurement = measured(text);
   if (measurement)
-    return measurement.dimension === role.dimension && near(measurement.value, role.si);
-  return near(arithmetic(text, programme), role.si);
+    return (
+      measurement.dimension === role.dimension &&
+      near(measurement.value, role.si)
+    );
+  return (
+    near(arithmetic(text, programme), role.si) &&
+    arithmeticFormulations(text, programme).some((formula) =>
+      sameDimensionalMotionFormula(formula, motionRoleFormula(role)),
+    )
+  );
 }
 function equation(text: string, programme: MotionCallerProgramme): boolean {
   const parts = text.trim().split(/\s*=\s*/);
-  if (parts.length < 2)
-    return false;
-  const first = programme.roles.get(motionSymbolKey(parts[0]));
-  let dimension = first?.dimension;
-  let expected = first?.si;
-  // Literal conversion chains use SI at the ends, and the canonical SI
-  // arithmetic in the middle. The named role, when present, remains binding.
+  if (parts.length < 2) return false;
+  let common: DimensionalMotionFormula[] | undefined;
+  let expected: number | undefined;
+  // Each clause proves a role polynomial AND a physical dimension. Numeric
+  // clauses substitute source roles; a named operand never borrows another
+  // role merely because both happen to have the same value in this question.
   for (const part of parts) {
     const measurement = measured(part);
     const role = programme.roles.get(motionSymbolKey(part));
     const trailing = new RegExp(`^(.+?)\\s+(${unit})$`, "i").exec(part);
-    let value: number;
+    let value: number, candidates: DimensionalMotionFormula[];
     if (measurement) {
       value = measurement.value;
-      if (dimension && measurement.dimension !== dimension)
-        return false;
-      dimension = measurement.dimension as typeof dimension;
-    }
-    else if (role) {
+      candidates = measuredFormulations(
+        value,
+        measurement.dimension,
+        programme,
+      );
+    } else if (role) {
       value = role.si;
-      if (dimension && role.dimension !== dimension)
-        return false;
-      dimension = role.dimension;
-    }
-    else if (trailing) {
+      candidates = [motionRoleFormula(role)];
+    } else if (trailing) {
       const conversion = motionUnitFactor(trailing[2]);
-      if (!conversion)
-        return false;
+      if (!conversion) return false;
       value = arithmetic(trailing[1]!, programme) * conversion.factor;
-      if (dimension && conversion.dimension !== dimension)
-        return false;
-      dimension = conversion.dimension;
-    }
-    else
+      candidates = arithmeticFormulations(trailing[1]!, programme).filter(
+        (formula) =>
+          sameMotionDimensions(
+            formula.dimensions,
+            motionDimensions(conversion.dimension),
+          ),
+      );
+      // Compound operands are SI source roles. Native unit changes need the
+      // complete supported conversion subtree, never an implicit rescaling.
+      if (conversion.factor !== 1) return false;
+    } else {
       value = arithmetic(part, programme);
-    if (expected === undefined)
-      expected = value;
-    if (!near(value, expected))
-      return false;
+      candidates = arithmeticFormulations(part, programme);
+    }
+    if (expected === undefined) expected = value;
+    if (!near(value, expected)) return false;
+    common =
+      common === undefined
+        ? candidates
+        : common.filter((formula) =>
+            candidates.some((candidate) =>
+              sameDimensionalMotionFormula(formula, candidate),
+            ),
+          );
+    if (!common.length) return false;
   }
-  // A true arithmetic tautology about foreign values is still an unsupported
-  // obligation. Every numeric leaf must belong to the owning source programme
-  // or its exact SI conversion (1000/3600 only in that conversion).
-  const numbers = [...text.matchAll(/(?<![A-Za-z_])(?:\d+(?:\.\d+)?|\.\d+)/g)].map(match => Number(match[0]));
-  const allowed = [...programme.roles.values()].flatMap(role => [Math.abs(role.si), ...(role.dimension === "velocity" ? [Math.abs(role.si) * 3.6] : [])]);
-  return numbers.every(value => allowed.some(v => near(value, v)) || [1000, 3600].includes(value) && /\*1000\/3600/.test(text.replace(/\s/g, "")));
+  return Boolean(common?.length);
 }
 /** Finite semantic clause grammar, owned by the motion source programme.
  * Unsupported prose is declined, including prose without numeric literals.
@@ -90,9 +138,22 @@ export function proveMotionProse(raw: string, programme: MotionCallerProgramme, 
       return false;
     const roles = programme.roles;
     let match: RegExpExecArray | null;
-    if ((match = new RegExp(`^(?:(?:train|body|point|car|observer) )?([A-Z]) (?:moves at|speed is|has speed|travels at|velocity is) (${number}\\s*${unit})(?: in the ground frame)?$`, "i").exec(text))) {
-      const role = roles.get(`v${match[1]!.toLowerCase()}`);
-      return Boolean(role && roleValue(match[2]!, role, programme));
+    if (
+      (match = new RegExp(
+        `^(?:(?:train|body|point|car|observer) )?([A-Z]) (moves at|speed is|has speed|travels at|velocity is) (${number}\\s*${unit})(?: in the ground frame)?$`,
+        "i",
+      ).exec(text))
+    ) {
+      const role = roles.get(`v${match[1]!.toLowerCase()}`),
+        measurement = measured(match[3]!);
+      const magnitude = /speed/i.test(match[2]!);
+      return Boolean(
+        role &&
+        measurement &&
+        measurement.dimension === "velocity" &&
+        (!magnitude || measurement.value >= 0) &&
+        near(measurement.value, magnitude ? Math.abs(role.si) : role.si),
+      );
     }
     if ((match = new RegExp(`^(?:(?:train|body|point|car|observer) )?([A-Z]): (${number}\\s*${unit}) in (?:the )?ground frame$`, "i").exec(text))) {
       const role = roles.get(`v${match[1]!.toLowerCase()}`);
@@ -104,7 +165,7 @@ export function proveMotionProse(raw: string, programme: MotionCallerProgramme, 
     }
     if ((match = /^([A-Z]) is faster than ([A-Z]), so the gap closes at the relative speed (.+)$/i.exec(text))) {
       const a = roles.get(`v${match[1]!.toLowerCase()}`), b = roles.get(`v${match[2]!.toLowerCase()}`);
-      return Boolean(a && b && a.si > b.si && b.si >= 0 && programme.source.encounter.kind === "future" && near(arithmetic(match[3]!, programme), a.si - b.si));
+      return Boolean(a && b && a.si > b.si && b.si >= 0 && programme.source.encounter.kind === "future" && roleValue(match[3]!, roles.get("vrel")!, programme));
     }
     if ((match = /^(.+) > 0, so ([A-Z]) eventually catches ([A-Z])$/i.exec(text))) {
       return programme.source.encounter.kind === "future" && match[2] === programme.source.subject.name && match[3] === programme.source.reference.name && equation(match[1]!, programme) && roles.get("vrel")!.si > 0;
@@ -116,7 +177,7 @@ export function proveMotionProse(raw: string, programme: MotionCallerProgramme, 
     if ((match = /^Consistency check using ([A-Z])'s motion: ([A-Z]) travels (.+), and (.+), matching the initial (.+) gap$/i.exec(text))) {
       const role = roles.get(`d${match[1]!.toLowerCase()}`), gap = roles.get("gap");
       const travel = match[3]!.replace(/\s+m$/i, "");
-      return Boolean(role && gap && match[1] === match[2] && near(arithmetic(travel.split("=")[0]!, programme), role.si) && equation(match[3]!, programme) && equation(match[4]!, programme) && roleValue(match[5]!, gap, programme));
+      return Boolean(role && gap && match[1] === match[2] && roleValue(travel.split("=")[0]!, role, programme) && equation(match[3]!, programme) && equation(match[4]!, programme) && roleValue(match[5]!, gap, programme));
     }
     // Qualitative assumptions assert only the admitted model, frame and order.
     if (/^(?:Both trains move at constant speeds|Motion is at constant velocity on one straight line|Motion is along the same straight line in the same direction|A verified illustration is required by the question's spatial or explicit visual request)$/i.test(text)) {
