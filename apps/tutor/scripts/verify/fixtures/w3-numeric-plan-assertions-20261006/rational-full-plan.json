@@ -1,0 +1,186 @@
+{
+  "label": "authored rational coefficient 3/2, all supported known-field semantics",
+  "positive": true,
+  "question": "Coefficient of x^2 in the expansion of (1/2+x)^3 is",
+  "artifacts": {
+    "schemaVersion": "scene-artifacts/v3",
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Coefficient of x^2 in the expansion of (1/2+x)^3 is",
+      "givens": [
+        {
+          "id": "exponent",
+          "symbol": "n",
+          "value": 3,
+          "unit": "1",
+          "sign": "positive",
+          "sourceText": "(1/2+x)^3",
+          "provenance": "given",
+          "dependsOn": [],
+          "uncertainty": 0
+        }
+      ],
+      "derived": [
+        {
+          "id": "answer",
+          "symbol": "C",
+          "unit": "1",
+          "value": 1.5,
+          "provenance": "derived",
+          "sign": "positive",
+          "sourceText": "Source-verified C = 3/2",
+          "dependsOn": [
+            "exponent"
+          ],
+          "uncertainty": 0
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "answer",
+          "symbol": "C",
+          "unit": "1"
+        }
+      ],
+      "assumptions": [
+        "finite algebra only"
+      ],
+      "lawIds": [],
+      "qualitativeClaims": [
+        {
+          "id": "sign",
+          "claim": "coefficient_positive",
+          "expected": true,
+          "relatedQuantityIds": [
+            "answer"
+          ],
+          "relatedEntityHints": []
+        }
+      ],
+      "visualRequirement": "required",
+      "teachingSequenceHints": []
+    },
+    "problemIR": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "authoredRationalPolynomial",
+      "question": "Coefficient of x^2 in the expansion of (1/2+x)^3 is",
+      "facts": [
+        {
+          "id": "given",
+          "kind": "given",
+          "statement": "(1/2+x)^3",
+          "evidence": {
+            "source": "question",
+            "quote": "(1/2+x)^3",
+            "start": 39,
+            "end": 48
+          }
+        },
+        {
+          "id": "asked",
+          "kind": "requested",
+          "statement": "Coefficient of x^2 in the expansion of",
+          "evidence": {
+            "source": "question",
+            "quote": "Coefficient of x^2 in the expansion of",
+            "start": 0,
+            "end": 38
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "P",
+          "kind": "other",
+          "label": "P(x)",
+          "evidenceFactIds": [
+            "given"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "polynomial",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "^",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "number",
+                  "value": 1
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "variable",
+                "name": "x"
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 3
+            }
+          },
+          "evidenceFactIds": [
+            "given"
+          ]
+        },
+        {
+          "id": "coefficient",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 1.5
+          },
+          "evidenceFactIds": [
+            "asked"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "table",
+          "kind": "conceptual",
+          "entityIds": [
+            "P"
+          ],
+          "evidenceFactIds": [
+            "given",
+            "asked"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "coefficientAsk",
+          "kind": "evaluate",
+          "expressionId": "coefficient",
+          "resultBinding": {
+            "turnPlanQuantityId": "answer",
+            "symbol": "C",
+            "unit": "1",
+            "evidenceFactIds": [
+              "asked"
+            ]
+          }
+        }
+      ]
+    },
+    "solverResult": null,
+    "solverAuthority": null,
+    "diagramResultStatus": "text_only"
+  },
+  "expected": [
+    1.5
+  ]
+}

@@ -8,7 +8,6 @@ import {
   expressionToSafeSource,
   finiteBinomialPlanIssues,
   finiteProgressionSourceProgram,
-  hasOnlyFiniteBinomialPlanFields,
   readFiniteBinomialProgram,
   readFiniteProgressionSource,
   readScrewGaugeQuestion,
@@ -25,6 +24,7 @@ import {
   type SolverResult,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
+import { hasTypedNumericPlan, numericPlanObligationsProved, numericResultTextProved, type NumericSourceProfile } from "./numericOnlyPlanAdmission";
 
 export interface NumericOnlyAuthority {
   problemIR: ProblemIR;
@@ -44,23 +44,29 @@ export function numericOnlyAuthority(raw: unknown, question: string): NumericOnl
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const artifacts = snapshotMathSourceData(raw) as Record<string, unknown>;
     if (artifacts.schemaVersion !== SCENE_ARTIFACTS_V3_VERSION || artifacts.problemIRRejection != null
-      || !hasOnlyFiniteBinomialPlanFields(artifacts.turnPlan)) return null;
+      || !hasTypedNumericPlan(artifacts.turnPlan)) return null;
     const problem = validateProblemIR(artifacts.problemIR, question).problem;
     const plan = validateTurnPlanV3(artifacts.turnPlan, question).plan;
     if (!problem || !plan || problem.question !== question || plan.question !== question || !problem.solveRequests.length) return null;
 
+    let profile: NumericSourceProfile;
     const measurement = readScrewGaugeQuestion(question);
     if (measurement.status !== "none") {
+      profile = "measurement";
       const source = verifyMeasurementSourceAuthority(artifacts.problemIR, artifacts.turnPlan, question);
       if (source.status !== "verified" || source.issues.length) return null;
     } else if (readFiniteBinomialProgram(question).status === "ok") {
+      profile = "polynomial";
       if (admitFiniteBinomialProblem(question, artifacts.problemIR).status !== "ok"
         || finiteBinomialPlanIssues(question, artifacts.problemIR, artifacts.turnPlan).length) return null;
     } else if (readFiniteProgressionSource(question).status === "ok") {
+      profile = "progression";
       if (finiteProgressionSourceProgram(question, artifacts.problemIR, artifacts.turnPlan).status !== "ok") return null;
     } else if (readUniformCircularRuntimeContract(question)?.status === "bound") {
+      profile = "circular";
       if (uniformCircularCallerIssues(question, artifacts.problemIR, artifacts.turnPlan).length) return null;
     } else return null;
+    if (!numericPlanObligationsProved(artifacts.turnPlan, question, profile)) return null;
 
     const submitted = validateSolverResult(artifacts.solverResult, problem).result;
     if (!submitted || submitted.status !== "solved") return null;
@@ -88,14 +94,17 @@ export function numericOnlyAuthority(raw: unknown, question: string): NumericOnl
       } catch { /* Nonrational expressions retain independently evaluated scalars only. */ }
       if (exact ? !value.exact || Array.isArray(value.exact) || value.exact.kind !== exact.kind || value.exact.value !== exact.value
         : value.exact !== undefined) return null;
-      values.push({id:`value_${request.id}`,requestId:request.id,valueType:"scalar",approximate,errorBound:0,...(exact ? {exact} : {})});
+      const recomputed: SolverResult["values"][number] = {id:`value_${request.id}`,requestId:request.id,valueType:"scalar",approximate,errorBound:0,...(exact ? {exact} : {})};
+      const row = artifacts.turnPlan.derived.find(row=>row.id === request.resultBinding?.turnPlanQuantityId);
+      if (!row || !numericResultTextProved(row, recomputed, profile)) return null;
+      values.push(recomputed);
       proofs.push({id:`proof_${request.id}`,requestId:request.id,method:"exact_arithmetic",expressionIds:[expression.id],verified:true,residual:0,tolerance:0,detail:"Re-evaluated the complete source-admitted numeric expression at read admission."});
     }
     const solverResult: SolverResult = {schemaVersion:"solver-result/v1",problemId:problem.id,providerId:"local-deterministic/v1",status:"solved",values,proofs,issues:[]};
     const solverAuthority = verifyTurnPlanAgainstSolver(problem, solverResult, plan, question);
     if (solverAuthority.status !== "verified") return null;
-    // Generic TurnPlan validation builds a projection. Authority above proves
-    // the whole original; retain that original instead of its projection.
+    // Generic TurnPlan validation alone is not whole-source admission. Retain
+    // the original only after all its supplied obligations have been proved.
     return {problemIR:problem,turnPlan:artifacts.turnPlan as TurnPlanV3,solverResult,solverAuthority};
   } catch { return null; }
 }
