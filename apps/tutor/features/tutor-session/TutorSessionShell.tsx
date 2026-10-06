@@ -50,6 +50,7 @@ import { UnsavedBoardNotice } from "./components/UnsavedBoardNotice";
 import { taughtSegmentCount, unsavedLessonBoard } from "./lib/board/unsavedBoard";
 import { focusQuestionField } from "./lib/turn/lessonFollowUp";
 import type { DownloadState } from "./lib/download/downloadState";
+import { storedTurnIsPartial } from "@/lib/lecture-export/lectureExportSource";
 import { OutOfCreditsDialog } from "@/features/account/OutOfCreditsDialog";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { rememberBillingFailure } from "@/lib/billing/billingClient";
@@ -949,6 +950,12 @@ export function TutorSessionShell({
       })),
     [storedTurnsCount, boardLoaded, sessionId],
   );
+  // A reopened board whose last lesson was stopped downloads "up to now",
+  // the same rule the export source uses to name the file.
+  const lastTurnUnfinished = useMemo(
+    () => storedTurnIsPartial(storedTurnsRef.current[storedTurnsRef.current.length - 1]),
+    [storedTurnsCount, boardLoaded, sessionId],
+  );
   /* eslint-enable react-hooks/refs, react-hooks/exhaustive-deps */
   // The unsaved board notice stands aside once the student picks a way on.
   const [unsavedNoticeDismissedFor, setUnsavedNoticeDismissedFor] = useState<string | null>(null);
@@ -1736,7 +1743,7 @@ export function TutorSessionShell({
             downloadState={downloadState}
             canDownloadPdf={canDownloadNotes}
             canDownloadVideo={canDownloadLecture}
-            downloadPartial={phase !== "idle" || hasLiveTurn}
+            downloadPartial={phase !== "idle" || hasLiveTurn || lastTurnUnfinished}
             onDownloadPdf={downloadNotesPdf}
             onDownloadVideo={downloadVideo}
             onCancelDownload={cancelDownload}
