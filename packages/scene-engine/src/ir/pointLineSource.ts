@@ -1,4 +1,5 @@
-import { evaluateAnalyticLineConstruction, isAnalyticLineOperator, type AnalyticLineEvaluationContext } from "../compile/analyticLineGeometry";
+import { equalBinary64Products } from "../math/exactBinary64";
+import { certifiedPointLineProjection, evaluateAnalyticLineConstruction, isAnalyticLineOperator, type AnalyticLineEvaluationContext } from "../compile/analyticLineGeometry";
 import type { SceneDocument, SceneIssue } from "../types";
 import { derivedLabelTargets, readDerivedCoordinateLabelClaim } from "../compile/derivedValueLabels";
 
@@ -185,9 +186,7 @@ export function validatePointLineSourceInputs(document: SceneDocument, question:
         try {
           const geometry = context.geometry(projection.inputs.line ?? projection.inputs.onto) as { kind?: string; infinite?: boolean; analyticLine?: { coefficients?: Line } };
           if (geometry.kind !== "path" || !geometry.infinite || !geometry.analyticLine?.coefficients || !proportional(geometry.analyticLine.coefficients, line)) throw new Error("unbound foot line");
-          const scale = Math.hypot(line.a, line.b);
-          const signed = (line.a * point.x + line.b * point.y + line.c) / scale;
-          const foot = { x: point.x - signed * line.a / scale, y: point.y - signed * line.b / scale };
+          const { foot } = certifiedPointLineProjection(point, line);
           for (const output of projection.outputs) checkCoordinateCaptions(document, output, foot, pointName(output, document), issues);
         } catch {
           issues.push({ code: "point_line_foot_unsupported", severity: "fatal", path: `constructions[${index}].inputs`, message: "the visible projection foot must derive from a bound infinite line" });
@@ -196,9 +195,9 @@ export function validatePointLineSourceInputs(document: SceneDocument, question:
       // This bounded source has no additional given point. A visible literal
       // auxiliary point must therefore be the independently computed foot;
       // removing a project producer cannot turn a false foot into a given.
-      const scale = Math.hypot(line.a, line.b);
-      const signed = (line.a * point.x + line.b * point.y + line.c) / scale;
-      const foot = { x: point.x - signed * line.a / scale, y: point.y - signed * line.b / scale };
+      let foot: Point;
+      try { foot = certifiedPointLineProjection(point, line).foot; }
+      catch { issues.push({ code: "point_line_projection_precision", severity: "fatal", path, message: "nonzero projection must be representable at supported geometry precision" }); continue; }
       for (const producer of document.constructions.filter(row => row.operator === "point" && !row.outputs.includes(construction.inputs.point as string))) {
         try {
           for (const output of producer.outputs) {
@@ -236,7 +235,7 @@ function checkCoordinateCaptions(document: SceneDocument, id: string, point: Poi
 
 function coordinateClaim(text: string): ReturnType<typeof readDerivedCoordinateLabelClaim> {
   // Both P=(x,y) and the usual P(x,y) denote the same coordinate claim.
-  const compact = /^([A-Z][A-Za-z]?\d?'?)\s*(\([^)]*,[^)]*\))$/.exec(text.trim());
+  const compact = /^([A-Za-z][A-Za-z]?\d?'?)\s*(\([^)]*,[^)]*\))$/.exec(text.trim());
   return readDerivedCoordinateLabelClaim(compact ? `${compact[1]}=${compact[2]}` : text);
 }
 
@@ -343,27 +342,15 @@ function pointName(input: unknown, document: SceneDocument): string | undefined 
   const entity = document.entities.find((candidate) => candidate.id === input);
   const label = typeof entity?.label === "string" ? entity.label.trim() : "";
   try { const claim = coordinateClaim(label); if (claim?.name) return claim.name; } catch { /* caption validation reports malformed claims */ }
-  if (/^[A-Z][A-Za-z]?\d?'?$/.test(label)) return label;
-  return /^[A-Z][A-Za-z]?\d?'?$/.test(input) ? input : undefined;
+  if (/^[A-Za-z][A-Za-z]?\d?'?$/.test(label)) return label;
+  return /^[A-Za-z][A-Za-z]?\d?'?$/.test(input) ? input : undefined;
 }
 
 function proportional(first: Line, second: Line): boolean {
   // Bind the numeric source roles exactly. Dyadic rationals preserve every
   // binary64 bit; a large intercept never authorizes changing a given.
-  const exact = (value: number): { n: bigint; d: bigint } => {
-    const data = new DataView(new ArrayBuffer(8)); data.setFloat64(0, value);
-    const bits = data.getBigUint64(0), sign = bits >> 63n ? -1n : 1n;
-    const exponent = Number((bits >> 52n) & 2047n);
-    const fraction = bits & ((1n << 52n) - 1n);
-    const numerator = (exponent ? fraction + (1n << 52n) : fraction) * sign;
-    const power = exponent ? exponent - 1023 - 52 : -1074;
-    return power >= 0 ? { n: numerator << BigInt(power), d: 1n } : { n: numerator, d: 1n << BigInt(-power) };
-  };
   if (![first.a, first.b, first.c, second.a, second.b, second.c].every(Number.isFinite)) return false;
-  const equalProduct = (a: number, b: number, c: number, d: number): boolean => {
-    const [ra, rb, rc, rd] = [a, b, c, d].map(exact);
-    return ra!.n * rb!.n * rc!.d * rd!.d === rc!.n * rd!.n * ra!.d * rb!.d;
-  };
+  const equalProduct = equalBinary64Products;
   return equalProduct(first.a, second.b, first.b, second.a) && equalProduct(first.a, second.c, first.c, second.a)
     && equalProduct(first.b, second.c, first.c, second.b);
 }

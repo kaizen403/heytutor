@@ -1,6 +1,7 @@
 /** A source program for one stated coordinate point projected onto one stated linear equation. */
+import { certifiedPointLineProjection } from "../compile/analyticLineGeometry";
 import { readPointLineSourceLiterals, validatePointLineSourceInputs } from "./pointLineSource";
-import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemIR } from "./problemIR";
+import { expressionToSafeSource, validateProblemIR, type ExpressionNodeIR, type ProblemIR, type SolveResultBinding } from "./problemIR";
 import { parseMathExpression } from "../math/expression";
 import { SCENE_DOCUMENT_VERSION, type SceneDocument } from "../types";
 
@@ -20,17 +21,19 @@ export function readPointLineProgram(question: string): PointLineProgramReading 
     || /\b(?:space|three.dimensions|3D|planes?)\b/i.test(question)) return { status: "declined", reason: "one complete two-dimensional point and linear equation are required" };
   let residue = question.replace(/[−–—]/g, "-").replace(/[·×]/g, "*").replace(/\s+/g, " ");
   for (const span of [...source.spans].sort((a, b) => b.start - a.start)) residue = residue.slice(0, span.start) + (span.kind === "point" ? "@P" : "@L") + residue.slice(span.end);
-  const footRequest = String.raw`(?:perpendicular\s+foot|foot\s+of\s+(?:the\s+)?perpendicular)(?:\s+[A-Z][A-Za-z]?\d?'?)?`;
+  const footRequest = String.raw`(?:perpendicular\s+foot|foot\s+of\s+(?:the\s+)?perpendicular)(?:\s+([A-Za-z][A-Za-z]?\d?'?))?`;
   const request = new RegExp(String.raw`^(?:In Cartesian coordinate units,\s*)?(?:Find|Calculate|Determine)\s+(?:the\s+)?(?:(?:perpendicular\s+)?distance(?:\s+and\s+(?:the\s+)?${footRequest})?|${footRequest}(?:\s+and\s+(?:the\s+)?distance)?)\s+(?:of|from)\s+(?:the\s+)?(?:point\s+)?@P\s+(?:from|to)\s+(?:the\s+)?(?:line\s+)?@L[.?!]?$`, "i");
-  if (!request.test(residue.trim())) return { status: "declined", reason: "the complete requested projection is not consumed by the source grammar" };
+  const matched = request.exec(residue.trim());
+  if (!matched) return { status: "declined", reason: "the complete requested projection is not consumed by the source grammar" };
   const point = source.points[0]!;
   const line = source.lines[0]!;
-  const scale = Math.hypot(line.a, line.b);
-  const signed = (line.a * point.x + line.b * point.y + line.c) / scale;
-  const foot = { x: point.x - signed * line.a / scale, y: point.y - signed * line.b / scale };
-  const distance = Math.abs(signed);
-  if (![foot.x, foot.y, distance].every(Number.isFinite)) return { status: "declined", reason: "nonfinite projection" };
-  const footName = /\b(?:perpendicular\s+foot|foot(?:\s+of\s+(?:the\s+)?perpendicular)?)\s+(?:named\s+)?([A-Z][A-Za-z]?\d?'?)\b/.exec(question)?.[1];
+  let projection: ReturnType<typeof certifiedPointLineProjection>;
+  try { projection = certifiedPointLineProjection(point, line); }
+  catch { return { status: "declined", reason: "projection exceeds supported geometry precision" }; }
+  const { foot, distance } = projection;
+  // Keywords ignore case; identifiers retain case and accept one/two ASCII
+  // letters, an optional digit and apostrophe. Names compare case-sensitively.
+  const footName = matched[1] ?? matched[2];
   if (footName && footName === point.name) return { status: "declined", reason: "source point and requested foot names conflict" };
   return { status: "ok", point, line, foot, distance, ...(footName ? { footName } : {}) };
 }
@@ -42,12 +45,19 @@ export function pointLineSourceDocument(question: string, raw?: ProblemIR | null
   const { point, line, foot, distance } = reading;
   let pointId = "source_point", pointName = point.name ?? "P", lineId = "source_line", lineName = "L", footId = "foot", footName = reading.footName ?? (point.name === "H" ? "F" : "H");
   const quantities: SceneDocument["quantities"] = [];
+  let distanceBinding: SolveResultBinding | undefined;
   if (raw) {
     const checked = validateProblemIR(raw, question);
     if (!checked.problem || !checked.valid) return null;
     const problem = checked.problem;
     if (!pointLineProblemAgreement(problem, reading)) return null;
     const facts = new Map(problem.facts.map(fact => [fact.id, fact]));
+    const distanceRequests = problem.solveRequests.filter(request => request.kind === "evaluate" && request.resultBinding
+      && ["d", "distance"].includes(request.resultBinding.symbol.replace(/_/g, "").toLowerCase())
+      && request.resultBinding.evidenceFactIds.some(id => facts.get(id)?.kind === "requested" && /\bdistance\b/i.test(facts.get(id)!.evidence.quote)));
+    if (distanceRequests.length > 1) return null;
+    distanceBinding = distanceRequests[0]?.resultBinding;
+    if (distanceBinding && !distanceBinding.turnPlanQuantityId.trim()) return null;
     const givenPoint = (ids: string[]): boolean => ids.some(id => {
       const fact = facts.get(id);
       const literal = fact?.kind === "given" ? readPointLineSourceLiterals(fact.evidence.quote) : null;
@@ -97,6 +107,14 @@ export function pointLineSourceDocument(question: string, raw?: ProblemIR | null
   const span = Math.max(1, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
   const margin = Math.max(1, span * .25);
   const dId = "projection_distance";
+  const distanceQuantity = distanceBinding ? { id: distanceBinding.turnPlanQuantityId, symbol: distanceBinding.symbol,
+    ...(distanceBinding.unit ? { unit: distanceBinding.unit } : {}), value: distance, provenance: "derived",
+    evidenceFactIds: [...distanceBinding.evidenceFactIds], sourceText: question }
+    : !raw ? { id: "projection_d", symbol: "d", value: distance, provenance: "derived", sourceText: question } : undefined;
+  if (distanceQuantity) {
+    if (quantities.some(quantity => quantity.id === distanceQuantity.id)) return null;
+    quantities.push(distanceQuantity);
+  }
   if ([pointId, lineId, footId].includes(dId) || [pointId, lineId, footId].includes("projection_axes")) return null;
   const document: SceneDocument = {
     schemaVersion: SCENE_DOCUMENT_VERSION, source: { question },
@@ -118,7 +136,8 @@ export function pointLineSourceDocument(question: string, raw?: ProblemIR | null
     assertions: [
       { id: "foot_on_line", predicate: "on", entities: [footId, lineId], severity: "fatal" },
       ...(distance ? [{ id: "normal_distance", predicate: "perpendicular", entities: [dId, lineId], severity: "fatal" as const }] : []),
-    ], annotations: [], requiredEntityIds: [pointId, lineId, footId, dId],
+    ], annotations: distanceQuantity ? [{ id: "projection_distance_value", kind: "label", targetIds: [dId], quantityId: distanceQuantity.id }] : [],
+    requiredEntityIds: [pointId, lineId, footId, dId],
     revealGroups: [
       { id: "source_geometry", entityIds: ["projection_axes", pointId, lineId], dependsOn: [], narrationCue: "Plot the stated point and line." },
       { id: "projection", entityIds: [footId, dId], dependsOn: ["source_geometry"], narrationCue: distance === 0 ? "The point is already on the line." : "Show the perpendicular foot and shortest distance." },

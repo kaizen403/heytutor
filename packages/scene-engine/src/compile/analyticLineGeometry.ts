@@ -1,3 +1,4 @@
+import { exactBinary64LineResidual } from "../math/exactBinary64";
 import { validatePublicationDerivedClaims, type PublicationClaimAuthority } from "./publicationDerivedClaims";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
@@ -316,7 +317,7 @@ function pointOnLine(line: LineCoefficients): RenderPoint {
 }
 
 function lineResidual(line: LineCoefficients, point: RenderPoint): number {
-  return Math.abs(line.a * point.x + line.b * point.y + line.c) / lineScale(line);
+  return Math.abs(exactBinary64LineResidual(line, point)) / lineScale(line);
 }
 
 function satisfiesLine(line: LineCoefficients, point: RenderPoint): boolean {
@@ -985,28 +986,30 @@ function lineConcurrence(inputs: Record<string, unknown>, context: AnalyticLineE
   })];
 }
 
+/** One incidence decision for source programs, distance operators and foot validation. */
+export function certifiedPointLineProjection(point: RenderPoint, line: LineCoefficients): { signedDistance: number; distance: number; foot: RenderPoint } {
+  const scale = lineScale(line);
+  if (!(scale > 0) || !Number.isFinite(scale)) invalid("geometry", "invalid projection normal");
+  const residual = exactBinary64LineResidual(line, point);
+  if (residual === 0) return { signedDistance: 0, distance: 0, foot: { ...point } };
+  const signedDistance = residual / scale, distance = Math.abs(signedDistance);
+  if (!(distance > MIN_LENGTH) || !Number.isFinite(distance)) invalid("geometry", "nonzero source distance is below supported geometry precision");
+  const foot = checkedPoint({ x: point.x - signedDistance * line.a / scale, y: point.y - signedDistance * line.b / scale }, "geometry");
+  const step = { x: point.x - foot.x, y: point.y - foot.y };
+  const tolerance = METRIC_TOLERANCE * distance;
+  if (Math.abs(Math.hypot(step.x, step.y) - distance) > tolerance
+    || lineResidual(line, foot) > tolerance
+    || Math.abs(dot(step, directionOf(line))) > tolerance * scale) invalid("geometry", "projection foot exceeds supported geometry precision");
+  return { signedDistance, distance, foot };
+}
+
 function pointLineDistance(inputs: Record<string, unknown>, context: AnalyticLineEvaluationContext): AnalyticLineGeometry[] {
   assertKeys(inputs, ["point", "a", "b", "c"], ["displayLength"], "point_line_distance");
   const point = readPoint(inputs.point, "point", context);
   const line = readFlatLine(inputs, context);
   const displayLength = readDisplayLength(inputs, context);
-  const scale = lineScale(line);
-  const signedDistance = (line.a * point.x + line.b * point.y + line.c) / scale;
-  const formula = Math.abs(line.a * point.x + line.b * point.y + line.c) / scale;
-  if (!near(Math.abs(signedDistance), formula, formula)) invalid("geometry", "distance evaluations disagree");
-  if (formula !== 0 && !(formula > MIN_LENGTH)) invalid("geometry", "nonzero source distance is below drawable resolution");
-  const foot = checkedPoint({
-    x: point.x - signedDistance * line.a / scale,
-    y: point.y - signedDistance * line.b / scale,
-  }, "geometry");
-  if (!satisfiesLine(line, foot)) invalid("geometry", "foot is not on the line");
-  const step = { x: point.x - foot.x, y: point.y - foot.y };
-  const stepLength = Math.hypot(step.x, step.y);
-  if (!near(stepLength, formula, Math.max(1, formula))) invalid("geometry", "foot distance disagrees with the formula");
+  const { signedDistance, distance: formula, foot } = certifiedPointLineProjection(point, line);
   const direction = directionOf(line);
-  if (stepLength > 0 && Math.abs(dot(step, direction)) > METRIC_TOLERANCE * stepLength * Math.hypot(direction.x, direction.y)) {
-    invalid("geometry", "foot segment is not perpendicular to the line");
-  }
   const onLine = formula === 0;
   const analyticLine: AnalyticLineRecord = {
     topic: TOPICS.pointDistance,
@@ -1229,6 +1232,24 @@ export function validateAnalyticLineConstruction(
         }
       });
       if (!drawn) add("a", "point_line_distance must measure to a drawn certified infinite line with the same coefficients up to scale");
+    }
+    if (geometry.kind === "path" && geometry.infinite && geometry.analyticLine.coefficients) {
+      for (const projection of document.constructions.filter(row => row.operator === "project" && (row.inputs.line ?? row.inputs.onto) === outputs[0])) {
+        try {
+          const source = readPoint(projection.inputs.point ?? projection.inputs.source, "point", context);
+          const expected = certifiedPointLineProjection(source, geometry.analyticLine.coefficients);
+          // Check the actual inherited endpoint-based project calculation too.
+          const [a, b] = geometry.points;
+          if (!a || !b) throw new Error("missing projection line endpoints");
+          const dx = b.x - a.x, dy = b.y - a.y, denominator = dx * dx + dy * dy;
+          const t = ((source.x - a.x) * dx + (source.y - a.y) * dy) / denominator;
+          const actual = { x: a.x + t * dx, y: a.y + t * dy };
+          const tolerance = expected.distance === 0 ? 0 : METRIC_TOLERANCE * expected.distance;
+          if (!Number.isFinite(actual.x) || !Number.isFinite(actual.y) || pointSeparation(actual, expected.foot) > tolerance) throw new Error("drawn foot exceeds supported geometry precision");
+        } catch (error) {
+          issues.push({ code: "invalid_project_geometry", severity: "fatal", path: `constructions/${projection.id}`, message: error instanceof Error ? error.message : "uncertifiable projection foot" });
+        }
+      }
     }
     const actualKind = document.entities.find((entity) => entity.id === outputs[0])?.kind;
     if (!entityKinds(geometry).includes(actualKind ?? "")) {
