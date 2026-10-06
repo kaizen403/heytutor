@@ -992,6 +992,7 @@ export function useQuestionHandler(
             });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
         let sourceDecline:ProblemAuthorityV1Decline|null=null;
+        let sourcePlanEvidence:string|undefined;
         const retainAuthorityOutcome=(outcome:Awaited<ReturnType<typeof planProblemAuthorityV1>>):ProblemAuthorityV1Response|null=>{
           if(outcome && "status" in outcome){sourceDecline=outcome;return null;}return outcome;
         };
@@ -1323,6 +1324,8 @@ export function useQuestionHandler(
           // figure decline. Scene validation and the teaching prompt both read
           // the corrected plan, so no stale scalar reaches the narration.
           const sourceAuthority = applySourceQuantityAuthority(sourcePlan, authority?.problemIR ?? null, question);
+          const auditedCorrection=sourceAuthority.outcomes.find(outcome=>outcome.sourcePlanCorrection?.audit.withdrawn.length)?.sourcePlanCorrection;
+          if(auditedCorrection && sourcePlanEvidence===undefined) sourcePlanEvidence=JSON.stringify(auditedCorrection);
           if (sourceAuthority.outcomes.length > 0) {
             sourcePlan = sourceAuthority.plan;
             tutorDebug("planner", "source quantity authority", {
@@ -1643,6 +1646,7 @@ export function useQuestionHandler(
           turnPlan,
           problemIR: problemAuthority?.problemIR ?? null,
           problemIRRejection: sourceDecline ?? undefined,
+          sourcePlanEvidence,
           solverResult: problemAuthority?.solverResult ?? null,
           solverAuthority: problemAuthority?.audit ?? null,
           representationTier: representationTier ?? undefined,

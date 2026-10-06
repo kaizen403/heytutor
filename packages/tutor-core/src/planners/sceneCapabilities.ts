@@ -15,6 +15,7 @@ import {
   familiesFromProblemStructure,
   sourceMensurationStructure,
   hasMatrixSourceProgram,
+  readMatrixProductSourceProgram, prepareMatrixProductSourceAuthority,
   readPointLineProgram,
   constantAccelerationSourceProgram,
   readSectionFormulaSource,
@@ -296,6 +297,16 @@ export function inferSceneCapabilities(
       proofPredicates: ["on", "perpendicular"],
       planningGuidance: ["Preserve the full stated coordinate point and linear equation. The engine computes their perpendicular projection and distance in world coordinates; every ProblemIR body and given remains required. Decline ambiguous or unsupported source roles."],
     };
+  }
+  const orderedProducts = readMatrixProductSourceProgram(question);
+  if (orderedProducts) {
+    const checkedProblem = hints.problemIR == null ? null : validateProblemIR(hints.problemIR, question).problem;
+    const prepared = checkedProblem ? prepareMatrixProductSourceAuthority(question, hints.turnPlan, checkedProblem) : null;
+    const compiled = prepared && !prepared.correction.audit.withdrawn.length && !prepared.correction.audit.dependencies.length
+      ? compileSceneDocument(prepared.document, {sourceAuthority:{question,problemIR:hints.problemIR,turnPlan:hints.turnPlan}}) : null;
+    return {visualRequired:hints.turnPlan?.visualRequirement!=="none",hasSourceProgram:!!compiled?.ok && !!compiled.renderScene?.primitives.length,
+      families:[],constructionOperators:SUPPORTED_SCENE_CONSTRUCTION_OPERATORS.filter(operator=>operator.startsWith("matrix_")),proofPredicates:["exists","label_attached"],
+      planningGuidance:["Availability requires executed whole original IR and actual corrected Plan. Retain every source cell and ordered product; nonmetric table spacing does not certify numeric scalar placeholders."]};
   }
   if (hasMatrixSourceProgram(question)) {
     return {

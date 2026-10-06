@@ -11,6 +11,7 @@ export * from "./ir/coordinateDistanceSource";
 export * from "./ir/pointLineSource";
 export * from "./ir/pointLineProgram";
 export * from "./ir/matrixLiteralSource";
+export * from "./ir/matrixProductSourceAuthority";
 export * from "./ir/sectionFormulaSource";
 export * from "./topology/topology";
 export * from "./labels/labelEngine";

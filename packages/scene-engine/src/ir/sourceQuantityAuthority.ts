@@ -37,6 +37,8 @@ import { applyStatedCircuitAuthority, claimsStatedResistorCircuit, readStatedCir
 import { applyUniformCircularAuthority } from "../physics/uniformCircularSource";
 import { applyRelativeMotionAuthority, type MotionQuantityAuthority } from "../physics/motionPlanAgreement";
 import { applyRiverCrossingAuthority } from "../physics/riverCrossingSource";
+import { readMatrixProductSourceProgram } from "../compile/matrixSourceBinding";
+import { correctMatrixProductSourcePlan, matrixProductFullIRIssues, type MatrixProductPlanCorrection } from "./matrixProductSourceAuthority";
 
 export interface SourceQuantityCorrection {
   quantityId: string;
@@ -52,6 +54,8 @@ export interface SourceQuantityAuthorityOutcome {
   corrections: SourceQuantityCorrection[];
   declineFigure: boolean;
   issueCodes: string[];
+  /** Evidence of an audited withdrawal; never teaching scalar or scene authority. */
+  sourcePlanCorrection?: MatrixProductPlanCorrection;
 }
 
 export interface SourceQuantityAuthorityInput {
@@ -153,6 +157,15 @@ const staticContactTriangleAuthority:SourceQuantityAuthority = {
 };
 
 export const SOURCE_QUANTITY_AUTHORITIES: readonly SourceQuantityAuthority[] = [
+  {topic:"matrix-ordered-products-source",apply({question,plan,problemIR}){
+    if(!readMatrixProductSourceProgram(question))return null;
+    const correction=correctMatrixProductSourcePlan(question,plan);
+    if(!correction || problemIR!=null && matrixProductFullIRIssues(question,problemIR).length) return {
+      topic:this.topic,plan:{...plan,givens:[],derived:[],unknowns:[],qualitativeClaims:[],assumptions:[]},corrections:[],declineFigure:true,issueCodes:["matrix_product_whole_authority_declined"],
+    };
+    return {topic:this.topic,plan:correction.plan,sourcePlanCorrection:correction,corrections:[],declineFigure:false,
+      issueCodes:correction.audit.withdrawn.length?["matrix_product_scalar_placeholders_withdrawn"]:[]};
+  }},
   {topic:"finite-polynomial-source",apply({question,plan,problemIR}){
     const result=applyFiniteBinomialAuthority(question,plan,problemIR);
     return result?{topic:this.topic,...result}:null;

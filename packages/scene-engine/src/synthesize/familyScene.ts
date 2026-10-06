@@ -75,6 +75,8 @@ import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
 import { uniformCircularProblemSourceIssues } from "../physics/uniformCircularIdentity";
 import { synthesizeUniformCircularScene } from "./uniformCircularFamily";
+import { readMatrixProductSourceProgram } from "../compile/matrixSourceBinding";
+import { prepareMatrixProductSourceAuthority } from "../ir/matrixProductSourceAuthority";
 import {
   SCENE_DOCUMENT_VERSION,
   type RenderScene,
@@ -171,6 +173,16 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  if (readMatrixProductSourceProgram(input.question)) {
+    if (!isFullProblemIRStructure(input.problemIR)) return null;
+    const prepared = prepareMatrixProductSourceAuthority(input.question, input.turnPlan, input.problemIR);
+    // Correction belongs before teaching. This family cannot silently repair a
+    // late supplied plan and certify a figure against different narration.
+    if (!prepared || prepared.correction.audit.withdrawn.length || prepared.correction.audit.dependencies.length) return null;
+    const compiled = tryCompile(prepared.document, {sourceAuthority:{question:input.question,problemIR:input.problemIR,turnPlan:input.turnPlan}});
+    return compiled ? {...compiled,tier:"qualitative_verified",nonMetric:true,family:"matrix_array",
+      reason:"Every ordered product and source cell is independently computed; table spacing is nonmetric."} : null;
+  }
   // The complete arithmetic source program, rather than a lexical family cue,
   // owns this candidate. The actual full IR is retained and audited unchanged.
   if (readFiniteBinomialProgram(input.question).status === "ok") {

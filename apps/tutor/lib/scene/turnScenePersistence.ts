@@ -129,11 +129,12 @@ export async function canonicalizeTurnSceneMetadata(
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
     const rejection = validatedProblemIRRejection(metadata.sceneArtifacts,question);
+    const sourcePlanEvidence = validatedSourcePlanEvidence(metadata.sceneArtifacts);
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
-    const baseArtifacts = retryRequired || degradation || codeLesson || continuation || rejection
+    const baseArtifacts = retryRequired || degradation || codeLesson || continuation || rejection || sourcePlanEvidence
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -151,6 +152,7 @@ export async function canonicalizeTurnSceneMetadata(
           ? {
               ...baseArtifacts,
               ...(rejection ? {problemIRRejection:rejection} : {}),
+              ...(sourcePlanEvidence ? {sourcePlanEvidence} : {}),
               ...(codeLesson ? { codeLesson } : {}),
               ...(continuation ? { boardContinuation: continuation } : {}),
             }
@@ -359,6 +361,7 @@ export async function canonicalizeTurnSceneMetadata(
     problemIR: solver.problemIR,
     solverResult: solver.solverResult,
     solverAuthority: solver.solverAuthority,
+    sourcePlanEvidence: validatedSourcePlanEvidence(metadata.sceneArtifacts),
     representationTier: tier,
     nonMetric,
     candidates: [{
@@ -893,4 +896,10 @@ function validatedProblemIRRejection(artifacts:unknown,question:string):SceneArt
   if(rawPlan!==undefined && (!rawPlan || rawPlan.length>200000))return undefined;
   return {status:"source_declined",question,rawProblemIR:JSON.parse(raw),...(rawPlan===undefined?{}:{rawTurnPlan:JSON.parse(rawPlan)}),rawContent:row.rawContent,issueCodes:[...row.issueCodes],elapsedMs:row.elapsedMs};
  }catch{return undefined;}
+}
+
+/** Evidence is bounded opaque text, deliberately unread by authority guards. */
+function validatedSourcePlanEvidence(artifacts:unknown):string|undefined {
+  if(!isRecord(artifacts) || typeof artifacts.sourcePlanEvidence!=="string" || artifacts.sourcePlanEvidence.length>200_000)return undefined;
+  return artifacts.sourcePlanEvidence;
 }

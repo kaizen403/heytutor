@@ -18,6 +18,7 @@ export function matrixProductPlanningGuidance(question: string): string {
     symbol: `${matrix.name}${i + 1}${j + 1}`,
     value: matrix.geometry.matrixArray.entries[i]![j]!,
     sourceText: matrix.quote,
+    provenance: "given" as const,
   }))));
   const derived = source.products.flatMap((product) => {
     const left = source.matrices.find((matrix) => matrix.name === product.left)!;
@@ -52,6 +53,7 @@ export function matrixProductPlanningGuidance(question: string): string {
       left: product.left,
       right: product.right,
       exactEntries: product.geometry.matrixArray.exactEntries,
+      requestQuote: product.name,
     })),
     turnPlan: {
       question,
@@ -70,7 +72,7 @@ BOUNDED MATRIX PRODUCT SOURCE GUIDANCE
 ${JSON.stringify(sourceData)}
 
 Use the complete source data above for this turn. Keep question byte-for-byte unchanged. Include every source numeric input cell as a given with its exact ID and symbol (A11, A12, …), exact source value, and the supplied whole-literal sourceText. Include every cell of every ordered requested product as a derived quantity with the supplied ID, independently computed value, and the complete unique row/column input dependencies. Keep every ordered product as an unknown using its name for both ID and symbol and unit "1" (or omit the unit). Do not replace a matrix with a scalar zero or omit any source cell or product cell. Do not round source fractions before computing.
-For the original ProblemIR, retain exactly one kind "given" fact per complete matrix literal, with evidence.quote equal to the supplied sourceQuote and its statement made by changing that quote's assignment separator to "is" (for example, sourceQuote "A = [[1, 2]]" becomes statement "Matrix A is [[1, 2]]"). Retain exactly one kind "requested" fact for each ordered product, with statement and evidence.quote each taken from that individual product ask verbatim in the unchanged QUESTION. For combined wording, use a product-specific exact substring for each fact (for example, "Compute AB" and "Compute BA"), not the whole sentence as evidence for both. Add one entity per source matrix with kind "other", label equal to its exact source name, and evidenceFactIds containing its matching given fact ID. Keep expressions, constraints, representationIntents, and solveRequests empty for this initial product-only contract. Preserve every additional source ask in the original IR; this guidance does not authorize dropping it. The complete original IR and returned TurnPlan remain independently audited; this guidance never substitutes either one or any solver result.
+For the original ProblemIR, retain exactly one kind "given" fact per complete matrix literal, with evidence.quote equal to the supplied sourceQuote and its statement made by changing that quote's assignment separator to "is" (for example, sourceQuote "A = [[1, 2]]" becomes statement "Matrix A is [[1, 2]]"). Retain exactly one kind "requested" fact for each ordered product, with statement and evidence.quote each taken from that individual product ask verbatim in the unchanged QUESTION. For combined wording, use the supplied product name itself as the exact request quote and statement (for example, "AB" and "BA"); each occurs verbatim in the request clause. Never invent a second command verb that the source does not contain, or use the whole sentence as evidence for both. Add one entity per source matrix with kind "other", label equal to its exact source name, and evidenceFactIds containing its matching given fact ID. Keep expressions, constraints, representationIntents, and solveRequests empty for this initial product-only contract. Preserve every additional source ask in the original IR; this guidance does not authorize dropping it. The complete original IR and returned TurnPlan remain independently audited; this guidance never substitutes either one or any solver result.
 A nonmetric table is an optional visual representation. Do not add geometric measurements or inferred facts.
 `;
 }

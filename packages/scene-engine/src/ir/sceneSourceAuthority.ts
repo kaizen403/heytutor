@@ -12,11 +12,14 @@ import { claimsStatedResistorCircuit } from "./statedCircuitAuthority";
 import { visualObligationIssues } from "../synthesize/visualObligations";
 import { uniformCircularProblemSourceIssues } from "../physics/uniformCircularIdentity";
 import { uniformCircularCallerIssues } from "../physics/uniformCircularCallerAuthority";
+import { readMatrixProductSourceProgram } from "../compile/matrixSourceBinding";
+import { matrixProductSourceDocumentIssues } from "./matrixProductSourceAuthority";
 import { relativeMotionSource, relativeMotionSourceEntityBindings } from "../physics/relativeMotionSource";
 import type { SceneDocument, SceneIssue } from "../types";
 
 /** Re-establish the actual caller's whole-IR authority at each scene boundary. */
 export function validateSceneSourceAuthority(document: SceneDocument, question: string, rawProblem?: unknown, rawPlan?: unknown): SceneIssue[] {
+  if (readMatrixProductSourceProgram(question)) return matrixProductSourceDocumentIssues(document, question, rawProblem, rawPlan);
   const progressionIssues = finiteProgressionDocumentIssues(document, {question, problemIR: rawProblem, turnPlan: rawPlan});
   if (progressionIssues.length) return progressionIssues;
   const sectionReading=readSectionFormulaSource(question);

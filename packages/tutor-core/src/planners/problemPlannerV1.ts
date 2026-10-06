@@ -22,6 +22,8 @@ import { withFastModeHeader } from "../llm/fastMode";
 import { finitePolynomialPlanningGuidance } from "./finitePolynomialGuidance";
 import { finiteProgressionPlanningGuidance } from "./finiteProgressionGuidance";
 import { measurementPlanningGuidance } from "./measurementGuidance";
+import { matrixProductPlanningGuidance } from "./matrixProductGuidance";
+import { readMatrixProductSourceProgram, matrixProductFullIRIssues } from "@heytutor/scene-engine";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 
@@ -112,7 +114,7 @@ export async function planProblemAuthorityV1(
         temperature: 0,
         stream: false,
         messages: [
-          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) },
+          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question) },
           { role: "user", content: problemIRUserMessage(question, turnPlan) },
         ],
       }),
@@ -125,15 +127,18 @@ export async function planProblemAuthorityV1(
     if (typeof content !== "string") return null;
     const parsed = parseJsonObject(content);
     const polynomial=readFiniteBinomialProgram(question);
+    const matrixProducts=readMatrixProductSourceProgram(question);
+    const matrixInput=matrixProducts?liftCompactProblemIR(parsed,question):null;
     const sourceInput=polynomial.status==="ok"?liftFinitePolynomialInput(parsed,question):null;
     const decline=(code:string):ProblemAuthorityV1Decline=>({status:"source_declined",question,
       rawProblemIR:structuredClone(parsed),...(turnPlan?{rawTurnPlan:structuredClone(turnPlan)}:{}),rawContent:content,issueCodes:[code],elapsedMs:Date.now()-startedAt});
+    if(matrixProducts && matrixProductFullIRIssues(question,matrixInput).length)return decline("matrix_product_original_full_ir_declined");
     if(polynomial.status==="ok" && turnPlan && !hasOnlyFiniteBinomialPlanFields(turnPlan))return decline("finite_polynomial_actual_plan_fields_declined");
     // Syntax lifting preserves every submitted record/unknown field. Audit it
     // before the legacy normalizer can prune evidence, requests or bindings.
     const polynomialResult=polynomial.status==="ok"?solveFiniteBinomialProblem(question,sourceInput):null;
     if(polynomial.status==="ok" && !polynomialResult)return decline("finite_polynomial_full_input_declined");
-    const normalized = polynomial.status==="ok"?sourceInput:normalizeProblemIRModelOutput(parsed, question, turnPlan);
+    const normalized = matrixProducts ? matrixInput : polynomial.status==="ok"?sourceInput:normalizeProblemIRModelOutput(parsed, question, turnPlan);
     const problemValidation = validateProblemIR(normalized, question);
     if(polynomial.status==="ok" && turnPlan && problemValidation.problem?.solveRequests.some(request=>{
       const binding=request.resultBinding;if(!binding)return false;

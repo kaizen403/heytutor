@@ -1,4 +1,7 @@
 import { finiteProgressionDocumentIssues } from "../contracts/finiteProgressionContract";
+import { uniformCircularCallerIssues } from "../physics/uniformCircularCallerAuthority";
+import { readMatrixProductSourceProgram } from "../compile/matrixSourceBinding";
+import { matrixProductSourceDocumentIssues } from "../ir/matrixProductSourceAuthority";
 import { INDEXED_PROGRESSION_OPERATORS, validateIndexedProgressionConstruction } from "../compile/indexedProgressionGeometry";
 import type { CompileOptions } from "../types";
 import { finiteBinomialDocumentIssues } from "../contracts/finiteBinomialContract";
@@ -4025,6 +4028,15 @@ export function validateSceneDocument(raw: unknown, options: Pick<CompileOptions
   const issues: SceneIssue[] = [];
   if (!isRecord(raw)) {
     return result(null, [{ code: "invalid_document", message: "SceneDocument must be an object", severity: "fatal", path: "$" }]);
+  }
+  if (options.sourceAuthority) {
+    const context=options.sourceAuthority;
+    const callerIssues=uniformCircularCallerIssues(context.question,context.problemIR,context.turnPlan);
+    if(callerIssues.length)return result(null,callerIssues);
+    if(readMatrixProductSourceProgram(context.question)) {
+      const matrixIssues=matrixProductSourceDocumentIssues(raw as unknown as SceneDocument,context.question,context.problemIR,context.turnPlan);
+      if(matrixIssues.length)return result(null,matrixIssues);
+    }
   }
   const progressionIssues = finiteProgressionDocumentIssues(raw, options.sourceAuthority);
   if (progressionIssues.length) return result(null, progressionIssues);

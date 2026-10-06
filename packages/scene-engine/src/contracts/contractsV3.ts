@@ -4373,6 +4373,8 @@ export interface SceneArtifactsV3 {
   problemIR?: ProblemIR | null;
   /** Rejected whole model input is evidence of refusal, never solver authority. */
   problemIRRejection?: {status:"source_declined";question:string;rawProblemIR:unknown;rawTurnPlan?:unknown;rawContent:string;issueCodes:string[];elapsedMs:number};
+  /** Bounded serialized correction evidence; never numeric or diagram permission. */
+  sourcePlanEvidence?: string;
   solverResult?: SolverResult | null;
   solverAuthority?: SolverAuthorityAudit | null;
   /** Confidence tier selected for the committed canvas representation. */
