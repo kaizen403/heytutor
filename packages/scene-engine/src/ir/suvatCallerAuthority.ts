@@ -12,7 +12,12 @@ import type { SceneDocument, SceneIssue } from "../types";
 const dimensions = {u:"speed",v:"speed",a:"accel",t:"time",s:"length"} as const;
 const aliases: Record<SuvatRole,string[]> = {u:["u","v0","initialvelocity","initialspeed"],v:["v","vf","finalvelocity","finalspeed"],a:["a","acceleration","deceleration"],t:["t","time","duration"],s:["s","d","distance","displacement"]};
 const key=(text:string) => normalized(text).replace(/[^a-z0-9]/g,"");
-const roleOf=(row:{id:string;symbol:string}):SuvatRole|undefined => (Object.keys(aliases) as SuvatRole[]).find(role=>aliases[role].includes(key(row.symbol)) && (aliases[role].includes(key(row.id)) || row.id.length>0));
+const roleOf=(row:{id:string;symbol:string}):SuvatRole|undefined => {
+  const roles=Object.keys(aliases) as SuvatRole[];
+  const symbolRole=roles.find(role=>aliases[role].includes(key(row.symbol)));
+  const idRole=roles.find(role=>aliases[role].includes(key(row.id)));
+  return row.id.length>0 && symbolRole && (!idRole || idRole===symbolRole) ? symbolRole : undefined;
+};
 const namedSemantics: Record<string,SuvatSemantic> = {initialvelocity:"velocity",finalvelocity:"velocity",initialspeed:"speed",finalspeed:"speed",distance:"distance",displacement:"displacement"};
 function auditQuantitySemantics(source:SuvatSource,row:{id:string;symbol:string},role:SuvatRole,requested:boolean):void {
   for(const name of [row.id,row.symbol]){
@@ -166,6 +171,7 @@ export function admitSuvatCaller(question:string,rawProblem:unknown,rawPlan:unkn
         if(!ask||!matched||suvatSemantic(matched[1]!)!==ask.semantic||!covers(fact.evidence,ask.evidence))fail("requested fact does not bind source query");
       }else if(/^(?:uniform braking|uniform acceleration|constant acceleration|uniform deceleration)$/.test(statement)){
         role="condition";if(!covers(fact.evidence,source.condition))fail("condition evidence is not explicit source condition");
+        if(/braking|deceleration/.test(statement)&&!(Math.abs(source.state.v)<Math.abs(source.state.u)))fail("condition fact does not prove decreasing speed");
       }else{
         const match=/^(initial (?:speed|velocity)|final (?:speed|velocity)|braking time|time|duration|acceleration|deceleration|distance|displacement) ([\s\S]+)$/.exec(statement);
         if(!match||fact.kind!=="given")fail("unbound given fact statement");

@@ -39,6 +39,7 @@ export function readSuvatSource(question: string): SuvatReading {
   if ("conflict" in slots) return decline(slots.conflict);
   const solve = resolveConstantAcceleration(slots.knowns);
   if (!solve.ok) return decline(solve.reason);
+  if (/brak|decel|retard/i.test(conditionMatch[0]) && !(Math.abs(solve.state.v)<Math.abs(solve.state.u))) return decline("stated deceleration does not decrease speed in the source interval");
   const found = tokens(normalized(statement));
   // Original evidence offsets are recovered from the exact source token, not
   // from lowercased/whitespace-folded offsets.
