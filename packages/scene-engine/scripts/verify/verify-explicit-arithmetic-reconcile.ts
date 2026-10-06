@@ -875,6 +875,103 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Angles: a trig argument written with a degree mark, or a quantity whose
+// unit is degrees, is read in degrees. main read "u sin θ" with θ = 30 deg as
+// sin(30 rad) and rewrote a correct u_y = 10 to -19.76.
+// ---------------------------------------------------------------------------
+
+{
+  const reconciliationsOf = (input: ReturnType<typeof plan>) =>
+    reconcileTurnPlanV3ExplicitArithmetic(input).reconciliations;
+  const withinWritten = (value: unknown, written: number, tolerance: number) =>
+    typeof value === "number" && Math.abs(value - written) <= tolerance;
+  const projectile = [given("u", 20, "m/s"), given("theta", 30, "deg", { symbol: "θ" })];
+
+  const cosine = plan([], [derived("u_x", 17.32, "m/s", "u_x = 20 × cos 30° = 17.32")]);
+  check("20 × cos 30° = 17.32 validates in the live order", liveIssueCodes(cosine).length === 0, liveIssueCodes(cosine));
+  check("20 × cos 30° = 17.32 is never rewritten to a radian reading",
+    withinWritten(reconciled(cosine, "u_x").value, 17.32, 0.005), reconciled(cosine, "u_x"));
+
+  const sine = plan([], [derived("u_y", 10, "m/s", "u_y = 20 × sin 30° = 10")]);
+  check("20 × sin 30° = 10 validates", issueCodes(sine).length === 0, issueCodes(sine));
+  check("20 × sin 30° = 10 is never rewritten", reconciliationsOf(sine).length === 0, reconciliationsOf(sine));
+
+  const symbolic = plan(projectile, [
+    derived("u_x", 17.32, "m/s", "u_x = u cos θ = 20 × cos 30° = 20 × 0.866 = 17.32"),
+    derived("u_y", 10, "m/s", "u_y = u sin θ = 20 × sin 30° = 20 × 0.5 = 10"),
+  ]);
+  check("θ given in deg reads u cos θ in degrees", liveIssueCodes(symbolic).length === 0, liveIssueCodes(symbolic));
+  check("θ given in deg: u_x stays at its working",
+    withinWritten(reconciled(symbolic, "u_x").value, 17.32, 0.005), reconciled(symbolic, "u_x"));
+  check("θ given in deg: u_y = 10 is never rewritten", reconciled(symbolic, "u_y").value === 10, reconciled(symbolic, "u_y"));
+  for (const unit of ["degrees", "°"]) {
+    const spelled = plan([given("u", 20, "m/s"), given("theta", 30, unit, { symbol: "θ" })],
+      [derived("u_y", 10, "m/s", "u_y = u sin θ = 10")]);
+    check(`θ given in ${unit} reads u sin θ in degrees`,
+      issueCodes(spelled).length === 0 && reconciliationsOf(spelled).length === 0, issueCodes(spelled));
+  }
+
+  const tangent = plan([], [derived("k", 1, undefined, "k = tan 45° = 1")]);
+  check("tan 45° = 1 validates", issueCodes(tangent).length === 0, issueCodes(tangent));
+  check("tan 45° = 1 is never rewritten", reconciliationsOf(tangent).length === 0, reconciliationsOf(tangent));
+
+  const wrong = plan([], [derived("u_y", 12, "m/s", "u_y = 20 × sin 30° = 12")]);
+  check("a wrong degree result is still reported", issueCodes(wrong).length > 0, issueCodes(wrong));
+  check("a wrong degree result is corrected in degrees", close(reconciled(wrong, "u_y").value, 10), reconciled(wrong, "u_y"));
+  const wrongSymbolic = plan(projectile, [derived("u_y", 12, "m/s", "u_y = u sin θ = 12")]);
+  check("a wrong u sin θ with θ in deg is still reported", issueCodes(wrongSymbolic).length > 0, issueCodes(wrongSymbolic));
+  check("a wrong u sin θ with θ in deg is corrected in degrees",
+    close(reconciled(wrongSymbolic, "u_y").value, 10), reconciled(wrongSymbolic, "u_y"));
+
+  // Degrees convert only inside a trig argument: θ/2 stays in degrees.
+  const half = plan(projectile, [derived("phi", 15, "deg", "phi = θ/2 = 15")]);
+  check("a degree quantity outside a trig argument stays in degrees",
+    issueCodes(half).length === 0 && reconciliationsOf(half).length === 0, issueCodes(half));
+
+  const radians = plan([], [derived("s", 0.5, undefined, "s = sin(π/6) = 0.5")]);
+  check("sin(π/6) = 0.5 still reads radians", issueCodes(radians).length === 0, issueCodes(radians));
+  const wrongRadians = plan([], [derived("s", 0.6, undefined, "s = sin(π/6) = 0.6")]);
+  check("a wrong radian result is still reported", issueCodes(wrongRadians).length > 0, issueCodes(wrongRadians));
+  const radianMark = plan([], [derived("c", 0.88, undefined, "c = cos(0.5 rad) = 0.88")]);
+  check("cos(0.5 rad) reads radians", close(reconciled(radianMark, "c").value, Math.cos(0.5)), reconciled(radianMark, "c"));
+  const radianGiven = plan([given("phi", 0.5, "rad")], [derived("c", 0.88, undefined, "c = cos phi = 0.88")]);
+  check("a quantity given in rad stays in radians", close(reconciled(radianGiven, "c").value, Math.cos(0.5)), reconciled(radianGiven, "c"));
+
+  // A bare argument above 2π in a chain that works in degrees is a guess.
+  const bare = plan(projectile, [derived("u_y", 10, "m/s", "u_y = 20 × sin(30) = 10")]);
+  check("a bare sin(30) beside a degree given is not rewritten",
+    reconciliationsOf(bare).length === 0, reconciliationsOf(bare));
+  check("a bare sin(30) beside a degree given is not fatal", issueCodes(bare).length === 0, issueCodes(bare));
+
+  // A trig value the problem fixes for an angle (sin 37 = 0.6) is the
+  // authority for that angle; the exact cos 37° would refine 24 to 23.96.
+  const pull = [given("F", 30, "N"), given("theta", 37, "deg", { symbol: "θ" })];
+  const stipulatedGiven = plan([...pull, given("cosT", 0.8, undefined, { symbol: "cos37°" })],
+    [derived("F_x", 24, "N", "F_x = F cos θ = 30 × 0.8 = 24")]);
+  check("a stipulated cos 37 = 0.8 given keeps F cos θ = 24",
+    reconciliationsOf(stipulatedGiven).length === 0 && issueCodes(stipulatedGiven).length === 0,
+    reconciliationsOf(stipulatedGiven));
+  const stipulatedQuestion = {
+    ...plan(pull, [derived("F_x", 24, "N", "F_x = F cos θ = 30 × 0.8 = 24")]),
+    question: "A 30 N pull acts at 37 degrees above the horizontal. Take sin 37 = 0.6 and cos 37 = 0.8.",
+  };
+  check("a cos 37 = 0.8 the question states keeps F cos θ = 24",
+    reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations.length === 0,
+    reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations);
+
+  const inverse = plan([], [derived("theta", 30, "deg", "theta = sin⁻¹(0.5) = 30°", { symbol: "θ" })]);
+  check("sin⁻¹(0.5) = 30° reads degrees",
+    issueCodes(inverse).length === 0 && reconciliationsOf(inverse).length === 0, issueCodes(inverse));
+  const wrongInverse = plan([], [derived("theta", 35, "deg", "theta = atan(1) = 35°", { symbol: "θ" })]);
+  check("a wrong inverse trig degree result is still reported", issueCodes(wrongInverse).length > 0, issueCodes(wrongInverse));
+  const mixedInverse = plan([], [derived("theta", 53.13, "deg", "theta = 90 - atan(3/4) = 53.13", { symbol: "θ" })]);
+  check("a bare number added to an inverse trig result is not rewritten",
+    reconciliationsOf(mixedInverse).length === 0, reconciliationsOf(mixedInverse));
+  check("a bare number added to an inverse trig result is not fatal",
+    issueCodes(mixedInverse).length === 0, issueCodes(mixedInverse));
+}
+
 if (failures.length > 0) {
   console.error(`explicit arithmetic reconcile: ${failures.length} of ${checks} checks failed`);
   for (const failure of failures) console.error(`  - ${failure}`);
