@@ -58,7 +58,11 @@ bank coverage.
 
 ## Current counts
 
-READY: 2. FULLY-CERTIFIED: 0.
+READY: 3. FULLY-CERTIFIED: 0.
+
+Direct finite AP/GP adds one scoped READY after original62/670 live review,
+fresh duplicate-premise review and provider-backed whole saved replay. Scope,
+preserved fallback timeouts and exclusions: [progression evidence](work-logs/w3-direct-progression-ready-20261006.md).
 
 6 October continuation: one new scoped READY, `maths|5|binomial-theorem`, after fresh authored coefficient240 live review and actual saved whole-replay pixel review on7e92167c. The two previously omitted table rows now restore. Details and exclusions: [Wave3 finite-binomial READY evidence](work-logs/w3-finite-binomial-ready-20261006.md). No full chapter, native-bank, FULLY-CERTIFIED or accepted-ledger count changed.
 
@@ -83,5 +87,6 @@ does not establish figure, teaching or lifecycle correctness.
 | `physics\|12\|ohms-law-and-resistance` | **not ready:** both normal numeric meters/tree questions have no circuit | 9031aac1 | reviewed bounded numeric source program; actual full-IR student captures | generic full-IR body/dimension obligations and intermediate dependency authority; affected student lifecycle; native/holdouts, excluded internal-R and concept gaps |
 
 | `maths\|5\|binomial-theorem` | **READY** (6 Oct2026), declared authored finite rational single-variable expansion/coefficient profile, bounded nonnegative integral exponents and exact nonmetric coefficient table | 7e92167c | independent source/public ESM cases/negatives,182+455 normal boundaries, fresh student240 and ownPGrestart/freshAuth whole replay; [evidence](work-logs/w3-finite-binomial-ready-20261006.md) | native1113 whole-student timeout; symbolic independent a,b, general/middle/greatest-term and other chapter rows not qualified; holdouts/full frozen contract/provider replay voice qualification pending |
+| `maths\|6\|arithmetic-and-geometric-progressions` | **READY** (6 Oct2026), authored direct first-term/difference or ratio, bounded nth term and finite sum, source-owned discrete nonmetric table | bf96d39d | independent407/1552/2555/2107 source/native controls, actual62/670 live and provider-backed ownPGrestart/freshAuth whole replay; [evidence](work-logs/w3-direct-progression-ready-20261006.md) | no-provider browser fallback exceeds120s; native/OCR/symbolic, recovery/cumulative/means and multi-answer GP layout not qualified; no full chapter or accepted ledger credit |
 
 Execution log: [claude-execution-20261004.md](work-logs/claude-execution-20261004.md).
