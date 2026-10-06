@@ -436,8 +436,10 @@ const VIRTUAL_OBJECT_CUE = new RegExp([
   String.raw`\bvirtual\s+object`,
   String.raw`\b(?:directed|aimed|heading|incident)\s+(?:at|to|towards?)\s+(?:a|the)\s+point\b`,
   String.raw`\b(?:acts?|serves?|behaves?|treated|used)\s+as\s+(?:an?\s+|the\s+)?(?:\w+\s+)?object\b`,
-  // An object placed behind or beyond the element sits where light leaves it: a virtual object.
-  String.raw`\bobject\s+(?:(?:is|lies|sits|stands|placed|located|situated|kept|positioned)\s+)*(?:at\s+)?(?:a\s+(?:point|distance)\s+(?:of\s+)?)?(?:\d+(?:\.\d+)?\s*(?:cm|mm|m)\s+)?(?:behind|beyond)\b`,
+  // An object placed behind, beyond or past the element sits where light leaves it: a virtual object.
+  String.raw`\bobject\s+(?:(?:is|lies|sits|stands|placed|located|situated|kept|positioned)\s+)*(?:at\s+)?(?:a\s+(?:point|distance)\s+(?:of\s+)?)?(?:\d+(?:\.\d+)?\s*(?:cm|mm|m)\s+)?(?:behind|beyond|past)\b`,
+  // The same placement worded by side: "the object is on the far side of the lens".
+  String.raw`\bobject\b[^.;]{0,80}?\bon\s+(?:the|its)\s+(?:far|other|opposite)\s+side\b`,
 ].join("|"), "i");
 
 /**
@@ -722,11 +724,14 @@ function normalizeUnit(value: string | undefined): string {
  * The tolerance is half a unit in the plan value's last stated decimal place,
  * capped at 2% of the law value so an integer such as 4 cannot absorb 4.4, with
  * a floor of 0.5% for values stated to more places than the law supports.
+ * A value only written with an exponent (2e-7) is stated in significant
+ * figures, so its cap is 5%: 2e-7 matches 1.952e-7.
  */
 function matchesWithinStatedPrecision(planValue: number, lawValue: number): boolean {
   const scale = Math.abs(lawValue);
   const halfLastPlace = 0.5 * 10 ** -statedDecimalPlaces(planValue);
-  const tolerance = Math.max(1e-10, scale * 0.005, Math.min(halfLastPlace, scale * 0.02));
+  const cap = /e/i.test(String(planValue)) ? 0.05 : 0.02;
+  const tolerance = Math.max(1e-10, scale * 0.005, Math.min(halfLastPlace, scale * cap));
   return Math.abs(planValue - lawValue) <= tolerance * (1 + 1e-9);
 }
 

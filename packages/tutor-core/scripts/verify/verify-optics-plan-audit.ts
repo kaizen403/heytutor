@@ -465,6 +465,25 @@ expectAudit("virtual object behind the lens", behindLens, { declined: /virtual/ 
 expectAudit("image behind the lens keeps the audit", virtualLens(
   "An object stands 10 cm in front of a convex lens of focal length 20 cm; the image forms behind the lens. Find v.",
 ), { reported: { v: -20 } });
+// The same virtual placement in other words must decline too, or the lane is rejected.
+expectAudit("virtual object past the lens", virtualLens(
+  "An object is placed 10 cm past a convex lens of focal length 20 cm. Find the image.",
+), { declined: /virtual/ });
+expectAudit("virtual object on the far side", virtualLens(
+  "The object is 10 cm from a convex lens of focal length 20 cm, on its far side. Find the image.",
+), { declined: /virtual/ });
+
+// A value only written with an exponent is stated in significant figures.
+// Cartesian: u = -6.478e-7, f = 1.5e-7, 1/v = 1/f + 1/u, v = 1.952e-7.
+// 2e-7 is that value to one significant figure; 2.2e-7 is not.
+const tinyLens = (v: number) => opticsPlan({
+  question: "An object stands 6.478e-7 cm in front of a convex lens of focal length 1.5e-7 cm.",
+  lawIds: ["thin lens formula"],
+  givens: { u: { value: -6.478e-7 }, f: { value: 1.5e-7 } },
+  derived: { v: { value: v } },
+});
+expectAudit("exponent value matches at its significant figures", tinyLens(2e-7), {});
+expectAudit("exponent value beyond its precision reports", tinyLens(2.2e-7), { reported: { v: 1.952e-7 } });
 
 // A reported mismatch rejects the lane, so a value rounded to the precision it
 // states must match. Concave mirror, Cartesian: u = -30, f = -20, v = -60.
