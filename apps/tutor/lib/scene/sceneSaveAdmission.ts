@@ -31,6 +31,8 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 
+import {sourceBoundPlanIssues} from "./sourcePlanAdmission";
+
 export type SaveAdmissionTier = "exact_verified" | "qualitative_verified" | "question_representation";
 
 export function displayedSceneText(document: SceneDocument): string[] {
@@ -121,6 +123,7 @@ export function sceneSaveAdmissionFailure(input: {
   // The actual question and complete caller IR establish source structure
   // before any quantity correspondence can admit signed setup magnitudes.
   const sourceInputIssues = [
+    ...sourceBoundPlanIssues(document,question,turnPlan,input.problemIR),
     ...validateSceneSourceAuthority(document, question, input.problemIR),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),

@@ -428,7 +428,7 @@ const selectedMirror = selectVerifiedRepresentation({
       { id: "u", symbol: "u", value: 20, unit: "cm", provenance: "given" },
     ],
     unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
-    derived: [{ id: "v", symbol: "v", value: 60, unit: "cm", provenance: "derived" }],
+    derived: [{ id: "v", symbol: "v", value: -60, unit: "cm", provenance: "derived" }],
     qualitativeClaims: [],
     lawIds: ["mirror_formula"],
     assumptions: [],

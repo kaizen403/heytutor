@@ -304,11 +304,7 @@ assert(
 
 const thinLensQuestion = "Draw a labelled diagram for Thin lens formula. Show the principal axis and the named rays.";
 const thinLens = synthesizeFamilyScene({ question: thinLensQuestion });
-assert(thinLens, "thin lens topic figure must compile");
-assert(
-  thinLens.document.constructions.some((construction) => construction.operator === "lens_section"),
-  "a thin lens must be a curved lens section, not a straight line",
-);
+assert(!thinLens, "numberless thin-lens law cannot invent object and focal distances; an honest value-free program remains a coverage gap");
 
 const parametricQuestion =
   "Sketch the curve given by x = t^2 - 1, y = t^3 - t near t = 2, mark the point at that parameter, and draw the tangent there.";
@@ -337,7 +333,7 @@ const mirror = synthesizeFamilyScene({
     { id: "u", symbol: "u", value: 20, unit: "cm", provenance: "given" },
   ], {
     derived: [
-      { id: "v", symbol: "v", value: 60, unit: "cm", provenance: "derived" },
+      { id: "v", symbol: "v", value: -60, unit: "cm", provenance: "derived" },
       { id: "m", symbol: "m", value: -3, unit: "1", provenance: "derived" },
     ],
     lawIds: ["mirror_formula"],
