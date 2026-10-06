@@ -34,7 +34,8 @@ const parameterChecks = [
 for (const [name,text,expected] of parameterChecks) assert.equal(proof.proves(text,'norm'),expected,name);
 const rows=[];
 const roundedCases=JSON.parse(readFileSync(new URL('fixtures/point-line-power-closeout-20261007-rounded-function-repro.json',dir),'utf8')).cases;
-for(const c of [...frozen.cases,...roundedCases]){
+const irCases=JSON.parse(readFileSync(new URL('fixtures/point-line-ir-power-closeout-20261007.json',dir),'utf8')).cases;
+for(const c of [...frozen.cases,...roundedCases,...irCases]){
  const {problem,plan,wire}=c.input,before=JSON.stringify(c.input),checks:any[]=[];
  const check=(name:string,pass:boolean)=>checks.push({name,pass});
  const parsedPlan=core.parseTurnPlanV3Content(JSON.stringify(plan),plan.question);

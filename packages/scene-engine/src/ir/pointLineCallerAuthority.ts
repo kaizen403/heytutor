@@ -34,15 +34,43 @@ function evaluate(node:ExpressionNodeIR):number {return parseMathExpression(expr
 /** Fold only a subtree of the independently constructed source formula. This
  * permits partial arithmetic without replacing an unrelated AST by its answer. */
 function sameFormula(actual:ExpressionNodeIR,expected:ExpressionNodeIR):boolean{
-  if(actual.kind==="number")return close(actual.value,evaluate(expected));
+  if(actual.kind==="number")return expected.kind==="number" ? actual.value===expected.value : close(actual.value,evaluate(expected));
   if(actual.kind==="unary" && actual.operator==="-" && actual.operand.kind==="number" && expected.kind==="number")return -actual.operand.value===expected.value;
   if(actual.kind==="binary" && expected.kind==="binary"){
+    if(actual.operator==="^" || expected.operator==="^")return actual.operator===expected.operator
+      && actual.right.kind==="number" && expected.right.kind==="number"
+      && Number.isInteger(actual.right.value) && actual.right.value>=0 && actual.right.value<=4
+      && actual.right.value===expected.right.value && sameFormula(actual.left,expected.left);
     if(actual.operator===expected.operator && sameFormula(actual.left,expected.left) && sameFormula(actual.right,expected.right))return true;
     // Signed source constants may be written as addition or subtraction.
-    if(actual.operator==="+" && expected.operator==="-" && sameFormula(actual.left,expected.left))return actual.right.kind==="number" && close(actual.right.value,-evaluate(expected.right));
+    if(actual.operator==="+" && expected.operator==="-" && sameFormula(actual.left,expected.left))return actual.right.kind==="number" && (expected.right.kind==="number" ? actual.right.value===-expected.right.value : close(actual.right.value,-evaluate(expected.right)));
     return false;
   }
   return actual.kind==="call" && expected.kind==="call" && actual.function===expected.function && sameFormula(actual.argument,expected.argument);
+}
+/** Inspect the original IR tree before any structural or folded admission. */
+function originalExpressionDefined(root:ExpressionNodeIR):boolean {
+  let budget=512;
+  function value(node:ExpressionNodeIR):number {
+    if(--budget<0)throw new Error("expression domain budget");
+    let result:number;
+    if(node.kind==="number")result=node.value;
+    else if(node.kind==="unary"){
+      const operand=value(node.operand);result=node.operator==="-"?-operand:operand;
+    }else if(node.kind==="binary"){
+      const left=value(node.left),right=value(node.right);
+      if(node.operator==="/"&&right===0)throw new Error("original zero divisor");
+      if(node.operator==="^"&&(node.right.kind!=="number"||!Number.isInteger(right)||right<0||right>4))throw new Error("original unsupported power parameter");
+      result=node.operator==="+"?left+right:node.operator==="-"?left-right:node.operator==="*"?left*right:node.operator==="/"?left/right:left**right;
+    }else if(node.kind==="call"){
+      const operand=value(node.argument);
+      if(node.function!=="abs"&&node.function!=="sqrt"||node.function==="sqrt"&&operand<0)throw new Error("original function domain");
+      result=node.function==="abs"?Math.abs(operand):Math.sqrt(operand);
+    }else throw new Error("original nonliteral role");
+    if(!Number.isFinite(result))throw new Error("original nonfinite expression");
+    return result;
+  }
+  try{value(root);return true;}catch{return false;}
 }
 function record(raw:unknown,keys:readonly string[]):raw is Record<string,unknown>{
   if(!raw || typeof raw!=="object" || Array.isArray(raw))return false;
@@ -120,7 +148,7 @@ export function bindPointLineCaller(question:string,raw:unknown):PointLineCaller
     const role=["d","distance"].includes(b.symbol)?"distance":footRole(b.symbol,footIdentity);
     if(!role || !expr || expr.valueType!=="scalar" || !pointLineResultUnit(b.unit) || !b.evidenceFactIds.length || !b.evidenceFactIds.every(id=>facts.get(id)?.kind==="requested") || !has(b.evidenceFactIds,role==="distance"?"distance":"foot") || !has(expr.evidenceFactIds,role==="distance"?"distance":"foot"))return null;
     if(role==="distance" && !reading.requests.distance || role!=="distance" && !reading.requests.foot)return null;
-    try{if(!sameFormula(expr.root,expected[role]))return null;}catch{return null;}
+    try{if(!originalExpressionDefined(expr.root)||!sameFormula(expr.root,expected[role]))return null;}catch{return null;}
     if(expr.root.kind!=="number" && (!has(expr.evidenceFactIds,"point") || !has(expr.evidenceFactIds,"line")))return null;
     if(outputs.some(o=>o.role===role || o.binding.turnPlanQuantityId===b.turnPlanQuantityId) || usedExpressions.has(expr.id))return null;
     usedExpressions.add(expr.id);outputs.push({role,binding:b,expressionId:expr.id,value:role==="distance"?reading.distance:reading.foot[role]});
