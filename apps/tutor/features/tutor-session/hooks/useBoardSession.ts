@@ -141,6 +141,12 @@ export function useBoardSession({
   const [inputInteracted, setInputInteracted] = useState(false);
   const replayBlobUrlsRef = useRef<string[]>([]);
   const restoreGenerationRef = useRef(0);
+  /**
+   * The restored page's ink loop while it runs. Replay stops it and waits for
+   * it before clearing the board: a row the loop writes after replay's layout
+   * reset re-enters the work column and pushes every replayed row down.
+   */
+  const restoreInkRef = useRef<{ cancelled: boolean; done: Promise<void> } | null>(null);
   const activeSessionIdRef = useRef(sessionId);
   const isDraftRef = useRef(isDraft);
   // Commit the active board before paint and before asynchronous continuations.
@@ -529,77 +535,86 @@ export function useBoardSession({
         // doubt answered on the lesson's page is part of that page: same notes
         // page, same question, same figure and code panel.
         let restoredInk = false;
-        for (const turn of turns) {
-          if (isStale()) return;
-          const continuesPage = storedTurnContinuesBoard(turn);
-          if (restoredInk && !continuesPage) {
-            captureNotesEpoch();
-            restoredInk = false;
-          }
-          liveQuestionRef.current = storedTurnPageQuestion(turn);
-          const turnNarration = lessonNarrationText(turn.rawResponse);
-          narrationSinceEpochRef.current = continuesPage
-            ? [narrationSinceEpochRef.current, turnNarration]
-                .map((part) => part.trim())
-                .filter(Boolean)
-                .join(" ")
-            : turnNarration;
+        let finishInk: () => void = () => {};
+        const ink = { cancelled: false, done: new Promise<void>((resolve) => { finishInk = resolve; }) };
+        restoreInkRef.current = ink;
+        const inkStale = () => isStale() || ink.cancelled;
+        try {
+          for (const turn of turns) {
+            if (inkStale()) return;
+            const continuesPage = storedTurnContinuesBoard(turn);
+            if (restoredInk && !continuesPage) {
+              captureNotesEpoch();
+              restoredInk = false;
+            }
+            liveQuestionRef.current = storedTurnPageQuestion(turn);
+            const turnNarration = lessonNarrationText(turn.rawResponse);
+            narrationSinceEpochRef.current = continuesPage
+              ? [narrationSinceEpochRef.current, turnNarration]
+                  .map((part) => part.trim())
+                  .filter(Boolean)
+                  .join(" ")
+              : turnNarration;
 
-          // A DSA turn's TYPE commands reveal blocks of this plan; committing
-          // it first also brings the code panel back for the restored board.
-          const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
-          if (!continuesPage) {
-            const controller = codeLessonControllerRef?.current;
+            // A DSA turn's TYPE commands reveal blocks of this plan; committing
+            // it first also brings the code panel back for the restored board.
+            const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
+            if (!continuesPage) {
+              const controller = codeLessonControllerRef?.current;
+              if (codeLesson) {
+                controller?.commit(codeLesson);
+              } else {
+                controller?.reset();
+              }
+              // The restored board replays this turn's FRAME cues, so it needs the
+              // same walk-through the live turn compiled.
+              if (controller) restoreDsaFrames(controller, turn, codeLesson);
+              const diagram =
+                controller?.frames.current()?.presentation.diagram
+                ?? restoreVerifiedDiagramFromTurn(turn);
+              if (activeVerifiedDiagramRef) {
+                activeVerifiedDiagramRef.current = diagram;
+              }
+              setActiveVerifiedDiagram?.(diagram);
+              if (fbdPhaseStartedRef) {
+                fbdPhaseStartedRef.current = Boolean(diagram);
+              }
+            }
+
+            for (const segment of turn.segments) {
+              if (inkStale()) return;
+
+              const commands = parseStoredSegmentCommands(segment.command);
+              const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
+              for (const command of commands) {
+                if (inkStale() || cancelRef.current) {
+                  return;
+                }
+
+                // The boot face covers the board until this loop ends, so no
+                // one sees it: stamp finished ink. Any other scale still plays
+                // every FOCUS tour and pen swap at full length behind the loader.
+                await executeCommandRef.current(command, {
+                  durationScale: 0,
+                  applyLayout: false,
+                  trustedDiagramGeometry,
+                  isCancelled: inkStale,
+                });
+                if (command.type !== "CLEAR") {
+                  restoredInk = true;
+                }
+              }
+            }
+
+            // The lesson already finished when it was recorded: restored panels
+            // open in "complete" mode so type-along is immediately available.
             if (codeLesson) {
-              controller?.commit(codeLesson);
-            } else {
-              controller?.reset();
-            }
-            // The restored board replays this turn's FRAME cues, so it needs the
-            // same walk-through the live turn compiled.
-            if (controller) restoreDsaFrames(controller, turn, codeLesson);
-            const diagram =
-              controller?.frames.current()?.presentation.diagram
-              ?? restoreVerifiedDiagramFromTurn(turn);
-            if (activeVerifiedDiagramRef) {
-              activeVerifiedDiagramRef.current = diagram;
-            }
-            setActiveVerifiedDiagram?.(diagram);
-            if (fbdPhaseStartedRef) {
-              fbdPhaseStartedRef.current = Boolean(diagram);
+              codeLessonControllerRef?.current?.markLessonComplete();
             }
           }
-
-          for (const segment of turn.segments) {
-            if (isStale()) return;
-
-            const commands = parseStoredSegmentCommands(segment.command);
-            const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
-            for (const command of commands) {
-              if (isStale() || cancelRef.current) {
-                return;
-              }
-
-              // The boot face covers the board until this loop ends, so no
-              // one sees it: stamp finished ink. Any other scale still plays
-              // every FOCUS tour and pen swap at full length behind the loader.
-              await executeCommandRef.current(command, {
-                durationScale: 0,
-                applyLayout: false,
-                trustedDiagramGeometry,
-                isCancelled: isStale,
-              });
-              if (command.type !== "CLEAR") {
-                restoredInk = true;
-              }
-            }
-          }
-
-          // The lesson already finished when it was recorded: restored panels
-          // open in "complete" mode so type-along is immediately available.
-          if (codeLesson) {
-            codeLessonControllerRef?.current?.markLessonComplete();
-          }
+        } finally {
+          if (restoreInkRef.current === ink) restoreInkRef.current = null;
+          finishInk();
         }
 
         if (isStale()) return;
@@ -632,6 +647,18 @@ export function useBoardSession({
       fbdPhaseStartedRef,
     ],
   );
+
+  /**
+   * Stop the restored page's ink and resolve once its last command has
+   * finished. A no-op when no restore is inking. Only the ink stops: the
+   * fetched turns, conversation history and loaded flag are already set.
+   */
+  const settleBoardRestore = useCallback(async (): Promise<void> => {
+    const ink = restoreInkRef.current;
+    if (!ink) return;
+    ink.cancelled = true;
+    await ink.done;
+  }, []);
 
   const restoreBoardFromApiRef = useRef(restoreBoardFromApi);
   useEffect(() => {
@@ -695,5 +722,6 @@ export function useBoardSession({
     revokeReplayBlobUrls,
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
+    settleBoardRestore,
   };
 }

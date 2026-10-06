@@ -208,10 +208,12 @@ function givenFromPlan(raw: unknown, index: number, question: string): QuestionG
 function assignmentsFromQuestion(statement: string): QuestionGiven[] {
   const givens: QuestionGiven[] = [];
   const pattern =
-    /(?:^|[,;]|\s)((?:d[A-Za-z]\/d[A-Za-z]|[A-Za-z][A-Za-z0-9_/^']{0,12}))\s*=\s*([^\n,;]+?)(?=(?:,|;|\.\s|\band\b|$))/g;
+    /(?:^|[,;]|\s)((?:d[A-Za-z]\/d[A-Za-z]|[A-Za-z][A-Za-z0-9_/^']{0,12}))\s*=\s*/g;
   for (const match of statement.matchAll(pattern)) {
     const symbol = compactSymbol(match[1]);
-    const rhs = compactRhs(match[2]);
+    const sourceRhs = readAssignmentRhs(statement, (match.index ?? 0) + match[0].length);
+    if (sourceRhs === null) continue;
+    const rhs = compactRhs(sourceRhs);
     if (!symbol || !rhs || !hasGivenContent(rhs)) continue;
     if (isAskedUnknownAssignment(statement, symbol)) continue;
     givens.push({
@@ -223,9 +225,28 @@ function assignmentsFromQuestion(statement: string): QuestionGiven[] {
   return givens;
 }
 
+function readAssignmentRhs(statement: string, start: number): string | null {
+  const closing: string[] = [];
+  let end = start;
+  for (; end < statement.length; end++) {
+    const char = statement[end]!;
+    if (closing.length === 0 && (
+      char === "," || char === ";" || char === "\n" ||
+      char === "." && /\s/.test(statement[end + 1] ?? "") ||
+      /^and\b/.test(statement.slice(end)) && /\s/.test(statement[end - 1] ?? "")
+    )) break;
+    if (char === "[" || char === "(" || char === "{") {
+      closing.push(char === "[" ? "]" : char === "(" ? ")" : "}");
+    } else if (char === "]" || char === ")" || char === "}") {
+      if (closing.pop() !== char) return null;
+    }
+  }
+  return closing.length === 0 ? statement.slice(start, end) : null;
+}
+
 function equationFromQuestion(statement: string): QuestionGiven | null {
   const match = /([^\n=]{1,48}=\s*[^\n=]{1,48})/.exec(statement);
-  if (!match) return null;
+  if (!match || readAssignmentRhs(match[1], match[1].indexOf("=") + 1) === null) return null;
   const equation = compactRhs(match[1]).replace(
     /^(?:solve|simplify|evaluate|consider|given)\s+/i,
     "",
@@ -284,11 +305,8 @@ function compactSymbol(value: unknown): string | null {
 }
 
 function compactRhs(value: string): string {
-  return value
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/[.,;:]+$/, "")
-    .slice(0, 40);
+  const compacted = value.trim().replace(/\s+/g, " ").replace(/[.,;:]+$/, "");
+  return compacted.length <= 40 ? compacted : "";
 }
 
 /**

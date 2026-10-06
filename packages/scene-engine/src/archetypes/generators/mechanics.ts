@@ -6,6 +6,7 @@
  * arrows are in the stated speed ratio. Where a slot is missing the figure
  * uses a declared display value and the tier rule keeps it qualitative.
  */
+import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked, riverShortestTimeAsked } from "../../physics/riverCrossingSource";
 import { DEG, SceneBuilder, add, fmt, polar, rotate, scale, withUnit, type Vec2 } from "../document";
 import { angleExpected, angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 
@@ -84,6 +85,8 @@ function projectile(context: GeneratorContext) {
 }
 
 function freeFall(context: GeneratorContext) {
+  // The narration would state a different value than the figure: draw nothing.
+  if (text(context, "conflict")) return null;
   const h = num(context, "h", 45);
   const up = text(context, "direction") === "up";
   const scene = new SceneBuilder(context.question, up ? "body thrown vertically upward from the ground" : "body released from a height above the ground", "free_fall");
@@ -449,6 +452,7 @@ function conicalPendulum(context: GeneratorContext) {
 }
 
 function verticalCircle(context: GeneratorContext) {
+  if (text(context, "variant") === "track") return verticalLoopTrack(context);
   const radius = 2.4;
   const scene = new SceneBuilder(context.question, "body whirled in a vertical circle with forces at the top and bottom", "vertical_circle");
   if (grounded(context, "radius")) scene.quantity("r", "r", num(context, "radius", 1), "m");
@@ -467,6 +471,48 @@ function verticalCircle(context: GeneratorContext) {
   scene.assert("bottom_on", "on", ["bottom", "path"]);
   scene.assert("v_tangent", "perpendicular", ["v_top", "radius_top"]);
   scene.labelled("top", "bottom");
+  return scene.build();
+}
+
+/**
+ * Loop-the-loop on a track: the work-energy figure. A body released from a
+ * height rides an approach incline (when the stem names one) into a vertical
+ * circular track; the contact force at the top is the track's normal reaction,
+ * not a string tension. The release height is a dimension off the ground so
+ * the energy story (mgh into mv^2/2) is readable on the board.
+ */
+function verticalLoopTrack(context: GeneratorContext) {
+  const Rd = 2.4;
+  const Hd = 2.6 * Rd;
+  const releaseX = -4.4;
+  const approach = text(context, "approach") === "incline";
+  const scene = new SceneBuilder(context.question, "body on a vertical circular track with the release height and forces at the top", "vertical_circle");
+  if (grounded(context, "radius")) scene.quantity("R", "R", num(context, "radius", 1), "m");
+  if (grounded(context, "releaseHeight")) scene.quantity("h", "h", num(context, "releaseHeight", 1), "m");
+  groundLine(scene, "ground", { x: releaseX - 1.2, y: 0 }, { x: Rd + 1.6, y: 0 });
+  scene.point("O", { x: 0, y: Rd }, "centre", "O");
+  scene.circle("path", "O", Rd, "circular path");
+  scene.point("entry", { x: 0, y: 0 }, "loop entry", "B");
+  scene.point("top", { x: 0, y: 2 * Rd }, "body at the top", "A");
+  scene.segment("radius_top", "O", "top", "radius", valueLabel(context, "radius", "R", "m"));
+  scene.vector("v_top", "top", { direction: { x: -1, y: 0 }, length: 1.1 }, "velocity at the top", "v");
+  scene.vector("N_top", "top", { direction: { x: 0, y: -1 }, length: 0.9 }, "normal reaction", "N");
+  scene.vector("W_top", "top", { direction: { x: 0, y: -1 }, length: 1.35 }, "weight", "mg");
+  scene.assert("top_on", "on", ["top", "path"]);
+  scene.assert("entry_on_path", "on", ["entry", "path"]);
+  scene.assert("v_tangent", "perpendicular", ["v_top", "radius_top"]);
+  if (approach) {
+    scene.point("release", { x: releaseX, y: Hd }, "body at release", "m");
+    scene.segment("incline", "release", "entry", "approach incline");
+    scene.point("h_foot", { x: releaseX, y: 0 }, "release height foot");
+    scene.dimension("release_height", "h_foot", "release", "release height", valueLabel(context, "releaseHeight", "h", "m"));
+    scene.assert("release_on", "on", ["release", "incline"]);
+    scene.labelled("top", "release");
+    scene.group("approach", ["ground_a", "ground_b", "ground", "release", "incline", "h_foot", "release_height"], "the release height and the incline into the loop");
+    scene.group("loop", ["O", "path", "entry", "top", "radius_top", "v_top", "N_top", "W_top"], "the loop with the forces at the top", ["approach"]);
+  } else {
+    scene.labelled("top", "entry");
+  }
   return scene.build();
 }
 
@@ -577,6 +623,10 @@ function ladderWall(context: GeneratorContext) {
 }
 
 function relativeMotionLine(context: GeneratorContext) {
+  // Stock speeds or an assumed direction would draw a different motion.
+  if (!grounded(context, "vA") || !grounded(context, "vB") || !grounded(context, "sameDirection")) return null;
+  // Labels print m/s and m; a stem in km, km/h or mph would be mislabelled.
+  if (/\d\s*(?:km\b|kmph|km\s*\/|mph|miles?)/i.test(context.question)) return null;
   const vA = num(context, "vA", 20);
   const vB = num(context, "vB", 10);
   const same = text(context, "sameDirection", "yes") !== "no";
@@ -676,18 +726,32 @@ function vectorsResultant(context: GeneratorContext) {
 }
 
 function riverBoat(context: GeneratorContext) {
-  const vb = num(context, "vb", 5);
-  const vc = num(context, "vc", 3);
+  // Role-bound speeds only; a plan quantity that disagrees with them (or
+  // swaps the boat and current) withholds the figure from that narration.
+  // With no stated speed the sketch is qualitative: display ratio 5:3 and
+  // symbolic labels (vb, vc), as before.
+  const binding = riverCrossingSpeeds(context.question);
+  if (binding.status === "unbound") return null;
+  if (binding.status === "bound" && (!grounded(context, "vb") || !grounded(context, "vc"))) return null;
+  if (binding.status === "bound" && riverCrossingPlanConflicts(binding, { givens: context.quantities }, context.question).length > 0) return null;
+  const { vb, vc, unit } = binding.status === "bound" ? binding : { vb: 5, vc: 3, unit: "m/s" as const };
   if (vb <= 0 || vc < 0) return null;
   const variant = text(context, "variant", "crossing");
+  // Shortest path (straight across) heads upstream; shortest time heads
+  // straight across and drifts. A boat no faster than the current cannot
+  // cross straight, so that figure is declined rather than drawn.
+  const pathAsked = riverShortestPathAsked(context.question);
+  const timeAsked = riverShortestTimeAsked(context.question);
+  if ((pathAsked || variant === "two_triangles") && vb <= vc) return null;
+  const crossingUpstream = pathAsked || !timeAsked;
   const width = 4;
   const scene = new SceneBuilder(context.question, variant === "along_stream"
     ? "boat moving downstream and upstream along the river"
     : variant === "two_triangles"
       ? "the two velocity triangles: straight across and shortest time"
       : "boat crossing the river with its velocity triangle", "river_boat");
-  if (grounded(context, "vb")) scene.quantity("vb", "v_b", vb, "m/s");
-  if (grounded(context, "vc")) scene.quantity("vc", "v_c", vc, "m/s");
+  if (grounded(context, "vb")) scene.quantity("vb", "v_b", vb, unit);
+  if (grounded(context, "vc")) scene.quantity("vc", "v_c", vc, unit);
   scene.point("near_a", { x: -1, y: 0 }, "near bank end");
   scene.point("near_b", { x: 9, y: 0 }, "near bank end");
   scene.point("far_a", { x: -1, y: width }, "far bank end");
@@ -709,8 +773,8 @@ function riverBoat(context: GeneratorContext) {
     scene.point(originId, origin, "boat", "boat");
     scene.point(`${prefix}boat_end`, boatEnd, "boat velocity tip");
     scene.point(`${prefix}res_end`, currentEnd, "resultant tip");
-    scene.vector(`${prefix}boat`, originId, { end: `${prefix}boat_end` }, "boat velocity relative to water", grounded(context, "vb") ? `vb=${withUnit(vb, "m/s")}` : "vb");
-    scene.vector(`${prefix}current`, `${prefix}boat_end`, { end: `${prefix}res_end` }, "current velocity", grounded(context, "vc") ? `vc=${withUnit(vc, "m/s")}` : "vc");
+    scene.vector(`${prefix}boat`, originId, { end: `${prefix}boat_end` }, "boat velocity relative to water", grounded(context, "vb") ? `vb=${withUnit(vb, unit)}` : "vb");
+    scene.vector(`${prefix}current`, `${prefix}boat_end`, { end: `${prefix}res_end` }, "current velocity", grounded(context, "vc") ? `vc=${withUnit(vc, unit)}` : "vc");
     scene.vector(`${prefix}resultant`, originId, { end: `${prefix}res_end` }, "resultant velocity", "v");
     scene.assert(`${prefix}current_parallel`, "parallel", [`${prefix}current`, "near_bank"]);
     scene.assert(`${prefix}sum`, "vector_sum", [`${prefix}boat`, `${prefix}current`, `${prefix}resultant`]);
@@ -748,7 +812,9 @@ function riverBoat(context: GeneratorContext) {
     triangle("across_", { x: 1.2, y: 0.4 }, true, "straight across: head upstream so the resultant is perpendicular to the bank");
     triangle("short_", { x: 5.4, y: 0.4 }, false, "shortest time: head perpendicular, the current carries the boat downstream");
   } else {
-    triangle("", { x: 2.2, y: 0.4 }, true, "head upstream at α so the resultant points straight across");
+    triangle("", { x: 2.2, y: 0.4 }, crossingUpstream, crossingUpstream
+      ? "head upstream at α so the resultant points straight across"
+      : "shortest time: head perpendicular, the current carries the boat downstream");
   }
   return scene.build();
 }

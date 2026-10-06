@@ -1,4 +1,5 @@
 import { parseMathExpression } from "../math/expression";
+import { validateDcNetwork, type DcNetwork, type DcNetworkOutput } from "./circuitNetwork";
 
 export const PROBLEM_IR_VERSION = "problem-ir/v1" as const;
 
@@ -77,6 +78,7 @@ export interface SolveResultBinding {
 }
 
 export type SolveRequest =
+  | { id: string; kind: "dc_network"; network: DcNetwork; output: DcNetworkOutput; resultBinding?: SolveResultBinding }
   | { id: string; kind: "evaluate"; expressionId: string; resultBinding?: SolveResultBinding }
   | { id: string; kind: "roots"; expressionId: string; variable: string; domain: SolveDomain; resultBinding?: SolveResultBinding }
   | { id: string; kind: "intersections"; leftExpressionId: string; rightExpressionId: string; variable: string; domain: SolveDomain; resultBinding?: SolveResultBinding }
@@ -146,7 +148,7 @@ export function validateProblemIR(raw: unknown, expectedQuestion?: string): Prob
   expressions.forEach((value, index) => validateExpression(value, factIds, `expressions[${index}]`, issues));
   constraints.forEach((value, index) => validateConstraint(value, factIds, entityIds, expressionIds, `constraints[${index}]`, issues));
   intents.forEach((value, index) => validateIntent(value, factIds, entityIds, `representationIntents[${index}]`, issues));
-  requests.forEach((value, index) => validateSolveRequest(value, expressionIds, factIds, `solveRequests[${index}]`, issues));
+  requests.forEach((value, index) => validateSolveRequest(value, expressionIds, factIds, `solveRequests[${index}]`, issues, raw as unknown as ProblemIR));
 
   return issues.length === 0
     ? { valid: true, problem: raw as unknown as ProblemIR, issues: [] }
@@ -162,7 +164,8 @@ export function expressionToSafeSource(root: ExpressionNodeIR, variable?: string
     switch (node.kind) {
       case "number":
         if (!Number.isFinite(node.value) || Math.abs(node.value) > 1e12) throw new Error("number is outside the supported range");
-        return Object.is(node.value, -0) ? "0" : String(node.value);
+        // A negative literal is parenthesised: "(-3^2)" would otherwise read as -(3^2).
+        return Object.is(node.value, -0) ? "0" : node.value < 0 ? `(${String(node.value)})` : String(node.value);
       case "constant": return node.name;
       case "variable":
         if (!IDENTIFIER_PATTERN.test(node.name)) throw new Error("invalid variable name");
@@ -277,9 +280,22 @@ function validateIntent(raw: unknown, facts: Set<string>, entities: Set<string>,
   validateRefs(raw.entityIds, entities, `${path}.entityIds`, "entity", issues, 1);
 }
 
-function validateSolveRequest(raw: unknown, expressions: Set<string>, facts: Set<string>, path: string, issues: ProblemIRIssue[]): void {
+function validateSolveRequest(raw: unknown, expressions: Set<string>, facts: Set<string>, path: string, issues: ProblemIRIssue[], problem: ProblemIR): void {
   if (!isRecord(raw)) return add(issues, "invalid_solve_request", path, "solve request must be an object");
   validateResultBinding(raw.resultBinding, facts, `${path}.resultBinding`, issues);
+  if (raw.kind === "dc_network") {
+    try {
+      const network = validateDcNetwork(problem, raw.network);
+      if (!isRecord(raw.output) || Object.keys(raw.output).some((key) => !["kind", "id"].includes(key)) || typeof raw.output.id !== "string") throw new Error("Network scalar output requires an explicit owner ID");
+      const owners = raw.output.kind === "node_voltage" ? network.nodes : raw.output.kind === "branch_current" ? network.branches.map((branch) => branch.id) : [];
+      if (!owners.includes(raw.output.id)) throw new Error("Network scalar output must reference a declared node or branch");
+      if (isRecord(raw.resultBinding) && raw.output.kind === "node_voltage" && !network.referenceFactId) throw new Error("A bound node voltage requires a source-declared zero reference; arbitrary display origins are not scalar authority");
+      if (isRecord(raw.resultBinding) && raw.resultBinding.unit !== (raw.output.kind === "node_voltage" ? "V" : "A")) throw new Error("Network binding requires its derived SI unit");
+    } catch (error) {
+      add(issues, "invalid_dc_network", path, error instanceof Error ? error.message : "Invalid DC network");
+    }
+    return;
+  }
   if (raw.kind === "evaluate") return validateRef(raw.expressionId, expressions, `${path}.expressionId`, "expression", issues);
   if (raw.kind === "roots") {
     validateRef(raw.expressionId, expressions, `${path}.expressionId`, "expression", issues);

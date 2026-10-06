@@ -224,6 +224,11 @@ function normalizeSolveRequest(
   if (typeof request.id !== "string") return null;
   const resultBinding = normalizeResultBinding(request.resultBinding, factIds, turnPlan);
   const binding = resultBinding ? { resultBinding } : {};
+  if (request.kind === "dc_network") {
+    return isRecord(request.network) && isRecord(request.output)
+      ? { id: request.id, kind: request.kind, network: request.network, output: request.output, ...binding }
+      : null;
+  }
   if (request.kind === "evaluate") {
     return typeof request.expressionId === "string" && expressionIds.has(request.expressionId)
       ? { id: request.id, kind: request.kind, expressionId: request.expressionId, ...binding }
@@ -467,10 +472,17 @@ Return exactly one JSON object matching problem-ir/v1. Never return prose or mar
 Use only facts grounded by exact character spans from SUBMITTED QUESTION. Copy the submitted question exactly into question.
 Represent mathematics as the typed AST; never emit code, executable strings, pixels, or drawing commands.
 Allowed AST nodes: number, constant(pi|e), variable, unary(+|-), binary(+|-|*|/|^), call(sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|ln).
-Allowed solve requests: evaluate, roots, intersections, definite_integral.
+Allowed solve requests: evaluate, roots, intersections, definite_integral, dc_network.
 Use evaluate for any requested scalar that can be written as a closed numeric AST after substituting the givens.
 Do not invent a solve request for a law or assumption not justified by the submitted question and validated TurnPlan.
 For mensuration, represent each source shape and part as solid (3D) or region (2D), and include solid/section or bounded_region representation intent. Ground the join or cavity in source facts; a scalar answer still needs its spatial setup.
+
+For a source-explicit ideal DC network, dc_network computes node voltages and signed branch currents from Kirchhoff laws, not a closed guessed current expression. Request shape:
+{ id, kind:"dc_network", network:{model:"ideal_dc",modelFactId,nodes:[point entity ids],referenceNode,referenceFactId:optional source zero-reference fact,branches:[{id:component entity id,kind:"resistor|voltage_source|current_source|wire|open",from:node id,to:node id,connectionConstraintId,lawFactId,quantityExpressionId,quantityFactId,unit}]}, output:{kind:"node_voltage|branch_current",id:node or component id}, resultBinding }.
+DC authority is bounded to a complete supported assertion document, not isolated matching fragments. The original question must consist entirely of: an ideal DC model plus a Nodes declaration (or the combined "An ideal DC circuit has nodes ..." header); named component connects node to node clauses; named resistance equations; oriented V(node)-V(node)=decimal unit or I(node->node)=decimal unit equations immediately after their named connection; optional V(node)=0 V reference; and optional "Find current symbol through component" requests, separated by periods, semicolons or commas. A connection may explicitly append ", not excludedNode" only when the excluded node is declared and differs from both actual endpoints; quote its positive relation. Every declared node, component connection and law must be accounted for exactly once. Unsupported surrounding prose, quoted statements, hypothetical/false-statement contexts, omitted components and conflicting/duplicate declarations leave the request unresolved. Never rewrite the question, remove context or upgrade a given/assumption tag into source authority. This bounded syntax is not general English support or full scene/cohort readiness.
+Model fact must quote the explicit ideal DC assumption. Each component/node connection requires a source-grounded connected constraint with exactly [component,from,to] entity IDs. Every connection evidence fact must quote the positive clause "componentLabel connects nodeLabel to nodeLabel" (optional matching Component/Resistor/Wire/Switch/Source prefix), with either endpoint order. Mentioning all three names, excluded endpoints, or an unsupported clause cannot establish connectivity. Extract a positively stated complete relation from the source or leave the request unresolved; never invent it. Do not infer connections from a missing figure, proximity, circuit names or an assumed topology. The declared reference node is a coordinate convention; source polarity is not. A bound node-voltage answer additionally requires referenceFactId quoting V(reference)=0 V from the source; an arbitrary zero may only support unbound intermediate relative coordinates.
+Each nontrivial component requires its own given quantity fact quoting only the complete numeric literal and case-sensitive unit. Its scalar number expression is the SI conversion of that supplied literal, not a derived model value. Supported units: ohm/Ω,kohm/kΩ,Mohm/MΩ for resistance; V,mV for voltage; A,mA,µA for current. Resistance must be positive. No default sources or values.
+The source lawFactId must quote an explicit equation with source entity labels (or IDs): a resistor's label=given literal/unit; V(from)-V(to)=given voltage; I(from->to)=given current. Wire/open laws respectively require V(from)-V(to)=0 V or I(from->to)=0 A and omit quantityExpressionId/quantityFactId/unit. Never invent those equations when source polarity or connectivity is ambiguous. Branch current is positive from the declared from node to the to node. Bind outputs in SI A or V. Bounds: 2–16 nodes,1–32 branches,at most32 nodal/current unknowns; nonzero SI input/result magnitude1e-12–1e12. Missing assumptions, source laws or unsupported domain/model must remain unresolved rather than fabricated.
 
 Every solve request that computes a numeric TurnPlan unknown MUST include resultBinding:
 { "turnPlanQuantityId": exact unknown id, "symbol": exact unknown symbol, "unit": exact unknown unit when present, "evidenceFactIds": [requested fact ids] }.

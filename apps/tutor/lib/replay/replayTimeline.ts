@@ -1,3 +1,4 @@
+import { sourceCheckedStoredTurn } from "@/lib/scene/storedSceneSource";
 import type { DrawCommand } from "@heytutor/drawing";
 import {
   isStoredCommandTrustedGeometry,
@@ -45,7 +46,8 @@ export function buildReplayTimeline(turns: StoredTurn[]): ReplayTimeline {
   let cursorMs = 0;
 
   turns.forEach((turn, turnIndex) => {
-    turn.segments.forEach((segment, segmentIndex) => {
+    const checked = sourceCheckedStoredTurn(turn);
+    checked.segments.forEach((segment, segmentIndex) => {
       const narration = segment.narration.trim();
       const commands = parseStoredSegmentCommands(segment.command);
       if (commands.length === 0 && !narration) {

@@ -1,0 +1,897 @@
+topic_id,packet,catalog,state,owner,scope_version,evidence_ref,accepted_by,accepted_at,remaining_variants
+maths|10|cartesian-distance-section-and-locus,CH-06a,maths,verification_pending,worker-ch06a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-06a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+maths|10|section-formula,CH-06a,maths,verification_pending,HEY-91/Subagent2,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,PAUSED for local handoff 2026-10-03. Existing operator evidence retained; section arithmetic/label/identity proposals preserved; source binding and external-point connector unresolved; full row/lifecycle outstanding
+maths|10|locus-and-locus-equations,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|translation-of-axes,CH-06a,maths,verification_pending,worker-ch06a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-06a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+maths|10|slope-parallel-perpendicular-and-intercepts,CH-06a,maths,verification_pending,worker-ch06a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-06a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+maths|10|intercepts-of-a-line,CH-06a,maths,verification_pending,worker-ch06a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-06a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+maths|10|straight-line-equations,CH-06a,maths,verification_pending,worker-ch06a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-06a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+maths|10|family-of-lines,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|line-intersection-angles-and-concurrence,CH-06a,maths,verification_pending,worker-ch06a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-06a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+maths|10|concurrence-of-three-lines,CH-06a,maths,verification_pending,worker-ch06a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-06a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+maths|10|point-to-line-distance,CH-06a,maths,verification_pending,HEY83/Subagent11,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,"PAUSED for local handoff 2026-10-03; see current wind-down log. Prior obligations: compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run; assignment HEY83/Subagent11 recorded in docs/plans/diagram-topic-matrix/work-logs/parallel-qualifications-HEY88-20261003.md"
+maths|10|angle-bisectors,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|triangle-centres-centroid-and-orthocentre,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|triangle-centre-circumcentre,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|triangle-centre-incentre,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|circle-standard-form,CH-06b,maths,auditing,HEY83/Subagent12,2026-10-02-topic-matrix-v1; original row/exam tags unchanged; bounded authored S0 qualification on immutable source05 1ce781ac96de9854c090c710717c97ea6e6793fce339c07c9946db9bd58ee372,docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,PAUSED for local handoff 2026-10-03; see current wind-down log. Prior obligations: full source/variant/render/live/save/read/replay topic audit pending; private bounded qualification is not topic acceptance; assignment HEY83/Subagent12 recorded in docs/plans/diagram-topic-matrix/work-logs/parallel-qualifications-HEY88-20261003.md
+maths|10|circle-general-form-radius-and-centre,CH-06b,maths,auditing,HEY-91/Subagent1,"2026-10-02-topic-matrix-v1; original CSV row/exam boundaries unchanged; authored S0 audit/proposals, not accepted",docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,PAUSED for local handoff 2026-10-03. General-circle contract/oracles and source/emitted repros frozen; standard-circle prerequisite overlay authorized; general-source proposal not accepted; source/admission/full variants/lifecycle outstanding
+maths|10|circles-through-three-points,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|circle-from-diameter-endpoints,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|line-circle-intersection-at-origin,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|tangent-to-circle,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|length-of-tangent-from-a-point,CH-06b,maths,planned,,,,,,topic audit pending
+maths|10|conic-sections-standard-forms,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|ellipse-standard-form,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|hyperbola-standard-form,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|eccentricity-foci-and-directrix,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|parametric-points-on-conics,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|line-as-tangent-to-conic,CH-06c,maths,planned,,,,,,topic audit pending
+maths|10|latus-rectum-of-conics,CH-06c,maths,planned,,,,,,topic audit pending
+maths|7|real-valued-functions-and-algebra,CH-11a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2
+maths|7|elementary-functions,CH-11a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2
+maths|7|inverse-functions-and-graphs,CH-11a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2
+maths|7|limits-continuity-and-differentiability,CH-11a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2
+maths|7|continuity,CH-11a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2
+maths|7|differentiability,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|differentiation-from-first-principles,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|differentiation-rules,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|special-function-differentiation,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|logarithmic-and-exponential-differentiation,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|composite-implicit-and-second-derivatives,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|implicit-and-parametric-differentiation,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|second-order-derivatives,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|7|mean-value-theorems,CH-11c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-11a and CH-11b"
+maths|7|applications-of-derivatives,CH-11c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-11a and CH-11b"
+maths|7|monotonic-functions,CH-11c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-11a and CH-11b"
+maths|7|maxima-and-minima,CH-11c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-11a and CH-11b"
+maths|7|tangents-and-normals,CH-11b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11a
+maths|8|antiderivative-and-fundamental-integrals,CH-12a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11b
+maths|8|integration-methods,CH-12a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11b
+maths|8|integration-by-parts,CH-12a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11b
+maths|8|integration-by-partial-fractions,CH-12a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11b
+maths|8|integration-using-trigonometric-identities,CH-12a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11b
+maths|8|standard-integrals-irrational-forms,CH-12a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11b
+maths|8|integral-as-limit-of-sum,CH-12b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-12a and CH-06c"
+maths|8|fundamental-theorem-of-calculus,CH-12a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-11b
+maths|8|properties-of-definite-integrals,CH-12b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-12a and CH-06c"
+maths|8|evaluation-of-definite-integrals,CH-12b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-12a and CH-06c"
+maths|8|substitution-in-definite-integrals,CH-12b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-12a and CH-06c"
+maths|8|areas-bounded-by-curves,CH-12b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-12a and CH-06c"
+maths|8|area-between-two-curves,CH-12b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, CH-12a and CH-06c"
+maths|9|order-and-degree,CH-13a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-12a
+maths|9|formation-of-differential-equation,CH-13a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-12a
+maths|9|separation-of-variables,CH-13a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-12a
+maths|9|homogeneous-differential-equations,CH-13a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-12a
+maths|9|linear-differential-equations,CH-13b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-13a
+maths|9|integrating-factor,CH-13b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-13a
+maths|9|initial-value-problems,CH-13b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-13a
+maths|9|rate-growth-and-decay,CH-13c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-13b
+maths|3|matrices-and-types,CH-14a,maths,verification_pending,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,"PAUSED for local handoff 2026-10-03; see current wind-down log. Prior obligations: shared compile, 6x6 board ink, and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run; rounded labels and extra arithmetic limits are not an unrestricted certificate"
+maths|3|matrix-algebra,CH-14a,maths,verification_pending,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/CH-14a-HEY-84.md,,,"shared compile, 6x6 board ink, and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run; rounded labels and extra arithmetic limits are not an unrestricted certificate"
+maths|3|transpose-symmetric-and-skew-symmetric,CH-14a,maths,verification_pending,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/CH-14a-HEY-84.md,,,"shared compile, 6x6 board ink, and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run; rounded labels and extra arithmetic limits are not an unrestricted certificate"
+maths|3|determinants-order-two-and-three,CH-14b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-14a and CH-06a
+maths|3|determinant-evaluation,CH-14b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-14a and CH-06a
+maths|3|determinant-properties,CH-14b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-14a and CH-06a
+maths|3|triangle-area-using-determinants,CH-14b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-14a and CH-06a
+maths|3|adjoint-and-inverse,CH-14b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-14a and CH-06a
+maths|3|inverse-of-a-square-matrix,CH-14b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-14a and CH-06a
+maths|3|singular-and-non-singular-matrices,CH-14b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-14a and CH-06a
+maths|3|linear-systems-using-matrices,CH-14c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S3, CH-14a, CH-14b and CH-18c"
+maths|3|solution-by-matrix-inverse,CH-14c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S3, CH-14a, CH-14b and CH-18c"
+maths|3|cramers-rule,CH-14c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S3, CH-14a, CH-14b and CH-18c"
+maths|3|elementary-operations-and-rank,CH-14c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S3, CH-14a, CH-14b and CH-18c"
+maths|6|arithmetic-and-geometric-progressions,CH-15a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|6|geometric-progression,CH-15a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|6|sum-of-ap-and-gp,CH-15b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-15a
+maths|6|infinite-gp,CH-15b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-15a
+maths|6|insertion-of-means,CH-15a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|6|am-gm-relation,CH-15c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-15a
+maths|6|properties-of-ap-and-gp,CH-15a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|6|special-series-sums,CH-15b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-15a
+maths|6|arithmetico-geometric-progression,CH-15b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-15a
+maths|6|mixed-ap-gp-problems,CH-15a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|5|binomial-theorem,CH-16a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|5|general-and-middle-term,CH-16a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|5|middle-term,CH-16a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|5|binomial-coefficient-properties,CH-16b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-16a and CH-17a
+maths|5|greatest-term-in-expansion,CH-16b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-16a and CH-17a
+maths|5|sum-of-binomial-coefficients,CH-16b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-16a and CH-17a
+maths|5|binomial-remainder-problems,CH-16b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-16a and CH-17a
+maths|5|simple-applications,CH-16b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-16a and CH-17a
+maths|4|counting-principle,CH-17a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|4|permutations-and-combinations,CH-17a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|4|combinations,CH-17a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|4|npr-and-ncr,CH-17a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|4|circular-permutations,CH-17b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-17a
+maths|4|permutations-with-repetition,CH-17b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-17a
+maths|4|combinations-with-restrictions,CH-17b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-17a
+maths|4|division-into-groups,CH-17b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-17a
+maths|4|simple-applications,CH-17a,maths,planned,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,S0-only but not the approved write; do not start
+maths|11|point-distance-and-section,CH-18a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,reserved to HEY-84; blocked on unaccepted S3
+maths|11|section-formula-in-space,CH-18a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,reserved to HEY-84; blocked on unaccepted S3
+maths|11|direction-ratios-and-cosines,CH-18a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,reserved to HEY-84; blocked on unaccepted S3
+maths|11|angle-between-intersecting-lines,CH-18b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,reserved to HEY-84; blocked on unaccepted S3 and CH-18a
+maths|11|equation-of-a-line,CH-18a,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,reserved to HEY-84; blocked on unaccepted S3
+maths|11|skew-lines,CH-18b,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,reserved to HEY-84; blocked on unaccepted S3 and CH-18a
+maths|11|plane-equations,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|11|angle-between-planes,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|11|angle-between-line-and-plane,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|11|distance-from-point-to-plane,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|11|line-plane-intersection,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|11|coplanar-lines,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|11|image-of-a-point-in-a-plane,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|11|intersection-of-two-planes,CH-18c,maths,blocked,HEY-84,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"reserved to HEY-84; blocked on unaccepted S3, CH-18a and CH-18b"
+maths|1|sets-and-operations,CH-29a,maths,planned,,,,,,topic audit pending
+maths|1|union-intersection-complement,CH-29a,maths,planned,,,,,,topic audit pending
+maths|1|venn-diagrams-and-cardinality,CH-29a,maths,planned,,,,,,topic audit pending
+maths|1|power-set,CH-29a,maths,planned,,,,,,topic audit pending
+maths|1|relations,CH-29a,maths,planned,,,,,,topic audit pending
+maths|1|equivalence-relations,CH-29a,maths,planned,,,,,,topic audit pending
+maths|1|functions,CH-29b,maths,planned,,,,,,topic audit pending
+maths|1|into-and-many-one-functions,CH-29b,maths,planned,,,,,,topic audit pending
+maths|1|number-of-relations-and-functions,CH-29a,maths,planned,,,,,,topic audit pending
+maths|1|function-composition,CH-29b,maths,planned,,,,,,topic audit pending
+maths|2|complex-number-representation,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|argand-plane,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|complex-number-algebra,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|modulus-and-argument,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|argument-and-polar-form,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|de-moivre-and-nth-roots,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|cube-roots-of-unity,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|square-roots-and-triangle-inequality,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|triangle-inequality,CH-30b,maths,planned,,,,,,topic audit pending
+maths|2|quadratic-equations,CH-30a,maths,planned,,,,,,topic audit pending
+maths|2|roots-and-coefficients,CH-30c,maths,planned,,,,,,topic audit pending
+maths|2|nature-of-roots,CH-30a,maths,planned,,,,,,topic audit pending
+maths|2|quadratic-from-roots,CH-30a,maths,planned,,,,,,topic audit pending
+maths|2|common-roots-of-quadratics,CH-30c,maths,planned,,,,,,topic audit pending
+maths|12|vectors-and-scalars,CH-31a,maths,planned,,,,,,topic audit pending
+maths|12|vector-addition,CH-31a,maths,planned,,,,,,topic audit pending
+maths|12|vector-components,CH-31a,maths,planned,,,,,,topic audit pending
+maths|12|scalar-and-vector-products,CH-31a,maths,planned,,,,,,topic audit pending
+maths|12|cross-product,CH-31b,maths,planned,,,,,,topic audit pending
+maths|12|projection-of-a-vector,CH-31a,maths,planned,,,,,,topic audit pending
+maths|12|triple-products,CH-31c,maths,planned,,,,,,topic audit pending
+maths|12|vector-triple-product,CH-31c,maths,planned,,,,,,topic audit pending
+maths|12|collinear-and-coplanar-vectors,CH-31c,maths,planned,,,,,,topic audit pending
+maths|12|area-and-volume-via-vectors,CH-31c,maths,planned,,,,,,topic audit pending
+maths|13|central-tendency-and-dispersion,CH-32a,maths,planned,,,,,,topic audit pending
+maths|13|standard-deviation-variance-and-mean-deviation,CH-32a,maths,planned,,,,,,topic audit pending
+maths|13|mean-deviation,CH-32a,maths,planned,,,,,,topic audit pending
+maths|13|event-probability-and-theorems,CH-32b,maths,planned,,,,,,topic audit pending
+maths|13|multiplication-theorem-and-independence,CH-32b,maths,planned,,,,,,topic audit pending
+maths|13|conditional-probability,CH-32b,maths,planned,,,,,,topic audit pending
+maths|13|total-probability,CH-32b,maths,planned,,,,,,topic audit pending
+maths|13|bayes-theorem,CH-32b,maths,planned,,,,,,topic audit pending
+maths|13|random-variable-distribution,CH-32c,maths,planned,,,,,,topic audit pending
+maths|13|mean-and-variance-of-a-random-variable,CH-32c,maths,planned,,,,,,topic audit pending
+maths|13|bernoulli-trials-and-binomial-distribution,CH-32c,maths,planned,,,,,,topic audit pending
+maths|13|binomial-mean-and-variance,CH-32c,maths,planned,,,,,,topic audit pending
+maths|14|trigonometric-identities,CH-33b,maths,planned,,,,,,topic audit pending
+maths|14|compound-and-multiple-angles,CH-33b,maths,planned,,,,,,topic audit pending
+maths|14|sum-to-product-transformations,CH-33b,maths,planned,,,,,,topic audit pending
+maths|14|trigonometric-functions,CH-33a,maths,planned,,,,,,topic audit pending
+maths|14|range-of-trigonometric-expressions,CH-33a,maths,planned,,,,,,topic audit pending
+maths|14|trigonometric-equations,CH-33b,maths,planned,,,,,,topic audit pending
+maths|14|general-solution-of-trigonometric-equations,CH-33b,maths,planned,,,,,,topic audit pending
+maths|14|inverse-trigonometric-functions,CH-33c,maths,planned,,,,,,topic audit pending
+maths|14|principal-values-of-inverse-trig,CH-33c,maths,planned,,,,,,topic audit pending
+maths|14|heights-and-distances,CH-33c,maths,planned,,,,,,topic audit pending
+physics|2|frame-of-reference,CH-01a,physics,planned,,,,,,topic audit pending
+physics|2|motion-in-a-straight-line,CH-01b,physics,planned,,,,,,topic audit pending
+physics|2|speed-velocity-and-accelerated-motion,CH-01b,physics,planned,,,,,,topic audit pending
+physics|2|suvat-equations,CH-01c,physics,auditing,HEY83/Subagent13,2026-10-02-topic-matrix-v1; original row/exam tags unchanged; bounded authored S0 qualification on immutable source05 1ce781ac96de9854c090c710717c97ea6e6793fce339c07c9946db9bd58ee372,docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,PAUSED for local handoff 2026-10-03; see current wind-down log. Prior obligations: full source/variant/render/live/save/read/replay topic audit pending; private bounded qualification is not topic acceptance; assignment HEY83/Subagent13 recorded in docs/plans/diagram-topic-matrix/work-logs/parallel-qualifications-HEY88-20261003.md
+physics|2|free-fall-and-vertical-projection,CH-01c,physics,planned,,,,,,topic audit pending
+physics|2|motion-graphs,CH-01b,physics,planned,,,,,,topic audit pending
+physics|2|relative-velocity,CH-01a,physics,auditing,HEY-91/Subagent3,"2026-10-02-topic-matrix-v1; original CSV row/exam boundaries unchanged; authored S0 audit/proposals, not accepted",docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,PAUSED for local handoff 2026-10-03. Independent coincident-equal-speed false-empty-set repro and narrow zero-polynomial patch retained; role/frame/unit source joins and whole row/lifecycle outstanding
+physics|2|river-boat-problems,CH-01a,physics,planned,,,,,,topic audit pending
+physics|2|relative-velocity-in-a-plane,CH-01a,physics,planned,,,,,,topic audit pending
+physics|2|motion-in-a-plane,CH-01c,physics,planned,,,,,,topic audit pending
+physics|2|projectile-motion,CH-01c,physics,planned,,,,,,topic audit pending
+physics|2|projectile-from-height,CH-01c,physics,planned,,,,,,topic audit pending
+physics|2|projectile-on-incline,CH-01c,physics,planned,,,,,,topic audit pending
+physics|2|uniform-circular-motion,CH-01c,physics,auditing,HEY-91/Subagent4,"2026-10-02-topic-matrix-v1; original CSV row/exam boundaries unchanged; authored S0 audit/proposals, not accepted",docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,PAUSED for local handoff 2026-10-03. Kernel/source/caller gaps and original symbolic native PDF question retained; consumed source binding/honest representation and whole row/lifecycle outstanding
+physics|12|current-drift-velocity-and-mobility,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|mobility-and-current-density,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|ohms-law-and-resistance,CH-02a,physics,auditing,HEY83/Subagent14,2026-10-02-topic-matrix-v1; original row/exam tags unchanged; bounded authored S0 qualification on immutable source05 1ce781ac96de9854c090c710717c97ea6e6793fce339c07c9946db9bd58ee372,docs/plans/diagram-topic-matrix/work-logs/wind-down-HEY83-20261003.md,,,PAUSED for local handoff 2026-10-03; see current wind-down log. Prior obligations: full source/variant/render/live/save/read/replay topic audit pending; private bounded qualification is not topic acceptance; assignment HEY83/Subagent14 recorded in docs/plans/diagram-topic-matrix/work-logs/parallel-qualifications-HEY88-20261003.md
+physics|12|iv-characteristics,CH-02c,physics,planned,,,,,,topic audit pending
+physics|12|electrical-energy-and-power,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|joules-law-of-heating,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|resistivity-and-conductivity,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|resistance-from-dimensions,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|resistor-combinations,CH-02a,physics,planned,,,,,,topic audit pending
+physics|12|mixed-resistor-networks,CH-02a,physics,planned,,,,,,topic audit pending
+physics|12|temperature-dependence-of-resistance,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|cell-emf-potential-difference-and-internal-resistance,CH-02b,physics,planned,,,,,,topic audit pending
+physics|12|cell-combinations,CH-02a,physics,planned,,,,,,topic audit pending
+physics|12|kirchhoffs-laws,CH-02a,physics,planned,,,,,,topic audit pending
+physics|12|wheatstone-and-metre-bridge,CH-02c,physics,planned,,,,,,topic audit pending
+physics|12|metre-bridge,CH-02c,physics,planned,,,,,,topic audit pending
+physics|12|potentiometer,CH-02c,physics,planned,,,,,,topic audit pending
+physics|3|force-inertia-and-first-law,CH-03a,physics,planned,,,,,,topic audit pending
+physics|3|momentum-second-law-and-impulse,CH-03a,physics,planned,,,,,,topic audit pending
+physics|3|impulse,CH-03a,physics,planned,,,,,,topic audit pending
+physics|3|third-law-and-linear-momentum-conservation,CH-03a,physics,planned,,,,,,topic audit pending
+physics|3|conservation-of-linear-momentum,CH-03a,physics,planned,,,,,,topic audit pending
+physics|3|equilibrium-of-concurrent-forces,CH-03a,physics,planned,,,,,,topic audit pending
+physics|3|friction,CH-03b,physics,planned,,,,,,topic audit pending
+physics|3|rolling-friction,CH-03b,physics,planned,,,,,,topic audit pending
+physics|3|motion-on-incline-with-friction,CH-03b,physics,planned,,,,,,topic audit pending
+physics|3|connected-bodies-and-pulleys,CH-03b,physics,planned,,,,,,topic audit pending
+physics|3|apparent-weight-in-a-lift,CH-03c,physics,planned,,,,,,topic audit pending
+physics|3|pseudo-force-in-non-inertial-frame,CH-03c,physics,planned,,,,,,topic audit pending
+physics|3|dynamics-of-uniform-circular-motion,CH-03c,physics,planned,,,,,,topic audit pending
+physics|3|conical-pendulum,CH-03c,physics,planned,,,,,,topic audit pending
+physics|3|vehicle-on-level-circular-road,CH-03c,physics,planned,,,,,,topic audit pending
+physics|3|vehicle-on-banked-road,CH-03c,physics,planned,,,,,,topic audit pending
+physics|3|banking-with-friction,CH-03c,physics,planned,,,,,,topic audit pending
+physics|4|work-by-forces,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|work-by-variable-force,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|kinetic-and-potential-energy,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|gravitational-potential-energy,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|work-energy-theorem,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|power,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|spring-potential-energy,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|conservation-of-mechanical-energy,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|conservative-and-non-conservative-forces,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|potential-energy-curve-and-equilibrium,CH-04b,physics,planned,,,,,,topic audit pending
+physics|4|motion-in-a-vertical-circle,CH-04a,physics,planned,,,,,,topic audit pending
+physics|4|collisions,CH-04c,physics,planned,,,,,,topic audit pending
+physics|4|inelastic-collisions-1d,CH-04c,physics,planned,,,,,,topic audit pending
+physics|4|perfectly-inelastic-collisions,CH-04c,physics,planned,,,,,,topic audit pending
+physics|4|collisions-in-two-dimensions,CH-04c,physics,planned,,,,,,topic audit pending
+physics|4|coefficient-of-restitution,CH-04c,physics,planned,,,,,,topic audit pending
+physics|13|biot-savart-law,CH-05a,physics,planned,,,,,,topic audit pending
+physics|13|field-at-the-centre-of-an-arc,CH-05a,physics,planned,,,,,,topic audit pending
+physics|13|field-due-to-a-straight-wire,CH-05a,physics,planned,,,,,,topic audit pending
+physics|13|amperes-law,CH-05a,physics,planned,,,,,,topic audit pending
+physics|13|field-due-to-solenoid-and-toroid,CH-05a,physics,planned,,,,,,topic audit pending
+physics|13|force-on-moving-charge,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|velocity-selector,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|cyclotron-and-circular-motion-in-b,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|helical-path-in-magnetic-field,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|force-on-current-carrying-conductor,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|force-between-parallel-conductors,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|definition-of-ampere,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|torque-on-current-loop,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|moving-coil-galvanometer,CH-05c,physics,planned,,,,,,topic audit pending
+physics|13|galvanometer-to-ammeter-and-voltmeter,CH-05c,physics,planned,,,,,,topic audit pending
+physics|13|current-loop-as-magnetic-dipole,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|magnetic-moment-of-a-revolving-charge,CH-05b,physics,planned,,,,,,topic audit pending
+physics|13|bar-magnet-and-magnetic-field-lines,CH-05c,physics,planned,,,,,,topic audit pending
+physics|13|bar-magnet-as-equivalent-solenoid,CH-05c,physics,planned,,,,,,topic audit pending
+physics|13|magnetic-field-of-bar-magnet,CH-05c,physics,planned,,,,,,topic audit pending
+physics|13|earths-magnetic-field-and-elements,CH-05c,physics,planned,,,,,,topic audit pending
+physics|13|torque-on-magnetic-dipole,CH-05c,physics,planned,,,,,,topic audit pending
+physics|13|magnetic-materials-and-temperature,CH-05c,physics,planned,,,,,,topic audit pending
+physics|5|centre-of-mass,CH-07a,physics,verification_pending,worker-ch07a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-07a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|5|motion-of-centre-of-mass,CH-07a,physics,verification_pending,worker-ch07a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-07a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|5|rotational-motion-basics,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|torque-and-angular-momentum,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|angular-momentum,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|angular-momentum-conservation,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|angular-impulse,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|moment-of-inertia-and-radius-of-gyration,CH-07a,physics,verification_pending,worker-ch07a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-07a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|5|moments-of-inertia-for-simple-objects,CH-07a,physics,verification_pending,worker-ch07a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-07a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|5|axes-theorems,CH-07a,physics,verification_pending,worker-ch07a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-07a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|5|equilibrium-of-rigid-bodies,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|rigid-body-rotation-equations,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|linear-and-rotational-comparison,CH-07b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-03a force/contact contract
+physics|5|rolling-without-slipping,CH-07c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-07a CH-07b CH-03b CH-04b CH-04c contracts
+physics|5|rolling-with-slipping,CH-07c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-07a CH-07b CH-03b CH-04b CH-04c contracts
+physics|5|combined-translation-and-rotation,CH-07c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-07a CH-07b CH-03b CH-04b CH-04c contracts
+physics|5|instantaneous-axis-of-rotation,CH-07c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-07a CH-07b CH-03b CH-04b CH-04c contracts
+physics|11|charge-conservation-and-coulombs-law,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|coulombs-law-for-point-charges,CH-08a,physics,verification_pending,worker-ch08a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-08a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|11|multiple-charges-and-superposition,CH-08b,physics,planned,,,,,,topic audit pending
+physics|11|electric-field-for-point-charge,CH-08a,physics,verification_pending,worker-ch08a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-08a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|11|electric-field-lines,CH-08a,physics,verification_pending,worker-ch08a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-08a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|11|field-on-axis-of-a-charged-ring,CH-08b,physics,planned,,,,,,topic audit pending
+physics|11|electric-dipole-and-its-field,CH-08a,physics,verification_pending,worker-ch08a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-08a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|11|torque-on-electric-dipole,CH-08a,physics,verification_pending,worker-ch08a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-08a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|11|electric-flux-and-gausss-law,CH-08b,physics,planned,,,,,,topic audit pending
+physics|11|gausss-law-field-applications,CH-08b,physics,planned,,,,,,topic audit pending
+physics|11|gauss-law-infinite-line,CH-08b,physics,planned,,,,,,topic audit pending
+physics|11|gauss-law-infinite-sheet,CH-08b,physics,planned,,,,,,topic audit pending
+physics|11|electric-potential-and-potential-difference,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|potential-for-point-charge-dipole-and-system,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|equipotential-surfaces,CH-08a,physics,verification_pending,worker-ch08a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-08a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|11|electrostatic-potential-energy-of-charge-systems,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|dipole-potential-energy-in-field,CH-08a,physics,verification_pending,worker-ch08a,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/CH-08a-2026-10-03.md,,,"compiled board scenes and offline compile replay passed; live Konva reveal, saved-turn persistence, and saved-turn replay not run"
+physics|11|conductors-insulators-and-polarization,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|dielectrics-and-polarization,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|charge-sharing-between-conductors,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|capacitors-and-combinations,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|parallel-plate-capacitor-with-dielectric,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|capacitor-with-conducting-slab,CH-08c,physics,planned,,,,,,topic audit pending
+physics|11|energy-stored-in-capacitor,CH-08c,physics,planned,,,,,,topic audit pending
+physics|14|faradays-law,CH-09a,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit and CH-05a magnetic contracts
+physics|14|induced-emf-current-and-lenz-law,CH-09a,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit and CH-05a magnetic contracts
+physics|14|motional-emf,CH-09a,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit and CH-05a magnetic contracts
+physics|14|eddy-currents-and-inductance,CH-09a,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit and CH-05a magnetic contracts
+physics|14|self-inductance,CH-09b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a
+physics|14|mutual-inductance,CH-09b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a
+physics|14|lc-oscillations,CH-09b,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a
+physics|14|alternating-current-basics,CH-09c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a/CH-09b
+physics|14|inductive-and-capacitive-reactance,CH-09c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a/CH-09b
+physics|14|reactance-impedance-and-lcr,CH-09c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a/CH-09b
+physics|14|resonance-power-and-wattless-current,CH-09c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a/CH-09b
+physics|14|power-in-ac-circuits-and-wattless-current,CH-09c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a/CH-09b
+physics|14|ac-generator-and-transformer,CH-09c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a/CH-09b
+physics|14|transformer,CH-09c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-02a circuit contract and CH-09a/CH-09b
+physics|16|reflection-and-spherical-mirrors,CH-10a,physics,planned,,,,,,topic audit pending
+physics|16|refraction-at-surfaces,CH-10a,physics,planned,,,,,,topic audit pending
+physics|16|refraction-at-spherical-surface,CH-10a,physics,planned,,,,,,topic audit pending
+physics|16|lens-formulas,CH-10b,physics,planned,,,,,,topic audit pending
+physics|16|lens-makers-formula,CH-10b,physics,planned,,,,,,topic audit pending
+physics|16|total-internal-reflection,CH-10a,physics,planned,,,,,,topic audit pending
+physics|16|optical-fibre,CH-10a,physics,planned,,,,,,topic audit pending
+physics|16|magnification-and-lens-power,CH-10b,physics,planned,,,,,,topic audit pending
+physics|16|lens-combination,CH-10b,physics,planned,,,,,,topic audit pending
+physics|16|lens-and-mirror-combination,CH-10b,physics,planned,,,,,,topic audit pending
+physics|16|prism-refraction,CH-10a,physics,planned,,,,,,topic audit pending
+physics|16|prism-minimum-deviation-and-dispersion,CH-10a,physics,planned,,,,,,topic audit pending
+physics|16|optical-instruments,CH-10b,physics,planned,,,,,,topic audit pending
+physics|16|astronomical-telescope,CH-10b,physics,planned,,,,,,topic audit pending
+physics|16|wavefront-and-huygens-principle,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|reflection-and-refraction-via-huygens,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|coherent-sources-and-sustained-interference,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|youngs-double-slit-and-fringe-width,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|ydse-path-difference-and-glass-slab,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|angular-width-of-interference-fringes,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|thin-film-interference,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|single-slit-diffraction,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|resolving-power-of-microscope-and-telescope,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|polarization-and-brewsters-law,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|malus-law,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|polaroid,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|16|uses-of-plane-polarized-light,CH-10c,physics,blocked,integration-owner,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510,docs/plans/diagram-topic-matrix/work-logs/integrator-ch06-ch10-s0.md,,,blocked on unaccepted CH-27b wave contract and CH-10a
+physics|7|elasticity-and-moduli,CH-19a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and S5"
+physics|7|youngs-modulus,CH-19a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and S5"
+physics|7|bulk-modulus-and-modulus-of-rigidity,CH-19a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and S5"
+physics|7|poissons-ratio,CH-19a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and S5"
+physics|7|elastic-potential-energy,CH-19a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and S5"
+physics|7|fluid-pressure-and-pascals-law,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|pascals-law-and-hydraulics,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|gravity-effect-on-fluid-pressure,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|buoyancy-and-archimedes-principle,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|viscosity-and-stokes-law,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|stokes-law-and-terminal-velocity,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|streamline-turbulent-and-bernoulli,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|equation-of-continuity,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|critical-velocity,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|reynolds-number,CH-19b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1 and CH-03a
+physics|7|surface-tension-basics,CH-19c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-19b
+physics|7|excess-pressure-across-curved-surface,CH-19c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-19b
+physics|7|drops-and-bubbles,CH-19c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-19b
+physics|7|surface-tension-applications,CH-19c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-19b
+physics|7|heat-temperature-and-thermal-expansion,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|7|area-and-volume-expansion,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|7|specific-heat-and-calorimetry,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|7|change-of-state-and-latent-heat,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|7|heat-transfer,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|7|convection-and-radiation,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|7|stefans-law,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|7|newtons-law-of-cooling,CH-19d,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|8|thermal-equilibrium-temperature-and-zeroth-law,CH-20a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1
+physics|8|heat-work-and-internal-energy,CH-20a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1
+physics|8|first-law-of-thermodynamics,CH-20a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1
+physics|8|isothermal-and-adiabatic-processes,CH-20b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-20a
+physics|8|adiabatic-processes,CH-20b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-20a
+physics|8|isobaric-and-isochoric-processes,CH-20b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-20a
+physics|8|work-on-pv-diagrams,CH-20b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-20a
+physics|8|cp-cv-and-mayers-relation,CH-20a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1
+physics|8|second-law-and-process-reversibility,CH-20c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, CH-20a and CH-20b"
+physics|8|reversible-and-irreversible-processes,CH-20b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-20a
+physics|8|carnot-engine-and-efficiency,CH-20c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, CH-20a and CH-20b"
+physics|8|refrigerator-and-heat-pump,CH-20c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, CH-20a and CH-20b"
+physics|9|perfect-gas-equation-and-compression-work,CH-21a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3, CH-20a and CH-20b"
+physics|9|work-in-compression-of-a-gas,CH-21a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3, CH-20a and CH-20b"
+physics|9|kinetic-theory-assumptions-and-pressure,CH-21a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3, CH-20a and CH-20b"
+physics|9|temperature-and-rms-speed,CH-21c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-21a
+physics|9|average-and-most-probable-speed,CH-21c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-21a
+physics|9|maxwell-speed-distribution,CH-21c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-21a
+physics|9|degrees-of-freedom-and-equipartition,CH-21b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-20a
+physics|9|specific-heat-capacities-of-gases,CH-21b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted CH-20a
+physics|9|mean-free-path-and-avogadros-number,CH-21c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-21a
+physics|9|avogadros-number,CH-21a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3, CH-20a and CH-20b"
+physics|9|mixture-of-ideal-gases,CH-21a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3, CH-20a and CH-20b"
+physics|17|dual-nature-of-radiation,CH-22b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-22a
+physics|17|photoelectric-effect-and-observations,CH-22a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and S5"
+physics|17|photoelectric-graphs-and-stopping-potential,CH-22a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and S5"
+physics|17|einsteins-photoelectric-equation,CH-22b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-22a
+physics|17|photon-energy-and-momentum,CH-22b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and CH-22a
+physics|17|matter-waves-and-de-broglie-relation,CH-22c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and CH-22b"
+physics|17|de-broglie-wavelength-of-an-electron,CH-22c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and CH-22b"
+physics|17|davisson-germer-experiment,CH-22c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S3 and CH-22b"
+physics|18|rutherford-scattering-and-model,CH-23a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S3; shared Bohr fallback stays with the integration owner
+physics|18|bohr-model-and-hydrogen-spectrum,CH-23a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S3; shared Bohr fallback stays with the integration owner
+physics|18|bohr-orbit-radius-and-velocity,CH-23a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S3; shared Bohr fallback stays with the integration owner
+physics|18|hydrogen-spectral-series,CH-23a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S3; shared Bohr fallback stays with the integration owner
+physics|18|nucleus-composition-size-and-masses,CH-23b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|18|mass-energy-relation-and-mass-defect,CH-23b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|18|binding-energy-per-nucleon,CH-23b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|18|q-value-of-a-nuclear-reaction,CH-23b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|18|nuclear-fission-and-fusion,CH-23b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|18|nuclear-fusion,CH-23b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S2 and S5
+physics|18|radioactive-decay-and-half-life,CH-23c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S5, CH-23a and CH-23b"
+physics|18|activity-and-decay-law,CH-23c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S2, S5, CH-23a and CH-23b"
+physics|19|semiconductors,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|energy-bands,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|intrinsic-and-extrinsic-semiconductors,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|n-type-and-p-type-semiconductors,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|pn-junction-and-diode-iv,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|diode-as-rectifier,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|full-wave-rectifier,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|special-purpose-diodes-and-solar-cell,CH-24b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-24a and CH-02a"
+physics|19|iv-characteristics-of-special-devices,CH-24b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-24a and CH-02a"
+physics|19|zener-voltage-regulator,CH-24b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-24a and CH-02a"
+physics|19|transistor-characteristics-common-emitter,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|transistor-as-switch-or-amplifier,CH-24a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2 and CH-02a"
+physics|19|logic-gates,CH-24c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1
+physics|19|nand-and-nor-universal-gates,CH-24c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,blocked on unaccepted S1
+physics|20|vernier-callipers,CH-25a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S5, CH-34a, CH-34b, CH-34c, CH-07b and CH-19a"
+physics|20|vernier-zero-error,CH-25a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S5, CH-34a, CH-34b, CH-34c, CH-07b and CH-19a"
+physics|20|screw-gauge,CH-25a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S5, CH-34a, CH-34b, CH-34c, CH-07b and CH-19a"
+physics|20|screw-gauge-zero-error,CH-25a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S5, CH-34a, CH-34b, CH-34c, CH-07b and CH-19a"
+physics|20|simple-pendulum-amplitude-squared-vs-time,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|simple-pendulum-l-t-squared-graph,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|metre-scale-principle-of-moments,CH-25a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S5, CH-34a, CH-34b, CH-34c, CH-07b and CH-19a"
+physics|20|youngs-modulus-of-wire,CH-25a,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S5, CH-34a, CH-34b, CH-34c, CH-07b and CH-19a"
+physics|20|surface-tension-by-capillary-rise,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|effect-of-detergents-on-surface-tension,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|viscosity-of-given-liquid,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|terminal-velocity-method-for-viscosity,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|speed-of-sound-resonance-tube,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|specific-heat-capacity-by-mixtures,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|specific-heat-capacity-of-a-liquid,CH-25b,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5, CH-27a, CH-27b, CH-19b, CH-19c and CH-19d"
+physics|20|resistivity-using-metre-bridge,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|metre-bridge-end-correction,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|resistance-of-wire-using-ohms-law,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|galvanometer-resistance-half-deflection,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|galvanometer-figure-of-merit,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|emf-internal-resistance-and-potential-difference-of-cell,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|focal-length-by-parallax-method,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|focal-length-convex-mirror-parallax,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|focal-length-convex-lens-parallax,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|distance-and-magnification-for-convex-lens,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|prism-deviation-vs-incidence,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|refractive-index-of-glass-slab,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|pn-junction-diode-characteristic-curves,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|zener-diode-characteristic-curves,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|identify-basic-electronic-components,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|identify-transistor-and-ic,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|transistor-characteristic-curves-and-current-gain,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|20|logic-gate-identification-and-truth-tables,CH-25c,physics,blocked,HEY-85,2026-10-02-topic-matrix-v1; J/A/N 2026; taxonomy 2d2a65ff89f4ce6aae9016c3a607dfb3d1f06a259a2313d1cf47db07a51a7510; S0-ch11-ch25,docs/plans/diagram-topic-matrix/work-logs/integrator-ch11-ch25-handoff.md,,,"blocked on unaccepted S1, S2, S5 and CH-02, CH-05c, CH-10 and CH-24 contracts"
+physics|15|displacement-current,CH-26c,physics,planned,,,,,,topic audit pending
+physics|15|electromagnetic-waves-and-characteristics,CH-26a,physics,planned,,,,,,topic audit pending
+physics|15|transverse-nature,CH-26a,physics,planned,,,,,,topic audit pending
+physics|15|speed-of-electromagnetic-waves,CH-26b,physics,planned,,,,,,topic audit pending
+physics|15|energy-and-momentum-of-em-waves,CH-26a,physics,planned,,,,,,topic audit pending
+physics|15|electromagnetic-spectrum,CH-26b,physics,planned,,,,,,topic audit pending
+physics|15|applications-of-electromagnetic-waves,CH-26b,physics,planned,,,,,,topic audit pending
+physics|15|production-of-electromagnetic-waves,CH-26a,physics,planned,,,,,,topic audit pending
+physics|10|periodic-motion-and-functions,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|shm-and-equation,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|phase-of-shm,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|shm-from-uniform-circular-motion,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|spring-oscillations,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|spring-restoring-force-and-force-constant,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|series-and-parallel-springs,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|simple-pendulum-time-period,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|pendulum-time-period-derivation,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|energy-in-shm,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|superposition-of-two-shms,CH-27a,physics,planned,,,,,,topic audit pending
+physics|10|wave-motion-and-types,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|travelling-wave-relation,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|speed-of-a-travelling-wave,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|superposition-and-reflection,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|reflection-of-waves,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|standing-waves-harmonics-and-beats,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|organ-pipes,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|beats,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|intensity-and-amplitude-of-a-wave,CH-27b,physics,planned,,,,,,topic audit pending
+physics|10|doppler-effect-in-sound,CH-27c,physics,planned,,,,,,topic audit pending
+physics|6|universal-law-of-gravitation,CH-28a,physics,planned,,,,,,topic audit pending
+physics|6|gravitational-field-of-sphere-and-shell,CH-28a,physics,planned,,,,,,topic audit pending
+physics|6|acceleration-due-to-gravity,CH-28a,physics,planned,,,,,,topic audit pending
+physics|6|g-variation-with-depth,CH-28a,physics,planned,,,,,,topic audit pending
+physics|6|keplers-laws,CH-28c,physics,planned,,,,,,topic audit pending
+physics|6|gravitational-potential-and-potential-energy,CH-28a,physics,planned,,,,,,topic audit pending
+physics|6|gravitational-potential-energy,CH-28a,physics,planned,,,,,,topic audit pending
+physics|6|escape-velocity,CH-28b,physics,planned,,,,,,topic audit pending
+physics|6|orbital-velocity,CH-28b,physics,planned,,,,,,topic audit pending
+physics|6|satellite-motion-time-period-and-energy,CH-28b,physics,planned,,,,,,topic audit pending
+physics|6|satellite-energy,CH-28b,physics,planned,,,,,,topic audit pending
+physics|6|geostationary-satellites,CH-28b,physics,planned,,,,,,topic audit pending
+physics|6|polar-satellites,CH-28b,physics,planned,,,,,,topic audit pending
+physics|6|weightlessness-in-orbit,CH-28b,physics,planned,,,,,,topic audit pending
+physics|1|units-systems-and-si,CH-34a,physics,planned,,,,,,topic audit pending
+physics|1|fundamental-derived-and-least-count,CH-34a,physics,planned,,,,,,topic audit pending
+physics|1|practical-units,CH-34a,physics,planned,,,,,,topic audit pending
+physics|1|least-count,CH-34c,physics,planned,,,,,,topic audit pending
+physics|1|accuracy-and-precision,CH-34b,physics,planned,,,,,,topic audit pending
+physics|1|types-of-errors,CH-34b,physics,planned,,,,,,topic audit pending
+physics|1|absolute-relative-percentage-error,CH-34b,physics,planned,,,,,,topic audit pending
+physics|1|combination-of-errors,CH-34b,physics,planned,,,,,,topic audit pending
+physics|1|significant-figures-and-errors,CH-34a,physics,planned,,,,,,topic audit pending
+physics|1|dimensions,CH-34a,physics,planned,,,,,,topic audit pending
+physics|1|dimensional-homogeneity,CH-34a,physics,planned,,,,,,topic audit pending
+physics|1|dimensional-analysis,CH-34a,physics,planned,,,,,,topic audit pending
+physics|1|dimensional-analysis-limitations,CH-34a,physics,planned,,,,,,topic audit pending
+chemistry|1|matter-and-daltons-atomic-theory,C-01a,chemistry,planned,,,,,,topic audit pending
+chemistry|1|measurement-and-significant-figures,C-01a,chemistry,planned,,,,,,topic audit pending
+chemistry|1|laws-of-chemical-combination,C-01a,chemistry,planned,,,,,,topic audit pending
+chemistry|1|mole-concept-and-molar-mass,C-01a,chemistry,planned,,,,,,topic audit pending
+chemistry|1|percentage-composition-and-empirical-formula,C-01b,chemistry,planned,,,,,,topic audit pending
+chemistry|1|stoichiometry-and-limiting-reagent,C-01b,chemistry,planned,,,,,,topic audit pending
+chemistry|1|molarity-and-solution-stoichiometry,C-01b,chemistry,planned,,,,,,topic audit pending
+chemistry|2|electromagnetic-radiation-and-photoelectric-effect,C-02a,chemistry,planned,,,,,,topic audit pending
+chemistry|2|hydrogen-spectrum-and-bohr-model,C-02a,chemistry,planned,,,,,,topic audit pending
+chemistry|2|de-broglie-and-heisenberg,C-02a,chemistry,planned,,,,,,topic audit pending
+chemistry|2|quantum-mechanical-model-and-orbitals,C-02c,chemistry,planned,,,,,,topic audit pending
+chemistry|2|quantum-numbers-and-orbital-shapes,C-02b,chemistry,planned,,,,,,topic audit pending
+chemistry|2|electronic-configuration-and-filling-rules,C-02b,chemistry,planned,,,,,,topic audit pending
+chemistry|3|kossel-lewis-and-ionic-bonding,C-03a,chemistry,planned,,,,,,topic audit pending
+chemistry|3|electronegativity-fajans-rule-and-dipole-moment,C-03d,chemistry,planned,,,,,,topic audit pending
+chemistry|3|vsepr-and-shapes,C-03b,chemistry,planned,,,,,,topic audit pending
+chemistry|3|valence-bond-theory-and-hybridisation,C-03b,chemistry,planned,,,,,,topic audit pending
+chemistry|3|molecular-orbital-theory-and-bond-order,C-03c,chemistry,planned,,,,,,topic audit pending
+chemistry|3|bond-parameters-sigma-and-pi-bonds,C-03b,chemistry,planned,,,,,,topic audit pending
+chemistry|3|metallic-and-hydrogen-bonding,C-03b,chemistry,planned,,,,,,topic audit pending
+chemistry|4|systems-state-functions-and-processes,C-04a,chemistry,planned,,,,,,topic audit pending
+chemistry|4|first-law-work-heat-and-internal-energy,C-04a,chemistry,planned,,,,,,topic audit pending
+chemistry|4|heat-capacity,C-04a,chemistry,planned,,,,,,topic audit pending
+chemistry|4|hesss-law-and-enthalpies-of-reaction,C-04a,chemistry,planned,,,,,,topic audit pending
+chemistry|4|entropy-and-spontaneity,C-04b,chemistry,planned,,,,,,topic audit pending
+chemistry|4|gibbs-energy-and-equilibrium-constant,C-04b,chemistry,planned,,,,,,topic audit pending
+chemistry|5|concentration-terms,C-05a,chemistry,planned,,,,,,topic audit pending
+chemistry|5|solubility-and-henrys-law,C-05c,chemistry,planned,,,,,,topic audit pending
+chemistry|5|raoults-law-and-vapour-pressure,C-05a,chemistry,planned,,,,,,topic audit pending
+chemistry|5|ideal-and-non-ideal-solutions,C-05a,chemistry,planned,,,,,,topic audit pending
+chemistry|5|colligative-properties,C-05b,chemistry,planned,,,,,,topic audit pending
+chemistry|5|molar-mass-and-vant-hoff-factor,C-05b,chemistry,planned,,,,,,topic audit pending
+chemistry|6|dynamic-equilibrium-and-physical-equilibria,C-06a,chemistry,planned,,,,,,topic audit pending
+chemistry|6|law-of-chemical-equilibrium-kp-and-kc,C-06a,chemistry,planned,,,,,,topic audit pending
+chemistry|6|gibbs-energy-and-equilibrium,C-06a,chemistry,planned,,,,,,topic audit pending
+chemistry|6|le-chateliers-principle,C-06a,chemistry,planned,,,,,,topic audit pending
+chemistry|6|acids-bases-and-ionisation-constants,C-06b,chemistry,planned,,,,,,topic audit pending
+chemistry|6|ph-scale-and-ionisation-of-water,C-06b,chemistry,planned,,,,,,topic audit pending
+chemistry|6|common-ion-effect-buffers-and-salt-hydrolysis,C-06b,chemistry,planned,,,,,,topic audit pending
+chemistry|6|solubility-product,C-06c,chemistry,planned,,,,,,topic audit pending
+chemistry|7|oxidation-number-and-redox-reactions,C-07a,chemistry,planned,,,,,,topic audit pending
+chemistry|7|balancing-redox-reactions,C-07a,chemistry,planned,,,,,,topic audit pending
+chemistry|7|conductance-and-kohlrauschs-law,C-07c,chemistry,planned,,,,,,topic audit pending
+chemistry|7|electrochemical-cells-and-electrode-potential,C-07b,chemistry,planned,,,,,,topic audit pending
+chemistry|7|nernst-equation,C-07b,chemistry,planned,,,,,,topic audit pending
+chemistry|7|cell-potential-and-gibbs-energy,C-07b,chemistry,planned,,,,,,topic audit pending
+chemistry|7|electrolysis-and-faradays-laws,C-07c,chemistry,planned,,,,,,topic audit pending
+chemistry|7|commercial-cells-and-batteries,C-07d,chemistry,planned,,,,,,topic audit pending
+chemistry|8|rate-of-reaction-and-factors,C-08a,chemistry,planned,,,,,,topic audit pending
+chemistry|8|rate-law-order-and-molecularity,C-08a,chemistry,planned,,,,,,topic audit pending
+chemistry|8|zero-and-first-order-reactions,C-08a,chemistry,planned,,,,,,topic audit pending
+chemistry|8|half-life,C-08a,chemistry,planned,,,,,,topic audit pending
+chemistry|8|arrhenius-equation-and-activation-energy,C-08b,chemistry,planned,,,,,,topic audit pending
+chemistry|8|collision-theory,C-08b,chemistry,planned,,,,,,topic audit pending
+chemistry|9|modern-periodic-law-and-periodic-table,C-09a,chemistry,planned,,,,,,topic audit pending
+chemistry|9|s-p-d-and-f-block-elements,C-09a,chemistry,planned,,,,,,topic audit pending
+chemistry|9|atomic-and-ionic-radii,C-09b,chemistry,planned,,,,,,topic audit pending
+chemistry|9|ionisation-enthalpy,C-09b,chemistry,planned,,,,,,topic audit pending
+chemistry|9|electron-gain-enthalpy-and-electronegativity,C-09b,chemistry,planned,,,,,,topic audit pending
+chemistry|9|valence-oxidation-states-and-chemical-reactivity,C-09b,chemistry,planned,,,,,,topic audit pending
+chemistry|10|general-trends-in-p-block-elements,C-10a,chemistry,planned,,,,,,topic audit pending
+chemistry|10|group-13-boron-family,C-10b1,chemistry,planned,,,,,,topic audit pending
+chemistry|10|group-14-carbon-family,C-10b2,chemistry,planned,,,,,,topic audit pending
+chemistry|10|group-15-nitrogen-family,C-10b3,chemistry,planned,,,,,,topic audit pending
+chemistry|10|group-16-oxygen-family,C-10b4,chemistry,planned,,,,,,topic audit pending
+chemistry|10|group-17-halogens,C-10b5,chemistry,planned,,,,,,topic audit pending
+chemistry|10|group-18-noble-gases,C-10b6,chemistry,planned,,,,,,topic audit pending
+chemistry|11|transition-elements-configuration-and-occurrence,C-11a,chemistry,planned,,,,,,topic audit pending
+chemistry|11|trends-in-transition-elements,C-11a,chemistry,planned,,,,,,topic audit pending
+chemistry|11|colour-magnetism-and-catalysis-of-transition-elements,C-11a,chemistry,planned,,,,,,topic audit pending
+chemistry|11|complexes-interstitial-compounds-and-alloys,C-11a,chemistry,planned,,,,,,topic audit pending
+chemistry|11|potassium-dichromate-and-potassium-permanganate,C-11c,chemistry,planned,,,,,,topic audit pending
+chemistry|11|lanthanoids,C-11b,chemistry,planned,,,,,,topic audit pending
+chemistry|11|actinoids,C-11b,chemistry,planned,,,,,,topic audit pending
+chemistry|12|werners-theory-ligands-and-coordination-number,C-12a,chemistry,planned,,,,,,topic audit pending
+chemistry|12|iupac-nomenclature-of-coordination-compounds,C-12a,chemistry,planned,,,,,,topic audit pending
+chemistry|12|isomerism-in-coordination-compounds,C-12b,chemistry,planned,,,,,,topic audit pending
+chemistry|12|valence-bond-theory-of-complexes,C-12c,chemistry,planned,,,,,,topic audit pending
+chemistry|12|crystal-field-theory,C-12c,chemistry,planned,,,,,,topic audit pending
+chemistry|12|importance-and-applications-of-coordination-compounds,C-12a,chemistry,planned,,,,,,topic audit pending
+chemistry|13|purification-methods,C-13a,chemistry,planned,,,,,,topic audit pending
+chemistry|13|chromatography,C-13a,chemistry,planned,,,,,,topic audit pending
+chemistry|13|detection-of-elements,C-13b,chemistry,planned,,,,,,topic audit pending
+chemistry|13|quantitative-estimation-of-elements,C-13b,chemistry,planned,,,,,,topic audit pending
+chemistry|13|empirical-and-molecular-formula-from-analysis,C-13b,chemistry,planned,,,,,,topic audit pending
+chemistry|14|tetravalency-and-hybridisation-of-carbon,C-14b,chemistry,planned,,,,,,topic audit pending
+chemistry|14|functional-groups-and-homologous-series,C-14a,chemistry,planned,,,,,,topic audit pending
+chemistry|14|structural-and-stereoisomerism,C-14a,chemistry,planned,,,,,,topic audit pending
+chemistry|14|iupac-nomenclature,C-14a,chemistry,planned,,,,,,topic audit pending
+chemistry|14|bond-fission-and-reaction-intermediates,C-14c,chemistry,planned,,,,,,topic audit pending
+chemistry|14|electrophiles-and-nucleophiles,C-14c,chemistry,planned,,,,,,topic audit pending
+chemistry|14|electronic-displacement-effects,C-14b,chemistry,planned,,,,,,topic audit pending
+chemistry|14|types-of-organic-reactions,C-14c,chemistry,planned,,,,,,topic audit pending
+chemistry|15|classification-nomenclature-and-preparation-of-hydrocarbons,C-15b,chemistry,planned,,,,,,topic audit pending
+chemistry|15|alkanes-conformations-and-halogenation,C-15a,chemistry,planned,,,,,,topic audit pending
+chemistry|15|alkenes-electrophilic-addition,C-15b,chemistry,planned,,,,,,topic audit pending
+chemistry|15|ozonolysis-and-polymerisation-of-alkenes,C-15b,chemistry,planned,,,,,,topic audit pending
+chemistry|15|alkynes,C-15b,chemistry,planned,,,,,,topic audit pending
+chemistry|15|benzene-structure-and-aromaticity,C-15c,chemistry,planned,,,,,,topic audit pending
+chemistry|15|electrophilic-substitution-in-benzene,C-15c,chemistry,planned,,,,,,topic audit pending
+chemistry|16|preparation-and-nature-of-c-x-bond,C-16b,chemistry,planned,,,,,,topic audit pending
+chemistry|16|nucleophilic-substitution-sn1-and-sn2,C-16a,chemistry,planned,,,,,,topic audit pending
+chemistry|16|elimination-and-reactions-with-metals,C-16a,chemistry,planned,,,,,,topic audit pending
+chemistry|16|reactions-of-haloarenes,C-16a,chemistry,planned,,,,,,topic audit pending
+chemistry|16|polyhalogen-compounds-and-environmental-effects,C-16b,chemistry,planned,,,,,,topic audit pending
+chemistry|17|alcohols-identification-and-dehydration,C-17a,chemistry,planned,,,,,,topic audit pending
+chemistry|17|phenols-acidity-and-reactions,C-17a,chemistry,planned,,,,,,topic audit pending
+chemistry|17|ethers-structure-and-reactions,C-17a,chemistry,planned,,,,,,topic audit pending
+chemistry|17|carbonyl-group-and-nucleophilic-addition,C-17b,chemistry,planned,,,,,,topic audit pending
+chemistry|17|preparation-of-aldehydes-and-ketones,C-17b,chemistry,planned,,,,,,topic audit pending
+chemistry|17|oxidation-reduction-and-tests-for-carbonyls,C-17b,chemistry,planned,,,,,,topic audit pending
+chemistry|17|alpha-hydrogen-aldol-cannizzaro-and-haloform,C-17b,chemistry,planned,,,,,,topic audit pending
+chemistry|17|carboxylic-acids-acidic-strength,C-17c,chemistry,planned,,,,,,topic audit pending
+chemistry|18|amines-classification-nomenclature-and-structure,C-18a,chemistry,planned,,,,,,topic audit pending
+chemistry|18|preparation-of-amines,C-18a,chemistry,planned,,,,,,topic audit pending
+chemistry|18|basic-character-of-amines,C-18a,chemistry,planned,,,,,,topic audit pending
+chemistry|18|identification-of-amines,C-18a,chemistry,planned,,,,,,topic audit pending
+chemistry|18|reactions-of-aniline,C-18a,chemistry,planned,,,,,,topic audit pending
+chemistry|18|diazonium-salts,C-18b,chemistry,planned,,,,,,topic audit pending
+chemistry|19|carbohydrates-and-monosaccharides,C-19a,chemistry,planned,,,,,,topic audit pending
+chemistry|19|oligosaccharides-and-polysaccharides,C-19a,chemistry,planned,,,,,,topic audit pending
+chemistry|19|amino-acids-and-peptides,C-19b,chemistry,planned,,,,,,topic audit pending
+chemistry|19|proteins-structure-denaturation-and-enzymes,C-19b,chemistry,planned,,,,,,topic audit pending
+chemistry|19|vitamins,C-19d,chemistry,planned,,,,,,topic audit pending
+chemistry|19|nucleic-acids,C-19c,chemistry,planned,,,,,,topic audit pending
+chemistry|19|hormones,C-19d,chemistry,planned,,,,,,topic audit pending
+chemistry|20|detection-of-extra-elements-and-functional-groups,C-20a,chemistry,planned,,,,,,topic audit pending
+chemistry|20|preparation-of-inorganic-and-organic-compounds,C-20b,chemistry,planned,,,,,,topic audit pending
+chemistry|20|titrimetric-analysis,C-20c,chemistry,planned,,,,,,topic audit pending
+chemistry|20|qualitative-analysis-of-cations,C-20d,chemistry,planned,,,,,,topic audit pending
+chemistry|20|qualitative-analysis-of-anions,C-20d,chemistry,planned,,,,,,topic audit pending
+chemistry|20|physical-chemistry-experiments,C-20e,chemistry,planned,,,,,,topic audit pending
+biology|1|living-biodiversity,B-01a,biology,planned,,,,,,topic audit pending
+biology|1|taxonomy-systematics,B-01a,biology,planned,,,,,,topic audit pending
+biology|1|binomial-nomenclature,B-01a,biology,planned,,,,,,topic audit pending
+biology|1|five-kingdom,B-01a,biology,planned,,,,,,topic audit pending
+biology|1|monera-protista-fungi,B-01b,biology,planned,,,,,,topic audit pending
+biology|1|lichens-viruses-viroids,B-01b,biology,planned,,,,,,topic audit pending
+biology|1|plant-major-groups,B-01c,biology,planned,,,,,,topic audit pending
+biology|1|nonchordate-phyla,B-01d,biology,planned,,,,,,topic audit pending
+biology|1|chordate-classes,B-01d,biology,planned,,,,,,topic audit pending
+biology|2|root-morphology,B-02a,biology,planned,,,,,,topic audit pending
+biology|2|stem-morphology,B-02a,biology,planned,,,,,,topic audit pending
+biology|2|leaf-morphology,B-02a,biology,planned,,,,,,topic audit pending
+biology|2|plant-tissues,B-02a,biology,planned,,,,,,topic audit pending
+biology|2|root-anatomy,B-02a,biology,planned,,,,,,topic audit pending
+biology|2|stem-anatomy,B-02a,biology,planned,,,,,,topic audit pending
+biology|2|leaf-anatomy,B-02a,biology,planned,,,,,,topic audit pending
+biology|2|inflorescence,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|flower,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|fruit,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|seed,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|malvaceae,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|cruciferae,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|leguminosae,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|compositae,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|gramineae,B-02b,biology,planned,,,,,,topic audit pending
+biology|2|animal-tissues,B-02c,biology,planned,,,,,,topic audit pending
+biology|2|insect-morphology,B-02d-insect,biology,planned,,,,,,topic audit pending
+biology|2|insect-digestive,B-02d-insect,biology,planned,,,,,,topic audit pending
+biology|2|insect-circulatory,B-02d-insect,biology,planned,,,,,,topic audit pending
+biology|2|insect-respiratory,B-02d-insect,biology,planned,,,,,,topic audit pending
+biology|2|insect-nervous,B-02d-insect,biology,planned,,,,,,topic audit pending
+biology|2|insect-reproductive,B-02d-insect,biology,planned,,,,,,topic audit pending
+biology|2|frog-morphology,B-02d-frog,biology,planned,,,,,,topic audit pending
+biology|2|frog-digestive,B-02d-frog,biology,planned,,,,,,topic audit pending
+biology|2|frog-circulatory,B-02d-frog,biology,planned,,,,,,topic audit pending
+biology|2|frog-respiratory,B-02d-frog,biology,planned,,,,,,topic audit pending
+biology|2|frog-nervous,B-02d-frog,biology,planned,,,,,,topic audit pending
+biology|2|frog-reproductive,B-02d-frog,biology,planned,,,,,,topic audit pending
+biology|3|cell-theory,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|prokaryotic-eukaryotic,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|plant-animal,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|cell-envelope,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|endomembrane,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|mitochondria,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|ribosomes,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|plastids,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|microbodies,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|cytoskeleton,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|cilia-flagella-centrioles,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|nucleus,B-03a,biology,planned,,,,,,topic audit pending
+biology|3|proteins,B-03b,biology,planned,,,,,,topic audit pending
+biology|3|carbohydrates,B-03b,biology,planned,,,,,,topic audit pending
+biology|3|lipids,B-03b,biology,planned,,,,,,topic audit pending
+biology|3|nucleic-acids,B-03b,biology,planned,,,,,,topic audit pending
+biology|3|enzymes,B-03b,biology,planned,,,,,,topic audit pending
+biology|3|cell-cycle,B-03c,biology,planned,,,,,,topic audit pending
+biology|3|mitosis,B-03c,biology,planned,,,,,,topic audit pending
+biology|3|meiosis,B-03c,biology,planned,,,,,,topic audit pending
+biology|4|autotrophic-site-pigments,B-04a,biology,planned,,,,,,topic audit pending
+biology|4|photochemical,B-04a,biology,planned,,,,,,topic audit pending
+biology|4|cyclic-noncyclic,B-04a,biology,planned,,,,,,topic audit pending
+biology|4|chemiosmosis,B-04a,biology,planned,,,,,,topic audit pending
+biology|4|biosynthetic-c3,B-04b,biology,planned,,,,,,topic audit pending
+biology|4|c4,B-04b,biology,planned,,,,,,topic audit pending
+biology|4|photorespiration,B-04b,biology,planned,,,,,,topic audit pending
+biology|4|factors-photosynthesis,B-04b,biology,planned,,,,,,topic audit pending
+biology|4|respiration-gas-exchange,B-04c,biology,planned,,,,,,topic audit pending
+biology|4|glycolysis,B-04c,biology,planned,,,,,,topic audit pending
+biology|4|fermentation,B-04c,biology,planned,,,,,,topic audit pending
+biology|4|tca,B-04c,biology,planned,,,,,,topic audit pending
+biology|4|ets,B-04c,biology,planned,,,,,,topic audit pending
+biology|4|atp-amphibolic-rq,B-04c,biology,planned,,,,,,topic audit pending
+biology|4|germination,B-04d,biology,planned,,,,,,topic audit pending
+biology|4|growth-phases-rates,B-04d,biology,planned,,,,,,topic audit pending
+biology|4|differentiation,B-04d,biology,planned,,,,,,topic audit pending
+biology|4|developmental-sequence,B-04d,biology,planned,,,,,,topic audit pending
+biology|4|regulators,B-04d,biology,planned,,,,,,topic audit pending
+biology|5|respiratory-organs-recall,B-05a,biology,planned,,,,,,topic audit pending
+biology|5|human-respiratory,B-05a,biology,planned,,,,,,topic audit pending
+biology|5|ventilation-regulation,B-05a,biology,planned,,,,,,topic audit pending
+biology|5|gas-exchange-transport,B-05a,biology,planned,,,,,,topic audit pending
+biology|5|respiratory-volumes,B-05a,biology,planned,,,,,,topic audit pending
+biology|5|respiratory-disorders,B-05a,biology,planned,,,,,,topic audit pending
+biology|5|blood-groups-coagulation,B-05b,biology,planned,,,,,,topic audit pending
+biology|5|lymph,B-05b,biology,planned,,,,,,topic audit pending
+biology|5|heart-vessels,B-05b,biology,planned,,,,,,topic audit pending
+biology|5|cardiac-cycle-output-ecg,B-05b,biology,planned,,,,,,topic audit pending
+biology|5|double-circulation-regulation,B-05b,biology,planned,,,,,,topic audit pending
+biology|5|circulatory-disorders,B-05b,biology,planned,,,,,,topic audit pending
+biology|5|excretion-modes,B-05c,biology,planned,,,,,,topic audit pending
+biology|5|excretory-system,B-05c,biology,planned,,,,,,topic audit pending
+biology|5|urine-osmoregulation,B-05c,biology,planned,,,,,,topic audit pending
+biology|5|kidney-regulation,B-05c,biology,planned,,,,,,topic audit pending
+biology|5|other-excretion-organs,B-05c,biology,planned,,,,,,topic audit pending
+biology|5|renal-disorders-dialysis,B-05c,biology,planned,,,,,,topic audit pending
+biology|5|movement-types,B-05d,biology,planned,,,,,,topic audit pending
+biology|5|contractile-proteins,B-05d,biology,planned,,,,,,topic audit pending
+biology|5|contraction,B-05d,biology,planned,,,,,,topic audit pending
+biology|5|skeleton-joints,B-05d,biology,planned,,,,,,topic audit pending
+biology|5|musculoskeletal-disorders,B-05d,biology,planned,,,,,,topic audit pending
+biology|5|neuron-nerves,B-05e,biology,planned,,,,,,topic audit pending
+biology|5|nervous-system,B-05e,biology,planned,,,,,,topic audit pending
+biology|5|nerve-impulse,B-05e,biology,planned,,,,,,topic audit pending
+biology|5|hypothalamus,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|pituitary,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|pineal,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|thyroid-parathyroid,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|adrenal,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|pancreas,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|gonads,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|hormone-action,B-05f,biology,planned,,,,,,topic audit pending
+biology|5|endocrine-disorders,B-05f,biology,planned,,,,,,topic audit pending
+biology|6|reproductive-flower,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|gametophytes,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|pollination-outbreeding,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|pollen-pistil,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|double-fertilization,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|post-fertilization,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|special-reproduction,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|seed-fruit-significance,B-06a,biology,planned,,,,,,topic audit pending
+biology|6|male-female-anatomy,B-06b,biology,planned,,,,,,topic audit pending
+biology|6|gonad-microanatomy,B-06b,biology,planned,,,,,,topic audit pending
+biology|6|gametogenesis,B-06b,biology,planned,,,,,,topic audit pending
+biology|6|menstrual-cycle,B-06b,biology,planned,,,,,,topic audit pending
+biology|6|fertilization-blastocyst,B-06c,biology,planned,,,,,,topic audit pending
+biology|6|implantation-placenta,B-06c,biology,planned,,,,,,topic audit pending
+biology|6|parturition-lactation,B-06c,biology,planned,,,,,,topic audit pending
+biology|6|reproductive-health-std,B-06d,biology,planned,,,,,,topic audit pending
+biology|6|contraception-mtp,B-06d,biology,planned,,,,,,topic audit pending
+biology|6|amniocentesis,B-06d,biology,planned,,,,,,topic audit pending
+biology|6|infertility-art,B-06d,biology,planned,,,,,,topic audit pending
+biology|7|mendelian,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|incomplete-codominance,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|multiple-alleles-blood,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|pleiotropy-polygenic,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|chromosome-theory,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|sex-determination,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|linkage-crossing,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|sex-linked,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|mendelian-disorder,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|chromosomal-disorders,B-07a,biology,planned,,,,,,topic audit pending
+biology|7|genetic-material,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|dna-rna,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|packaging,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|replication,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|central-dogma-transcription,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|code-translation,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|lac-operon,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|genome-project,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|dna-fingerprinting,B-07b,biology,planned,,,,,,topic audit pending
+biology|7|origin-life,B-07c,biology,planned,,,,,,topic audit pending
+biology|7|evolution-evidence,B-07c,biology,planned,,,,,,topic audit pending
+biology|7|darwin-synthetic,B-07c,biology,planned,,,,,,topic audit pending
+biology|7|variation-selection,B-07c,biology,planned,,,,,,topic audit pending
+biology|7|gene-flow-drift,B-07c,biology,planned,,,,,,topic audit pending
+biology|7|hardy-weinberg,B-07c,biology,planned,,,,,,topic audit pending
+biology|7|adaptive-radiation,B-07c,biology,planned,,,,,,topic audit pending
+biology|7|human-evolution,B-07c,biology,planned,,,,,,topic audit pending
+biology|8|health-pathogens,B-08a,biology,planned,,,,,,topic audit pending
+biology|8|pathogens-parasites,B-08a,biology,planned,,,,,,topic audit pending
+biology|8|other-infections,B-08a,biology,planned,,,,,,topic audit pending
+biology|8|immunology-vaccines,B-08b,biology,planned,,,,,,topic audit pending
+biology|8|cancer,B-08b,biology,planned,,,,,,topic audit pending
+biology|8|hiv-aids,B-08b,biology,planned,,,,,,topic audit pending
+biology|8|adolescence-abuse,B-08b,biology,planned,,,,,,topic audit pending
+biology|8|food-industrial-microbes,B-08c,biology,planned,,,,,,topic audit pending
+biology|8|sewage-biogas,B-08c,biology,planned,,,,,,topic audit pending
+biology|8|biocontrol-biofertilizers,B-08c,biology,planned,,,,,,topic audit pending
+biology|9|recombinant-dna,B-09a,biology,planned,,,,,,topic audit pending
+biology|9|restriction-ligation,B-09a,biology,planned,,,,,,topic audit pending
+biology|9|amplification-separation,B-09a,biology,planned,,,,,,topic audit pending
+biology|9|insulin-vaccines,B-09b,biology,planned,,,,,,topic audit pending
+biology|9|gene-therapy,B-09b,biology,planned,,,,,,topic audit pending
+biology|9|gm-bt,B-09b,biology,planned,,,,,,topic audit pending
+biology|9|transgenic-animals,B-09b,biology,planned,,,,,,topic audit pending
+biology|9|biosafety-patents,B-09b,biology,planned,,,,,,topic audit pending
+biology|10|organism-environment,B-10a,biology,planned,,,,,,topic audit pending
+biology|10|interactions,B-10a,biology,planned,,,,,,topic audit pending
+biology|10|population-attributes,B-10a,biology,planned,,,,,,topic audit pending
+biology|10|age-distribution,B-10a,biology,planned,,,,,,topic audit pending
+biology|10|ecosystem-patterns,B-10b,biology,planned,,,,,,topic audit pending
+biology|10|productivity,B-10b,biology,planned,,,,,,topic audit pending
+biology|10|decomposition,B-10b,biology,planned,,,,,,topic audit pending
+biology|10|energy-flow,B-10b,biology,planned,,,,,,topic audit pending
+biology|10|pyramids,B-10b,biology,planned,,,,,,topic audit pending
+biology|10|biodiversity-patterns,B-10c,biology,planned,,,,,,topic audit pending
+biology|10|loss-extinction,B-10c,biology,planned,,,,,,topic audit pending
+biology|10|conservation-hotspots,B-10c,biology,planned,,,,,,topic audit pending
+biology|10|protected-areas,B-10c,biology,planned,,,,,,topic audit pending
+chemistry|advanced-extra|states-of-matter|gas-laws,CA-01a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|states-of-matter|real-gases,CA-01a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|states-of-matter|speed-distribution,CA-01b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|states-of-matter|partial-pressure,CA-01b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|states-of-matter|diffusion,CA-01b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|states-of-matter|intermolecular,CA-01c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|states-of-matter|liquids,CA-01c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|solid-state|solids-crystals,CA-02a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|solid-state|seven-systems,CA-02a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|solid-state|close-packing,CA-02b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|solid-state|neighbours-radius,CA-02b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|solid-state|defects,CA-02c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|surface-chemistry|adsorption,CA-03a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|surface-chemistry|freundlich,CA-03a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|surface-chemistry|colloids,CA-03b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|surface-chemistry|emulsions-micelles,CA-03c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|hydrogen-occurrence,CA-04a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|hydrides,CA-04a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|water-heavy-water,CA-04b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|peroxide,CA-04b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|hydrogen-fuel,CA-04a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|s-block-reactivity,CA-04c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|s-block-compounds,CA-04c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|li-be,CA-04c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|hydrogen-s-block|sodium-calcium,CA-04c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|metallurgy|ores-concentration,CA-05a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|metallurgy|thermal-extraction,CA-05b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|metallurgy|electrochemical-extraction,CA-05c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|metallurgy|cyanide,CA-05a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|metallurgy|refining,CA-05c,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|environmental-chemistry|pollution,CA-06a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|environmental-chemistry|waste-control,CA-06a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|environmental-chemistry|green,CA-06b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|polymerization,CA-07a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|natural-polymers,CA-07a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|listed-polymers,CA-07a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|biodegradation-uses,CA-07a,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|drug-target,CA-07b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|therapeutics,CA-07b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|sweeteners,CA-07b,advanced-extra,planned,,,,,,topic audit pending
+chemistry|advanced-extra|polymers-everyday|cleansing,CA-07c,advanced-extra,planned,,,,,,topic audit pending
+maths|supplemental|linear-programming|core,SX-M01,supplemental,planned,,,,,,topic audit pending
+maths|supplemental|mathematical-induction|core,SX-M02,supplemental,planned,,,,,,topic audit pending
+maths|supplemental|mathematical-reasoning|core,SX-M03,supplemental,planned,,,,,,topic audit pending
+physics|supplemental|communication-systems|core,SX-P01,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|states-of-matter|core,CA-01a,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|solid-state|core,CA-02a,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|surface-chemistry|core,CA-03a,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|hydrogen|core,CA-04a,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|s-block-elements|core,CA-04c,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|metallurgy|core,CA-05a,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|environmental-chemistry|core,CA-06a,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|polymers|core,CA-07a,supplemental,planned,,,,,,topic audit pending
+chemistry|supplemental|chemistry-in-everyday-life|core,CA-07b,supplemental,planned,,,,,,topic audit pending

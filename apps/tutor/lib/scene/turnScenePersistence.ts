@@ -28,6 +28,7 @@ import {
 } from "@heytutor/drawing";
 import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
+import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
@@ -247,14 +248,6 @@ export async function canonicalizeTurnSceneMetadata(
     // question still has to match, and compileSceneDocument below still fails
     // the save on any fatal assertion, which is where the metric proof lives.
     if (turnPlan) {
-      const agreementIssues = validateSceneQuantityAgreement(
-        document.quantities,
-        turnPlan,
-        displayedSceneText(document),
-      );
-      if (agreementIssues.length > 0) {
-        return failure(`scene quantities disagree with TurnPlanV3: ${formatIssues(agreementIssues)}`);
-      }
       const proofIssues = validateTurnPlanSceneProofs(document, turnPlan);
       if (proofIssues.some((issue) => issue.severity === "fatal")) {
         return failure(`scene proof obligations failed: ${formatIssues(proofIssues)}`);
@@ -267,6 +260,11 @@ export async function canonicalizeTurnSceneMetadata(
     report = compiled.report;
     renderScene = compiled.renderScene;
   }
+
+  // The same function runs live before a figure is drawn (useQuestionHandler),
+  // so a scene this would refuse is never shown and then lost.
+  const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier });
+  if (admissionFailure) return failure(admissionFailure);
 
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
     return failure("current scene engine did not produce a valid report");
@@ -292,6 +290,45 @@ export async function canonicalizeTurnSceneMetadata(
 
   const solver = await canonicalSolverArtifacts(metadata.sceneArtifacts, turnPlan, question);
   if (!solver.ok) return solver;
+  for (const construction of document.constructions) {
+    if (construction.operator !== "point_line_distance") continue;
+    for (const outputId of construction.outputs) {
+      const links = document.annotations.filter((annotation) =>
+        ["label", "callout", "badge"].includes(annotation.kind) &&
+        annotation.targetIds.includes(outputId) && annotation.quantityId !== undefined);
+      const link = links[0];
+      if (links.length !== 1 || !link || link.targetIds.length !== 1) {
+        return failure("point-line distance requires one unambiguous quantity-backed output annotation");
+      }
+      const quantities = document.quantities.filter((quantity) => quantity.id === link.quantityId);
+      const planned = turnPlan && [...turnPlan.givens, ...turnPlan.derived]
+        .filter((quantity) => quantity.id === link.quantityId);
+      if (quantities.length !== 1 || !turnPlan || !planned || planned.length !== 1) {
+        return failure("point-line distance annotation requires a validated plan quantity");
+      }
+      const claimedResult = turnPlan.derived.some((quantity) => quantity.id === link.quantityId) ||
+        turnPlan.unknowns.some((quantity) => quantity.id === link.quantityId);
+      if (!claimedResult) continue;
+      const bindings = solver.solverAuthority?.bindings.filter((binding) =>
+        binding.quantityId === link.quantityId) ?? [];
+      const binding = bindings[0];
+      if (bindings.length !== 1 || !binding || typeof binding.approximate !== "number") {
+        return failure("claimed point-line distance requires one explicit scalar solver result binding");
+      }
+      const request = solver.problemIR?.solveRequests.find((candidate) => candidate.id === binding.requestId);
+      if (!request?.resultBinding || !request.resultBinding.evidenceFactIds.every((factId) =>
+        solver.problemIR?.facts.some((fact) => fact.id === factId && fact.kind === "requested"))) {
+        return failure("claimed point-line distance solver binding requires requested-fact evidence");
+      }
+      const resultIssues = validateSceneQuantityAgreement(
+        [{ id: binding.quantityId, value: binding.approximate, unit: binding.unit }],
+        turnPlan,
+      );
+      if (resultIssues.length > 0) {
+        return failure(`point-line distance solver binding disagrees with TurnPlanV3: ${formatIssues(resultIssues)}`);
+      }
+    }
+  }
   const candidateId = "server-revalidated-scene";
   const canonicalArtifacts: SceneArtifactsV3 = {
     schemaVersion: SCENE_ARTIFACTS_V3_VERSION,
@@ -752,12 +789,6 @@ function sourceQuestionMatches(document: SceneDocument, question: string): boole
     normalizeQuestion(document.source.question) === normalizeQuestion(question);
 }
 
-function displayedSceneText(document: SceneDocument): string[] {
-  return [
-    ...document.entities.map((entity) => entity.label),
-    ...document.annotations.map((annotation) => annotation.text),
-  ].filter((value): value is string => typeof value === "string");
-}
 
 function validSegmentOrder(segments: SubmittedTurnSegment[]): boolean {
   const seen = new Set<number>();

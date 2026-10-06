@@ -1,4 +1,5 @@
 export * from "./protocol/drawingProtocol";
+export { unwrapMathMarkup } from "./protocol/mathMarkup";
 export * from "./protocol/incrementalParser";
 export * from "./handwriting/shapePaths";
 export * from "./handwriting/handwriting";

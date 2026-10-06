@@ -48,11 +48,15 @@ import {
   normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities,
   pruneUnverifiedSceneAnnotations,
+  displayedSceneQuantityTexts,
   validateSceneQuantityAgreement,
+  validateMatrixSourceBinding,
   validateSceneDocument,
   validateTurnPlanSceneProofs,
   buildSolverAuthorityProjection,
   reconcileTurnPlanWithSolver,
+  applySectionFormulaAuthority,
+  applySourceQuantityAuthority,
   verifyTurnPlanAgainstSolver,
   type RenderScene,
   type SceneArtifactsV3,
@@ -131,6 +135,7 @@ import {
   selectVerifiedRepresentation,
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
+import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import {
   finalizeScenePlanAfterAuthority,
   SCENE_PLANNER_DEADLINE_MS,
@@ -998,6 +1003,7 @@ export function useQuestionHandler(
               turnPlan.visualRequirement,
               evaluatedVisualNeed,
               questionRequiresVisual(question),
+              inferSceneCapabilities(question, { turnPlan }).hasSourceProgram === true,
             ),
           };
           tutorDebug("planner", "visual need decision", {
@@ -1041,6 +1047,36 @@ export function useQuestionHandler(
             elapsed_ms: problemAuthority.elapsedMs,
           });
         }
+        // Section-formula stems: the point's coordinates (or the asked ratio)
+        // are solved exactly from the stated endpoints, and an inconsistent or
+        // singular stem withdraws every derived number.
+        const sectionAuthority = applySectionFormulaAuthority(question, turnPlan);
+        if (sectionAuthority) {
+          turnPlan = sectionAuthority.plan;
+          tutorDebug("planner", "section formula authority", {
+            status: sectionAuthority.reading.status,
+            issue_codes: sectionAuthority.issues.map((issue) => issue.code),
+          });
+        }
+
+        // Topics whose quantities the engine recomputes from the stem (a
+        // stated resistor circuit, a uniform circular state) check the plan
+        // here, once: a value whose symbol binds without doubt to a
+        // recomputed quantity is corrected, any other value is left as
+        // written, and a conflict that cannot be bound makes that topic's
+        // figure decline. Scene validation and the teaching prompt both read
+        // the corrected plan, so no stale scalar reaches the narration.
+        const sourceAuthority = applySourceQuantityAuthority(turnPlan, problemAuthority?.problemIR ?? null, question);
+        if (sourceAuthority.outcomes.length > 0) {
+          turnPlan = sourceAuthority.plan;
+          tutorDebug("planner", "source quantity authority", {
+            topics: sourceAuthority.outcomes.map((outcome) => outcome.topic),
+            corrections: sourceAuthority.outcomes.flatMap((outcome) => outcome.corrections.map((correction) => `${correction.symbol}: ${correction.previous} -> ${correction.corrected}`)),
+            decline_figure: sourceAuthority.outcomes.filter((outcome) => outcome.declineFigure).map((outcome) => outcome.topic),
+            issue_codes: sourceAuthority.outcomes.flatMap((outcome) => outcome.issueCodes),
+          });
+        }
+
         const planningTurnPlan = turnPlan;
         const sceneCapabilities = inferSceneCapabilities(question, {
           lawIds: planningTurnPlan.lawIds,
@@ -1067,6 +1103,7 @@ export function useQuestionHandler(
           chemistryLane,
           familyCount: sceneCapabilities.families.length,
           hasArchetype: earlyArchetype !== null,
+          hasSourceProgram: sceneCapabilities.hasSourceProgram,
         });
         const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
         const planContext = [
@@ -1123,14 +1160,7 @@ export function useQuestionHandler(
           const agreementIssues = validateSceneQuantityAgreement(
             validated.document.quantities,
             authoritativePlan,
-            [
-              ...validated.document.entities
-                .map((entity) => entity.label)
-                .filter((label): label is string => typeof label === "string"),
-              ...validated.document.annotations
-                .map((annotation) => annotation.text)
-                .filter((text): text is string => typeof text === "string"),
-            ],
+            displayedSceneQuantityTexts(validated.document),
           );
           const authorityIssues = agreementIssues.map((issue) => ({
             code: issue.code,
@@ -1138,9 +1168,11 @@ export function useQuestionHandler(
             path: issue.path,
             severity: "fatal" as const,
           }));
+          const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
           const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
           const compiledScene = compileSceneDocument(validated.document);
           const fatalIssues = [
+            ...sourceIssues,
             ...authorityIssues,
             ...proofIssues,
             ...compiledScene.report.issues,
@@ -1258,7 +1290,7 @@ export function useQuestionHandler(
             fastMode: fastModeRef.current,
             // Any inferred family (FBD, circuit, conic, energy level, …) gets a
             // compact operator catalog; optics is no longer the only match.
-            ...(sceneCapabilities.families.length > 0
+            ...(sceneCapabilities.families.length > 0 || sceneCapabilities.hasSourceProgram
               ? {
                   constructionOperators: sceneCapabilities.constructionOperators,
                   proofPredicates: sceneCapabilities.proofPredicates,
@@ -1399,7 +1431,19 @@ export function useQuestionHandler(
                 primitive_count: selected.renderScene.primitives.length,
               });
             }
-            const selectedIsDrawable = selectedHasInk &&
+            // A figure the lecture save would refuse is not drawn: the save
+            // runs the same checks and a refusal fails the whole turn, so the
+            // student would watch a lesson that cannot be reopened.
+            const saveFailure = selectedHasInk && selected.sceneDocument.visualDecision.mode === "scene"
+              ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier })
+              : null;
+            if (saveFailure) {
+              tutorDebug("planner", "representation would fail the lecture save, teaching text only", {
+                representation_tier: selected.tier,
+                reason: saveFailure,
+              });
+            }
+            const selectedIsDrawable = selectedHasInk && !saveFailure &&
               selected.sceneDocument.visualDecision.mode === "scene";
             sceneV2Document = selectedIsDrawable ? selected.sceneDocument : null;
             sceneV2RenderScene = selectedIsDrawable ? selected.renderScene : null;

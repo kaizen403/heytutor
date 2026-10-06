@@ -1,4 +1,5 @@
-import { validateProblemIR, type ProblemIR } from "./problemIR";
+import { expressionToSafeSource, validateProblemIR, type ProblemIR } from "./problemIR";
+import { evaluateMathExpression } from "../math/expression";
 import { validateSolverResult, type SolverResult, type SolverValue } from "./solver";
 import { validateTurnPlanV3, type TurnPlanV3 } from "../contracts/contractsV3";
 
@@ -96,14 +97,61 @@ export function verifyTurnPlanAgainstSolver(
   }
   const validatedProblem = problemValidation.problem;
   const validatedPlan = planValidation.plan;
-  if (validatedProblem.solveRequests.length === 0) {
-    return { status: "not_applicable", issues: [], bindings: [] };
-  }
-
   const valuesByRequest = new Map(solverValidation.result.values.map((value) => [value.requestId, value]));
   const seenQuantityIds = new Set<string>();
   const bindings: SolverAuthorityBinding[] = [];
   const issues: SolverAuthorityIssue[] = [];
+  const givenFactIds = new Set(validatedProblem.facts.filter((fact) => fact.kind === "given").map((fact) => fact.id));
+  const expressionsById = new Map(validatedProblem.expressions.map((expression) => [expression.id, expression]));
+  for (const constraint of validatedProblem.constraints) {
+    if (constraint.kind !== "equation" || !constraint.evidenceFactIds.some((id) => givenFactIds.has(id))) continue;
+    const left = expressionsById.get(constraint.leftExpressionId)!;
+    const right = expressionsById.get(constraint.rightExpressionId)!;
+    if (left.valueType !== "scalar" || right.valueType !== "scalar") continue;
+    // A source relation with free variables (a line, circle or locus equation)
+    // is not a closed scalar claim. It keeps base behaviour unless one of its
+    // sides is itself a result-bound expression the plan reports a value for.
+    const resultBound = [left, right].some((expression) => validatedProblem.solveRequests.some((request) =>
+      request.kind === "evaluate" && request.expressionId === expression.id && request.resultBinding));
+    if (!resultBound && [left.root, right.root].some(hasFreeVariable)) continue;
+    try {
+      const pending = [left.root, right.root];
+      while (pending.length > 0) {
+        const node = pending.pop()!;
+        if (node.kind === "variable") throw new Error(`unsupported free variable ${node.name}`);
+        if (node.kind === "binary") pending.push(node.left, node.right);
+        else if (node.kind === "unary") pending.push(node.operand);
+        else if (node.kind === "call") pending.push(node.argument);
+      }
+      const units = [left, right].map((expression) => {
+        const requests = validatedProblem.solveRequests.filter((request) => request.kind === "evaluate" && request.expressionId === expression.id && request.resultBinding);
+        if (requests.length !== 1) throw new Error(`Expression ${expression.id} requires one explicit output-unit binding`);
+        const binding = requests[0]!.resultBinding!;
+        const unknown = validatedPlan.unknowns.find((quantity) => quantity.id === binding.turnPlanQuantityId);
+        const derived = validatedPlan.derived.find((quantity) => quantity.id === binding.turnPlanQuantityId);
+        if (!binding.unit?.trim() || !unknown || !derived || normalizeSymbol(binding.symbol) !== normalizeSymbol(unknown.symbol) || normalizeSymbol(binding.symbol) !== normalizeSymbol(derived.symbol) || normalizeUnit(binding.unit) !== normalizeUnit(unknown.unit) || normalizeUnit(binding.unit) !== normalizeUnit(derived.unit)) {
+          throw new Error(`Expression ${expression.id} has no verified declared output unit`);
+        }
+        return binding.unit.trim();
+      });
+      if (units[0] !== units[1]) throw new Error(`Given equation output units are not identical: ${units[0]}, ${units[1]}`);
+      const leftValue = evaluateMathExpression(expressionToSafeSource(left.root), 0);
+      const rightValue = evaluateMathExpression(expressionToSafeSource(right.root), 0);
+      if ((leftValue === 0 || rightValue === 0) && (left.root.kind !== "number" || right.root.kind !== "number")) throw new Error("Zero comparison requires exactly represented scalar sides");
+      const tolerance = 64 * Number.EPSILON * Math.max(Math.abs(leftValue), Math.abs(rightValue));
+      if (leftValue !== rightValue && (leftValue === 0 || rightValue === 0 || Math.abs(leftValue - rightValue) > tolerance)) {
+        issues.push({
+          code: "given_equation_contradiction",
+          message: `Given scalar equation ${constraint.id} disagrees: ${left.id}=${leftValue}, ${right.id}=${rightValue}`,
+        });
+      }
+    } catch (error) {
+      issues.push({
+        code: "incomplete_given_equation",
+        message: `Given scalar equation ${constraint.id} cannot be independently evaluated: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+  }
   for (const request of validatedProblem.solveRequests) {
     const binding = request.resultBinding;
     if (!binding) continue;
@@ -206,12 +254,13 @@ export function verifyTurnPlanAgainstSolver(
 
   const contradictionCodes = new Set([
     "duplicate_result_binding", "symbol_mismatch", "unit_mismatch",
-    "value_type_mismatch", "solver_turnplan_contradiction", "missing_solver_value",
+    "value_type_mismatch", "solver_turnplan_contradiction", "missing_solver_value", "given_equation_contradiction",
   ]);
   if (issues.some((issue) => contradictionCodes.has(issue.code))) {
     return { status: "contradiction", issues, bindings };
   }
   if (issues.length > 0) return { status: "incomplete", issues, bindings };
+  if (validatedProblem.solveRequests.length === 0) return { status: "not_applicable", issues: [], bindings };
   return { status: "verified", issues: [], bindings };
 }
 
@@ -284,4 +333,16 @@ function normalizeSymbol(value: string): string {
 
 function normalizeUnit(value: string | undefined): string {
   return String(value ?? "1").toLowerCase().replace(/µ|μ/g, "u").replace(/\s+/g, "");
+}
+
+function hasFreeVariable(root: ProblemIR["expressions"][number]["root"]): boolean {
+  const pending = [root];
+  while (pending.length > 0) {
+    const node = pending.pop()!;
+    if (node.kind === "variable") return true;
+    if (node.kind === "binary") pending.push(node.left, node.right);
+    else if (node.kind === "unary") pending.push(node.operand);
+    else if (node.kind === "call") pending.push(node.argument);
+  }
+  return false;
 }

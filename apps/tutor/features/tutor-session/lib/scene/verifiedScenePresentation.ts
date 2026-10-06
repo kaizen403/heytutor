@@ -149,8 +149,9 @@ export function buildVerifiedDiagramPresentation(
       if (options.layout === "code_lesson" && isDsaMarkerScribble(styled)) {
         continue;
       }
-      const commandPhase =
-        command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
+      const commandPhase = primitive.provenance?.matrixCell
+        ? "structure"
+        : command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
       const deferReason = deferralReason(
         primitive,
         command,
@@ -286,8 +287,14 @@ export function buildVerifiedDiagramPresentation(
   for (const primitive of renderScene.primitives) {
     if (primitive.kind !== "label" && primitive.kind !== "dimension") continue;
     const text = primitive.text?.trim();
-    if (!text || drawnTextByEntity.has(primitive.entityId)) continue;
-    drawnTextByEntity.set(primitive.entityId, text);
+    if (!text) continue;
+    // Composite entities carry content glyphs as well as their own name.
+    // Prefer the entity's name when that exact label exists in verified ink;
+    // a matrix's first cell must not become the name of the whole matrix.
+    const entityLabel = document.entities.find((entity) => entity.id === primitive.entityId)?.label?.trim();
+    if (!drawnTextByEntity.has(primitive.entityId) || text === entityLabel) {
+      drawnTextByEntity.set(primitive.entityId, text);
+    }
   }
   const namedTargets = anchors
     .filter((anchor) => drawnTextByEntity.has(anchor.id))
@@ -297,6 +304,10 @@ export function buildVerifiedDiagramPresentation(
     .filter((anchor) => !drawnTextByEntity.has(anchor.id))
     .map((anchor) => anchor.id)
     .join(", ");
+  const targetMeanings = anchors.flatMap((anchor) => {
+    const role = document.entities.find((entity) => entity.id === anchor.id)?.role?.trim();
+    return role ? [`[FOCUS:${anchor.id}] means ${role}`] : [];
+  }).join("; ");
   const groupTargets = groups.map((group) => group.id).join(", ");
   const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
   for (const entry of deferred) {
@@ -333,6 +344,7 @@ export function buildVerifiedDiagramPresentation(
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
 When you name a listed diagram part, put one [FOCUS:entity_id] for that part inside the sentence, directly after the spoken name (for example "its pole [FOCUS:P] is on the axis"). One id per tag: a sentence that names three parts carries three tags, each right after its own name. Never place the tag at the end of the step after a WRITE row, and never write two ids in one tag. Never provide coordinates.
 Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.
+Verified meaning of each focus target: ${targetMeanings || "none"}. A target denotes this whole part; do not reinterpret it as one of its entries or another part.
 Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
 Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
 Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], or a reveal-group id.
@@ -517,6 +529,7 @@ function deferralReason(
       ? "annotation"
       : null;
   }
+  if (primitive.provenance?.matrixCell) return null;
   const annotationId = typeof primitive.provenance?.annotationId === "string"
     ? primitive.provenance.annotationId
     : undefined;
@@ -526,6 +539,7 @@ function deferralReason(
   if (primitive.provenance?.transient === true) return "annotation";
   if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT") return "annotation";
   if (command.visualStyle?.strokeRole === "trace") return "annotation";
+
   if (command.type === "LABEL" || command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness" || primitive.provenance?.labelLeader === true) return "named";
   return null;
 }
@@ -1445,7 +1459,9 @@ function addLabel(
 ): void {
   const text = compactDiagramLabel(primitive.text);
   if (!text) return;
-  const key = `${primitive.entityId}:${text}`;
+  const key = primitive.provenance?.matrixCell
+    ? `${primitive.entityId}:cell:${primitive.id}`
+    : `${primitive.entityId}:${text}`;
   if (labels.keys.has(key)) return;
   labels.keys.add(key);
   const fontPx = labelFontPx(primitive.provenance);

@@ -1,3 +1,4 @@
+import { sourceCheckedStoredTurn } from "@/lib/scene/storedSceneSource";
 import { speechAudioMimeType } from "@heytutor/tutor-core";
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
 import type { DrawCommand, StoredCommandEnvelope } from "@heytutor/drawing";
@@ -116,7 +117,7 @@ export async function fetchBoardDetail(boardId: string): Promise<BoardDetail | n
     if (!res.ok) return null;
     const data = await res.json() as BoardDetail & { nextPage?: number | null };
     if (!result) result = { board: data.board, turns: [] };
-    result.turns.push(...data.turns);
+    result.turns.push(...data.turns.map(sourceCheckedStoredTurn));
     if (typeof data.nextPage !== "number" || data.nextPage <= page) break;
     page = data.nextPage;
   }

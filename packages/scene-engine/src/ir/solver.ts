@@ -1,4 +1,5 @@
 import { parseMathExpression } from "../math/expression";
+import { solveDcNetwork, dcNetworkValue } from "./circuitNetwork";
 import {
   expressionToSafeSource,
   validateProblemIR,
@@ -36,6 +37,7 @@ export interface SolverProofEvidence {
   requestId: string;
   method:
     | "exact_arithmetic"
+    | "exact_network_kcl_kvl"
     | "polynomial_roots"
     | "numeric_bracketing"
     | "exact_polynomial_integral"
@@ -105,7 +107,7 @@ export class LocalDeterministicSolverProvider implements SolverProvider {
         break;
       }
       try {
-        const solved = solveRequest(request, expressions);
+        const solved = solveRequest(request, expressions, problem);
         values.push(solved.value);
         proofs.push(solved.proof);
       } catch (error) {
@@ -202,6 +204,17 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
     if (value.valueType !== "scalar" && value.valueType !== "set") add(issues, "invalid_value_type", `${path}.valueType`, "valueType must be scalar or set");
     if (!validApproximate(value.approximate, value.valueType === "set")) add(issues, "invalid_approximate", `${path}.approximate`, "approximate value must be finite and match valueType");
     if (typeof value.errorBound !== "number" || !Number.isFinite(value.errorBound) || value.errorBound < 0) add(issues, "invalid_error_bound", `${path}.errorBound`, "errorBound must be finite and non-negative");
+    if (problem && typeof value.requestId === "string") {
+      const request = problem.solveRequests.find((candidate) => candidate.id === value.requestId);
+      if (request?.kind === "dc_network") {
+        try {
+          const expected = dcNetworkValue(solveDcNetwork(problem, request.network), request.output);
+          if (value.valueType !== "scalar" || value.approximate !== expected.approximate || value.errorBound !== 0 || !isRecord(value.exact) || value.exact.value !== expected.exact || value.exact.kind !== (expected.exact.includes("/") ? "rational" : "integer")) add(issues, "network_result_mismatch", path, "Network scalar must match independently recomputed exact KCL/KVL authority");
+        } catch (error) {
+          add(issues, "invalid_network_result", path, error instanceof Error ? error.message : "Network recomputation failed");
+        }
+      }
+    }
     if (value.exact !== undefined) {
       validateExact(value.exact, value.valueType === "set", `${path}.exact`, issues);
       validateExactAgreement(value.exact, value.approximate, value.valueType === "set", typeof value.errorBound === "number" ? value.errorBound : 0, path, issues);
@@ -221,11 +234,12 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
       if (proofRequestIds.has(proof.requestId)) add(issues, "duplicate_proof", `${path}.requestId`, `duplicate proof for ${proof.requestId}`);
       proofRequestIds.add(proof.requestId);
     }
-    if (!["exact_arithmetic", "polynomial_roots", "numeric_bracketing", "exact_polynomial_integral", "numeric_quadrature", "analytic_trig_integral", "analytic_trig_roots"].includes(String(proof.method))) add(issues, "invalid_proof_method", `${path}.method`, "invalid proof method");
-    if (!Array.isArray(proof.expressionIds) || proof.expressionIds.length === 0 || proof.expressionIds.some((id) => typeof id !== "string" || (problem !== undefined && !expressionIds.has(id)))) {
+    if (!["exact_arithmetic", "exact_network_kcl_kvl", "polynomial_roots", "numeric_bracketing", "exact_polynomial_integral", "numeric_quadrature", "analytic_trig_integral", "analytic_trig_roots"].includes(String(proof.method))) add(issues, "invalid_proof_method", `${path}.method`, "invalid proof method");
+    if (!Array.isArray(proof.expressionIds) || (proof.expressionIds.length === 0 && proof.method !== "exact_network_kcl_kvl") || proof.expressionIds.some((id) => typeof id !== "string" || (problem !== undefined && !expressionIds.has(id)))) {
       add(issues, "invalid_proof_inputs", `${path}.expressionIds`, "expressionIds must reference known expressions");
     } else if (problem && typeof proof.requestId === "string") {
       const request = problem.solveRequests.find((candidate) => candidate.id === proof.requestId);
+      if (request?.kind === "dc_network" && (proof.method !== "exact_network_kcl_kvl" || proof.residual !== 0 || proof.tolerance !== 0)) add(issues, "invalid_network_proof", path, "Network proof must establish exact KCL/KVL substitution");
       const requiredIds = requestExpressionIds(request);
       if (requiredIds.some((id) => !(proof.expressionIds as unknown[]).includes(id))) add(issues, "ungrounded_proof", `${path}.expressionIds`, "proof does not cite every expression used by its request");
     }
@@ -252,7 +266,12 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
     : { valid: false, result: null, issues };
 }
 
-function solveRequest(request: SolveRequest, expressions: Map<string, ProblemExpression>): { value: SolverValue; proof: SolverProofEvidence } {
+function solveRequest(request: SolveRequest, expressions: Map<string, ProblemExpression>, problem: ProblemIR): { value: SolverValue; proof: SolverProofEvidence } {
+  if (request.kind === "dc_network") {
+    const solution = solveDcNetwork(problem, request.network);
+    const result = dcNetworkValue(solution, request.output);
+    return solvedScalar(request.id, result.approximate, { kind: result.exact.includes("/") ? "rational" : "integer", value: result.exact }, "exact_network_kcl_kvl", solution.expressionIds, 0, `Exact modified nodal authority with ${solution.lawChecks} source-law, KCL and signed-power substitution checks; branch current is positive from its declared from node to its to node, voltage sources declare V(from)-V(to).`);
+  }
   if (request.kind === "evaluate") {
     const expression = requiredExpression(expressions, request.expressionId);
     const source = expressionToSafeSource(expression.root);
@@ -289,6 +308,9 @@ function solveRoots(request: Extract<SolveRequest, { kind: "roots" | "intersecti
   const expressionIds = right ? [left.id, right.id] : [left.id];
   if (leftPolynomial && rightPolynomial) {
     const coefficients = polynomialSubtract(leftPolynomial, rightPolynomial);
+    if (coefficients.every((coefficient) => coefficient.numerator === 0n)) {
+      throw new Error("identically zero polynomial has a non-discrete solution set; finite root enumeration is unsupported");
+    }
     let approximate = realPolynomialRoots(coefficients.map(fractionNumber), request.domain.min, request.domain.max);
     const exact = exactPolynomialRoots(coefficients, approximate)?.filter((value) => {
       const numeric = exactNumber(value);
@@ -314,7 +336,7 @@ function solveRoots(request: Extract<SolveRequest, { kind: "roots" | "intersecti
 function solvedScalar(requestId: string, approximate: number, exact: ExactSolverValue | undefined, method: SolverProofEvidence["method"], expressionIds: string[], residual: number, detail: string, errorBound = 0): { value: SolverValue; proof: SolverProofEvidence } {
   return {
     value: { id: `value_${requestId}`, requestId, valueType: "scalar", ...(exact ? { exact } : {}), approximate, errorBound },
-    proof: proof(requestId, method, expressionIds, residual, Math.max(errorBound, ROOT_TOLERANCE), detail),
+    proof: proof(requestId, method, expressionIds, residual, method === "exact_network_kcl_kvl" ? 0 : Math.max(errorBound, ROOT_TOLERANCE), detail),
   };
 }
 
@@ -1108,6 +1130,7 @@ function validateExactAgreement(rawExact: unknown, rawApproximate: unknown, set:
 
 function requestExpressionIds(request: SolveRequest | undefined): string[] {
   if (!request) return [];
+  if (request.kind === "dc_network") return [...new Set(request.network.branches.flatMap((branch) => branch.quantityExpressionId ? [branch.quantityExpressionId] : []))];
   if (request.kind === "intersections") return [request.leftExpressionId, request.rightExpressionId];
   return [request.expressionId];
 }

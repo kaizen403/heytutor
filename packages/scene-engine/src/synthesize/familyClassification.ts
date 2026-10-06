@@ -20,6 +20,8 @@ import {
   isChemistryQuestion,
 } from "../chemistry";
 import { isAtomicTransitionStem, isGasProcessStem } from "../chemistry/classify";
+import { extractCircleSource } from "./statedEquations";
+import { readSectionFormulaSource } from "../ir/sectionFormulaSource";
 
 export const SCENE_VISUAL_FAMILIES = [
   ...CHEMISTRY_SCENE_FAMILIES,
@@ -104,6 +106,27 @@ export function isRiverBoatStem(stem: string): boolean {
 
 export function isPlanarConicStem(stem: string): boolean {
   return /(?:\bhyperbola\b|\bellipse\b|\bparabola\b|\blatus rect(?:um)?\b|\blatus ractum\b|\bfocal distances?\b|\bfoci\b|\bdirectrix\b|transverse (?:and conjugate )?ax[ei]s|conjugate ax[ei]s)/i.test(stem);
+}
+
+/**
+ * A stated circle equation (standard or general form) or a declared centre and
+ * radius is a source program for the coordinate figure, the way a matrix or a
+ * mensuration solid is. Read from the raw question: the equation itself is the
+ * evidence, not a topic word. An invalid source (negative r², contradiction)
+ * names no family, so the caller declines instead of drawing a stand-in.
+ */
+export function circleSourceFamilies(question: string): SceneVisualFamily[] {
+  const source = extractCircleSource(question);
+  return source && source.kind !== "invalid" ? ["coordinate_figure"] : [];
+}
+
+/**
+ * Two stated endpoints with a ratio, a midpoint, or a given point whose ratio is
+ * asked: the section formula's own source program draws on the coordinate
+ * figure. An invalid section source names nothing, so the caller declines.
+ */
+export function sectionSourceFamilies(question: string): SceneVisualFamily[] {
+  return readSectionFormulaSource(question).status === "ok" ? ["coordinate_figure"] : [];
 }
 
 export function isCircleLocusStem(stem: string): boolean {

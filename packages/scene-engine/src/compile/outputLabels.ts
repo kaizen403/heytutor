@@ -1,6 +1,9 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import { probabilityTreeOutputLabels } from "./probabilityGeometry";
 import { fieldConstructionOutputLabels, validateEvaluatedFieldLabels } from "./fieldGeometry";
+import { dipoleConstructionOutputLabels } from "./dipoleFieldGeometry";
+import { analyticLineConstructionOutputLabels } from "./analyticLineGeometry";
+import { rigidMassConstructionOutputLabels } from "./rigidMassGeometry";
 import { acGeometryLabel, validateEvaluatedAcLabels } from "./acGeometry";
 import { wavesConstructionOutputLabels, validateEvaluatedWavesLabels } from "./wavesGeometry";
 import { geometricOpticsOutputLabels, validateEvaluatedGeometricOpticsLabels } from "./geometricOpticsGeometry";
@@ -21,6 +24,7 @@ import { rotationGeometryLabel, validateEvaluatedRotationLabels } from "./rotati
 
 import { combinatoricsGeometryLabel, validateEvaluatedCombinatoricsLabels } from "./combinatoricsGeometry";
 import { elasticityGeometryLabel, validateEvaluatedElasticityLabels } from "./elasticityGeometry";
+import { distributedFieldsConstructionOutputLabels, validateEvaluatedDistributedFieldsLabels } from "./distributedFieldsGeometry";
 
 interface LabelEvaluationContext {
   number(value: unknown): number;
@@ -103,6 +107,47 @@ export function withEvaluatedOutputLabels(
     case "field_components":
       validateEvaluatedFieldLabels(construction, index, document, outputs, issues);
       labels = fieldConstructionOutputLabels(construction.operator, outputs);
+      break;
+    case "coulomb_pair":
+    case "point_charge_field":
+    case "field_lines":
+    case "dipole_field":
+    case "dipole_torque":
+    case "equipotential":
+    case "dipole_energy":
+      labels = dipoleConstructionOutputLabels(construction.operator, outputs);
+      break;
+    case "coordinate_distance":
+    case "section_point":
+    case "axis_translation":
+    case "line_relation":
+    case "line_intercepts":
+    case "line_equation":
+    case "line_intersection_angle":
+    case "line_concurrence":
+    case "point_line_distance":
+      labels = analyticLineConstructionOutputLabels(construction.operator, outputs);
+      if (construction.operator === "section_point") labels = labels.map((label) => {
+        const sourceLabel = document.entities.find((entity) => construction.outputs.includes(entity.id))?.label?.trim();
+        const identity = /^([\p{L}][\p{L}\p{N}_'′]*)(?:\s*[=≈:]|$)/u.exec(sourceLabel ?? "")?.[1];
+        return `${identity ?? "section point"} (${label})`;
+      });
+      break;
+    case "centre_of_mass":
+    case "com_motion":
+    case "point_mass_inertia":
+    case "simple_body_inertia":
+    case "axes_theorem":
+      labels = rigidMassConstructionOutputLabels(construction.operator, outputs);
+      break;
+    case "line_charge_field":
+    case "gauss_flux":
+    case "wire_field":
+    case "loop_field":
+    case "flux_sinusoid":
+    case "sinusoid_state":
+      validateEvaluatedDistributedFieldsLabels(construction, index, document, outputs, issues);
+      labels = distributedFieldsConstructionOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
       break;
     case "impedance":
     case "impedance_combine":

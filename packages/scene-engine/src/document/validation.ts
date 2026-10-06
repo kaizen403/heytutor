@@ -23,11 +23,16 @@ import { CONIC_OPERATORS, validateConicConstruction } from "../compile/conicGeom
 import { SPACE_DERIVATION_OPERATORS, validateSpaceDerivationConstruction } from "../compile/spaceDerivations";
 import { PROBABILITY_OPERATORS, validateProbabilityConstruction } from "../compile/probabilityGeometry";
 import { FIELD_OPERATORS, validateFieldConstruction } from "../compile/fieldGeometry";
+import { DIPOLE_FIELD_OPERATORS, validateDipoleFieldConstruction } from "../compile/dipoleFieldGeometry";
+import { ANALYTIC_LINE_OPERATORS, validateAnalyticLineConstruction as validateCoordinateLineConstruction } from "../compile/analyticLineGeometry";
+import { RIGID_MASS_OPERATORS, validateRigidMassConstruction } from "../compile/rigidMassGeometry";
+import { MATRIX_ARRAY_OPERATORS, validateMatrixArrayConstruction } from "../compile/matrixArrayGeometry";
+import { validateMatrixSourceBinding } from "../compile/matrixSourceBinding";
 import { CIRCLE_OPERATORS, validateCircleConstruction } from "../compile/circleGeometry";
 import { AFFINE_OPERATORS, validateAffineConstruction } from "../compile/affineGeometry";
 import { VECTOR_OPERATORS, validateVectorConstruction } from "../compile/vectorGeometry";
 import { KINEMATICS_OPERATORS, validateKinematicsConstruction } from "../compile/kinematicsGeometry";
-import { CALCULUS_OPERATORS as DERIVED_CURVE_OPERATORS, validateCalculusConstruction as validateDerivedCurveConstruction, validateAnalyticLineConstruction } from "../compile/calculusGeometry";
+import { CALCULUS_OPERATORS as DERIVED_CURVE_OPERATORS, validateCalculusConstruction as validateDerivedCurveConstruction, validateAnalyticLineConstruction as validateCurveAnalyticLineConstruction } from "../compile/calculusGeometry";
 import { AC_OPERATORS, validateAcConstruction } from "../compile/acGeometry";
 import { WAVES_OPERATORS, validateWavesConstruction } from "../compile/wavesGeometry";
 import { GEOMETRIC_OPTICS_OPERATORS, validateGeometricOpticsConstruction } from "../compile/geometricOpticsGeometry";
@@ -61,6 +66,8 @@ import { COMBINATORICS_OPERATORS, validateCombinatoricsConstruction } from "../c
 const COMBINATORICS_CONSTRUCTIONS = new Set<string>(COMBINATORICS_OPERATORS);
 import { ELASTICITY_OPERATORS, validateElasticityConstruction } from "../compile/elasticityGeometry";
 const ELASTICITY_CONSTRUCTIONS = new Set<string>(ELASTICITY_OPERATORS);
+import { DISTRIBUTED_FIELDS_OPERATORS, validateDistributedFieldsConstruction } from "../compile/distributedFieldsGeometry";
+const DISTRIBUTED_FIELDS_CONSTRUCTIONS = new Set<string>(DISTRIBUTED_FIELDS_OPERATORS);
 
 const STATISTICAL_CONSTRUCTIONS = new Set<string>(STATISTICS_OPERATORS);
 const TRIANGLE_CONSTRUCTIONS = new Set<string>(TRIANGLE_OPERATORS);
@@ -68,6 +75,11 @@ const CONIC_CONSTRUCTIONS = new Set<string>(CONIC_OPERATORS);
 const SPACE_DERIVATION_CONSTRUCTIONS = new Set<string>(SPACE_DERIVATION_OPERATORS);
 const PROBABILITY_CONSTRUCTIONS = new Set<string>(PROBABILITY_OPERATORS);
 const FIELD_CONSTRUCTIONS = new Set<string>(FIELD_OPERATORS);
+const DIPOLE_FIELD_CONSTRUCTIONS = new Set<string>(DIPOLE_FIELD_OPERATORS);
+const COORDINATE_LINE_CONSTRUCTIONS = new Set<string>(ANALYTIC_LINE_OPERATORS);
+const RIGID_MASS_CONSTRUCTIONS = new Set<string>(RIGID_MASS_OPERATORS);
+const MATRIX_ARRAY_CONSTRUCTIONS = new Set<string>(MATRIX_ARRAY_OPERATORS);
+const VARIABLE_KIND_CONSTRUCTIONS = new Set<string>([...ANALYTIC_LINE_OPERATORS, ...RIGID_MASS_OPERATORS]);
 const CIRCLE_CONSTRUCTIONS = new Set<string>(CIRCLE_OPERATORS);
 const AFFINE_CONSTRUCTIONS = new Set<string>(AFFINE_OPERATORS);
 const VECTOR_CONSTRUCTIONS = new Set<string>(VECTOR_OPERATORS);
@@ -99,6 +111,9 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   conic: "polyline", conic_anchor: "point", conic_directrix: "line", conic_asymptotes: "polyline", conic_tangent: "line",
   histogram: "polyline", frequency_polygon: "polyline", cumulative_frequency: "polyline",
   electric_field: "vector",
+  coulomb_pair: "vector", point_charge_field: "vector", field_lines: "polyline",
+  dipole_field: "vector", dipole_torque: "vector", dipole_energy: "vector",
+  line_charge_field: "vector", wire_field: "vector", loop_field: "vector", flux_sinusoid: "polyline",
   circle_from_three_points: "circle", circle_tangent_at: "line",
   affine_point: "point",
   vector_sum: "vector", vector_scale: "vector", vector_projection: "vector",
@@ -119,7 +134,23 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   lens_section: "polygon",
   angle_mark: "angle_mark", right_angle_mark: "right_angle_mark", tick_mark: "tick_mark",
   sign_badge: "vector", dimension: "dimension", connect: "connector", symbol: "component", label: "label",
+  matrix_array: "matrix_array", matrix_add: "matrix_array", matrix_scale: "matrix_array",
+  matrix_product: "matrix_array", matrix_transpose: "matrix_array",
 };
+
+function visibleConstructionKind(construction: Record<string, unknown>): string | undefined {
+  if (typeof construction.operator !== "string") return undefined;
+  if (construction.operator === "equipotential" && isRecord(construction.inputs)) {
+    if (construction.inputs.source === "point_charge") return "circle";
+    if (construction.inputs.source === "dipole") return "polyline";
+    return undefined;
+  }
+  return VISIBLE_ENTITY_KIND_BY_OPERATOR[construction.operator];
+}
+
+function retainsVariableKindConstruction(construction: Record<string, unknown>): boolean {
+  return typeof construction.operator === "string" && VARIABLE_KIND_CONSTRUCTIONS.has(construction.operator);
+}
 
 const INFERRED_CONSTRUCTION_ENTITY = "__inferredConstructionEntity";
 const CONSTRUCTION_ENTITY_REFERENCE_KEYS = new Set([
@@ -444,7 +475,8 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
     !Array.isArray(construction.outputs) ||
     construction.outputs.length !== 1 ||
     typeof construction.outputs[0] !== "string" ||
-    !prunable.has(construction.outputs[0]),
+    !prunable.has(construction.outputs[0]) ||
+    retainsVariableKindConstruction(construction),
   );
   const declaredRetainedIds = new Set(labelNormalizedEntities.flatMap((entity) =>
     isRecord(entity) &&
@@ -478,10 +510,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
       if (!isRecord(construction) || !Array.isArray(construction.outputs)) return true;
       const outputs = construction.outputs.filter((output): output is string => typeof output === "string");
       if (outputs.length === 0) return false;
-      if (
-        typeof construction.operator === "string" &&
-        VISIBLE_ENTITY_KIND_BY_OPERATOR[construction.operator]
-      ) return true;
+      if (visibleConstructionKind(construction) || retainsVariableKindConstruction(construction)) return true;
       return outputs.some((output) =>
         declaredRetainedIds.has(output) ||
         externallyOwned.has(output) ||
@@ -1825,6 +1854,7 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
     }
     if (isRecord(inputs)) {
       for (const [key, value] of Object.entries(inputs)) {
+        if (key === "origin" && typeof operator === "string" && MATRIX_ARRAY_CONSTRUCTIONS.has(operator)) continue;
         const inlinePoint = isInlineCoordinatePoint(value)
           ? value
           : inlinePointInputKeys.has(key) &&
@@ -4302,6 +4332,10 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (SPACE_DERIVATION_CONSTRUCTIONS.has(construction.operator)) validateSpaceDerivationConstruction(construction, index, document, constructionByOutput, issues);
       if (PROBABILITY_CONSTRUCTIONS.has(construction.operator)) validateProbabilityConstruction(construction, index, document, constructionByOutput, issues);
       if (FIELD_CONSTRUCTIONS.has(construction.operator)) validateFieldConstruction(construction, index, document, constructionByOutput, issues);
+      if (DIPOLE_FIELD_CONSTRUCTIONS.has(construction.operator)) validateDipoleFieldConstruction(construction, index, document, constructionByOutput, issues);
+      if (COORDINATE_LINE_CONSTRUCTIONS.has(construction.operator)) validateCoordinateLineConstruction(construction, index, document, constructionByOutput, issues);
+      if (RIGID_MASS_CONSTRUCTIONS.has(construction.operator)) validateRigidMassConstruction(construction, index, document, constructionByOutput, issues);
+      if (MATRIX_ARRAY_CONSTRUCTIONS.has(construction.operator)) validateMatrixArrayConstruction(construction, index, document, constructionByOutput, issues);
       if (CIRCLE_CONSTRUCTIONS.has(construction.operator)) validateCircleConstruction(construction, index, document, constructionByOutput, issues);
       if (AFFINE_CONSTRUCTIONS.has(construction.operator)) validateAffineConstruction(construction, index, document, constructionByOutput, issues);
       if (VECTOR_CONSTRUCTIONS.has(construction.operator)) validateVectorConstruction(construction, index, document, constructionByOutput, issues);
@@ -4311,6 +4345,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (WAVES_CONSTRUCTIONS.has(construction.operator)) validateWavesConstruction(construction, index, document, constructionByOutput, issues);
       if (GEOMETRIC_OPTICS_CONSTRUCTIONS.has(construction.operator)) validateGeometricOpticsConstruction(construction, index, document, constructionByOutput, issues);
       if (THERMODYNAMICS_CONSTRUCTIONS.has(construction.operator)) validateThermodynamicsConstruction(construction, index, document, constructionByOutput, issues);
+      if (DISTRIBUTED_FIELDS_CONSTRUCTIONS.has(construction.operator)) validateDistributedFieldsConstruction(construction, index, document, constructionByOutput, issues);
     }
     if (construction.operator === "function_curve" && isRecord(construction.inputs)) {
       validateFunctionCurveInputs(construction.inputs, index, document, issues);
@@ -4537,6 +4572,8 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   } else if (document.requiredEntityIds.length === 0) {
     issues.push({ code: "empty_required_scene", message: "A scene must declare requiredEntityIds", severity: "fatal", path: "requiredEntityIds" });
   }
+
+  if (!issues.some((issue) => issue.severity === "fatal")) issues.push(...validateMatrixSourceBinding(document));
 
   return result(issues.some((issue) => issue.severity === "fatal") ? null : document, issues, document);
 }
@@ -4840,9 +4877,7 @@ function reconcileConstructionOwnership(raw: Record<string, unknown>): void {
     for (const output of construction.outputs) {
       if (typeof output === "string") producerByOutput.set(output, construction);
     }
-    const kind = typeof construction.operator === "string"
-      ? VISIBLE_ENTITY_KIND_BY_OPERATOR[construction.operator]
-      : undefined;
+    const kind = visibleConstructionKind(construction);
     if (!kind) continue;
     for (const output of construction.outputs) {
       if (typeof output !== "string") continue;
@@ -5071,7 +5106,7 @@ function validateCalculusConstruction(
     const curveId = inputs.curve ?? inputs.target;
     const producer = producerFor(curveId);
     if (producer && ["harmonic_wave", "wave_superposition", "polytropic_process", "isochoric_process", "constant_acceleration_trajectory", "hydrostatic_profile", "harmonic_motion", "flux_process", "elastic_profile"].includes(producer.operator)) {
-      validateAnalyticLineConstruction(construction, index, document, constructionByOutput, issues);
+      validateCurveAnalyticLineConstruction(construction, index, document, constructionByOutput, issues);
       return;
     }
     if (!producer || !SAMPLED_CURVE_OPERATORS.has(producer.operator)) {

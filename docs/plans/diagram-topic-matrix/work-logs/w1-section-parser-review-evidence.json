@@ -1,0 +1,651 @@
+{
+  "source_pin": "35b4d3e3498e84b7d8192cff5c3a55f1268d15b3",
+  "staging_commit": "1dbe7f5ddc5e5c4d9df8b2942c633191913dd5db",
+  "disposition": "BLOCK",
+  "blocking_cause": "Structurally valid label constructions targeting source Q via target/at/point render and save R\u2248[7,8].",
+  "immutable_probes": {
+    "packages/scene-engine/scripts/verify/verify-w1-section-review.ts": {
+      "origin": "bec1a065",
+      "blob": "23be244074b8714e12b55aafaf8c0be6e59423e6",
+      "unchanged": true
+    },
+    "apps/tutor/scripts/verify/verify-w1-section-review.ts": {
+      "origin": "bec1a065",
+      "blob": "a41eeefaf36865014726c081ea70128aa4e45f8b",
+      "unchanged": true
+    },
+    "apps/tutor/scripts/verify/verify-w1-section-identity-review.ts": {
+      "origin": "31802675",
+      "blob": "5a3b0f315f12fb220b60fbad85fce5c84273fb9f",
+      "unchanged": true
+    },
+    "apps/tutor/scripts/verify/verify-w1-section-annotation-grammar-review.ts": {
+      "origin": "1bc5accb",
+      "blob": "27e3325468514f289746f68dbdcd312f9fbcb9d6",
+      "unchanged": true
+    },
+    "apps/tutor/scripts/verify/verify-w1-section-annotation-review.ts": {
+      "origin": "1bc5accb",
+      "blob": "8a403c560a18a1780d9b695ddcd295db50df33a6",
+      "unchanged": true
+    },
+    "apps/tutor/scripts/verify/verify-w1-section-tuple-review.ts": {
+      "origin": "4abebe37",
+      "blob": "df0aa586af8271dac38a96ce2f9a8c87bb8c8a0d",
+      "unchanged": true
+    }
+  },
+  "runs": {
+    "engine61": {
+      "checks": 61,
+      "strict_exit": 0,
+      "failures": [],
+      "evidence": []
+    },
+    "app81": {
+      "checks": 81,
+      "strict_exit": 1,
+      "failures": [
+        {
+          "id": "client-lineage:compiled-live-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "client-lineage:save-accepted",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "client-omitted-equal-component:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        }
+      ],
+      "evidence": []
+    },
+    "identity187": {
+      "checks": 187,
+      "strict_exit": 0,
+      "failures": [],
+      "evidence": []
+    },
+    "unknown25": {
+      "checks": 25,
+      "strict_exit": 0,
+      "failures": [],
+      "evidence": []
+    },
+    "immutable62": {
+      "checks": 62,
+      "strict_exit": 1,
+      "failures": [
+        {
+          "id": "two-parsed-correct-claims:source",
+          "pass": false,
+          "expected": [],
+          "actual": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ]
+        },
+        {
+          "id": "two-parsed-correct-claims:live",
+          "pass": false,
+          "expected": null,
+          "actual": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        }
+      ],
+      "evidence": []
+    },
+    "channel120": {
+      "checks": 120,
+      "strict_exit": 1,
+      "failures": [
+        {
+          "id": "construction-target:source",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-target:raw-live",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-target:compiled-live",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-target:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-target:JSONB",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-at:source",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-at:raw-live",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-at:compiled-live",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-at:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-at:JSONB",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-point:source",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-point:raw-live",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-point:compiled-live",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-point:save",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        },
+        {
+          "id": "construction-point:JSONB",
+          "pass": false,
+          "expected": false,
+          "actual": true
+        }
+      ],
+      "evidence": [
+        {
+          "sharedParserEvidence": "label:square-correct-Q",
+          "text": "Q\u2248[7,8]",
+          "sourceIssues": [],
+          "compileOK": true,
+          "liveFailure": null,
+          "saveError": null
+        },
+        {
+          "sharedParserEvidence": "label:square-wrong-R",
+          "text": "R\u2248[7,8]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "label:square-false-Q",
+          "text": "Q\u2248[4,5]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": false,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "callout:square-correct-Q",
+          "text": "Q\u2248[7,8]",
+          "sourceIssues": [],
+          "compileOK": true,
+          "liveFailure": null,
+          "saveError": null
+        },
+        {
+          "sharedParserEvidence": "callout:square-wrong-R",
+          "text": "R\u2248[7,8]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "callout:square-false-Q",
+          "text": "Q\u2248[4,5]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": false,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "badge:square-correct-Q",
+          "text": "Q\u2248[7,8]",
+          "sourceIssues": [],
+          "compileOK": true,
+          "liveFailure": null,
+          "saveError": null
+        },
+        {
+          "sharedParserEvidence": "badge:square-wrong-R",
+          "text": "R\u2248[7,8]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "badge:square-false-Q",
+          "text": "Q\u2248[4,5]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": false,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "raw-name-case",
+          "text": "q\u2248[7,8]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "raw-name-underscore",
+          "text": "Q_\u2248[7,8]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "compiled-number-grammar",
+          "text": "Q=(7e0,8.)",
+          "sourceIssues": [],
+          "compileOK": true,
+          "liveFailure": null,
+          "saveError": null
+        },
+        {
+          "sharedParserEvidence": "caption-unit",
+          "text": "Q\u2248[7,8] unitless",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "bare-square",
+          "text": "[7,8]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "unsupported-braces",
+          "text": "Q\u2248{7,8}",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": false,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "sharedParserEvidence": "endpoint-square-correct",
+          "text": "A:[1,2]",
+          "sourceIssues": [],
+          "compileOK": true,
+          "liveFailure": null,
+          "saveError": null
+        },
+        {
+          "sharedParserEvidence": "endpoint-square-wrong-name",
+          "text": "B:[1,2]",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].inputs",
+              "message": "section endpoint names and coordinate annotations must agree with their source point"
+            }
+          ],
+          "compileOK": true,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section endpoint names and coordinate annotations must agree with their source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section endpoint names and coordinate annotations must agree with their source point"
+        },
+        {
+          "sharedParserEvidence": "legacy-endpoint-exact",
+          "text": "A(1,2)",
+          "sourceIssues": [],
+          "compileOK": true,
+          "liveFailure": null,
+          "saveError": null
+        },
+        {
+          "sharedParserEvidence": "mixed-two-correct-claims",
+          "text": "Q=(7,8); Q\u2248(7,8)",
+          "sourceIssues": [
+            {
+              "code": "section_source_mismatch",
+              "severity": "fatal",
+              "path": "constructions[4].outputs",
+              "message": "section result names and coordinate annotations must agree with the explicitly named source point"
+            }
+          ],
+          "compileOK": false,
+          "liveFailure": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point",
+          "saveError": "scene proof obligations failed: section_source_mismatch: section result names and coordinate annotations must agree with the explicitly named source point"
+        },
+        {
+          "constructionLabelEvidence": "target",
+          "sourceIssues": [],
+          "compileOK": true,
+          "compileIssues": [],
+          "liveFailure": null,
+          "saveError": null,
+          "boardLabels": [
+            "R\u2248[7,8]",
+            "A(1,2)",
+            "B(4,5)",
+            "Q=(7,8)"
+          ],
+          "savedConstruction": {
+            "id": "construct_review_result_label",
+            "operator": "label",
+            "inputs": {
+              "target": "pt_Q",
+              "text": "R\u2248[7,8]"
+            },
+            "outputs": [
+              "review_result_label"
+            ]
+          }
+        },
+        {
+          "constructionLabelEvidence": "at",
+          "sourceIssues": [],
+          "compileOK": true,
+          "compileIssues": [],
+          "liveFailure": null,
+          "saveError": null,
+          "boardLabels": [
+            "R\u2248[7,8]",
+            "A(1,2)",
+            "B(4,5)",
+            "Q=(7,8)"
+          ],
+          "savedConstruction": {
+            "id": "construct_review_result_label",
+            "operator": "label",
+            "inputs": {
+              "at": "pt_Q",
+              "text": "R\u2248[7,8]"
+            },
+            "outputs": [
+              "review_result_label"
+            ]
+          }
+        },
+        {
+          "constructionLabelEvidence": "point",
+          "sourceIssues": [],
+          "compileOK": true,
+          "compileIssues": [],
+          "liveFailure": null,
+          "saveError": null,
+          "boardLabels": [
+            "R\u2248[7,8]",
+            "A(1,2)",
+            "B(4,5)",
+            "Q=(7,8)"
+          ],
+          "savedConstruction": {
+            "id": "construct_review_result_label",
+            "operator": "label",
+            "inputs": {
+              "point": "pt_Q",
+              "text": "R\u2248[7,8]"
+            },
+            "outputs": [
+              "review_result_label"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "preserved_app_baseline": [
+    "client-lineage:compiled-live-accepted",
+    "client-lineage:save-accepted",
+    "client-omitted-equal-component:save"
+  ],
+  "immutable62_tightening": "Two unchanged positive source/live expectations now intentionally decline mixed claims; generic compile/save already rejected these. User explicitly accepted this stronger contract and requires visible unchanged failures.",
+  "generic_parse_bytes_unchanged": true,
+  "diagnostic135": {
+    "checks": 135,
+    "blocking_failures": 15,
+    "structurally_invalid_source_raw_observations": 2,
+    "evidence": [
+      {
+        "constructionLabelEvidence": "target",
+        "sourceIssues": [],
+        "compileOK": true,
+        "compileIssues": [],
+        "liveFailure": null,
+        "saveError": null,
+        "boardLabels": [
+          "R\u2248[7,8]",
+          "A(1,2)",
+          "B(4,5)",
+          "Q=(7,8)"
+        ],
+        "savedConstruction": {
+          "id": "construct_review_result_label",
+          "operator": "label",
+          "inputs": {
+            "target": "pt_Q",
+            "text": "R\u2248[7,8]"
+          },
+          "outputs": [
+            "review_result_label"
+          ]
+        }
+      },
+      {
+        "constructionLabelEvidence": "at",
+        "sourceIssues": [],
+        "compileOK": true,
+        "compileIssues": [],
+        "liveFailure": null,
+        "saveError": null,
+        "boardLabels": [
+          "R\u2248[7,8]",
+          "A(1,2)",
+          "B(4,5)",
+          "Q=(7,8)"
+        ],
+        "savedConstruction": {
+          "id": "construct_review_result_label",
+          "operator": "label",
+          "inputs": {
+            "at": "pt_Q",
+            "text": "R\u2248[7,8]"
+          },
+          "outputs": [
+            "review_result_label"
+          ]
+        }
+      },
+      {
+        "constructionLabelEvidence": "point",
+        "sourceIssues": [],
+        "compileOK": true,
+        "compileIssues": [],
+        "liveFailure": null,
+        "saveError": null,
+        "boardLabels": [
+          "R\u2248[7,8]",
+          "A(1,2)",
+          "B(4,5)",
+          "Q=(7,8)"
+        ],
+        "savedConstruction": {
+          "id": "construct_review_result_label",
+          "operator": "label",
+          "inputs": {
+            "point": "pt_Q",
+            "text": "R\u2248[7,8]"
+          },
+          "outputs": [
+            "review_result_label"
+          ]
+        }
+      },
+      {
+        "constructionLabelEvidence": "output-label-only",
+        "sourceIssues": [],
+        "compileOK": false,
+        "compileIssues": [
+          {
+            "code": "invalid_label_construction",
+            "message": "label requires one label output whose compact entity label matches inputs.text",
+            "severity": "fatal",
+            "path": "constructions[6]",
+            "entityIds": [
+              "review_result_label"
+            ]
+          }
+        ],
+        "liveFailure": null,
+        "saveError": "exact scene is structurally invalid: invalid_label_construction: label requires one label output whose compact entity label matches inputs.text",
+        "boardLabels": [],
+        "savedConstruction": null
+      }
+    ],
+    "draft_source": "/tmp/w1-section-parser-review-draft135.ts"
+  },
+  "checks": {
+    "engine_build": "PASS",
+    "engine_typecheck": "PASS",
+    "source_eslint": "PASS",
+    "scoped_probe_graph_tsc": "PASS",
+    "probe_eslint": "PASS",
+    "diff_check": "PASS"
+  },
+  "next_author_pin": "d770591f6a6788564ae9c562bd46124473efc28a",
+  "limits": [
+    "No reviewer source fixes",
+    "No broad matrix/fullsuite/native",
+    "No runtime/DB/student/ports",
+    "No privateintegration staging or main/ledger/count writes",
+    "No childagents or remote actions"
+  ]
+}

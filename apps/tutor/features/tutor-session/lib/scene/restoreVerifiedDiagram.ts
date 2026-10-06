@@ -16,6 +16,7 @@ import {
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { storedTurnSourceIssues } from "@/lib/scene/storedSceneSource";
 import { DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildVerifiedDiagramPresentation } from "./verifiedScenePresentation";
 
@@ -24,13 +25,14 @@ function isDsaSceneDocument(document: SceneDocument): boolean {
 }
 
 export function restoreVerifiedPresentationFromTurn(
-  turn: Pick<StoredTurn, "sceneDocument"> | null | undefined,
+  turn: (Pick<StoredTurn, "sceneDocument"> & Partial<Pick<StoredTurn, "question" | "sceneArtifacts">>) | null | undefined,
 ): ReturnType<typeof buildVerifiedDiagramPresentation> | null {
   if (!turn?.sceneDocument) return null;
   const structural = validateSceneDocument(turn.sceneDocument);
   if (!structural.document) return null;
   const document = structural.document;
   if (document.visualDecision.mode !== "scene") return null;
+  if (storedTurnSourceIssues(document, turn).some((issue) => issue.severity === "fatal")) return null;
   const dsa = isDsaSceneDocument(document);
   const compiled = compileSceneDocument(
     document,
@@ -47,7 +49,7 @@ export function restoreVerifiedPresentationFromTurn(
 }
 
 export function restoreVerifiedDiagramFromTurn(
-  turn: Pick<StoredTurn, "sceneDocument"> | null | undefined,
+  turn: (Pick<StoredTurn, "sceneDocument"> & Partial<Pick<StoredTurn, "question" | "sceneArtifacts">>) | null | undefined,
 ): VerifiedDiagram | null {
   return restoreVerifiedPresentationFromTurn(turn)?.diagram ?? null;
 }

@@ -41,6 +41,7 @@ export const ARCHETYPE_IDS = [
   "relative_motion_line",
   "river_boat",
   "vt_graph",
+  "uniform_acceleration_vt",
   "xt_graph",
   "fx_graph_area",
   "collision_line",
@@ -147,6 +148,13 @@ export interface PictureContract {
   roles: readonly string[];
   operators?: readonly string[];
   symbols?: readonly string[];
+  /**
+   * Role alternatives: at least one role from each group must be present.
+   * A loop-the-loop on a track is held by a normal reaction where the same
+   * loop on a string is held by a tension; the contract names the disjunction
+   * instead of forcing one apparatus word onto both figures.
+   */
+  anyRoles?: ReadonlyArray<readonly string[]>;
   /** Any of these present means the picture is a different figure. */
   forbidSymbols?: readonly string[];
   forbidOperators?: readonly string[];
@@ -222,9 +230,9 @@ export const ARCHETYPES: Readonly<Record<ArchetypeId, ArchetypeSpec>> = {
     contract: { roles: ["pivot", "string", "bob", "circle", "vertical"], metric: ["angle_between"] },
   },
   vertical_circle: {
-    id: "vertical_circle", family: "contact_body", label: "body whirled in a vertical circle",
-    slots: { radius: num("m") },
-    contract: { roles: ["circular path", "body", "weight", "tension"], metric: ["equal_length"] },
+    id: "vertical_circle", family: "contact_body", label: "body in a vertical circle: whirled on a string or looped on a track",
+    slots: { radius: num("m"), variant: choice(["string", "track"]), releaseHeight: num("m"), approach: choice(["none", "incline"]) },
+    contract: { roles: ["circular path", "body", "weight"], anyRoles: [["tension", "normal reaction"]], metric: ["equal_length"] },
   },
   circular_motion_level: {
     id: "circular_motion_level", family: "contact_body", label: "body on a level circular path with centripetal force",
@@ -260,6 +268,14 @@ export const ARCHETYPES: Readonly<Record<ArchetypeId, ArchetypeSpec>> = {
     id: "vt_graph", family: "state_plot", label: "velocity–time graph from motion phases",
     slots: { phases: { kind: "text", required: true } },
     contract: { roles: ["v-t axes", "phase"], operators: ["axes"], metric: ["function_value"] },
+  },
+  uniform_acceleration_vt: {
+    id: "uniform_acceleration_vt", family: "state_plot", label: "velocity-time graph of one constant-acceleration interval",
+    slots: {
+      u: num("m/s", { metric: true }), v: num("m/s", { metric: true }), a: num("m/s^2", { metric: true }),
+      t: num("s", { metric: true }), s: num("m", { metric: true }), state: choice(["resolved"], { required: true }),
+    },
+    contract: { roles: ["v-t axes", "velocity v(t)", "area under the v-t graph"], operators: ["axes", "function_curve", "function_region"], metric: ["function_value"] },
   },
   xt_graph: {
     id: "xt_graph", family: "analytic_curve", label: "position–time graph of x(t)",
@@ -328,8 +344,8 @@ export const ARCHETYPES: Readonly<Record<ArchetypeId, ArchetypeSpec>> = {
   },
   resistor_network: {
     id: "resistor_network", family: "circuit_network", label: "resistors in series, parallel, or a series–parallel mix",
-    slots: { resistors: { kind: "numbers", unit: "ohm" }, topology: choice(["series", "parallel", "series_parallel", "parallel_series", "both"], { required: true }), emf: num("V") },
-    contract: { roles: ["resistor"], symbols: ["resistor"], minRoleCount: { resistor: 2 }, metric: [] },
+    slots: { resistors: { kind: "numbers", unit: "ohm" }, resistorCount: num(), resistorCountConflict: num(), internalResistance: num(), topology: choice(["series", "parallel", "tree", "both", "ambiguous"], { required: true }), tree: { kind: "text" }, emf: num("V") },
+    contract: { roles: ["resistor"], symbols: ["resistor"], minRoleCount: { resistor: 1 }, metric: [] },
   },
   two_loop_network: {
     id: "two_loop_network", family: "circuit_network", label: "two-loop network with two sources and a shared branch",

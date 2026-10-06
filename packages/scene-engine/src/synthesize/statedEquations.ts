@@ -33,6 +33,84 @@ export interface StatedCurve {
   readonly radius: number | null;
 }
 
+export type CircleSource =
+  | { kind: "circle" | "point"; center: { x: number; y: number }; radius: number; radiusSquared: number; equation: string; member: { x: number; y: number } | null }
+  | { kind: "invalid"; reason: string };
+
+export function extractCircleSource(text: string): CircleSource | null {
+  text = text.replace(/[−–—]/g, "-");
+  const number = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
+  const memberMatch = new RegExp(`\\b(?:point\\s+(?:[A-Z]\\s*)?|P\\s*=\\s*)\\(\\s*(${number})\\s*,\\s*(${number})\\s*\\)`, "i").exec(text);
+  const member = memberMatch ? { x: Number(memberMatch[1]), y: Number(memberMatch[2]) } : null;
+  let unreadable = false;
+  const equations = statedExpressions(text).flatMap((expression) => {
+    const coefficients = statedCoefficients(expression);
+    if (!coefficients) {
+      // Squares of both x and y and no other power: this reads as a circle the
+      // fit could not reproduce exactly (a far centre loses precision). Refuse
+      // it, so no caller falls through to a stock circle in its place.
+      if (/[xy)]\^2/.test(expression) && SQUARED_X.test(expression) && SQUARED_Y.test(expression) && !/\^(?!2(?![\d.]))/.test(expression)) unreadable = true;
+      return [];
+    }
+    const [a, b, c, d, e, f] = coefficients;
+    if (a === 0 || Math.abs(a - c) > 1e-9 * Math.abs(a) || Math.abs(b) > 1e-9 * Math.abs(a)) return [];
+    const center = { x: -d / (2 * a), y: -e / (2 * a) };
+    const linearResidue = expression.replace(/\([xy](?:[+-][0-9.]+(?:\/[0-9.]+)?)?\)\^2|[xy]\^2/g, "1");
+    const unsupported = linearResidue.includes("^") || /[xy)]\*[xy(]|\/[xy(]/.test(linearResidue);
+    return [{ center, radiusSquared: center.x ** 2 + center.y ** 2 - f / a, unsupported }];
+  });
+  const declaredCenter = new RegExp(`\\bcent(?:er|re)\\s*(?:at\\s*|=\\s*)?\\(\\s*(${number})\\s*,\\s*(${number})\\s*\\)`, "i").exec(text);
+  const declaredRadius = new RegExp(`\\bradius\\s*(?:of\\s*|=\\s*)?(${number})(?![a-z\\d.])`, "i").exec(text);
+  const declared = /\bcircle\b/i.test(text) && declaredCenter && declaredRadius
+    ? { center: { x: Number(declaredCenter[1]), y: Number(declaredCenter[2]) }, radius: Number(declaredRadius[1]) }
+    : null;
+  if (declared && declared.radius < 0) return { kind: "invalid", reason: "A declared circle radius cannot be negative" };
+  const equation = equations[0];
+  if (equations.length > 1 && equations.some((candidate) => candidate.center.x !== equation!.center.x
+    || candidate.center.y !== equation!.center.y || candidate.radiusSquared !== equation!.radiusSquared)) return null;
+  if (!equation && unreadable) return { kind: "invalid", reason: "A stated circle equation could not be read exactly" };
+  if (!equation && !declared) return null;
+  if (equations.some((candidate) => candidate.unsupported)) return { kind: "invalid", reason: "Circle source requires supported quadratic terms, not a sampled nonlinear approximation" };
+  const center = equation?.center ?? declared!.center;
+  const radiusSquared = equation?.radiusSquared ?? declared!.radius ** 2;
+  if (!Number.isFinite(center.x + center.y + radiusSquared) || radiusSquared < 0) return { kind: "invalid", reason: "The source has no finite real circle" };
+  if (declared && equation && (Math.hypot(center.x - declared.center.x, center.y - declared.center.y) > 1e-8 || Math.abs(radiusSquared - declared.radius ** 2) > 1e-8 * Math.max(1, radiusSquared))) return { kind: "invalid", reason: "Declared center/radius contradict the source equation" };
+  if (radiusSquared === 0 && !equation && !/\b(?:point|singleton|zero[- ]radius)\b/i.test(text)) return { kind: "invalid", reason: "A zero-radius locus must be separately declared as a point" };
+  const term = (axis: string, value: number): string => value === 0 ? `${axis}^2` : `(${axis}${value > 0 ? "-" : "+"}${Math.abs(value)})^2`;
+  return { kind: radiusSquared === 0 ? "point" : "circle", center, radius: Math.sqrt(radiusSquared), radiusSquared, equation: `${term("x", center.x)}+${term("y", center.y)}=${radiusSquared}`, member };
+}
+
+/**
+ * The circle an F(x,y) expression traces, when it is exactly one: equal square
+ * coefficients, no xy term. Null for anything else (a line, a parabola, a
+ * region's half-plane), so callers only compare circles with circles.
+ */
+export function circleOfExpression(expression: string): { center: { x: number; y: number }; radiusSquared: number } | null {
+  const coefficients = statedCoefficients(expression);
+  if (!coefficients) return null;
+  const [a, b, c, d, e, f] = coefficients;
+  if (a === 0 || Math.abs(a - c) > 1e-9 * Math.abs(a) || Math.abs(b) > 1e-9 * Math.abs(a)) return null;
+  const center = { x: -d / (2 * a), y: -e / (2 * a) };
+  return { center, radiusSquared: center.x ** 2 + center.y ** 2 - f / a };
+}
+
+/** True when F(x,y) is exactly a polynomial of degree at most two. */
+export function isConicExpression(expression: string): boolean {
+  return statedCoefficients(expression) !== null;
+}
+
+/** The circle a label or sentence states as an equation ("(x-1)²+(y-2)²=9"), if any. */
+export function circleOfStatedText(text: string): { center: { x: number; y: number }; radiusSquared: number } | null {
+  for (const expression of statedExpressions(text)) {
+    const circle = circleOfExpression(expression);
+    if (circle) return circle;
+  }
+  return null;
+}
+
+const SQUARED_X = /(?:^|[^a-z])(?:x|\(x[^()]*\))\^2/;
+const SQUARED_Y = /(?:^|[^a-z])(?:y|\(y[^()]*\))\^2/;
+
 const MAX_CLAUSE = 60;
 const FIT_TOLERANCE = 1e-6;
 
@@ -44,8 +122,15 @@ const EXPRESSION_SOURCE = /[0-9xyXY+\-*/^().\s?²³−–—]/;
  * A run that touches a letter other than x/y is symbolic and is discarded.
  */
 export function findStatedCurves(text: string): StatedCurve[] {
+  return statedExpressions(text).flatMap((expression) => {
+    const curve = classifyStatedCurve(expression);
+    return curve ? [curve] : [];
+  });
+}
+
+function statedExpressions(text: string): string[] {
   const source = text.replace(/[−–—]/g, "-");
-  const curves: StatedCurve[] = [];
+  const expressions: string[] = [];
   const seen = new Set<string>();
   for (let index = 0; index < source.length; index += 1) {
     if (source[index] !== "=") continue;
@@ -56,12 +141,11 @@ export function findStatedCurves(text: string): StatedCurve[] {
     if (left === null || right === null) continue;
     if (!/[xy]/i.test(left) && !/[xy]/i.test(right)) continue;
     const expression = `(${left})-(${right})`;
-    const curve = classifyStatedCurve(expression);
-    if (!curve || seen.has(curve.expression)) continue;
-    seen.add(curve.expression);
-    curves.push(curve);
+    if (seen.has(expression)) continue;
+    seen.add(expression);
+    expressions.push(expression);
   }
-  return curves;
+  return expressions;
 }
 
 /**
@@ -109,8 +193,10 @@ function normalizeExamExpression(raw: string): string | null {
   source = source.replace(/([xy)])(\()/g, "$1*$2");
   source = source.replace(/([xy])([xy])/g, "$1*$2");
   source = source.replace(/(\))([xy])/g, "$1*$2");
-  // A sentence period that trailed the number is not a decimal point.
-  source = source.replace(/\.$/, "");
+  // A sentence period that trailed the number is not a decimal point, and a
+  // question mark after a number ends the sentence ("... = 25?"). The OCR
+  // reading of "?" as a lost square applies only after x or y, above.
+  source = source.replace(/\.$/, "").replace(/(\d)\?$/, "$1");
   if (!/^[0-9xy+\-*/^().]+$/.test(source)) return null;
   // A dangling operator means a term was lost in scanning.
   if (/^[*/^]/.test(source) || /[-+*/^]$/.test(source)) return null;
@@ -124,6 +210,11 @@ function normalizeExamExpression(raw: string): string | null {
  * approximated.
  */
 function classifyStatedCurve(expression: string): StatedCurve | null {
+  const coefficients = statedCoefficients(expression);
+  return coefficients ? describeConic(expression, coefficients) : null;
+}
+
+function statedCoefficients(expression: string): [number, number, number, number, number, number] | null {
   let evaluate: (x: number, y: number) => number;
   try {
     const parsed = parseMathExpression2D(expression);
@@ -164,7 +255,7 @@ function classifyStatedCurve(expression: string): StatedCurve | null {
       return null;
     }
   }
-  return describeConic(expression, coefficients);
+  return coefficients;
 }
 
 const SAMPLE_POINTS: ReadonlyArray<readonly [number, number]> = [

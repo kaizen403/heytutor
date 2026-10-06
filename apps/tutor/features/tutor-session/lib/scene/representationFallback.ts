@@ -1,11 +1,13 @@
 import {
   SCENE_ENGINE_VERSION,
+  buildMatrixSourceDocument,
   compileSceneDocument,
   detectArchetype,
   isRiverBoatStem,
   parseMathExpression,
   synthesizeFamilyScene,
   synthesizeLastResortScene,
+  synthesizeUniformCircularScene,
   demandRejection,
   sceneDemand,
   sourceMensurationStructure,
@@ -19,6 +21,11 @@ import {
   type SceneDocument,
   type TurnPlanV3,
   type ValidationReport,
+  relativeMotionSource,
+  relativeMotionPlanConflicts,
+  riverCrossingPlanConflicts,
+  riverCrossingSpeeds,
+  RELATIVE_MOTION_SOURCE_MODEL,
 } from "@heytutor/scene-engine";
 import { isQuotedPhysicalConstant, questionStatesValue } from "@heytutor/tutor-core";
 
@@ -149,6 +156,14 @@ export function selectFastVerifiedRepresentation(
 export function selectVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation {
+  // The question fixes these motion numbers. A plan that would narrate a
+  // different value gets no figure at all, so a stale number is never spoken
+  // over a correct (or a planner-drawn) picture.
+  const motionConflict = motionPlanConflict(input.question, input.turnPlan);
+  if (motionConflict) {
+    const textOnly = buildTextOnlySelected(input.question);
+    return { ...textOnly, reason: motionConflict };
+  }
   const currentCompile = input.exact
     ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
     : null;
@@ -165,24 +180,83 @@ export function selectVerifiedRepresentation(
   const unprovenMensuration = input.exact && currentCompile?.renderScene &&
     tierForForeignDocument(input.exact.sceneDocument).tier !== "exact_verified" &&
     sourceMensurationStructure(input.question);
-  const sourceFigure = unprovenMensuration ? synthesize() : null;
-  const preferSourceFigure = sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region";
+  // A parameterized archetype computed from source-bound slots and proved by
+  // a metric assertion outranks a planner scene that only earned the
+  // qualitative tier: the student sees the figure whose numbers were checked.
+  const unprovenPlannerScene = input.exact && currentCompile?.renderScene &&
+    tierForForeignDocument(input.exact.sceneDocument).tier !== "exact_verified";
+  // When the plan names circular motion, the source owns the figure: the
+  // engine recomputes the state from the stated radius and rate, so a planner
+  // scene cannot imply a direction or value the source did not give. A source
+  // the engine declines (zero radius, contradictory rates, changing speed, a
+  // plan value that disagrees with the recomputed state) teaches without a
+  // figure rather than through any other picture.
+  const circular = synthesizeUniformCircularScene(input.question, { turnPlan: input.turnPlan, problemIR: input.problemIR });
+  if (circular?.status === "declined" && !circular.legacyOnly) return buildTextOnlySelected(input.question);
+  // An admitted constant-velocity relative-motion source owns its whole
+  // figure (bodies, frame, signed velocities, encounter); a planner scene
+  // cannot replace it with differently signed or stale motion.
+  const relativeMotion = input.exact && relativeMotionSource(input.question)?.status === "admitted";
+  const sourceFigure = circular?.status === "drawn" ? circular.scene
+    : unprovenMensuration || unprovenPlannerScene || relativeMotion ? synthesize() : null;
+  const preferSourceFigure = circular?.status === "drawn"
+    || sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region"
+    || sourceFigure?.document.source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL
+    || (unprovenPlannerScene && sourceFigure?.tier === "exact_verified" && typeof sourceFigure.document.source.archetype === "string");
   if (input.exact && currentCompile?.renderScene && !preferSourceFigure) {
     // A validated planner scene wins over every fallback, but its tier is
     // earned, not assumed: exact needs a fatal metric proof (an angle, a ratio,
     // a function value, Snell's law). Existence and topology alone are
     // qualitative — the same rule the synthesized archetypes live under.
-    const decision = tierForForeignDocument(input.exact.sceneDocument);
-    return {
-      tier: decision.tier,
-      nonMetric: decision.nonMetric,
-      sceneDocument: input.exact.sceneDocument,
-      renderScene: currentCompile.renderScene,
-      validationReport: currentCompile.report,
-      reason: decision.tier === "exact_verified"
-        ? `caller supplied a verified scene with ${decision.reason}`
-        : `caller supplied a verified scene; ${decision.reason}`,
-    };
+    const decision = currentCompile.report.issues.some((issue) => issue.code === "matrix_source_component_only")
+      ? { tier: "question_representation" as const, nonMetric: true, reason: "source matrix component verified; original outside-component claims remain unverified" }
+      : tierForForeignDocument(input.exact.sceneDocument);
+    const source = input.exact.sceneDocument.source;
+    const declaredTierMismatch = source.representationTier !== undefined && source.representationTier !== decision.tier;
+    const declaredMetricMismatch = source.nonMetric !== undefined && source.nonMetric !== decision.nonMetric;
+    const document = declaredTierMismatch || declaredMetricMismatch
+      ? structuredClone(input.exact.sceneDocument)
+      : input.exact.sceneDocument;
+    if (document !== input.exact.sceneDocument) {
+      document.source = { ...document.source, representationTier: decision.tier, nonMetric: decision.nonMetric };
+    }
+    const compiled = document === input.exact.sceneDocument ? currentCompile : compileSceneDocument(document);
+    if (compiled.ok && compiled.renderScene) {
+      return {
+        tier: decision.tier,
+        nonMetric: decision.nonMetric,
+        sceneDocument: document,
+        renderScene: compiled.renderScene,
+        validationReport: compiled.report,
+        reason: decision.tier === "exact_verified"
+          ? `caller supplied a verified scene with ${decision.reason}`
+          : `caller supplied a verified scene; ${decision.reason}`,
+      };
+    }
+  }
+
+  // A complete matrix source program is drawn by the engine from the question
+  // when no planner candidate survived. The builder applies the same source
+  // and plan binding as the live path and returns null rather than a partial table.
+  const matrixDocument = sourceFigure ? null : buildMatrixSourceDocument(input.question, input.turnPlan);
+  if (matrixDocument) {
+    // A component-only indexed premise stays a question representation; the
+    // builder already declared it and the binding refuses any stronger tier.
+    const decision = matrixDocument.source.representationTier === "question_representation"
+      ? { tier: "question_representation" as const, nonMetric: true, reason: "source matrix component verified; original outside-component claims remain unverified" }
+      : tierForForeignDocument(matrixDocument);
+    matrixDocument.source = { ...matrixDocument.source, representationTier: decision.tier, nonMetric: decision.nonMetric };
+    const compiled = compileSceneDocument(matrixDocument);
+    if (compiled.ok && compiled.renderScene) {
+      return {
+        tier: decision.tier,
+        nonMetric: decision.nonMetric,
+        sceneDocument: matrixDocument,
+        renderScene: compiled.renderScene,
+        validationReport: compiled.report,
+        reason: `engine drew the question's matrix source program; ${decision.reason}`,
+      };
+    }
   }
 
   const synthesized = sourceFigure ?? synthesize();
@@ -219,6 +293,20 @@ export function selectVerifiedRepresentation(
     }
     return buildTextOnlySelected(input.question);
   }
+}
+
+function motionPlanConflict(question: string, turnPlan: unknown): string | null {
+  const relative = relativeMotionSource(question);
+  if (relative?.status === "admitted") {
+    const conflicts = relativeMotionPlanConflicts(relative.source, turnPlan, question);
+    if (conflicts.length > 0) return `plan quantities disagree with the stated relative motion: ${conflicts.map((conflict) => `${conflict.symbol}=${conflict.value} ${conflict.unit}`).join(", ")}`;
+  }
+  if (isRiverBoatStem(question)) {
+    const speeds = riverCrossingSpeeds(question);
+    const conflicts = speeds.status === "bound" ? riverCrossingPlanConflicts(speeds, turnPlan, question) : [];
+    if (conflicts.length > 0) return `plan quantities disagree with the stated river crossing: ${conflicts.map((conflict) => `${conflict.symbol}=${conflict.value} ${conflict.unit}`).join(", ")}`;
+  }
+  return null;
 }
 
 function buildTextOnlySelected(question: string): SelectedRepresentation {

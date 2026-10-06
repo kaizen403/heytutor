@@ -643,12 +643,17 @@ assert(motionGraph, "en-dash velocity-time graph must compile");
 assert(motionGraph.family === "state_plot", "motion graphs must be state plots, not empty axes");
 
 const ucmQuestion = "A particle moves in a horizontal circle of radius 2.0 m with period 2.0 s. Find the speed and the centripetal acceleration.";
-const ucm = synthesizeFamilyScene({ question: ucmQuestion });
+// The UCM family is admitted by the plan, not by wording (coordinator
+// decision, 4 Oct 2026). With a plan naming circular motion it draws the
+// path; with no plan the legacy static circle is declined, never drawn.
+const ucmPlan = { lawIds: ["uniform circular motion: a_c = v^2/r"], givens: [], derived: [], unknowns: [] };
+const ucm = synthesizeFamilyScene({ question: ucmQuestion, turnPlan: ucmPlan });
 assert(ucm, "uniform circular motion must compile a diagram");
 assert(
   ucm.document.entities.some((entity) => entity.kind === "circle"),
   "UCM must draw the circular path",
 );
+assert(synthesizeFamilyScene({ question: ucmQuestion }) === null, "without a circular plan the legacy static circle must decline");
 
 const bankedQuestion = "A curve of radius 90 m is banked at 30° with no friction. Take g = 10 m/s². Find the design speed.";
 const banked = synthesizeFamilyScene({ question: bankedQuestion });

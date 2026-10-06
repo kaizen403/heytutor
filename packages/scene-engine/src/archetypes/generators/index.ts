@@ -1,6 +1,7 @@
 /** Generator registry: one parameterized figure per archetype. */
 import type { ArchetypeId } from "../catalog";
 import type { Generator, GeneratorTable } from "./context";
+import { CONSTANT_ACCELERATION_GENERATORS } from "./constantAcceleration";
 import { FIELD_GENERATORS } from "./fields";
 import { GRAPH_GENERATORS } from "./graphs";
 import { INSTRUMENT_GENERATORS } from "./instruments";
@@ -14,6 +15,7 @@ export type { Generator } from "./context";
 const TABLE: GeneratorTable = {
   ...MECHANICS_GENERATORS,
   ...GRAPH_GENERATORS,
+  ...CONSTANT_ACCELERATION_GENERATORS,
   ...FIELD_GENERATORS,
   ...OPTICS_GENERATORS,
   ...MATHS_GENERATORS,

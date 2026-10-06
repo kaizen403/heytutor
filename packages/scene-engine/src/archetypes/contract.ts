@@ -43,6 +43,11 @@ export function checkPictureContract(document: SceneDocument, archetype: Archety
     const count = countRole(roles, role);
     if (count < minimum) fatal("picture_missing_role", `${archetype} needs ${minimum} entities with role "${role}", found ${count}`);
   }
+  for (const group of contract.anyRoles ?? []) {
+    if (!group.some((role) => countRole(roles, role) > 0)) {
+      fatal("picture_missing_role", `${archetype} needs one of these roles: ${group.join(", ")}`);
+    }
+  }
   for (const operator of contract.operators ?? []) {
     if (!operators.has(operator)) fatal("picture_missing_operator", `${archetype} needs a ${operator} construction`);
   }

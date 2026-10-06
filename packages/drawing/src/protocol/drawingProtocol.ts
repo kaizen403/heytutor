@@ -1,3 +1,4 @@
+import { unwrapMathMarkup } from './mathMarkup';
 import { normalizeStrokeText } from '../handwriting/handwriting';
 
 export type DrawCommandType =
@@ -125,7 +126,7 @@ const DRAW_COMMAND_TYPE_SET = new Set<string>(DRAW_COMMAND_TYPES);
 
 export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
 
-/** WRITE/LABEL bodies may contain "]" (evaluation bars). End at the nearest ,x,y]. */
+/** WRITE/LABEL bodies may contain bracketed math. End at an outer ,x,y]. */
 const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
@@ -427,7 +428,10 @@ export function parseDrawCommandFromTag(
   const parsed =
     type === 'FOCUS' || type === 'EMPHASIZE' || type === 'SUPERSEDE' || type === 'ANNOTATE' || type === 'TYPE'
       ? { text: rawParams.trim(), params: [] }
-      : type === 'WRITE' || type === 'LABEL'
+      : type === 'WRITE'
+      // Teaching rows arrive with LaTeX delimiters; the pen draws plain math.
+      ? parseTextCommandParams(unwrapMathMarkup(rawParams))
+      : type === 'LABEL'
       ? parseTextCommandParams(rawParams)
       : type === 'DIMENSION'
         ? parseDimensionCommandParams(rawParams)
@@ -575,6 +579,16 @@ function matchWriteLabelTag(slice: string): string | null {
     if (WRITE_LABEL_BODY_BREAK_PATTERN.test(body)) {
       return null;
     }
+    // A matrix row or vector can itself end in numeric comma-separated
+    // values. Only a suffix outside its text brackets can close the tag.
+    // An unmatched closing evaluation bar keeps the existing text behavior.
+    const brackets: string[] = [];
+    for (const char of body) {
+      if (char === '[' || (char === '(' && brackets.length > 0)) brackets.push(char);
+      // Intervals may have a square opening and round closing endpoint.
+      else if (char === ']' || char === ')') brackets.pop();
+    }
+    if (brackets.length > 0) continue;
     return slice.slice(0, ending.index + ending[0].length);
   }
   return null;
@@ -605,6 +619,11 @@ function nextDrawingTag(
   const writeTag = matchWriteLabelTag(slice);
   if (writeTag) {
     return { index: openIndex, fullTag: writeTag };
+  }
+  if (WRITE_LABEL_HEADER_PATTERN.test(slice)) {
+    // Do not reinterpret an incomplete text command's first row closure as
+    // a complete protocol tag through the generic bracket scanner.
+    return nextDrawingTag(responseText, openIndex + 1);
   }
 
   DRAWING_TAG_SCAN_PATTERN.lastIndex = openIndex;

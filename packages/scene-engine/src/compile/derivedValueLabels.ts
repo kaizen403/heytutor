@@ -3,7 +3,7 @@ import type { KinematicStateDefinition, KinematicTrajectoryDefinition } from "./
 import type { VectorDefinition } from "./vectorGeometry";
 import type { CalculusDerivativeDefinition } from "./calculusGeometry";
 
-const OPERATORS = new Set(["constant_acceleration_trajectory", "trajectory_state", "vector_sum", "vector_scale", "vector_projection", "curve_anchor", "curve_secant", "curve_derivative"]);
+const OPERATORS = new Set(["constant_acceleration_trajectory", "trajectory_state", "vector_sum", "vector_scale", "vector_projection", "curve_anchor", "curve_secant", "curve_derivative", "point_line_distance", "section_point"]);
 const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
 const SCALAR = new RegExp(`^(${NUMBER})(?:\\s*([^\\d].*))?$`);
 const PAIR = new RegExp(`^([([])\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*([)\\]])(?:\\s*(.*))?$`);
@@ -91,12 +91,31 @@ function tuple(authority: Authority, value: { x: number; y: number }, names: rea
 function sourceCurve(construction: SceneConstruction, document: SceneDocument): SceneConstruction | undefined { return document.constructions.find((candidate) => candidate.outputs.includes(String(construction.inputs.curve))); }
 function authorityFor(construction: SceneConstruction, geometry: unknown, document: SceneDocument): Authority {
   if (!record(geometry)) fail("Derived output is missing evaluated geometry");
+  if (construction.operator === "point_line_distance") {
+    if (!record(geometry.analyticLine) || geometry.analyticLine.worldUnits !== true || typeof geometry.analyticLine.distance !== "number" || !Number.isFinite(geometry.analyticLine.distance)) fail("Point-line labels require finite source-frame distance authority");
+    const result: Authority = { allowSource: false, values: new Map(), tupleKeys: new Set(), reserved: new Set(["d", "distance", "length"]) };
+    put(result, ["d", "distance", "length"], geometry.analyticLine.distance);
+    result.bare = result.values.get("d");
+    return result;
+  }
   const reserved = construction.operator.startsWith("curve_")
     ? ["x", "y", "P", "r", "position", "dx/dt", "dy/dt", "dy/dx", "dC/dt", "derivative", "slope", "m", "magnitude", "mag"]
     : construction.operator.startsWith("vector_")
       ? ["x", "y", "vx", "vy", "rx", "ry", "v", "r", "a+b", "vector", "resultant", "magnitude", "mag"]
       : ["x", "y", "x0", "y0", "vx", "vy", "ax", "ay", "v0", "vx0", "vy0", "v0x", "v0y", "v", "a", "P", "r", "position", "velocity", "acceleration", "t", "time", "tMin", "tMax", "speed", "magnitude", "mag"];
   const result: Authority = { allowSource: true, values: new Map(), tupleKeys: new Set([""]), reserved: new Set(reserved.map(key)) };
+  if (construction.operator === "section_point" && record(geometry.point) && typeof geometry.point.x === "number" && typeof geometry.point.y === "number" && record(geometry.analyticLine) && record(geometry.analyticLine.section)) {
+    result.allowSource = false;
+    const section = geometry.analyticLine.section;
+    const label = document.entities.find((entity) => construction.outputs.includes(entity.id))?.label?.trim();
+    const identity = /^([\p{L}][\p{L}\p{N}_'′]*)(?:\s*[=≈:]|$)/u.exec(label ?? "")?.[1];
+    tuple(result, { x: geometry.point.x, y: geometry.point.y }, ["P", "r", "position", ...(identity ? [identity] : [])]);
+    put(result, ["x"], geometry.point.x); put(result, ["y"], geometry.point.y);
+    if (typeof section.m === "number") put(result, ["m"], section.m);
+    if (typeof section.n === "number") put(result, ["n"], section.n);
+    if (typeof section.parameter === "number") put(result, ["t", "parameter"], section.parameter);
+    return result;
+  }
   if (record(geometry.kinematicState)) {
     const state = geometry.kinematicState as unknown as KinematicStateDefinition;
     const position = dimension(state.sourceUnits, "position"); const velocity = dimension(state.sourceUnits, "velocity"); const acceleration = dimension(state.sourceUnits, "acceleration");
@@ -156,6 +175,15 @@ function authorityFor(construction: SceneConstruction, geometry: unknown, docume
   }
   return result;
 }
+/** Source binding uses the same coordinate grammar as compiled quantitative labels. */
+export function readDerivedCoordinateLabelClaim(text: string): { name: string; values: [number, number]; unit: string } | null {
+  const claim = parse(text);
+  if (!claim || claim.values.length !== 2) return null;
+  const normalized = text.trim();
+  const separator = normalized.search(/[=≈:]/);
+  return { name: separator < 0 ? "" : normalized.slice(0, separator).trim(), values: [claim.values[0]!, claim.values[1]!], unit: claim.unit };
+}
+
 function parse(text: unknown): Claim | null {
   if (text === undefined) return null;
   if (typeof text !== "string") fail("Derived labels must be text");
@@ -237,6 +265,14 @@ export function validateEvaluatedDerivedValueLabels(construction: SceneConstruct
   if (!OPERATORS.has(construction.operator)) return false;
   construction.outputs.forEach((id, outputIndex) => {
     const add = (error: unknown, path: string): void => { issues.push({ code: "invalid_derived_value_label", message: error instanceof Error ? error.message : "Derived value label is invalid", severity: "fatal", path, entityIds: [id] }); };
+    if (construction.operator === "point_line_distance") {
+      const geometry = outputs[outputIndex];
+      if (record(geometry) && geometry.kind === "path") {
+        const endpoint = Array.isArray(geometry.points) ? geometry.points.at(-1) : undefined;
+        const foot = record(geometry.analyticLine) ? geometry.analyticLine.foot : undefined;
+        if (!record(endpoint) || !record(foot) || typeof endpoint.x !== "number" || typeof endpoint.y !== "number" || typeof foot.x !== "number" || typeof foot.y !== "number" || Math.hypot(endpoint.x - foot.x, endpoint.y - foot.y) > EPSILON * Math.max(1, Math.hypot(foot.x, foot.y))) add("A scene distance connector must end at its certified perpendicular foot", `constructions[${index}].inputs.displayLength`);
+      }
+    }
     const checkText = (text: unknown, path: string): void => {
       try { const claim = parse(text); if (claim) { const authority = authorityFor(construction, outputs[outputIndex], document); checkClaim(claim, authority, document, authority.allowSource); } } catch (error) { add(error, path); }
     };
