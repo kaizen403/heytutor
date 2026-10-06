@@ -1,0 +1,7 @@
+# W3 signed question values — scoped reader fix
+
+The actual 1507-w2-76841054 count31 lesson retained whole verified numeric authority but the unsigned token reader omitted the explicitly supplied -0.02mm zero error and the shared teaching prompt called it unstated. The reader now preserves supported signed decimal/scientific tokens and Unicode minus. Givens opener includes e0=-0.02mm and speaks minus with its WRITE.
+
+Node24.21.0/pnpm10.32.0: new50source checks, old given-intro gate and own public reader controls pass. Own frozen install, drawing/engine/core ESM+DTS builds, core typecheck and scoped lint pass (unchanged unused questionMentions warning). Initial local command used Node26 before pinning24; all meaningful gates rerun24. Independent read-only Luna review approves scoped change, external evidence reviews/w3-signed-given-reader-review-20261006/report.md. Review independently probed public exports and inspected source diff; parent ran source gates.
+
+This remains token presence with the existing decimal rescaling ladder, not symbol/role/unit/source proof. Range punctuation and incidental numbers have no independent semantic proof. No diagram or READY credit. The actual negative-zero-error over-reading WRITE and narration remain a separate teaching failure; the original saved run and failed manual verdict are preserved. Fresh actual count and lifecycle qualification remain required; instrument diagram is absent. Accepted ledger and READY4/FULLY0 unchanged. Local integration only, no remote publication.

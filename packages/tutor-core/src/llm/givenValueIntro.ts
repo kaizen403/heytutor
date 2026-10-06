@@ -377,7 +377,8 @@ const VALUE_SCALES = [1, 10, 100, 1000, 0.1, 0.01, 0.001] as const;
 
 /** Digits of the question, for "is this number actually in the text" tests. */
 function numbersInQuestion(question: string): string[] {
-  return question.match(/\d+(?:\.\d+)?/g) ?? [];
+  return (question.match(/[+\-−–—]?\s*(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g) ?? [])
+    .map((token) => token.replace(/[−–—]/g, "-").replace(/\s/g, ""));
 }
 
 /**
