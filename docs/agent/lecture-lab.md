@@ -37,14 +37,22 @@ pnpm exec tsx scripts/lecture-lab/run.ts --difficulty hard --units 16,11 --out .
 pnpm exec tsx scripts/lecture-lab/run.ts --only "physics|3|impulse|hard" --out .lecture-lab/one
 # questions a student actually typed, one per line, instead of the probe bank
 pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --out .lecture-lab/ask-01
+# deterministic diagram evaluation; repeat --eval to combine corpora. Private
+# real-student rows are always retained when --sample selects the public rows.
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm current --figure-only --out .lecture-lab/eval-current
+# planner-first is an evaluation-only ordering; the student default is unchanged
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_first --figure-only --out .lecture-lab/eval-planner-first --yes
 # re-score a finished round after a rubric change, no LLM calls
 pnpm exec tsx scripts/lecture-lab/regrade.ts .lecture-lab/round-01
 # did the last change help? regrade both rounds first, or the diff measures the rubric
 pnpm exec tsx scripts/lecture-lab/compare.ts .lecture-lab/round-01 .lecture-lab/round-02
+# put the same evaluation row's two figures next to each other
+pnpm exec tsx scripts/lecture-lab/compare.ts --gallery .lecture-lab/eval-current .lecture-lab/eval-planner-first
 ```
 
 Output per round: `runs/*.json` (the full record), `transcripts/*.md` (readable
-lesson plus findings), `summary.json` (scores and finding counts). `summarize.ts`
+lesson plus findings), `summary.json` (scores and finding counts), and, for
+diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`
 owns that summary for both the runner and the regrader, so the two cannot drift.
 
 **Never build a package or run a verify chain while a round is in flight.** The
@@ -97,7 +105,7 @@ pnpm exec tsx scripts/lecture-lab/dsa-run.ts --concurrency 3 --out .lecture-lab/
 pnpm exec tsx scripts/lecture-lab/dsa-run.ts --only "lc|1|two-sum|easy" --familiarity new --out .lecture-lab/one
 # replay a question asked in the product, without editing the corpus
 pnpm exec tsx scripts/lecture-lab/dsa-run.ts --question 'Explain merge sort on [8, 3, 5, 4, 7, 6, 1, 2]' --pattern merge_sort --out .lecture-lab/merge-sort
-# board frames as PNGs (headless Firefox; there is no Chrome on this machine)
+# board frames as PNGs (cached Playwright chrome-headless-shell over CDP)
 node scripts/lecture-lab/svg2png.mjs .lecture-lab/dsa-01/frames
 ```
 

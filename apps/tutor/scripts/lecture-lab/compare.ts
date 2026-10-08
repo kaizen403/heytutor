@@ -9,6 +9,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { writeComparisonGallery } from "./gallery";
 
 interface Summary {
   total: number;
@@ -21,9 +22,16 @@ interface Summary {
   grades: { probeId: string; score: number; transportFailure?: boolean }[];
 }
 
-const [beforePath, afterPath] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const galleryMode = args[0] === "--gallery";
+const [beforePath, afterPath] = galleryMode ? args.slice(1) : args;
 if (!beforePath || !afterPath) {
-  throw new Error("Usage: compare.ts <before round dir> <after round dir>");
+  throw new Error("Usage: compare.ts [--gallery] <before round dir> <after round dir>");
+}
+
+if (galleryMode) {
+  console.log(`comparison gallery: ${writeComparisonGallery(beforePath, afterPath)}`);
+  process.exit(0);
 }
 
 const read = (path: string): Summary =>

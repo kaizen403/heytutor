@@ -52,6 +52,7 @@ import {
   validateSceneQuantityAgreement,
   validateTurnPlanSceneProofs,
   verifyTurnPlanAgainstSolver,
+  type FigureSource,
   type RenderScene,
   type SceneDocument,
   type TurnPlanV3,
@@ -78,6 +79,7 @@ import {
 import { buildTurnTeachingPrompt } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
+import type { DiagramEvalArm, PlannerUsageSummary } from "./diagramEval";
 
 export interface LectureStep {
   index: number;
@@ -94,6 +96,8 @@ export interface LecturePlanningStages {
   /** Start to result of the scene planner run that was used. */
   scenePlannerMs: number;
   revalidateMs: number;
+  /** Scene planner requests launched by the shared overlap orchestrator. */
+  plannerCalls?: number;
   /** The speculative run started during ProblemIR produced the scene. */
   speculative: boolean;
   /** Scene planning was started again on the final facts. */
@@ -108,11 +112,15 @@ export interface LectureRun {
   difficulty: string;
   question: string;
   familiarity: SubjectFamiliarity;
+  arm?: DiagramEvalArm;
+  figureOnly?: boolean;
   startedAt: string;
   timings: {
     planMs: number;
     teachMs: number;
     totalMs: number;
+    /** Time from turn start until a verified figure was ready to commit. */
+    figureCommitMs?: number | null;
     /** The live planner stages, measured on the same orchestration. */
     stages?: LecturePlanningStages;
   };
@@ -134,6 +142,7 @@ export interface LectureRun {
     hasProjection: boolean;
     projection: unknown;
   } | null;
+  planner?: PlannerUsageSummary;
   diagram: {
     committed: boolean;
     /**
@@ -143,6 +152,7 @@ export interface LectureRun {
     declinedUnreadable: boolean;
     tier: RepresentationTier | null;
     nonMetric: boolean;
+    figureSource?: FigureSource;
     reason: string | null;
     archetypeId: string | null;
     /** The family or archetype construction the figure came from. */
@@ -159,9 +169,11 @@ export interface LectureRun {
     primitiveCount: number;
     assertionCount: number;
     candidateErrorCodes: string[];
+    validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
     degradationReason: string | null;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
+    png?: string | null;
   };
   lessonBudget: { scope: string; minSteps: number; maxSteps: number; boardPages: number };
   givenRows: string[];
@@ -197,6 +209,9 @@ export interface RunLectureOptions {
   topicId?: string;
   unitId?: string;
   difficulty?: string;
+  arm?: DiagramEvalArm;
+  figureOnly?: boolean;
+  traceId?: string;
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
     diagram: VerifiedDiagram | null;
@@ -260,7 +275,7 @@ export async function runLecture(
   const familiarity = options.familiarity ?? "normal";
   const fastMode = options.fastMode ?? true;
   const plannerUrl = `${options.origin}/api/chat`;
-  const traceId = crypto.randomUUID();
+  const traceId = options.traceId ?? crypto.randomUUID();
   const startedAt = Date.now();
   const dsaClassification = classifyDsaQuestion(question);
 
@@ -270,6 +285,7 @@ export async function runLecture(
     deterministicFigureMs: 0,
     scenePlannerMs: 0,
     revalidateMs: 0,
+    plannerCalls: 0,
     speculative: false,
     restarted: false,
     speculationAbort: null,
@@ -281,22 +297,35 @@ export async function runLecture(
     difficulty: options.difficulty ?? "",
     question,
     familiarity,
+    arm: options.arm ?? "current",
+    figureOnly: options.figureOnly ?? false,
     startedAt: new Date(startedAt).toISOString(),
     timings: {
       planMs: 0,
       teachMs: 0,
       totalMs: 0,
+      figureCommitMs: null,
       stages,
     },
     error: null,
     isDsa: dsaClassification.isDsa,
     plan: null,
     solver: null,
+    planner: {
+      calls: 0,
+      usageCalls: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      cachedInputTokens: 0,
+      estimatedCostUsd: 0,
+    },
     diagram: {
       committed: false,
       declinedUnreadable: false,
       tier: null,
       nonMetric: false,
+      figureSource: "text_only",
       reason: null,
       archetypeId: null,
       family: null,
@@ -309,8 +338,10 @@ export async function runLecture(
       primitiveCount: 0,
       assertionCount: 0,
       candidateErrorCodes: [],
+      validationIssues: [],
       degradationReason: null,
       svg: null,
+      png: null,
     },
     lessonBudget: { scope: "", minSteps: 0, maxSteps: 0, boardPages: 0 },
     givenRows: [],
@@ -547,6 +578,7 @@ export async function runLecture(
       // Speculation follows NEXT_PUBLIC_SCENE_SPECULATION like the live hook
       // (SCENE_SPECULATION_ENABLED, default off).
       speculationAllowed: true,
+      selectionOrder: options.arm ?? "current",
       plannerStartedAt,
       deadlineMs: SCENE_PLANNER_DEADLINE_MS,
       deriveGate: deriveSceneGate,
@@ -617,6 +649,7 @@ export async function runLecture(
       deterministicFigureMs: planning.timings.deterministicFigureMs,
       scenePlannerMs: planning.timings.scenePlannerMs,
       revalidateMs: planning.timings.revalidateMs,
+      plannerCalls: planning.timings.plannerCalls,
       speculative: planning.speculation.kept,
       restarted: planning.speculation.restarted,
       speculationAbort: planning.speculation.abortReason,
@@ -681,6 +714,9 @@ export async function runLecture(
                 validationReport: value.report,
               }
             : null,
+        exactFigureSource: planning.figureSource === "verified_recovery"
+          ? "verified_recovery"
+          : "planner",
       });
       sceneDocument = selected.sceneDocument;
       // Mirrors the live guard: a figure the student cannot read is not a
@@ -695,7 +731,13 @@ export async function runLecture(
       run.diagram.declinedUnreadable = !selectedHasInk;
       run.diagram.tier = selected.tier;
       run.diagram.nonMetric = selected.nonMetric;
+      run.diagram.figureSource = selectedHasInk ? selected.figureSource : "text_only";
       run.diagram.reason = selected.reason;
+      run.diagram.validationIssues = selected.validationReport.issues.map((issue) => ({
+        code: issue.code,
+        severity: issue.severity,
+        message: issue.message,
+      }));
       figureFamily = selected.family ?? null;
       run.diagram.family = figureFamily;
     } catch (error) {
@@ -742,6 +784,7 @@ export async function runLecture(
       activeDiagram = presentation.diagram;
       diagramPromptAddon = presentation.diagram.promptAddon;
       run.diagram.committed = true;
+      run.timings.figureCommitMs = Date.now() - startedAt;
       run.diagram.entityIds = sceneDocument.entities.map((entity) => entity.id);
       run.diagram.focusableIds = [
         ...presentation.diagram.anchors.map((anchor) => anchor.id),
@@ -768,6 +811,19 @@ export async function runLecture(
         title: question.slice(0, 110),
         subtitle: `family=${run.diagram.family ?? "?"} tier=${run.diagram.tier ?? "?"} labels=${run.diagram.renderedLabels.join(" | ")}`,
       });
+    } else {
+      run.diagram.figureSource = "text_only";
+    }
+
+    if (options.figureOnly) {
+      options.onPresentation?.({
+        diagram: activeDiagram,
+        opening: null,
+        givens: [],
+        intro: presentation?.introSegments ?? [],
+      });
+      run.timings.totalMs = Date.now() - startedAt;
+      return run;
     }
 
     const teachingPrompt = buildTurnTeachingPrompt({

@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 /**
- * Rasterize board SVGs to PNG with headless Firefox over WebDriver BiDi.
- *
- * There is no Chrome, ImageMagick or resvg on this machine, and qlmanage
- * rescales a 1200x700 board into a square thumbnail. Firefox renders the SVG
- * at its declared size, so a reviewer sees the frame at board scale.
+ * Rasterize board SVGs with Playwright's cached chrome-headless-shell over CDP.
  *
  * Usage:
  *   node scripts/lecture-lab/svg2png.mjs <file-or-dir> [...more]
- * Every .svg found (recursively for a directory) gets a sibling .png.
+ * Every .svg found recursively gets a sibling .png.
  */
 import { spawn } from "node:child_process";
-import { mkdtempSync, readdirSync, statSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import {
+  accessSync,
+  constants,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-
-const FIREFOX = "/Applications/Firefox.app/Contents/MacOS/firefox";
-const PORT = 9333 + Math.floor(Math.random() * 400);
+import WebSocket from "ws";
 
 function collect(target, out) {
   const full = resolve(target);
@@ -30,78 +34,147 @@ function collect(target, out) {
   return out;
 }
 
+function findChrome(root) {
+  if (!root || !existsSync(root)) return null;
+  const pending = [root];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(path);
+        continue;
+      }
+      if (!["chrome-headless-shell", "headless_shell"].includes(basename(path))) continue;
+      try {
+        accessSync(path, constants.X_OK);
+        return path;
+      } catch {
+        // Keep looking for an executable cache entry.
+      }
+    }
+  }
+  return null;
+}
+
 const files = process.argv.slice(2).flatMap((target) => collect(target, []));
 if (files.length === 0) {
   console.error("no .svg files found");
   process.exit(1);
 }
 
-const profile = mkdtempSync(join(tmpdir(), "ff-svg-"));
-writeFileSync(join(profile, "user.js"), 'user_pref("remote.active-protocols", 1);\n');
-const firefox = spawn(
-  FIREFOX,
-  ["--headless", "--no-remote", "--new-instance", "--profile", profile, "--remote-debugging-port", String(PORT), "about:blank"],
-  { stdio: "ignore" },
-);
+const cacheRoots = [
+  process.env.PLAYWRIGHT_BROWSERS_PATH,
+  join(homedir(), "Library", "Caches", "ms-playwright"),
+  join(homedir(), ".cache", "ms-playwright"),
+];
+const chrome = cacheRoots.map(findChrome).find(Boolean);
+if (!chrome) {
+  console.error("cached Playwright chrome-headless-shell was not found");
+  process.exit(1);
+}
+
+const profile = mkdtempSync(join(tmpdir(), "heytutor-chrome-cdp-"));
+const browser = spawn(chrome, [
+  "--headless",
+  "--remote-debugging-address=127.0.0.1",
+  "--remote-debugging-port=0",
+  `--user-data-dir=${profile}`,
+  "--allow-file-access-from-files",
+  "--disable-background-networking",
+  "--disable-default-apps",
+  "--no-first-run",
+  "about:blank",
+], { stdio: "ignore" });
 const cleanup = () => {
-  try { firefox.kill("SIGKILL"); } catch {}
+  try { browser.kill("SIGKILL"); } catch {}
   try { rmSync(profile, { recursive: true, force: true }); } catch {}
 };
-const watchdog = setTimeout(() => { console.error("watchdog: giving up"); cleanup(); process.exit(2); }, 60_000 + files.length * 4_000);
+const watchdog = setTimeout(() => {
+  console.error("watchdog: chrome-headless-shell did not finish");
+  cleanup();
+  process.exit(2);
+}, 60_000 + files.length * 4_000);
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-async function connect() {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    try {
-      const ws = new WebSocket(`ws://127.0.0.1:${PORT}/session`);
-      await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
-      return ws;
-    } catch {
-      await sleep(500);
+async function devtoolsUrl() {
+  const activePort = join(profile, "DevToolsActivePort");
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    if (existsSync(activePort)) {
+      const [port, browserPath] = readFileSync(activePort, "utf8").trim().split(/\r?\n/);
+      if (port && browserPath) return `ws://127.0.0.1:${port}${browserPath}`;
     }
+    if (browser.exitCode !== null) throw new Error(`chrome-headless-shell exited ${browser.exitCode}`);
+    await sleep(100);
   }
-  throw new Error("could not reach Firefox BiDi");
+  throw new Error("could not discover the chrome-headless-shell CDP endpoint");
 }
 
-const ws = await connect();
+const ws = new WebSocket(await devtoolsUrl());
+await new Promise((resolveOpen, rejectOpen) => {
+  ws.once("open", resolveOpen);
+  ws.once("error", rejectOpen);
+});
+
 let nextId = 1;
 const pending = new Map();
-ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  if (message.id !== undefined && pending.has(message.id)) {
-    const { resolve: res, reject: rej } = pending.get(message.id);
-    pending.delete(message.id);
-    if (message.type === "error") rej(new Error(message.message));
-    else res(message.result);
-  }
-};
-const send = (method, params) =>
-  new Promise((res, rej) => {
-    const id = nextId++;
-    pending.set(id, { resolve: res, reject: rej });
-    ws.send(JSON.stringify({ id, method, params }));
-  });
+ws.on("message", (data) => {
+  const message = JSON.parse(data.toString());
+  const waiter = pending.get(message.id);
+  if (!waiter) return;
+  pending.delete(message.id);
+  if (message.error) waiter.reject(new Error(message.error.message));
+  else waiter.resolve(message.result);
+});
+const send = (method, params = {}, sessionId) => new Promise((resolveSend, rejectSend) => {
+  const id = nextId++;
+  pending.set(id, { resolve: resolveSend, reject: rejectSend });
+  ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+});
 
-await send("session.new", { capabilities: {} });
-const tree = await send("browsingContext.getTree", {});
-const context = tree.contexts[0].context;
-await send("browsingContext.setViewport", { context, viewport: { width: 1200, height: 700 } });
+let failures = 0;
+try {
+  const { targetId } = await send("Target.createTarget", { url: "about:blank" });
+  const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
+  await send("Page.enable", {}, sessionId);
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1200,
+    height: 700,
+    deviceScaleFactor: 1,
+    mobile: false,
+  }, sessionId);
 
-let done = 0;
-for (const file of files) {
-  try {
-    await send("browsingContext.navigate", { context, url: pathToFileURL(file).href, wait: "complete" });
-    await sleep(120);
-    const shot = await send("browsingContext.captureScreenshot", { context });
-    writeFileSync(file.replace(/\.svg$/, ".png"), Buffer.from(shot.data, "base64"));
-    done += 1;
-  } catch (error) {
-    console.error(`failed ${file}: ${error.message}`);
+  for (const file of files) {
+    try {
+      await send("Page.navigate", { url: pathToFileURL(file).href }, sessionId);
+      await send("Runtime.evaluate", {
+        expression: "document.fonts ? document.fonts.ready : Promise.resolve()",
+        awaitPromise: true,
+        returnByValue: true,
+      }, sessionId);
+      const shot = await send("Page.captureScreenshot", {
+        format: "png",
+        fromSurface: true,
+        captureBeyondViewport: false,
+      }, sessionId);
+      writeFileSync(file.replace(/\.svg$/, ".png"), Buffer.from(shot.data, "base64"));
+    } catch (error) {
+      failures += 1;
+      console.error(`failed ${file}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
+} finally {
+  clearTimeout(watchdog);
+  ws.close();
+  cleanup();
 }
-console.log(`rasterized ${done}/${files.length}`);
-clearTimeout(watchdog);
-ws.close();
-cleanup();
-process.exit(0);
+
+console.log(`rasterized ${files.length - failures}/${files.length}`);
+process.exit(failures === 0 ? 0 : 1);

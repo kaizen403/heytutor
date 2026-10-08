@@ -7,6 +7,7 @@
  *     --difficulty hard --per-unit 1 --concurrency 3 --out .lecture-lab/run-01
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { parseProbeFile, type ProbeQuestion } from "@/features/admin/lib/probes";
 import { unitIdFromTopicId } from "@/features/admin/lib/probes";
@@ -15,6 +16,17 @@ import { printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
 import { applyLectureLabHeaders } from "./labAuth";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
+import {
+  assertEvaluationCostAllowed,
+  combineDiagramEvalRows,
+  estimateEvaluationCostUsd,
+  parseDiagramEvalJsonl,
+  PlannerUsageTracker,
+  sampleDiagramEvalRows,
+  type DiagramEvalArm,
+  type DiagramEvalRow,
+} from "./diagramEval";
+import { writeRoundGallery } from "./gallery";
 
 interface Options {
   difficulty: string;
@@ -36,19 +48,42 @@ interface Options {
    * through the lab.
    */
   ask: string | null;
+  evalFiles: string[];
+  sample: number | null;
+  topics: string[] | null;
+  arm: DiagramEvalArm;
+  figureOnly: boolean;
+  yes: boolean;
 }
 
 function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
+  const evalFiles: string[] = [];
+  const booleans = new Set(["figure-only", "yes"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) continue;
     const eq = token.indexOf("=");
     if (eq > 0) {
-      flags.set(token.slice(2, eq), token.slice(eq + 1));
+      const name = token.slice(2, eq);
+      const value = token.slice(eq + 1);
+      if (name === "eval") evalFiles.push(value);
+      else flags.set(name, value);
     } else {
-      flags.set(token.slice(2), argv[index + 1] ?? "");
-      index += 1;
+      const name = token.slice(2);
+      const next = argv[index + 1];
+      if (name === "eval") {
+        if (!next || next.startsWith("--")) throw new Error("--eval needs a JSONL file");
+        evalFiles.push(next);
+        index += 1;
+        continue;
+      }
+      if (booleans.has(name) || !next || next.startsWith("--")) {
+        flags.set(name, "true");
+      } else {
+        flags.set(name, next);
+        index += 1;
+      }
     }
   }
   const list = (name: string): string[] | null => {
@@ -61,6 +96,10 @@ function parseOptions(argv: string[]): Options {
     const value = Number.parseInt(raw, 10);
     return Number.isFinite(value) ? value : fallback;
   };
+  const arm = flags.get("arm") ?? "current";
+  if (arm !== "current" && arm !== "planner_first") {
+    throw new Error(`--arm must be current or planner_first, received ${arm}`);
+  }
   return {
     difficulty: flags.get("difficulty") ?? "hard",
     units: list("units")?.map((entry) => Number.parseInt(entry, 10)) ?? null,
@@ -75,6 +114,12 @@ function parseOptions(argv: string[]): Options {
     only: list("only"),
     seed: number("seed", 1) ?? 1,
     ask: flags.get("ask") ?? null,
+    evalFiles,
+    sample: number("sample", null),
+    topics: list("topics"),
+    arm,
+    figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
+    yes: flags.get("yes") === "true",
   };
 }
 
@@ -129,6 +174,21 @@ function loadProbes(repoRoot: string, options: Options): ProbeQuestion[] {
   return options.limit ? filtered.slice(0, options.limit) : filtered;
 }
 
+function loadEvaluationRows(paths: readonly string[], options: Options): DiagramEvalRow[] {
+  const groups = paths.map((path) => {
+    if (!existsSync(path)) throw new Error(`--eval file not found: ${path}`);
+    return parseDiagramEvalJsonl(readFileSync(path, "utf8"));
+  });
+  let rows = combineDiagramEvalRows(groups);
+  if (options.topics) {
+    const topics = new Set(options.topics);
+    rows = rows.filter((row) => topics.has(row.topic_id));
+  }
+  return options.sample === null
+    ? rows
+    : sampleDiagramEvalRows(rows, options.sample, options.seed);
+}
+
 export function transcript(run: LectureRun, grade: LectureGrade): string {
   const lines: string[] = [];
   lines.push(`# ${run.probeId}`);
@@ -165,7 +225,7 @@ export function transcript(run: LectureRun, grade: LectureGrade): string {
   lines.push("");
   lines.push("## Figure");
   lines.push(
-    `tier ${run.diagram.tier ?? "none"} | family ${run.diagram.family ?? "none"} | archetype ${run.diagram.archetypeId ?? "none"} | reason ${run.diagram.reason ?? "none"}`,
+    `source ${run.diagram.figureSource ?? "unrecorded"} | tier ${run.diagram.tier ?? "none"} | family ${run.diagram.family ?? "none"} | archetype ${run.diagram.archetypeId ?? "none"} | reason ${run.diagram.reason ?? "none"}`,
   );
   lines.push(`entities: ${run.diagram.entityIds.join(", ") || "none"}`);
   if (run.diagram.renderedLabels.length > 0) {
@@ -203,9 +263,81 @@ export function transcript(run: LectureRun, grade: LectureGrade): string {
   return lines.join("\n");
 }
 
+function summarizeEvaluation(runs: readonly LectureRun[]) {
+  const sourceCounts: Record<string, number> = {};
+  const tierCounts: Record<string, number> = {};
+  const familyCounts: Record<string, number> = {};
+  let figureCommitMs = 0;
+  let timedFigures = 0;
+  let plannerCalls = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let totalTokens = 0;
+  let estimatedCostUsd = 0;
+  for (const run of runs) {
+    const source = run.diagram.figureSource ?? "unrecorded";
+    const tier = run.diagram.tier ?? "none";
+    const family = run.diagram.family ?? "none";
+    sourceCounts[source] = (sourceCounts[source] ?? 0) + 1;
+    tierCounts[tier] = (tierCounts[tier] ?? 0) + 1;
+    familyCounts[family] = (familyCounts[family] ?? 0) + 1;
+    if (run.timings.figureCommitMs !== null && run.timings.figureCommitMs !== undefined) {
+      figureCommitMs += run.timings.figureCommitMs;
+      timedFigures += 1;
+    }
+    plannerCalls += run.planner?.calls ?? 0;
+    inputTokens += run.planner?.inputTokens ?? 0;
+    outputTokens += run.planner?.outputTokens ?? 0;
+    totalTokens += run.planner?.totalTokens ?? 0;
+    estimatedCostUsd += run.planner?.estimatedCostUsd ?? 0;
+  }
+  return {
+    rows: runs.length,
+    figuresCommitted: runs.filter((run) => run.diagram.committed).length,
+    noFigure: runs.filter((run) => !run.diagram.committed).length,
+    errors: runs.filter((run) => run.error !== null).length,
+    sourceCounts,
+    tierCounts,
+    familyCounts,
+    meanFigureCommitMs: timedFigures > 0 ? Math.round(figureCommitMs / timedFigures) : null,
+    planner: {
+      calls: plannerCalls,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      estimatedCostUsd: Math.round(estimatedCostUsd * 1_000_000) / 1_000_000,
+    },
+  };
+}
+
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   const repoRoot = resolve(process.cwd(), "../..");
+  if (options.evalFiles.length > 0 && options.ask) throw new Error("--eval and --ask cannot be combined");
+  const evaluationRows = options.evalFiles.length > 0
+    ? loadEvaluationRows(options.evalFiles.map((path) => resolve(path)), options)
+    : null;
+  const evaluationById = new Map(evaluationRows?.map((row) => [row.id, row]) ?? []);
+  const probes = evaluationRows
+    ? evaluationRows.map((row): ProbeQuestion => ({
+        id: row.id,
+        topicId: row.topic_id,
+        difficulty: row.difficulty,
+        question: row.question,
+      }))
+    : options.ask
+      ? loadAskFile(resolve(options.ask))
+      : loadProbes(repoRoot, options);
+  const preflightEstimateUsd = evaluationRows
+    ? estimateEvaluationCostUsd(probes.length, options.arm)
+    : null;
+  if (preflightEstimateUsd !== null) {
+    console.log(
+      `diagram eval: ${probes.length} rows, arm ${options.arm}, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
+    );
+    assertEvaluationCostAllowed(preflightEstimateUsd, options.yes);
+  }
+
   const outDir = resolve(process.cwd(), options.out);
   mkdirSync(`${outDir}/runs`, { recursive: true });
   mkdirSync(`${outDir}/transcripts`, { recursive: true });
@@ -218,22 +350,28 @@ async function main(): Promise<void> {
 
   // Every planner in tutor-core builds its own request; the cookie is the one
   // thing they cannot know about. Adding it here keeps the call sites identical
-  // to the browser's.
+  // to the browser's. Eval rounds also account every non-streaming planner
+  // response by the trace id already carried on the request.
   const nativeFetch = globalThis.fetch;
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+  const usageTracker = new PlannerUsageTracker();
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
     if (url.startsWith(options.origin)) {
-      const headers = new Headers(init?.headers ?? {});
       headers.set("cookie", cookie);
       applyLectureLabHeaders(headers);
-      return nativeFetch(input, { ...init, headers });
     }
-    return nativeFetch(input, init);
+    const traceId = headers.get("x-heytutor-trace-id");
+    const plannerRequest = url.startsWith(options.origin) && headers.get("x-planner") === "1" && traceId;
+    if (plannerRequest) usageTracker.recordRequest(traceId);
+    const response = await nativeFetch(input, { ...init, headers });
+    if (plannerRequest) await usageTracker.recordResponse(traceId, response);
+    return response;
   }) as typeof fetch;
 
-  const probes = options.ask ? loadAskFile(resolve(options.ask)) : loadProbes(repoRoot, options);
   console.log(
-    `lecture lab: ${probes.length} ${options.difficulty} probes, concurrency ${options.concurrency}, familiarity ${options.familiarity} -> ${options.out}`,
+    `lecture lab: ${probes.length} ${evaluationRows ? "evaluation rows" : `${options.difficulty} probes`}, concurrency ${options.concurrency}, familiarity ${options.familiarity} -> ${options.out}`,
   );
 
   const grades: LectureGrade[] = [];
@@ -247,6 +385,7 @@ async function main(): Promise<void> {
       if (index >= probes.length) return;
       const probe = probes[index];
       const startedAt = Date.now();
+      const traceId = crypto.randomUUID();
       const run = await runLecture(probe.question, {
         origin: options.origin,
         cookie,
@@ -256,31 +395,58 @@ async function main(): Promise<void> {
         topicId: probe.topicId,
         unitId: unitIdFromTopicId(probe.topicId),
         difficulty: probe.difficulty,
+        arm: options.arm,
+        figureOnly: options.figureOnly,
+        traceId,
       });
+      run.planner = usageTracker.finish(traceId);
       const grade = gradeLecture(run);
       grades.push(grade);
       runs.push(run);
       const slug = probe.id.replace(/[^a-z0-9]+/gi, "_");
+      const svgPath = run.diagram.svg ? `frames/${slug}.svg` : null;
+      const pngPath = run.diagram.svg ? `frames/${slug}.png` : null;
       if (run.diagram.svg) {
         mkdirSync(`${outDir}/frames`, { recursive: true });
         writeFileSync(`${outDir}/frames/${slug}.svg`, run.diagram.svg);
       }
-      writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({ ...run, diagram: { ...run.diagram, svg: run.diagram.svg ? `frames/${slug}.svg` : null } }, null, 1)}\n`);
+      run.diagram.png = pngPath;
+      writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({
+        ...run,
+        evaluation: evaluationById.get(probe.id) ?? null,
+        diagram: { ...run.diagram, svg: svgPath, png: pngPath },
+      }, null, 1)}\n`);
       writeFileSync(`${outDir}/transcripts/${slug}.md`, `${transcript(run, grade)}\n`);
       done += 1;
-      console.log(
-        `[${done}/${probes.length}] ${grade.transportFailure ? "dead" : grade.passed ? "ok  " : "FAIL"} ${grade.score.toString().padStart(3)} ${Math.round((Date.now() - startedAt) / 1000)}s ${probe.id} ${grade.findings.map((finding) => finding.code).join(",")}`,
-      );
+      const state = evaluationRows
+        ? run.error ? "dead" : run.diagram.committed ? "fig " : "none"
+        : grade.transportFailure ? "dead" : grade.passed ? "ok  " : "FAIL";
+      console.log(`[${done}/${probes.length}] ${state} ${Math.round((Date.now() - startedAt) / 1000)}s ${probe.id}`);
     }
   };
   await Promise.all(
     Array.from({ length: Math.max(1, options.concurrency) }, () => worker()),
   );
 
-  const summary = { options, ...summarize(grades, runs) };
+  if (existsSync(`${outDir}/frames`)) {
+    execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), `${outDir}/frames`], {
+      stdio: "inherit",
+    });
+  }
+
+  const galleryPath = evaluationRows ? writeRoundGallery(outDir) : null;
+
+  const summary = {
+    options,
+    preflightEstimateUsd,
+    evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
+    ...summarize(grades, runs),
+  };
   writeFileSync(`${outDir}/summary.json`, `${JSON.stringify(summary, null, 1)}\n`);
   console.log("");
-  printSummary(summary);
+  if (evaluationRows) console.log(JSON.stringify(summary.evaluation, null, 2));
+  else printSummary(summary);
+  if (galleryPath) console.log(`gallery: ${galleryPath}`);
 }
 
 if (process.argv[1]?.endsWith("run.ts")) {

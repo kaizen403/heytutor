@@ -108,6 +108,8 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   speculationAllowed: boolean;
   /** Defaults to SCENE_SPECULATION_ENABLED; injectable for tests. */
   speculationEnabled?: boolean;
+  /** Evaluation-only override. The live default remains deterministic-family first. */
+  selectionOrder?: "current" | "planner_first";
   plannerStartedAt: number;
   deadlineMs: number;
   now?: () => number;
@@ -177,6 +179,8 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
     scenePlannerMs: number;
     revalidateMs: number;
     revalidateSkipped: boolean | null;
+    /** All scene planner requests launched, including failed or aborted calls. */
+    plannerCalls: number;
   };
 }
 
@@ -265,6 +269,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     scenePlannerMs: 0,
     revalidateMs: 0,
     revalidateSkipped: null,
+    plannerCalls: 0,
   };
 
   type Run = {
@@ -361,11 +366,12 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     }
 
     const speculationEnabled = input.speculationEnabled ?? SCENE_SPECULATION_ENABLED;
+    const plannerFirst = input.selectionOrder === "planner_first";
     if (speculationEnabled && input.speculationAllowed && authorityPending) {
       const gate = input.deriveGate(input.turnPlan, null);
       const budgetMs = remainingMs();
       const eligible = gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && budgetMs > 0;
-      const deterministicPredicted = eligible && input.selectFast(input.turnPlan, null, gate) !== null;
+      const deterministicPredicted = !plannerFirst && eligible && input.selectFast(input.turnPlan, null, gate) !== null;
       if (shouldStartSpeculativeScene({
         speculationAllowed: input.speculationAllowed,
         authorityPending,
@@ -398,7 +404,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     const recovered = scene !== null;
 
     let fast: F | null = null;
-    if (!scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority)) {
+    if (!plannerFirst && !scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority)) {
       const span = input.telemetry?.span("deterministic-figure", parent);
       const fastStartedAt = now();
       fast = input.selectFast(turnPlan, authority, gate);
@@ -464,6 +470,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       span?.end({ skipped: !revalidated });
     }
 
+    timings.plannerCalls = SCENE_REQUEST_BUDGET - requestBudget.remaining;
     return {
       turnPlan,
       authority,
