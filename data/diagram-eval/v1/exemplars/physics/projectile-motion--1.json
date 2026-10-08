@@ -1,0 +1,494 @@
+{
+  "topic_id": "physics|2|projectile-motion",
+  "question": "A ball is projected from level ground at 40° and later lands back at the launch level. Show the launch direction, trajectory, apex, and landing point.",
+  "figure_kind": "motion_path",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "projectile launched at 40° following the trajectory u and θ imply"
+    },
+    "source": {
+      "question": "A ball is projected from level ground at 40° and later lands back at the launch level. Show the launch direction, trajectory, apex, and landing point.",
+      "synthesizedFamily": true,
+      "archetype": "projectile",
+      "slotSources": {
+        "theta": "stem"
+      },
+      "exactGrounding": null
+    },
+    "quantities": [
+      {
+        "id": "theta",
+        "symbol": "theta",
+        "value": 40,
+        "unit": "degree"
+      }
+    ],
+    "entities": [
+      {
+        "id": "ground_a",
+        "kind": "point",
+        "role": "level ground end"
+      },
+      {
+        "id": "ground_b",
+        "kind": "point",
+        "role": "level ground end"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "level ground",
+        "label": "level ground"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "projectile point mass launch point origin",
+        "label": "projectile"
+      },
+      {
+        "id": "trajectory",
+        "kind": "polyline",
+        "role": "parabolic trajectory",
+        "label": "trajectory"
+      },
+      {
+        "id": "apex",
+        "kind": "point",
+        "role": "highest point",
+        "label": "H"
+      },
+      {
+        "id": "landing",
+        "kind": "point",
+        "role": "landing point",
+        "label": "B"
+      },
+      {
+        "id": "aim",
+        "kind": "point",
+        "role": "launch direction"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "launch velocity",
+        "label": "u"
+      },
+      {
+        "id": "aim_h",
+        "kind": "point",
+        "role": "horizontal reference end"
+      },
+      {
+        "id": "horizontal",
+        "kind": "segment",
+        "role": "horizontal reference"
+      },
+      {
+        "id": "angle",
+        "kind": "angle_mark",
+        "role": "angle mark",
+        "label": "θ=40°"
+      },
+      {
+        "id": "apex_foot",
+        "kind": "point",
+        "role": "apex foot",
+        "label": "A"
+      },
+      {
+        "id": "dim_H",
+        "kind": "dimension",
+        "role": "maximum height",
+        "label": "H"
+      },
+      {
+        "id": "range_start",
+        "kind": "point",
+        "role": "range start"
+      },
+      {
+        "id": "dim_R",
+        "kind": "dimension",
+        "role": "horizontal range",
+        "label": "R"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_ground_a",
+        "operator": "point",
+        "inputs": {
+          "x": -4.8235,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ground_a"
+        ]
+      },
+      {
+        "id": "make_ground_b",
+        "operator": "point",
+        "inputs": {
+          "x": 43.4119,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ground_b"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "ground_a",
+          "end": "ground_b"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_trajectory",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0+0.8390996311772799*x-0.020875080340262635*x^2",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 40.1962,
+          "samples": 81
+        },
+        "outputs": [
+          "trajectory"
+        ]
+      },
+      {
+        "id": "make_apex",
+        "operator": "point",
+        "inputs": {
+          "x": 20.0981,
+          "y": 8.4322,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "apex"
+        ]
+      },
+      {
+        "id": "make_landing",
+        "operator": "point",
+        "inputs": {
+          "x": 40.1962,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "landing"
+        ]
+      },
+      {
+        "id": "make_aim",
+        "operator": "point",
+        "inputs": {
+          "x": 6.7743,
+          "y": 5.6843,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "aim"
+        ]
+      },
+      {
+        "id": "make_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "aim"
+        },
+        "outputs": [
+          "velocity"
+        ]
+      },
+      {
+        "id": "make_aim_h",
+        "operator": "point",
+        "inputs": {
+          "x": 8.8432,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "aim_h"
+        ]
+      },
+      {
+        "id": "make_horizontal",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "aim_h"
+        },
+        "outputs": [
+          "horizontal"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "velocity",
+          "b": "horizontal"
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "make_apex_foot",
+        "operator": "point",
+        "inputs": {
+          "x": 20.0981,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "apex_foot"
+        ]
+      },
+      {
+        "id": "make_dim_H",
+        "operator": "dimension",
+        "inputs": {
+          "start": "apex_foot",
+          "end": "apex"
+        },
+        "outputs": [
+          "dim_H"
+        ]
+      },
+      {
+        "id": "make_range_start",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "range_start"
+        ]
+      },
+      {
+        "id": "make_dim_R",
+        "operator": "dimension",
+        "inputs": {
+          "start": "range_start",
+          "end": "landing"
+        },
+        "outputs": [
+          "dim_R"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "launch_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "velocity",
+          "horizontal"
+        ],
+        "expected": {
+          "value": 40,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "apex_on_path",
+        "predicate": "function_value",
+        "entities": [
+          "trajectory"
+        ],
+        "expected": {
+          "x": 20.098117,
+          "y": 8.432161
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "launch_on_path",
+        "predicate": "on",
+        "entities": [
+          "O",
+          "trajectory"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "landing_on_path",
+        "predicate": "on",
+        "entities": [
+          "landing",
+          "trajectory"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_O",
+        "predicate": "label_attached",
+        "entities": [
+          "O"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_velocity",
+        "predicate": "label_attached",
+        "entities": [
+          "velocity"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_O",
+        "predicate": "label_attached",
+        "entities": [
+          "O"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_apex",
+        "predicate": "label_attached",
+        "entities": [
+          "apex"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_landing",
+        "predicate": "label_attached",
+        "entities": [
+          "landing"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_apex_foot",
+        "predicate": "label_attached",
+        "entities": [
+          "apex_foot"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "ground_a",
+      "ground_b",
+      "ground",
+      "O",
+      "trajectory",
+      "apex",
+      "landing",
+      "aim",
+      "velocity",
+      "aim_h",
+      "horizontal",
+      "angle",
+      "apex_foot",
+      "dim_H",
+      "range_start",
+      "dim_R"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ground_a",
+          "ground_b",
+          "ground",
+          "O",
+          "aim",
+          "velocity",
+          "aim_h",
+          "horizontal",
+          "angle",
+          "apex",
+          "landing",
+          "apex_foot"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the launch: speed, angle and the ground"
+      },
+      {
+        "id": "path",
+        "entityIds": [
+          "trajectory",
+          "apex",
+          "landing",
+          "apex_foot",
+          "dim_H",
+          "range_start",
+          "dim_R"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "the parabolic path with its highest point and range"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the launch: speed, angle and the ground"
+      },
+      {
+        "id": "reveal_path",
+        "action": "reveal",
+        "targetId": "path",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "the parabolic path with its highest point and range"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}
