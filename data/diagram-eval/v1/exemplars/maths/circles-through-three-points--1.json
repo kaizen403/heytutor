@@ -1,0 +1,118 @@
+{
+  "topic_id": "maths|10|circles-through-three-points",
+  "question": "Find the circle through the points (0, 0), (6, 0) and (0, 8).",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "source-grounded circle geometry"
+    },
+    "source": {
+      "question": "Find the circle through the points (0, 0), (6, 0) and (0, 8)."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "a",
+        "kind": "point",
+        "role": "verified circle geometry"
+      },
+      {
+        "id": "b",
+        "kind": "point",
+        "role": "verified circle geometry"
+      },
+      {
+        "id": "c",
+        "kind": "point",
+        "role": "verified circle geometry"
+      },
+      {
+        "id": "circle",
+        "kind": "circle",
+        "role": "verified circle geometry"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "construct_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0
+        },
+        "outputs": [
+          "a"
+        ]
+      },
+      {
+        "id": "construct_b",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 0
+        },
+        "outputs": [
+          "b"
+        ]
+      },
+      {
+        "id": "construct_c",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 8
+        },
+        "outputs": [
+          "c"
+        ]
+      },
+      {
+        "id": "construct_circle",
+        "operator": "circle_from_three_points",
+        "inputs": {
+          "a": "a",
+          "b": "b",
+          "c": "c"
+        },
+        "outputs": [
+          "circle"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "a",
+      "b",
+      "c",
+      "circle"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "a",
+          "b",
+          "c",
+          "circle"
+        ],
+        "dependsOn": [],
+        "narrationCue": "show circle geometry"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "show verified circle geometry"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

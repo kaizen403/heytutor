@@ -1,0 +1,108 @@
+{
+  "topic_id": "maths|10|triangle-centres-centroid-and-orthocentre",
+  "question": "A triangle has sides 7 cm, 8 cm and 9 cm. Find its centroid.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "source-grounded triangle construction"
+    },
+    "source": {
+      "question": "A triangle has sides 7 cm, 8 cm and 9 cm. Find its centroid."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "triangle vertex"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "triangle vertex"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "triangle vertex"
+      },
+      {
+        "id": "outline",
+        "kind": "polygon",
+        "role": "triangle outline"
+      },
+      {
+        "id": "center",
+        "kind": "point",
+        "role": "centroid of triangle"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "construct_triangle",
+        "operator": "triangle_from_sides",
+        "inputs": {
+          "sideAB": 7,
+          "sideBC": 8,
+          "sideCA": 9
+        },
+        "outputs": [
+          "A",
+          "B",
+          "C",
+          "outline"
+        ]
+      },
+      {
+        "id": "construct_center",
+        "operator": "triangle_center",
+        "inputs": {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "kind": "centroid"
+        },
+        "outputs": [
+          "center"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "C",
+      "outline",
+      "center"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "A",
+          "B",
+          "C",
+          "outline",
+          "center"
+        ],
+        "dependsOn": [],
+        "narrationCue": "show triangle"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "show the constructed triangle"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}
