@@ -31,6 +31,19 @@ export interface PlannerUsageSummary {
   totalTokens: number;
   cachedInputTokens: number;
   estimatedCostUsd: number;
+  modelCalls: PlannerModelCall[];
+}
+
+export interface PlannerModelCall {
+  model: string;
+  status: number;
+  ok: boolean;
+  usageKnown: boolean;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedInputTokens: number;
+  estimatedCostUsd: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -160,8 +173,13 @@ export function estimateEvaluationCostUsd(rowCount: number, arm: DiagramEvalArm)
   const calls = rowCount * (arm === "planner_first" ? 5 : 3);
   return calculateLlmCostDetails(
     { input: calls * 3_500, output: calls * 1_800 },
-    { model: "accounts/fireworks/models/kimi-k3-fast" },
+    { model: "accounts/fireworks/models/kimi-k3" },
   ).total ?? 0;
+}
+
+/** Evaluation turns explicitly leave the production/default Fast behavior alone. */
+export function evaluationRunFastMode(isEvaluation: boolean): false | undefined {
+  return isEvaluation ? false : undefined;
 }
 
 export function assertEvaluationCostAllowed(estimatedUsd: number, confirmed: boolean): void {
@@ -179,6 +197,7 @@ function emptyUsage(): PlannerUsageSummary {
     totalTokens: 0,
     cachedInputTokens: 0,
     estimatedCostUsd: 0,
+    modelCalls: [],
   };
 }
 
@@ -193,28 +212,51 @@ export class PlannerUsageTracker {
   }
 
   async recordResponse(traceId: string, response: Response): Promise<void> {
-    if (!response.ok) return;
+    const summary = this.byTrace.get(traceId) ?? emptyUsage();
+    const model = response.headers.get("x-heytutor-planner-model") ?? "unknown";
+    const call: PlannerModelCall = {
+      model,
+      status: response.status,
+      ok: response.ok,
+      usageKnown: false,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      cachedInputTokens: 0,
+      estimatedCostUsd: 0,
+    };
     try {
       const payload = await response.clone().json() as { usage?: unknown };
       const usage = parseProviderUsage(payload.usage);
-      if (!usage.known) return;
-      const summary = this.byTrace.get(traceId) ?? emptyUsage();
-      summary.usageCalls += 1;
-      summary.inputTokens += usage.input ?? 0;
-      summary.outputTokens += usage.output ?? 0;
-      summary.totalTokens += usage.total ?? (usage.input ?? 0) + (usage.output ?? 0);
-      summary.cachedInputTokens += usage.cachedInput ?? 0;
-      const model = response.headers.get("x-heytutor-planner-model");
-      summary.estimatedCostUsd += calculateLlmCostDetails(usage, { model }).total ?? 0;
-      this.byTrace.set(traceId, summary);
+      if (usage.known) {
+        call.usageKnown = true;
+        call.inputTokens = usage.input ?? 0;
+        call.outputTokens = usage.output ?? 0;
+        call.totalTokens = usage.total ?? call.inputTokens + call.outputTokens;
+        call.cachedInputTokens = usage.cachedInput ?? 0;
+        call.estimatedCostUsd = calculateLlmCostDetails(usage, { model }).total ?? 0;
+        summary.usageCalls += 1;
+        summary.inputTokens += call.inputTokens;
+        summary.outputTokens += call.outputTokens;
+        summary.totalTokens += call.totalTokens;
+        summary.cachedInputTokens += call.cachedInputTokens;
+        summary.estimatedCostUsd += call.estimatedCostUsd;
+      }
     } catch {
       // A planner call still counts when its provider omitted or malformed usage.
     }
+    call.estimatedCostUsd = Math.round(call.estimatedCostUsd * 1_000_000) / 1_000_000;
+    summary.modelCalls.push(call);
+    this.byTrace.set(traceId, summary);
   }
 
   finish(traceId: string): PlannerUsageSummary {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
     this.byTrace.delete(traceId);
-    return { ...summary, estimatedCostUsd: Math.round(summary.estimatedCostUsd * 1_000_000) / 1_000_000 };
+    return {
+      ...summary,
+      estimatedCostUsd: Math.round(summary.estimatedCostUsd * 1_000_000) / 1_000_000,
+      modelCalls: summary.modelCalls.map((call) => ({ ...call })),
+    };
   }
 }

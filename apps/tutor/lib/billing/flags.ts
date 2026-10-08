@@ -39,6 +39,7 @@ export function isTtsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
 
 export const LECTURE_LAB_HEADER = "x-heytutor-lecture-lab";
 export const LECTURE_LAB_ZERO_RETENTION_HEADER = "x-heytutor-lecture-lab-zero-retention";
+export const LECTURE_LAB_STANDARD_MODEL_HEADER = "x-heytutor-lecture-lab-standard-model";
 
 /**
  * Lecture-lab spend bypass. The header value must match LECTURE_LAB_TOKEN
@@ -62,5 +63,14 @@ export function shouldSuppressLectureLabTrace(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   return request.headers.get(LECTURE_LAB_ZERO_RETENTION_HEADER) === "1" &&
+    isLectureLabRequest(request, env);
+}
+
+/** Only authenticated evaluation traffic may move ProblemIR off its Fast default. */
+export function shouldUseLectureLabStandardModel(
+  request: Request,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return request.headers.get(LECTURE_LAB_STANDARD_MODEL_HEADER) === "1" &&
     isLectureLabRequest(request, env);
 }

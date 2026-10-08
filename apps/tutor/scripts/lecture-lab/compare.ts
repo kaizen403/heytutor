@@ -10,6 +10,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { writeComparisonGallery } from "./gallery";
+import { formatJudgeCounts, type JudgeSummary } from "./judging";
 
 interface Summary {
   total: number;
@@ -20,6 +21,7 @@ interface Summary {
   meanScore: number;
   findingCounts: Record<string, number>;
   grades: { probeId: string; score: number; transportFailure?: boolean }[];
+  judge?: JudgeSummary;
 }
 
 const args = process.argv.slice(2);
@@ -42,6 +44,7 @@ const after = read(afterPath);
 const delta = (value: number) => (value > 0 ? `+${value}` : String(value));
 
 console.log(`           ${beforePath}  ->  ${afterPath}`);
+console.log(`judge      ${formatJudgeCounts(before.judge)} -> ${formatJudgeCounts(after.judge)}`);
 console.log(
   `mean score ${before.meanScore} -> ${after.meanScore}  (${delta(after.meanScore - before.meanScore)})`,
 );

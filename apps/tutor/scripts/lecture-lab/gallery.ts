@@ -1,5 +1,11 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
+import {
+  needsHumanReview,
+  readJudgeQueue,
+  readRoundJudgments,
+  type DiagramJudgment,
+} from "./judging";
 
 export interface GalleryEntry {
   id: string;
@@ -14,6 +20,8 @@ export interface GalleryEntry {
   tier: string;
   family: string;
   figureCommitMs: number | null;
+  judgment?: DiagramJudgment;
+  needsHuman?: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -78,6 +86,7 @@ function shell(title: string, description: string, body: string, script = ""): s
     main { padding:20px 0 56px; }
     .cards { display:grid; gap:16px; }
     .card { overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+    .card[hidden] { display:none; }
     .card-head { display:flex; justify-content:space-between; gap:20px; padding:16px 18px; border-bottom:1px solid var(--line); }
     .card-head h2 { margin:0; font-size:17px; line-height:1.35; }
     .row-id { margin:6px 0 0; color:var(--soft); font:12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; }
@@ -103,6 +112,10 @@ function shell(title: string, description: string, body: string, script = ""): s
     select, textarea { width:100%; margin-top:5px; border:1px solid #aeb8c2; border-radius:7px; background:#fff; color:var(--ink); padding:8px; }
     textarea { min-height:72px; resize:vertical; }
     button { border:1px solid #0b5965; border-radius:7px; background:var(--accent); color:#fff; padding:8px 12px; font-weight:700; cursor:pointer; }
+    .header-actions { display:flex; align-items:center; gap:14px; }
+    .human-filter { display:flex; align-items:center; gap:7px; color:var(--ink); font-size:13px; }
+    .human-filter input { width:auto; margin:0; }
+    .badge.human { border-color:#e0b66b; background:#fff0cf; color:#704b0d; }
     button:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid #82c8d1; outline-offset:2px; }
     .compare-card .card-body { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
     .arm { min-width:0; padding:16px; }
@@ -119,7 +132,7 @@ function shell(title: string, description: string, body: string, script = ""): s
   </style>
 </head>
 <body>
-  <header><div class="header-inner"><div><h1>${escapeHtml(title)}</h1><p class="description">${escapeHtml(description)}</p></div>${script ? '<button id="export" type="button">Export verdicts.csv</button>' : ""}</div></header>
+  <header><div class="header-inner"><div><h1>${escapeHtml(title)}</h1><p class="description">${escapeHtml(description)}</p></div>${script ? '<div class="header-actions"><label class="human-filter"><input id="needs-human-filter" type="checkbox"> Needs human</label><button id="export" type="button">Export verdicts.csv</button></div>' : ""}</div></header>
   <main>${body}</main>
   ${script}
 </body>
@@ -127,26 +140,36 @@ function shell(title: string, description: string, body: string, script = ""): s
 }
 
 function verdictControls(entry: GalleryEntry): string {
+  const verdict = entry.judgment?.verdict ?? "";
+  const selected = (value: string) => value === verdict ? " selected" : "";
   return `<div class="verdict">
     <label>Verdict
       <select data-verdict aria-label="Verdict for ${escapeHtml(entry.id)}">
-        <option value="">unreviewed</option>
-        <option value="right">right</option>
-        <option value="partial">partial</option>
-        <option value="wrong">wrong</option>
-        <option value="empty_ok">empty_ok</option>
-        <option value="empty_bad">empty_bad</option>
+        <option value=""${selected("")}>unreviewed</option>
+        <option value="right"${selected("right")}>right</option>
+        <option value="partial"${selected("partial")}>partial</option>
+        <option value="wrong"${selected("wrong")}>wrong</option>
+        <option value="empty_ok"${selected("empty_ok")}>empty_ok</option>
+        <option value="empty_bad"${selected("empty_bad")}>empty_bad</option>
       </select>
     </label>
     <label>Comment
-      <textarea data-comment aria-label="Comment for ${escapeHtml(entry.id)}" placeholder="What is correct or missing?"></textarea>
+      <textarea data-comment aria-label="Comment for ${escapeHtml(entry.id)}" placeholder="What is correct or missing?">${escapeHtml(entry.judgment?.reason ?? "")}</textarea>
     </label>
   </div>`;
 }
 
 export function buildGalleryHtml(entries: readonly GalleryEntry[], title: string): string {
-  const cards = entries.map((entry) => `<article class="card" data-row-id="${escapeHtml(entry.id)}">
-    <div class="card-head"><div><h2>${escapeHtml(entry.question)}</h2><p class="row-id">${escapeHtml(entry.id)}</p></div><div class="badges"><span class="badge">${escapeHtml(entry.figureNeed)}</span><span class="badge">${escapeHtml(entry.figureKind)}</span></div></div>
+  const priority = (entry: GalleryEntry): number => {
+    if (entry.judgment?.verdict === "wrong") return 0;
+    if (entry.needsHuman) return 1;
+    if (entry.judgment?.verdict === "partial" || entry.judgment?.verdict === "empty_bad") return 2;
+    if (entry.judgment) return 3;
+    return 4;
+  };
+  const ordered = [...entries].sort((left, right) => priority(left) - priority(right) || left.id.localeCompare(right.id));
+  const cards = ordered.map((entry) => `<article class="card" data-row-id="${escapeHtml(entry.id)}" data-judge-verdict="${escapeHtml(entry.judgment?.verdict ?? "")}" data-judge-comment="${escapeHtml(entry.judgment?.reason ?? "")}" data-needs-human="${entry.needsHuman ? "true" : "false"}">
+    <div class="card-head"><div><h2>${escapeHtml(entry.question)}</h2><p class="row-id">${escapeHtml(entry.id)}</p></div><div class="badges">${entry.needsHuman ? '<span class="badge human">Needs human</span>' : ""}<span class="badge">${escapeHtml(entry.figureNeed)}</span><span class="badge">${escapeHtml(entry.figureKind)}</span></div></div>
     <div class="card-body"><div class="visual">${figure(entry)}${metadata(entry)}</div><div class="review">${list("must show", entry.mustShow)}${list("must label", entry.mustLabel)}${list("must not show", entry.mustNotShow)}${verdictControls(entry)}</div></div>
   </article>`).join("\n");
   const storageKey = JSON.stringify(`heytutor-diagram-verdicts:${title}`).replaceAll("<", "\\u003c");
@@ -162,12 +185,15 @@ export function buildGalleryHtml(entries: readonly GalleryEntry[], title: string
       localStorage.setItem(key, JSON.stringify(next));
     };
     for (const card of cards) {
-      const prior = saved[card.dataset.rowId] || {};
-      card.querySelector("[data-verdict]").value = prior.verdict || "";
-      card.querySelector("[data-comment]").value = prior.comment || "";
+      const prior = saved[card.dataset.rowId];
+      card.querySelector("[data-verdict]").value = prior ? prior.verdict : card.dataset.judgeVerdict || "";
+      card.querySelector("[data-comment]").value = prior ? prior.comment : card.dataset.judgeComment || "";
       card.addEventListener("change", store);
       card.addEventListener("input", store);
     }
+    document.getElementById("needs-human-filter").addEventListener("change", (event) => {
+      for (const card of cards) card.hidden = event.target.checked && card.dataset.needsHuman !== "true";
+    });
     document.getElementById("export").addEventListener("click", () => {
       store();
       const quote = (value) => '"' + String(value).replaceAll('"', '""') + '"';
@@ -185,7 +211,10 @@ export function buildGalleryHtml(entries: readonly GalleryEntry[], title: string
 }
 
 function arm(entry: GalleryEntry | undefined, label: string): string {
-  return `<section class="arm"><h3>${escapeHtml(label)}</h3>${entry ? `${figure(entry)}${metadata(entry)}` : '<div class="figure empty"><p>no result</p></div>'}</section>`;
+  const judgment = entry?.judgment
+    ? `<p class="row-id">judge: ${escapeHtml(entry.judgment.verdict)}${entry.needsHuman ? " · Needs human" : ""} · ${escapeHtml(entry.judgment.reason)}</p>`
+    : "";
+  return `<section class="arm"><h3>${escapeHtml(label)}</h3>${entry ? `${judgment}${figure(entry)}${metadata(entry)}` : '<div class="figure empty"><p>no result</p></div>'}</section>`;
 }
 
 export function buildComparisonGalleryHtml(
@@ -211,7 +240,10 @@ export function buildComparisonGalleryHtml(
 }
 
 export function readGalleryEntries(roundDir: string): GalleryEntry[] {
-  const runsDir = join(resolve(roundDir), "runs");
+  const absolute = resolve(roundDir);
+  const runsDir = join(absolute, "runs");
+  const judgments = new Map(readRoundJudgments(absolute).map((judgment) => [judgment.id, judgment]));
+  const missingLabels = new Map(readJudgeQueue(absolute).map((row) => [row.id, row.missing_labels]));
   return readdirSync(runsDir)
     .filter((file) => file.endsWith(".json"))
     .sort()
@@ -221,8 +253,10 @@ export function readGalleryEntries(roundDir: string): GalleryEntry[] {
       const row = raw.evaluation;
       const diagram = raw.diagram;
       const timings = isRecord(raw.timings) ? raw.timings : {};
+      const id = stringOr(row.id, stringOr(raw.probeId, file.replace(/\.json$/, "")));
+      const judgment = judgments.get(id);
       return [{
-        id: stringOr(row.id, stringOr(raw.probeId, file.replace(/\.json$/, ""))),
+        id,
         question: stringOr(row.question, stringOr(raw.question, "")),
         figureNeed: stringOr(row.figure_need, "unknown"),
         figureKind: stringOr(row.figure_kind, "unknown"),
@@ -234,6 +268,8 @@ export function readGalleryEntries(roundDir: string): GalleryEntry[] {
         tier: stringOr(diagram.tier, "none"),
         family: stringOr(diagram.family, "none"),
         figureCommitMs: typeof timings.figureCommitMs === "number" ? timings.figureCommitMs : null,
+        judgment,
+        needsHuman: judgment ? needsHumanReview(judgment, missingLabels.get(id) ?? []) : false,
       }];
     });
 }

@@ -319,6 +319,7 @@ export async function runLecture(
       totalTokens: 0,
       cachedInputTokens: 0,
       estimatedCostUsd: 0,
+      modelCalls: [],
     },
     diagram: {
       committed: false,

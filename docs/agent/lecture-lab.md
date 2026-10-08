@@ -55,6 +55,31 @@ lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`
 owns that summary for both the runner and the regrader, so the two cannot drift.
 
+Evaluation requests explicitly turn Fast mode off, including an authenticated
+lecture-lab-only override for ProblemIR. They therefore use `FIREWORKS_MODEL`
+(Kimi K3 by default), while ordinary student and lecture-lab traffic keeps its
+existing model selection. Preflight and measured usage price Kimi K3 at US$3
+input / US$15 output per million tokens. Each run record stores the actual model
+and measured cost of every completed planner call.
+
+## Judging a round
+
+Run `judge-prep.ts <round>` to decide no-figure rows by rule, crop the diagram
+zone to roughly 700 px, and split drawn figures into `judge-batches/` files of
+ten. Give each batch to a Codex or Claude subagent with only the verdict rules
+from the batch prompt; it opens every cropped PNG once and appends its compact
+JSONL verdicts to `judgments.jsonl`. Then run `judge-apply.ts <round>` to write
+`verdicts.csv`, prefill and prioritize the gallery, add the Needs human filter,
+and record judge counts in `summary.json`.
+
+- `right`: every `must_show` item is present and no `must_not_show` item appears.
+- `partial`: it is the right kind of figure, but something is missing.
+- `wrong`: a forbidden item appears or the figure belongs to another topic.
+
+Paste this one line into an agent chat for a future round:
+
+> Judge `<round>`: run `pnpm --filter @heytutor/tutor exec tsx scripts/lecture-lab/judge-prep.ts <round>`, judge only `judge-batches/*.jsonl` with Codex or Claude subagents in parallel batches of 10 using the right/partial/wrong rules in this section and `by` set to the actual agent, then run `pnpm --filter @heytutor/tutor exec tsx scripts/lecture-lab/judge-apply.ts <round>`; never open rule-decided or full-board images.
+
 **Never build a package or run a verify chain while a round is in flight.** The
 Next dev server watches `packages/*/dist`, so a `pnpm --filter ... build`
 restarts it and every turn already talking to `/api/chat` dies with

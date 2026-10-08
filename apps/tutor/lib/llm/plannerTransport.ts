@@ -22,6 +22,8 @@ export interface PlannerModelOptions {
   plannerPhase: PlannerPhase;
   plannerLane?: PlannerLane;
   fastMode?: boolean;
+  /** Authenticated lecture-lab override; ordinary ProblemIR requests ignore Fast mode. */
+  problemIRModelOverride?: string;
   env?: Record<string, string | undefined>;
 }
 
@@ -101,7 +103,7 @@ function uniqueModels(models: readonly string[]): string[] {
 /** One ENV-owned model for every planner lane. Problem IR is its own SKU. */
 export function resolvePlannerModels(options: PlannerModelOptions): string[] {
   if (options.problemIRV1) {
-    return [resolveProblemIRFireworksModel({ env: options.env })];
+    return [options.problemIRModelOverride?.trim() || resolveProblemIRFireworksModel({ env: options.env })];
   }
   return resolveFireworksModels({
     fastMode: options.fastMode,

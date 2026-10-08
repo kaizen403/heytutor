@@ -28,7 +28,10 @@ import {
   requireLessonGrant,
 } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
-import { shouldSuppressLectureLabTrace } from "@/lib/billing/flags";
+import {
+  shouldSuppressLectureLabTrace,
+  shouldUseLectureLabStandardModel,
+} from "@/lib/billing/flags";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { markGrantInUse, type TurnGrant } from "@/lib/billing/grant";
 import type { SpendActor } from "@/lib/billing/actor";
@@ -547,6 +550,7 @@ interface PlannerRequestArgs {
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
   fastMode: boolean;
+  problemIRModelOverride?: string;
   deadlineMs: number;
   signal: AbortSignal;
   actor: SpendActor;
@@ -566,6 +570,7 @@ async function handlePlannerRequest({
   plannerPhase,
   plannerLane,
   fastMode,
+  problemIRModelOverride,
   deadlineMs,
   signal,
   actor,
@@ -578,6 +583,7 @@ async function handlePlannerRequest({
     plannerPhase,
     plannerLane,
     fastMode,
+    problemIRModelOverride,
   });
 
   let reservation: PaidUsageReservation | null = null;
@@ -673,7 +679,11 @@ async function handlePlannerRequest({
       flushInBackground();
       return Response.json({ error: PUBLIC_CHAT_ERROR }, {
         status: 502,
-        headers: { "content-type": "application/json", "x-heytutor-trace-id": traceId },
+        headers: {
+          "content-type": "application/json",
+          "x-heytutor-trace-id": traceId,
+          "x-heytutor-planner-model": transport.model,
+        },
       });
     }
 
@@ -883,6 +893,9 @@ export async function POST(request: Request): Promise<Response> {
           : request.headers.get("x-scene-planner-lane")
       ) === "alternate" ? "alternate" : "primary",
       fastMode,
+      problemIRModelOverride: problemIRV1 && shouldUseLectureLabStandardModel(request)
+        ? resolveFireworksModel({ fastMode: false })
+        : undefined,
       deadlineMs: Math.min(
         60_000,
         Math.max(

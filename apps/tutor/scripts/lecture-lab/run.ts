@@ -15,11 +15,15 @@ import { gradeLecture, type LectureGrade } from "./grade";
 import { printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
 import { applyLectureLabHeaders } from "./labAuth";
-import { LECTURE_LAB_ZERO_RETENTION_HEADER } from "../../lib/billing/flags";
+import {
+  LECTURE_LAB_STANDARD_MODEL_HEADER,
+  LECTURE_LAB_ZERO_RETENTION_HEADER,
+} from "../../lib/billing/flags";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
   combineDiagramEvalRows,
+  evaluationRunFastMode,
   estimateEvaluationCostUsd,
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
@@ -275,6 +279,7 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
   let outputTokens = 0;
   let totalTokens = 0;
   let estimatedCostUsd = 0;
+  const modelCounts: Record<string, number> = {};
   for (const run of runs) {
     const source = run.diagram.figureSource ?? "unrecorded";
     const tier = run.diagram.tier ?? "none";
@@ -291,6 +296,9 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
     outputTokens += run.planner?.outputTokens ?? 0;
     totalTokens += run.planner?.totalTokens ?? 0;
     estimatedCostUsd += run.planner?.estimatedCostUsd ?? 0;
+    for (const call of run.planner?.modelCalls ?? []) {
+      modelCounts[call.model] = (modelCounts[call.model] ?? 0) + 1;
+    }
   }
   return {
     rows: runs.length,
@@ -307,6 +315,7 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
       outputTokens,
       totalTokens,
       estimatedCostUsd: Math.round(estimatedCostUsd * 1_000_000) / 1_000_000,
+      modelCounts,
     },
   };
 }
@@ -362,7 +371,10 @@ async function main(): Promise<void> {
     if (url.startsWith(options.origin)) {
       headers.set("cookie", cookie);
       applyLectureLabHeaders(headers);
-      if (evaluationRows) headers.set(LECTURE_LAB_ZERO_RETENTION_HEADER, "1");
+      if (evaluationRows) {
+        headers.set(LECTURE_LAB_ZERO_RETENTION_HEADER, "1");
+        headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
+      }
     }
     const traceId = headers.get("x-heytutor-trace-id");
     const plannerRequest = url.startsWith(options.origin) && headers.get("x-planner") === "1" && traceId;
@@ -399,6 +411,7 @@ async function main(): Promise<void> {
         difficulty: probe.difficulty,
         arm: options.arm,
         figureOnly: options.figureOnly,
+        fastMode: evaluationRunFastMode(Boolean(evaluationRows)),
         traceId,
       });
       run.planner = usageTracker.finish(traceId);

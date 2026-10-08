@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import {
   assertEvaluationCostAllowed,
   combineDiagramEvalRows,
+  evaluationRunFastMode,
   estimateEvaluationCostUsd,
   parseDiagramEvalJsonl,
+  PlannerUsageTracker,
   sampleDiagramEvalRows,
 } from "../lecture-lab/diagramEval";
 import {
@@ -11,6 +13,19 @@ import {
   buildGalleryHtml,
   type GalleryEntry,
 } from "../lecture-lab/gallery";
+import {
+  buildJudgeSummary,
+  findMissingDiagramLabels,
+  needsHumanReview,
+  normalizeDiagramLabel,
+  ruleJudgmentForNoFigure,
+} from "../lecture-lab/judging";
+import {
+  LECTURE_LAB_HEADER,
+  LECTURE_LAB_STANDARD_MODEL_HEADER,
+  shouldUseLectureLabStandardModel,
+} from "../../lib/billing/flags";
+import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
 
 const rows = parseDiagramEvalJsonl([
   JSON.stringify({
@@ -53,6 +68,10 @@ assert.deepEqual(
   "seeded samples must be reproducible",
 );
 assert.ok(estimateEvaluationCostUsd(20, "planner_first") > estimateEvaluationCostUsd(20, "current"));
+assert.equal(estimateEvaluationCostUsd(20, "current"), 2.25, "preflight must use Kimi K3 rates");
+assert.equal(estimateEvaluationCostUsd(20, "planner_first"), 3.75, "planner-first preflight must use Kimi K3 rates");
+assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
+assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
 assert.throws(
   () => assertEvaluationCostAllowed(5.01, false),
@@ -105,6 +124,16 @@ const galleryEntry: GalleryEntry = {
   tier: "exact_verified",
   family: "vector_diagram",
   figureCommitMs: 1234,
+  judgment: {
+    id: "physics|1|vectors|q1",
+    verdict: "right",
+    missing: [],
+    wrong_items: [],
+    confidence: 0.9,
+    reason: "Correct force arrow and label.",
+    by: "codex",
+  },
+  needsHuman: true,
 };
 const gallery = buildGalleryHtml([galleryEntry], "round-a");
 for (const expected of [
@@ -116,6 +145,9 @@ for (const expected of [
   "empty_bad",
   "localStorage",
   "verdicts.csv",
+  "Needs human",
+  "Correct force arrow and label.",
+  'option value="right" selected',
 ]) {
   assert.ok(gallery.includes(expected), `gallery must include ${expected}`);
 }
@@ -132,4 +164,65 @@ assert.equal(
 );
 assert.ok(comparison.includes("no figure"), "comparison must render an empty arm explicitly");
 
-console.log("diagram evaluation input and cost guard verification passed");
+assert.equal(
+  normalizeDiagramLabel("3 Ω × 10^−2"),
+  normalizeDiagramLabel("3 ohm x 10^-2"),
+  "label checks must normalize spaces, ohms, multiplication, powers, and unicode minus",
+);
+assert.deepEqual(
+  findMissingDiagramLabels(["A", "a", "3 Ω"], ["A", "3 ohm"]),
+  ["a"],
+  "label matching must preserve meaningful case while normalizing notation",
+);
+assert.equal(ruleJudgmentForNoFigure("none").verdict, "empty_ok");
+assert.equal(ruleJudgmentForNoFigure("optional").verdict, "empty_ok");
+assert.equal(ruleJudgmentForNoFigure("required").verdict, "empty_bad");
+assert(needsHumanReview(galleryEntry.judgment!, ["3 N"]), "a right verdict with rule-detected missing labels needs a human");
+assert(!needsHumanReview({ ...galleryEntry.judgment!, verdict: "wrong" }, []), "a confident wrong verdict is not doubtful");
+assert(needsHumanReview({ ...galleryEntry.judgment!, confidence: 0.69 }, []), "low confidence needs a human");
+const judgeSummary = buildJudgeSummary([
+  ruleJudgmentForNoFigure("none", "empty"),
+  galleryEntry.judgment!,
+], new Map([[galleryEntry.id, ["3 N"]]]));
+assert.deepEqual(judgeSummary.counts, { empty_ok: 1, right: 1 });
+assert.equal(judgeSummary.ruleDecided, 1);
+assert.equal(judgeSummary.subagentJudged, 1);
+assert.equal(judgeSummary.needsHuman, 1);
+
+const modelEnv = {
+  LECTURE_LAB_TOKEN: "lab-secret",
+  FIREWORKS_MODEL: "accounts/fireworks/models/kimi-k3",
+} as unknown as NodeJS.ProcessEnv;
+const authenticatedStandard = new Request("http://localhost/api/chat", { headers: {
+  [LECTURE_LAB_HEADER]: "lab-secret",
+  [LECTURE_LAB_STANDARD_MODEL_HEADER]: "1",
+} });
+const unauthenticatedStandard = new Request("http://localhost/api/chat", { headers: {
+  [LECTURE_LAB_HEADER]: "wrong",
+  [LECTURE_LAB_STANDARD_MODEL_HEADER]: "1",
+} });
+assert(shouldUseLectureLabStandardModel(authenticatedStandard, modelEnv));
+assert(!shouldUseLectureLabStandardModel(unauthenticatedStandard, modelEnv), "a request without the valid lab token must not override ProblemIR");
+assert.deepEqual(resolvePlannerModels({
+  semanticSceneV2: false,
+  turnPlanV3: false,
+  problemIRV1: true,
+  plannerPhase: "plan",
+  problemIRModelOverride: shouldUseLectureLabStandardModel(authenticatedStandard, modelEnv)
+    ? modelEnv.FIREWORKS_MODEL
+    : undefined,
+  env: modelEnv,
+}), ["accounts/fireworks/models/kimi-k3"]);
+
+void (async () => {
+  const tracker = new PlannerUsageTracker();
+  tracker.recordRequest("trace-1");
+  await tracker.recordResponse("trace-1", Response.json({
+    usage: { prompt_tokens: 1_000_000, completion_tokens: 1_000_000, total_tokens: 2_000_000 },
+  }, { headers: { "x-heytutor-planner-model": "accounts/fireworks/models/kimi-k3" } }));
+  const usage = tracker.finish("trace-1");
+  assert.equal(usage.modelCalls[0]?.model, "accounts/fireworks/models/kimi-k3");
+  assert.equal(usage.modelCalls[0]?.estimatedCostUsd, 18, "each call must be priced at its actual model rate");
+  assert.equal(usage.estimatedCostUsd, 18);
+  console.log("diagram evaluation judging and Kimi K3 verification passed");
+})();
