@@ -33,6 +33,7 @@ import {
   type DiagramEvalRow,
 } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
+import { loadDiagramExemplarLibrary } from "./diagramExamples";
 
 interface Options {
   difficulty: string;
@@ -103,8 +104,8 @@ function parseOptions(argv: string[]): Options {
     return Number.isFinite(value) ? value : fallback;
   };
   const arm = flags.get("arm") ?? "current";
-  if (arm !== "current" && arm !== "planner_first") {
-    throw new Error(`--arm must be current or planner_first, received ${arm}`);
+  if (arm !== "current" && arm !== "planner_first" && arm !== "planner_examples") {
+    throw new Error(`--arm must be current, planner_first or planner_examples, received ${arm}`);
   }
   return {
     difficulty: flags.get("difficulty") ?? "hard",
@@ -280,6 +281,8 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
   let outputTokens = 0;
   let totalTokens = 0;
   let estimatedCostUsd = 0;
+  let scenePromptChars = 0;
+  let scenePromptCalls = 0;
   const modelCounts: Record<string, number> = {};
   const diagramFailures = summarizeDiagramFailures(runs.map((run) => run.diagram));
   for (const run of runs) {
@@ -298,6 +301,10 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
     outputTokens += run.planner?.outputTokens ?? 0;
     totalTokens += run.planner?.totalTokens ?? 0;
     estimatedCostUsd += run.planner?.estimatedCostUsd ?? 0;
+    for (const outcome of run.diagram.plannerCallOutcomes ?? []) {
+      scenePromptChars += outcome.promptChars;
+      scenePromptCalls += 1;
+    }
     for (const call of run.planner?.modelCalls ?? []) {
       modelCounts[call.model] = (modelCounts[call.model] ?? 0) + 1;
     }
@@ -318,6 +325,7 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
       outputTokens,
       totalTokens,
       estimatedCostUsd: Math.round(estimatedCostUsd * 1_000_000) / 1_000_000,
+      meanPromptChars: scenePromptCalls > 0 ? Math.round(scenePromptChars / scenePromptCalls) : null,
       modelCounts,
     },
   };
@@ -331,6 +339,12 @@ async function main(): Promise<void> {
     ? loadEvaluationRows(options.evalFiles.map((path) => resolve(path)), options)
     : null;
   const evaluationById = new Map(evaluationRows?.map((row) => [row.id, row]) ?? []);
+  const diagramExamples = evaluationRows && options.arm === "planner_examples"
+    ? loadDiagramExemplarLibrary(
+        resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl"),
+        evaluationRows.map((row) => row.question),
+      )
+    : [];
   const probes = evaluationRows
     ? evaluationRows.map((row): ProbeQuestion => ({
         id: row.id,
@@ -348,6 +362,9 @@ async function main(): Promise<void> {
     console.log(
       `diagram eval: ${probes.length} rows, arm ${options.arm}, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
     );
+    if (options.arm === "planner_examples") {
+      console.log(`diagram eval: ${diagramExamples.length} leak-filtered examples available`);
+    }
     assertEvaluationCostAllowed(preflightEstimateUsd, options.yes);
   }
 
@@ -416,6 +433,7 @@ async function main(): Promise<void> {
         figureOnly: options.figureOnly,
         fastMode: evaluationRunFastMode(Boolean(evaluationRows)),
         traceId,
+        diagramExamples,
       });
       run.planner = usageTracker.finish(traceId);
       const grade = gradeLecture(run);

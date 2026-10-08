@@ -22,6 +22,7 @@ export interface GalleryEntry {
   family: string;
   figureCommitMs: number | null;
   emptyCause: DiagramEmptyCause | null;
+  examplesUsed: Array<{ id: string; question: string; family: string | null; archetype: string | null }>;
   judgment?: DiagramJudgment;
   needsHuman?: boolean;
 }
@@ -61,6 +62,7 @@ function metadata(entry: GalleryEntry): string {
     <div><dt>family</dt><dd>${escapeHtml(entry.family)}</dd></div>
     <div><dt>figure time</dt><dd>${time}</dd></div>
     <div><dt>empty cause</dt><dd>${escapeHtml(entry.emptyCause ?? "—")}</dd></div>
+    <div><dt>examples</dt><dd>${escapeHtml(entry.examplesUsed.map((example) => example.id).join(", ") || "—")}</dd></div>
   </dl>`;
 }
 
@@ -274,6 +276,17 @@ export function readGalleryEntries(roundDir: string): GalleryEntry[] {
         emptyCause: typeof diagram.emptyCause === "string"
           ? diagram.emptyCause as DiagramEmptyCause
           : null,
+        examplesUsed: Array.isArray(diagram.examplesUsed)
+          ? diagram.examplesUsed.flatMap((example) => {
+              if (!isRecord(example) || typeof example.id !== "string" || typeof example.question !== "string") return [];
+              return [{
+                id: example.id,
+                question: example.question,
+                family: typeof example.family === "string" ? example.family : null,
+                archetype: typeof example.archetype === "string" ? example.archetype : null,
+              }];
+            })
+          : [],
         judgment,
         needsHuman: judgment ? needsHumanReview(judgment, missingLabels.get(id) ?? []) : false,
       }];

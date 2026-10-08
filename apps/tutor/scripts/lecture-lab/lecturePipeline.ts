@@ -82,10 +82,15 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import {
   classifyDiagramEmptyCause,
+  evaluationSelectionOrder,
   type DiagramEmptyCause,
   type DiagramEvalArm,
   type PlannerUsageSummary,
 } from "./diagramEval";
+import {
+  retrieveDiagramExemplars,
+  type DiagramExemplar,
+} from "./diagramExamples";
 
 export interface LectureStep {
   index: number;
@@ -182,6 +187,7 @@ export interface LectureRun {
     candidateCount?: number;
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
+    examplesUsed?: Array<Pick<DiagramExemplar, "id" | "question" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
     degradationReason: string | null;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
@@ -225,6 +231,8 @@ export interface RunLectureOptions {
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
   traceId?: string;
+  /** Leak-filtered library used only by the planner_examples evaluation arm. */
+  diagramExamples?: readonly DiagramExemplar[];
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
     diagram: VerifiedDiagram | null;
@@ -356,6 +364,7 @@ export async function runLecture(
       candidateErrorCodes: [],
       candidateCount: 0,
       plannerCallOutcomes: [],
+      examplesUsed: [],
       validationIssues: [],
       degradationReason: null,
       svg: null,
@@ -520,11 +529,13 @@ export async function runLecture(
       shouldAttemptLlmScene: boolean;
       families: readonly string[];
       archetypeId: string | null;
+      examplesUsed: DiagramExemplar[];
       request: {
         conversationContext: string;
         constructionOperators?: ReturnType<typeof inferSceneCapabilities>["constructionOperators"];
         proofPredicates?: ReturnType<typeof inferSceneCapabilities>["proofPredicates"];
         planningGuidance?: string[];
+        workedExamples?: DiagramExemplar[];
       };
     };
     // Mirrors deriveSceneGate in the live hook: chemistry lane, exact gate,
@@ -564,14 +575,23 @@ export async function runLecture(
               ".",
           ]
         : [];
+      const examplesUsed = options.arm === "planner_examples"
+        ? retrieveDiagramExemplars(options.diagramExamples ?? [], {
+            question,
+            families: sceneCapabilities.families,
+            archetypeId: archetype?.id ?? null,
+          })
+        : [];
       return {
         sceneCapabilities,
         shouldPlanExactScene,
         shouldAttemptLlmScene,
         families: sceneCapabilities.families,
         archetypeId: archetype?.id ?? null,
+        examplesUsed,
         request: {
           conversationContext: planContext,
+          ...(examplesUsed.length > 0 ? { workedExamples: examplesUsed } : {}),
           ...(sceneCapabilities.families.length > 0
             ? {
                 constructionOperators: sceneCapabilities.constructionOperators,
@@ -596,7 +616,7 @@ export async function runLecture(
       // Speculation follows NEXT_PUBLIC_SCENE_SPECULATION like the live hook
       // (SCENE_SPECULATION_ENABLED, default off).
       speculationAllowed: true,
-      selectionOrder: options.arm ?? "current",
+      selectionOrder: evaluationSelectionOrder(options.arm ?? "current"),
       plannerStartedAt,
       deadlineMs: SCENE_PLANNER_DEADLINE_MS,
       deriveGate: deriveSceneGate,
@@ -664,6 +684,12 @@ export async function runLecture(
     const fastRepresentation = planning.fast;
     const result = planning.scene;
     run.diagram.archetypeId = planning.gate.archetypeId;
+    run.diagram.examplesUsed = planning.gate.examplesUsed.map(({ id, question: exampleQuestion, family, archetype }) => ({
+      id,
+      question: exampleQuestion,
+      family,
+      archetype,
+    }));
     Object.assign(stages, {
       deterministicFigureMs: planning.timings.deterministicFigureMs,
       scenePlannerMs: planning.timings.scenePlannerMs,

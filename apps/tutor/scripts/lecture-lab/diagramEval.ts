@@ -1,7 +1,7 @@
 import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 
-export type DiagramEvalArm = "current" | "planner_first";
+export type DiagramEvalArm = "current" | "planner_first" | "planner_examples";
 export type DiagramEmptyCause =
   | "not_needed"
   | "not_attempted"
@@ -237,7 +237,7 @@ export function sampleDiagramEvalRows(
  * The run record stores measured provider usage once the calls finish.
  */
 export function estimateEvaluationCostUsd(rowCount: number, arm: DiagramEvalArm): number {
-  const calls = rowCount * (arm === "planner_first" ? 5 : 3);
+  const calls = rowCount * (arm === "current" ? 3 : 5);
   return calculateLlmCostDetails(
     { input: calls * 3_500, output: calls * 1_800 },
     { model: "accounts/fireworks/models/kimi-k3" },
@@ -247,6 +247,10 @@ export function estimateEvaluationCostUsd(rowCount: number, arm: DiagramEvalArm)
 /** Evaluation turns explicitly leave the production/default Fast behavior alone. */
 export function evaluationRunFastMode(isEvaluation: boolean): false | undefined {
   return isEvaluation ? false : undefined;
+}
+
+export function evaluationSelectionOrder(arm: DiagramEvalArm): "current" | "planner_first" {
+  return arm === "current" ? "current" : "planner_first";
 }
 
 export function assertEvaluationCostAllowed(estimatedUsd: number, confirmed: boolean): void {

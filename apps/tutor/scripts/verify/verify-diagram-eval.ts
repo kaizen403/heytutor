@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
-import type { TurnPlanV3 } from "@heytutor/scene-engine";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  compileSceneDocument,
+  validateSceneDocument,
+  type TurnPlanV3,
+} from "@heytutor/scene-engine";
 import {
   assertEvaluationCostAllowed,
   classifyDiagramEmptyCause,
   combineDiagramEvalRows,
   evaluationRunFastMode,
+  evaluationSelectionOrder,
   estimateEvaluationCostUsd,
   formatDiagramFailureCounts,
   parseDiagramEvalJsonl,
@@ -32,6 +39,13 @@ import {
 } from "../../lib/billing/flags";
 import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
 import { planSceneDocument } from "@heytutor/tutor-core";
+import { buildSceneDocumentPlannerPrompt } from "@heytutor/tutor-core";
+import {
+  filterDiagramExemplarsForEvaluation,
+  loadDiagramExemplarLibrary,
+  retrieveDiagramExemplars,
+  type DiagramExemplar,
+} from "../lecture-lab/diagramExamples";
 import {
   runScenePlanningOverlap,
   type SceneGateCore,
@@ -80,8 +94,12 @@ assert.deepEqual(
 assert.ok(estimateEvaluationCostUsd(20, "planner_first") > estimateEvaluationCostUsd(20, "current"));
 assert.equal(estimateEvaluationCostUsd(20, "current"), 2.25, "preflight must use Kimi K3 rates");
 assert.equal(estimateEvaluationCostUsd(20, "planner_first"), 3.75, "planner-first preflight must use Kimi K3 rates");
+assert.equal(estimateEvaluationCostUsd(20, "planner_examples"), 3.75, "example retrieval does not add model calls");
 assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
 assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");
+assert.equal(evaluationSelectionOrder("current"), "current");
+assert.equal(evaluationSelectionOrder("planner_first"), "planner_first");
+assert.equal(evaluationSelectionOrder("planner_examples"), "planner_first");
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
 assert.throws(
   () => assertEvaluationCostAllowed(5.01, false),
@@ -135,6 +153,7 @@ const galleryEntry: GalleryEntry = {
   family: "vector_diagram",
   figureCommitMs: 1234,
   emptyCause: "candidates_invalid",
+  examplesUsed: [{ id: "vector-right", question: "Draw a rightward force.", family: "vector_diagram", archetype: null }],
   judgment: {
     id: "physics|1|vectors|q1",
     verdict: "right",
@@ -160,6 +179,7 @@ for (const expected of [
   "Correct force arrow and label.",
   'option value="right" selected',
   "candidates_invalid",
+  "vector-right",
 ]) {
   assert.ok(gallery.includes(expected), `gallery must include ${expected}`);
 }
@@ -175,6 +195,71 @@ assert.equal(
   "comparison must key by row id instead of duplicating question cards",
 );
 assert.ok(comparison.includes("no figure"), "comparison must render an empty arm explicitly");
+
+const exemplarDocument = {
+  schemaVersion: "scene-document/v2",
+  visualDecision: { mode: "scene", reason: "force vector" },
+  source: { question: "Draw a rightward force.", synthesizedFamily: true },
+  quantities: [],
+  entities: [
+    { id: "o", kind: "point", role: "construction helper", provenance: { engineOwned: true } },
+    { id: "f", kind: "vector", label: "F" },
+  ],
+  constructions: [
+    { id: "point-o", operator: "point", inputs: { x: 12, y: 30, coordinateSpace: "world" }, outputs: ["o"] },
+    { id: "force", operator: "vector", inputs: { start: "o", direction: [1, 0], length: 1 }, outputs: ["f"] },
+  ],
+  relations: [],
+  assertions: [],
+  annotations: [],
+  requiredEntityIds: ["f"],
+  revealGroups: [],
+  teachingTimeline: [],
+};
+const exemplars: DiagramExemplar[] = [
+  { id: "vector-right", question: "Draw a rightward force of 3 N on the block.", family: "vector_diagram", archetype: null, document: exemplarDocument },
+  { id: "vector-left", question: "Draw a leftward velocity vector.", family: "vector_diagram", archetype: null, document: exemplarDocument },
+  { id: "circuit-series", question: "Draw two resistors connected in series.", family: "circuit_network", archetype: null, document: exemplarDocument },
+  { id: "graph-line", question: "Sketch a straight velocity time graph.", family: "state_plot", archetype: "linear_graph", document: exemplarDocument },
+];
+assert.deepEqual(
+  filterDiagramExemplarsForEvaluation(exemplars, ["Sketch the rightward force of 3 N acting on the block."]).map((entry) => entry.id),
+  ["vector-left", "circuit-series", "graph-line"],
+  "exact and near-duplicate evaluation questions must never enter retrieval",
+);
+const retrieved = retrieveDiagramExemplars(exemplars, {
+  question: "Show the force and velocity vectors on an object.",
+  families: ["vector_diagram"],
+  archetypeId: null,
+});
+assert.deepEqual(retrieved.map((entry) => entry.id), ["vector-left", "vector-right", "graph-line"]);
+assert.equal(retrieved.length, 3);
+const examplePrompt = buildSceneDocumentPlannerPrompt("Show a force vector.", { workedExamples: retrieved });
+assert.ok(examplePrompt.includes("WORKED SCENE EXAMPLES"));
+assert.ok(examplePrompt.includes("Draw a leftward velocity vector."));
+assert.ok(!examplePrompt.includes('"x":12') && !examplePrompt.includes('"y":30'));
+assert.ok(!examplePrompt.includes("provenance") && !examplePrompt.includes("synthesizedFamily"));
+
+const repoRoot = resolve(process.cwd(), "../..");
+const exemplarRoot = resolve(repoRoot, "data/diagram-eval/v1/exemplars");
+const builtLibrary = loadDiagramExemplarLibrary(resolve(exemplarRoot, "_library.jsonl"), []);
+const curatedQuestions = readdirSync(resolve(exemplarRoot, "chemistry"))
+  .filter((file) => file.endsWith(".json"))
+  .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "chemistry", file), "utf8")) as { question: string })
+  .map((entry) => entry.question);
+assert.equal(curatedQuestions.length, 26);
+for (const question of curatedQuestions) {
+  assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
+}
+for (const exemplar of builtLibrary) {
+  const validated = validateSceneDocument(exemplar.document);
+  assert.ok(validated.document, `library exemplar ${exemplar.id} must validate`);
+  const compiled = compileSceneDocument(validated.document!);
+  assert.ok(compiled.ok && compiled.renderScene, `library exemplar ${exemplar.id} must compile`);
+  assert.ok(compiled.renderScene!.primitives.some((primitive) =>
+    (primitive.kind === "label" || primitive.kind === "dimension") && Boolean(primitive.text?.trim())),
+  `library exemplar ${exemplar.id} must carry readable labels`);
+}
 
 const emptyInput = {
   committed: false,

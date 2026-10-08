@@ -1,0 +1,1169 @@
+{
+  "topic_id": "chemistry|advanced-extra|solid-state|neighbours-radius",
+  "question": "A metal crystallises in a body centred cubic (bcc) structure. What is the relation between the edge length a and the atomic radius r?",
+  "figure_kind": "solid_3d",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "unit cell of the named lattice"
+    },
+    "source": {
+      "question": "A metal crystallises in a body centred cubic (bcc) structure. What is the relation between the edge length a and the atomic radius r?",
+      "synthesizedFamily": true,
+      "archetype": "chem_unit_cell",
+      "chemistryFamily": "chem_unit_cell"
+    },
+    "quantities": [
+      {
+        "id": "cell1_Z",
+        "symbol": "Z",
+        "value": 2,
+        "unit": ""
+      }
+    ],
+    "entities": [
+      {
+        "id": "cell1_edge1",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge2",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge3",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge4",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge5",
+        "kind": "segment",
+        "role": "hidden unit cell edge",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "cell1_edge6",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge7",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge8",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge9",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge10",
+        "kind": "segment",
+        "role": "unit cell edge"
+      },
+      {
+        "id": "cell1_edge11",
+        "kind": "segment",
+        "role": "hidden unit cell edge",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "cell1_edge12",
+        "kind": "segment",
+        "role": "hidden unit cell edge",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "cell1_atom1",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom2",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom3",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom4",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom5",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom6",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom7",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom8",
+        "kind": "circle",
+        "role": "lattice atom",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_atom9",
+        "kind": "circle",
+        "role": "lattice atom (body centre)",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cell1_dim",
+        "kind": "dimension",
+        "role": "edge length dimension",
+        "label": "a"
+      },
+      {
+        "id": "cell1_diag",
+        "kind": "segment",
+        "role": "body diagonal",
+        "label": "√3a = 4r",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "cell1_edge1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge3_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge3_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge4_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge4_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge5_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge5_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge6_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge6_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge7_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge7_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge8_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge8_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge9_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge9_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge10_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge10_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge11_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge11_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge12_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_edge12_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom1_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom2_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom3_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom4_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom5_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom6_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom7_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom8_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_atom9_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_dim_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_dim_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_diag_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_diag_b",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_cell1_edge1_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge1_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge1_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge1_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge1",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge1_a",
+          "end": "cell1_edge1_b"
+        },
+        "outputs": [
+          "cell1_edge1"
+        ]
+      },
+      {
+        "id": "make_cell1_edge2_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge2_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge2_b",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge2_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge2",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge2_a",
+          "end": "cell1_edge2_b"
+        },
+        "outputs": [
+          "cell1_edge2"
+        ]
+      },
+      {
+        "id": "make_cell1_edge3_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge3_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge3_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge3_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge3",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge3_a",
+          "end": "cell1_edge3_b"
+        },
+        "outputs": [
+          "cell1_edge3"
+        ]
+      },
+      {
+        "id": "make_cell1_edge4_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge4_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge4_b",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge4_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge4",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge4_a",
+          "end": "cell1_edge4_b"
+        },
+        "outputs": [
+          "cell1_edge4"
+        ]
+      },
+      {
+        "id": "make_cell1_edge5_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge5_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge5_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge5_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge5",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge5_a",
+          "end": "cell1_edge5_b"
+        },
+        "outputs": [
+          "cell1_edge5"
+        ]
+      },
+      {
+        "id": "make_cell1_edge6_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge6_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge6_b",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge6_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge6",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge6_a",
+          "end": "cell1_edge6_b"
+        },
+        "outputs": [
+          "cell1_edge6"
+        ]
+      },
+      {
+        "id": "make_cell1_edge7_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge7_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge7_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge7_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge7",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge7_a",
+          "end": "cell1_edge7_b"
+        },
+        "outputs": [
+          "cell1_edge7"
+        ]
+      },
+      {
+        "id": "make_cell1_edge8_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge8_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge8_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge8_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge8",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge8_a",
+          "end": "cell1_edge8_b"
+        },
+        "outputs": [
+          "cell1_edge8"
+        ]
+      },
+      {
+        "id": "make_cell1_edge9_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge9_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge9_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge9_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge9",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge9_a",
+          "end": "cell1_edge9_b"
+        },
+        "outputs": [
+          "cell1_edge9"
+        ]
+      },
+      {
+        "id": "make_cell1_edge10_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge10_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge10_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge10_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge10",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge10_a",
+          "end": "cell1_edge10_b"
+        },
+        "outputs": [
+          "cell1_edge10"
+        ]
+      },
+      {
+        "id": "make_cell1_edge11_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge11_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge11_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge11_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge11",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge11_a",
+          "end": "cell1_edge11_b"
+        },
+        "outputs": [
+          "cell1_edge11"
+        ]
+      },
+      {
+        "id": "make_cell1_edge12_a",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge12_a"
+        ]
+      },
+      {
+        "id": "make_cell1_edge12_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_edge12_b"
+        ]
+      },
+      {
+        "id": "make_cell1_edge12",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_edge12_a",
+          "end": "cell1_edge12_b"
+        },
+        "outputs": [
+          "cell1_edge12"
+        ]
+      },
+      {
+        "id": "make_cell1_atom1_c",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom1_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom1",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom1_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom1"
+        ]
+      },
+      {
+        "id": "make_cell1_atom2_c",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom2_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom2",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom2_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom2"
+        ]
+      },
+      {
+        "id": "make_cell1_atom3_c",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom3_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom3",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom3_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom3"
+        ]
+      },
+      {
+        "id": "make_cell1_atom4_c",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom4_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom4",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom4_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom4"
+        ]
+      },
+      {
+        "id": "make_cell1_atom5_c",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom5_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom5",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom5_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom5"
+        ]
+      },
+      {
+        "id": "make_cell1_atom6_c",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom6_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom6",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom6_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom6"
+        ]
+      },
+      {
+        "id": "make_cell1_atom7_c",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom7_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom7",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom7_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom7"
+        ]
+      },
+      {
+        "id": "make_cell1_atom8_c",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom8_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom8",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom8_c",
+          "radius": 0.12
+        },
+        "outputs": [
+          "cell1_atom8"
+        ]
+      },
+      {
+        "id": "make_cell1_atom9_c",
+        "operator": "point",
+        "inputs": {
+          "x": 1.6,
+          "y": 1.3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_atom9_c"
+        ]
+      },
+      {
+        "id": "make_cell1_atom9",
+        "operator": "circle",
+        "inputs": {
+          "center": "cell1_atom9_c",
+          "radius": 0.15
+        },
+        "outputs": [
+          "cell1_atom9"
+        ]
+      },
+      {
+        "id": "make_cell1_dim_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_dim_a"
+        ]
+      },
+      {
+        "id": "make_cell1_dim_b",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_dim_b"
+        ]
+      },
+      {
+        "id": "make_cell1_dim",
+        "operator": "dimension",
+        "inputs": {
+          "start": "cell1_dim_a",
+          "end": "cell1_dim_b"
+        },
+        "outputs": [
+          "cell1_dim"
+        ]
+      },
+      {
+        "id": "make_cell1_diag_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_diag_a"
+        ]
+      },
+      {
+        "id": "make_cell1_diag_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_diag_b"
+        ]
+      },
+      {
+        "id": "make_cell1_diag",
+        "operator": "segment",
+        "inputs": {
+          "start": "cell1_diag_a",
+          "end": "cell1_diag_b"
+        },
+        "outputs": [
+          "cell1_diag"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_cell1_dim",
+        "predicate": "label_attached",
+        "entities": [
+          "cell1_dim"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_cell1_diag",
+        "predicate": "label_attached",
+        "entities": [
+          "cell1_diag"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "bcc: Z = 2, CN = 8, packing 68%, √3a = 4r"
+      }
+    ],
+    "requiredEntityIds": [
+      "cell1_edge1",
+      "cell1_edge2",
+      "cell1_edge3",
+      "cell1_edge4",
+      "cell1_edge5",
+      "cell1_edge6",
+      "cell1_edge7",
+      "cell1_edge8",
+      "cell1_edge9",
+      "cell1_edge10",
+      "cell1_edge11",
+      "cell1_edge12",
+      "cell1_atom1",
+      "cell1_atom2",
+      "cell1_atom3",
+      "cell1_atom4",
+      "cell1_atom5",
+      "cell1_atom6",
+      "cell1_atom7",
+      "cell1_atom8",
+      "cell1_atom9",
+      "cell1_dim",
+      "cell1_diag"
+    ],
+    "revealGroups": [
+      {
+        "id": "cell1",
+        "entityIds": [
+          "cell1_edge1",
+          "cell1_edge2",
+          "cell1_edge3",
+          "cell1_edge4",
+          "cell1_edge5",
+          "cell1_edge6",
+          "cell1_edge7",
+          "cell1_edge8",
+          "cell1_edge9",
+          "cell1_edge10",
+          "cell1_edge11",
+          "cell1_edge12",
+          "cell1_atom1",
+          "cell1_atom2",
+          "cell1_atom3",
+          "cell1_atom4",
+          "cell1_atom5",
+          "cell1_atom6",
+          "cell1_atom7",
+          "cell1_atom8",
+          "cell1_atom9",
+          "cell1_dim",
+          "cell1_diag"
+        ],
+        "dependsOn": [],
+        "narrationCue": "cell1 unit cell"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_cell1",
+        "action": "reveal",
+        "targetId": "cell1",
+        "dependsOn": [],
+        "narrationIntent": "cell1 unit cell"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}
