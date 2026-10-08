@@ -42,6 +42,12 @@ pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --out .lecture-lab/
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm current --figure-only --out .lecture-lab/eval-current
 # planner-first is an evaluation-only ordering; the student default is unchanged
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_first --figure-only --out .lecture-lab/eval-planner-first --yes
+# planner-with-examples uses the same ordering plus three deterministic retrieved examples
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --out .lecture-lab/eval-planner-examples --yes
+# rebuild the validated example library after exemplar branches are merged
+pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
+# correct stored empty-cause labels without issuing model requests
+pnpm exec tsx scripts/lecture-lab/regrade-empty-causes.ts .lecture-lab/eval-current .lecture-lab/eval-planner-first
 # re-score a finished round after a rubric change, no LLM calls
 pnpm exec tsx scripts/lecture-lab/regrade.ts .lecture-lab/round-01
 # did the last change help? regrade both rounds first, or the diff measures the rubric
@@ -61,6 +67,13 @@ lecture-lab-only override for ProblemIR. They therefore use `FIREWORKS_MODEL`
 existing model selection. Preflight and measured usage price Kimi K3 at US$3
 input / US$15 output per million tokens. Each run record stores the actual model
 and measured cost of every completed planner call.
+
+The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`,
+drops exact and near-duplicate evaluation questions, then ranks the remaining
+entries by deterministic token overlap plus family/archetype hints. Only three
+examples are sent, with literal point coordinates and engine-only metadata
+removed from the prompt. Each run and gallery card records the selected example
+IDs; the summary records mean scene-planner prompt characters.
 
 ## Judging a round
 
