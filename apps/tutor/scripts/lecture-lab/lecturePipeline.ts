@@ -83,6 +83,7 @@ import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import {
   classifyDiagramEmptyCause,
   evaluationSelectionOrder,
+  supplementCandidateErrorCodes,
   type DiagramEmptyCause,
   type DiagramEvalArm,
   type PlannerUsageSummary,
@@ -862,6 +863,13 @@ export async function runLecture(
     } else {
       run.diagram.figureSource = "text_only";
     }
+    run.diagram.candidateErrorCodes = supplementCandidateErrorCodes({
+      committed: run.diagram.committed,
+      visualRequirement: turnPlan.visualRequirement,
+      primitiveCount: run.diagram.primitiveCount,
+      candidateCount: run.diagram.candidateCount ?? 0,
+      candidateErrorCodes: run.diagram.candidateErrorCodes,
+    });
     run.diagram.emptyCause = classifyDiagramEmptyCause({
       committed: run.diagram.committed,
       visualRequirement: turnPlan.visualRequirement,

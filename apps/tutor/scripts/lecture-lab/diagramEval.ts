@@ -72,10 +72,28 @@ export function classifyDiagramEmptyCause(input: {
   }
   if (input.candidateErrorCodes.length > 0) return "candidates_invalid";
   if (input.declinedUnreadable && input.primitiveCount > 0) return "declined_unreadable";
-  // A planner candidate existed but did not become a verified compiled figure.
-  // Validation normally supplies the specific error code; keep the cause honest
-  // even if an older record did not retain that diagnostic.
-  return "candidates_invalid";
+  return "planner_no_output";
+}
+
+/** Adds the deterministic refusal code missing from otherwise-valid text_only candidates. */
+export function supplementCandidateErrorCodes(input: {
+  committed: boolean;
+  visualRequirement: "required" | "optional" | "none";
+  primitiveCount: number;
+  candidateCount: number;
+  candidateErrorCodes: readonly string[];
+}): string[] {
+  const codes = [...new Set(input.candidateErrorCodes)];
+  if (
+    !input.committed &&
+    input.visualRequirement !== "none" &&
+    input.primitiveCount === 0 &&
+    input.candidateCount > 0 &&
+    codes.length === 0
+  ) {
+    codes.push("planner_declined_required_scene");
+  }
+  return codes;
 }
 
 function descendingCounts(values: readonly string[]): Record<string, number> {

@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { SCENE_PLANNER_DEADLINE_MS } from "@/features/tutor-session/lib/scene/diagramGeneration";
 import {
   classifyDiagramEmptyCause,
+  supplementCandidateErrorCodes,
   summarizeDiagramFailures,
   type DiagramEmptyCause,
 } from "./diagramEval";
@@ -41,6 +42,17 @@ export function correctedEmptyCauseForStoredRun(value: unknown): DiagramEmptyCau
     ? stages.deadlineRemainingMs
     : Math.max(0, SCENE_PLANNER_DEADLINE_MS - number(timings.planMs));
 
+  const candidateCount = typeof diagram.candidateCount === "number"
+    ? diagram.candidateCount
+    : candidateErrorCodes.length > 0 ? 1 : 0;
+  const supplementedCodes = supplementCandidateErrorCodes({
+    committed: diagram.committed === true,
+    visualRequirement,
+    primitiveCount: number(diagram.primitiveCount),
+    candidateCount,
+    candidateErrorCodes,
+  });
+  diagram.candidateErrorCodes = supplementedCodes;
   return classifyDiagramEmptyCause({
     committed: diagram.committed === true,
     visualRequirement,
@@ -48,10 +60,8 @@ export function correctedEmptyCauseForStoredRun(value: unknown): DiagramEmptyCau
     primitiveCount: number(diagram.primitiveCount),
     plannerCalls: number(stages.plannerCalls),
     deadlineRemainingMs,
-    candidateCount: typeof diagram.candidateCount === "number"
-      ? diagram.candidateCount
-      : candidateErrorCodes.length > 0 ? 1 : 0,
-    candidateErrorCodes,
+    candidateCount,
+    candidateErrorCodes: supplementedCodes,
   });
 }
 

@@ -17,6 +17,7 @@ import {
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
   sampleDiagramEvalRows,
+  supplementCandidateErrorCodes,
   summarizeDiagramFailures,
 } from "../lecture-lab/diagramEval";
 import {
@@ -282,6 +283,18 @@ assert.equal(
   classifyDiagramEmptyCause({ ...emptyInput, plannerCalls: 2 }),
   "planner_no_output",
 );
+assert.equal(
+  classifyDiagramEmptyCause({ ...emptyInput, plannerCalls: 2, candidateCount: 1 }),
+  "planner_no_output",
+  "a candidate without a retained failure code must not be called invalid",
+);
+assert.deepEqual(supplementCandidateErrorCodes({
+  committed: false,
+  visualRequirement: "required",
+  primitiveCount: 0,
+  candidateCount: 1,
+  candidateErrorCodes: [],
+}), ["planner_declined_required_scene"]);
 assert.equal(
   classifyDiagramEmptyCause({
     ...emptyInput,
