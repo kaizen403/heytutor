@@ -8,7 +8,11 @@ import {
   validateSceneDocument,
   type SceneDocument,
 } from "@heytutor/scene-engine";
-import type { DiagramExemplar } from "./diagramExamples";
+import {
+  buildDiagramExemplarDepicts,
+  figureKindForDiagramGroup,
+  type DiagramExemplar,
+} from "./diagramExamples";
 
 interface Stem {
   id: string;
@@ -44,22 +48,29 @@ function curatedExemplars(root: string): DiagramExemplar[] {
     .map((path) => {
       const value = JSON.parse(readFileSync(path, "utf8")) as {
         question?: unknown;
+        figure_kind?: unknown;
         sceneDocument?: unknown;
       };
       const id = `curated:${relative(root, path).replace(/\.json$/, "").replaceAll("\\", "/")}`;
       if (typeof value.question !== "string") throw new Error(`${id}: missing question`);
+      if (typeof value.figure_kind !== "string") throw new Error(`${id}: missing figure_kind`);
       const document = readableValidatedDocument(value.sceneDocument);
       if (!document) throw new Error(`${id}: curated exemplar must validate, compile, and carry readable labels`);
       const source = typeof document.source === "object" && document.source !== null
         ? document.source as Record<string, unknown>
         : {};
+      const family = typeof source.chemistryFamily === "string"
+        ? source.chemistryFamily
+        : typeof source.family === "string" ? source.family : null;
+      const archetype = typeof source.archetype === "string" ? source.archetype : null;
       return {
         id,
+        sourceKind: "curated" as const,
         question: value.question,
-        family: typeof source.chemistryFamily === "string"
-          ? source.chemistryFamily
-          : typeof source.family === "string" ? source.family : null,
-        archetype: typeof source.archetype === "string" ? source.archetype : null,
+        depicts: buildDiagramExemplarDepicts(document as unknown as Record<string, unknown>, family, archetype),
+        figureKind: value.figure_kind,
+        family,
+        archetype,
         document: document as unknown as Record<string, unknown>,
       };
     });
@@ -98,14 +109,29 @@ function stableSynthesizedId(group: string, question: string): string {
   return `synthesized:${group.replace(/[^a-z0-9_-]+/gi, "-")}:${digest}`;
 }
 
+function exemplarGroup(exemplar: DiagramExemplar): string {
+  if (exemplar.archetype) return `archetype:${exemplar.archetype}`;
+  if (exemplar.family) return `family:${exemplar.family}`;
+  const constructions = Array.isArray(exemplar.document.constructions)
+    ? exemplar.document.constructions as Array<Record<string, unknown>>
+    : [];
+  const operator = constructions.find((construction) =>
+    typeof construction.operator === "string" && construction.operator !== "point")?.operator;
+  return `document:${typeof operator === "string" ? operator : exemplar.figureKind ?? "unknown"}`;
+}
+
 export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[] {
   const exemplarsRoot = resolve(repoRoot, "data/diagram-eval/v1/exemplars");
   const exemplars = curatedExemplars(exemplarsRoot);
-  const seenQuestions = new Set(exemplars.map((entry) => entry.question.toLowerCase().replace(/\s+/g, " ").trim()));
+  const seenQuestions = new Set(exemplars.flatMap((entry) => entry.question
+    ? [entry.question.toLowerCase().replace(/\s+/g, " ").trim()]
+    : []));
   const groupCounts = new Map<string, number>();
   for (const exemplar of exemplars) {
-    const group = exemplar.archetype ? `archetype:${exemplar.archetype}` : `family:${exemplar.family ?? "unknown"}`;
-    groupCounts.set(group, (groupCounts.get(group) ?? 0) + 1);
+    const group = exemplarGroup(exemplar);
+    const count = (groupCounts.get(group) ?? 0) + 1;
+    if (count > 2) throw new Error(`${group}: curated exemplar cap exceeds 2`);
+    groupCounts.set(group, count);
   }
 
   const stems = [
@@ -122,10 +148,16 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
     const archetype = detectArchetype(stem.question)?.id ?? null;
     const group = archetype ? `archetype:${archetype}` : `family:${synthesized.family}`;
     if ((groupCounts.get(group) ?? 0) >= 2) continue;
+    const family = synthesized.family;
+    const figureKind = figureKindForDiagramGroup(family, archetype);
+    if (!figureKind) throw new Error(`${group}: missing figure_kind mapping`);
     exemplars.push({
       id: stableSynthesizedId(group, stem.question),
-      question: stem.question,
-      family: synthesized.family,
+      sourceKind: "synthesized",
+      question: null,
+      depicts: buildDiagramExemplarDepicts(document as unknown as Record<string, unknown>, family, archetype),
+      figureKind,
+      family,
       archetype,
       document: document as unknown as Record<string, unknown>,
     });
@@ -142,6 +174,6 @@ if (process.argv[1]?.endsWith("build-diagram-exemplar-library.ts")) {
   writeFileSync(output, `${exemplars.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
   const groups = new Set(exemplars.map((entry) => entry.archetype
     ? `archetype:${entry.archetype}`
-    : `family:${entry.family ?? "unknown"}`));
+    : entry.family ? `family:${entry.family}` : `figure:${entry.figureKind ?? "unknown"}`));
   console.log(JSON.stringify({ output, exemplars: exemplars.length, groups: groups.size }, null, 2));
 }

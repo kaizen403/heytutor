@@ -28,7 +28,9 @@ export interface ScenePlannerPromptContext {
 
 export interface ScenePlannerWorkedExample {
   id: string;
-  question: string;
+  sourceKind: "curated" | "synthesized";
+  question: string | null;
+  depicts: string;
   document: Record<string, unknown>;
 }
 
@@ -104,7 +106,9 @@ export function buildSceneDocumentPlannerPrompt(
     : "";
   const workedExamples = context.workedExamples?.length
     ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
-      `EXAMPLE ${index + 1} (${example.id})\nQUESTION\n${example.question}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
+      `EXAMPLE ${index + 1} (${example.id})\n${example.sourceKind === "curated" && example.question
+        ? `QUESTION\n${example.question}`
+        : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
     ).join("\n")}\n`
     : "";
 

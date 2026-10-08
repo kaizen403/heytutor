@@ -42,6 +42,7 @@ import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
 import { planSceneDocument } from "@heytutor/tutor-core";
 import { buildSceneDocumentPlannerPrompt } from "@heytutor/tutor-core";
 import {
+  buildDiagramExemplarDepicts,
   filterDiagramExemplarsForEvaluation,
   loadDiagramExemplarLibrary,
   retrieveDiagramExemplars,
@@ -154,7 +155,15 @@ const galleryEntry: GalleryEntry = {
   family: "vector_diagram",
   figureCommitMs: 1234,
   emptyCause: "candidates_invalid",
-  examplesUsed: [{ id: "vector-right", question: "Draw a rightward force.", family: "vector_diagram", archetype: null }],
+  examplesUsed: [{
+    id: "vector-right",
+    sourceKind: "curated",
+    question: "Draw a rightward force.",
+    depicts: "force vector labelled F",
+    figureKind: "vectors_fbd",
+    family: "vector_diagram",
+    archetype: null,
+  }],
   judgment: {
     id: "physics|1|vectors|q1",
     verdict: "right",
@@ -218,10 +227,10 @@ const exemplarDocument = {
   teachingTimeline: [],
 };
 const exemplars: DiagramExemplar[] = [
-  { id: "vector-right", question: "Draw a rightward force of 3 N on the block.", family: "vector_diagram", archetype: null, document: exemplarDocument },
-  { id: "vector-left", question: "Draw a leftward velocity vector.", family: "vector_diagram", archetype: null, document: exemplarDocument },
-  { id: "circuit-series", question: "Draw two resistors connected in series.", family: "circuit_network", archetype: null, document: exemplarDocument },
-  { id: "graph-line", question: "Sketch a straight velocity time graph.", family: "state_plot", archetype: "linear_graph", document: exemplarDocument },
+  { id: "vector-right", sourceKind: "curated", question: "Draw a rightward force of 3 N on the block.", depicts: "force vector labelled F", figureKind: "vectors_fbd", family: "vector_diagram", archetype: null, document: exemplarDocument },
+  { id: "vector-left", sourceKind: "synthesized", question: null, depicts: "velocity vector labelled v", figureKind: "vectors_fbd", family: "vector_diagram", archetype: null, document: exemplarDocument },
+  { id: "circuit-series", sourceKind: "curated", question: "Draw two resistors connected in series.", depicts: "battery with two resistors in series", figureKind: "circuit", family: "circuit_network", archetype: null, document: exemplarDocument },
+  { id: "graph-line", sourceKind: "curated", question: "Sketch a straight velocity time graph.", depicts: "straight velocity time graph", figureKind: "function_plot", family: "state_plot", archetype: "linear_graph", document: exemplarDocument },
 ];
 assert.deepEqual(
   filterDiagramExemplarsForEvaluation(exemplars, ["Sketch the rightward force of 3 N acting on the block."]).map((entry) => entry.id),
@@ -235,11 +244,43 @@ const retrieved = retrieveDiagramExemplars(exemplars, {
 });
 assert.deepEqual(retrieved.map((entry) => entry.id), ["vector-left", "vector-right", "graph-line"]);
 assert.equal(retrieved.length, 3);
+const planRetrieved = retrieveDiagramExemplars(exemplars, {
+  question: "Show the velocity.",
+  families: [],
+  archetypeId: null,
+  limit: 1,
+  plan: {
+    schemaVersion: "turn-plan/v3",
+    question: "Show the velocity.",
+    givens: [
+      { id: "r1", symbol: "R1", value: 4.7, unit: "kΩ", provenance: "given" },
+      { id: "supply", symbol: "V", value: 9, unit: "V", provenance: "given" },
+    ],
+    unknowns: [{ id: "midpoint", symbol: "V_mid", unit: "V" }],
+    derived: [],
+    qualitativeClaims: [{
+      id: "series",
+      claim: "two resistors form one series path",
+      expected: true,
+      relatedEntityHints: ["battery", "resistor", "midpoint node"],
+    }],
+    lawIds: ["voltage_divider", "series_resistance"],
+    assumptions: [],
+    visualRequirement: "required",
+  },
+});
+assert.equal(planRetrieved[0]?.id, "circuit-series", "turn-plan evidence must steer retrieval");
 const examplePrompt = buildSceneDocumentPlannerPrompt("Show a force vector.", { workedExamples: retrieved });
 assert.ok(examplePrompt.includes("WORKED SCENE EXAMPLES"));
-assert.ok(examplePrompt.includes("Draw a leftward velocity vector."));
+assert.ok(examplePrompt.includes("Figure: velocity vector labelled v"));
+assert.ok(!examplePrompt.includes("QUESTION\nnull"));
 assert.ok(!examplePrompt.includes('"x":12') && !examplePrompt.includes('"y":30'));
 assert.ok(!examplePrompt.includes("provenance") && !examplePrompt.includes("synthesizedFamily"));
+assert.match(
+  buildDiagramExemplarDepicts(exemplarDocument, "vector_diagram", null),
+  /vector diagram.*vector.*F/i,
+  "synthesized descriptions must come from family, entity kinds, and readable labels",
+);
 
 const repoRoot = resolve(process.cwd(), "../..");
 const exemplarRoot = resolve(repoRoot, "data/diagram-eval/v1/exemplars");
@@ -252,7 +293,21 @@ assert.equal(curatedQuestions.length, 26);
 for (const question of curatedQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
 }
+const curatedMathsQuestions = readdirSync(resolve(exemplarRoot, "maths"))
+  .filter((file) => file.endsWith(".json"))
+  .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "maths", file), "utf8")) as { question: string })
+  .map((entry) => entry.question);
+assert.equal(curatedMathsQuestions.length, 10);
+for (const question of curatedMathsQuestions) {
+  assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
+}
+assert.ok(
+  builtLibrary.filter((entry) => entry.sourceKind === "synthesized").every((entry) => entry.question === null),
+  "synthesized source questions must not survive in the runtime library",
+);
 for (const exemplar of builtLibrary) {
+  assert.ok(exemplar.depicts.trim(), `library exemplar ${exemplar.id} must describe what it draws`);
+  assert.ok(exemplar.figureKind, `library exemplar ${exemplar.id} must map to one figure_kind`);
   const validated = validateSceneDocument(exemplar.document);
   assert.ok(validated.document, `library exemplar ${exemplar.id} must validate`);
   const compiled = compileSceneDocument(validated.document!);

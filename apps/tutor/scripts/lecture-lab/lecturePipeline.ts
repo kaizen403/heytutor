@@ -188,7 +188,8 @@ export interface LectureRun {
     candidateCount?: number;
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
-    examplesUsed?: Array<Pick<DiagramExemplar, "id" | "question" | "family" | "archetype">>;
+    examplesUsed?: Array<Pick<DiagramExemplar,
+      "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
     degradationReason: string | null;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
@@ -581,6 +582,7 @@ export async function runLecture(
             question,
             families: sceneCapabilities.families,
             archetypeId: archetype?.id ?? null,
+            plan: planningTurnPlan,
           })
         : [];
       return {
@@ -685,9 +687,20 @@ export async function runLecture(
     const fastRepresentation = planning.fast;
     const result = planning.scene;
     run.diagram.archetypeId = planning.gate.archetypeId;
-    run.diagram.examplesUsed = planning.gate.examplesUsed.map(({ id, question: exampleQuestion, family, archetype }) => ({
+    run.diagram.examplesUsed = planning.gate.examplesUsed.map(({
       id,
+      sourceKind,
       question: exampleQuestion,
+      depicts,
+      figureKind,
+      family,
+      archetype,
+    }) => ({
+      id,
+      sourceKind,
+      question: exampleQuestion,
+      depicts,
+      figureKind,
       family,
       archetype,
     }));

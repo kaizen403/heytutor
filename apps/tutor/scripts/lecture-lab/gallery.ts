@@ -22,7 +22,15 @@ export interface GalleryEntry {
   family: string;
   figureCommitMs: number | null;
   emptyCause: DiagramEmptyCause | null;
-  examplesUsed: Array<{ id: string; question: string; family: string | null; archetype: string | null }>;
+  examplesUsed: Array<{
+    id: string;
+    sourceKind: "curated" | "synthesized";
+    question: string | null;
+    depicts: string;
+    figureKind: string | null;
+    family: string | null;
+    archetype: string | null;
+  }>;
   judgment?: DiagramJudgment;
   needsHuman?: boolean;
 }
@@ -278,10 +286,13 @@ export function readGalleryEntries(roundDir: string): GalleryEntry[] {
           : null,
         examplesUsed: Array.isArray(diagram.examplesUsed)
           ? diagram.examplesUsed.flatMap((example) => {
-              if (!isRecord(example) || typeof example.id !== "string" || typeof example.question !== "string") return [];
+              if (!isRecord(example) || typeof example.id !== "string") return [];
               return [{
                 id: example.id,
-                question: example.question,
+                sourceKind: example.sourceKind === "curated" ? "curated" as const : "synthesized" as const,
+                question: typeof example.question === "string" ? example.question : null,
+                depicts: typeof example.depicts === "string" ? example.depicts : "",
+                figureKind: typeof example.figureKind === "string" ? example.figureKind : null,
                 family: typeof example.family === "string" ? example.family : null,
                 archetype: typeof example.archetype === "string" ? example.archetype : null,
               }];

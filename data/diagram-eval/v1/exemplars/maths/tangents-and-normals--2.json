@@ -1,0 +1,131 @@
+{
+  "topic_id": "maths|7|tangents-and-normals",
+  "question": "Find the slope of y = x^4 - 4x at x = 1.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "analytic anchors and exact derivative"
+    },
+    "source": {
+      "question": "Find the slope of y = x^4 - 4x at x = 1."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "curve",
+        "kind": "polyline",
+        "role": "analytic calculus geometry"
+      },
+      {
+        "id": "anchor",
+        "kind": "point",
+        "role": "analytic calculus geometry"
+      },
+      {
+        "id": "tangent",
+        "kind": "line",
+        "role": "analytic calculus geometry"
+      },
+      {
+        "id": "tangent_label",
+        "kind": "label",
+        "role": "line label",
+        "label": "tangent"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make-curve",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "x^4-4*x",
+          "xMin": -2,
+          "xMax": 2,
+          "samples": 33
+        },
+        "outputs": [
+          "curve"
+        ]
+      },
+      {
+        "id": "make-anchor",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "curve",
+          "at": 1
+        },
+        "outputs": [
+          "anchor"
+        ]
+      },
+      {
+        "id": "make-tangent",
+        "operator": "tangent_line",
+        "inputs": {
+          "curve": "curve",
+          "at": 1,
+          "span": 3
+        },
+        "outputs": [
+          "tangent"
+        ]
+      },
+      {
+        "id": "label_tangent",
+        "operator": "label",
+        "inputs": {
+          "target": "anchor",
+          "text": "tangent"
+        },
+        "outputs": [
+          "tangent_label"
+        ]
+      }
+    ],
+    "relations": [],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "tangent at x = 1"
+      }
+    ],
+    "assertions": [
+      {
+        "id": "anchor-on-curve",
+        "predicate": "incident",
+        "entities": [
+          "anchor",
+          "curve"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "requiredEntityIds": [
+      "curve",
+      "anchor",
+      "tangent",
+      "tangent_label"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "curve",
+          "anchor",
+          "tangent",
+          "tangent_label"
+        ],
+        "dependsOn": [],
+        "narrationCue": "show the curve and its tangent"
+      }
+    ],
+    "teachingTimeline": []
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}
