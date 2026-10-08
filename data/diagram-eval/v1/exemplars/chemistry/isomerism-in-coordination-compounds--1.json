@@ -1,0 +1,1480 @@
+{
+  "topic_id": "chemistry|12|isomerism-in-coordination-compounds",
+  "question": "Draw the geometrical isomers of [Co(NH3)4Cl2]+ and name them.",
+  "figure_kind": "molecule",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "stereoisomers of [Co(NH3)4Cl2]+"
+    },
+    "source": {
+      "question": "Draw the geometrical isomers of [Co(NH3)4Cl2]+ and name them.",
+      "synthesizedFamily": true,
+      "archetype": "chem_coordination",
+      "chemistryFamily": "chem_coordination"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "f0_M",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Co",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_s0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b0",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_s1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Cl",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b1",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_s2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b2",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_s3",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Cl",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b3",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_s4",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b4",
+        "kind": "polygon",
+        "role": "metal ligand bond towards viewer (wedge, towards viewer)"
+      },
+      {
+        "id": "f0_s5",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b5",
+        "kind": "segment",
+        "role": "metal ligand bond away from viewer (dash, away from viewer)",
+        "provenance": {
+          "dashed": true
+        }
+      },
+      {
+        "id": "f0_q",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "+",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_n",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "cis",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_M",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Co",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_s0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_b0",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f1_s1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_b1",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f1_s2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Cl",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_b2",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f1_s3",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Cl",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_b3",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f1_s4",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_b4",
+        "kind": "polygon",
+        "role": "metal ligand bond towards viewer (wedge, towards viewer)"
+      },
+      {
+        "id": "f1_s5",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "NH_3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_b5",
+        "kind": "segment",
+        "role": "metal ligand bond away from viewer (dash, away from viewer)",
+        "provenance": {
+          "dashed": true
+        }
+      },
+      {
+        "id": "f1_q",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "+",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f1_n",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "trans",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_M_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s0_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b0_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b0_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b1_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b1_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b2_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b2_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s3_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b3_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b3_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s4_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b4_w0",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b4_w1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b4_w2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s5_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b5_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b5_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_q_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_n_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_M_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_s0_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b0_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b0_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_s1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b1_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b1_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_s2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b2_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b2_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_s3_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b3_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b3_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_s4_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b4_w0",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b4_w1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b4_w2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_s5_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b5_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_b5_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_q_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f1_n_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_f0_M_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_M_p"
+        ]
+      },
+      {
+        "id": "make_f0_M",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_M_p",
+          "text": "Co"
+        },
+        "outputs": [
+          "f0_M"
+        ]
+      },
+      {
+        "id": "make_f0_s0_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.256,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s0_p"
+        ]
+      },
+      {
+        "id": "make_f0_s0",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s0_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f0_s0"
+        ]
+      },
+      {
+        "id": "make_f0_b0_s",
+        "operator": "point",
+        "inputs": {
+          "x": 0.24,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b0_s"
+        ]
+      },
+      {
+        "id": "make_f0_b0_e",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b0_e"
+        ]
+      },
+      {
+        "id": "make_f0_b0",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b0_s",
+          "end": "f0_b0_e"
+        },
+        "outputs": [
+          "f0_b0"
+        ]
+      },
+      {
+        "id": "make_f0_s1_p",
+        "operator": "point",
+        "inputs": {
+          "x": -1.22,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s1_p"
+        ]
+      },
+      {
+        "id": "make_f0_s1",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s1_p",
+          "text": "Cl"
+        },
+        "outputs": [
+          "f0_s1"
+        ]
+      },
+      {
+        "id": "make_f0_b1_s",
+        "operator": "point",
+        "inputs": {
+          "x": -0.24,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b1_s"
+        ]
+      },
+      {
+        "id": "make_f0_b1_e",
+        "operator": "point",
+        "inputs": {
+          "x": -1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b1_e"
+        ]
+      },
+      {
+        "id": "make_f0_b1",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b1_s",
+          "end": "f0_b1_e"
+        },
+        "outputs": [
+          "f0_b1"
+        ]
+      },
+      {
+        "id": "make_f0_s2_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1.16,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s2_p"
+        ]
+      },
+      {
+        "id": "make_f0_s2",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s2_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f0_s2"
+        ]
+      },
+      {
+        "id": "make_f0_b2_s",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.24,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b2_s"
+        ]
+      },
+      {
+        "id": "make_f0_b2_e",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b2_e"
+        ]
+      },
+      {
+        "id": "make_f0_b2",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b2_s",
+          "end": "f0_b2_e"
+        },
+        "outputs": [
+          "f0_b2"
+        ]
+      },
+      {
+        "id": "make_f0_s3_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1.16,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s3_p"
+        ]
+      },
+      {
+        "id": "make_f0_s3",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s3_p",
+          "text": "Cl"
+        },
+        "outputs": [
+          "f0_s3"
+        ]
+      },
+      {
+        "id": "make_f0_b3_s",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -0.24,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b3_s"
+        ]
+      },
+      {
+        "id": "make_f0_b3_e",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b3_e"
+        ]
+      },
+      {
+        "id": "make_f0_b3",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b3_s",
+          "end": "f0_b3_e"
+        },
+        "outputs": [
+          "f0_b3"
+        ]
+      },
+      {
+        "id": "make_f0_s4_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.8757,
+          "y": -0.8192,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s4_p"
+        ]
+      },
+      {
+        "id": "make_f0_s4",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s4_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f0_s4"
+        ]
+      },
+      {
+        "id": "make_f0_b4_w0",
+        "operator": "point",
+        "inputs": {
+          "x": 0.1753,
+          "y": -0.164,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b4_w0"
+        ]
+      },
+      {
+        "id": "make_f0_b4_w1",
+        "operator": "point",
+        "inputs": {
+          "x": 0.6815,
+          "y": -0.5143,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b4_w1"
+        ]
+      },
+      {
+        "id": "make_f0_b4_w2",
+        "operator": "point",
+        "inputs": {
+          "x": 0.5585,
+          "y": -0.6457,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b4_w2"
+        ]
+      },
+      {
+        "id": "make_f0_b4",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            "f0_b4_w0",
+            "f0_b4_w1",
+            "f0_b4_w2"
+          ]
+        },
+        "outputs": [
+          "f0_b4"
+        ]
+      },
+      {
+        "id": "make_f0_s5_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.8757,
+          "y": 0.8192,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s5_p"
+        ]
+      },
+      {
+        "id": "make_f0_s5",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s5_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f0_s5"
+        ]
+      },
+      {
+        "id": "make_f0_b5_s",
+        "operator": "point",
+        "inputs": {
+          "x": -0.1753,
+          "y": 0.164,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b5_s"
+        ]
+      },
+      {
+        "id": "make_f0_b5_e",
+        "operator": "point",
+        "inputs": {
+          "x": -0.62,
+          "y": 0.58,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b5_e"
+        ]
+      },
+      {
+        "id": "make_f0_b5",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b5_s",
+          "end": "f0_b5_e"
+        },
+        "outputs": [
+          "f0_b5"
+        ]
+      },
+      {
+        "id": "make_f0_q_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.35,
+          "y": 1.15,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_q_p"
+        ]
+      },
+      {
+        "id": "make_f0_q",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_q_p",
+          "text": "+"
+        },
+        "outputs": [
+          "f0_q"
+        ]
+      },
+      {
+        "id": "make_f0_n_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1.81,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_n_p"
+        ]
+      },
+      {
+        "id": "make_f0_n",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_n_p",
+          "text": "cis"
+        },
+        "outputs": [
+          "f0_n"
+        ]
+      },
+      {
+        "id": "make_f1_M_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_M_p"
+        ]
+      },
+      {
+        "id": "make_f1_M",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_M_p",
+          "text": "Co"
+        },
+        "outputs": [
+          "f1_M"
+        ]
+      },
+      {
+        "id": "make_f1_s0_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.056,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_s0_p"
+        ]
+      },
+      {
+        "id": "make_f1_s0",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_s0_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f1_s0"
+        ]
+      },
+      {
+        "id": "make_f1_b0_s",
+        "operator": "point",
+        "inputs": {
+          "x": 4.04,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b0_s"
+        ]
+      },
+      {
+        "id": "make_f1_b0_e",
+        "operator": "point",
+        "inputs": {
+          "x": 4.8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b0_e"
+        ]
+      },
+      {
+        "id": "make_f1_b0",
+        "operator": "segment",
+        "inputs": {
+          "start": "f1_b0_s",
+          "end": "f1_b0_e"
+        },
+        "outputs": [
+          "f1_b0"
+        ]
+      },
+      {
+        "id": "make_f1_s1_p",
+        "operator": "point",
+        "inputs": {
+          "x": 2.544,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_s1_p"
+        ]
+      },
+      {
+        "id": "make_f1_s1",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_s1_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f1_s1"
+        ]
+      },
+      {
+        "id": "make_f1_b1_s",
+        "operator": "point",
+        "inputs": {
+          "x": 3.56,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b1_s"
+        ]
+      },
+      {
+        "id": "make_f1_b1_e",
+        "operator": "point",
+        "inputs": {
+          "x": 2.8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b1_e"
+        ]
+      },
+      {
+        "id": "make_f1_b1",
+        "operator": "segment",
+        "inputs": {
+          "start": "f1_b1_s",
+          "end": "f1_b1_e"
+        },
+        "outputs": [
+          "f1_b1"
+        ]
+      },
+      {
+        "id": "make_f1_s2_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": 1.16,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_s2_p"
+        ]
+      },
+      {
+        "id": "make_f1_s2",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_s2_p",
+          "text": "Cl"
+        },
+        "outputs": [
+          "f1_s2"
+        ]
+      },
+      {
+        "id": "make_f1_b2_s",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": 0.24,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b2_s"
+        ]
+      },
+      {
+        "id": "make_f1_b2_e",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b2_e"
+        ]
+      },
+      {
+        "id": "make_f1_b2",
+        "operator": "segment",
+        "inputs": {
+          "start": "f1_b2_s",
+          "end": "f1_b2_e"
+        },
+        "outputs": [
+          "f1_b2"
+        ]
+      },
+      {
+        "id": "make_f1_s3_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": -1.16,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_s3_p"
+        ]
+      },
+      {
+        "id": "make_f1_s3",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_s3_p",
+          "text": "Cl"
+        },
+        "outputs": [
+          "f1_s3"
+        ]
+      },
+      {
+        "id": "make_f1_b3_s",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": -0.24,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b3_s"
+        ]
+      },
+      {
+        "id": "make_f1_b3_e",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b3_e"
+        ]
+      },
+      {
+        "id": "make_f1_b3",
+        "operator": "segment",
+        "inputs": {
+          "start": "f1_b3_s",
+          "end": "f1_b3_e"
+        },
+        "outputs": [
+          "f1_b3"
+        ]
+      },
+      {
+        "id": "make_f1_s4_p",
+        "operator": "point",
+        "inputs": {
+          "x": 4.6757,
+          "y": -0.8192,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_s4_p"
+        ]
+      },
+      {
+        "id": "make_f1_s4",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_s4_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f1_s4"
+        ]
+      },
+      {
+        "id": "make_f1_b4_w0",
+        "operator": "point",
+        "inputs": {
+          "x": 3.9753,
+          "y": -0.164,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b4_w0"
+        ]
+      },
+      {
+        "id": "make_f1_b4_w1",
+        "operator": "point",
+        "inputs": {
+          "x": 4.4815,
+          "y": -0.5143,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b4_w1"
+        ]
+      },
+      {
+        "id": "make_f1_b4_w2",
+        "operator": "point",
+        "inputs": {
+          "x": 4.3585,
+          "y": -0.6457,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b4_w2"
+        ]
+      },
+      {
+        "id": "make_f1_b4",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            "f1_b4_w0",
+            "f1_b4_w1",
+            "f1_b4_w2"
+          ]
+        },
+        "outputs": [
+          "f1_b4"
+        ]
+      },
+      {
+        "id": "make_f1_s5_p",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9243,
+          "y": 0.8192,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_s5_p"
+        ]
+      },
+      {
+        "id": "make_f1_s5",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_s5_p",
+          "text": "NH_3"
+        },
+        "outputs": [
+          "f1_s5"
+        ]
+      },
+      {
+        "id": "make_f1_b5_s",
+        "operator": "point",
+        "inputs": {
+          "x": 3.6247,
+          "y": 0.164,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b5_s"
+        ]
+      },
+      {
+        "id": "make_f1_b5_e",
+        "operator": "point",
+        "inputs": {
+          "x": 3.18,
+          "y": 0.58,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_b5_e"
+        ]
+      },
+      {
+        "id": "make_f1_b5",
+        "operator": "segment",
+        "inputs": {
+          "start": "f1_b5_s",
+          "end": "f1_b5_e"
+        },
+        "outputs": [
+          "f1_b5"
+        ]
+      },
+      {
+        "id": "make_f1_q_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.15,
+          "y": 1.15,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_q_p"
+        ]
+      },
+      {
+        "id": "make_f1_q",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_q_p",
+          "text": "+"
+        },
+        "outputs": [
+          "f1_q"
+        ]
+      },
+      {
+        "id": "make_f1_n_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": -1.81,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f1_n_p"
+        ]
+      },
+      {
+        "id": "make_f1_n",
+        "operator": "label",
+        "inputs": {
+          "target": "f1_n_p",
+          "text": "trans"
+        },
+        "outputs": [
+          "f1_n"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_f0_n",
+        "predicate": "label_attached",
+        "entities": [
+          "f0_n"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_f0_M",
+        "predicate": "label_attached",
+        "entities": [
+          "f0_M"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_f1_n",
+        "predicate": "label_attached",
+        "entities": [
+          "f1_n"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_f1_M",
+        "predicate": "label_attached",
+        "entities": [
+          "f1_M"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "[Co(NH3)4Cl2]+: octahedral, 2 geometrical isomers (cis; trans), no optical isomers; 2 stereoisomers in all"
+      }
+    ],
+    "requiredEntityIds": [
+      "f0_M",
+      "f0_s0",
+      "f0_b0",
+      "f0_s1",
+      "f0_b1",
+      "f0_s2",
+      "f0_b2",
+      "f0_s3",
+      "f0_b3",
+      "f0_s4",
+      "f0_b4",
+      "f0_s5",
+      "f0_b5",
+      "f0_q",
+      "f0_n",
+      "f1_M",
+      "f1_s0",
+      "f1_b0",
+      "f1_s1",
+      "f1_b1",
+      "f1_s2",
+      "f1_b2",
+      "f1_s3",
+      "f1_b3",
+      "f1_s4",
+      "f1_b4",
+      "f1_s5",
+      "f1_b5",
+      "f1_q",
+      "f1_n"
+    ],
+    "revealGroups": [
+      {
+        "id": "figure_0",
+        "entityIds": [
+          "f0_M",
+          "f0_s0",
+          "f0_b0",
+          "f0_s1",
+          "f0_b1",
+          "f0_s2",
+          "f0_b2",
+          "f0_s3",
+          "f0_b3",
+          "f0_s4",
+          "f0_b4",
+          "f0_s5",
+          "f0_b5",
+          "f0_q",
+          "f0_n"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the cis isomer of [Co(NH3)4Cl2]+"
+      },
+      {
+        "id": "figure_1",
+        "entityIds": [
+          "f1_M",
+          "f1_s0",
+          "f1_b0",
+          "f1_s1",
+          "f1_b1",
+          "f1_s2",
+          "f1_b2",
+          "f1_s3",
+          "f1_b3",
+          "f1_s4",
+          "f1_b4",
+          "f1_s5",
+          "f1_b5",
+          "f1_q",
+          "f1_n"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the trans isomer of [Co(NH3)4Cl2]+"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_figure_0",
+        "action": "reveal",
+        "targetId": "figure_0",
+        "dependsOn": [],
+        "narrationIntent": "the cis isomer of [Co(NH3)4Cl2]+"
+      },
+      {
+        "id": "reveal_figure_1",
+        "action": "reveal",
+        "targetId": "figure_1",
+        "dependsOn": [
+          "reveal_figure_0"
+        ],
+        "narrationIntent": "the trans isomer of [Co(NH3)4Cl2]+"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

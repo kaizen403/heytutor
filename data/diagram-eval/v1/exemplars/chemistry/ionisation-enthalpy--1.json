@@ -1,0 +1,1238 @@
+{
+  "topic_id": "chemistry|9|ionisation-enthalpy",
+  "question": "Plot the variation of first ionisation enthalpy across period 3 from Na to Ar and explain the irregularities.",
+  "figure_kind": "chart_table",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "IE_1 (kJ/mol) across period 3, plotted from the periodic table"
+    },
+    "source": {
+      "question": "Plot the variation of first ionisation enthalpy across period 3 from Na to Ar and explain the irregularities.",
+      "synthesizedFamily": true,
+      "archetype": "chem_periodic",
+      "chemistryFamily": "chem_periodic"
+    },
+    "quantities": [
+      {
+        "id": "q_Na0",
+        "symbol": "ie1(Na)",
+        "value": 496,
+        "unit": "kJ/mol"
+      },
+      {
+        "id": "q_Mg1",
+        "symbol": "ie1(Mg)",
+        "value": 738,
+        "unit": "kJ/mol"
+      },
+      {
+        "id": "q_Al2",
+        "symbol": "ie1(Al)",
+        "value": 578,
+        "unit": "kJ/mol"
+      },
+      {
+        "id": "q_Si3",
+        "symbol": "ie1(Si)",
+        "value": 786,
+        "unit": "kJ/mol"
+      },
+      {
+        "id": "q_P4",
+        "symbol": "ie1(P)",
+        "value": 1012,
+        "unit": "kJ/mol"
+      },
+      {
+        "id": "q_S5",
+        "symbol": "ie1(S)",
+        "value": 1000,
+        "unit": "kJ/mol"
+      },
+      {
+        "id": "q_Cl6",
+        "symbol": "ie1(Cl)",
+        "value": 1251,
+        "unit": "kJ/mol"
+      },
+      {
+        "id": "q_Ar7",
+        "symbol": "ie1(Ar)",
+        "value": 1521,
+        "unit": "kJ/mol"
+      }
+    ],
+    "entities": [
+      {
+        "id": "axes",
+        "kind": "axes",
+        "role": "IE_1 (kJ/mol) against element"
+      },
+      {
+        "id": "tick_0",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_0_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "0",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_50000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_50000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "500",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_100000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_100000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "1000",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_150000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_150000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "1500",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_200000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_200000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "2000",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "y_title",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "IE_1 (kJ/mol)",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "x_title",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "across period 3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_Na0",
+        "kind": "point",
+        "role": "Na data point"
+      },
+      {
+        "id": "p_Mg1",
+        "kind": "point",
+        "role": "Mg data point"
+      },
+      {
+        "id": "p_Al2",
+        "kind": "point",
+        "role": "Al data point"
+      },
+      {
+        "id": "p_Si3",
+        "kind": "point",
+        "role": "Si data point"
+      },
+      {
+        "id": "p_P4",
+        "kind": "point",
+        "role": "P data point"
+      },
+      {
+        "id": "p_S5",
+        "kind": "point",
+        "role": "S data point"
+      },
+      {
+        "id": "p_Cl6",
+        "kind": "point",
+        "role": "Cl data point"
+      },
+      {
+        "id": "p_Ar7",
+        "kind": "point",
+        "role": "Ar data point"
+      },
+      {
+        "id": "trend",
+        "kind": "polyline",
+        "role": "IE_1 (kJ/mol) trend line"
+      },
+      {
+        "id": "lbl_Na0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Na",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Mg1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Mg",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Al2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Al",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Si3",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Si",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_P4",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "P",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_S5",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "S",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Cl6",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Cl",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Ar7",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Ar",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_0_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_0_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_0_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_50000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_50000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_50000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_100000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_100000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_100000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_150000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_150000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_150000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_200000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_200000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_200000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "y_title_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "x_title_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Na0_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Mg1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Al2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Si3_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_P4_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_S5_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Cl6_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Ar7_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axes",
+        "operator": "axes",
+        "inputs": {
+          "xMin": 0,
+          "xMax": 9.5,
+          "yMin": 0,
+          "yMax": 6.25
+        },
+        "outputs": [
+          "axes"
+        ]
+      },
+      {
+        "id": "make_tick_0_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_0_a"
+        ]
+      },
+      {
+        "id": "make_tick_0_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_0_b"
+        ]
+      },
+      {
+        "id": "make_tick_0",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_0_a",
+          "end": "tick_0_b"
+        },
+        "outputs": [
+          "tick_0"
+        ]
+      },
+      {
+        "id": "make_tick_0_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_0_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_0_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_0_v_p",
+          "text": "0"
+        },
+        "outputs": [
+          "tick_0_v"
+        ]
+      },
+      {
+        "id": "make_tick_50000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 1.425,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_50000_a"
+        ]
+      },
+      {
+        "id": "make_tick_50000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 1.425,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_50000_b"
+        ]
+      },
+      {
+        "id": "make_tick_50000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_50000_a",
+          "end": "tick_50000_b"
+        },
+        "outputs": [
+          "tick_50000"
+        ]
+      },
+      {
+        "id": "make_tick_50000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 1.425,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_50000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_50000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_50000_v_p",
+          "text": "500"
+        },
+        "outputs": [
+          "tick_50000_v"
+        ]
+      },
+      {
+        "id": "make_tick_100000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 2.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_100000_a"
+        ]
+      },
+      {
+        "id": "make_tick_100000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 2.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_100000_b"
+        ]
+      },
+      {
+        "id": "make_tick_100000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_100000_a",
+          "end": "tick_100000_b"
+        },
+        "outputs": [
+          "tick_100000"
+        ]
+      },
+      {
+        "id": "make_tick_100000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 2.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_100000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_100000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_100000_v_p",
+          "text": "1000"
+        },
+        "outputs": [
+          "tick_100000_v"
+        ]
+      },
+      {
+        "id": "make_tick_150000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 4.275,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_150000_a"
+        ]
+      },
+      {
+        "id": "make_tick_150000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 4.275,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_150000_b"
+        ]
+      },
+      {
+        "id": "make_tick_150000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_150000_a",
+          "end": "tick_150000_b"
+        },
+        "outputs": [
+          "tick_150000"
+        ]
+      },
+      {
+        "id": "make_tick_150000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 4.275,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_150000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_150000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_150000_v_p",
+          "text": "1500"
+        },
+        "outputs": [
+          "tick_150000_v"
+        ]
+      },
+      {
+        "id": "make_tick_200000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 5.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_200000_a"
+        ]
+      },
+      {
+        "id": "make_tick_200000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 5.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_200000_b"
+        ]
+      },
+      {
+        "id": "make_tick_200000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_200000_a",
+          "end": "tick_200000_b"
+        },
+        "outputs": [
+          "tick_200000"
+        ]
+      },
+      {
+        "id": "make_tick_200000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 5.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_200000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_200000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_200000_v_p",
+          "text": "2000"
+        },
+        "outputs": [
+          "tick_200000_v"
+        ]
+      },
+      {
+        "id": "make_y_title_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.15,
+          "y": 6.55,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "y_title_p"
+        ]
+      },
+      {
+        "id": "make_y_title",
+        "operator": "label",
+        "inputs": {
+          "target": "y_title_p",
+          "text": "IE_1 (kJ/mol)"
+        },
+        "outputs": [
+          "y_title"
+        ]
+      },
+      {
+        "id": "make_x_title_p",
+        "operator": "point",
+        "inputs": {
+          "x": 9.4,
+          "y": -0.42,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "x_title_p"
+        ]
+      },
+      {
+        "id": "make_x_title",
+        "operator": "label",
+        "inputs": {
+          "target": "x_title_p",
+          "text": "across period 3"
+        },
+        "outputs": [
+          "x_title"
+        ]
+      },
+      {
+        "id": "make_p_Na0",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 1.4136,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Na0"
+        ]
+      },
+      {
+        "id": "make_p_Mg1",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 2.1033,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Mg1"
+        ]
+      },
+      {
+        "id": "make_p_Al2",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 1.6473,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Al2"
+        ]
+      },
+      {
+        "id": "make_p_Si3",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 2.2401,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Si3"
+        ]
+      },
+      {
+        "id": "make_p_P4",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 2.8842,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_P4"
+        ]
+      },
+      {
+        "id": "make_p_S5",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 2.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_S5"
+        ]
+      },
+      {
+        "id": "make_p_Cl6",
+        "operator": "point",
+        "inputs": {
+          "x": 7,
+          "y": 3.5654,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Cl6"
+        ]
+      },
+      {
+        "id": "make_p_Ar7",
+        "operator": "point",
+        "inputs": {
+          "x": 8,
+          "y": 4.3349,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Ar7"
+        ]
+      },
+      {
+        "id": "make_trend",
+        "operator": "polyline",
+        "inputs": {
+          "points": [
+            "p_Na0",
+            "p_Mg1",
+            "p_Al2",
+            "p_Si3",
+            "p_P4",
+            "p_S5",
+            "p_Cl6",
+            "p_Ar7"
+          ]
+        },
+        "outputs": [
+          "trend"
+        ]
+      },
+      {
+        "id": "make_lbl_Na0_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7201,
+          "y": 1.2206,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Na0_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Na0",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Na0_p",
+          "text": "Na"
+        },
+        "outputs": [
+          "lbl_Na0"
+        ]
+      },
+      {
+        "id": "make_lbl_Mg1_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.9701,
+          "y": 2.442,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Mg1_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Mg1",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Mg1_p",
+          "text": "Mg"
+        },
+        "outputs": [
+          "lbl_Mg1"
+        ]
+      },
+      {
+        "id": "make_lbl_Al2_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.0182,
+          "y": 1.3078,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Al2_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Al2",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Al2_p",
+          "text": "Al"
+        },
+        "outputs": [
+          "lbl_Al2"
+        ]
+      },
+      {
+        "id": "make_lbl_Si3_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8212,
+          "y": 2.5293,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Si3_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Si3",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Si3_p",
+          "text": "Si"
+        },
+        "outputs": [
+          "lbl_Si3"
+        ]
+      },
+      {
+        "id": "make_lbl_P4_p",
+        "operator": "point",
+        "inputs": {
+          "x": 4.9096,
+          "y": 3.212,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_P4_p"
+        ]
+      },
+      {
+        "id": "make_lbl_P4",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_P4_p",
+          "text": "P"
+        },
+        "outputs": [
+          "lbl_P4"
+        ]
+      },
+      {
+        "id": "make_lbl_S5_p",
+        "operator": "point",
+        "inputs": {
+          "x": 6.0983,
+          "y": 2.5245,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_S5_p"
+        ]
+      },
+      {
+        "id": "make_lbl_S5",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_S5_p",
+          "text": "S"
+        },
+        "outputs": [
+          "lbl_S5"
+        ]
+      },
+      {
+        "id": "make_lbl_Cl6_p",
+        "operator": "point",
+        "inputs": {
+          "x": 6.7973,
+          "y": 3.8383,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Cl6_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Cl6",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Cl6_p",
+          "text": "Cl"
+        },
+        "outputs": [
+          "lbl_Cl6"
+        ]
+      },
+      {
+        "id": "make_lbl_Ar7_p",
+        "operator": "point",
+        "inputs": {
+          "x": 8.2695,
+          "y": 4.5422,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Ar7_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Ar7",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Ar7_p",
+          "text": "Ar"
+        },
+        "outputs": [
+          "lbl_Ar7"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_y_title",
+        "predicate": "label_attached",
+        "entities": [
+          "y_title"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_x_title",
+        "predicate": "label_attached",
+        "entities": [
+          "x_title"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Na0",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Na0"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Mg1",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Mg1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Al2",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Al2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Si3",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Si3"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_P4",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_P4"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_S5",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_S5"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Cl6",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Cl6"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Ar7",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Ar7"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "IE_1 (kJ/mol) across period 3: Na (496) < Al (578) < Mg (738) < Si (786) < S (1000) < P (1012) < Cl (1251) < Ar (1521)"
+      }
+    ],
+    "requiredEntityIds": [
+      "axes",
+      "tick_0",
+      "tick_0_v",
+      "tick_50000",
+      "tick_50000_v",
+      "tick_100000",
+      "tick_100000_v",
+      "tick_150000",
+      "tick_150000_v",
+      "tick_200000",
+      "tick_200000_v",
+      "y_title",
+      "x_title",
+      "p_Na0",
+      "p_Mg1",
+      "p_Al2",
+      "p_Si3",
+      "p_P4",
+      "p_S5",
+      "p_Cl6",
+      "p_Ar7",
+      "trend",
+      "lbl_Na0",
+      "lbl_Mg1",
+      "lbl_Al2",
+      "lbl_Si3",
+      "lbl_P4",
+      "lbl_S5",
+      "lbl_Cl6",
+      "lbl_Ar7"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "axes",
+          "tick_0",
+          "tick_0_v",
+          "tick_50000",
+          "tick_50000_v",
+          "tick_100000",
+          "tick_100000_v",
+          "tick_150000",
+          "tick_150000_v",
+          "tick_200000",
+          "tick_200000_v",
+          "y_title",
+          "x_title",
+          "p_Na0",
+          "p_Mg1",
+          "p_Al2",
+          "p_Si3",
+          "p_P4",
+          "p_S5",
+          "p_Cl6",
+          "p_Ar7",
+          "trend",
+          "lbl_Na0",
+          "lbl_Mg1",
+          "lbl_Al2",
+          "lbl_Si3",
+          "lbl_P4",
+          "lbl_S5",
+          "lbl_Cl6",
+          "lbl_Ar7"
+        ],
+        "dependsOn": [],
+        "narrationCue": "IE_1 (kJ/mol) across period 3, plotted from the periodic table"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "IE_1 (kJ/mol) across period 3, plotted from the periodic table"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

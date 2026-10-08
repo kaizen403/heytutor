@@ -1,0 +1,3117 @@
+{
+  "topic_id": "chemistry|3|molecular-orbital-theory-and-bond-order",
+  "question": "Draw the molecular orbital diagram of O2 and find its bond order and magnetic character.",
+  "figure_kind": "energy_diagram",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "molecular orbital diagram of O2"
+    },
+    "source": {
+      "question": "Draw the molecular orbital diagram of O2 and find its bond order and magnetic character.",
+      "synthesizedFamily": true,
+      "archetype": "chem_mo",
+      "chemistryFamily": "chem_mo"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "atom_left",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "O",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ao_left_2s",
+        "kind": "segment",
+        "role": "O 2s atomic orbital",
+        "label": "2s"
+      },
+      {
+        "id": "ao_left_2s_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_left_2s_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_left_2p1",
+        "kind": "segment",
+        "role": "O 2p atomic orbital",
+        "label": "2p"
+      },
+      {
+        "id": "ao_left_2p1_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_left_2p1_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_left_2p2",
+        "kind": "segment",
+        "role": "O 2p atomic orbital"
+      },
+      {
+        "id": "ao_left_2p2_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_left_2p3",
+        "kind": "segment",
+        "role": "O 2p atomic orbital"
+      },
+      {
+        "id": "ao_left_2p3_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "atom_right",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "O",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ao_right_2s",
+        "kind": "segment",
+        "role": "O 2s atomic orbital",
+        "label": "2s"
+      },
+      {
+        "id": "ao_right_2s_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_right_2s_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_right_2p1",
+        "kind": "segment",
+        "role": "O 2p atomic orbital"
+      },
+      {
+        "id": "ao_right_2p1_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_right_2p1_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_right_2p2",
+        "kind": "segment",
+        "role": "O 2p atomic orbital"
+      },
+      {
+        "id": "ao_right_2p2_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "ao_right_2p3",
+        "kind": "segment",
+        "role": "O 2p atomic orbital",
+        "label": "2p"
+      },
+      {
+        "id": "ao_right_2p3_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "energy_axis",
+        "kind": "vector",
+        "role": "energy axis",
+        "label": "E"
+      },
+      {
+        "id": "spacing_note",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "not measured",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "species_heading",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "O_2",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "mo_s2",
+        "kind": "segment",
+        "role": "σ2s bonding molecular orbital"
+      },
+      {
+        "id": "mo_s2_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_s2_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_s2_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "σ2s",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "mo_s2a",
+        "kind": "segment",
+        "role": "σ*2s antibonding molecular orbital"
+      },
+      {
+        "id": "mo_s2a_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_s2a_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_s2a_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "σ*2s",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "mo_s2p",
+        "kind": "segment",
+        "role": "σ2p bonding molecular orbital"
+      },
+      {
+        "id": "mo_s2p_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_s2p_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_s2p_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "σ2p",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "mo_p2_l",
+        "kind": "segment",
+        "role": "π2p bonding molecular orbital"
+      },
+      {
+        "id": "mo_p2_l_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_p2_l_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_p2_r",
+        "kind": "segment",
+        "role": "π2p bonding molecular orbital"
+      },
+      {
+        "id": "mo_p2_r_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_p2_r_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_p2_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "π2p",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "mo_p2a_l",
+        "kind": "segment",
+        "role": "π*2p antibonding molecular orbital"
+      },
+      {
+        "id": "mo_p2a_l_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_p2a_r",
+        "kind": "segment",
+        "role": "π*2p antibonding molecular orbital"
+      },
+      {
+        "id": "mo_p2a_r_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "mo_p2a_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "π*2p",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "mo_s2pa",
+        "kind": "segment",
+        "role": "σ*2p antibonding molecular orbital"
+      },
+      {
+        "id": "mo_s2pa_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "σ*2p",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "corr_1",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_2",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_3",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_4",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_5",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_6",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_7",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_8",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_9",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_10",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_11",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "corr_12",
+        "kind": "segment",
+        "role": "correlation link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "bond_order",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "BO = 2",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "atom_left_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2s_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2s_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2s_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2s_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p1_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p1_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p2_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p3_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p3_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_left_2p3_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "atom_right_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2s_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2s_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2s_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2s_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p1_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p1_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p2_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p3_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p3_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ao_right_2p3_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "energy_axis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "energy_axis_h",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "spacing_note_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "species_heading_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2a_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2a_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2a_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2a_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2a_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2p_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2p_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2p_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2p_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2p_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_l_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_l_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_l_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_l_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_r_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_r_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_r_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_r_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2a_l_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2a_l_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2a_l_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2a_r_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2a_r_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2a_r_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_p2a_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2pa_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2pa_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "mo_s2pa_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_3_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_3_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_4_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_4_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_5_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_5_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_6_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_6_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_7_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_7_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_8_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_8_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_9_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_9_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_10_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_10_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_11_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_11_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_12_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corr_12_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "bond_order_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_atom_left_p",
+        "operator": "point",
+        "inputs": {
+          "x": -3.6,
+          "y": 5.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "atom_left_p"
+        ]
+      },
+      {
+        "id": "make_atom_left",
+        "operator": "label",
+        "inputs": {
+          "target": "atom_left_p",
+          "text": "O"
+        },
+        "outputs": [
+          "atom_left"
+        ]
+      },
+      {
+        "id": "make_ao_left_2s_a",
+        "operator": "point",
+        "inputs": {
+          "x": -3.9,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2s_a"
+        ]
+      },
+      {
+        "id": "make_ao_left_2s_b",
+        "operator": "point",
+        "inputs": {
+          "x": -3.3,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2s_b"
+        ]
+      },
+      {
+        "id": "make_ao_left_2s",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_left_2s_a",
+          "end": "ao_left_2s_b"
+        },
+        "outputs": [
+          "ao_left_2s"
+        ]
+      },
+      {
+        "id": "make_ao_left_2s_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -3.7,
+          "y": 0.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2s_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_left_2s_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_left_2s_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_left_2s_e1"
+        ]
+      },
+      {
+        "id": "make_ao_left_2s_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": -3.5,
+          "y": 0.86,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2s_e2_t"
+        ]
+      },
+      {
+        "id": "make_ao_left_2s_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_left_2s_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_left_2s_e2"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p1_a",
+        "operator": "point",
+        "inputs": {
+          "x": -4.3,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p1_a"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p1_b",
+        "operator": "point",
+        "inputs": {
+          "x": -3.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p1_b"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p1",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_left_2p1_a",
+          "end": "ao_left_2p1_b"
+        },
+        "outputs": [
+          "ao_left_2p1"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p1_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -4.2,
+          "y": 3.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p1_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p1_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_left_2p1_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_left_2p1_e1"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p1_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": -4,
+          "y": 3.86,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p1_e2_t"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p1_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_left_2p1_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_left_2p1_e2"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p2_a",
+        "operator": "point",
+        "inputs": {
+          "x": -3.8,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p2_a"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p2_b",
+        "operator": "point",
+        "inputs": {
+          "x": -3.4,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p2_b"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p2",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_left_2p2_a",
+          "end": "ao_left_2p2_b"
+        },
+        "outputs": [
+          "ao_left_2p2"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p2_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -3.6,
+          "y": 3.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p2_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p2_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_left_2p2_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_left_2p2_e1"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p3_a",
+        "operator": "point",
+        "inputs": {
+          "x": -3.3,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p3_a"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p3_b",
+        "operator": "point",
+        "inputs": {
+          "x": -2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p3_b"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p3",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_left_2p3_a",
+          "end": "ao_left_2p3_b"
+        },
+        "outputs": [
+          "ao_left_2p3"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p3_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -3.1,
+          "y": 3.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_left_2p3_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_left_2p3_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_left_2p3_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_left_2p3_e1"
+        ]
+      },
+      {
+        "id": "make_atom_right_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.6,
+          "y": 5.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "atom_right_p"
+        ]
+      },
+      {
+        "id": "make_atom_right",
+        "operator": "label",
+        "inputs": {
+          "target": "atom_right_p",
+          "text": "O"
+        },
+        "outputs": [
+          "atom_right"
+        ]
+      },
+      {
+        "id": "make_ao_right_2s_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.3,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2s_a"
+        ]
+      },
+      {
+        "id": "make_ao_right_2s_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.9,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2s_b"
+        ]
+      },
+      {
+        "id": "make_ao_right_2s",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_right_2s_a",
+          "end": "ao_right_2s_b"
+        },
+        "outputs": [
+          "ao_right_2s"
+        ]
+      },
+      {
+        "id": "make_ao_right_2s_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 3.5,
+          "y": 0.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2s_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_right_2s_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_right_2s_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_right_2s_e1"
+        ]
+      },
+      {
+        "id": "make_ao_right_2s_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": 3.7,
+          "y": 0.86,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2s_e2_t"
+        ]
+      },
+      {
+        "id": "make_ao_right_2s_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_right_2s_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_right_2s_e2"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p1_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p1_a"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p1_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.3,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p1_b"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p1",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_right_2p1_a",
+          "end": "ao_right_2p1_b"
+        },
+        "outputs": [
+          "ao_right_2p1"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p1_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 3.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p1_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p1_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_right_2p1_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_right_2p1_e1"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p1_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": 3.2,
+          "y": 3.86,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p1_e2_t"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p1_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_right_2p1_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_right_2p1_e2"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p2_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.4,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p2_a"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p2_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p2_b"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p2",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_right_2p2_a",
+          "end": "ao_right_2p2_b"
+        },
+        "outputs": [
+          "ao_right_2p2"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p2_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 3.6,
+          "y": 3.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p2_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p2_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_right_2p2_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_right_2p2_e1"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p3_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p3_a"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p3_b",
+        "operator": "point",
+        "inputs": {
+          "x": 4.3,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p3_b"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p3",
+        "operator": "segment",
+        "inputs": {
+          "start": "ao_right_2p3_a",
+          "end": "ao_right_2p3_b"
+        },
+        "outputs": [
+          "ao_right_2p3"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p3_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 4.1,
+          "y": 3.54,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ao_right_2p3_e1_t"
+        ]
+      },
+      {
+        "id": "make_ao_right_2p3_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "ao_right_2p3_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "ao_right_2p3_e1"
+        ]
+      },
+      {
+        "id": "make_energy_axis_t",
+        "operator": "point",
+        "inputs": {
+          "x": -5.8,
+          "y": -0.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "energy_axis_t"
+        ]
+      },
+      {
+        "id": "make_energy_axis_h",
+        "operator": "point",
+        "inputs": {
+          "x": -5.8,
+          "y": 5.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "energy_axis_h"
+        ]
+      },
+      {
+        "id": "make_energy_axis",
+        "operator": "vector",
+        "inputs": {
+          "start": "energy_axis_t",
+          "end": "energy_axis_h"
+        },
+        "outputs": [
+          "energy_axis"
+        ]
+      },
+      {
+        "id": "make_spacing_note_p",
+        "operator": "point",
+        "inputs": {
+          "x": -5.8,
+          "y": -1.25,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "spacing_note_p"
+        ]
+      },
+      {
+        "id": "make_spacing_note",
+        "operator": "label",
+        "inputs": {
+          "target": "spacing_note_p",
+          "text": "not measured"
+        },
+        "outputs": [
+          "spacing_note"
+        ]
+      },
+      {
+        "id": "make_species_heading_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 5.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "species_heading_p"
+        ]
+      },
+      {
+        "id": "make_species_heading",
+        "operator": "label",
+        "inputs": {
+          "target": "species_heading_p",
+          "text": "O_2"
+        },
+        "outputs": [
+          "species_heading"
+        ]
+      },
+      {
+        "id": "make_mo_s2_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2_a"
+        ]
+      },
+      {
+        "id": "make_mo_s2_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2_b"
+        ]
+      },
+      {
+        "id": "make_mo_s2",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_s2_a",
+          "end": "mo_s2_b"
+        },
+        "outputs": [
+          "mo_s2"
+        ]
+      },
+      {
+        "id": "make_mo_s2_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.95,
+          "y": 0.04,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2_e1_t"
+        ]
+      },
+      {
+        "id": "make_mo_s2_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_s2_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_s2_e1"
+        ]
+      },
+      {
+        "id": "make_mo_s2_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.75,
+          "y": 0.36,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2_e2_t"
+        ]
+      },
+      {
+        "id": "make_mo_s2_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_s2_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_s2_e2"
+        ]
+      },
+      {
+        "id": "make_mo_s2_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -0.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2_name_p"
+        ]
+      },
+      {
+        "id": "make_mo_s2_name",
+        "operator": "label",
+        "inputs": {
+          "target": "mo_s2_name_p",
+          "text": "σ2s"
+        },
+        "outputs": [
+          "mo_s2_name"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2a_a"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2a_b"
+        ]
+      },
+      {
+        "id": "make_mo_s2a",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_s2a_a",
+          "end": "mo_s2a_b"
+        },
+        "outputs": [
+          "mo_s2a"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.95,
+          "y": 1.04,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2a_e1_t"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_s2a_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_s2a_e1"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.75,
+          "y": 1.36,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2a_e2_t"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_s2a_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_s2a_e2"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2a_name_p"
+        ]
+      },
+      {
+        "id": "make_mo_s2a_name",
+        "operator": "label",
+        "inputs": {
+          "target": "mo_s2a_name_p",
+          "text": "σ*2s"
+        },
+        "outputs": [
+          "mo_s2a_name"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2p_a"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2p_b"
+        ]
+      },
+      {
+        "id": "make_mo_s2p",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_s2p_a",
+          "end": "mo_s2p_b"
+        },
+        "outputs": [
+          "mo_s2p"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.95,
+          "y": 2.04,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2p_e1_t"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_s2p_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_s2p_e1"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.75,
+          "y": 2.36,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2p_e2_t"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_s2p_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_s2p_e2"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2p_name_p"
+        ]
+      },
+      {
+        "id": "make_mo_s2p_name",
+        "operator": "label",
+        "inputs": {
+          "target": "mo_s2p_name_p",
+          "text": "σ2p"
+        },
+        "outputs": [
+          "mo_s2p_name"
+        ]
+      },
+      {
+        "id": "make_mo_p2_l_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_l_a"
+        ]
+      },
+      {
+        "id": "make_mo_p2_l_b",
+        "operator": "point",
+        "inputs": {
+          "x": -0.2,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_l_b"
+        ]
+      },
+      {
+        "id": "make_mo_p2_l",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_p2_l_a",
+          "end": "mo_p2_l_b"
+        },
+        "outputs": [
+          "mo_p2_l"
+        ]
+      },
+      {
+        "id": "make_mo_p2_l_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.95,
+          "y": 3.04,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_l_e1_t"
+        ]
+      },
+      {
+        "id": "make_mo_p2_l_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_p2_l_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_p2_l_e1"
+        ]
+      },
+      {
+        "id": "make_mo_p2_l_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.75,
+          "y": 3.36,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_l_e2_t"
+        ]
+      },
+      {
+        "id": "make_mo_p2_l_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_p2_l_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_p2_l_e2"
+        ]
+      },
+      {
+        "id": "make_mo_p2_r_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0.2,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_r_a"
+        ]
+      },
+      {
+        "id": "make_mo_p2_r_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_r_b"
+        ]
+      },
+      {
+        "id": "make_mo_p2_r",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_p2_r_a",
+          "end": "mo_p2_r_b"
+        },
+        "outputs": [
+          "mo_p2_r"
+        ]
+      },
+      {
+        "id": "make_mo_p2_r_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0.75,
+          "y": 3.04,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_r_e1_t"
+        ]
+      },
+      {
+        "id": "make_mo_p2_r_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_p2_r_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_p2_r_e1"
+        ]
+      },
+      {
+        "id": "make_mo_p2_r_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0.95,
+          "y": 3.36,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_r_e2_t"
+        ]
+      },
+      {
+        "id": "make_mo_p2_r_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_p2_r_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_p2_r_e2"
+        ]
+      },
+      {
+        "id": "make_mo_p2_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2_name_p"
+        ]
+      },
+      {
+        "id": "make_mo_p2_name",
+        "operator": "label",
+        "inputs": {
+          "target": "mo_p2_name_p",
+          "text": "π2p"
+        },
+        "outputs": [
+          "mo_p2_name"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_l_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2a_l_a"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_l_b",
+        "operator": "point",
+        "inputs": {
+          "x": -0.2,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2a_l_b"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_l",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_p2a_l_a",
+          "end": "mo_p2a_l_b"
+        },
+        "outputs": [
+          "mo_p2a_l"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_l_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.85,
+          "y": 4.04,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2a_l_e1_t"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_l_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_p2a_l_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_p2a_l_e1"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_r_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0.2,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2a_r_a"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_r_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2a_r_b"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_r",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_p2a_r_a",
+          "end": "mo_p2a_r_b"
+        },
+        "outputs": [
+          "mo_p2a_r"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_r_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0.85,
+          "y": 4.04,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2a_r_e1_t"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_r_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "mo_p2a_r_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.32
+        },
+        "outputs": [
+          "mo_p2a_r_e1"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_p2a_name_p"
+        ]
+      },
+      {
+        "id": "make_mo_p2a_name",
+        "operator": "label",
+        "inputs": {
+          "target": "mo_p2a_name_p",
+          "text": "π*2p"
+        },
+        "outputs": [
+          "mo_p2a_name"
+        ]
+      },
+      {
+        "id": "make_mo_s2pa_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2pa_a"
+        ]
+      },
+      {
+        "id": "make_mo_s2pa_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2pa_b"
+        ]
+      },
+      {
+        "id": "make_mo_s2pa",
+        "operator": "segment",
+        "inputs": {
+          "start": "mo_s2pa_a",
+          "end": "mo_s2pa_b"
+        },
+        "outputs": [
+          "mo_s2pa"
+        ]
+      },
+      {
+        "id": "make_mo_s2pa_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 4.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mo_s2pa_name_p"
+        ]
+      },
+      {
+        "id": "make_mo_s2pa_name",
+        "operator": "label",
+        "inputs": {
+          "target": "mo_s2pa_name_p",
+          "text": "σ*2p"
+        },
+        "outputs": [
+          "mo_s2pa_name"
+        ]
+      },
+      {
+        "id": "make_corr_1_a",
+        "operator": "point",
+        "inputs": {
+          "x": -3.3,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_1_a"
+        ]
+      },
+      {
+        "id": "make_corr_1_b",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_1_b"
+        ]
+      },
+      {
+        "id": "make_corr_1",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_1_a",
+          "end": "corr_1_b"
+        },
+        "outputs": [
+          "corr_1"
+        ]
+      },
+      {
+        "id": "make_corr_2_a",
+        "operator": "point",
+        "inputs": {
+          "x": -3.3,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_2_a"
+        ]
+      },
+      {
+        "id": "make_corr_2_b",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_2_b"
+        ]
+      },
+      {
+        "id": "make_corr_2",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_2_a",
+          "end": "corr_2_b"
+        },
+        "outputs": [
+          "corr_2"
+        ]
+      },
+      {
+        "id": "make_corr_3_a",
+        "operator": "point",
+        "inputs": {
+          "x": -2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_3_a"
+        ]
+      },
+      {
+        "id": "make_corr_3_b",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_3_b"
+        ]
+      },
+      {
+        "id": "make_corr_3",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_3_a",
+          "end": "corr_3_b"
+        },
+        "outputs": [
+          "corr_3"
+        ]
+      },
+      {
+        "id": "make_corr_4_a",
+        "operator": "point",
+        "inputs": {
+          "x": -2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_4_a"
+        ]
+      },
+      {
+        "id": "make_corr_4_b",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_4_b"
+        ]
+      },
+      {
+        "id": "make_corr_4",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_4_a",
+          "end": "corr_4_b"
+        },
+        "outputs": [
+          "corr_4"
+        ]
+      },
+      {
+        "id": "make_corr_5_a",
+        "operator": "point",
+        "inputs": {
+          "x": -2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_5_a"
+        ]
+      },
+      {
+        "id": "make_corr_5_b",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_5_b"
+        ]
+      },
+      {
+        "id": "make_corr_5",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_5_a",
+          "end": "corr_5_b"
+        },
+        "outputs": [
+          "corr_5"
+        ]
+      },
+      {
+        "id": "make_corr_6_a",
+        "operator": "point",
+        "inputs": {
+          "x": -2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_6_a"
+        ]
+      },
+      {
+        "id": "make_corr_6_b",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_6_b"
+        ]
+      },
+      {
+        "id": "make_corr_6",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_6_a",
+          "end": "corr_6_b"
+        },
+        "outputs": [
+          "corr_6"
+        ]
+      },
+      {
+        "id": "make_corr_7_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.3,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_7_a"
+        ]
+      },
+      {
+        "id": "make_corr_7_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_7_b"
+        ]
+      },
+      {
+        "id": "make_corr_7",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_7_a",
+          "end": "corr_7_b"
+        },
+        "outputs": [
+          "corr_7"
+        ]
+      },
+      {
+        "id": "make_corr_8_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.3,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_8_a"
+        ]
+      },
+      {
+        "id": "make_corr_8_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_8_b"
+        ]
+      },
+      {
+        "id": "make_corr_8",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_8_a",
+          "end": "corr_8_b"
+        },
+        "outputs": [
+          "corr_8"
+        ]
+      },
+      {
+        "id": "make_corr_9_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_9_a"
+        ]
+      },
+      {
+        "id": "make_corr_9_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_9_b"
+        ]
+      },
+      {
+        "id": "make_corr_9",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_9_a",
+          "end": "corr_9_b"
+        },
+        "outputs": [
+          "corr_9"
+        ]
+      },
+      {
+        "id": "make_corr_10_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_10_a"
+        ]
+      },
+      {
+        "id": "make_corr_10_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_10_b"
+        ]
+      },
+      {
+        "id": "make_corr_10",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_10_a",
+          "end": "corr_10_b"
+        },
+        "outputs": [
+          "corr_10"
+        ]
+      },
+      {
+        "id": "make_corr_11_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_11_a"
+        ]
+      },
+      {
+        "id": "make_corr_11_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_11_b"
+        ]
+      },
+      {
+        "id": "make_corr_11",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_11_a",
+          "end": "corr_11_b"
+        },
+        "outputs": [
+          "corr_11"
+        ]
+      },
+      {
+        "id": "make_corr_12_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_12_a"
+        ]
+      },
+      {
+        "id": "make_corr_12_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7,
+          "y": 5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corr_12_b"
+        ]
+      },
+      {
+        "id": "make_corr_12",
+        "operator": "segment",
+        "inputs": {
+          "start": "corr_12_a",
+          "end": "corr_12_b"
+        },
+        "outputs": [
+          "corr_12"
+        ]
+      },
+      {
+        "id": "make_bond_order_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1.3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bond_order_p"
+        ]
+      },
+      {
+        "id": "make_bond_order",
+        "operator": "label",
+        "inputs": {
+          "target": "bond_order_p",
+          "text": "BO = 2"
+        },
+        "outputs": [
+          "bond_order"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_ao_left_2s",
+        "predicate": "label_attached",
+        "entities": [
+          "ao_left_2s"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_ao_left_2p1",
+        "predicate": "label_attached",
+        "entities": [
+          "ao_left_2p1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_ao_right_2s",
+        "predicate": "label_attached",
+        "entities": [
+          "ao_right_2s"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_ao_right_2p3",
+        "predicate": "label_attached",
+        "entities": [
+          "ao_right_2p3"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_energy_axis",
+        "predicate": "label_attached",
+        "entities": [
+          "energy_axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "place_ao_left_2s",
+        "kind": "label",
+        "targetIds": [
+          "ao_left_2s"
+        ],
+        "text": "2s",
+        "placementIntent": "left"
+      },
+      {
+        "id": "place_ao_left_2p1",
+        "kind": "label",
+        "targetIds": [
+          "ao_left_2p1"
+        ],
+        "text": "2p",
+        "placementIntent": "left"
+      },
+      {
+        "id": "place_ao_right_2s",
+        "kind": "label",
+        "targetIds": [
+          "ao_right_2s"
+        ],
+        "text": "2s",
+        "placementIntent": "right"
+      },
+      {
+        "id": "place_ao_right_2p3",
+        "kind": "label",
+        "targetIds": [
+          "ao_right_2p3"
+        ],
+        "text": "2p",
+        "placementIntent": "right"
+      },
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "O_2: BO = 2, paramagnetic (2 unpaired)"
+      }
+    ],
+    "requiredEntityIds": [
+      "atom_left",
+      "ao_left_2s",
+      "ao_left_2s_e1",
+      "ao_left_2s_e2",
+      "ao_left_2p1",
+      "ao_left_2p1_e1",
+      "ao_left_2p1_e2",
+      "ao_left_2p2",
+      "ao_left_2p2_e1",
+      "ao_left_2p3",
+      "ao_left_2p3_e1",
+      "atom_right",
+      "ao_right_2s",
+      "ao_right_2s_e1",
+      "ao_right_2s_e2",
+      "ao_right_2p1",
+      "ao_right_2p1_e1",
+      "ao_right_2p1_e2",
+      "ao_right_2p2",
+      "ao_right_2p2_e1",
+      "ao_right_2p3",
+      "ao_right_2p3_e1",
+      "energy_axis",
+      "spacing_note",
+      "species_heading",
+      "mo_s2",
+      "mo_s2_e1",
+      "mo_s2_e2",
+      "mo_s2_name",
+      "mo_s2a",
+      "mo_s2a_e1",
+      "mo_s2a_e2",
+      "mo_s2a_name",
+      "mo_s2p",
+      "mo_s2p_e1",
+      "mo_s2p_e2",
+      "mo_s2p_name",
+      "mo_p2_l",
+      "mo_p2_l_e1",
+      "mo_p2_l_e2",
+      "mo_p2_r",
+      "mo_p2_r_e1",
+      "mo_p2_r_e2",
+      "mo_p2_name",
+      "mo_p2a_l",
+      "mo_p2a_l_e1",
+      "mo_p2a_r",
+      "mo_p2a_r_e1",
+      "mo_p2a_name",
+      "mo_s2pa",
+      "mo_s2pa_name",
+      "corr_1",
+      "corr_2",
+      "corr_3",
+      "corr_4",
+      "corr_5",
+      "corr_6",
+      "corr_7",
+      "corr_8",
+      "corr_9",
+      "corr_10",
+      "corr_11",
+      "corr_12",
+      "bond_order"
+    ],
+    "revealGroups": [
+      {
+        "id": "atoms",
+        "entityIds": [
+          "atom_left",
+          "ao_left_2s",
+          "ao_left_2s_e1",
+          "ao_left_2s_e2",
+          "ao_left_2p1",
+          "ao_left_2p1_e1",
+          "ao_left_2p1_e2",
+          "ao_left_2p2",
+          "ao_left_2p2_e1",
+          "ao_left_2p3",
+          "ao_left_2p3_e1",
+          "atom_right",
+          "ao_right_2s",
+          "ao_right_2s_e1",
+          "ao_right_2s_e2",
+          "ao_right_2p1",
+          "ao_right_2p1_e1",
+          "ao_right_2p1_e2",
+          "ao_right_2p2",
+          "ao_right_2p2_e1",
+          "ao_right_2p3",
+          "ao_right_2p3_e1",
+          "energy_axis",
+          "spacing_note"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the O atomic orbitals with their own electrons"
+      },
+      {
+        "id": "mos",
+        "entityIds": [
+          "species_heading",
+          "mo_s2",
+          "mo_s2_name",
+          "mo_s2a",
+          "mo_s2a_name",
+          "mo_s2p",
+          "mo_s2p_name",
+          "mo_p2_l",
+          "mo_p2_r",
+          "mo_p2_name",
+          "mo_p2a_l",
+          "mo_p2a_r",
+          "mo_p2a_name",
+          "mo_s2pa",
+          "mo_s2pa_name",
+          "corr_1",
+          "corr_2",
+          "corr_3",
+          "corr_4",
+          "corr_5",
+          "corr_6",
+          "corr_7",
+          "corr_8",
+          "corr_9",
+          "corr_10",
+          "corr_11",
+          "corr_12"
+        ],
+        "dependsOn": [
+          "atoms"
+        ],
+        "narrationCue": "the molecular orbitals of O2 in energy order, σ2p below π2p"
+      },
+      {
+        "id": "fill",
+        "entityIds": [
+          "mo_s2_e1",
+          "mo_s2_e2",
+          "mo_s2a_e1",
+          "mo_s2a_e2",
+          "mo_s2p_e1",
+          "mo_s2p_e2",
+          "mo_p2_l_e1",
+          "mo_p2_l_e2",
+          "mo_p2_r_e1",
+          "mo_p2_r_e2",
+          "mo_p2a_l_e1",
+          "mo_p2a_r_e1"
+        ],
+        "dependsOn": [
+          "mos"
+        ],
+        "narrationCue": "12 valence electrons fill the molecular orbitals: σ2s^2 σ*2s^2 σ2p^2 π2p^4 π*2p^2"
+      },
+      {
+        "id": "result",
+        "entityIds": [
+          "bond_order"
+        ],
+        "dependsOn": [
+          "fill"
+        ],
+        "narrationCue": "bond order 2, paramagnetic"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_atoms",
+        "action": "reveal",
+        "targetId": "atoms",
+        "dependsOn": [],
+        "narrationIntent": "the O atomic orbitals with their own electrons"
+      },
+      {
+        "id": "reveal_mos",
+        "action": "reveal",
+        "targetId": "mos",
+        "dependsOn": [
+          "reveal_atoms"
+        ],
+        "narrationIntent": "the molecular orbitals of O2 in energy order, σ2p below π2p"
+      },
+      {
+        "id": "reveal_fill",
+        "action": "reveal",
+        "targetId": "fill",
+        "dependsOn": [
+          "reveal_mos"
+        ],
+        "narrationIntent": "12 valence electrons fill the molecular orbitals: σ2s^2 σ*2s^2 σ2p^2 π2p^4 π*2p^2"
+      },
+      {
+        "id": "reveal_result",
+        "action": "reveal",
+        "targetId": "result",
+        "dependsOn": [
+          "reveal_fill"
+        ],
+        "narrationIntent": "bond order 2, paramagnetic"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

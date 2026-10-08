@@ -1,0 +1,665 @@
+{
+  "topic_id": "chemistry|5|ideal-and-non-ideal-solutions",
+  "question": "Which mixture shows positive deviation from Raoult's law: ethanol and acetone, or chloroform and acetone? Draw the vapour pressure curves.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "positive deviation from Raoult's law, qualitative"
+    },
+    "source": {
+      "question": "Which mixture shows positive deviation from Raoult's law: ethanol and acetone, or chloroform and acetone? Draw the vapour pressure curves.",
+      "synthesizedFamily": true,
+      "archetype": "chem_solutions",
+      "chemistryFamily": "chem_solutions"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "axes",
+        "kind": "axes",
+        "role": "vapour pressure against mole fraction axes"
+      },
+      {
+        "id": "ideal_a",
+        "kind": "polyline",
+        "role": "ideal partial pressure of A",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "ideal_b",
+        "kind": "polyline",
+        "role": "ideal partial pressure of B",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "ideal_total",
+        "kind": "polyline",
+        "role": "ideal total pressure",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "real_a",
+        "kind": "polyline",
+        "role": "partial pressure of A"
+      },
+      {
+        "id": "real_b",
+        "kind": "polyline",
+        "role": "partial pressure of B"
+      },
+      {
+        "id": "real_total",
+        "kind": "polyline",
+        "role": "total vapour pressure"
+      },
+      {
+        "id": "pure_a",
+        "kind": "point",
+        "role": "pure A vapour pressure",
+        "label": "p°_A"
+      },
+      {
+        "id": "pure_b",
+        "kind": "point",
+        "role": "pure B vapour pressure",
+        "label": "p°_B"
+      },
+      {
+        "id": "x_one",
+        "kind": "point",
+        "role": "pure A on the axis",
+        "label": "x_A = 1"
+      },
+      {
+        "id": "pure_a_drop",
+        "kind": "segment",
+        "role": "drop at pure A",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "p_a_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_A",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_b_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_B",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_total_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_total",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ideal_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "ideal",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "x_axis_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "x_A",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "y_axis_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "schematic_l",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "schematic",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "measured_l",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "not measured p",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_a_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "p_b_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "p_total_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ideal_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "x_axis_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "y_axis_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "schematic_l_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "measured_l_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axes",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.05,
+          "xMax": 1.14,
+          "yMin": -0.03,
+          "yMax": 0.78
+        },
+        "outputs": [
+          "axes"
+        ]
+      },
+      {
+        "id": "make_ideal_a",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.6*x",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 17
+        },
+        "outputs": [
+          "ideal_a"
+        ]
+      },
+      {
+        "id": "make_ideal_b",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.4*(1-x)",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 17
+        },
+        "outputs": [
+          "ideal_b"
+        ]
+      },
+      {
+        "id": "make_ideal_total",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.4+0.19999999999999996*x",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 17
+        },
+        "outputs": [
+          "ideal_total"
+        ]
+      },
+      {
+        "id": "make_real_a",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.6*x*(1+0.55*(1-x))",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 33
+        },
+        "outputs": [
+          "real_a"
+        ]
+      },
+      {
+        "id": "make_real_b",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.4*(1-x)*(1+0.55*x)",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 33
+        },
+        "outputs": [
+          "real_b"
+        ]
+      },
+      {
+        "id": "make_real_total",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.4+0.19999999999999996*x+0.55*x*(1-x)",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 33
+        },
+        "outputs": [
+          "real_total"
+        ]
+      },
+      {
+        "id": "make_pure_a",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pure_a"
+        ]
+      },
+      {
+        "id": "make_pure_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pure_b"
+        ]
+      },
+      {
+        "id": "make_x_one",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "x_one"
+        ]
+      },
+      {
+        "id": "make_pure_a_drop",
+        "operator": "segment",
+        "inputs": {
+          "start": "pure_a",
+          "end": "x_one"
+        },
+        "outputs": [
+          "pure_a_drop"
+        ]
+      },
+      {
+        "id": "make_p_a_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.8,
+          "y": 0.43,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_a_text_p"
+        ]
+      },
+      {
+        "id": "make_p_a_text",
+        "operator": "label",
+        "inputs": {
+          "target": "p_a_text_p",
+          "text": "p_A"
+        },
+        "outputs": [
+          "p_a_text"
+        ]
+      },
+      {
+        "id": "make_p_b_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.2,
+          "y": 0.27,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_b_text_p"
+        ]
+      },
+      {
+        "id": "make_p_b_text",
+        "operator": "label",
+        "inputs": {
+          "target": "p_b_text_p",
+          "text": "p_B"
+        },
+        "outputs": [
+          "p_b_text"
+        ]
+      },
+      {
+        "id": "make_p_total_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.5,
+          "y": 0.6875,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_total_text_p"
+        ]
+      },
+      {
+        "id": "make_p_total_text",
+        "operator": "label",
+        "inputs": {
+          "target": "p_total_text_p",
+          "text": "p_total"
+        },
+        "outputs": [
+          "p_total_text"
+        ]
+      },
+      {
+        "id": "make_ideal_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.5,
+          "y": 0.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ideal_text_p"
+        ]
+      },
+      {
+        "id": "make_ideal_text",
+        "operator": "label",
+        "inputs": {
+          "target": "ideal_text_p",
+          "text": "ideal"
+        },
+        "outputs": [
+          "ideal_text"
+        ]
+      },
+      {
+        "id": "make_x_axis_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.1,
+          "y": -0.07,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "x_axis_text_p"
+        ]
+      },
+      {
+        "id": "make_x_axis_text",
+        "operator": "label",
+        "inputs": {
+          "target": "x_axis_text_p",
+          "text": "x_A"
+        },
+        "outputs": [
+          "x_axis_text"
+        ]
+      },
+      {
+        "id": "make_y_axis_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 0.76,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "y_axis_text_p"
+        ]
+      },
+      {
+        "id": "make_y_axis_text",
+        "operator": "label",
+        "inputs": {
+          "target": "y_axis_text_p",
+          "text": "p"
+        },
+        "outputs": [
+          "y_axis_text"
+        ]
+      },
+      {
+        "id": "make_schematic_l_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.28,
+          "y": 0.74,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "schematic_l_p"
+        ]
+      },
+      {
+        "id": "make_schematic_l",
+        "operator": "label",
+        "inputs": {
+          "target": "schematic_l_p",
+          "text": "schematic"
+        },
+        "outputs": [
+          "schematic_l"
+        ]
+      },
+      {
+        "id": "make_measured_l_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.62,
+          "y": 0.74,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "measured_l_p"
+        ]
+      },
+      {
+        "id": "make_measured_l",
+        "operator": "label",
+        "inputs": {
+          "target": "measured_l_p",
+          "text": "not measured p"
+        },
+        "outputs": [
+          "measured_l"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_pure_a",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_a"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_pure_b",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_b"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_x_one",
+        "predicate": "label_attached",
+        "entities": [
+          "x_one"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_pure_a",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_a"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_pure_b",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_b"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_x_one",
+        "predicate": "label_attached",
+        "entities": [
+          "x_one"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "Positive deviation from Raoult's law, for example ethanol + acetone. Dashed lines are the ideal p_A, p_B and p_total; solid curves are the real values. A B interactions are weaker than A A and B B, so both components escape more easily: every curve lies above its Raoult line and ΔH_mix > 0, ΔV_mix > 0."
+      }
+    ],
+    "requiredEntityIds": [
+      "axes",
+      "ideal_a",
+      "ideal_b",
+      "ideal_total",
+      "real_a",
+      "real_b",
+      "real_total",
+      "pure_a",
+      "pure_b",
+      "x_one",
+      "pure_a_drop",
+      "p_a_text",
+      "p_b_text",
+      "p_total_text",
+      "ideal_text",
+      "x_axis_text",
+      "y_axis_text",
+      "schematic_l",
+      "measured_l"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "axes",
+          "ideal_a",
+          "ideal_b",
+          "ideal_total",
+          "real_a",
+          "real_b",
+          "real_total",
+          "pure_a",
+          "pure_b",
+          "x_one",
+          "pure_a_drop",
+          "p_a_text",
+          "p_b_text",
+          "p_total_text",
+          "ideal_text",
+          "x_axis_text",
+          "y_axis_text",
+          "schematic_l",
+          "measured_l"
+        ],
+        "dependsOn": [],
+        "narrationCue": "positive deviation from Raoult's law, qualitative"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "positive deviation from Raoult's law, qualitative"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}
