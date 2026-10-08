@@ -42,13 +42,15 @@ pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --out .lecture-lab/
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm current --figure-only --out .lecture-lab/eval-current
 # planner-first is an evaluation-only ordering; the student default is unchanged
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_first --figure-only --out .lecture-lab/eval-planner-first --yes
-# planner-with-examples uses the same ordering plus three deterministic retrieved examples
+# planner-with-examples uses the same ordering plus up to three cheap-model-picked examples
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --out .lecture-lab/eval-planner-examples --yes
 # rebuild the validated example library after exemplar branches are merged
 pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
 # compare legacy and current top-three retrieval without model calls; this adds
 # 100 chapter-balanced figure rows from the three eval branches to the round
 pnpm exec tsx scripts/lecture-lab/retrieval-check.ts --round .lecture-lab/eval-planner-examples --before-ref <r3-baseline-commit> --sample 100 --seed 7 --out .lecture-lab/retrieval-check.json
+# add --picker for the paid, question-only DeepSeek Flash top-three check
+node --env-file-if-exists=.env.local --import tsx scripts/lecture-lab/retrieval-check.ts --round .lecture-lab/eval-planner-examples --before-ref <r3-baseline-commit> --sample 100 --seed 7 --picker --out .lecture-lab/retrieval-picker.json
 # correct stored empty-cause labels without issuing model requests
 pnpm exec tsx scripts/lecture-lab/regrade-empty-causes.ts .lecture-lab/eval-current .lecture-lab/eval-planner-first
 # re-score a finished round after a rubric change, no LLM calls
@@ -75,13 +77,17 @@ The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`
 Synthesized entries are keyed by `depicts`: plain family/archetype language,
 construction and entity kinds, relations, and readable labels extracted from
 the validated document. Their source questions are neither stored nor prompted;
-human-curated entries retain their checked question pairing. Retrieval matches
-the current question and TurnPlan laws, quantities, units, entity hints, and
-visual requirement against `depicts`, plus the question for curated examples.
-It remains deterministic and removes exact or near-duplicate curated questions.
-Only three examples are sent, with literal point coordinates and engine-only
-metadata removed from the prompt. Each run and gallery card records the selected
-example IDs; the summary records mean scene-planner prompt characters.
+human-curated entries retain their checked question pairing. A round builds one
+deduplicated catalogue of `<id> | <figure kind> | <depicts>` lines, with each
+description capped at 16 words and the whole catalogue held below roughly 6,000
+tokens. DeepSeek V4.1 Flash selects up to three exact ids with strict JSON,
+temperature 0, and a 60-token output cap. It starts beside ProblemIR and has a
+two-second deadline; failure or timeout invokes the explicitly named word
+fallback, while a valid empty selection remains empty. Weak word matches also
+remain empty instead of padding the planner with unrelated examples. Each run
+records picker method, status, latency, critical-path time, tokens, actual cost,
+fallback reason, and selected ids. Literal point coordinates and engine-only
+metadata are still stripped from the examples sent to the scene planner.
 
 ## Judging a round
 

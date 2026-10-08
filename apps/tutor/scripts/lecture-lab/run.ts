@@ -33,7 +33,10 @@ import {
   type DiagramEvalRow,
 } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
-import { loadDiagramExemplarLibrary } from "./diagramExamples";
+import {
+  buildDiagramExampleCatalogue,
+  loadDiagramExemplarLibrary,
+} from "./diagramExamples";
 
 interface Options {
   difficulty: string;
@@ -281,6 +284,11 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
   let outputTokens = 0;
   let totalTokens = 0;
   let estimatedCostUsd = 0;
+  let pickerInputTokens = 0;
+  let pickerOutputTokens = 0;
+  let pickerCostUsd = 0;
+  let pickerCriticalPathMs = 0;
+  const pickerStatusCounts: Record<string, number> = {};
   let scenePromptChars = 0;
   let scenePromptCalls = 0;
   const modelCounts: Record<string, number> = {};
@@ -301,6 +309,13 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
     outputTokens += run.planner?.outputTokens ?? 0;
     totalTokens += run.planner?.totalTokens ?? 0;
     estimatedCostUsd += run.planner?.estimatedCostUsd ?? 0;
+    if (run.examplePicker) {
+      pickerInputTokens += run.examplePicker.inputTokens;
+      pickerOutputTokens += run.examplePicker.outputTokens;
+      pickerCostUsd += run.examplePicker.estimatedCostUsd;
+      pickerCriticalPathMs += run.examplePicker.criticalPathMs;
+      pickerStatusCounts[run.examplePicker.status] = (pickerStatusCounts[run.examplePicker.status] ?? 0) + 1;
+    }
     for (const outcome of run.diagram.plannerCallOutcomes ?? []) {
       scenePromptChars += outcome.promptChars;
       scenePromptCalls += 1;
@@ -328,6 +343,14 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
       meanPromptChars: scenePromptCalls > 0 ? Math.round(scenePromptChars / scenePromptCalls) : null,
       modelCounts,
     },
+    examplePicker: {
+      calls: runs.filter((run) => run.examplePicker).length,
+      inputTokens: pickerInputTokens,
+      outputTokens: pickerOutputTokens,
+      estimatedCostUsd: Math.round(pickerCostUsd * 1_000_000) / 1_000_000,
+      criticalPathMs: pickerCriticalPathMs,
+      statusCounts: pickerStatusCounts,
+    },
   };
 }
 
@@ -345,6 +368,9 @@ async function main(): Promise<void> {
         evaluationRows.map((row) => row.question),
       )
     : [];
+  const diagramExampleCatalogue = diagramExamples.length > 0
+    ? buildDiagramExampleCatalogue(diagramExamples)
+    : undefined;
   const probes = evaluationRows
     ? evaluationRows.map((row): ProbeQuestion => ({
         id: row.id,
@@ -364,6 +390,10 @@ async function main(): Promise<void> {
     );
     if (options.arm === "planner_examples") {
       console.log(`diagram eval: ${diagramExamples.length} leak-filtered examples available`);
+      console.log(
+        `diagram eval: ${diagramExampleCatalogue?.entries.length ?? 0} picker catalogue entries, ` +
+        `~${diagramExampleCatalogue?.estimatedTokens ?? 0} tokens`,
+      );
     }
     assertEvaluationCostAllowed(preflightEstimateUsd, options.yes);
   }
@@ -434,6 +464,7 @@ async function main(): Promise<void> {
         fastMode: evaluationRunFastMode(Boolean(evaluationRows)),
         traceId,
         diagramExamples,
+        diagramExampleCatalogue,
       });
       run.planner = usageTracker.finish(traceId);
       const grade = gradeLecture(run);

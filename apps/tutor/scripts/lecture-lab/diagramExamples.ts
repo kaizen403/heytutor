@@ -21,10 +21,26 @@ export interface DiagramExampleQuery {
   limit?: number;
 }
 
+export interface DiagramExampleCatalogueEntry {
+  id: string;
+  figureKind: string;
+  depicts: string;
+}
+
+export interface DiagramExampleCatalogue {
+  entries: DiagramExampleCatalogueEntry[];
+  text: string;
+  /** Conservative approximation used to keep the cheap-model prompt bounded. */
+  estimatedTokens: number;
+}
+
 const STOP_WORDS = new Set([
   "a", "an", "and", "at", "by", "draw", "find", "for", "from", "in", "is", "of", "on",
   "show", "sketch", "the", "to", "using", "with",
 ]);
+
+const MIN_LEXICAL_RETRIEVAL_SCORE = 100;
+const MAX_CATALOGUE_TOKENS = 6_000;
 
 const FIGURE_KIND_GROUPS: Record<string, readonly string[]> = {
   apparatus: [
@@ -115,6 +131,43 @@ export function diagramQuestionsNearDuplicate(left: string, right: string): bool
   const containment = intersection / Math.min(leftTokens.size, rightTokens.size);
   const union = new Set([...leftTokens, ...rightTokens]).size;
   return containment >= 0.8 && intersection / union >= 0.65;
+}
+
+function firstWords(value: string, count: number): string {
+  return value.trim().split(/\s+/).filter(Boolean).slice(0, count).join(" ");
+}
+
+/** Compact semantic index sent to the cheap picker; source questions never enter it. */
+export function buildDiagramExampleCatalogue(
+  exemplars: readonly DiagramExemplar[],
+): DiagramExampleCatalogue {
+  const entries: DiagramExampleCatalogueEntry[] = [];
+  const ordered = [...exemplars].sort((left, right) =>
+    Number(right.sourceKind === "curated") - Number(left.sourceKind === "curated") ||
+    left.id.localeCompare(right.id));
+  for (const exemplar of ordered) {
+    if (!exemplar.figureKind) continue;
+    const candidate = {
+      id: exemplar.id,
+      figureKind: exemplar.figureKind,
+      // Sixteen leaves room for long stable ids while remaining below the
+      // brief's twenty-word ceiling and approximate 6k-token catalogue cap.
+      depicts: firstWords(exemplar.depicts, 16),
+    };
+    const duplicate = entries.some((entry) =>
+      entry.figureKind === candidate.figureKind &&
+      diagramQuestionsNearDuplicate(entry.depicts, candidate.depicts));
+    if (!duplicate) entries.push(candidate);
+  }
+  entries.sort((left, right) => left.id.localeCompare(right.id));
+  const text = entries
+    .map((entry) => `${entry.id} | ${entry.figureKind} | ${entry.depicts}`)
+    .join("\n");
+  const estimatedTokens = Math.ceil(text.length / 4);
+  if (estimatedTokens >= MAX_CATALOGUE_TOKENS) {
+    throw new Error(`diagram example catalogue is ${estimatedTokens} estimated tokens; expected under ${MAX_CATALOGUE_TOKENS}`);
+  }
+  return { entries, text, estimatedTokens };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -217,6 +270,7 @@ export function retrieveDiagramExemplars(
   exemplars: readonly DiagramExemplar[],
   query: DiagramExampleQuery,
 ): DiagramExemplar[] {
+  const planTokens = new Set(diagramQuestionTokens(diagramPlanRetrievalText(query.plan)));
   const queryTokens = new Set(diagramQuestionTokens(
     `${query.question} ${diagramPlanRetrievalText(query.plan)}`,
   ));
@@ -225,14 +279,24 @@ export function retrieveDiagramExemplars(
     const searchable = `${exemplar.depicts} ${exemplar.sourceKind === "curated" ? exemplar.question ?? "" : ""}`;
     const tokens = new Set(diagramQuestionTokens(searchable));
     const intersection = [...tokens].filter((token) => queryTokens.has(token)).length;
+    const planIntersection = [...tokens].filter((token) => planTokens.has(token)).length;
     const union = new Set([...tokens, ...queryTokens]).size;
     const lexical = intersection * 20 + (union > 0 ? intersection / union * 100 : 0);
     const family = exemplar.family && familyHints.has(exemplar.family) ? 50 : 0;
     const archetype = exemplar.archetype && exemplar.archetype === query.archetypeId ? 40 : 0;
     const promptChars = JSON.stringify(compactSceneExampleDocument(exemplar.document)).length;
-    return { exemplar, score: lexical + family + archetype, promptChars };
+    return {
+      exemplar,
+      score: lexical + family + archetype,
+      strong:
+        lexical >= MIN_LEXICAL_RETRIEVAL_SCORE ||
+        planIntersection >= 2 ||
+        family > 0 ||
+        archetype > 0,
+      promptChars,
+    };
   });
-  const ordered = scored.sort((left, right) =>
+  const ordered = scored.filter((entry) => entry.strong).sort((left, right) =>
     right.score - left.score || left.promptChars - right.promptChars || left.exemplar.id.localeCompare(right.exemplar.id));
   const promptable = ordered.filter((entry) => entry.promptChars <= 4_000);
   const oversized = ordered.filter((entry) => entry.promptChars > 4_000);

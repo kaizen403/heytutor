@@ -42,12 +42,17 @@ import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
 import { planSceneDocument } from "@heytutor/tutor-core";
 import { buildSceneDocumentPlannerPrompt } from "@heytutor/tutor-core";
 import {
+  buildDiagramExampleCatalogue,
   buildDiagramExemplarDepicts,
   filterDiagramExemplarsForEvaluation,
   loadDiagramExemplarLibrary,
   retrieveDiagramExemplars,
   type DiagramExemplar,
 } from "../lecture-lab/diagramExamples";
+import {
+  parseDiagramExamplePickerResponse,
+  pickDiagramExamples,
+} from "../lecture-lab/diagramExamplePicker";
 import {
   runScenePlanningOverlap,
   type SceneGateCore,
@@ -107,7 +112,11 @@ assert.deepEqual(chapterSample, sampleDiagramRowsAcrossChapters(chapterSampleRow
 assert.ok(estimateEvaluationCostUsd(20, "planner_first") > estimateEvaluationCostUsd(20, "current"));
 assert.equal(estimateEvaluationCostUsd(20, "current"), 2.25, "preflight must use Kimi K3 rates");
 assert.equal(estimateEvaluationCostUsd(20, "planner_first"), 3.75, "planner-first preflight must use Kimi K3 rates");
-assert.equal(estimateEvaluationCostUsd(20, "planner_examples"), 3.75, "example retrieval does not add model calls");
+assert.equal(
+  estimateEvaluationCostUsd(20, "planner_examples"),
+  3.777192,
+  "planner-examples preflight includes the bounded DeepSeek picker call",
+);
 assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
 assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");
 assert.equal(evaluationSelectionOrder("current"), "current");
@@ -253,8 +262,16 @@ const retrieved = retrieveDiagramExemplars(exemplars, {
   families: ["vector_diagram"],
   archetypeId: null,
 });
-assert.deepEqual(retrieved.map((entry) => entry.id), ["vector-left", "vector-right", "graph-line"]);
-assert.equal(retrieved.length, 3);
+assert.deepEqual(retrieved.map((entry) => entry.id), ["vector-left", "vector-right"]);
+assert.deepEqual(
+  retrieveDiagramExemplars(exemplars, {
+    question: "Explain why a salt dissolves in water.",
+    families: [],
+    archetypeId: null,
+  }),
+  [],
+  "the word fallback must not inject unrelated default examples",
+);
 const planRetrieved = retrieveDiagramExemplars(exemplars, {
   question: "Show the velocity.",
   families: [],
@@ -297,10 +314,80 @@ assert.match(
   /crystal field theory/i,
   "family identifiers must be expressed in plain subject language",
 );
+const catalogue = buildDiagramExampleCatalogue([
+  ...exemplars,
+  {
+    ...exemplars[0]!,
+    id: "vector-right-near-duplicate",
+    question: "This entire curated question must not enter the catalogue.",
+    depicts: "force vector labelled F",
+  },
+]);
+assert.ok(catalogue.estimatedTokens < 6_000, "picker catalogue must stay below its prompt budget");
+assert.equal(catalogue.entries.length, 4, "near-duplicate descriptions must be merged");
+assert.ok(catalogue.text.includes("vector-right | vectors_fbd | force vector labelled F"));
+assert.ok(!catalogue.text.includes("This entire curated question"), "catalogue uses depicts, never curated questions");
+assert.ok(catalogue.entries.every((entry) => entry.depicts.split(/\s+/).length <= 20));
+assert.deepEqual(
+  parseDiagramExamplePickerResponse('{"ids":["vector-left","circuit-series"]}', catalogue),
+  ["vector-left", "circuit-series"],
+);
+assert.throws(
+  () => parseDiagramExamplePickerResponse('```json\n{"ids":["vector-left"]}\n```', catalogue),
+  /strict JSON/,
+);
+assert.throws(
+  () => parseDiagramExamplePickerResponse('{"ids":["not-in-catalogue"]}', catalogue),
+  /unknown exemplar/,
+);
+const pickerVerification = (async () => {
+  const pickerRequests: Record<string, unknown>[] = [];
+  const picked = await pickDiagramExamples(exemplars, catalogue, {
+    question: "Show a resistor circuit.",
+    plan: null,
+    families: ["circuit_network"],
+    archetypeId: null,
+    apiKey: "test-key",
+    fetchImpl: async (_input, init) => {
+      pickerRequests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return Response.json({
+        choices: [{ message: { content: '{"ids":["circuit-series"]}' } }],
+        usage: { prompt_tokens: 120, completion_tokens: 9, total_tokens: 129 },
+      });
+    },
+  });
+  assert.deepEqual(picked.examples.map((entry) => entry.id), ["circuit-series"]);
+  assert.equal(picked.record.method, "model");
+  assert.equal(picked.record.status, "picked");
+  assert.ok(picked.record.estimatedCostUsd > 0);
+  assert.equal(pickerRequests[0]?.temperature, 0);
+  assert.equal(pickerRequests[0]?.max_tokens, 60);
+  assert.deepEqual(pickerRequests[0]?.response_format, { type: "json_object" });
+  const fellBack = await pickDiagramExamples(exemplars, catalogue, {
+    question: "Show the force and velocity vectors on an object.",
+    plan: null,
+    families: ["vector_diagram"],
+    archetypeId: null,
+    apiKey: "test-key",
+    fetchImpl: async () => new Response("unavailable", { status: 503 }),
+  });
+  assert.equal(fellBack.record.method, "word_fallback");
+  assert.equal(fellBack.record.status, "failed");
+  assert.deepEqual(fellBack.examples.map((entry) => entry.id), ["vector-left", "vector-right"]);
+})();
 
 const repoRoot = resolve(process.cwd(), "../..");
 const exemplarRoot = resolve(repoRoot, "data/diagram-eval/v1/exemplars");
 const builtLibrary = loadDiagramExemplarLibrary(resolve(exemplarRoot, "_library.jsonl"), []);
+assert.deepEqual(
+  retrieveDiagramExemplars(builtLibrary, {
+    question: "In thin layer chromatography a compound travels 3.6 cm while the solvent front travels 12.0 cm.",
+    families: [],
+    archetypeId: null,
+  }),
+  [],
+  "a few generic words and units must not select unrelated maths or optics defaults",
+);
 const curatedQuestions = readdirSync(resolve(exemplarRoot, "chemistry"))
   .filter((file) => file.endsWith(".json"))
   .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "chemistry", file), "utf8")) as { question: string })
@@ -317,6 +404,17 @@ assert.equal(curatedMathsQuestions.length, 10);
 for (const question of curatedMathsQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
 }
+const curatedPhysicsQuestions = readdirSync(resolve(exemplarRoot, "physics"))
+  .filter((file) => file.endsWith(".json"))
+  .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "physics", file), "utf8")) as { question: string })
+  .map((entry) => entry.question);
+assert.equal(curatedPhysicsQuestions.length, 9);
+for (const question of curatedPhysicsQuestions) {
+  assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
+}
+const builtCatalogue = buildDiagramExampleCatalogue(builtLibrary);
+assert.ok(builtCatalogue.estimatedTokens < 6_000);
+assert.ok(builtCatalogue.entries.length < builtLibrary.length, "catalogue must merge near-duplicate examples");
 assert.ok(
   builtLibrary.filter((entry) => entry.sourceKind === "synthesized").every((entry) => entry.question === null),
   "synthesized source questions must not survive in the runtime library",
@@ -488,6 +586,7 @@ assert.deepEqual(resolvePlannerModels({
 }), ["accounts/fireworks/models/kimi-k3"]);
 
 void (async () => {
+  await pickerVerification;
   const nativeFetch = globalThis.fetch;
   const requestOutcomes: Array<{
     httpStatus: number | null;

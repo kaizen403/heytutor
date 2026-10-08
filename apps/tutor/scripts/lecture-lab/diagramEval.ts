@@ -256,10 +256,17 @@ export function sampleDiagramEvalRows(
  */
 export function estimateEvaluationCostUsd(rowCount: number, arm: DiagramEvalArm): number {
   const calls = rowCount * (arm === "current" ? 3 : 5);
-  return calculateLlmCostDetails(
+  const planner = calculateLlmCostDetails(
     { input: calls * 3_500, output: calls * 1_800 },
     { model: "accounts/fireworks/models/kimi-k3" },
   ).total ?? 0;
+  const picker = arm === "planner_examples"
+    ? calculateLlmCostDetails(
+        { input: rowCount * 6_000, output: rowCount * 60 },
+        { model: "accounts/fireworks/models/deepseek-v4p1-flash" },
+      ).total ?? 0
+    : 0;
+  return Math.round((planner + picker) * 1_000_000) / 1_000_000;
 }
 
 /** Evaluation turns explicitly leave the production/default Fast behavior alone. */

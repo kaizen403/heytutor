@@ -89,9 +89,14 @@ import {
   type PlannerUsageSummary,
 } from "./diagramEval";
 import {
-  retrieveDiagramExemplars,
+  buildDiagramExampleCatalogue,
+  type DiagramExampleCatalogue,
   type DiagramExemplar,
 } from "./diagramExamples";
+import {
+  pickDiagramExamples,
+  type DiagramExamplePickerRecord,
+} from "./diagramExamplePicker";
 
 export interface LectureStep {
   index: number;
@@ -117,6 +122,13 @@ export interface LecturePlanningStages {
   /** Scene planning was started again on the final facts. */
   restarted: boolean;
   speculationAbort: SpeculationAbortReason | null;
+}
+
+export interface LectureExamplePickerRecord extends DiagramExamplePickerRecord {
+  /** The ProblemIR request was in flight during at least part of the picker call. */
+  overlappedProblemIr: boolean;
+  /** Picker time beyond ProblemIR completion; zero means it added no planning wait. */
+  criticalPathMs: number;
 }
 
 export interface LectureRun {
@@ -157,6 +169,7 @@ export interface LectureRun {
     projection: unknown;
   } | null;
   planner?: PlannerUsageSummary;
+  examplePicker?: LectureExamplePickerRecord;
   diagram: {
     committed: boolean;
     /**
@@ -235,6 +248,8 @@ export interface RunLectureOptions {
   traceId?: string;
   /** Leak-filtered library used only by the planner_examples evaluation arm. */
   diagramExamples?: readonly DiagramExemplar[];
+  /** Built once per round from diagramExamples. */
+  diagramExampleCatalogue?: DiagramExampleCatalogue;
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
     diagram: VerifiedDiagram | null;
@@ -397,6 +412,7 @@ export async function runLecture(
     const plannerStartedAt = Date.now();
     let turnPlan: TurnPlanV3;
     let problemAuthority: ProblemAuthorityV1Response | null = null;
+    let pickedExamples: DiagramExemplar[] = [];
 
     const turnPlanStartedAt = Date.now();
     const plannedTurn = await planTurnV3(question, {
@@ -416,6 +432,7 @@ export async function runLecture(
     // authority, started from the selected plan. The bench has no visual-need
     // service, so the planner's own visual requirement stands.
     let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
+    let problemAuthorityFinishedAt: number | null = null;
     if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
       const remainingAuthorityMs = Math.max(
         1_000,
@@ -431,8 +448,41 @@ export async function runLecture(
         .catch(() => null)
         .then((authority) => {
           stages.problemIrMs = Date.now() - problemIrStartedAt;
+          problemAuthorityFinishedAt = Date.now();
           return authority;
         });
+    }
+
+    if (options.arm === "planner_examples") {
+      const examples = options.diagramExamples ?? [];
+      const pickerStartedAt = Date.now();
+      const pickerCapabilities = inferSceneCapabilities(question, {
+        lawIds: turnPlan.lawIds,
+        problemIR: null,
+        turnPlan,
+      });
+      const pickerArchetype = detectArchetype(question, { turnPlan, problemIR: null });
+      const picked = await pickDiagramExamples(
+        examples,
+        options.diagramExampleCatalogue ?? buildDiagramExampleCatalogue(examples),
+        {
+          question,
+          plan: turnPlan,
+          families: pickerCapabilities.families,
+          archetypeId: pickerArchetype?.id ?? null,
+        },
+      );
+      const pickerFinishedAt = Date.now();
+      pickedExamples = picked.examples;
+      run.examplePicker = {
+        ...picked.record,
+        overlappedProblemIr: problemAuthorityPromise !== null,
+        criticalPathMs: problemAuthorityPromise === null
+          ? pickerFinishedAt - pickerStartedAt
+          : problemAuthorityFinishedAt === null
+            ? 0
+            : Math.max(0, pickerFinishedAt - problemAuthorityFinishedAt),
+      };
     }
 
     const validateCandidateAgainstPlan = (
@@ -577,14 +627,7 @@ export async function runLecture(
               ".",
           ]
         : [];
-      const examplesUsed = options.arm === "planner_examples"
-        ? retrieveDiagramExemplars(options.diagramExamples ?? [], {
-            question,
-            families: sceneCapabilities.families,
-            archetypeId: archetype?.id ?? null,
-            plan: planningTurnPlan,
-          })
-        : [];
+      const examplesUsed = options.arm === "planner_examples" ? pickedExamples : [];
       return {
         sceneCapabilities,
         shouldPlanExactScene,

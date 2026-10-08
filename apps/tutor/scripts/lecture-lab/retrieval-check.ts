@@ -13,6 +13,7 @@ import {
   type DiagramEvalRow,
 } from "./diagramEval";
 import {
+  buildDiagramExampleCatalogue,
   diagramQuestionTokens,
   diagramQuestionsNearDuplicate,
   figureKindForDiagramGroup,
@@ -20,6 +21,10 @@ import {
   retrieveDiagramExemplars,
   type DiagramExemplar,
 } from "./diagramExamples";
+import {
+  pickDiagramExamples,
+  type DiagramExamplePickerRecord,
+} from "./diagramExamplePicker";
 
 interface RetrievalInput {
   row: DiagramEvalRow;
@@ -55,6 +60,10 @@ interface RetrievalRowResult {
   afterHit: boolean;
   beforeRelevantRank: number | null;
   afterRelevantRank: number | null;
+  pickerTop3?: RankedExample[];
+  pickerHit?: boolean;
+  pickerNone?: boolean;
+  picker?: DiagramExamplePickerRecord;
 }
 
 interface RetrievalCheckOptions {
@@ -63,6 +72,8 @@ interface RetrievalCheckOptions {
   sample: number;
   seed: number;
   output: string | null;
+  picker: boolean;
+  concurrency: number;
 }
 
 const EVAL_SOURCES = [
@@ -291,6 +302,42 @@ function rate(rows: readonly RetrievalRowResult[], field: "beforeHit" | "afterHi
   return { hits, denominator: rows.length, hitRate: rows.length > 0 ? hits / rows.length : 0 };
 }
 
+function pickerRate(rows: readonly RetrievalRowResult[]) {
+  const hits = rows.filter((row) => row.pickerHit).length;
+  return { hits, denominator: rows.length, hitRate: rows.length > 0 ? hits / rows.length : 0 };
+}
+
+function pickerRateByFigureKind(rows: readonly RetrievalRowResult[]) {
+  const kinds = new Map<string, RetrievalRowResult[]>();
+  for (const row of rows) {
+    const group = kinds.get(row.expectedFigureKind) ?? [];
+    group.push(row);
+    kinds.set(row.expectedFigureKind, group);
+  }
+  return Object.fromEntries([...kinds.entries()].sort(([left], [right]) => left.localeCompare(right)).map(
+    ([kind, group]) => [kind, pickerRate(group)],
+  ));
+}
+
+async function mapConcurrent<T, U>(
+  values: readonly T[],
+  concurrency: number,
+  visit: (value: T, index: number) => Promise<U>,
+): Promise<U[]> {
+  const results = new Array<U>(values.length);
+  let cursor = 0;
+  const worker = async () => {
+    for (;;) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= values.length) return;
+      results[index] = await visit(values[index]!, index);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
+  return results;
+}
+
 function parseOptions(argv: readonly string[]): RetrievalCheckOptions {
   const value = (name: string): string | null => {
     const index = argv.indexOf(name);
@@ -299,7 +346,7 @@ function parseOptions(argv: readonly string[]): RetrievalCheckOptions {
   const roundDir = value("--round");
   const beforeRef = value("--before-ref");
   if (!roundDir || !beforeRef) {
-    throw new Error("usage: retrieval-check.ts --round <r3-round> --before-ref <commit> [--sample 100] [--seed 20261009] [--out report.json]");
+    throw new Error("usage: retrieval-check.ts --round <r3-round> --before-ref <commit> [--sample 100] [--seed 20261009] [--picker] [--concurrency 4] [--out report.json]");
   }
   return {
     roundDir: resolve(roundDir),
@@ -307,10 +354,12 @@ function parseOptions(argv: readonly string[]): RetrievalCheckOptions {
     sample: Number(value("--sample") ?? 100),
     seed: Number(value("--seed") ?? 20261009),
     output: value("--out") ? resolve(value("--out")!) : null,
+    picker: argv.includes("--picker"),
+    concurrency: Number(value("--concurrency") ?? 4),
   };
 }
 
-export function runRetrievalCheck(repoRoot: string, options: RetrievalCheckOptions) {
+export async function runRetrievalCheck(repoRoot: string, options: RetrievalCheckOptions) {
   const roundInputs = loadRoundInputs(options.roundDir);
   const roundIds = new Set(roundInputs.map((input) => input.row.id));
   const sampledRows = sampleDiagramRowsAcrossChapters(
@@ -336,7 +385,26 @@ export function runRetrievalCheck(repoRoot: string, options: RetrievalCheckOptio
     resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl"),
     evaluationQuestions,
   );
-  const rows = inputs.map((input) => scoreInput(input, beforeLibrary, afterLibrary));
+  let rows = inputs.map((input) => scoreInput(input, beforeLibrary, afterLibrary));
+  if (options.picker) {
+    const catalogue = buildDiagramExampleCatalogue(afterLibrary);
+    rows = await mapConcurrent(rows, options.concurrency, async (row, index) => {
+      const picked = await pickDiagramExamples(afterLibrary, catalogue, {
+        question: inputs[index]!.row.question,
+        plan: null,
+        families: [],
+        archetypeId: null,
+      });
+      const pickerTop3 = rankedExamples(picked.examples);
+      return {
+        ...row,
+        pickerTop3,
+        pickerHit: pickerTop3.some((example) => example.figureKind === row.expectedFigureKind),
+        pickerNone: picked.record.method === "model" && picked.record.status === "none",
+        picker: picked.record,
+      };
+    });
+  }
   const before = rate(rows, "beforeHit");
   const after = rate(rows, "afterHit");
   const worstMisses = rows.filter((row) => !row.afterHit).sort((left, right) => {
@@ -344,12 +412,21 @@ export function runRetrievalCheck(repoRoot: string, options: RetrievalCheckOptio
     const rightRank = right.afterRelevantRank ?? Number.POSITIVE_INFINITY;
     return rightRank - leftRank || left.id.localeCompare(right.id);
   }).slice(0, 10);
+  const picker = options.picker ? pickerRate(rows) : null;
+  const pickerWorstMisses = options.picker
+    ? rows.filter((row) => !row.pickerHit).sort((left, right) =>
+        Number(right.pickerTop3?.length === 0) - Number(left.pickerTop3?.length === 0) ||
+        left.id.localeCompare(right.id)).slice(0, 10)
+    : [];
+  const pickerCalls = rows.flatMap((row) => row.picker ? [row.picker] : []);
+  const pickerCostUsd = pickerCalls.reduce((sum, call) => sum + call.estimatedCostUsd, 0);
+  const pickerNone = rows.filter((row) => row.pickerNone).length;
   const report = {
     schemaVersion: "diagram-example-retrieval-check/v1",
     beforeRef: options.beforeRef,
     seed: options.seed,
     targetHitRate: 0.7,
-    targetMet: after.hitRate >= 0.7,
+    targetMet: picker ? picker.hitRate >= 0.7 : after.hitRate >= 0.7,
     sample: {
       roundRows: roundInputs.length,
       branchRows: sampledRows.length,
@@ -359,7 +436,27 @@ export function runRetrievalCheck(repoRoot: string, options: RetrievalCheckOptio
     libraries: { before: beforeLibrary.length, after: afterLibrary.length },
     before,
     after,
+    part9Reference: { hits: 58, denominator: 116, hitRate: 0.5 },
+    picker,
+    pickerByFigureKind: options.picker ? pickerRateByFigureKind(rows) : null,
+    pickerNone: options.picker ? {
+      count: pickerNone,
+      denominator: rows.length,
+      rate: rows.length > 0 ? pickerNone / rows.length : 0,
+    } : null,
+    pickerUsage: options.picker ? {
+      calls: pickerCalls.length,
+      usageKnownCalls: pickerCalls.filter((call) => call.usageKnown).length,
+      fallbackCalls: pickerCalls.filter((call) => call.method === "word_fallback").length,
+      inputTokens: pickerCalls.reduce((sum, call) => sum + call.inputTokens, 0),
+      outputTokens: pickerCalls.reduce((sum, call) => sum + call.outputTokens, 0),
+      estimatedCostUsd: Math.round(pickerCostUsd * 1_000_000) / 1_000_000,
+      meanElapsedMs: pickerCalls.length > 0
+        ? Math.round(pickerCalls.reduce((sum, call) => sum + call.elapsedMs, 0) / pickerCalls.length)
+        : null,
+    } : null,
     worstMisses,
+    pickerWorstMisses,
     rows,
   };
   if (options.output) {
@@ -372,13 +469,24 @@ export function runRetrievalCheck(repoRoot: string, options: RetrievalCheckOptio
 if (process.argv[1]?.endsWith("retrieval-check.ts")) {
   const options = parseOptions(process.argv.slice(2));
   const repoRoot = resolve(process.cwd(), "../..");
-  const report = runRetrievalCheck(repoRoot, options);
-  console.log(JSON.stringify({
-    before: report.before,
-    after: report.after,
-    targetMet: report.targetMet,
-    sample: report.sample,
-    worstMisses: report.worstMisses,
-    output: options.output,
-  }, null, 2));
+  void runRetrievalCheck(repoRoot, options)
+    .then((report) => {
+      console.log(JSON.stringify({
+        before: report.before,
+        after: report.after,
+        part9Reference: report.part9Reference,
+        picker: report.picker,
+        pickerByFigureKind: report.pickerByFigureKind,
+        pickerNone: report.pickerNone,
+        pickerUsage: report.pickerUsage,
+        targetMet: report.targetMet,
+        sample: report.sample,
+        pickerWorstMisses: report.pickerWorstMisses,
+        output: options.output,
+      }, null, 2));
+    })
+    .catch((error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    });
 }
