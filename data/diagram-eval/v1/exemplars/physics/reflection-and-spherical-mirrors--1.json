@@ -1,0 +1,738 @@
+{
+  "topic_id": "physics|16|reflection-and-spherical-mirrors",
+  "question": "A concave mirror has focal length 15 cm and an object is 45 cm in front of it. Locate the image and represent the principal rays.",
+  "figure_kind": "ray_optics",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "concave mirror ray diagram from the mirror formula (u=45, f=15)"
+    },
+    "source": {
+      "question": "A concave mirror has focal length 15 cm and an object is 45 cm in front of it. Locate the image and represent the principal rays.",
+      "synthesizedFamily": true,
+      "archetype": "spherical_mirror",
+      "slotSources": {
+        "kind": "stem",
+        "u": "plan",
+        "f": "plan",
+        "v": "plan"
+      },
+      "exactGrounding": "plan"
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": -45,
+        "unit": "cm"
+      },
+      {
+        "id": "f",
+        "symbol": "f",
+        "value": -15,
+        "unit": "cm"
+      },
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": -22.5,
+        "unit": "cm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "axis",
+        "kind": "line",
+        "role": "principal axis"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "pole",
+        "label": "P"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "centre of curvature",
+        "label": "C"
+      },
+      {
+        "id": "F",
+        "kind": "point",
+        "role": "focus",
+        "label": "F"
+      },
+      {
+        "id": "mirror",
+        "kind": "arc",
+        "role": "concave mirror",
+        "label": "M"
+      },
+      {
+        "id": "O_base",
+        "kind": "point",
+        "role": "object foot",
+        "label": "O"
+      },
+      {
+        "id": "object",
+        "kind": "vector",
+        "role": "object"
+      },
+      {
+        "id": "I_base",
+        "kind": "point",
+        "role": "image foot",
+        "label": "I"
+      },
+      {
+        "id": "image",
+        "kind": "vector",
+        "role": "real image"
+      },
+      {
+        "id": "ray1_in",
+        "kind": "segment",
+        "role": "incident ray parallel to the axis"
+      },
+      {
+        "id": "ray2_in",
+        "kind": "segment",
+        "role": "incident ray through the focus"
+      },
+      {
+        "id": "ray1_out",
+        "kind": "segment",
+        "role": "reflected ray through F (paraxial)"
+      },
+      {
+        "id": "ray2_out",
+        "kind": "segment",
+        "role": "reflected ray parallel to the axis (paraxial)"
+      },
+      {
+        "id": "dim_u",
+        "kind": "dimension",
+        "role": "object distance",
+        "label": "u=45 cm"
+      },
+      {
+        "id": "dim_f",
+        "kind": "dimension",
+        "role": "focal length",
+        "label": "f=15 cm"
+      },
+      {
+        "id": "axis_l",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "axis_r",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "O_tip",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "I_tip",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "M1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "M2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_u_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_u_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_f_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "dim_f_b",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axis_l",
+        "operator": "point",
+        "inputs": {
+          "x": -54,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "axis_l"
+        ]
+      },
+      {
+        "id": "make_axis_r",
+        "operator": "point",
+        "inputs": {
+          "x": 7.25,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "axis_r"
+        ]
+      },
+      {
+        "id": "make_axis",
+        "operator": "line",
+        "inputs": {
+          "start": "axis_l",
+          "end": "axis_r"
+        },
+        "outputs": [
+          "axis"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": -30,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_F",
+        "operator": "point",
+        "inputs": {
+          "x": -15,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "make_mirror",
+        "operator": "arc",
+        "inputs": {
+          "center": "C",
+          "radius": 30,
+          "startAngle": -16,
+          "endAngle": 16,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "mirror"
+        ]
+      },
+      {
+        "id": "make_O_base",
+        "operator": "point",
+        "inputs": {
+          "x": -45,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O_base"
+        ]
+      },
+      {
+        "id": "make_O_tip",
+        "operator": "point",
+        "inputs": {
+          "x": -45,
+          "y": 4.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O_tip"
+        ]
+      },
+      {
+        "id": "make_object",
+        "operator": "vector",
+        "inputs": {
+          "start": "O_base",
+          "end": "O_tip"
+        },
+        "outputs": [
+          "object"
+        ]
+      },
+      {
+        "id": "make_I_base",
+        "operator": "point",
+        "inputs": {
+          "x": -22.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "I_base"
+        ]
+      },
+      {
+        "id": "make_I_tip",
+        "operator": "point",
+        "inputs": {
+          "x": -22.5,
+          "y": -2.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "I_tip"
+        ]
+      },
+      {
+        "id": "make_image",
+        "operator": "vector",
+        "inputs": {
+          "start": "I_base",
+          "end": "I_tip"
+        },
+        "outputs": [
+          "image"
+        ]
+      },
+      {
+        "id": "make_M1",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 4.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "M1"
+        ]
+      },
+      {
+        "id": "make_M2",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "M2"
+        ]
+      },
+      {
+        "id": "make_ray1_in",
+        "operator": "segment",
+        "inputs": {
+          "start": "O_tip",
+          "end": "M1"
+        },
+        "outputs": [
+          "ray1_in"
+        ]
+      },
+      {
+        "id": "make_ray2_in",
+        "operator": "segment",
+        "inputs": {
+          "start": "O_tip",
+          "end": "M2"
+        },
+        "outputs": [
+          "ray2_in"
+        ]
+      },
+      {
+        "id": "make_ray1_out",
+        "operator": "segment",
+        "inputs": {
+          "start": "M1",
+          "end": "I_tip",
+          "approximation": "paraxial"
+        },
+        "outputs": [
+          "ray1_out"
+        ]
+      },
+      {
+        "id": "make_ray2_out",
+        "operator": "segment",
+        "inputs": {
+          "start": "M2",
+          "end": "I_tip",
+          "approximation": "paraxial"
+        },
+        "outputs": [
+          "ray2_out"
+        ]
+      },
+      {
+        "id": "make_dim_u_a",
+        "operator": "point",
+        "inputs": {
+          "x": -45,
+          "y": 13.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_u_a"
+        ]
+      },
+      {
+        "id": "make_dim_u_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 13.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_u_b"
+        ]
+      },
+      {
+        "id": "make_dim_u",
+        "operator": "dimension",
+        "inputs": {
+          "start": "dim_u_a",
+          "end": "dim_u_b"
+        },
+        "outputs": [
+          "dim_u"
+        ]
+      },
+      {
+        "id": "make_dim_f_a",
+        "operator": "point",
+        "inputs": {
+          "x": -15,
+          "y": -11.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_f_a"
+        ]
+      },
+      {
+        "id": "make_dim_f_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -11.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_f_b"
+        ]
+      },
+      {
+        "id": "make_dim_f",
+        "operator": "dimension",
+        "inputs": {
+          "start": "dim_f_a",
+          "end": "dim_f_b"
+        },
+        "outputs": [
+          "dim_f"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "rays_converge",
+        "predicate": "converges",
+        "entities": [
+          "ray1_out",
+          "ray2_out"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "object_on_axis",
+        "predicate": "on",
+        "entities": [
+          "O_base",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "image_on_axis",
+        "predicate": "on",
+        "entities": [
+          "I_base",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "ray1_in_parallel",
+        "predicate": "parallel",
+        "entities": [
+          "ray1_in",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "ray2_out_parallel",
+        "predicate": "parallel",
+        "entities": [
+          "ray2_out",
+          "axis"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "f_is_half_r",
+        "predicate": "distance_ratio",
+        "entities": [
+          "P",
+          "F",
+          "P",
+          "C"
+        ],
+        "expected": 0.5,
+        "severity": "fatal"
+      },
+      {
+        "id": "image_distance",
+        "predicate": "distance_ratio",
+        "entities": [
+          "P",
+          "I_base",
+          "P",
+          "O_base"
+        ],
+        "expected": 0.5,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_P",
+        "predicate": "label_attached",
+        "entities": [
+          "P"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_F",
+        "predicate": "label_attached",
+        "entities": [
+          "F"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_C",
+        "predicate": "label_attached",
+        "entities": [
+          "C"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_O_base",
+        "predicate": "label_attached",
+        "entities": [
+          "O_base"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_I_base",
+        "predicate": "label_attached",
+        "entities": [
+          "I_base"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_P",
+        "predicate": "label_attached",
+        "entities": [
+          "P"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_C",
+        "predicate": "label_attached",
+        "entities": [
+          "C"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_F",
+        "predicate": "label_attached",
+        "entities": [
+          "F"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_O_base",
+        "predicate": "label_attached",
+        "entities": [
+          "O_base"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_I_base",
+        "predicate": "label_attached",
+        "entities": [
+          "I_base"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "axis",
+      "P",
+      "C",
+      "F",
+      "mirror",
+      "O_base",
+      "object",
+      "I_base",
+      "image",
+      "ray1_in",
+      "ray2_in",
+      "ray1_out",
+      "ray2_out",
+      "dim_u",
+      "dim_f"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "axis",
+          "P",
+          "C",
+          "F",
+          "mirror",
+          "O_base",
+          "object",
+          "dim_u",
+          "dim_f",
+          "I_base"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the mirror, its pole, focus and centre, and the object"
+      },
+      {
+        "id": "rays",
+        "entityIds": [
+          "ray1_in",
+          "ray2_in",
+          "ray1_out",
+          "ray2_out"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "two principal rays locate the image"
+      },
+      {
+        "id": "image_group",
+        "entityIds": [
+          "I_base",
+          "image"
+        ],
+        "dependsOn": [
+          "rays"
+        ],
+        "narrationCue": "the real, inverted image"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the mirror, its pole, focus and centre, and the object"
+      },
+      {
+        "id": "reveal_rays",
+        "action": "reveal",
+        "targetId": "rays",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "two principal rays locate the image"
+      },
+      {
+        "id": "reveal_image_group",
+        "action": "reveal",
+        "targetId": "image_group",
+        "dependsOn": [
+          "reveal_rays"
+        ],
+        "narrationIntent": "the real, inverted image"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}
