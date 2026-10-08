@@ -443,7 +443,16 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
           restarted = true;
         }
       }
-    } else if (!scene && !fast && gate.shouldAttemptLlmScene && remainingMs() > 0) {
+    } else if (
+      !scene &&
+      !fast &&
+      (gate.shouldAttemptLlmScene || (plannerFirst && gate.shouldPlanExactScene)) &&
+      remainingMs() > 0
+    ) {
+      // Evaluation-only planner-first deliberately probes the questions that
+      // no family or archetype recognizes. The gate's empty family list is
+      // passed through unchanged; validation/proof/compile still decide if
+      // anything may render. The live/default current ordering is unchanged.
       run = startRun(gate, turnPlan, false, false);
     }
     if (run) scene = await finishRun(run);

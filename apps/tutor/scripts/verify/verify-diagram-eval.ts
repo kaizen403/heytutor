@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import {
   assertEvaluationCostAllowed,
   combineDiagramEvalRows,
@@ -26,6 +27,10 @@ import {
   shouldUseLectureLabStandardModel,
 } from "../../lib/billing/flags";
 import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
+import {
+  runScenePlanningOverlap,
+  type SceneGateCore,
+} from "../../features/tutor-session/lib/scene/planningOverlap";
 
 const rows = parseDiagramEvalJsonl([
   JSON.stringify({
@@ -224,5 +229,51 @@ void (async () => {
   assert.equal(usage.modelCalls[0]?.model, "accounts/fireworks/models/kimi-k3");
   assert.equal(usage.modelCalls[0]?.estimatedCostUsd, 18, "each call must be priced at its actual model rate");
   assert.equal(usage.estimatedCostUsd, 18);
+
+  const noFamilyPlan = {
+    schemaVersion: "turn-plan/v3",
+    question: "Show the triangle for the cosine rule.",
+    givens: [],
+    unknowns: [],
+    derived: [],
+    qualitativeClaims: [],
+    lawIds: ["cosine_rule"],
+    assumptions: [],
+    visualRequirement: "required",
+  } as unknown as TurnPlanV3;
+  const plannerCallsFor = async (selectionOrder: "current" | "planner_first") => {
+    let plannerCalls = 0;
+    await runScenePlanningOverlap<null, SceneGateCore, never, {
+      candidates: unknown[];
+      validation: { valid: boolean };
+    }>({
+      turnPlan: noFamilyPlan,
+      problemAuthority: null,
+      speculationAllowed: false,
+      selectionOrder,
+      plannerStartedAt: 0,
+      deadlineMs: 60_000,
+      now: () => 0,
+      deriveGate: () => ({
+        shouldPlanExactScene: true,
+        shouldAttemptLlmScene: false,
+        families: [],
+        archetypeId: null,
+        request: { conversationContext: "no matched family" },
+      }),
+      applyAuthority: (turnPlan) => ({ turnPlan, authority: null }),
+      fastFigureBlocked: () => false,
+      selectFast: () => null,
+      planScene: async (gate) => {
+        plannerCalls += 1;
+        assert.deepEqual(gate.families, [], "planner-first must not invent a family");
+        return null;
+      },
+      revalidate: async (result) => result,
+    });
+    return plannerCalls;
+  };
+  assert.equal(await plannerCallsFor("current"), 0, "current keeps the family/archetype gate");
+  assert.equal(await plannerCallsFor("planner_first"), 1, "planner-first tries an unmatched required figure");
   console.log("diagram evaluation judging and Kimi K3 verification passed");
 })();
