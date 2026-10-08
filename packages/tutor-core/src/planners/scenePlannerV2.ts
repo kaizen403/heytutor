@@ -49,6 +49,19 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
   fastMode?: boolean;
+  /** Evaluation diagnostics for every HTTP attempt, including null candidates. */
+  onRequestOutcome?: (outcome: ScenePlannerRequestOutcome) => void;
+}
+
+export interface ScenePlannerRequestOutcome {
+  phase: "plan" | "repair";
+  lane: ScenePlannerLane;
+  httpStatus: number | null;
+  error: string | null;
+  /** True only when the model body contained a parseable scene JSON object. */
+  bodyParsed: boolean;
+  promptChars: number;
+  elapsedMs: number;
 }
 
 export interface ScenePlanWithRepairResult<T> {
@@ -591,6 +604,25 @@ async function requestSceneDocument(
 ): Promise<ScenePlannerResponse | null> {
   const { proxyUrl, sessionId, traceId, signal, timeoutMs = SCENE_PLANNER_TIMEOUT_MS } = options;
   const startedAt = Date.now();
+  let httpStatus: number | null = null;
+  let outcomeReported = false;
+  const reportOutcome = (error: string | null, bodyParsed: boolean) => {
+    if (outcomeReported) return;
+    outcomeReported = true;
+    try {
+      options.onRequestOutcome?.({
+        phase,
+        lane,
+        httpStatus,
+        error,
+        bodyParsed,
+        promptChars: prompt.length,
+        elapsedMs: Date.now() - startedAt,
+      });
+    } catch {
+      // Diagnostics must never change planning behavior.
+    }
+  };
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), Math.max(1, timeoutMs));
   const combinedSignal = signal
@@ -636,23 +668,37 @@ async function requestSceneDocument(
         ],
       }),
     });
+    httpStatus = response.status;
 
     if (!response.ok) {
+      const responseText = (await response.text().catch(() => "")).trim();
+      const errorText = responseText.slice(0, 500) || response.statusText || `HTTP ${response.status}`;
       tutorDebug("planner", `semantic scene ${phase} request failed`, {
         status: response.status,
+        error: errorText,
         elapsed_ms: Date.now() - startedAt,
       });
+      reportOutcome(errorText, false);
       return null;
     }
 
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-    };
+    let payload: { choices?: Array<{ message?: { content?: unknown } }> };
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch (error) {
+      const errorText = `response_json_parse_failed: ${error instanceof Error ? error.message : String(error)}`;
+      tutorDebug("planner", `semantic scene ${phase} returned an unreadable response body`, {
+        elapsed_ms: Date.now() - startedAt,
+      });
+      reportOutcome(errorText, false);
+      return null;
+    }
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.trim() === "") {
       tutorDebug("planner", `semantic scene ${phase} returned empty content`, {
         elapsed_ms: Date.now() - startedAt,
       });
+      reportOutcome("empty_content", false);
       return null;
     }
 
@@ -662,6 +708,7 @@ async function requestSceneDocument(
         content_preview: content.slice(0, 200),
         elapsed_ms: Date.now() - startedAt,
       });
+      reportOutcome("invalid_scene_json", false);
       return null;
     }
 
@@ -671,6 +718,7 @@ async function requestSceneDocument(
       entity_count: Array.isArray(document.entities) ? document.entities.length : undefined,
       elapsed_ms: elapsedMs,
     });
+    reportOutcome(null, true);
 
     return {
       document,
@@ -686,6 +734,10 @@ async function requestSceneDocument(
       reason: isAbort ? "timeout_or_cancelled" : String(error),
       elapsed_ms: Date.now() - startedAt,
     });
+    reportOutcome(
+      isAbort ? "timeout_or_cancelled" : error instanceof Error ? error.message : String(error),
+      false,
+    );
     return null;
   } finally {
     clearTimeout(timeoutId);

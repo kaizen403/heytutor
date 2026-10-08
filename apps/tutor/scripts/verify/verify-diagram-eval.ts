@@ -24,12 +24,14 @@ import {
   normalizeDiagramLabel,
   ruleJudgmentForNoFigure,
 } from "../lecture-lab/judging";
+import { correctedEmptyCauseForStoredRun } from "../lecture-lab/regrade-empty-causes";
 import {
   LECTURE_LAB_HEADER,
   LECTURE_LAB_STANDARD_MODEL_HEADER,
   shouldUseLectureLabStandardModel,
 } from "../../lib/billing/flags";
 import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
+import { planSceneDocument } from "@heytutor/tutor-core";
 import {
   runScenePlanningOverlap,
   type SceneGateCore,
@@ -178,33 +180,61 @@ const emptyInput = {
   committed: false,
   visualRequirement: "required" as const,
   declinedUnreadable: false,
-  deterministicAttempted: false,
-  plannerAttempted: false,
-  deadlineReached: false,
+  primitiveCount: 0,
+  plannerCalls: 0,
+  deadlineRemainingMs: 10_000,
   candidateCount: 0,
+  candidateErrorCodes: [] as string[],
 };
 assert.equal(classifyDiagramEmptyCause({ ...emptyInput, committed: true }), null);
 assert.equal(classifyDiagramEmptyCause({ ...emptyInput, visualRequirement: "none" }), "not_needed");
 assert.equal(
   classifyDiagramEmptyCause({ ...emptyInput, visualRequirement: "optional" }),
-  "plan_said_optional",
+  "not_attempted",
 );
 assert.equal(classifyDiagramEmptyCause(emptyInput), "not_attempted");
 assert.equal(
-  classifyDiagramEmptyCause({ ...emptyInput, plannerAttempted: true }),
-  "planner_timeout",
+  classifyDiagramEmptyCause({ ...emptyInput, plannerCalls: 2 }),
+  "planner_no_output",
 );
 assert.equal(
-  classifyDiagramEmptyCause({ ...emptyInput, plannerAttempted: true, candidateCount: 2 }),
+  classifyDiagramEmptyCause({
+    ...emptyInput,
+    plannerCalls: 2,
+    candidateCount: 2,
+    candidateErrorCodes: ["invalid_id"],
+  }),
   "candidates_invalid",
 );
 assert.equal(
-  classifyDiagramEmptyCause({ ...emptyInput, declinedUnreadable: true }),
+  classifyDiagramEmptyCause({
+    ...emptyInput,
+    plannerCalls: 2,
+    candidateCount: 1,
+    declinedUnreadable: true,
+    primitiveCount: 3,
+  }),
   "declined_unreadable",
 );
 assert.equal(
-  classifyDiagramEmptyCause({ ...emptyInput, plannerAttempted: true, deadlineReached: true }),
+  classifyDiagramEmptyCause({
+    ...emptyInput,
+    plannerCalls: 2,
+    candidateErrorCodes: ["invalid_id"],
+    declinedUnreadable: true,
+    primitiveCount: 3,
+    deadlineRemainingMs: 1_000,
+  }),
   "deadline",
+);
+assert.equal(
+  classifyDiagramEmptyCause({
+    ...emptyInput,
+    declinedUnreadable: true,
+    primitiveCount: 0,
+  }),
+  "not_attempted",
+  "an empty compile is not an unreadable compiled figure",
 );
 const failureSummary = summarizeDiagramFailures([
   { emptyCause: "not_attempted", candidateErrorCodes: ["invalid_id", "label_duplicate"] },
@@ -217,6 +247,26 @@ assert.equal(
   formatDiagramFailureCounts(failureSummary.emptyCauseCounts),
   "not_attempted=2 candidates_invalid=1",
 );
+assert.equal(correctedEmptyCauseForStoredRun({
+  timings: { planMs: 59_250, stages: { plannerCalls: 2 } },
+  plan: { visualRequirement: "required" },
+  diagram: {
+    committed: false,
+    declinedUnreadable: true,
+    primitiveCount: 0,
+    candidateErrorCodes: ["invalid_id"],
+  },
+}), "deadline");
+assert.equal(correctedEmptyCauseForStoredRun({
+  timings: { planMs: 4_000, stages: { plannerCalls: 0 } },
+  plan: { visualRequirement: "required" },
+  diagram: { committed: false, declinedUnreadable: true, primitiveCount: 0, candidateErrorCodes: [] },
+}), "not_attempted");
+assert.equal(correctedEmptyCauseForStoredRun({
+  timings: { planMs: 4_000, stages: { plannerCalls: 2 } },
+  plan: { visualRequirement: "required" },
+  diagram: { committed: false, declinedUnreadable: true, primitiveCount: 0, candidateErrorCodes: [] },
+}), "planner_no_output");
 
 assert.equal(
   normalizeDiagramLabel("3 Ω × 10^−2"),
@@ -269,6 +319,28 @@ assert.deepEqual(resolvePlannerModels({
 }), ["accounts/fireworks/models/kimi-k3"]);
 
 void (async () => {
+  const nativeFetch = globalThis.fetch;
+  const requestOutcomes: Array<{
+    httpStatus: number | null;
+    error: string | null;
+    bodyParsed: boolean;
+    promptChars: number;
+  }> = [];
+  globalThis.fetch = async () => Response.json({
+    choices: [{ message: { content: "not a scene document" } }],
+  });
+  const unparsed = await planSceneDocument("Draw a force arrow.", {
+    proxyUrl: "http://localhost/api/chat",
+    onRequestOutcome: (outcome) => requestOutcomes.push(outcome),
+  });
+  globalThis.fetch = nativeFetch;
+  assert.equal(unparsed, null);
+  assert.equal(requestOutcomes.length, 1);
+  assert.equal(requestOutcomes[0]?.httpStatus, 200);
+  assert.equal(requestOutcomes[0]?.bodyParsed, false);
+  assert.equal(requestOutcomes[0]?.error, "invalid_scene_json");
+  assert.ok((requestOutcomes[0]?.promptChars ?? 0) > 0);
+
   const tracker = new PlannerUsageTracker();
   tracker.recordRequest("trace-1");
   await tracker.recordResponse("trace-1", Response.json({

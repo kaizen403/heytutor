@@ -185,7 +185,8 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
   attempts: {
     deterministic: boolean;
     planner: boolean;
-    deadlineReached: boolean;
+    /** Milliseconds left on the turn's scene-planning deadline at completion. */
+    deadlineRemainingMs: number;
   };
 }
 
@@ -502,7 +503,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       attempts: {
         deterministic: deterministicAttempted,
         planner: plannerAttempted,
-        deadlineReached: remainingMs() <= 0,
+        deadlineRemainingMs: remainingMs(),
       },
     };
   } finally {

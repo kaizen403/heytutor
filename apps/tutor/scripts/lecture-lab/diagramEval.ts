@@ -4,9 +4,8 @@ import { parseProviderUsage } from "../../lib/obs/providerUsage";
 export type DiagramEvalArm = "current" | "planner_first";
 export type DiagramEmptyCause =
   | "not_needed"
-  | "plan_said_optional"
   | "not_attempted"
-  | "planner_timeout"
+  | "planner_no_output"
   | "candidates_invalid"
   | "declined_unreadable"
   | "deadline";
@@ -58,21 +57,25 @@ export function classifyDiagramEmptyCause(input: {
   committed: boolean;
   visualRequirement: "required" | "optional" | "none";
   declinedUnreadable: boolean;
-  deterministicAttempted: boolean;
-  plannerAttempted: boolean;
-  deadlineReached: boolean;
+  primitiveCount: number;
+  plannerCalls: number;
+  deadlineRemainingMs: number;
   candidateCount: number;
+  candidateErrorCodes: readonly string[];
 }): DiagramEmptyCause | null {
   if (input.committed) return null;
-  if (input.declinedUnreadable) return "declined_unreadable";
   if (input.visualRequirement === "none") return "not_needed";
-  if (input.deadlineReached) return "deadline";
-  if (input.candidateCount > 0) return "candidates_invalid";
-  if (input.plannerAttempted) return "planner_timeout";
-  if (input.visualRequirement === "optional" && !input.deterministicAttempted) {
-    return "plan_said_optional";
+  if (input.deadlineRemainingMs <= 1_000) return "deadline";
+  if (input.plannerCalls === 0) return "not_attempted";
+  if (input.candidateCount === 0 && input.candidateErrorCodes.length === 0) {
+    return "planner_no_output";
   }
-  return "not_attempted";
+  if (input.candidateErrorCodes.length > 0) return "candidates_invalid";
+  if (input.declinedUnreadable && input.primitiveCount > 0) return "declined_unreadable";
+  // A planner candidate existed but did not become a verified compiled figure.
+  // Validation normally supplies the specific error code; keep the cause honest
+  // even if an older record did not retain that diagnostic.
+  return "candidates_invalid";
 }
 
 function descendingCounts(values: readonly string[]): Record<string, number> {

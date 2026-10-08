@@ -33,6 +33,7 @@ import {
   streamLLMResponse,
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
+  type ScenePlannerRequestOutcome,
   type ScenePlanWithRepairResult,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
@@ -100,6 +101,8 @@ export interface LecturePlanningStages {
   deterministicFigureMs: number;
   /** Start to result of the scene planner run that was used. */
   scenePlannerMs: number;
+  /** Remaining scene-planning deadline budget when the overlap run completed. */
+  deadlineRemainingMs?: number;
   revalidateMs: number;
   /** Scene planner requests launched by the shared overlap orchestrator. */
   plannerCalls?: number;
@@ -176,6 +179,9 @@ export interface LectureRun {
     primitiveCount: number;
     assertionCount: number;
     candidateErrorCodes: string[];
+    candidateCount?: number;
+    /** HTTP/parse diagnostics for every scene-planner request in this turn. */
+    plannerCallOutcomes?: ScenePlannerRequestOutcome[];
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
     degradationReason: string | null;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
@@ -291,6 +297,7 @@ export async function runLecture(
     problemIrMs: 0,
     deterministicFigureMs: 0,
     scenePlannerMs: 0,
+    deadlineRemainingMs: SCENE_PLANNER_DEADLINE_MS,
     revalidateMs: 0,
     plannerCalls: 0,
     speculative: false,
@@ -347,6 +354,8 @@ export async function runLecture(
       primitiveCount: 0,
       assertionCount: 0,
       candidateErrorCodes: [],
+      candidateCount: 0,
+      plannerCallOutcomes: [],
       validationIssues: [],
       degradationReason: null,
       svg: null,
@@ -640,6 +649,7 @@ export async function runLecture(
             requestBudget: sceneRun.requestBudget,
             fastMode,
             traceId,
+            onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
             ...gate.request,
           },
         ).catch(() => null),
@@ -659,6 +669,7 @@ export async function runLecture(
       scenePlannerMs: planning.timings.scenePlannerMs,
       revalidateMs: planning.timings.revalidateMs,
       plannerCalls: planning.timings.plannerCalls,
+      deadlineRemainingMs: planning.attempts.deadlineRemainingMs,
       speculative: planning.speculation.kept,
       restarted: planning.speculation.restarted,
       speculationAbort: planning.speculation.abortReason,
@@ -676,6 +687,7 @@ export async function runLecture(
         ) ?? [],
       ),
     );
+    run.diagram.candidateCount = result?.candidates.length ?? 0;
     if (solverAuthorityBlocked) {
       run.diagram.degradationReason = "solver_contradiction";
     } else if (
@@ -736,8 +748,9 @@ export async function runLecture(
           typeof primitive.text === "string" &&
           primitive.text.trim().length > 0,
       );
+      run.diagram.primitiveCount = selected.renderScene.primitives.length;
       renderScene = selectedHasInk ? selected.renderScene : null;
-      run.diagram.declinedUnreadable = !selectedHasInk;
+      run.diagram.declinedUnreadable = !selectedHasInk && run.diagram.primitiveCount > 0;
       run.diagram.tier = selected.tier;
       run.diagram.nonMetric = selected.nonMetric;
       run.diagram.figureSource = selectedHasInk ? selected.figureSource : "text_only";
@@ -827,10 +840,11 @@ export async function runLecture(
       committed: run.diagram.committed,
       visualRequirement: turnPlan.visualRequirement,
       declinedUnreadable: run.diagram.declinedUnreadable,
-      deterministicAttempted: planning.attempts.deterministic,
-      plannerAttempted: planning.attempts.planner,
-      deadlineReached: planning.attempts.deadlineReached,
+      primitiveCount: run.diagram.primitiveCount,
+      plannerCalls: planning.timings.plannerCalls,
+      deadlineRemainingMs: planning.attempts.deadlineRemainingMs,
       candidateCount: result?.candidates.length ?? 0,
+      candidateErrorCodes: run.diagram.candidateErrorCodes,
     });
 
     if (options.figureOnly) {
