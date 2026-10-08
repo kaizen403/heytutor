@@ -79,7 +79,12 @@ import {
 import { buildTurnTeachingPrompt } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
-import type { DiagramEvalArm, PlannerUsageSummary } from "./diagramEval";
+import {
+  classifyDiagramEmptyCause,
+  type DiagramEmptyCause,
+  type DiagramEvalArm,
+  type PlannerUsageSummary,
+} from "./diagramEval";
 
 export interface LectureStep {
   index: number;
@@ -150,6 +155,8 @@ export interface LectureRun {
      * label. That is the guard working, not the engine failing to produce one.
      */
     declinedUnreadable: boolean;
+    /** Present on new run records; null only when a figure committed. */
+    emptyCause?: DiagramEmptyCause | null;
     tier: RepresentationTier | null;
     nonMetric: boolean;
     figureSource?: FigureSource;
@@ -324,6 +331,7 @@ export async function runLecture(
     diagram: {
       committed: false,
       declinedUnreadable: false,
+      emptyCause: null,
       tier: null,
       nonMetric: false,
       figureSource: "text_only",
@@ -815,6 +823,15 @@ export async function runLecture(
     } else {
       run.diagram.figureSource = "text_only";
     }
+    run.diagram.emptyCause = classifyDiagramEmptyCause({
+      committed: run.diagram.committed,
+      visualRequirement: turnPlan.visualRequirement,
+      declinedUnreadable: run.diagram.declinedUnreadable,
+      deterministicAttempted: planning.attempts.deterministic,
+      plannerAttempted: planning.attempts.planner,
+      deadlineReached: planning.attempts.deadlineReached,
+      candidateCount: result?.candidates.length ?? 0,
+    });
 
     if (options.figureOnly) {
       options.onPresentation?.({
@@ -966,6 +983,13 @@ export async function runLecture(
     }
   } catch (error) {
     run.error = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    if (!run.diagram.committed && run.diagram.emptyCause === null) {
+      run.diagram.emptyCause = Date.now() - startedAt >= SCENE_PLANNER_DEADLINE_MS
+        ? "deadline"
+        : run.plan?.visualRequirement === "none"
+          ? "not_needed"
+          : "not_attempted";
+    }
   }
 
   run.timings.totalMs = Date.now() - startedAt;

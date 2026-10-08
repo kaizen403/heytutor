@@ -28,6 +28,7 @@ import {
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
   sampleDiagramEvalRows,
+  summarizeDiagramFailures,
   type DiagramEvalArm,
   type DiagramEvalRow,
 } from "./diagramEval";
@@ -280,6 +281,7 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
   let totalTokens = 0;
   let estimatedCostUsd = 0;
   const modelCounts: Record<string, number> = {};
+  const diagramFailures = summarizeDiagramFailures(runs.map((run) => run.diagram));
   for (const run of runs) {
     const source = run.diagram.figureSource ?? "unrecorded";
     const tier = run.diagram.tier ?? "none";
@@ -308,6 +310,7 @@ function summarizeEvaluation(runs: readonly LectureRun[]) {
     sourceCounts,
     tierCounts,
     familyCounts,
+    ...diagramFailures,
     meanFigureCommitMs: timedFigures > 0 ? Math.round(figureCommitMs / timedFigures) : null,
     planner: {
       calls: plannerCalls,

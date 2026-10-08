@@ -6,6 +6,7 @@ import {
   readRoundJudgments,
   type DiagramJudgment,
 } from "./judging";
+import type { DiagramEmptyCause } from "./diagramEval";
 
 export interface GalleryEntry {
   id: string;
@@ -20,6 +21,7 @@ export interface GalleryEntry {
   tier: string;
   family: string;
   figureCommitMs: number | null;
+  emptyCause: DiagramEmptyCause | null;
   judgment?: DiagramJudgment;
   needsHuman?: boolean;
 }
@@ -58,6 +60,7 @@ function metadata(entry: GalleryEntry): string {
     <div><dt>tier</dt><dd>${escapeHtml(entry.tier)}</dd></div>
     <div><dt>family</dt><dd>${escapeHtml(entry.family)}</dd></div>
     <div><dt>figure time</dt><dd>${time}</dd></div>
+    <div><dt>empty cause</dt><dd>${escapeHtml(entry.emptyCause ?? "—")}</dd></div>
   </dl>`;
 }
 
@@ -268,6 +271,9 @@ export function readGalleryEntries(roundDir: string): GalleryEntry[] {
         tier: stringOr(diagram.tier, "none"),
         family: stringOr(diagram.family, "none"),
         figureCommitMs: typeof timings.figureCommitMs === "number" ? timings.figureCommitMs : null,
+        emptyCause: typeof diagram.emptyCause === "string"
+          ? diagram.emptyCause as DiagramEmptyCause
+          : null,
         judgment,
         needsHuman: judgment ? needsHumanReview(judgment, missingLabels.get(id) ?? []) : false,
       }];

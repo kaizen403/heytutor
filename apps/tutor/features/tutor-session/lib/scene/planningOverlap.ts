@@ -182,6 +182,11 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
     /** All scene planner requests launched, including failed or aborted calls. */
     plannerCalls: number;
   };
+  attempts: {
+    deterministic: boolean;
+    planner: boolean;
+    deadlineReached: boolean;
+  };
 }
 
 /**
@@ -271,6 +276,8 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     revalidateSkipped: null,
     plannerCalls: 0,
   };
+  let deterministicAttempted = false;
+  let plannerAttempted = false;
 
   type Run = {
     controller: AbortController;
@@ -288,6 +295,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
   const inFlight = new Set<Run>();
   const requestBudget = { remaining: SCENE_REQUEST_BUDGET };
   const startRun = (gate: G, turnPlan: TurnPlanV3, speculative: boolean, restarted: boolean): Run => {
+    plannerAttempted = true;
     const controller = new AbortController();
     const signal = input.signal ? mergeAbortSignals(input.signal, controller.signal) : controller.signal;
     const span = input.telemetry?.span("scene-planner", parent);
@@ -405,6 +413,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
 
     let fast: F | null = null;
     if (!plannerFirst && !scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority)) {
+      deterministicAttempted = true;
       const span = input.telemetry?.span("deterministic-figure", parent);
       const fastStartedAt = now();
       fast = input.selectFast(turnPlan, authority, gate);
@@ -490,6 +499,11 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       figureSource: fast ? "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
       speculation: { started: kept || abortReason !== null, kept, abortReason, restarted },
       timings,
+      attempts: {
+        deterministic: deterministicAttempted,
+        planner: plannerAttempted,
+        deadlineReached: remainingMs() <= 0,
+      },
     };
   } finally {
     // A cancelled turn or a thrown authority never leaves a planner running,

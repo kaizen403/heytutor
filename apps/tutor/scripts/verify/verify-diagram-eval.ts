@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import {
   assertEvaluationCostAllowed,
+  classifyDiagramEmptyCause,
   combineDiagramEvalRows,
   evaluationRunFastMode,
   estimateEvaluationCostUsd,
+  formatDiagramFailureCounts,
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
   sampleDiagramEvalRows,
+  summarizeDiagramFailures,
 } from "../lecture-lab/diagramEval";
 import {
   buildComparisonGalleryHtml,
@@ -129,6 +132,7 @@ const galleryEntry: GalleryEntry = {
   tier: "exact_verified",
   family: "vector_diagram",
   figureCommitMs: 1234,
+  emptyCause: "candidates_invalid",
   judgment: {
     id: "physics|1|vectors|q1",
     verdict: "right",
@@ -153,6 +157,7 @@ for (const expected of [
   "Needs human",
   "Correct force arrow and label.",
   'option value="right" selected',
+  "candidates_invalid",
 ]) {
   assert.ok(gallery.includes(expected), `gallery must include ${expected}`);
 }
@@ -168,6 +173,50 @@ assert.equal(
   "comparison must key by row id instead of duplicating question cards",
 );
 assert.ok(comparison.includes("no figure"), "comparison must render an empty arm explicitly");
+
+const emptyInput = {
+  committed: false,
+  visualRequirement: "required" as const,
+  declinedUnreadable: false,
+  deterministicAttempted: false,
+  plannerAttempted: false,
+  deadlineReached: false,
+  candidateCount: 0,
+};
+assert.equal(classifyDiagramEmptyCause({ ...emptyInput, committed: true }), null);
+assert.equal(classifyDiagramEmptyCause({ ...emptyInput, visualRequirement: "none" }), "not_needed");
+assert.equal(
+  classifyDiagramEmptyCause({ ...emptyInput, visualRequirement: "optional" }),
+  "plan_said_optional",
+);
+assert.equal(classifyDiagramEmptyCause(emptyInput), "not_attempted");
+assert.equal(
+  classifyDiagramEmptyCause({ ...emptyInput, plannerAttempted: true }),
+  "planner_timeout",
+);
+assert.equal(
+  classifyDiagramEmptyCause({ ...emptyInput, plannerAttempted: true, candidateCount: 2 }),
+  "candidates_invalid",
+);
+assert.equal(
+  classifyDiagramEmptyCause({ ...emptyInput, declinedUnreadable: true }),
+  "declined_unreadable",
+);
+assert.equal(
+  classifyDiagramEmptyCause({ ...emptyInput, plannerAttempted: true, deadlineReached: true }),
+  "deadline",
+);
+const failureSummary = summarizeDiagramFailures([
+  { emptyCause: "not_attempted", candidateErrorCodes: ["invalid_id", "label_duplicate"] },
+  { emptyCause: "candidates_invalid", candidateErrorCodes: ["invalid_id"] },
+  { emptyCause: "not_attempted", candidateErrorCodes: [] },
+]);
+assert.deepEqual(failureSummary.emptyCauseCounts, { not_attempted: 2, candidates_invalid: 1 });
+assert.deepEqual(failureSummary.candidateErrorCodeCounts, { invalid_id: 2, label_duplicate: 1 });
+assert.equal(
+  formatDiagramFailureCounts(failureSummary.emptyCauseCounts),
+  "not_attempted=2 candidates_invalid=1",
+);
 
 assert.equal(
   normalizeDiagramLabel("3 Ω × 10^−2"),

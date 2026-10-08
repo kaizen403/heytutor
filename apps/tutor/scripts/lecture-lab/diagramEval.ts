@@ -2,6 +2,14 @@ import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 
 export type DiagramEvalArm = "current" | "planner_first";
+export type DiagramEmptyCause =
+  | "not_needed"
+  | "plan_said_optional"
+  | "not_attempted"
+  | "planner_timeout"
+  | "candidates_invalid"
+  | "declined_unreadable"
+  | "deadline";
 
 export interface DiagramEvalRow {
   id: string;
@@ -44,6 +52,62 @@ export interface PlannerModelCall {
   totalTokens: number;
   cachedInputTokens: number;
   estimatedCostUsd: number;
+}
+
+export function classifyDiagramEmptyCause(input: {
+  committed: boolean;
+  visualRequirement: "required" | "optional" | "none";
+  declinedUnreadable: boolean;
+  deterministicAttempted: boolean;
+  plannerAttempted: boolean;
+  deadlineReached: boolean;
+  candidateCount: number;
+}): DiagramEmptyCause | null {
+  if (input.committed) return null;
+  if (input.declinedUnreadable) return "declined_unreadable";
+  if (input.visualRequirement === "none") return "not_needed";
+  if (input.deadlineReached) return "deadline";
+  if (input.candidateCount > 0) return "candidates_invalid";
+  if (input.plannerAttempted) return "planner_timeout";
+  if (input.visualRequirement === "optional" && !input.deterministicAttempted) {
+    return "plan_said_optional";
+  }
+  return "not_attempted";
+}
+
+function descendingCounts(values: readonly string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const value of values) counts[value] = (counts[value] ?? 0) + 1;
+  return Object.fromEntries(
+    Object.entries(counts).sort(
+      ([leftName, leftCount], [rightName, rightCount]) =>
+        rightCount - leftCount || leftName.localeCompare(rightName),
+    ),
+  );
+}
+
+export function summarizeDiagramFailures(
+  diagrams: readonly {
+    emptyCause?: DiagramEmptyCause | null;
+    candidateErrorCodes?: readonly string[];
+  }[],
+): {
+  emptyCauseCounts: Record<string, number>;
+  candidateErrorCodeCounts: Record<string, number>;
+} {
+  return {
+    emptyCauseCounts: descendingCounts(
+      diagrams.flatMap((diagram) => diagram.emptyCause ? [diagram.emptyCause] : []),
+    ),
+    candidateErrorCodeCounts: descendingCounts(
+      diagrams.flatMap((diagram) => diagram.candidateErrorCodes ?? []),
+    ),
+  };
+}
+
+export function formatDiagramFailureCounts(counts: Record<string, number> | undefined): string {
+  if (!counts || Object.keys(counts).length === 0) return "none";
+  return Object.entries(counts).map(([name, count]) => `${name}=${count}`).join(" ");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { writeComparisonGallery } from "./gallery";
 import { formatJudgeCounts, type JudgeSummary } from "./judging";
+import { formatDiagramFailureCounts } from "./diagramEval";
 
 interface Summary {
   total: number;
@@ -22,6 +23,10 @@ interface Summary {
   findingCounts: Record<string, number>;
   grades: { probeId: string; score: number; transportFailure?: boolean }[];
   judge?: JudgeSummary;
+  evaluation?: {
+    emptyCauseCounts?: Record<string, number>;
+    candidateErrorCodeCounts?: Record<string, number>;
+  } | null;
 }
 
 const args = process.argv.slice(2);
@@ -45,6 +50,12 @@ const delta = (value: number) => (value > 0 ? `+${value}` : String(value));
 
 console.log(`           ${beforePath}  ->  ${afterPath}`);
 console.log(`judge      ${formatJudgeCounts(before.judge)} -> ${formatJudgeCounts(after.judge)}`);
+console.log(
+  `empty      ${formatDiagramFailureCounts(before.evaluation?.emptyCauseCounts)} -> ${formatDiagramFailureCounts(after.evaluation?.emptyCauseCounts)}`,
+);
+console.log(
+  `candidate  ${formatDiagramFailureCounts(before.evaluation?.candidateErrorCodeCounts)} -> ${formatDiagramFailureCounts(after.evaluation?.candidateErrorCodeCounts)}`,
+);
 console.log(
   `mean score ${before.meanScore} -> ${after.meanScore}  (${delta(after.meanScore - before.meanScore)})`,
 );
