@@ -122,6 +122,7 @@ const LEWIS_VETOES: readonly RegExp[] = [
 /** True when the stem asks for a Lewis picture and names nothing this family must leave to another lane. */
 export function isLewisStem(question: string): boolean {
   const stem = chemStem(question);
+  if (/oxidation number/.test(stem)) return false;
   if (!LEWIS_CUES.some((cue) => cue.test(stem))) return false;
   if (LEWIS_VETOES.some((veto) => veto.test(stem))) return false;
   if (/\bdimer\b/.test(stem) && !hydrogenBondAsked(stem)) return false;

@@ -22,6 +22,13 @@
  * atoms with the ligand name beside it, and every label is pinned so the
  * figure is never refused for a label the solver could not place.
  */
+import {
+  buildCoordinationApplication,
+  formulaFromIupac,
+  iupacName,
+  isCoordinationApplication,
+  wernerLabels,
+} from "./coordinationAccounts";
 import type { SceneDocument } from "../types";
 import { ChemScene, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { complexTokens, normalizeChemistryText, parseComplex, type LigandSpec, type ParsedComplex } from "./formula";
@@ -618,7 +625,7 @@ export function coordinationIsomers(complexText: string): CoordIsomerResult | nu
 /* Stem reading                                                              */
 /* ------------------------------------------------------------------------- */
 
-const CUE = /isomer|\bcis\b|\btrans\b|\bfac\b|\bmer\b|optical|chiral|enantiomer|stereo|structure of|\bshape\b|geometr|coordination number|denticity|chelat|iupac name|ambidentate|linkage/;
+const CUE = /isomer|\bcis\b|\btrans\b|\bfac\b|\bmer\b|optical|chiral|enantiomer|stereo|structure of|\bshape\b|geometr|coordination number|denticity|chelat|iupac|nomenclature|werner|primary valence|secondary valence|ambidentate|linkage/;
 const ISOMER_CUE = /isomer|\bcis\b|\btrans\b|\bfac\b|\bmer\b|optical|chiral|enantiomer|stereo/;
 const OPTICAL_CUE = /optical|chiral|enantiomer|stereo|mirror|\bd and l\b|racemic|dextro|laevo/;
 const VETO = /crystal field|cfse|magnetic moment|spin only|spin-only|unpaired|hybridi[sz]|\bcft\b|splitting|absorb|wavelength|colou?r/;
@@ -661,9 +668,11 @@ function stemComplexes(question: string): StemComplex[] {
 /** A parseable complex plus an isomer, structure, shape or naming cue, and none of the crystal field words unless isomers are asked too. */
 export function isCoordinationStem(question: string): boolean {
   const stem = normalizeChemistryText(question).toLowerCase();
+  if (isCoordinationApplication(question)) return true;
+  if (formulaFromIupac(question) !== null) return true;
   if (!CUE.test(stem)) return false;
   if (VETO.test(stem) && !/isomer/.test(stem)) return false;
-  return stemComplexes(question).length > 0;
+  return stemComplexes(question).length > 0 || formulaFromIupac(question) !== null;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -842,9 +851,17 @@ export function buildCoordinationScene(
 ): SceneDocument | null {
   void quantities;
   const stem = normalizeChemistryText(question).toLowerCase();
+  if (isCoordinationApplication(question) && stemComplexes(question).length === 0 && formulaFromIupac(question) === null) {
+    return buildCoordinationApplication(question, quantities);
+  }
   if (VETO.test(stem) && !/isomer/.test(stem)) return null;
-  if (!CUE.test(stem) && !schematic) return null;
-  const entries = stemComplexes(question);
+  const namedFormula = formulaFromIupac(question);
+  if (!CUE.test(stem) && !schematic && !namedFormula) return null;
+  let entries = stemComplexes(question);
+  if (entries.length === 0) {
+    const formula = formulaFromIupac(question);
+    if (formula) entries = stemComplexes(`Draw the structure of ${formula}.`);
+  }
   if (entries.length === 0) return null;
 
   const isomerAsk = ISOMER_CUE.test(stem);
@@ -909,6 +926,11 @@ export function buildCoordinationScene(
   }
 
   if (figures.length === 0) return null;
+  const account = (/werner|iupac|nomenclature/.test(stem) || (namedFormula !== null && !/\[[^\]]+\]/.test(question))) && entries.length === 1;
+  if (account) {
+    const named = iupacName(entries[0]!.result.complex);
+    if (named) caption = `${named}. ${caption}`;
+  }
   figures = figures.slice(0, MAX_FIGURES);
   // A lone figure is fitted tall, and a name under it would fall out of
   // view; its form is stated in the caption instead.
@@ -935,6 +957,11 @@ export function buildCoordinationScene(
     }
     c.scene.group(`figure_${index}`, ids, figure.cue);
   });
+  if (account) {
+    wernerLabels(entries[0]!.result.complex).forEach((label, index) => {
+      c.text(`acct${index}`, { x: 5.4, y: 2.4 - index * 0.7 }, label, "coordination account");
+    });
+  }
   return c.build({ caption });
 }
 
@@ -965,4 +992,9 @@ export const COORD_PROBES: ReadonlyArray<{
   { question: "Number of complexes showing optical isomerism among cis-[Cr(ox)2Cl2]3-, [Co(en)3]3+, trans-[Pt(en)2Cl2]2+ is", expect: "draw", labels: ["ox", "en"], note: "several complexes, each drawn as its named isomer" },
   { question: "The number of geometrical isomers of a square planar complex MABCD is", expect: "decline", note: "no readable complex: M is not a metal symbol" },
   { question: "Calculate the spin only magnetic moment of [Fe(CN)6]3-.", expect: "decline", note: "crystal field lane" },
+  { question: "Give the IUPAC name of [Co(NH3)6]Cl3 and its coordination number.", expect: "draw", labels: ["Co", "NH_3", "CN=6", "primary 3", "secondary 6"], note: "name is in the caption; Werner valences are on the board" },
+  { question: "Name the complex potassium hexacyanidoferrate(II).", expect: "draw", labels: ["Fe", "CN", "CN=6"], note: "the name parses back to K4[Fe(CN)6]" },
+  { question: "Werner's theory for [Co(NH3)6]Cl3. State primary and secondary valence.", expect: "draw", labels: ["primary 3", "secondary 6"], note: "three ionisable chlorides, six ammine donors" },
+  { question: "Nickel is detected with dimethylglyoxime in qualitative analysis.", expect: "draw", labels: ["Ni-DMG", "red ppt", "chelate", "no yield"], note: "named test, no yield" },
+  { question: "Draw the active site of haemoglobin.", expect: "decline", note: "the metal is known; the site geometry is not" },
 ];

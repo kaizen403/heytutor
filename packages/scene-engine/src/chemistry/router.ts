@@ -12,6 +12,10 @@ import type { ChemFamilyBuilder } from "./sceneKit";
 import { isChemistryStem } from "./classify";
 
 export const CHEMISTRY_SCENE_FAMILIES = [
+  // Multicentre p-block structures sit ahead of VSEPR so diborane, a borax
+  // anion, or a peroxo acid is not flattened into a one-centre shape.
+  // One-centre xenon and interhalogen shapes are not claimed here.
+  "chem_pblock",
   // VSEPR sits ahead of the coordination families: it declines a complex
   // itself, so "which of PF5, BrF5, PCl5, [Ni(CN)4]2- is square pyramidal"
   // draws the three p-block species instead of the one complex.
@@ -38,6 +42,7 @@ export type ChemistrySceneFamily = (typeof CHEMISTRY_SCENE_FAMILIES)[number];
 /** What the tutor is told the figure is, in words a student would use. */
 export const CHEMISTRY_FAMILY_NAMES: Record<ChemistrySceneFamily, string> = {
   chem_organic: "organic skeletal structure",
+  chem_pblock: "p-block structure",
   chem_vsepr: "VSEPR molecular shape",
   chem_lewis: "Lewis structure",
   chem_mo: "molecular orbital energy level diagram",

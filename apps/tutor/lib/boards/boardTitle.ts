@@ -67,7 +67,7 @@ const TOPIC_PATTERNS: Array<{
     title: "Pythagorean theorem",
   },
   {
-    test: /circle|radius|circumference/i,
+    test: /^(?!.*\b(?:ionic|atomic|covalent|metallic)\s+radi).*(?:\bcircle\b|circumference|\bradius\b)/is,
     title: "Circle geometry",
   },
   {
@@ -79,7 +79,7 @@ const TOPIC_PATTERNS: Array<{
     title: "Linear equation",
   },
   {
-    test: /photosynthesis|plant|glucose|oxygen/i,
+    test: /photosynthesis|\bplants?\b|glucose/i,
     title: "Photosynthesis",
   },
   {
@@ -111,8 +111,9 @@ function formatBoardTitle(raw: string): string {
     words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
     for (let i = 1; i < words.length; i++) {
       const word = words[i] ?? "";
-      words[i] =
-        word.length <= 3 && /^[a-z]{1,3}$/i.test(word) ? word.toLowerCase() : word.toLowerCase();
+      const core = word.replace(/[^A-Za-z0-9]/g, "");
+      const formula = /\d/.test(core) || /[A-Z]/.test(core.slice(1)) || /[a-z][A-Z]/.test(core);
+      words[i] = formula ? word : word.toLowerCase();
     }
     title = words.join(" ");
   }
@@ -160,7 +161,7 @@ export function deriveBoardTitleFromQuestion(question: string): string {
     .replace(/^(what is|what are|how do i|how to)\s+/i, "")
     .trim();
 
-  const firstSentence = stripped.split(/[.!?]/)[0]?.trim() ?? stripped;
+  const firstSentence = stripped.split(/(?<!\d)[.!?](?!\d)/)[0]?.trim() ?? stripped;
   const clipped =
     firstSentence.length > 48
       ? firstSentence.slice(0, 48).replace(/\s+\S*$/, "").trim()

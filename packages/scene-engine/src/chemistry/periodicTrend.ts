@@ -33,6 +33,9 @@ import {
   type ElementRecord,
 } from "./elements";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
+import { buildPeriodicPlacementScene, claimsPeriodicPlacement } from "./periodicPlacement";
+import { buildPeriodicReactivityScene, claimsPeriodicReactivity } from "./periodicReactivity";
+import { buildPeriodicSizeScene, claimsPeriodicSize } from "./periodicSize";
 
 export const PERIODIC_FAMILY = "chem_periodic" as const;
 
@@ -110,8 +113,8 @@ const PROPERTY_CUE = /ioni[sz]ation (?:enthalp|energ|potential)|electron gain en
 
 const POSITION_CUE = /position (?:of [^.?]{1,40})?in the (?:modern |long form (?:of the )?)?periodic table|which block|belongs to (?:the )?[spdf][ -]?block|\b[spdf][ -]?block\b.{0,30}\b(?:z|atomic number)\b|\bgroup and period\b|\bperiod and group\b|\bgroup (?:number|of the element)|\bperiod (?:number|of the element)|belongs to (?:the )?(?:group|period)\b|(?:atomic number|\bz\b)[^.?]{0,50}\b(?:group|period|block)\b|\b(?:group|period|block)\b[^.?]{0,50}(?:atomic number|\bz\s*=)/;
 
-/** True when this family should try the stem; the builder still declines what it cannot ground. */
-export function isPeriodicTrendStem(question: string): boolean {
+/** The trend figures that existed before placement, size, and reactivity. */
+export function periodicTrendOwnsLegacy(question: string): boolean {
   const stem = chemStem(question);
   if (!stem.trim()) return false;
   if (POSITION_CUE.test(stem)) return true;
@@ -121,6 +124,11 @@ export function isPeriodicTrendStem(question: string): boolean {
     return false;
   }
   return true;
+}
+
+export function isPeriodicTrendStem(question: string): boolean {
+  if (claimsPeriodicPlacement(question) || claimsPeriodicSize(question) || claimsPeriodicReactivity(question)) return true;
+  return periodicTrendOwnsLegacy(question);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -722,6 +730,9 @@ export function buildPeriodicTrendScene(
 ): SceneDocument | null {
   void quantities;
   void schematic;
+  if (claimsPeriodicPlacement(question)) return buildPeriodicPlacementScene(question, quantities, schematic);
+  if (claimsPeriodicSize(question)) return buildPeriodicSizeScene(question, quantities, schematic);
+  if (claimsPeriodicReactivity(question)) return buildPeriodicReactivityScene(question, quantities, schematic);
   const stem = chemStem(question);
   if (!stem.trim()) return null;
   try {

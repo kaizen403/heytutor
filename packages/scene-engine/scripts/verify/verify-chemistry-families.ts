@@ -11,6 +11,7 @@
  * the compiler is a figure the student never sees. Both fail.
  */
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder, inferChemistryFamilies, isChemistrySceneFamily } from "../../src/chemistry";
+import { PBLOCK_PROBES } from "../../src/chemistry/pBlock";
 import { VSEPR_PROBES } from "../../src/chemistry/vsepr";
 import { LEWIS_PROBES } from "../../src/chemistry/lewis";
 import { MO_PROBES } from "../../src/chemistry/moDiagram";
@@ -32,6 +33,7 @@ import type { SceneDocument } from "../../src/types";
 interface Probe { question: string; expect: "draw" | "decline"; labels?: string[]; forbidLabels?: string[]; note?: string }
 
 const PROBES: ReadonlyArray<[string, ReadonlyArray<Probe>]> = [
+  ["chem_pblock", PBLOCK_PROBES],
   ["chem_vsepr", VSEPR_PROBES],
   ["chem_lewis", LEWIS_PROBES],
   ["chem_mo", MO_PROBES],

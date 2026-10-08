@@ -300,6 +300,8 @@ export interface LigandSpec {
   readonly denticity: number;
   /** Position in the spectrochemical series, low to high field. */
   readonly fieldRank: number;
+  /** False when this ligand has no ranked field and must not drive a spin diagram. */
+  readonly fieldKnown?: boolean;
   readonly aliases: readonly string[];
 }
 
@@ -308,6 +310,7 @@ const LIGANDS: readonly LigandSpec[] = [
   { key: "Br", label: "Br", name: "bromido", charge: -1, denticity: 1, fieldRank: 2, aliases: ["bromo", "bromido"] },
   { key: "SCN", label: "SCN", name: "thiocyanato-S", charge: -1, denticity: 1, fieldRank: 3, aliases: ["thiocyanato"] },
   { key: "Cl", label: "Cl", name: "chlorido", charge: -1, denticity: 1, fieldRank: 4, aliases: ["chloro", "chlorido"] },
+  { key: "SO4", label: "SO4", name: "sulfato", charge: -2, denticity: 1, fieldRank: 0, fieldKnown: false, aliases: ["sulfato", "sulphato"] },
   { key: "S", label: "S", name: "sulphido", charge: -2, denticity: 1, fieldRank: 4, aliases: [] },
   { key: "F", label: "F", name: "fluorido", charge: -1, denticity: 1, fieldRank: 5, aliases: ["fluoro", "fluorido"] },
   { key: "OH", label: "OH", name: "hydroxido", charge: -1, denticity: 1, fieldRank: 6, aliases: ["hydroxo", "hydroxido"] },
@@ -385,10 +388,18 @@ export function parseComplex(input: string): ParsedComplex | null {
       token = rest.slice(1, close);
       rest = rest.slice(close + 1);
     } else {
-      const tokenMatch = /^(?:[A-Z][a-z]?|[a-z]+)/.exec(rest);
-      if (!tokenMatch) return null;
-      token = tokenMatch[0];
-      rest = rest.slice(token.length);
+      const ligandKey = [...LIGAND_BY_KEY.keys()]
+        .filter((key) => key.length >= 2 && rest.startsWith(key))
+        .sort((a, b) => b.length - a.length)[0];
+      if (ligandKey) {
+        token = ligandKey;
+        rest = rest.slice(ligandKey.length);
+      } else {
+        const tokenMatch = /^(?:[A-Z][a-z]?|[a-z]+)/.exec(rest);
+        if (!tokenMatch) return null;
+        token = tokenMatch[0];
+        rest = rest.slice(token.length);
+      }
     }
     const countMatch = /^\d+/.exec(rest);
     if (countMatch) {

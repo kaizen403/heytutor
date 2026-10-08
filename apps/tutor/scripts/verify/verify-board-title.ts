@@ -75,4 +75,34 @@ assert(
   "a saved lesson still titled new board must be named",
 );
 
+const ionicRadius =
+  "Arrange the isoelectronic ions Na+, Mg2+ and Al3+ in order of ionic radius. State the radius convention and the nuclear-charge order.";
+assert(
+  deriveBoardTitleFromQuestion(ionicRadius) !== "Circle geometry",
+  "an ionic radius is not circle geometry",
+);
+assert(
+  deriveBoardTitleFromQuestion("Find the area of a circle with radius 4 cm.") === "Circle geometry",
+  "a circle radius stays circle geometry",
+);
+
+const ionisation =
+  "Explain the exceptions in the first ionisation enthalpy: beryllium versus boron, and nitrogen versus oxygen. The trend is not monotonic.";
+assert(
+  deriveBoardTitleFromQuestion(ionisation) !== "Photosynthesis",
+  "oxygen the element is not photosynthesis",
+);
+assert(
+  deriveBoardTitleFromQuestion("Explain photosynthesis in a green plant.") === "Photosynthesis",
+  "a plant photosynthesis question stays photosynthesis",
+);
+
+const zeroOrder =
+  "A zero-order reaction has [A]0 = 0.50 mol/L and k = 0.10 mol/L/s. Find [A] at t = 2.0 s.";
+const zeroTitle = deriveBoardTitleFromQuestion(zeroOrder);
+assert(
+  zeroTitle.includes("0.50"),
+  `a decimal in the stem must survive the title: ${zeroTitle}`,
+);
+
 console.log("verify-board-title: all checks passed");

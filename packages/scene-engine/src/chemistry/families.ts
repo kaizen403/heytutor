@@ -5,6 +5,7 @@
  */
 import { registerChemistryFamily } from "./router";
 import { ORGANIC_FAMILY, isOrganicStem, buildOrganicScene } from "./organic";
+import { PBLOCK_FAMILY, isPBlockStem, buildPBlockScene } from "./pBlock";
 import { VSEPR_FAMILY, isVseprStem, buildVseprScene } from "./vsepr";
 import { LEWIS_FAMILY, isLewisStem, buildLewisScene } from "./lewis";
 import { MO_FAMILY, isMoStem, buildMoScene } from "./moDiagram";
@@ -18,6 +19,7 @@ import { THERMO_FAMILY, isThermoGraphStem, buildThermoGraphScene } from "./therm
 import { SOLUTIONS_FAMILY, isSolutionsGraphStem, buildSolutionsGraphScene } from "./solutionsGraphs";
 import { PERIODIC_FAMILY, isPeriodicTrendStem, buildPeriodicTrendScene } from "./periodicTrend";
 
+registerChemistryFamily({ family: PBLOCK_FAMILY, cue: isPBlockStem, build: buildPBlockScene });
 registerChemistryFamily({ family: VSEPR_FAMILY, cue: isVseprStem, build: buildVseprScene });
 registerChemistryFamily({ family: LEWIS_FAMILY, cue: isLewisStem, build: buildLewisScene });
 registerChemistryFamily({ family: MO_FAMILY, cue: isMoStem, build: buildMoScene });

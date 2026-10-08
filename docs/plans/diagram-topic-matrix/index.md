@@ -121,10 +121,10 @@ These are additional subject/planning lanes, not additions to the inherited 34-c
 | Chemical Bonding and Molecular Structure | 7 | C-03a: 1/7 (14.3%); C-03b: 4/7 (57.1%); C-03c: 1/7 (14.3%); C-03d: 1/7 (14.3%) | 7/7 (100%) | 7 / 7 | 7/7 |
 | Chemical Thermodynamics | 6 | C-04a: 4/6 (66.7%); C-04b: 2/6 (33.3%) | 6/6 (100%) | 6 / 6 | 0/6 accepted |
 | Solutions | 6 | C-05a: 3/6 (50.0%); C-05b: 2/6 (33.3%); C-05c: 1/6 (16.7%) | 6/6 (100%) | 6 / 6 | 0/6 accepted |
-| Equilibrium | 8 | C-06a: 4/8 (50.0%); C-06b: 3/8 (37.5%); C-06c: 1/8 (12.5%) | 8/8 (100%) | 8 / 8 | Unknown; audit pending |
-| Redox Reactions and Electrochemistry | 8 | C-07a: 2/8 (25.0%); C-07b: 3/8 (37.5%); C-07c: 2/8 (25.0%); C-07d: 1/8 (12.5%) | 8/8 (100%) | 8 / 8 | Unknown; audit pending |
-| Chemical Kinetics | 6 | C-08a: 4/6 (66.7%); C-08b: 2/6 (33.3%) | 6/6 (100%) | 6 / 6 | Unknown; audit pending |
-| Classification of Elements and Periodicity in Properties | 6 | C-09a: 2/6 (33.3%); C-09b: 4/6 (66.7%) | 6/6 (100%) | 6 / 6 | Unknown; audit pending |
+| Equilibrium | 8 | C-06a: 4/8 (50.0%); C-06b: 3/8 (37.5%); C-06c: 1/8 (12.5%) | 8/8 (100%) | 8 / 8 | 0/8 accepted |
+| Redox Reactions and Electrochemistry | 8 | C-07a: 2/8 (25.0%); C-07b: 3/8 (37.5%); C-07c: 2/8 (25.0%); C-07d: 1/8 (12.5%) | 8/8 (100%) | 8 / 8 | 0/8 accepted |
+| Chemical Kinetics | 6 | C-08a: 4/6 (66.7%); C-08b: 2/6 (33.3%) | 6/6 (100%) | 6 / 6 | 0/6 accepted; v2 fixture restore/replay 6/6; v3 recapture saved collision and timed out on rate, zero-order, and half-life |
+| Classification of Elements and Periodicity in Properties | 6 | C-09a: 2/6 (33.3%); C-09b: 4/6 (66.7%) | 6/6 (100%) | 6 / 6 | 0/6 accepted; v2 fixture restore/replay 6/6; v3 recapture saved radii, ionisation, and valence |
 | p-Block Elements | 7 | C-10a: 1/7 (14.3%); C-10b1: 1/7 (14.3%); C-10b2: 1/7 (14.3%); C-10b3: 1/7 (14.3%); C-10b4: 1/7 (14.3%); C-10b5: 1/7 (14.3%); C-10b6: 1/7 (14.3%) | 7/7 (100%) | 7 / 7 | Unknown; audit pending |
 | d- and f-Block Elements | 7 | C-11a: 4/7 (57.1%); C-11b: 2/7 (28.6%); C-11c: 1/7 (14.3%) | 7/7 (100%) | 7 / 7 | Unknown; audit pending |
 | Coordination Compounds | 6 | C-12a: 3/6 (50.0%); C-12b: 1/6 (16.7%); C-12c: 2/6 (33.3%) | 6/6 (100%) | 6 / 6 | Unknown; audit pending |

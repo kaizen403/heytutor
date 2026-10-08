@@ -197,7 +197,7 @@ function givenFromPlan(raw: unknown, index: number, question: string): QuestionG
   if (!questionStatesValue(question, raw.value)) {
     return null;
   }
-  const board = `${symbol} = ${formatNumber(raw.value)}${unit ? ` ${unit}` : ""}`;
+  const board = `${symbol} = ${boardNumber(raw.value, raw.sourceText)}${unit ? ` ${unit}` : ""}`;
   return {
     symbol,
     board,
@@ -308,6 +308,15 @@ function displayUnit(value: unknown): string {
 function formatNumber(value: number): string {
   if (Number.isInteger(value)) return String(value);
   return Number(value.toPrecision(8)).toString();
+}
+
+/** Keep a plus the question wrote. An unsigned 1 is not the oxidation state +1. */
+function boardNumber(value: number, sourceText: unknown): string {
+  const plain = formatNumber(value);
+  if (typeof sourceText !== "string") return plain;
+  const token = sourceText.trim().match(/[+-]?\d+(?:\.\d+)?/)?.[0];
+  if (token === `+${plain}`) return `+${plain}`;
+  return plain;
 }
 
 function speakNumber(value: number): string {

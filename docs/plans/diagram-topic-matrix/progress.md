@@ -87,10 +87,10 @@ Each catalog uses its own declared grain. These rows do not add chapters to the 
 | chemistry | Chemical Bonding and Molecular Structure | 7/7 | 0 |
 | chemistry | Chemical Thermodynamics | 0/6 — verification pending | 6 |
 | chemistry | Solutions | 0/6 — verification pending | 6 |
-| chemistry | Equilibrium | 0/8 — audit pending | 8 |
-| chemistry | Redox Reactions and Electrochemistry | 0/8 — audit pending | 8 |
-| chemistry | Chemical Kinetics | 0/6 — audit pending | 6 |
-| chemistry | Classification of Elements and Periodicity in Properties | 0/6 — audit pending | 6 |
+| chemistry | Equilibrium | 0/8 — verification pending | 8 |
+| chemistry | Redox Reactions and Electrochemistry | 0/8 — verification pending | 8 |
+| chemistry | Chemical Kinetics | 0/6 — verification pending; v2 fixture restore/replay 6/6; v3 recapture saved collision and timed out on rate, zero-order, and half-life | 6 |
+| chemistry | Classification of Elements and Periodicity in Properties | 0/6 — verification pending; v2 fixture restore/replay 6/6; v3 source-repair recapture saved radii, ionisation, and valence | 6 |
 | chemistry | p-Block Elements | 0/7 — audit pending | 7 |
 | chemistry | d- and f-Block Elements | 0/7 — audit pending | 7 |
 | chemistry | Coordination Compounds | 0/6 — audit pending | 6 |

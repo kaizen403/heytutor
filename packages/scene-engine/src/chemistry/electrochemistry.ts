@@ -16,7 +16,12 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
+import { buildCellAccountScene, claimsCellAccount } from "./cellAccounts";
+import { buildCommercialCellScene, claimsCommercialCell } from "./commercialCells";
+import { buildConductanceFaradayScene, claimsConductanceFaraday } from "./conductanceFaraday";
 import { elementBySymbol } from "./elements";
+import { claimsPeriodicReactivity } from "./periodicReactivity";
+import { buildRedoxBalanceScene, claimsRedoxBalance } from "./redoxBalance";
 
 export const ELECTROCHEM_FAMILY = "chem_electrochem" as const;
 
@@ -1237,6 +1242,8 @@ function galvanicCue(lower: string): boolean {
  * words are present too.
  */
 export function isElectrochemStem(question: string): boolean {
+  if (claimsPeriodicReactivity(question)) return false;
+  if (claimsRedoxBalance(question) || claimsCellAccount(question) || claimsConductanceFaraday(question) || claimsCommercialCell(question)) return true;
   const lower = chemStem(question);
   if (PHYSICS_WORDS.test(lower) && !REDOX_WORDS.test(lower)) return false;
   if (conductancePlotCue(lower)) return true;
@@ -1575,8 +1582,10 @@ function buildConductancePlot(question: string): SceneDocument | null {
   s.curve("weak", "0.75*exp(-6*x)", 0, 1, "weak electrolyte", "weak", 65);
   c.text("x_label", { x: 1.15, y: -0.2 }, "√c", "x axis label");
   c.text("y_label", { x: -0.18, y: 1.1 }, "Λ_m", "y axis label");
+  c.text("schematic_l", { x: 0.15, y: -0.85 }, "schematic", "the curve is not measured data");
+  c.text("measured_l", { x: 0.15, y: -1.45 }, "not measured", "dilution shape is qualitative");
   s.labelled("strong", "weak");
-  return c.build({ caption: "Λm vs √c: a strong electrolyte falls on a straight line, Λm = Λ°m − A√c (Kohlrausch); a weak electrolyte rises steeply as c → 0, so Λ°m cannot be read by extrapolation" });
+  return c.build({ caption: "Schematic Λm vs √c, not measured data. A strong electrolyte falls on a straight line, Λm = Λ°m − A√c (Kohlrausch); a weak electrolyte rises steeply as c → 0, so Λ°m cannot be read by extrapolation." });
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1591,6 +1600,10 @@ function buildConductancePlot(question: string): SceneDocument | null {
  */
 export function buildElectrochemScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!isElectrochemStem(question)) return null;
+  if (claimsRedoxBalance(question)) return buildRedoxBalanceScene(question, quantities, schematic);
+  if (claimsCellAccount(question)) return buildCellAccountScene(question, quantities, schematic);
+  if (claimsConductanceFaraday(question)) return buildConductanceFaradayScene(question, quantities, schematic);
+  if (claimsCommercialCell(question)) return buildCommercialCellScene(question, quantities, schematic);
   const lower = chemStem(question);
   if (conductancePlotCue(lower)) return buildConductancePlot(question);
   const galvanic = buildGalvanicIfReadable(question, quantities);
@@ -1697,7 +1710,7 @@ export const ELECTROCHEM_PROBES: ReadonlyArray<{
   {
     question: "Draw the variation of molar conductivity with √c for a strong electrolyte and a weak electrolyte and explain Kohlrausch law.",
     expect: "draw",
-    labels: ["strong", "weak", "√c", "Λ_m"],
+    labels: ["strong", "weak", "√c", "Λ_m", "schematic", "not measured"],
   },
   {
     question: "The standard emf of a cell is 1.1 V. Calculate ΔG° for the cell reaction if n = 2.",

@@ -19,6 +19,24 @@ const mirrorPlan = {
   unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
 };
 const mirrorGivens = collectQuestionGivens(mirrorQuestion, mirrorPlan);
+const oxidationQuestion =
+  "In NaCl, sodium has valence 1 and oxidation state +1. Oxidation state is not formal charge.";
+const oxidationPlan = {
+  givens: [
+    { id: "valence_Na", symbol: "valence(Na)", value: 1, unit: "", provenance: "given", sourceText: "1" },
+    { id: "ox_Na", symbol: "ox(Na,NaCl)", value: 1, unit: "", provenance: "given", sourceText: "+1" },
+  ],
+};
+const oxidationGivens = collectQuestionGivens(oxidationQuestion, oxidationPlan);
+assert(
+  oxidationGivens.some((given) => given.board === "valence(Na) = 1"),
+  "valence stays an unsigned count",
+);
+assert(
+  oxidationGivens.some((given) => given.board === "ox(Na,NaCl) = +1"),
+  "an oxidation state stated as +1 must keep the sign",
+);
+
 assert(mirrorGivens.some((given) => given.board === "f = 15 cm"), "mirror focal length was not listed as given");
 assert(mirrorGivens.some((given) => given.board === "u = 20 cm"), "object distance was not listed as given");
 assert(!mirrorGivens.some((given) => /^v\s*=/i.test(given.board)), "the asked image distance must not be listed as given");

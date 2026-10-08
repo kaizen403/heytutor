@@ -166,6 +166,7 @@ function hybridisationMarkup(plain: string): string {
 export function crystalFieldAnalysis(complexText: string): CftResult | null {
   const complex = parseComplex(complexText);
   if (!complex) return null;
+  if (complex.ligands.some((ligand) => ligand.spec.fieldKnown === false)) return null;
   const metal = complex.metal;
   if (metal.block !== "d" || metal.group === null) return null;
   const oxidationState = complex.oxidationState;

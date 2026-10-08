@@ -18,6 +18,11 @@
 import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity } from "./sceneKit";
+import { buildArrheniusCollisionScene, claimsArrheniusCollision } from "./arrheniusCollision";
+import { buildEquilibriumConstantsScene, claimsEquilibriumConstants } from "./equilibriumConstants";
+import { buildEquilibriumPhysicalScene, claimsEquilibriumPhysical } from "./equilibriumPhysical";
+import { buildOrderKineticsScene, claimsOrderKinetics } from "./orderKinetics";
+import { buildReactionRatesScene, claimsReactionRates } from "./reactionRates";
 
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
@@ -653,6 +658,8 @@ function hasRateTemperatureNumbers(stem: string): boolean {
 
 /** True when the kinetics family should draw for this stem. */
 export function isKineticsStem(question: string): boolean {
+  if (claimsEquilibriumPhysical(question) || claimsEquilibriumConstants(question)) return true;
+  if (claimsReactionRates(question) || claimsOrderKinetics(question) || claimsArrheniusCollision(question)) return true;
   const stem = chemStem(question);
   if (HARD_VETO.test(stem)) return false;
   if (PROFILE_WORDS.test(stem) && !hasRateTemperatureNumbers(stem)) return false;
@@ -1108,6 +1115,11 @@ function buildEquilibriumPlot(question: string, spec: KineticsSpec): SceneDocume
 
 /** The kinetics figure, or null when the stem does not ground one. */
 export function buildKineticsScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  if (claimsEquilibriumPhysical(question)) return buildEquilibriumPhysicalScene(question, quantities, schematic);
+  if (claimsEquilibriumConstants(question)) return buildEquilibriumConstantsScene(question, quantities, schematic);
+  if (claimsReactionRates(question)) return buildReactionRatesScene(question, quantities, schematic);
+  if (claimsOrderKinetics(question)) return buildOrderKineticsScene(question, quantities, schematic);
+  if (claimsArrheniusCollision(question)) return buildArrheniusCollisionScene(question, quantities, schematic);
   const stem = chemStem(question);
   if (HARD_VETO.test(stem)) return null;
   if (figureAbsent(stem)) return null;
@@ -1245,7 +1257,8 @@ export const KINETICS_PROBES: ReadonlyArray<{
   },
   {
     question: "State Le Chatelier's principle and explain the effect of increasing pressure on the equilibrium N2 + 3H2 <=> 2NH3.",
-    expect: "decline",
-    note: "Le Chatelier is text only",
+    expect: "draw",
+    labels: ["dN=-2", "P up", "toward NH3", "K fixed", "schematic"],
+    note: "delta n of gas is -2, so higher pressure shifts toward NH3; K is not changed by pressure",
   },
 ];

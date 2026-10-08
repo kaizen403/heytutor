@@ -25,6 +25,8 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, planQuantity, numberAfter, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { buildAcidBaseEquilibriumScene, claimsAcidBaseEquilibrium } from "./acidBaseEquilibrium";
+import { buildIonicEquilibriumScene, claimsIonicEquilibrium } from "./ionicEquilibrium";
 import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
@@ -432,6 +434,7 @@ function titrationCue(stem: string): boolean {
 
 /** True when this family should draw for the stem. */
 export function isSolutionsGraphStem(question: string): boolean {
+  if (claimsAcidBaseEquilibrium(question) || claimsIonicEquilibrium(question)) return true;
   const stem = chemStem(question);
   if (FIGURE_PRESENT.test(stem)) return false;
   return claimsSolutionLesson(question) || titrationCue(stem) || RAOULT_CUE.test(stem) || COLLIGATIVE_CUE.test(stem);
@@ -886,6 +889,8 @@ export function buildSolutionsGraphScene(
   schematic: boolean,
 ): SceneDocument | null {
   void schematic;
+  if (claimsAcidBaseEquilibrium(question)) return buildAcidBaseEquilibriumScene(question, quantities, schematic);
+  if (claimsIonicEquilibrium(question)) return buildIonicEquilibriumScene(question, quantities, schematic);
   const stem = chemStem(question);
   if (FIGURE_PRESENT.test(stem)) return null;
   if (claimsSolutionLesson(question)) return buildSolutionLessonScene(question, quantities, schematic);
@@ -1013,8 +1018,9 @@ export const SOLUTIONS_PROBES: ReadonlyArray<{
   },
   {
     question: "A buffer contains 0.1 M CH3COOH and 0.2 M CH3COONa. Calculate its pH (pKa = 4.76).",
-    expect: "decline",
-    note: "buffer pH, no curve asked",
+    expect: "draw",
+    labels: ["pH=5.06", "HH ok", "buffer"],
+    note: "pH = 4.76 + log10(0.2/0.1) = 5.06; both buffer species are present",
   },
   {
     question: "The osmotic pressure of a 0.1 M glucose solution at 300 K is (R = 0.083 L bar/K mol).",
