@@ -15,6 +15,7 @@ import { gradeLecture, type LectureGrade } from "./grade";
 import { printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
 import { applyLectureLabHeaders } from "./labAuth";
+import { LECTURE_LAB_ZERO_RETENTION_HEADER } from "../../lib/billing/flags";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
@@ -361,6 +362,7 @@ async function main(): Promise<void> {
     if (url.startsWith(options.origin)) {
       headers.set("cookie", cookie);
       applyLectureLabHeaders(headers);
+      if (evaluationRows) headers.set(LECTURE_LAB_ZERO_RETENTION_HEADER, "1");
     }
     const traceId = headers.get("x-heytutor-trace-id");
     const plannerRequest = url.startsWith(options.origin) && headers.get("x-planner") === "1" && traceId;

@@ -28,6 +28,7 @@ import {
   requireLessonGrant,
 } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
+import { shouldSuppressLectureLabTrace } from "@/lib/billing/flags";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { markGrantInUse, type TurnGrant } from "@/lib/billing/grant";
 import type { SpendActor } from "@/lib/billing/actor";
@@ -819,7 +820,7 @@ export async function POST(request: Request): Promise<Response> {
     ? resolveTeachingModelRoute(process.env, { fastMode, startupRetry: readTeachingStartupRetry(request.headers) })
     : null;
   const serverModel = teachingRoute ? teachingRoute.model : resolveFireworksModel({ fastMode });
-  const turnTrace = startTurnTrace({
+  const turnTrace = shouldSuppressLectureLabTrace(request) ? null : startTurnTrace({
     userId: actor.userId,
     sessionId,
     input: resolveTurnTraceInput({ kind, attach, question, userInput }),

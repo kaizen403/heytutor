@@ -38,6 +38,7 @@ export function isTtsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 export const LECTURE_LAB_HEADER = "x-heytutor-lecture-lab";
+export const LECTURE_LAB_ZERO_RETENTION_HEADER = "x-heytutor-lecture-lab-zero-retention";
 
 /**
  * Lecture-lab spend bypass. The header value must match LECTURE_LAB_TOKEN
@@ -49,4 +50,17 @@ export function isLectureLabRequest(request: Request, env: NodeJS.ProcessEnv = p
   const presented = request.headers.get(LECTURE_LAB_HEADER)?.trim() ?? "";
   if (!expected || !presented) return false;
   return timingSafeEqualText(presented, expected);
+}
+
+/**
+ * Evaluation corpora can contain private student questions. Only a request
+ * already authenticated as lecture-lab traffic may opt out of retained
+ * observability; ordinary product requests cannot suppress their trace.
+ */
+export function shouldSuppressLectureLabTrace(
+  request: Request,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return request.headers.get(LECTURE_LAB_ZERO_RETENTION_HEADER) === "1" &&
+    isLectureLabRequest(request, env);
 }
