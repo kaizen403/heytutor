@@ -29,6 +29,7 @@ import { finiteProgressionPlanningGuidance } from "./finiteProgressionGuidance";
 import { measurementPlanningGuidance } from "./measurementGuidance";
 import { matrixProductPlanningGuidance } from "./matrixProductGuidance";
 import { circleSourcePlanningGuidance } from "./circleSourceGuidance";
+import { physicalModelPlanningGuidance } from "./physicalModelGuidance";
 import { readMatrixProductSourceProgram, matrixProductFullIRIssues } from "@heytutor/scene-engine";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
@@ -175,7 +176,7 @@ export async function planProblemAuthorityV1(
         temperature: 0,
         stream: false,
         messages: [
-          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question) + circleSourcePlanningGuidance(question) },
+          { role: "system", content: PROBLEM_IR_V1_PROMPT + finitePolynomialPlanningGuidance(question) + finiteProgressionPlanningGuidance(question) + measurementPlanningGuidance(question) + matrixProductPlanningGuidance(question) + circleSourcePlanningGuidance(question) + physicalModelPlanningGuidance() },
           { role: "user", content: problemIRUserMessage(question, turnPlan) },
         ],
       }),
@@ -392,6 +393,30 @@ function normalizeSolveRequest(
           ...binding,
         }
       : null;
+  }
+  if (request.kind === "explicit_physical_model") {
+    if (typeof request.model !== "string" || !/^(ce|dc|ef|ep|mf|mm|ind|emw)\.[a-z0-9_]{1,48}$/.test(request.model)) return null;
+    if (!Array.isArray(request.bindings) || request.bindings.length === 0 || request.bindings.length > 32) return null;
+    const bindings = request.bindings.flatMap((rawBinding) => {
+      if (!isRecord(rawBinding)) return [];
+      const { key, role, expressionId, unit, evidenceFactId } = rawBinding;
+      return typeof key === "string" && typeof role === "string" && typeof expressionId === "string"
+        && typeof unit === "string" && typeof evidenceFactId === "string"
+        && expressionIds.has(expressionId) && factIds.has(evidenceFactId)
+        ? [{ key, role, expressionId, unit, evidenceFactId }]
+        : [];
+    });
+    if (bindings.length !== request.bindings.length || new Set(bindings.map((item) => item.key)).size !== bindings.length) return null;
+    const evidenceFactIds = filterIds(request.evidenceFactIds, factIds);
+    if (evidenceFactIds.length === 0) return null;
+    return {
+      id: request.id,
+      kind: request.kind,
+      model: request.model,
+      bindings,
+      evidenceFactIds,
+      ...binding,
+    };
   }
   if (request.kind !== "definite_integral" || !validVariable(request.variable)) return null;
   const integrandId = typeof request.expressionId === "string"

@@ -1,4 +1,5 @@
 import { parseMathExpression } from "../math/expression";
+import { explicitModelAdmissionIssues } from "../physics/em20261007/admission";
 import { validateDcNetwork, type DcNetwork, type DcNetworkOutput } from "./circuitNetwork";
 
 export const PROBLEM_IR_VERSION = "problem-ir/v1" as const;
@@ -77,12 +78,21 @@ export interface SolveResultBinding {
   evidenceFactIds: string[];
 }
 
+export interface PhysicalInputBinding {
+  key: string;
+  role: string;
+  expressionId: string;
+  unit: string;
+  evidenceFactId: string;
+}
+
 export type SolveRequest =
   | { id: string; kind: "dc_network"; network: DcNetwork; output: DcNetworkOutput; resultBinding?: SolveResultBinding }
   | { id: string; kind: "evaluate"; expressionId: string; resultBinding?: SolveResultBinding }
   | { id: string; kind: "roots"; expressionId: string; variable: string; domain: SolveDomain; resultBinding?: SolveResultBinding }
   | { id: string; kind: "intersections"; leftExpressionId: string; rightExpressionId: string; variable: string; domain: SolveDomain; resultBinding?: SolveResultBinding }
-  | { id: string; kind: "definite_integral"; expressionId: string; variable: string; lower: number; upper: number; resultBinding?: SolveResultBinding };
+  | { id: string; kind: "definite_integral"; expressionId: string; variable: string; lower: number; upper: number; resultBinding?: SolveResultBinding }
+  | { id: string; kind: "explicit_physical_model"; model: string; inputs?: Record<string, number>; bindings?: PhysicalInputBinding[]; evidenceFactIds: string[]; resultBinding?: SolveResultBinding };
 
 export interface ProblemIR {
   schemaVersion: typeof PROBLEM_IR_VERSION;
@@ -142,6 +152,9 @@ export function validateProblemIR(raw: unknown, expectedQuestion?: string): Prob
   collectIds(constraints, "constraints", issues);
   collectIds(intents, "representationIntents", issues);
   collectIds(requests, "solveRequests", issues);
+  if (requests.filter((value) => isRecord(value) && value.kind === "explicit_physical_model").length > 1) {
+    add(issues, "ambiguous_physical_model", "solveRequests", "a ProblemIR may select at most one explicit physical model");
+  }
 
   facts.forEach((value, index) => validateFact(value, question, `facts[${index}]`, issues));
   entities.forEach((value, index) => validateEntity(value, factIds, `entities[${index}]`, issues));
@@ -314,6 +327,33 @@ function validateSolveRequest(raw: unknown, expressions: Set<string>, facts: Set
     if (typeof raw.lower !== "number" || typeof raw.upper !== "number" || !Number.isFinite(raw.lower) || !Number.isFinite(raw.upper) || raw.lower === raw.upper) {
       add(issues, "invalid_bounds", path, "integral bounds must be distinct finite numbers");
     }
+    return;
+  }
+  if (raw.kind === "explicit_physical_model") {
+    if (typeof raw.model !== "string" || !/^(ce|dc|ef|ep|mf|mm|ind|emw)\.[a-z0-9_]{1,48}$/.test(raw.model)) {
+      add(issues, "invalid_physical_model", `${path}.model`, "model must name a declared ce, dc, ef, ep, mf, mm, ind, or emw case");
+    }
+    if (raw.inputs !== undefined) {
+      if (!isRecord(raw.inputs) || Array.isArray(raw.inputs)) {
+        add(issues, "invalid_physical_model", `${path}.inputs`, "inputs must be a flat record of finite numbers");
+      } else {
+        const entries = Object.entries(raw.inputs);
+        if (entries.length > 32) add(issues, "invalid_physical_model", `${path}.inputs`, "a physical model accepts at most 32 inputs");
+        for (const [key, value] of entries) {
+          if (!/^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(key) || typeof value !== "number" || !Number.isFinite(value)) {
+            add(issues, "invalid_physical_model", `${path}.inputs.${key}`, "each physical input must be a finite number");
+          }
+        }
+      }
+    }
+    validateEvidenceRefs(raw.evidenceFactIds, facts, `${path}.evidenceFactIds`, issues);
+    for (const issue of explicitModelAdmissionIssues({
+      request: raw,
+      question: problem.question,
+      facts: problem.facts,
+      expressions: problem.expressions,
+      path,
+    })) add(issues, issue.code, issue.path, issue.message);
     return;
   }
   add(issues, "invalid_solve_request_kind", `${path}.kind`, "unsupported solve request kind");

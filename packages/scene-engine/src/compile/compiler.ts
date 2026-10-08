@@ -194,7 +194,13 @@ type DerivedGeometryMetadata = {
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
   | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition } & DerivedGeometryMetadata)
-  | ({ kind: "multi_path"; paths: Point[][] } & DerivedGeometryMetadata)
+  | ({
+      kind: "multi_path";
+      paths: Point[][];
+      /** Per-path arrow semantics retained by operators that return several
+       * independent curves. Undefined means every path is ordinary ink. */
+      pathDirections?: boolean[];
+    } & DerivedGeometryMetadata)
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
@@ -799,11 +805,17 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const pinOwner = (owner: LabelOwner): LabelOwner => {
     const target = geometry.get(owner.entityId);
     const transform = transformPlan.transformFor(owner.entityId);
+    const offset = document.entities.find((item) => item.id === owner.entityId)?.provenance?.labelOffset;
+    const shift = offset && typeof offset === "object" && "x" in offset && "y" in offset
+      && typeof offset.x === "number" && typeof offset.y === "number"
+      ? { x: offset.x, y: offset.y }
+      : undefined;
+    const center = target ? centerOf(target) : undefined;
     return {
       ...owner,
       // Rectangles compile as closed paths; the path label-anchor sits
       // on the perimeter. Cell values belong at the geometric center.
-      anchor: target ? transform(centerOf(target)) : owner.anchor,
+      anchor: center ? transform(shift ? { x: center.x + shift.x, y: center.y + shift.y } : center) : owner.anchor,
       pinToAnchor: true,
       allowLeader: false,
       useOwnerBounds: false,
@@ -1343,7 +1355,12 @@ function adaptDipoleGeometry(value: DipoleGeometry): Geometry {
   if (value.kind === "point") return { kind: "point", point: value.point, dipoleField };
   if (value.kind === "path") return { kind: "path", points: value.points, directed: true, dipoleField };
   if (value.kind === "circle") return { kind: "circle", center: value.center, radius: value.radius, dipoleField };
-  return { kind: "multi_path", paths: value.paths.map((path) => path.points), dipoleField };
+  return {
+    kind: "multi_path",
+    paths: value.paths.map((path) => path.points),
+    pathDirections: value.paths.map((path) => path.directed),
+    dipoleField,
+  };
 }
 
 function evaluateConstruction(
@@ -2399,7 +2416,7 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
       id: `primitive_${entityId}_${index}`,
       entityId,
       groupId,
-      kind: "polyline",
+      kind: value.pathDirections?.[index] === true ? "vector" : "polyline",
       points: path.map(transform),
       provenance,
     }));

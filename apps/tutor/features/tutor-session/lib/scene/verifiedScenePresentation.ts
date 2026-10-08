@@ -20,6 +20,7 @@ import type {
 } from "@heytutor/scene-engine";
 import {
   describeSceneFamily,
+  directedCurveInk,
   obstaclesFromPrimitives,
   placeLabels,
   workColumnObstacle,
@@ -572,18 +573,19 @@ function annotationVisualStyle(
     ? provenance.strokeRole
     : command.visualStyle?.strokeRole;
   const fillRole = provenance.fillRole === "region" ? "region" as const : command.visualStyle?.fillRole;
+  const resolvedFillRole = provenance.inkRole === "opaque_dot" ? "solid" as const : fillRole;
   const measurementRole = provenance.measurementRole === "bar" || provenance.measurementRole === "witness"
     ? provenance.measurementRole
     : undefined;
   const labelLeader = provenance.labelLeader === true;
-  if (!corresponding && !dashed && !strokeRole && !fillRole && !measurementRole && !labelLeader) return {};
+  if (!corresponding && !dashed && !strokeRole && !resolvedFillRole && !measurementRole && !labelLeader) return {};
   return {
     visualStyle: {
       ...command.visualStyle,
       ...(corresponding ? { correspondingFamily: corresponding } : {}),
       dashed,
       strokeRole,
-      fillRole,
+      fillRole: resolvedFillRole,
       ...(measurementRole ? { measurementRole } : {}),
       ...(labelLeader ? { labelLeader: true } : {}),
       strokeWidth: corresponding === 2 ? 2.9 : command.visualStyle?.strokeWidth,
@@ -1348,6 +1350,7 @@ function primitiveCommands(
   }
   switch (primitive.kind) {
     case "point": {
+      if (primitive.provenance?.hideMark === true) break;
       const point = points[0];
       if (point) commands.push({ type: "DRAW_POINT", params: [point.x, point.y, primitive.radius ?? DIAGRAM_POINT_RADIUS] });
       break;
@@ -1359,8 +1362,9 @@ function primitiveCommands(
     }
     case "ray":
     case "vector": {
-      const start = points[0]; const end = points.at(-1);
-      if (start && end) commands.push({ type: "ARROW", params: [start.x, start.y, end.x, end.y], ...dsaStyle });
+      const ink = directedCurveInk(points);
+      if (ink.stroke.length > 2) commands.push({ type: "DRAW_LINE", params: flatten(ink.stroke), ...dsaStyle });
+      if (ink.arrow) commands.push({ type: "ARROW", params: [ink.arrow[0].x, ink.arrow[0].y, ink.arrow[1].x, ink.arrow[1].y], ...dsaStyle });
       break;
     }
     case "circle": {
@@ -1437,7 +1441,9 @@ function dsaMarkStyle(
   provenance: Record<string, unknown> | undefined,
 ): { visualStyle?: VerifiedDiagramCommand["visualStyle"] } {
   if (!provenance) return {};
-  const fillRole = provenance.fillRole === "region" ? ("region" as const) : undefined;
+  const fillRole = provenance.inkRole === "opaque_dot"
+    ? ("solid" as const)
+    : provenance.fillRole === "region" ? ("region" as const) : undefined;
   const dashed = provenance.dashed === true;
   const strokeWidth = typeof provenance.strokeWidth === "number" ? provenance.strokeWidth : undefined;
   if (!fillRole && !dashed && strokeWidth === undefined) return {};
@@ -1638,7 +1644,7 @@ function orderedRevealGroupIds(scene: RenderScene): string[] {
 }
 
 
-function flatten(points: Array<{ x: number; y: number }>): number[] {
+function flatten(points: readonly { x: number; y: number }[]): number[] {
   return points.flatMap((point) => [point.x, point.y]);
 }
 

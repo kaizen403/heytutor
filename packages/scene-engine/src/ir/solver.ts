@@ -1,4 +1,6 @@
 import { parseMathExpression } from "../math/expression";
+import { explicitModelIsRepresentation, explicitModelScalar, groundExplicitModel } from "../physics/em20261007/admission";
+import "../physics/em20261007/registerAdmission";
 import { solveDcNetwork, dcNetworkValue } from "./circuitNetwork";
 import {
   expressionToSafeSource,
@@ -107,6 +109,11 @@ export class LocalDeterministicSolverProvider implements SolverProvider {
         break;
       }
       try {
+        if (
+          request.kind === "explicit_physical_model"
+          && !request.resultBinding
+          && explicitModelIsRepresentation(problem.question, problem, request.id)
+        ) continue;
         const solved = solveRequest(request, expressions, problem);
         values.push(solved.value);
         proofs.push(solved.proof);
@@ -251,7 +258,11 @@ export function validateSolverResult(raw: unknown, problem?: ProblemIR): SolverR
   for (const requestId of valueRequestIds) {
     if (!proofRequestIds.has(requestId)) add(issues, "missing_proof", "proofs", `value for ${requestId} has no proof evidence`);
   }
-  if (raw.status === "solved" && problem && problem.solveRequests.some((request) => !valueRequestIds.has(request.id))) {
+  if (raw.status === "solved" && problem && problem.solveRequests.some((request) =>
+    !valueRequestIds.has(request.id)
+    && !(request.kind === "explicit_physical_model"
+      && !request.resultBinding
+      && explicitModelIsRepresentation(problem.question, problem, request.id)))) {
     add(issues, "incomplete_solved_result", "status", "solved result must contain every requested value");
   }
   if (raw.status === "solved" && raw.issues.length > 0) add(issues, "solved_with_issues", "status", "solved result cannot contain issues");
@@ -287,6 +298,17 @@ function solveRequest(request: SolveRequest, expressions: Map<string, ProblemExp
     const left = requiredExpression(expressions, request.leftExpressionId);
     const right = requiredExpression(expressions, request.rightExpressionId);
     return solveRoots(request, left, right);
+  }
+  if (request.kind === "explicit_physical_model") {
+    const grounded = groundExplicitModel(problem.question, problem, request.id);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    if (!request.resultBinding) throw new Error("a solved physical model requires a result binding");
+    const outputs = explicitModelScalar(grounded.model, grounded.inputs);
+    if (!outputs) throw new Error("explicit physical model has no deterministic scalar");
+    const value = outputs[request.resultBinding.symbol];
+    if (typeof value !== "number") throw new Error(`unbound physical output ${request.resultBinding.symbol}`);
+    const expressionIds = request.bindings?.map((binding) => binding.expressionId) ?? [];
+    return solvedScalar(request.id, value, Number.isInteger(value) ? { kind: "integer", value: String(value) } : undefined, "exact_arithmetic", expressionIds, 0, "Recomputed the source-bound physical model; the result binding names the proved output.");
   }
   const expression = requiredExpression(expressions, request.expressionId);
   const polynomial = polynomialExpression(expression.root, request.variable);
@@ -1132,6 +1154,7 @@ function requestExpressionIds(request: SolveRequest | undefined): string[] {
   if (!request) return [];
   if (request.kind === "dc_network") return [...new Set(request.network.branches.flatMap((branch) => branch.quantityExpressionId ? [branch.quantityExpressionId] : []))];
   if (request.kind === "intersections") return [request.leftExpressionId, request.rightExpressionId];
+  if (request.kind === "explicit_physical_model") return request.bindings?.map((binding) => binding.expressionId) ?? [];
   return [request.expressionId];
 }
 

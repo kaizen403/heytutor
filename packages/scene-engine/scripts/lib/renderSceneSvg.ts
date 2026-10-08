@@ -9,6 +9,7 @@
  * Board geometry mirrors `@heytutor/drawing` boardZones: canvas 1200×700,
  * diagram zone x 400–1160 / y 140–520, compiler default viewport 410,55 740×555.
  */
+import { directedCurveInk } from "../../src/compile/directedCurve";
 import type { RenderPrimitive, RenderScene } from "../../src/types";
 
 export const BOARD_WIDTH = 1200;
@@ -45,19 +46,20 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
   // Honour the marks the DSA builder sets, or a rejected edge and a live
   // window review as ordinary ink and the gate images say less than the board.
   const provenance = primitive.provenance as
-    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown }
+    | { dashed?: unknown; fillRole?: unknown; hideMark?: unknown; inkRole?: unknown; strokeWidth?: unknown }
     | undefined;
   const dashes = provenance?.dashed === true ? ` stroke-dasharray="6 4"` : "";
   const fill = provenance?.fillRole === "region" ? `rgba(165,214,236,0.28)` : "none";
   const width = typeof provenance?.strokeWidth === "number" ? provenance.strokeWidth : 1.15;
   const stroke = `fill="${fill}" stroke="${ink}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"${dashes}`;
-  const poly = (list: RenderPrimitive["points"]): string => list.map((point) => `${point.x},${point.y}`).join(" ");
+  const poly = (list: readonly RenderPrimitive["points"][number][]): string => list.map((point) => `${point.x},${point.y}`).join(" ");
   const anchor = points[0];
   const inlineLabel = primitive.text && primitive.kind !== "label" && primitive.kind !== "dimension" && anchor
     ? `<text x="${anchor.x + 6}" y="${anchor.y - 6}" font-size="13" fill="${labelColor}">${escapeXml(primitive.text)}</text>`
     : "";
   switch (primitive.kind) {
     case "point":
+      if (provenance?.hideMark === true) return inlineLabel;
       return anchor ? `<circle cx="${anchor.x}" cy="${anchor.y}" r="2" fill="${ink}"/>${inlineLabel}` : "";
     case "line":
     case "polyline":
@@ -76,13 +78,18 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
     }
     case "ray":
     case "vector": {
-      const start = points[0];
-      const end = points.at(-1);
-      if (!start || !end) return "";
-      return `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" ${stroke} marker-end="url(#${marker})"/>${inlineLabel}`;
+      const ink = directedCurveInk(points);
+      const [arrowStart, arrowEnd] = ink.arrow ?? [];
+      if (!arrowStart || !arrowEnd) return "";
+      const curve = ink.stroke.length > 2 ? `<polyline points="${poly(ink.stroke)}" ${stroke}/>` : "";
+      return `${curve}<line x1="${arrowStart.x}" y1="${arrowStart.y}" x2="${arrowEnd.x}" y2="${arrowEnd.y}" ${stroke} marker-end="url(#${marker})"/>${inlineLabel}`;
     }
-    case "circle":
-      return anchor ? `<circle cx="${anchor.x}" cy="${anchor.y}" r="${primitive.radius ?? 0}" ${stroke}/>${inlineLabel}` : "";
+    case "circle": {
+      if (!anchor) return "";
+      const solid = provenance?.inkRole === "opaque_dot";
+      const circleFill = solid ? ink : fill;
+      return `<circle cx="${anchor.x}" cy="${anchor.y}" r="${primitive.radius ?? 0}" fill="${circleFill}" stroke="${ink}" stroke-width="${width}"${dashes}/>${inlineLabel}`;
+    }
     case "arc":
       return anchor
         ? `<path d="${arcPath(anchor.x, anchor.y, primitive.radius ?? 0, primitive.startAngle ?? 0, primitive.endAngle ?? 0)}" ${stroke}/>${inlineLabel}`

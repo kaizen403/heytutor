@@ -84,6 +84,14 @@ function checkedProduct(a: number, b: number, key: string): number {
 }
 function originInput(value: unknown, context: AcEvaluationContext): RenderPoint {
   if (value === undefined) return { x: 0, y: 0 };
+  if (typeof value === "string") {
+    if (!value.trim()) invalid("origin", "origin must be an explicit 2D display point");
+    let referenced: RenderPoint;
+    try { referenced = context.point(value); }
+    catch { return invalid("origin", "origin must be a finite inline display point or a constructed point"); }
+    if (![referenced.x, referenced.y].every((component) => Number.isFinite(component) && Math.abs(component) <= MAX_VALUE)) invalid("origin", "origin coordinates exceed finite display bounds");
+    return { x: referenced.x, y: referenced.y };
+  }
   if (isRecord(value)) inputKeys(value, ["x", "y"], "origin");
   if (!(Array.isArray(value) && value.length === 2) && !(isRecord(value) && "x" in value && "y" in value)) invalid("origin", "origin must be an explicit 2D display point");
   let point: RenderPoint;
@@ -226,6 +234,11 @@ export function validateAcConstruction(construction: SceneConstruction, index: n
   const context: AcEvaluationContext = {
     number(value) { return validationNumber(value, document); },
     point(value) {
+      if (typeof value === "string") {
+        const producer = constructionByOutput.get(value);
+        if (producer?.operator !== "point" || !isRecord(producer.inputs)) throw new Error("invalid display point");
+        return { x: validationNumber(producer.inputs.x, document), y: validationNumber(producer.inputs.y, document) };
+      }
       if (Array.isArray(value) && value.length === 2 && value.every((coordinate) => typeof coordinate === "number")) return { x: value[0] as number, y: value[1] as number };
       if (isRecord(value) && typeof value.x === "number" && typeof value.y === "number") return { x: value.x, y: value.y };
       throw new Error("invalid display point");

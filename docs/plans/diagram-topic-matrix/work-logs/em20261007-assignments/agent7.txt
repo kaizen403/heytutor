@@ -1,0 +1,154 @@
+ID: physics|14|faradays-law
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Electromagnetic induction and Faraday's law
+  packet: CH-09a
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Oriented loops; changing B, area or angle and coil turns
+  acceptance_tests: Check emf=-d(NΦ)/dt and units from supplied time law; a loop's source orientation must remain fixed or explicitly time-dependent
+  dependencies: S0; S1; S2; S3; CH-02a; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/inductionGeometry.ts; packages/scene-engine/scripts/verify/verify-induction-operators.ts
+ID: physics|14|induced-emf-current-and-lenz-law
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Induced EMF and current and Lenz's law
+  packet: CH-09a
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Flux increasing/decreasing; reversed winding and open/closed circuit
+  acceptance_tests: Verify Lenz polarity and I only from a supplied closed circuit; open-loop emf cannot imply current
+  dependencies: S0; S1; S2; S3; CH-02a; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/inductionGeometry.ts; packages/scene-engine/scripts/verify/verify-induction-operators.ts
+ID: physics|14|motional-emf
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Motional EMF, including a rod translating in a magnetic field
+  packet: CH-09a
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Sliding rod on rails; reversed motion/field; finite circuit resistance
+  acceptance_tests: Independently integrate (v×B)·dl and check mechanical/electrical power; missing return path cannot yield a current
+  dependencies: S0; S1; S2; S3; CH-02a; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/inductionGeometry.ts; packages/scene-engine/scripts/verify/verify-induction-operators.ts
+ID: physics|14|eddy-currents-and-inductance
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Eddy currents
+  packet: CH-09a
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Conductor entering/leaving field; drag versus no flux change
+  acceptance_tests: Check induced circulation opposes change and qualitative energy dissipation; do not invent a unique eddy-current map without boundary data
+  dependencies: S0; S1; S2; S3; CH-02a; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/inductionGeometry.ts; packages/scene-engine/scripts/verify/verify-induction-operators.ts
+ID: physics|14|self-inductance
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Self inductance
+  packet: CH-09b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Coil flux linkage; current ramp and stored magnetic energy
+  acceptance_tests: Check emf=-L dI/dt and U=LI²/2 for linear constant L; varying L needs explicit total derivative
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a
+  existing_seed: none
+ID: physics|14|mutual-inductance
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Mutual inductance
+  packet: CH-09b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Coupled coils; winding-dot polarity and coupling strength
+  acceptance_tests: Check mutual emf and abs(M)≤sqrt(L1L2); missing dot convention cannot certify signed coupling
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a
+  existing_seed: none
+ID: physics|14|lc-oscillations
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: LC oscillations
+  packet: CH-09b
+  scope main/adv/neet: supplemental / listed / supplemental
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Ideal LC energy exchange; initial capacitor charge/current
+  acceptance_tests: Solve KVL and energy with ω0=1/sqrt(LC); resistance-free model cannot display dissipative decay
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a
+  existing_seed: none
+ID: physics|14|alternating-current-basics
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Alternating currents and peak and RMS values of alternating current and voltage
+  packet: CH-09c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Sinusoidal current/voltage; RMS/peak and phase
+  acceptance_tests: Check RMS by independent cycle integral; peak/sqrt(2) only for sinusoidal waveform
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a; CH-09b
+  existing_seed: candidate: packages/scene-engine/src/compile/acGeometry.ts; packages/scene-engine/scripts/verify/verify-ac-operators.ts
+ID: physics|14|inductive-and-capacitive-reactance
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Inductive and capacitive reactance
+  packet: CH-09c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Pure L and C; changing frequency; DC limits
+  acceptance_tests: Check XL=ωL and XC=1/(ωC) with phase signs; zero-frequency capacitor cannot have a finite AC reactance
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a; CH-09b
+  existing_seed: candidate: packages/scene-engine/src/compile/acGeometry.ts; packages/scene-engine/scripts/verify/verify-ac-operators.ts
+ID: physics|14|reactance-impedance-and-lcr
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Impedance and the LCR series circuit
+  packet: CH-09c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Explicit series RLC; phasor components and complex impedance
+  acceptance_tests: Check Z=R+i(ωL-1/(ωC)) and I=V/Z; disconnected or parallel circuit cannot inherit the series formula
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a; CH-09b
+  existing_seed: candidate: packages/scene-engine/src/compile/acGeometry.ts; packages/scene-engine/scripts/verify/verify-ac-operators.ts
+ID: physics|14|resonance-power-and-wattless-current
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Resonance in an LCR circuit
+  packet: CH-09c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Frequency scan and resonance with R>0; ideal R=0 singular limit
+  acceptance_tests: Verify ω0=1/sqrt(LC) and component voltages; ideal zero-impedance resonance cannot fabricate finite current
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a; CH-09b
+  existing_seed: candidate: packages/scene-engine/src/compile/acGeometry.ts; packages/scene-engine/scripts/verify/verify-ac-operators.ts
+ID: physics|14|power-in-ac-circuits-and-wattless-current
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Power in AC circuits, power factor, and wattless current
+  packet: CH-09c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Resistive/reactive mixtures; lagging/leading and wattless limit
+  acceptance_tests: Check P=VrmsIrms cosφ and real complex power; reactive magnitude is not average dissipated power
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a; CH-09b
+  existing_seed: candidate: packages/scene-engine/src/compile/acGeometry.ts; packages/scene-engine/scripts/verify/verify-ac-operators.ts
+ID: physics|14|ac-generator-and-transformer
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: AC generator
+  packet: CH-09c
+  scope main/adv/neet: listed / supplemental / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Rotating source-defined coil; slip rings and emf-time phase
+  acceptance_tests: Verify flux derivative and terminal identity; Advanced induction permits an application but does not enumerate a generator apparatus
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a; CH-09b
+  existing_seed: candidate: packages/scene-engine/src/compile/acGeometry.ts; packages/scene-engine/scripts/verify/verify-ac-operators.ts
+ID: physics|14|transformer
+  chapter: Electromagnetic Induction and Alternating Currents
+  topic: Transformer
+  packet: CH-09c
+  scope main/adv/neet: listed / supplemental / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U14; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U14
+  required_variants: Ideal transformer turns, winding polarity and load; source-stated losses
+  acceptance_tests: Check voltage/current ratios and ideal power balance; DC steady state cannot use AC transformer induction
+  dependencies: S0; S1; S2; S3; CH-02a; CH-09a; CH-09b
+  existing_seed: candidate: packages/scene-engine/src/compile/acGeometry.ts; packages/scene-engine/scripts/verify/verify-ac-operators.ts

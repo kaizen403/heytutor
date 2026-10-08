@@ -92,5 +92,21 @@ export * from "./ir/measurementSourceAuthority";
 export * from "./ir/measurementQuestionPlanAuthority";
 
 export { snapshotMathSourceData } from "./compile/mathSourceData";
+export { directedCurveInk } from "./compile/directedCurve";
 
 export { relativeMotionCallerIssues } from "./physics/relativeMotionCallerAuthority";
+
+export {
+  assignedTopicIds,
+  consumePhysicalModel,
+  explicitPhysicalModelScene,
+  standardCases,
+  topicDispositions,
+} from "./physics/em20261007/consume";
+export {
+  modelAdmissionCatalog,
+  modelAdmissionEvidenceText,
+  modelAdmissionRequiredAssumptions,
+  modelAdmissionRole,
+  type ModelAdmissionCatalogEntry,
+} from "./physics/em20261007/admission";

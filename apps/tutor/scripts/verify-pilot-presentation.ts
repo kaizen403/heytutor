@@ -1,0 +1,21 @@
+import { compileSceneDocument } from "@heytutor/scene-engine";
+import { validateSceneDocument } from "@heytutor/scene-engine";
+import { consumePhysicalModel } from "@heytutor/scene-engine";
+import { buildVerifiedDiagramPresentation } from "../features/tutor-session/lib/scene/verifiedScenePresentation";
+
+const consumed = consumePhysicalModel("mm.lines", { mx: 2, my: 0 });
+if (consumed.status !== "scene") throw new Error(consumed.status);
+const validated = validateSceneDocument(consumed.document);
+if (!validated.document) throw new Error("invalid document");
+const compiled = compileSceneDocument(validated.document);
+if (!compiled.ok || !compiled.renderScene) throw new Error("compile failed");
+const curve = compiled.renderScene.primitives.find((primitive) => primitive.kind === "vector" && primitive.points.length >= 20);
+if (!curve) throw new Error("missing multi-point field line");
+const presented = buildVerifiedDiagramPresentation(validated.document, compiled.renderScene);
+const drawn = presented.diagram.commands.find((command) => command.type === "DRAW_LINE" && command.params.length > 4);
+if (!drawn) throw new Error("production adapter collapsed the field line to a chord");
+const mid = curve.points[Math.floor(curve.points.length / 2)];
+if (!mid) throw new Error("missing midpoint");
+const kept = drawn.params.some((value, index) => index % 2 === 0 && Math.abs(value - mid.x) < 1e-6);
+if (!kept) throw new Error("production DRAW_LINE dropped an intermediate field-line vertex");
+console.log("production adapter keeps field-line vertices");

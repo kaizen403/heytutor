@@ -17,6 +17,7 @@ import { compileSceneDocument } from "../compile/compiler";
 import { bindStatedCircuitProblem } from "../ir/statedCircuitProblemBinding";
 import { claimsStatedResistorCircuit } from "../ir/statedCircuitAuthority";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
+import { explicitPhysicalModelScene } from "../physics/em20261007/consume";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import {readOpticalConjugateSource} from "../physics/opticalConjugateSource";
 import {opticalConjugateDocument} from "../ir/opticalConjugateProgram";
@@ -180,6 +181,27 @@ function synthesizeFromFamilies(
   if (readScrewGaugeQuestion(input.question).status !== "none") return null;
   const question = input.question.trim();
   if (!question) return null;
+  const explicitModel = explicitPhysicalModelScene(question, input.problemIR);
+  if (explicitModel.handled) {
+    if (!explicitModel.document) return null;
+    const demand = sceneDemand(question, input.problemIR);
+    const obligations = isFullProblemIRStructure(input.problemIR) ? deriveVisualObligations(input.problemIR) : null;
+    const problem = isFullProblemIRStructure(input.problemIR) ? input.problemIR : undefined;
+    if (explicitModel.document.visualDecision.mode === "text_only") {
+      const validated = validateSceneDocument(explicitModel.document);
+      const compiled = validated.document ? compileSceneDocument(validated.document) : null;
+      if (!compiled?.ok || !compiled.renderScene || !validated.document) return null;
+      if (demandRejection(validated.document, demand) || (obligations && visualObligationRejection(obligations, validated.document, problem))) return null;
+      return {
+        document: validated.document, renderScene: compiled.renderScene, validationReport: compiled.report,
+        tier: explicitModel.tier, nonMetric: true, family: explicitModel.family, reason: explicitModel.reason,
+      };
+    }
+    const compiled = tryCompile(explicitModel.document);
+    if (!compiled) return null;
+    if (demandRejection(compiled.document, demand) || (obligations && visualObligationRejection(obligations, compiled.document, problem))) return null;
+    return { ...compiled, tier: explicitModel.tier, nonMetric: true, family: explicitModel.family, reason: explicitModel.reason };
+  }
   const suvat = readSuvatSource(question);
   if (suvat.status !== "none") {
     if (suvat.status !== "ok") return null;

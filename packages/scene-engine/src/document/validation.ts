@@ -4029,6 +4029,34 @@ export function validateSceneDocument(raw: unknown, options: Pick<CompileOptions
   if (!isRecord(raw)) {
     return result(null, [{ code: "invalid_document", message: "SceneDocument must be an object", severity: "fatal", path: "$" }]);
   }
+  // Preserve the raw candidate's ownership claim before any planner-shape
+  // normalization can infer construction outputs. If an id is both required
+  // and deterministically produced, deleting its entity declaration is a
+  // partial candidate—not harmless schema drift—and must fail atomically.
+  if (
+    Array.isArray(raw.entities)
+    && raw.entities.every((entity) => isRecord(entity) && typeof entity.id === "string")
+    && Array.isArray(raw.constructions)
+    && Array.isArray(raw.requiredEntityIds)
+  ) {
+    const declared = new Set(raw.entities.flatMap((entity) =>
+      isRecord(entity) && typeof entity.id === "string" ? [entity.id] : []));
+    const produced = new Set(raw.constructions.flatMap((construction) =>
+      isRecord(construction) && Array.isArray(construction.outputs)
+        ? construction.outputs.filter((id): id is string => typeof id === "string")
+        : []));
+    const missingRequired = raw.requiredEntityIds.filter((id): id is string =>
+      typeof id === "string" && produced.has(id) && !declared.has(id));
+    if (missingRequired.length > 0) {
+      return result(null, missingRequired.map((id) => ({
+        code: "missing_required_entity_declaration",
+        message: `Required construction output ${id} has no entity declaration`,
+        severity: "fatal" as const,
+        path: "entities",
+        entityIds: [id],
+      })));
+    }
+  }
   if (options.sourceAuthority) {
     const context=options.sourceAuthority;
     const callerIssues=uniformCircularCallerIssues(context.question,context.problemIR,context.turnPlan);
@@ -4683,6 +4711,11 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
   const entityIds = new Set(entities.flatMap((entity) =>
     isRecord(entity) && typeof entity.id === "string" ? [entity.id] : [],
   ));
+  const submittedRequired = new Set(
+    Array.isArray(raw.requiredEntityIds)
+      ? raw.requiredEntityIds.filter((id): id is string => typeof id === "string")
+      : [],
+  );
   const constructions: unknown[] = Array.isArray(raw.constructions)
     ? raw.constructions.map((construction) => {
         if (!isRecord(construction)) return construction;
@@ -4759,7 +4792,7 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
     for (const construction of constructions) {
       if (!isRecord(construction) || !Array.isArray(construction.outputs)) continue;
       for (const output of construction.outputs) {
-        if (typeof output !== "string" || entityIds.has(output)) continue;
+        if (typeof output !== "string" || entityIds.has(output) || submittedRequired.has(output)) continue;
         const operator = String(construction.operator ?? "");
         const kind = operator === "function_curve" || operator === "parametric_curve" || operator === "polar_curve" || operator === "implicit_curve" ? "polyline"
           : operator === "axes" ? "axes"
@@ -4924,7 +4957,12 @@ function reconcileConstructionOwnership(raw: Record<string, unknown>): void {
     for (const output of construction.outputs) {
       if (typeof output !== "string") continue;
       const declared = entityIds.has(output);
-      if (!declared) {
+      // A construction output omitted from planner bookkeeping may be inferred,
+      // but a candidate that already declares the output as required and then
+      // deletes its entity record is partial/corrupt. Do not silently repair
+      // that stronger ownership claim; strict reference validation below must
+      // reject it atomically.
+      if (!declared && !required.has(output)) {
         entities.push({ id: output, kind, role: kind === "connector" ? "connection" : kind });
         entityIds.add(output);
         entityById.set(output, entities.at(-1) as Record<string, unknown>);

@@ -1,0 +1,121 @@
+ID: physics|11|charge-conservation-and-coulombs-law
+  chapter: Electrostatics
+  topic: Electric charges and conservation of charge
+  packet: CH-08c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: conditional
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Transfer and induction; isolated total positive/negative charge
+  acceptance_tests: Independently balance total charge and carrier signs; grounding is an external charge reservoir
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|electric-potential-and-potential-difference
+  chapter: Electrostatics
+  topic: Electric potential and potential difference
+  packet: CH-08c
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Potential differences along two paths and specified zero reference
+  acceptance_tests: Check ΔV=-∫E·dl and path independence under electrostatics; mismatched references reject
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|potential-for-point-charge-dipole-and-system
+  chapter: Electrostatics
+  topic: Electric potential for a point charge, an electric dipole, and a system of charges
+  packet: CH-08c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Point charge, finite dipole and several charges
+  acceptance_tests: Independently sum kqi/ri and dipole limits; nonphysical source coincidence cannot certify finite potential
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|electrostatic-potential-energy-of-charge-systems
+  chapter: Electrostatics
+  topic: Electrical potential energy of a system of charges
+  packet: CH-08c
+  scope main/adv/neet: application / listed / application
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Two and multiple point charges; source assembly order
+  acceptance_tests: Check U=Σi<j kqiqj/rij without double counting; continuous self-energy needs its own bounded model
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|conductors-insulators-and-polarization
+  chapter: Electrostatics
+  topic: Conductors and insulators
+  packet: CH-08c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Electrostatic conductor interior/surface; grounded versus isolated; insulator comparison
+  acceptance_tests: Check zero interior field and equipotential conductor with source boundaries; induced surface charge is not uniform by default
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|dielectrics-and-polarization
+  chapter: Electrostatics
+  topic: Dielectrics and electric polarization
+  packet: CH-08c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Polarized dielectric between plates; bound versus free charge
+  acceptance_tests: Check supplied permittivity and polarization relation with assumptions; qualitative dipoles cannot certify a material's dielectric constant
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|charge-sharing-between-conductors
+  chapter: Electrostatics
+  topic: Sharing of charge between conductors
+  packet: CH-08c
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Two isolated conducting spheres connected then separated; unequal radii; grounded variant
+  acceptance_tests: Check total charge and equal final potentials with stated capacitance/separation model; touching geometry cannot silently use far-separated sphere capacitances
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|capacitors-and-combinations
+  chapter: Electrostatics
+  topic: Capacitors, capacitance, and combinations of capacitors in series and parallel
+  packet: CH-08c
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Series and parallel capacitors; source polarity and node charge
+  acceptance_tests: Check equivalent capacitance, common series charge and parallel voltage; shorted/open topology must not be guessed
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|parallel-plate-capacitor-with-dielectric
+  chapter: Electrostatics
+  topic: Capacitance of a parallel plate capacitor with and without dielectric medium
+  packet: CH-08c
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Full/partial dielectric fill; battery-connected versus isolated changes
+  acceptance_tests: Independently compute capacitance from geometry and boundary conditions; charge or voltage conservation depends on battery state
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|capacitor-with-conducting-slab
+  chapter: Electrostatics
+  topic: Parallel plate capacitor with a conducting slab
+  packet: CH-08c
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Floating conducting slab of thickness t<d; offsets; isolated versus connected battery
+  acceptance_tests: Check Eslab=0 and C=ε0A/(d-t) only for the stated no-fringing unconnected slab; t≥d or wired slab changes topology and rejects that formula
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none
+ID: physics|11|energy-stored-in-capacitor
+  chapter: Electrostatics
+  topic: Energy stored in a capacitor
+  packet: CH-08c
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Charging/discharging and dielectric insertion at fixed Q or V
+  acceptance_tests: Check U=Q²/(2C)=CV²/2 and battery/mechanical energy accounting; increased capacitance cannot use both fixed Q and fixed V silently
+  dependencies: S0; S1; S2; S3; CH-08a; CH-08b
+  existing_seed: none

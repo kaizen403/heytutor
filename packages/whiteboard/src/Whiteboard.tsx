@@ -189,6 +189,8 @@ export interface AnnotationOptions {
 
 export interface ShapeDrawOptions {
   dashed?: boolean;
+  /** Fill a closed verified path with foreground ink at full opacity. */
+  solidFill?: boolean;
   inkSettings?: DrawCommandInkSettings;
   strokeWidth?: number;
   /**
@@ -406,13 +408,15 @@ function inkPathConfig(
   pathData: string,
   strokeWidth: number,
   style: InstrumentInkStyle,
+  solidFill = false,
 ): Konva.PathConfig {
   return {
     data: pathData,
     stroke: style.color,
     strokeWidth: strokeWidth * style.widthScale,
-    opacity: style.opacity,
-    fillEnabled: false,
+    opacity: solidFill ? 1 : style.opacity,
+    fill: solidFill ? style.color : undefined,
+    fillEnabled: solidFill,
     lineCap: "round",
     lineJoin: "round",
     listening: false,
@@ -1211,7 +1215,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           applyInstrument(instrumentForActivity(activity));
           const inkStyle = styleForCommand(options?.inkSettings);
           const path = new Konva.Path(
-            inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
+            inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle, options?.solidFill === true),
           );
           if (options?.dashed) {
             path.dash([6, 5]);
@@ -1248,7 +1252,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // actually lands in lead rather than in the pen's ink.
         const inkStyle = styleForCommand(options?.inkSettings);
         const path = new Konva.Path(
-          inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
+          inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle, options?.solidFill === true),
         );
         tagBoardInk(path, "scene");
         if (Math.abs((options?.strokeWidth ?? SHAPE_STROKE_WIDTH) - SHAPE_STROKE_WIDTH) < 0.01) {

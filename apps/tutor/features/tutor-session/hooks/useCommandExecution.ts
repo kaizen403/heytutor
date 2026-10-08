@@ -326,6 +326,7 @@ export function useCommandExecution({
           // The figure and its scaffolding are both pencil. The compiler tags
           // which strokes are construction so a dashed guide can stay a guide.
           strokeRole: shapeOptions?.strokeRole ?? rawCommand.visualStyle?.strokeRole,
+          solidFill: shapeOptions?.solidFill ?? rawCommand.visualStyle?.fillRole === "solid",
           strokeWidth: shapeOptions?.strokeWidth
             ?? rawCommand.visualStyle?.strokeWidth
             ?? (rawCommand.visualStyle?.correspondingFamily === 2 ? 2.9 : undefined),

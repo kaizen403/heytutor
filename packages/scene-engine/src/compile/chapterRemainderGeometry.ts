@@ -1,4 +1,5 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
+import { barMagnetFigure } from "./barMagnetGeometry";
 import {
   add2, canonicalUnit, compactNumber, hypot2, invalid, isRecord, pair, placement, rejectUnknownKeys,
   requireUnits, scale2, scalar, SourceInputError, unit2, validationNumber,
@@ -314,29 +315,18 @@ function readMagnet(inputs: Record<string, unknown>, context: SourceContext): Re
   if (hypot2(moment) === 0) invalid("moment", "a bar magnet requires a nonzero moment");
   const origin = placement(inputs.origin, "origin", context);
   const displayScale = positive(inputs.displayScale, "displayScale", context);
-  const axis = unit2(moment, "moment");
+  const figure = barMagnetFigure(origin, moment, displayScale);
   const bar: RemainderGeometry = {
     kind: "path",
     closed: true,
-    points: [
-      add2(origin, { x: -axis.x * 0.7 - axis.y * 0.18, y: -axis.y * 0.7 + axis.x * 0.18 }, "bar"),
-      add2(origin, { x: axis.x * 0.7 - axis.y * 0.18, y: axis.y * 0.7 + axis.x * 0.18 }, "bar"),
-      add2(origin, { x: axis.x * 0.7 + axis.y * 0.18, y: axis.y * 0.7 - axis.x * 0.18 }, "bar"),
-      add2(origin, { x: -axis.x * 0.7 + axis.y * 0.18, y: -axis.y * 0.7 - axis.x * 0.18 }, "bar"),
-    ],
+    points: [...figure.bar],
     remainder: mark("bar", moment, "A m^2", displayScale),
   };
-  const lines = [0.9, 1.6].flatMap((scale) => [-1, 1].map((side) => {
-    const normal = { x: -axis.y * side, y: axis.x * side };
-    const points = Array.from({ length: 49 }, (_, index) => {
-      const theta = Math.PI * index / 48;
-      const radius = scale * Math.sin(theta) ** 2 * displayScale;
-      return {
-        x: origin.x + axis.x * radius * Math.cos(theta) + normal.x * radius * Math.sin(theta),
-        y: origin.y + axis.y * radius * Math.cos(theta) + normal.y * radius * Math.sin(theta),
-      };
-    });
-    return { kind: "path" as const, points, remainder: mark("field_line", moment, "A m^2", displayScale) };
+  const lines = figure.lobes.map((points): RemainderGeometry => ({
+    kind: "path",
+    directed: true,
+    points: [...points],
+    remainder: mark("bar", moment, "A m^2", displayScale),
   }));
   return [bar, ...lines];
 }
@@ -364,6 +354,7 @@ export function chapterRemainderOutputLabels(operator: string, outputs: readonly
     const symbol = metadata.role;
     const numeric = `${symbol}=${compactNumber(metadata.certified ?? metadata.magnitude)}`;
     const requestedText = requested?.[index];
+    if (requestedText === "") return "";
     if (requestedText !== undefined && requestedText !== symbol && requestedText !== numeric) invalid("label", "remainder labels must be the role symbol or the verified magnitude");
     return requestedText === numeric ? numeric : symbol;
   });

@@ -1,0 +1,143 @@
+ID: physics|13|force-on-moving-charge
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Force on a moving charge in uniform magnetic and electric fields
+  packet: CH-05b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Positive/negative charge; parallel/perpendicular v,B; electric force too
+  acceptance_tests: Check q(E+v×B), zero parallel magnetic force and units; page-normal glyph is not a planar path
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|velocity-selector
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Velocity selector
+  packet: CH-05b
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Crossed E,B; selected positive/negative charge beam
+  acceptance_tests: Check E+v×B=0 and v=E/B only for perpendicular crossed fields; direction-reversed force balance rejects
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|cyclotron-and-circular-motion-in-b
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Circular motion in a magnetic field and the cyclotron
+  packet: CH-05b
+  scope main/adv/neet: review / application / review
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Circular orbit and cyclotron alternating-gap accelerator
+  acceptance_tests: Check radius=mv/(abs(q)B), period and gap polarity; circular force is an application, named cyclotron is unlisted and mixed scope needs review
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|helical-path-in-magnetic-field
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Helical path of a charge in a magnetic field
+  packet: CH-05b
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Parallel/perpendicular velocity components; pitch and handedness
+  acceptance_tests: Check radius, cyclotron period and pitch=vparallelT in world coordinates; 2D projection alone cannot certify a helix
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|force-on-current-carrying-conductor
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Force on a current-carrying conductor in a uniform magnetic field
+  packet: CH-05b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Straight conductor parallel/oblique to B; signed current direction
+  acceptance_tests: Check F=I L×B and distributed cancellation where supplied; a conductor path is not an arbitrary force arrow
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|force-between-parallel-conductors
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Force between two parallel current-carrying conductors
+  packet: CH-05b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Equal/opposite parallel currents; unequal currents and separation
+  acceptance_tests: Verify force/length=μ0I1I2/(2πd) and attraction/repulsion; wire identities and reciprocal forces remain distinct
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|definition-of-ampere
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Definition of ampere
+  packet: CH-05b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: text_only
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Historical force-based ampere definition versus current SI definition
+  acceptance_tests: Verify stated historical conditions and contemporary constant-defined SI distinction; definition recall needs no invented wire diagram
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|torque-on-current-loop
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Torque experienced by a current loop in a uniform magnetic field
+  packet: CH-05b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Loop normal, field and angle; arbitrary source-defined area
+  acceptance_tests: Check τ=m×B with m=NIA n; a projected loop area cannot certify world area
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|current-loop-as-magnetic-dipole
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Current loop as a magnetic dipole and its magnetic dipole moment
+  packet: CH-05b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Loop turns, oriented area and current reversal
+  acceptance_tests: Check m=NIA n and orientation; torque magnitude cannot substitute dipole-moment units
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|magnetic-moment-of-a-revolving-charge
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Magnetic moment of a revolving charge
+  packet: CH-05b
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Charge orbit direction and orbital period
+  acceptance_tests: Check I=q/T and m=IA with charge sign; angular momentum proportionality needs the declared particle model
+  dependencies: S0; S3; CH-01c; CH-05a
+  existing_seed: candidate: packages/scene-engine/src/compile/magneticGeometry.ts; packages/scene-engine/scripts/verify/verify-magnetic-operators.ts
+ID: physics|13|moving-coil-galvanometer
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Moving coil galvanometer and its sensitivity
+  packet: CH-05c
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Coil, spring and radial field; current/voltage sensitivity
+  acceptance_tests: Check NBAI=κθ and sensitivity units under stated linear model; missing torsion constant cannot be invented
+  dependencies: S0; S1; S3; S5; CH-02a; CH-05b
+  existing_seed: none
+ID: physics|13|galvanometer-to-ammeter-and-voltmeter
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Conversion of a galvanometer to an ammeter and a voltmeter
+  packet: CH-05c
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Shunt parallel with galvanometer; series multiplier for voltmeter
+  acceptance_tests: Independently derive shunt/multiplier values and terminal topology; swapped conversion connections reject
+  dependencies: S0; S1; S3; S5; CH-02a; CH-05b
+  existing_seed: none
+ID: physics|13|torque-on-magnetic-dipole
+  chapter: Magnetic Effects of Current and Magnetism
+  topic: Torque on a magnetic dipole in a uniform magnetic field
+  packet: CH-05c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U13; A-PDF p.15 Electricity and Magnetism; N-PDF p.6 Physics U13
+  required_variants: Current-loop or bar-magnet dipole; parallel/antiparallel field
+  acceptance_tests: Check m×B and -m·B with supplied moment; Advanced application uses the current-loop model, not a new bar-magnet heading
+  dependencies: S0; S1; S3; S5; CH-02a; CH-05b
+  existing_seed: none

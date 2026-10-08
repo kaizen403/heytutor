@@ -1,0 +1,143 @@
+ID: physics|11|coulombs-law-for-point-charges
+  chapter: Electrostatics
+  topic: Coulomb's law for two point charges
+  packet: CH-08a
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Like/unlike charges; unequal separation and signs
+  acceptance_tests: Check vector Coulomb force and equal/opposite pair forces; coincident point charges reject
+  dependencies: S0; S3
+  existing_seed: candidate: packages/scene-engine/src/compile/fieldGeometry.ts; packages/scene-engine/scripts/verify/verify-field-operators.ts
+ID: physics|11|electric-field-for-point-charge
+  chapter: Electrostatics
+  topic: Electric field due to a point charge
+  packet: CH-08a
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Positive/negative point source; observation at several positions
+  acceptance_tests: Check E=kq r/r³ and test-charge independence; zero distance cannot produce finite field
+  dependencies: S0; S3
+  existing_seed: candidate: packages/scene-engine/src/compile/fieldGeometry.ts; packages/scene-engine/scripts/verify/verify-field-operators.ts
+ID: physics|11|electric-field-lines
+  chapter: Electrostatics
+  topic: Electric field lines
+  packet: CH-08a
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Single charge, dipole and source-bound line sketch
+  acceptance_tests: Check tangent field direction, source/sink signs and no crossing; line density remains schematic unless quantitatively defined
+  dependencies: S0; S3
+  existing_seed: candidate: packages/scene-engine/src/compile/fieldGeometry.ts; packages/scene-engine/scripts/verify/verify-field-operators.ts
+ID: physics|11|electric-dipole-and-its-field
+  chapter: Electrostatics
+  topic: Electric dipole and electric field due to a dipole
+  packet: CH-08a
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Finite dipole axial/equatorial and far-field limits
+  acceptance_tests: Verify superposition before applying asymptotic 1/r³ law; distinguish exact finite separation from ideal-dipole approximation
+  dependencies: S0; S3
+  existing_seed: candidate: packages/scene-engine/src/compile/fieldGeometry.ts; packages/scene-engine/scripts/verify/verify-field-operators.ts
+ID: physics|11|torque-on-electric-dipole
+  chapter: Electrostatics
+  topic: Torque on a dipole in a uniform electric field
+  packet: CH-08a
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Parallel, antiparallel and oblique dipole in uniform E
+  acceptance_tests: Check τ=p×E and zero-force uniform-field assumption; nonuniform field requires a separate force calculation
+  dependencies: S0; S3
+  existing_seed: candidate: packages/scene-engine/src/compile/fieldGeometry.ts; packages/scene-engine/scripts/verify/verify-field-operators.ts
+ID: physics|11|equipotential-surfaces
+  chapter: Electrostatics
+  topic: Equipotential surfaces
+  packet: CH-08a
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Point-charge spheres/circles and dipole equipotentials
+  acceptance_tests: Check constant potential and E perpendicular to the contour in the owning frame; projection is not a world-angle proof
+  dependencies: S0; S3
+  existing_seed: candidate: packages/scene-engine/src/compile/fieldGeometry.ts; packages/scene-engine/scripts/verify/verify-field-operators.ts
+ID: physics|11|dipole-potential-energy-in-field
+  chapter: Electrostatics
+  topic: Electrical potential energy of an electric dipole in an electrostatic field
+  packet: CH-08a
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Dipole rotated through uniform E; stable/unstable orientations
+  acceptance_tests: Check U=-p·E and τ=-dU/dθ; energy zero must be declared
+  dependencies: S0; S3
+  existing_seed: candidate: packages/scene-engine/src/compile/fieldGeometry.ts; packages/scene-engine/scripts/verify/verify-field-operators.ts
+ID: physics|11|multiple-charges-and-superposition
+  chapter: Electrostatics
+  topic: Forces between multiple charges, superposition principle, and continuous charge distribution
+  packet: CH-08b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Discrete superposition and supplied line/surface density
+  acceptance_tests: Independently sum or integrate source charge elements; distribution and domain cannot be guessed from a drawing
+  dependencies: S0; S2; S3; CH-08a
+  existing_seed: none
+ID: physics|11|field-on-axis-of-a-charged-ring
+  chapter: Electrostatics
+  topic: Electric field on the axis of a uniformly charged ring
+  packet: CH-08b
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Ring axis; centre, ±axis, near/far limits and axial-field maximum
+  acceptance_tests: Independently integrate Eaxis=kQz/(z²+R²)^(3/2), transverse cancellation and centre zero; reject off-axis use of the axial formula
+  dependencies: S0; S2; S3; CH-08a
+  existing_seed: none
+ID: physics|11|electric-flux-and-gausss-law
+  chapter: Electrostatics
+  topic: Electric flux and Gauss's law
+  packet: CH-08b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Closed Gaussian surface; inward/outward normals and enclosed charge
+  acceptance_tests: Independently integrate E·dA=qenclosed/ε0; a surface is not the source distribution
+  dependencies: S0; S2; S3; CH-08a
+  existing_seed: none
+ID: physics|11|gausss-law-field-applications
+  chapter: Electrostatics
+  topic: Gauss's law for a uniformly charged thin spherical shell
+  packet: CH-08b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Thin shell interior, just-inside/outside and exterior
+  acceptance_tests: Check field zero inside, exterior kQ/r² and boundary convention; unsupported thick/inhomogeneous sphere cannot inherit shell law
+  dependencies: S0; S2; S3; CH-08a
+  existing_seed: none
+ID: physics|11|gauss-law-infinite-line
+  chapter: Electrostatics
+  topic: Gauss's law for an infinitely long uniformly charged straight wire
+  packet: CH-08b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Cylindrical Gaussian surface around infinite line; radial direction
+  acceptance_tests: Check E=λ/(2πε0r) and flux through side/end caps; finite wire ends need another model
+  dependencies: S0; S2; S3; CH-08a
+  existing_seed: none
+ID: physics|11|gauss-law-infinite-sheet
+  chapter: Electrostatics
+  topic: Gauss's law for a uniformly charged infinite plane sheet
+  packet: CH-08b
+  scope main/adv/neet: listed / listed / listed
+  diagram_need: required
+  source_refs: J-PDF p.4 Physics U11; A-PDF p.14–15 Electricity and Magnetism; N-PDF p.5–6 Physics U11
+  required_variants: Pillbox straddling infinite sheet; both side signs
+  acceptance_tests: Check E=σ/(2ε0) and jump σ/ε0; a conductor surface has different boundary conditions
+  dependencies: S0; S2; S3; CH-08a
+  existing_seed: none

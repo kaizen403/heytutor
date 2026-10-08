@@ -1,0 +1,99 @@
+ID: physics|12|current-drift-velocity-and-mobility
+  chapter: Current Electricity
+  topic: Electric current and drift velocity and their relation
+  packet: CH-02b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Electron versus conventional current; varying carrier density/area
+  acceptance_tests: Check I=nqAvd with sign convention; arrow direction is not electron drift by default
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|mobility-and-current-density
+  chapter: Current Electricity
+  topic: Mobility and current density
+  packet: CH-02b
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Mobility, electric field and current density
+  acceptance_tests: Check vd=μE and J=nqvd with supplied carrier model; Advanced Ohm-law application is not a separately named mobility heading
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|electrical-energy-and-power
+  chapter: Current Electricity
+  topic: Electrical energy and power
+  packet: CH-02b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Multiple dissipating branches and signed source power
+  acceptance_tests: Check P=VI and total supplied/dissipated power; a negative source power can represent charging
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|joules-law-of-heating
+  chapter: Current Electricity
+  topic: Joule's law of heating
+  packet: CH-02b
+  scope main/adv/neet: application / listed / application
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Constant/piecewise current heating; resistor energy over time
+  acceptance_tests: Independently integrate I²R dt; heating law requires a resistor model and source interval
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|resistivity-and-conductivity
+  chapter: Current Electricity
+  topic: Electrical resistivity and conductivity
+  packet: CH-02b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: conditional
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Same geometry different material; conductivity inverse
+  acceptance_tests: Check σ=1/ρ with matching units; pure scalar material comparison may be text-only after review
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|resistance-from-dimensions
+  chapter: Current Electricity
+  topic: Resistance from resistivity and geometry, R = rho l / A
+  packet: CH-02b
+  scope main/adv/neet: application / application / application
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Uniform wire length/cross-section and stretching at conserved volume
+  acceptance_tests: Check R=ρL/A and geometric change assumptions; nonuniform wire needs an integral rather than one average area
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|temperature-dependence-of-resistance
+  chapter: Current Electricity
+  topic: Temperature dependence of resistance
+  packet: CH-02b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Supplied linear coefficient and reference temperature; measured nonlinear alternative
+  acceptance_tests: Check R=R0[1+α(T-T0)] only over declared range; inferred negative resistance is invalid for a passive wire
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|cell-emf-potential-difference-and-internal-resistance
+  chapter: Current Electricity
+  topic: EMF, potential difference, and internal resistance of a cell
+  packet: CH-02b
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Cell discharging/charging; open circuit and short circuit
+  acceptance_tests: Check Vterminal=ε-Ir with direction convention; short-circuit power and internal heat must balance
+  dependencies: S0; S1; S2; CH-02a
+  existing_seed: none
+ID: physics|12|iv-characteristics
+  chapter: Current Electricity
+  topic: V-I characteristics of Ohmic and non-ohmic conductors
+  packet: CH-02c
+  scope main/adv/neet: listed / application / listed
+  diagram_need: required
+  source_refs: J-PDF p.5 Physics U12; A-PDF p.15 Electricity and Magnetism; p.13 General; N-PDF p.6 Physics U12
+  required_variants: Straight Ohmic and supplied nonlinear V-I data
+  acceptance_tests: Check axis ordering, slope/resistance interpretation and observed points; do not impose Ohm's law on nonlinear data
+  dependencies: S0; S1; S5; CH-02a
+  existing_seed: none

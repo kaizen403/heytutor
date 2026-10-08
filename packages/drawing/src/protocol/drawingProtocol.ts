@@ -37,8 +37,8 @@ export interface DrawCommandVisualStyle {
   strokeRole?: DrawStrokeRole;
   strokeWidth?: number;
   dashed?: boolean;
-  /** Verified closed region rendered below its boundary ink. */
-  fillRole?: 'region';
+  /** Verified region wash or an intentionally opaque foreground mark. */
+  fillRole?: 'region' | 'solid';
   correspondingFamily?: 1 | 2 | 3;
   /** Verified distance ink; witnesses must travel and reveal with their bar. */
   measurementRole?: 'bar' | 'witness';
