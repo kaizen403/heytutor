@@ -97,6 +97,7 @@ export async function fetchOverview(): Promise<OverviewPayload> {
     outcomesAllTime: distributions.outcomesAllTime,
     outcomes7d: distributions.outcomes7d,
     tiers7d: distributions.tiers7d,
+    figureSources7d: distributions.figureSources7d,
     degradation7d: distributions.degradation7d,
     sceneEngineVersions30d: distributions.sceneEngineVersions30d,
     topUsers7d: lists.topUsers7d,

@@ -11,6 +11,7 @@ import {
   demandRejection,
   sceneDemand,
   sourceMensurationStructure,
+  isChemistrySceneFamily,
   tierForForeignDocument,
   validateSceneDocument,
   validateSceneQuantityAgreement,
@@ -21,6 +22,7 @@ import {
   type SceneDocument,
   type TurnPlanV3,
   type ValidationReport,
+  type FigureSource,
   relativeMotionSource,
   relativeMotionPlanConflicts,
   riverCrossingPlanConflicts,
@@ -47,6 +49,7 @@ export interface SelectedRepresentation {
   sceneDocument: SceneDocument;
   renderScene: RenderScene;
   validationReport: ValidationReport;
+  figureSource: FigureSource;
   reason: string;
   /**
    * What kind of picture this is, when a family or archetype built it.
@@ -71,6 +74,8 @@ export interface RepresentationSelectionInput {
    * second English reading of the stem.
    */
   problemIR?: ProblemStructureView | null;
+  /** Provenance for an accepted `exact` candidate; planner is the live default. */
+  exactFigureSource?: Extract<FigureSource, "planner" | "verified_recovery">;
 }
 
 interface SourceFunctionFact {
@@ -158,6 +163,7 @@ export function selectFastVerifiedRepresentation(
     sceneDocument: result.document,
     renderScene: result.renderScene,
     validationReport: result.validationReport,
+    figureSource: "fast_family",
     reason: result.reason,
     family: result.family,
   };
@@ -243,6 +249,7 @@ export function selectVerifiedRepresentation(
         sceneDocument: document,
         renderScene: compiled.renderScene,
         validationReport: compiled.report,
+        figureSource: input.exactFigureSource ?? "planner",
         reason: decision.tier === "exact_verified"
           ? `caller supplied a verified scene with ${decision.reason}`
           : `caller supplied a verified scene; ${decision.reason}`,
@@ -269,6 +276,7 @@ export function selectVerifiedRepresentation(
         sceneDocument: matrixDocument,
         renderScene: compiled.renderScene,
         validationReport: compiled.report,
+        figureSource: "matrix_source",
         reason: `engine drew the question's matrix source program; ${decision.reason}`,
       };
     }
@@ -282,6 +290,7 @@ export function selectVerifiedRepresentation(
       sceneDocument: synthesized.document,
       renderScene: synthesized.renderScene,
       validationReport: synthesized.validationReport,
+      figureSource: synthesizedFigureSource(synthesized.document, synthesized.family),
       reason: synthesized.reason,
       family: synthesized.family,
     };
@@ -303,6 +312,7 @@ export function selectVerifiedRepresentation(
         sceneDocument: lastResort.document,
         renderScene: lastResort.renderScene,
         validationReport: lastResort.validationReport,
+        figureSource: "last_resort",
         reason: lastResort.reason,
       };
     }
@@ -339,6 +349,7 @@ function buildTextOnlySelected(question: string): SelectedRepresentation {
       entityBounds: {},
     },
     validationReport: compiled.report,
+    figureSource: "text_only",
     reason: "no family operator program was available",
   };
 }
@@ -390,12 +401,18 @@ export function buildSourceGroundedRepresentation(
     sceneDocument: document,
     renderScene: compiled.renderScene,
     validationReport: compiled.report,
+    figureSource: document.visualDecision.mode === "text_only" ? "text_only" : "source_grounded",
     reason: document.visualDecision.mode === "text_only"
       ? "no meaningful source-grounded visual structure was available"
       : tier === "qualitative_verified"
         ? "rendered source-grounded qualitative relationships without metric claims"
         : "rendered only entities and equations explicitly present in the question",
   };
+}
+
+function synthesizedFigureSource(document: SceneDocument, family: string | undefined): FigureSource {
+  if (family && isChemistrySceneFamily(family)) return "chemistry_family";
+  return typeof document.source.archetype === "string" ? "archetype" : "family";
 }
 
 function compileUsableExactRepresentation(

@@ -18,7 +18,7 @@
  * Both the live hook and the offline lecture lab run this module, so the bench
  * measures the path students get. Everything with I/O is injected.
  */
-import type { TurnPlanV3 } from "@heytutor/scene-engine";
+import type { FigureSource, TurnPlanV3 } from "@heytutor/scene-engine";
 import { deepEqual, finalizeScenePlanAfterAuthority } from "./diagramGeneration";
 
 /**
@@ -159,6 +159,8 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
   /** The finalized scene planner result, or the recovered scene. */
   scene: R | null;
   recovered: boolean;
+  /** Provenance of the pre-fallback path that produced the usable candidate. */
+  figureSource: Extract<FigureSource, "fast_family" | "planner" | "verified_recovery"> | null;
   speculation: {
     started: boolean;
     /** The speculative run produced `scene`. */
@@ -469,6 +471,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       fast,
       scene,
       recovered,
+      figureSource: fast ? "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
       speculation: { started: kept || abortReason !== null, kept, abortReason, restarted },
       timings,
     };

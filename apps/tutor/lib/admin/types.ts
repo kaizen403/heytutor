@@ -10,6 +10,7 @@ import type {
   RepresentationTier,
   TurnOutcome,
 } from "./outcome";
+import type { FigureSource } from "@heytutor/scene-engine";
 import type { DayCount } from "./timeBuckets";
 
 export type { OutcomeCounts };
@@ -47,6 +48,12 @@ export interface BoundedAggregate {
 export interface DegradationReasonCount {
   /** `"unrecorded"` marks failed turns that carry no degradation artifact. */
   reason: DegradationReason | "unrecorded";
+  count: number;
+}
+
+export interface FigureSourceCount {
+  /** `unrecorded` covers turns saved before figure provenance was added. */
+  source: FigureSource | "unrecorded";
   count: number;
 }
 
@@ -123,6 +130,7 @@ export interface OverviewPayload {
   outcomesAllTime: OutcomeCounts;
   outcomes7d: OutcomeCounts;
   tiers7d: TierCounts & BoundedAggregate;
+  figureSources7d: { sources: FigureSourceCount[] } & BoundedAggregate;
   degradation7d: { reasons: DegradationReasonCount[] } & BoundedAggregate;
   sceneEngineVersions30d: Array<{ version: string; count: number }>;
   topUsers7d: OverviewTopUser[];

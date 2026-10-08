@@ -4367,6 +4367,25 @@ export interface VisualReviewV3 {
   wouldReject: boolean;
 }
 
+/** The path that produced the representation committed for a turn. */
+export const FIGURE_SOURCES = [
+  "planner",
+  "fast_family",
+  "family",
+  "archetype",
+  "chemistry_family",
+  "matrix_source",
+  "source_grounded",
+  "last_resort",
+  "text_only",
+  // These lanes bypass the normal planner/family selector and need their own
+  // provenance rather than being folded into a misleading family bucket.
+  "dsa_trace",
+  "verified_recovery",
+] as const;
+
+export type FigureSource = (typeof FIGURE_SOURCES)[number];
+
 export interface SceneArtifactsV3 {
   schemaVersion: typeof SCENE_ARTIFACTS_V3_VERSION;
   turnPlan?: TurnPlanV3 | null;
@@ -4377,6 +4396,8 @@ export interface SceneArtifactsV3 {
   representationTier?: "exact_verified" | "qualitative_verified" | "question_representation";
   /** True when positions communicate relationships only, not physical scale. */
   nonMetric?: boolean;
+  /** Which pipeline path produced the committed figure (or text-only result). */
+  figureSource?: FigureSource;
   candidates: SceneCandidateArtifactV3[];
   selectedCandidateId?: string | null;
   selectionReason?: string;

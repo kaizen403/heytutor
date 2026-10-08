@@ -61,6 +61,7 @@ import {
   reconcileTurnPlanWithSolver,
   type RenderScene,
   type SceneArtifactsV3,
+  type FigureSource,
   type SceneDocument,
   type TurnPlanV3,
   type ValidationReport,
@@ -797,6 +798,7 @@ export function useQuestionHandler(
       let representationNonMetric = false;
       let representationReason: string | null = null;
       let representationFamily: string | null = null;
+      let figureSource: FigureSource = "text_only";
       let exactDegradation: NonNullable<SceneArtifactsV3["degradation"]> | undefined;
       let turnPlan: TurnPlanV3 | null = null;
       let problemAuthority: ProblemAuthorityV1Response | null = null;
@@ -833,6 +835,7 @@ export function useQuestionHandler(
               ? resume.scene.visualStatus
               : "text_only";
           sceneArtifacts = (resume.scene.sceneArtifacts as SceneArtifactsV3 | null) ?? null;
+          figureSource = sceneArtifacts?.figureSource ?? "text_only";
         }
       } else if (!doubt && dsaClassification.isDsa) {
         boardContext = resolveCodeLessonBoardContext(question);
@@ -905,6 +908,7 @@ export function useQuestionHandler(
           representationTier = dsaFrameSet.tier;
           representationNonMetric = dsaFrameSet.nonMetric;
           representationReason = dsaFrameSet.reason;
+          figureSource = "dsa_trace";
           dsaProofAssertions = firstTraceFrame.document.assertions;
           tutorDebug("planner", "dsa walk-through frames", {
             algorithm_id: dsaFrameSet.algorithmId,
@@ -930,6 +934,7 @@ export function useQuestionHandler(
           representationTier = dsaScene.tier;
           representationNonMetric = true;
           representationReason = dsaScene.reason;
+          figureSource = "dsa_trace";
           dsaProofAssertions = dsaScene.document.assertions;
         } else {
           // An unsupported hint never blocks the lesson: the code panel and
@@ -943,6 +948,7 @@ export function useQuestionHandler(
           problemIR: null,
           solverResult: null,
           solverAuthority: null,
+          figureSource,
           representationTier: representationTier ?? undefined,
           nonMetric: representationTier ? representationNonMetric : undefined,
           candidates: [],
@@ -1524,6 +1530,9 @@ export function useQuestionHandler(
                     validationReport: value.report,
                   }
                 : null,
+              exactFigureSource: planning.figureSource === "verified_recovery"
+                ? "verified_recovery"
+                : "planner",
             });
             // A figure the student cannot read is not a figure.
             //
@@ -1579,6 +1588,7 @@ export function useQuestionHandler(
             representationNonMetric = selectedIsDrawable ? selected.nonMetric : false;
             representationReason = selected.reason;
             representationFamily = selectedIsDrawable ? selected.family ?? null : null;
+            figureSource = selectedIsDrawable ? selected.figureSource : "text_only";
             // Never cache a scene that drew nothing: recovery would replay it
             // on a later turn only for the same guard to drop it again.
             if (selectedIsDrawable && selected.tier === "exact_verified" && turnPlan) {
@@ -1614,6 +1624,7 @@ export function useQuestionHandler(
           problemIR: problemAuthority?.problemIR ?? null,
           solverResult: problemAuthority?.solverResult ?? null,
           solverAuthority: problemAuthority?.audit ?? null,
+          figureSource,
           representationTier: representationTier ?? undefined,
           nonMetric: representationTier ? representationNonMetric : undefined,
           candidates: result?.candidates.map((candidate) => {
@@ -1760,12 +1771,14 @@ export function useQuestionHandler(
         representationTier = null;
         representationNonMetric = false;
         representationFamily = null;
+        figureSource = "text_only";
         forgetVerifiedScene(question, { boardId: sessionId });
         if (sceneArtifacts) {
           sceneArtifacts = {
             ...sceneArtifacts,
             representationTier: undefined,
             nonMetric: undefined,
+            figureSource,
             diagramResultStatus: sceneVisualStatus === "retry_required" ? "retry_required" : "text_only",
             selectionReason: "verified_presentation_has_no_drawable_ink",
           };
@@ -1792,6 +1805,7 @@ export function useQuestionHandler(
         scene_engine_version: SCENE_ENGINE_VERSION,
         visual_status: sceneVisualStatus,
         representation_tier: representationTier,
+        figure_source: figureSource,
         non_metric: representationNonMetric,
         repaired: sceneV2Repaired,
         validation_issue_count: sceneV2Report?.issues.length ?? null,
@@ -1808,6 +1822,7 @@ export function useQuestionHandler(
         primitive_count: sceneV2RenderScene?.primitives.length ?? 0,
         issue_codes: sceneV2Report?.issues.map((issue) => issue.code) ?? [],
         representation_tier: representationTier,
+        figure_source: figureSource,
         non_metric: representationNonMetric,
       });
       tel.meta({
@@ -1816,6 +1831,7 @@ export function useQuestionHandler(
         scene_validation_valid: sceneV2Report?.valid ?? null,
         scene_repaired: sceneV2Repaired,
         scene_representation_tier: representationTier,
+        scene_figure_source: figureSource,
         scene_non_metric: representationNonMetric,
         solver_authority_status: problemAuthority?.audit.status ?? "unavailable",
       });
