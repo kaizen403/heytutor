@@ -67,6 +67,27 @@ const FIGURE_KIND_BY_GROUP = new Map(
     groups.map((group) => [group, figureKind] as const)),
 );
 
+const GROUP_PLAIN_NAMES: Record<string, string> = {
+  chem_cft: "crystal field theory orbital energy splitting diagram",
+  chem_coordination: "coordination complex molecular structure",
+  chem_electrochem: "electrochemical cell electrodes and salt bridge apparatus",
+  chem_kinetics: "chemical kinetics reaction rate and activation energy graph",
+  chem_lewis: "Lewis electron dot ionic and covalent bonding structure",
+  chem_mo: "molecular orbital theory energy level diagram",
+  chem_orbital: "atomic orbital electron configuration and filling diagram",
+  chem_organic: "organic molecule structure and reaction scheme",
+  chem_periodic: "periodic trend chart or table",
+  chem_solutions: "solution concentration and vapour pressure graph",
+  chem_thermo: "chemical thermodynamics energy or state graph",
+  chem_unit_cell: "crystal unit cell solid three dimensional structure",
+  chem_vsepr: "VSEPR molecular geometry bond shape",
+  fx_graph_area: "function graph with area under the curve",
+  shm_energy: "simple harmonic motion energy graph",
+  shm_superposition: "simple harmonic motion superposition graph",
+  vt_graph: "velocity time graph",
+  xt_graph: "position time graph",
+};
+
 /** Stable scoring taxonomy; evaluation labels never enter runtime retrieval. */
 export function figureKindForDiagramGroup(family: string | null, archetype: string | null): string | null {
   return FIGURE_KIND_BY_GROUP.get(archetype ?? "") ?? FIGURE_KIND_BY_GROUP.get(family ?? "") ?? null;
@@ -101,7 +122,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function plainWords(value: string): string {
-  return value.replaceAll("_", " ").replace(/\s+/g, " ").trim();
+  return (GROUP_PLAIN_NAMES[value] ?? value.replaceAll("_", " ")).replace(/\s+/g, " ").trim();
 }
 
 function uniqueText(values: readonly string[], limit: number): string[] {

@@ -52,6 +52,7 @@ import {
   runScenePlanningOverlap,
   type SceneGateCore,
 } from "../../features/tutor-session/lib/scene/planningOverlap";
+import { sampleDiagramRowsAcrossChapters } from "../lecture-lab/retrieval-check";
 
 const rows = parseDiagramEvalJsonl([
   JSON.stringify({
@@ -93,6 +94,16 @@ assert.deepEqual(
   sampleDiagramEvalRows(rows, 1, 17),
   "seeded samples must be reproducible",
 );
+const chapterSampleRows = [
+  { ...rows[0]!, id: "physics|1|a", topic_id: "physics|1|a" },
+  { ...rows[0]!, id: "physics|1|b", topic_id: "physics|1|b" },
+  { ...rows[0]!, id: "physics|2|a", topic_id: "physics|2|a" },
+  { ...rows[0]!, id: "maths|1|a", topic_id: "maths|1|a", subject: "maths" },
+];
+const chapterSample = sampleDiagramRowsAcrossChapters(chapterSampleRows, 3, 91);
+assert.equal(chapterSample.length, 3);
+assert.equal(new Set(chapterSample.map((row) => `${row.subject}|${row.topic_id.split("|")[1]}`)).size, 3);
+assert.deepEqual(chapterSample, sampleDiagramRowsAcrossChapters(chapterSampleRows, 3, 91));
 assert.ok(estimateEvaluationCostUsd(20, "planner_first") > estimateEvaluationCostUsd(20, "current"));
 assert.equal(estimateEvaluationCostUsd(20, "current"), 2.25, "preflight must use Kimi K3 rates");
 assert.equal(estimateEvaluationCostUsd(20, "planner_first"), 3.75, "planner-first preflight must use Kimi K3 rates");
@@ -280,6 +291,11 @@ assert.match(
   buildDiagramExemplarDepicts(exemplarDocument, "vector_diagram", null),
   /vector diagram.*vector.*F/i,
   "synthesized descriptions must come from family, entity kinds, and readable labels",
+);
+assert.match(
+  buildDiagramExemplarDepicts(exemplarDocument, "chem_cft", null),
+  /crystal field theory/i,
+  "family identifiers must be expressed in plain subject language",
 );
 
 const repoRoot = resolve(process.cwd(), "../..");
