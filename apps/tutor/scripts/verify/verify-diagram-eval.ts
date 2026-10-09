@@ -14,6 +14,7 @@ import {
   evaluationSelectionOrder,
   estimateEvaluationCostUsd,
   formatDiagramFailureCounts,
+  assertRoundPlannerStarted,
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
   sampleDiagramEvalRows,
@@ -173,6 +174,55 @@ assert.throws(
   () => assertEvaluationCostAllowed(5.01, false),
   /--yes/,
   "rounds above the guard must require explicit confirmation",
+);
+assert.doesNotThrow(() => assertRoundPlannerStarted([
+  {
+    calls: 1,
+    usageCalls: 1,
+    inputTokens: 120,
+    outputTokens: 30,
+    totalTokens: 150,
+    cachedInputTokens: 0,
+    estimatedCostUsd: 0.001,
+    modelCalls: [{
+      model: "accounts/fireworks/models/kimi-k3",
+      status: 200,
+      ok: true,
+      usageKnown: true,
+      inputTokens: 120,
+      outputTokens: 30,
+      totalTokens: 150,
+      cachedInputTokens: 0,
+      estimatedCostUsd: 0.001,
+    }],
+  },
+], 5));
+assert.throws(
+  () => assertRoundPlannerStarted(Array.from({ length: 5 }, () => ({
+    calls: 0,
+    usageCalls: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    cachedInputTokens: 0,
+    estimatedCostUsd: 0,
+    modelCalls: [],
+  })), 5),
+  /no successful planner call with measured token usage after the first 5 rows/,
+  "a paid round must abort before silently continuing on deterministic fallbacks",
+);
+assert.doesNotThrow(
+  () => assertRoundPlannerStarted(Array.from({ length: 4 }, () => ({
+    calls: 0,
+    usageCalls: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    cachedInputTokens: 0,
+    estimatedCostUsd: 0,
+    modelCalls: [],
+  })), 5),
+  "the guard waits for five completed rows",
 );
 
 const studentRows = parseDiagramEvalJsonl(JSON.stringify({

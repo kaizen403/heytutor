@@ -22,6 +22,7 @@ import {
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
+  assertRoundPlannerStarted,
   combineDiagramEvalRows,
   evaluationRunFastMode,
   estimateEvaluationCostUsd,
@@ -485,6 +486,9 @@ async function main(): Promise<void> {
       }, null, 1)}\n`);
       writeFileSync(`${outDir}/transcripts/${slug}.md`, `${transcript(run, grade)}\n`);
       done += 1;
+      if (evaluationRows && done === 5) {
+        assertRoundPlannerStarted(runs.map((completedRun) => completedRun.planner), 5);
+      }
       const state = evaluationRows
         ? run.error ? "dead" : run.diagram.committed ? "fig " : "none"
         : grade.transportFailure ? "dead" : grade.passed ? "ok  " : "FAIL";

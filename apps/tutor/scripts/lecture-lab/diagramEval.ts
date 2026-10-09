@@ -287,6 +287,29 @@ export function assertEvaluationCostAllowed(estimatedUsd: number, confirmed: boo
   }
 }
 
+/**
+ * Fail closed when a paid round is accidentally running on deterministic
+ * fallbacks. A 200 response alone is insufficient because mock responses do
+ * not carry provider usage; measured tokens prove the planner reached the
+ * configured model.
+ */
+export function assertRoundPlannerStarted(
+  completed: readonly (PlannerUsageSummary | undefined)[],
+  checkAfterRows = 5,
+): void {
+  if (completed.length < checkAfterRows) return;
+  const started = completed.slice(0, checkAfterRows).some((usage) =>
+    usage?.modelCalls.some((call) =>
+      call.ok && call.usageKnown && call.totalTokens > 0 && call.estimatedCostUsd > 0,
+    ) ?? false,
+  );
+  if (!started) {
+    throw new Error(
+      `diagram evaluation aborted: no successful planner call with measured token usage after the first ${checkAfterRows} rows`,
+    );
+  }
+}
+
 function emptyUsage(): PlannerUsageSummary {
   return {
     calls: 0,
