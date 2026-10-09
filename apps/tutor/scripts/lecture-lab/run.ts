@@ -43,11 +43,10 @@ import {
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
 import {
-  DEFAULT_FIREWORKS_FAST_MODEL,
-  DEFAULT_FIREWORKS_MODEL,
-  DEFAULT_TEACHING_FAST_MODEL,
-  DEFAULT_TEACHING_MODEL,
+  resolveFireworksModel,
+  resolveTeachingFireworksModel,
 } from "../../lib/llm/fireworksModels";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 
 export interface Options {
   difficulty: string;
@@ -196,12 +195,12 @@ export function parseOptions(argv: string[]): Options {
       `--arm must be current, planner_first, planner_examples or planner_examples_strict, received ${arm}`,
     );
   }
-  const model = flags.get("model") ?? "standard";
-  if (model !== "standard" && model !== "fast") {
-    throw new Error(`--model must be standard or fast, received ${model}`);
+  const model = flags.get("model") ?? "configured";
+  if (model !== "configured" && model !== "standard" && model !== "fast") {
+    throw new Error(`--model must be configured, standard or fast, received ${model}`);
   }
-  if (evalFiles.length > 0 && model !== "standard") {
-    throw new Error("evaluation rounds require --model standard (accounts/fireworks/models/kimi-k3)");
+  if (evalFiles.length > 0 && model === "fast") {
+    throw new Error("evaluation rounds require the configured provider (--model configured)");
   }
   const scenePlannerLimitRaw = flags.get("scene-planner-limit-ms");
   if (scenePlannerLimitRaw !== undefined && evalFiles.length === 0) {
@@ -255,10 +254,11 @@ function plannerRequestWorstCaseUsd(
   let maxTokens = 4_000;
   if (typeof init?.body === "string") {
     try {
-      const body = JSON.parse(init.body) as { messages?: unknown; max_tokens?: unknown };
+      const body = providerChatBody(JSON.parse(init.body) as Record<string, unknown>, resolveLlmEndpoint());
       messages = body.messages ?? [];
-      if (typeof body.max_tokens === "number" && Number.isFinite(body.max_tokens)) {
-        maxTokens = body.max_tokens;
+      const cap = completionTokenCap(body);
+      if (Number.isFinite(cap)) {
+        maxTokens = cap;
       }
     } catch {
       // The output ceiling still provides a conservative charge for malformed bodies.
@@ -489,6 +489,12 @@ export function summarizeEvaluation(runs: readonly LectureRun[]) {
 }
 
 async function main(): Promise<void> {
+  if (existsSync(resolve(process.cwd(), ".env.local"))) process.loadEnvFile(resolve(process.cwd(), ".env.local"));
+  const endpoint = resolveLlmEndpoint();
+  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey) {
+    throw new Error("paid lecture-lab runs require a fully configured Azure provider; Fireworks calls are disabled");
+  }
+  const providerConfig = { provider: endpoint.provider, deployment: endpoint.deployment, model: endpoint.deployment };
   const options = parseOptions(process.argv.slice(2));
   const repoRoot = resolve(process.cwd(), "../..");
   if (options.evalFiles.length > 0 && options.ask) throw new Error("--eval and --ask cannot be combined");
@@ -520,7 +526,7 @@ async function main(): Promise<void> {
     : null;
   if (preflightEstimateUsd !== null) {
     console.log(
-      `diagram eval: ${probes.length} rows, arm ${options.arm}, model ${DEFAULT_FIREWORKS_MODEL}, scene planner limit ${options.scenePlannerLimitMs}ms, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
+      `diagram eval: ${probes.length} rows, arm ${options.arm}, provider ${endpoint.provider}, deployment ${endpoint.deployment}, scene planner limit ${options.scenePlannerLimitMs}ms, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
     );
     if (evaluationUsesExamples(options.arm)) {
       console.log(`diagram eval: ${diagramExamples.length} leak-filtered examples available`);
@@ -548,9 +554,7 @@ async function main(): Promise<void> {
   // response by the trace id already carried on the request.
   const nativeFetch = globalThis.fetch;
   const spendCap = new LabSpendCap(options.maxUsd);
-  const worstCasePlannerModel = evaluationRows && options.model === "standard"
-    ? DEFAULT_FIREWORKS_MODEL
-    : DEFAULT_FIREWORKS_FAST_MODEL;
+  const worstCasePlannerModel = resolveFireworksModel({ fastMode: options.model === "fast" });
   const usageTracker = new PlannerUsageTracker((usd) => spendCap.recordCost(usd));
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -571,7 +575,7 @@ async function main(): Promise<void> {
     const plannerRequest = chatRequest && headers.get("x-planner") === "1";
     const requestModel = plannerRequest
       ? worstCasePlannerModel
-      : options.model === "fast" ? DEFAULT_TEACHING_FAST_MODEL : DEFAULT_TEACHING_MODEL;
+      : resolveTeachingFireworksModel({ fastMode: options.model === "fast" });
     const requestWorstCaseUsd = chatRequest
       ? plannerRequestWorstCaseUsd(init, requestModel)
       : 0;
@@ -635,6 +639,7 @@ async function main(): Promise<void> {
       run.diagram.png = pngPath;
       writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({
         ...run,
+        providerConfig,
         evaluation: evaluationById.get(probe.id) ?? null,
         diagram: { ...run.diagram, svg: svgPath, png: pngPath },
       }, null, 1)}\n`);
@@ -661,8 +666,9 @@ async function main(): Promise<void> {
   const budgetSummary = spendCap.summary(runs.length, probes.length);
   const summary = {
     options,
+    providerConfig,
     evaluationConfig: evaluationRows ? {
-      model: DEFAULT_FIREWORKS_MODEL,
+      ...providerConfig,
       scenePlannerLimitMs: options.scenePlannerLimitMs,
     } : null,
     preflightEstimateUsd,

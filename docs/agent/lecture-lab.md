@@ -68,12 +68,17 @@ lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`
 owns that summary for both the runner and the regrader, so the two cannot drift.
 
-Evaluation requests explicitly turn Fast mode off, including an authenticated
-lecture-lab-only override for ProblemIR. They therefore use `FIREWORKS_MODEL`
-(Kimi K3 by default), while ordinary student and lecture-lab traffic keeps its
-existing model selection. Preflight and measured usage price Kimi K3 at US$3
-input / US$15 output per million tokens. Each run record stores the actual model
-and measured cost of every completed planner call.
+Paid lab runs load `.env.local` and require a fully configured Azure provider.
+Use `--model configured` (the default), the production 60,000 ms scene limit,
+and a positive `--max-usd` on every run. All planner, ProblemIR, teaching, and
+example-picker calls use the configured deployment. Azure fallback to Fireworks
+is rejected before dispatch. Preflight and measured usage price `gpt-6-1-sol`
+at US$2 input, US$0.10 cached input, and US$10 output per million tokens.
+Unknown usage is charged conservatively with Azure reasoning headroom included.
+Every summary and row records provider and deployment; every completed planner
+call retains its actual model and measured usage. `--model standard` remains a
+compatibility alias for the configured provider. The offline picker has a 15 s
+bound so Azure reasoning can finish.
 
 The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`.
 Synthesized entries are keyed by `depicts`: plain family/archetype language,
