@@ -15,6 +15,7 @@ import { unitIdFromTopicId } from "@/features/admin/lib/probes";
 import { gradeLecture, type LectureGrade } from "./grade";
 import { printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
+import { PRODUCTION_SCENE_SELECTION_VERSION } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { applyLectureLabHeaders } from "./labAuth";
 import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
@@ -620,6 +621,7 @@ async function main(): Promise<void> {
   }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
+    figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),

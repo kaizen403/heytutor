@@ -76,6 +76,8 @@ export interface RepresentationSelectionInput {
   problemIR?: ProblemStructureView | null;
   /** Provenance for an accepted `exact` candidate; planner is the live default. */
   exactFigureSource?: Extract<FigureSource, "planner" | "verified_recovery">;
+  /** An explicit strict policy may retain admissible planner ink before source fallbacks. Default is unchanged. */
+  preferPlanner?: boolean;
 }
 
 interface SourceFunctionFact {
@@ -224,7 +226,7 @@ export function selectVerifiedRepresentation(
     || sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region"
     || sourceFigure?.document.source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL
     || (unprovenPlannerScene && sourceFigure?.tier === "exact_verified" && typeof sourceFigure.document.source.archetype === "string");
-  if (input.exact && currentCompile?.renderScene && !preferSourceFigure) {
+  if (input.exact && currentCompile?.renderScene && (!preferSourceFigure || input.preferPlanner)) {
     // A validated planner scene wins over every fallback, but its tier is
     // earned, not assumed: exact needs a fatal metric proof (an angle, a ratio,
     // a function value, Snell's law). Existence and topology alone are

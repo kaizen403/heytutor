@@ -39,25 +39,11 @@ import {
   narrationLanguageForVoice,
 } from "@heytutor/tutor-core";
 import {
-  ARCHETYPES,
   SCENE_ENGINE_VERSION,
   type SceneAssertion,
-  compileSceneDocument,
   synthesizeDsaScene,
-  detectArchetype,
-  isChemistryQuestion,
-  isChemistrySceneFamily,
-  normalizeClaimedClosedRouteGeometry,
-  normalizeClaimedParaxialReflectionGeometry,
-  pruneDeadSceneEntities,
-  pruneUnverifiedSceneAnnotations,
-  displayedSceneQuantityTexts,
-  validateMatrixSourceBinding,
   applySectionFormulaAuthority,
   applySourceQuantityAuthority,
-  validateSceneQuantityAgreement,
-  validateSceneDocument,
-  validateTurnPlanSceneProofs,
   reconcileTurnPlanWithSolver,
   type RenderScene,
   type SceneArtifactsV3,
@@ -135,18 +121,23 @@ import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import {
   selectFastVerifiedRepresentation,
-  selectVerifiedRepresentation,
   type RepresentationTier,
 } from "../../lib/scene/representationFallback";
+import {
+  deriveSceneGate as deriveProductionSceneGate,
+  selectProductionScene,
+  validateProductionSceneCandidate,
+  type ProductionSceneGate,
+  type ValidatedSceneCandidate,
+} from "../../lib/scene/productionSceneSelection";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
-import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
   SCENE_PLANNER_DEADLINE_MS,
+  REQUIRED_DIAGRAM_RETRY_ENABLED,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
-  shouldAttemptExactScene,
   turnPlanNeedsNumericAuthority,
 } from "../../lib/scene/diagramGeneration";
 import {
@@ -167,14 +158,6 @@ import {
 import type { TutorPhase } from "../../types";
 import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
 import type { HandleQuestionOptions, TurnControlApi, UseTurnLifecycleParams } from "./types";
-
-/** The plan and the stem filter agree this question needs no picture. */
-class NoFigureNeeded extends Error {
-  constructor() {
-    super("no figure needed");
-    this.name = "NoFigureNeeded";
-  }
-}
 
 type PendingQuestionFlushState = {
   pendingQuestion: string | null;
@@ -1109,182 +1092,17 @@ export function useQuestionHandler(
         // the final facts would have issued the identical request against the
         // identical plan (planningOverlap.ts). Production turns spent 55 to 61s
         // in this block with the two stages in series.
-        type ValidatedSceneCandidate = {
-          document: SceneDocument;
-          renderScene: RenderScene;
-          report: ValidationReport;
-        };
+        type SceneGate = ProductionSceneGate;
         const validateCandidateAgainstPlan = (
-          candidate: Record<string, unknown>,
-          authoritativePlan: TurnPlanV3,
-        ): SceneCandidateValidation<ValidatedSceneCandidate> => {
-          let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
-          if (!validated.document) {
-            return {
-              valid: false,
-              errors: validated.report.issues,
-            };
-          }
-          const routeNormalized = normalizeClaimedClosedRouteGeometry(
-            validated.document,
-            authoritativePlan,
-          );
-          const constraintNormalized = normalizeClaimedParaxialReflectionGeometry(
-            routeNormalized,
-            authoritativePlan,
-          );
-          if (constraintNormalized !== validated.document) {
-            validated = validateSceneDocument(pruneDeadSceneEntities(
-              constraintNormalized as unknown as Record<string, unknown>,
-            ));
-            if (!validated.document) {
-              return {
-                valid: false,
-                errors: validated.report.issues,
-              };
-            }
-          }
-          const annotationPruned = pruneUnverifiedSceneAnnotations(validated.document, authoritativePlan);
-          if (annotationPruned !== validated.document) {
-            validated = validateSceneDocument(pruneDeadSceneEntities(
-              annotationPruned as unknown as Record<string, unknown>,
-            ));
-            if (!validated.document) {
-              return {
-                valid: false,
-                errors: validated.report.issues,
-              };
-            }
-          }
-          const agreementIssues = validateSceneQuantityAgreement(
-            validated.document.quantities,
-            authoritativePlan,
-            displayedSceneQuantityTexts(validated.document),
-          );
-          const authorityIssues = agreementIssues.map((issue) => ({
-            code: issue.code,
-            message: issue.message,
-            path: issue.path,
-            severity: "fatal" as const,
-          }));
-          const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
-          const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
-          const compiledScene = compileSceneDocument(validated.document);
-          const fatalIssues = [
-            ...sourceIssues,
-            ...authorityIssues,
-            ...proofIssues,
-            ...compiledScene.report.issues,
-          ].filter((issue) => issue.severity === "fatal");
-          if (fatalIssues.length > 0 || !compiledScene.ok || !compiledScene.renderScene) {
-            return {
-              valid: false,
-              errors: fatalIssues.length > 0 ? fatalIssues : compiledScene.report.issues,
-            };
-          }
-          return {
-            valid: true,
-            errors: [...proofIssues, ...compiledScene.report.issues],
-            qualityScore:
-              (validated.document.visualDecision.mode === "text_only" &&
-              authoritativePlan.visualRequirement !== "none"
-                ? authoritativePlan.visualRequirement === "required" ? 100_000 : 10_000
-                : 0) +
-              compiledScene.report.issues.filter((issue) => issue.severity === "warning").length * 1_000 +
-              compiledScene.report.stats.primitiveCount * 2 +
-              compiledScene.report.stats.entityCount +
-              compiledScene.report.stats.constructionCount,
-            value: {
-              document: validated.document,
-              renderScene: compiledScene.renderScene,
-              report: compiledScene.report,
-            },
-          };
-        };
-        type SceneGate = {
-          sceneCapabilities: ReturnType<typeof inferSceneCapabilities>;
-          chemistryLane: boolean;
-          shouldPlanExactScene: boolean;
-          shouldAttemptLlmScene: boolean;
-          families: readonly string[];
-          archetypeId: string | null;
-          request: {
-            conversationContext: string;
-            constructionOperators?: ReturnType<typeof inferSceneCapabilities>["constructionOperators"];
-            proofPredicates?: ReturnType<typeof inferSceneCapabilities>["proofPredicates"];
-            planningGuidance?: string[];
-          };
-        };
+          candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+        ): SceneCandidateValidation<ValidatedSceneCandidate> =>
+          validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
         const deriveSceneGate = (
-          planningTurnPlan: TurnPlanV3,
-          authority: ProblemAuthorityV1Response | null,
-        ): SceneGate => {
-          const sceneCapabilities = inferSceneCapabilities(question, {
-            lawIds: planningTurnPlan.lawIds,
-            problemIR: authority?.problemIR ?? null,
-            turnPlan: planningTurnPlan,
-          });
-          // A chemistry question never goes to the LLM scene planner: its
-          // figure is computed from the formula or the named process by the
-          // engine's chemistry families, and a model-authored molecule or cell
-          // was the wrong picture every time it compiled. The deterministic
-          // fallback below draws it.
-          const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
-            || isChemistryQuestion(question);
-          const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
-          // Detected before the exact gate so a question with no family and no
-          // named figure skips the LLM planner instead of holding the student in
-          // silence for the same text-only fallback it would have reached anyway.
-          const earlyArchetype = detectArchetype(question, {
-            turnPlan: planningTurnPlan,
-            problemIR: authority?.problemIR ?? null,
-          });
-          const shouldAttemptLlmScene = shouldAttemptExactScene({
-            visualRequirement: planningTurnPlan.visualRequirement,
-            chemistryLane,
-            familyCount: sceneCapabilities.families.length,
-            hasArchetype: earlyArchetype !== null,
-            hasSourceProgram: sceneCapabilities.hasSourceProgram,
-          });
-          const planContext = [
-            recentConversation,
-            `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
-          ].filter(Boolean).join("\n\n");
-          // The archetype detector names the figure the question calls for
-          // (its roles and required operators); the planner is told, so a
-          // projectile is planned as a trajectory with components rather than
-          // whatever the coarse family suggests.
-          const archetypeSpec = earlyArchetype ? ARCHETYPES[earlyArchetype.id] : null;
-          const archetypeGuidance = archetypeSpec
-            ? [
-                `Figure: ${archetypeSpec.label}. It must contain entities with roles: ${archetypeSpec.contract.roles.join(", ")}` +
-                  (archetypeSpec.contract.operators?.length ? `; use ${archetypeSpec.contract.operators.join(", ")}` : "") +
-                  ".",
-              ]
-            : [];
-          return {
-            sceneCapabilities,
-            chemistryLane,
-            shouldPlanExactScene,
-            shouldAttemptLlmScene,
-            families: sceneCapabilities.families,
-            archetypeId: earlyArchetype?.id ?? null,
-            request: {
-              conversationContext: planContext,
-              // Any inferred family (FBD, circuit, conic, energy level, …) gets a
-              // compact operator catalog; optics is no longer the only match.
-              ...(sceneCapabilities.families.length > 0 || sceneCapabilities.hasSourceProgram
-                ? {
-                    constructionOperators: sceneCapabilities.constructionOperators,
-                    proofPredicates: sceneCapabilities.proofPredicates,
-                    planningGuidance: [...sceneCapabilities.planningGuidance, ...archetypeGuidance],
-                  }
-                : archetypeGuidance.length > 0
-                  ? { planningGuidance: archetypeGuidance }
-                  : {}),
-            },
-          };
-        };
+          planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
+        ): SceneGate => deriveProductionSceneGate({
+          question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
+          conversationContext: recentConversation,
+        });
         const applyDeterministicSourceAuthority = (sourcePlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null): TurnPlanV3 => {
           // Section-formula stems: the point's coordinates (or the asked ratio)
           // are solved exactly from the stated endpoints, and an inconsistent or
@@ -1430,7 +1248,6 @@ export function useQuestionHandler(
         });
         turnPlan = planning.turnPlan;
         problemAuthority = planning.authority;
-        const planningTurnPlan = turnPlan;
         const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
         const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
         const fastRepresentation = planning.fast;
@@ -1498,121 +1315,40 @@ export function useQuestionHandler(
             candidateCount: result?.candidates.length ?? 0,
           };
         }
-        selectRepresentation: {
-          try {
-            const fallbackCapabilities = inferSceneCapabilities(question, {
-              lawIds: turnPlan?.lawIds ?? planningTurnPlan.lawIds,
-              problemIR: problemAuthority?.problemIR ?? null,
-              turnPlan,
-            });
-            // The plan already decided this question needs no picture. The
-            // fallback used to run anyway, so a units-conversion question was
-            // handed a P-V rectangle and an error-types question a Wheatstone
-            // bridge. Only skip when the deterministic stem filter agrees, so a
-            // planner that under-called the requirement is still covered.
-            if (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)) {
-              tutorDebug("planner", "no figure asked for, skipping the fallback", {
-                law_ids: turnPlan.lawIds,
-              });
-              throw new NoFigureNeeded();
-            }
-            const selected = fastRepresentation ?? selectVerifiedRepresentation({
-              question,
-              turnPlan,
-              problemIR: problemAuthority?.problemIR ?? null,
-              families: fallbackCapabilities.families.length > 0
-                ? fallbackCapabilities.families
-                : sceneCapabilities.families,
-              exact: value && value.document.visualDecision.mode === "scene"
-                ? {
-                    sceneDocument: value.document,
-                    renderScene: value.renderScene,
-                    validationReport: value.report,
-                  }
-                : null,
-              exactFigureSource: planning.figureSource === "verified_recovery"
-                ? "verified_recovery"
-                : "planner",
-            });
-            // A figure the student cannot read is not a figure.
-            //
-            // Two things were reaching the board and being narrated as though
-            // they showed the question: a representation with no primitives at
-            // all, and one whose only entity was a pair of axes. Nineteen
-            // lectures in a 342-question sweep were handed that bare `axes`,
-            // and every one of them described a picture that was not there
-            // ("on the figure, the hot reservoir sits at the top").
-            //
-            // The test is drawn text, not primitive count, and the corpus makes
-            // it safe: of 329 committed figures, every one with eight or more
-            // primitives carried a label, and every unlabelled one had seven or
-            // fewer. The contract already forbids naming a part that has no
-            // label, so an unlabelled figure can only produce invention. Drop it
-            // here, before the artifacts record is written, so the turn is
-            // text-only everywhere and the lesson teaches in words instead.
-            const selectedHasInk = selected.renderScene.primitives.some(
-              (primitive) =>
-                (primitive.kind === "label" || primitive.kind === "dimension") &&
-                typeof primitive.text === "string" &&
-                primitive.text.trim().length > 0,
-            );
-            if (!selectedHasInk) {
-              tutorDebug("planner", "representation carries no readable label, teaching text only", {
-                representation_tier: selected.tier,
-                reason: selected.reason,
-                primitive_count: selected.renderScene.primitives.length,
-              });
-            }
-            // A figure the lecture save would refuse is not drawn: the save
-            // runs the same checks and a refusal fails the whole turn, so the
-            // student would watch a lesson that cannot be reopened.
-            const saveFailure = selectedHasInk && selected.sceneDocument.visualDecision.mode === "scene"
-              ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier })
-              : null;
-            if (saveFailure) {
-              tutorDebug("planner", "representation would fail the lecture save, teaching text only", {
-                representation_tier: selected.tier,
-                reason: saveFailure,
-              });
-            }
-            const selectedIsDrawable = !solverAuthorityBlocked && selectedHasInk && !saveFailure &&
-              selected.sceneDocument.visualDecision.mode === "scene";
-            sceneV2Document = selectedIsDrawable ? selected.sceneDocument : null;
-            sceneV2RenderScene = selectedIsDrawable ? selected.renderScene : null;
-            sceneV2Report = selected.validationReport;
-            sceneVisualStatus = resolveSelectedVisualStatus(
-              turnPlan.visualRequirement,
-              selectedIsDrawable,
-            );
-            representationTier = selectedIsDrawable ? selected.tier : null;
-            representationNonMetric = selectedIsDrawable ? selected.nonMetric : false;
-            representationReason = selected.reason;
-            representationFamily = selectedIsDrawable ? selected.family ?? null : null;
-            figureSource = selectedIsDrawable ? selected.figureSource : "text_only";
-            // Never cache a scene that drew nothing: recovery would replay it
-            // on a later turn only for the same guard to drop it again.
-            if (selectedIsDrawable && selected.tier === "exact_verified" && turnPlan) {
-              rememberVerifiedScene(question, selected.sceneDocument, turnPlan, {
-                boardId: sessionId,
-              });
-            }
-          } catch (error) {
-            // Invalid exact and fallback scenes are both kept off the canvas.
-            sceneV2RenderScene = null;
-            if (error instanceof NoFigureNeeded) {
-              sceneVisualStatus = "text_only";
-              representationReason = "the question asks for no figure";
-              break selectRepresentation;
-            }
-            // Escalate to retry_required when the deterministic pre-filter flags the
-            // stem as diagram-worthy but the planner under-called visualRequirement.
-            // This only changes the retry decision, never the geometry.
-            sceneVisualStatus =
-              turnPlan.visualRequirement === "required" || questionRequiresVisual(question)
-                ? "retry_required"
-                : "text_only";
-            representationReason = error instanceof Error ? error.message : String(error);
-          }
+        const sceneSelection = selectProductionScene({
+          question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+          candidateValidation: result?.validation, fastRepresentation,
+          exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
+          solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+        });
+        const selected = sceneSelection.representation;
+        const attempted = sceneSelection.attemptedRepresentation;
+        if (sceneSelection.reason === "the question asks for no figure") {
+          tutorDebug("planner", "no figure asked for, skipping the fallback", { law_ids: turnPlan.lawIds });
+        }
+        if (attempted && !sceneSelection.hasReadableInk) {
+          tutorDebug("planner", "representation carries no readable label, teaching text only", {
+            representation_tier: attempted.tier, reason: attempted.reason,
+            primitive_count: attempted.renderScene.primitives.length,
+          });
+        }
+        if (sceneSelection.saveFailure && attempted) {
+          tutorDebug("planner", "representation would fail the lecture save, teaching text only", {
+            representation_tier: attempted.tier, reason: sceneSelection.saveFailure,
+          });
+        }
+        sceneV2Document = selected?.sceneDocument ?? null;
+        sceneV2RenderScene = selected?.renderScene ?? null;
+        sceneV2Report = attempted?.validationReport ?? sceneV2Report;
+        sceneVisualStatus = sceneSelection.visualStatus;
+        representationTier = selected?.tier ?? null;
+        representationNonMetric = selected?.nonMetric ?? false;
+        representationReason = sceneSelection.selectionReason;
+        representationFamily = selected?.family ?? null;
+        figureSource = selected?.figureSource ?? "text_only";
+        // Only admitted exact scenes enter recovery; the pure selector never writes the cache.
+        if (selected?.tier === "exact_verified") {
+          rememberVerifiedScene(question, selected.sceneDocument, turnPlan, { boardId: sessionId });
         }
 
         const selectedModelCandidate = result?.candidates.find((candidate) =>
@@ -1670,7 +1406,7 @@ export function useQuestionHandler(
                 : turnPlan?.visualRequirement === "none" ? "not_required" : "text_only",
           proofObligations: sceneV2Document && "assertions" in sceneV2Document && Array.isArray(sceneV2Document.assertions)
             ? sceneV2Document.assertions.map((assertion, index) => {
-                const value = assertion as Record<string, unknown>;
+                const value = assertion as unknown as Record<string, unknown>;
                 return {
                   id: typeof value.id === "string" ? value.id : `assertion-${index + 1}`,
                   predicate: typeof value.predicate === "string" ? value.predicate : "unknown",

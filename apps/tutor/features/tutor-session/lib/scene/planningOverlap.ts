@@ -108,8 +108,8 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   speculationAllowed: boolean;
   /** Defaults to SCENE_SPECULATION_ENABLED; injectable for tests. */
   speculationEnabled?: boolean;
-  /** Evaluation-only override. The live default remains deterministic-family first. */
-  selectionOrder?: "current" | "planner_first";
+  /** Per-gate selection policy. The omitted live default remains deterministic-family first. */
+  selectionOrder?: "current" | "planner_first" | ((gate: G) => "current" | "planner_first");
   plannerStartedAt: number;
   deadlineMs: number;
   now?: () => number;
@@ -375,9 +375,13 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     }
 
     const speculationEnabled = input.speculationEnabled ?? SCENE_SPECULATION_ENABLED;
-    const plannerFirst = input.selectionOrder === "planner_first";
+    const selectionOrderFor = (gate: G): "current" | "planner_first" =>
+      typeof input.selectionOrder === "function"
+        ? input.selectionOrder(gate)
+        : input.selectionOrder ?? "current";
     if (speculationEnabled && input.speculationAllowed && authorityPending) {
       const gate = input.deriveGate(input.turnPlan, null);
+      const plannerFirst = selectionOrderFor(gate) === "planner_first";
       const budgetMs = remainingMs();
       const eligible = gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && budgetMs > 0;
       const deterministicPredicted = !plannerFirst && eligible && input.selectFast(input.turnPlan, null, gate) !== null;
@@ -409,6 +413,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     if (authority) ({ turnPlan, authority } = input.applyAuthority(turnPlan, authority));
 
     const gate = input.deriveGate(turnPlan, authority);
+    const plannerFirst = selectionOrderFor(gate) === "planner_first";
     let scene = input.recover?.(gate, turnPlan) ?? null;
     const recovered = scene !== null;
 
