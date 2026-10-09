@@ -197,7 +197,7 @@ function givenFromPlan(raw: unknown, index: number, question: string): QuestionG
   if (!questionStatesValue(question, raw.value)) {
     return null;
   }
-  const board = `${symbol} = ${formatNumber(raw.value)}${unit ? ` ${unit}` : ""}`;
+  const board = `${symbol} = ${boardNumber(raw.value, raw.sourceText)}${unit ? ` ${unit}` : ""}`;
   return {
     symbol,
     board,
@@ -326,6 +326,32 @@ function displayUnit(value: unknown): string {
 function formatNumber(value: number): string {
   if (Number.isInteger(value)) return String(value);
   return Number(value.toPrecision(8)).toString();
+}
+
+/** Keep a plus the question wrote. An unsigned 1 is not the oxidation state +1. */
+function boardNumber(value: number, sourceText: unknown): string {
+  const plain = formatNumber(value);
+  if (typeof sourceText !== "string" || !(value > 0)) return plain;
+  for (const match of sourceText.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)) {
+    if (Number(match[0]) === value && writtenWithPlus(sourceText, match.index ?? 0)) return `+${plain}`;
+  }
+  return plain;
+}
+
+/**
+ * Is the number at `start` written with a plus sign ("+1", "state +1.0",
+ * "= +2")? A plus between two terms ("5 + 2", "1+1") is addition.
+ */
+function writtenWithPlus(text: string, start: number): boolean {
+  let sign = start - 1;
+  while (sign >= 0 && /\s/.test(text[sign]!)) sign--;
+  if (text[sign] !== "+") return false;
+  let before = sign - 1;
+  while (before >= 0 && /\s/.test(text[before]!)) before--;
+  if (before < 0 || "=([{,:;".includes(text[before]!)) return true;
+  const spaceBefore = before < sign - 1;
+  const spaceAfter = sign < start - 1;
+  return spaceBefore && !spaceAfter;
 }
 
 function speakNumber(value: number): string {

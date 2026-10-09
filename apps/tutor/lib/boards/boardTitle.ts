@@ -67,7 +67,7 @@ const TOPIC_PATTERNS: Array<{
     title: "Pythagorean theorem",
   },
   {
-    test: /circle|radius|circumference/i,
+    test: /^(?!.*\b(?:ionic|atomic|covalent|metallic)\s+radi).*(?:\bcircle\b|circumference|\bradius\b)/is,
     title: "Circle geometry",
   },
   {
@@ -79,7 +79,7 @@ const TOPIC_PATTERNS: Array<{
     title: "Linear equation",
   },
   {
-    test: /photosynthesis|plant|glucose|oxygen/i,
+    test: /photosynthesis|\bplants?\b|glucose/i,
     title: "Photosynthesis",
   },
   {
@@ -87,6 +87,29 @@ const TOPIC_PATTERNS: Array<{
     title: "Affect vs effect",
   },
 ];
+
+/** Element symbols, so "Na+" and "Ca" keep their case in a title. */
+const ELEMENT_SYMBOLS = new Set(
+  ("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr " +
+    "Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm " +
+    "Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No " +
+    "Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og").split(" "),
+);
+
+/** Symbols that are also common capitalised words in a Title Case title. */
+const WORD_LIKE_SYMBOLS = new Set(["In", "As", "At", "Be", "He", "No", "Am"]);
+
+/**
+ * A formula, symbol or acronym the writer cased on purpose: NaCl, H2O, pH,
+ * DNA, Na+, Ca, and single letter symbols such as M (molar) or point A. Its
+ * case is kept; every other word is sentence cased.
+ */
+function keepsWrittenCase(word: string): boolean {
+  const core = word.replace(/[^A-Za-z0-9]/g, "");
+  if (!core) return false;
+  if (/\d/.test(core) || /[A-Z]/.test(core.slice(1)) || /^[A-Z]$/.test(core)) return true;
+  return ELEMENT_SYMBOLS.has(core) && !WORD_LIKE_SYMBOLS.has(core);
+}
 
 function formatBoardTitle(raw: string): string {
   let title = raw.trim().replace(/^["']|["']$/g, "").trim();
@@ -107,15 +130,16 @@ function formatBoardTitle(raw: string): string {
   }
 
   const words = title.split(/\s+/);
-  if (words.length > 0) {
-    words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
-    for (let i = 1; i < words.length; i++) {
-      const word = words[i] ?? "";
-      words[i] =
-        word.length <= 3 && /^[a-z]{1,3}$/i.test(word) ? word.toLowerCase() : word.toLowerCase();
-    }
-    title = words.join(" ");
-  }
+  // An all caps question is shouting, not a row of acronyms.
+  const shouting = !/[a-z]/.test(title) && words.filter((word) => /[A-Z]{2,}/.test(word)).length >= 2;
+  const kept = (word: string) => (shouting ? /\d/.test(word) : keepsWrittenCase(word));
+  title = words
+    .map((word, index) => {
+      if (kept(word)) return word;
+      const lower = word.toLowerCase();
+      return index === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+    })
+    .join(" ");
 
   return title.slice(0, 60);
 }
@@ -160,7 +184,8 @@ export function deriveBoardTitleFromQuestion(question: string): string {
     .replace(/^(what is|what are|how do i|how to)\s+/i, "")
     .trim();
 
-  const firstSentence = stripped.split(/[.!?]/)[0]?.trim() ?? stripped;
+  // A period followed by a digit is a decimal point (0.50), never a sentence end.
+  const firstSentence = stripped.split(/[!?]|\.(?!\d)/)[0]?.trim() ?? stripped;
   const clipped =
     firstSentence.length > 48
       ? firstSentence.slice(0, 48).replace(/\s+\S*$/, "").trim()

@@ -75,4 +75,64 @@ assert(
   "a saved lesson still titled new board must be named",
 );
 
+const ionicRadius =
+  "Arrange the isoelectronic ions Na+, Mg2+ and Al3+ in order of ionic radius. State the radius convention and the nuclear-charge order.";
+assert(
+  deriveBoardTitleFromQuestion(ionicRadius) !== "Circle geometry",
+  "an ionic radius is not circle geometry",
+);
+assert(
+  deriveBoardTitleFromQuestion("Find the area of a circle with radius 4 cm.") === "Circle geometry",
+  "a circle radius stays circle geometry",
+);
+
+const ionisation =
+  "Explain the exceptions in the first ionisation enthalpy: beryllium versus boron, and nitrogen versus oxygen. The trend is not monotonic.";
+assert(
+  deriveBoardTitleFromQuestion(ionisation) !== "Photosynthesis",
+  "oxygen the element is not photosynthesis",
+);
+assert(
+  deriveBoardTitleFromQuestion("Explain photosynthesis in a green plant.") === "Photosynthesis",
+  "a plant photosynthesis question stays photosynthesis",
+);
+
+const zeroOrder =
+  "A zero-order reaction has [A]0 = 0.50 mol/L and k = 0.10 mol/L/s. Find [A] at t = 2.0 s.";
+const zeroTitle = deriveBoardTitleFromQuestion(zeroOrder);
+assert(
+  zeroTitle.includes("0.50"),
+  `a decimal in the stem must survive the title: ${zeroTitle}`,
+);
+
+// Formulas, symbols and acronyms keep the case the student wrote, first word included.
+for (const [question, expected] of [
+  ["NaCl dissolves in water. Why?", "NaCl dissolves in water"],
+  ["Arrange Na+, Mg2+ and Al3+ by size", "Arrange Na+, Mg2+ and Al3+ by size"],
+  ["Why does Ca react with cold water", "Why does Ca react with cold water"],
+  ["Does H2O have a dipole moment", "Does H2O have a dipole moment"],
+  ["pH of 0.01 M HCl", "pH of 0.01 M HCl"],
+  ["Find V across the 4 ohm resistor", "V across the 4 ohm resistor"],
+  ["Distance between points A and B on a line", "Distance between points A and B on a line"],
+] as const) {
+  const title = deriveBoardTitleFromQuestion(question);
+  assert(title === expected, `formula casing: "${question}" became "${title}", wanted "${expected}"`);
+}
+
+// Ordinary words are sentence cased, including Title Case and all caps input.
+for (const [question, expected] of [
+  ["Motion In One Dimension Explained", "Motion in one dimension explained"],
+  ["WHAT IS OHM'S LAW?", "Ohm's law"],
+  ["Explain Newton's Second Law", "Newton's second law"],
+] as const) {
+  const title = deriveBoardTitleFromQuestion(question);
+  assert(title === expected, `sentence casing: "${question}" became "${title}", wanted "${expected}"`);
+}
+
+// A sentence still ends after a number; only a decimal point is protected.
+const afterNumber = deriveBoardTitleFromQuestion("A sample has pH 5. Explain its acidity.");
+assert(afterNumber === "Sample has pH 5", `a period after a number must end the sentence: ${afterNumber}`);
+const decimal = deriveBoardTitleFromQuestion("A ball moves at 2.5 m/s. Find its momentum.");
+assert(decimal === "Ball moves at 2.5 m/s", `a decimal point must not end the sentence: ${decimal}`);
+
 console.log("verify-board-title: all checks passed");
