@@ -8,6 +8,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { parseProbeFile, type ProbeQuestion } from "@/features/admin/lib/probes";
 import { unitIdFromTopicId } from "@/features/admin/lib/probes";
@@ -294,6 +295,22 @@ export function selectResumeProbes<T extends { id: string; question: string }>(
     done.add(row.probeId);
   }
   return probes.filter((probe) => !done.has(probe.id));
+}
+
+export function labSampleFingerprint(rows: readonly unknown[]): string {
+  return createHash("sha256").update(JSON.stringify(rows)).digest("hex");
+}
+
+export function restoredLabCharge(
+  storedRowUsd: number,
+  checkpoint: { chargedUsd: number; reservedUsd: number } | null,
+  extraUsd: number,
+): number {
+  const values = [storedRowUsd, extraUsd, ...(checkpoint ? [checkpoint.chargedUsd, checkpoint.reservedUsd] : [])];
+  if (values.some((value) => typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+    throw new Error("invalid spend checkpoint: charges must be finite nonnegative numbers");
+  }
+  return Math.max(storedRowUsd, checkpoint ? checkpoint.chargedUsd + checkpoint.reservedUsd : 0) + extraUsd;
 }
 
 function plannerRequestWorstCaseUsd(
@@ -600,16 +617,18 @@ async function main(): Promise<void> {
   const runs: LectureRun[] = [...savedRuns];
   const grades: LectureGrade[] = runs.map(gradeLecture);
   const checkpointPath = `${outDir}/spend-checkpoint.json`;
+  const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[] }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string }
     : null;
+  if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
   if (oldCheckpoint && (oldCheckpoint.arm !== options.arm || oldCheckpoint.providerConfig.provider !== providerConfig.provider ||
     oldCheckpoint.providerConfig.deployment !== providerConfig.deployment || oldCheckpoint.scenePlannerLimitMs !== options.scenePlannerLimitMs ||
-    JSON.stringify(oldCheckpoint.probeIds) !== JSON.stringify(probes.map((probe) => probe.id)))) {
+    JSON.stringify(oldCheckpoint.probeIds) !== JSON.stringify(probes.map((probe) => probe.id)) || oldCheckpoint.sampleFingerprint !== sampleFingerprint)) {
     throw new Error("resume requires the identical provider, arm, scene limit and full original sample");
   }
   const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0), 0);
-  const priorChargeUsd = Math.max(storedRowUsd, oldCheckpoint ? oldCheckpoint.chargedUsd + oldCheckpoint.reservedUsd : 0) + options.resumeExtraUsd;
+  const priorChargeUsd = restoredLabCharge(storedRowUsd, oldCheckpoint, options.resumeExtraUsd);
   console.log(`resume: ${runs.length} saved, ${pendingProbes.length} pending, prior conservative charge $${priorChargeUsd.toFixed(6)}`);
 
   const landing = await fetch(`${options.origin}/`, { redirect: "manual" });
@@ -628,6 +647,7 @@ async function main(): Promise<void> {
   const checkpointSpend = () => writeFileSync(checkpointPath, `${JSON.stringify({
     ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
     scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
+    sampleFingerprint,
   }, null, 1)}\n`);
   checkpointSpend();
   const budgetDeniedTraces = new Set<string>();

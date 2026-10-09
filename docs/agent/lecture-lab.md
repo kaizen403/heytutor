@@ -39,6 +39,9 @@ execution, never for example leak filtering. The spend checkpoint carries
 settled costs plus interrupted reservations forward and rejects a changed arm,
 provider, scene limit or sample. For legacy interrupted runs without a checkpoint,
 use an explicitly justified `--resume-extra-usd` allowance for unrecovered calls.
+The checkpoint fingerprints all original row contents, not only IDs. Invalid
+cost fields fail closed; legacy checkpoints without a fingerprint require an
+explicit local migration after verifying the original sample.
 
 ```bash
 cd apps/tutor
