@@ -656,8 +656,10 @@ async function main(): Promise<void> {
     const requestModel = plannerRequest
       ? worstCasePlannerModel
       : resolveTeachingFireworksModel({ fastMode: options.model === "fast" });
+    // The proxy dispatches up to two planner or three teaching attempts.
+    const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
     const requestWorstCaseUsd = chatRequest || directProviderRequest
-      ? plannerRequestWorstCaseUsd(init, requestModel)
+      ? plannerRequestWorstCaseUsd(init, requestModel) * maxAttempts
       : 0;
     if ((chatRequest || directProviderRequest) && !spendCap.reserveCall(requestWorstCaseUsd)) {
       if (traceId) budgetDeniedTraces.add(traceId);
@@ -669,8 +671,8 @@ async function main(): Promise<void> {
     }
     try {
       const response = await nativeFetch(input, { ...init, headers });
-      if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd);
-      else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response, requestWorstCaseUsd);
+      if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts);
+      else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response, requestWorstCaseUsd, maxAttempts);
       else if (directProviderRequest) {
         let chargedUsd = requestWorstCaseUsd;
         try {

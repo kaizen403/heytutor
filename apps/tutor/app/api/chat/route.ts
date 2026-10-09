@@ -776,6 +776,7 @@ async function handlePlannerRequest({
         "x-heytutor-trace-id": traceId,
         "x-heytutor-planner-model": transport.model,
         "x-heytutor-planner-lane": plannerLane,
+        "x-heytutor-upstream-attempts": String(transport.attemptCount),
       },
     });
   } catch (error: unknown) {
@@ -1163,6 +1164,7 @@ export async function POST(request: Request): Promise<Response> {
         "cache-control": "no-cache",
         "x-heytutor-trace-id": traceId,
         "x-heytutor-model": calledModel,
+        "x-heytutor-upstream-attempts": String(attemptCount),
       },
     });
   } catch (error: unknown) {
