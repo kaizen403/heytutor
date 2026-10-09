@@ -31,7 +31,7 @@ branch made from `origin/main`. One file per subject: `physics.jsonl`,
 | `id` | `topic_id` plus `|q1` to `|q4`. Unique. |
 | `topic_id` | Copied exactly from `docs/plans/diagram-topic-matrix/topic-progress.csv` on `origin/main`. Never invent one. |
 | `difficulty` | `easy`, `medium` or `hard`. |
-| `ask_style` | `exam_stem` (a full question with numbers), `topic_ask` (a short request such as "explain river boat problems" or "acute triangle trigonometry"), or `vague_or_misspelled` (how a student really types: "cos sign law", "electric and magnet topic 4"). |
+| `ask_style` | `exam_stem` (a full question with numbers), `topic_ask` (a short request such as "teach me projectile motion" or "angles in a scalene triangle"), or `vague_or_misspelled` (how a student really types: "sine rull triangle", "magnet chapter doubts"). |
 | `question` | The full stem a student would type. Prefer real stems from `data/question-bank/questions.jsonl` or `data/syllabus-probes/*.json`. Clean OCR damage but keep every number. Never append a drawing cue like "draw a labelled diagram" unless a student would really write it. |
 | `source.kind` | `bank` (question bank id in `ref`), `probe` (probe id in `ref`) or `authored` (you wrote it; `ref` is null). |
 | `figure_need` | `required` (cannot be taught well without a figure), `optional` (helps) or `none` (pure algebra, definitions, facts). |
@@ -62,7 +62,7 @@ engine. If it is written from the engine, it measures nothing.
 - Topics where nothing can be drawn still get rows, with `figure_need: none`.
   An honest text-only lesson is a correct answer there.
 
-Why the third question: the 23 real questions students have typed in
-production so far are mostly short topic requests ("I want to learn wave
-function", "Acute triangle trigonometry", "explain me any river boat
-problem"), not exam stems. Several are Cambridge O Level, not JEE.
+Why the third question: the real questions students have typed in
+production so far are mostly short topic requests, often misspelled, not
+exam stems. Several are Cambridge O Level, not JEE. Real student text is
+private and never goes in this repository; the examples here are invented.
