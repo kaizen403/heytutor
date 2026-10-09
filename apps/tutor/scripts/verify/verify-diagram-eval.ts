@@ -78,6 +78,19 @@ assert.equal(strictFastOptions.arm, "planner_examples_strict");
 assert.equal(strictFastOptions.model, "fast");
 assert.equal(parseLectureLabOptions([]).model, "standard");
 assert.throws(() => parseLectureLabOptions(["--model", "turbo"]), /--model must be standard or fast/);
+const liveQuestionHandler = readFileSync(resolve(
+  process.cwd(),
+  "features/tutor-session/hooks/turn/useQuestionHandler.ts",
+), "utf8");
+assert.match(
+  liveQuestionHandler,
+  /shouldPlanExactScene = planningTurnPlan\.visualRequirement !== "none" && !chemistryLane/,
+  "the live hook must continue to keep chemistry out of the LLM scene planner",
+);
+assert(
+  !liveQuestionHandler.includes("planner_examples_strict"),
+  "the evaluation-only strict arm must not enter the live hook",
+);
 
 const rows = parseDiagramEvalJsonl([
   JSON.stringify({

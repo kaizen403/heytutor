@@ -82,7 +82,10 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import {
   classifyDiagramEmptyCause,
+  evaluationAllowsFallback,
+  evaluationPlansChemistry,
   evaluationSelectionOrder,
+  evaluationUsesExamples,
   supplementCandidateErrorCodes,
   type DiagramEmptyCause,
   type DiagramEvalArm,
@@ -205,6 +208,8 @@ export interface LectureRun {
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
     degradationReason: string | null;
+    /** Strict-arm fallback that compiled but was intentionally not rendered. */
+    suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -246,7 +251,7 @@ export interface RunLectureOptions {
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
   traceId?: string;
-  /** Leak-filtered library used only by the planner_examples evaluation arm. */
+  /** Leak-filtered library used only by the planner example evaluation arms. */
   diagramExamples?: readonly DiagramExemplar[];
   /** Built once per round from diagramExamples. */
   diagramExampleCatalogue?: DiagramExampleCatalogue;
@@ -384,6 +389,7 @@ export async function runLecture(
       examplesUsed: [],
       validationIssues: [],
       degradationReason: null,
+      suppressedFallback: null,
       svg: null,
       png: null,
     },
@@ -453,7 +459,7 @@ export async function runLecture(
         });
     }
 
-    if (options.arm === "planner_examples") {
+    if (evaluationUsesExamples(options.arm ?? "current")) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
       const pickerCapabilities = inferSceneCapabilities(question, {
@@ -603,7 +609,8 @@ export async function runLecture(
       });
       const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
         || isChemistryQuestion(question);
-      const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
+      const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" &&
+        (!chemistryLane || evaluationPlansChemistry(options.arm ?? "current"));
       const archetype = detectArchetype(question, {
         turnPlan: planningTurnPlan,
         problemIR: authority?.problemIR ?? null,
@@ -627,7 +634,7 @@ export async function runLecture(
               ".",
           ]
         : [];
-      const examplesUsed = options.arm === "planner_examples" ? pickedExamples : [];
+      const examplesUsed = evaluationUsesExamples(options.arm ?? "current") ? pickedExamples : [];
       return {
         sceneCapabilities,
         shouldPlanExactScene,
@@ -802,6 +809,7 @@ export async function runLecture(
         problemIR: problemAuthority?.problemIR ?? null,
         turnPlan,
       });
+      const acceptedExactScene = Boolean(value && value.document.visualDecision.mode === "scene");
       const selected = fastRepresentation ?? selectVerifiedRepresentation({
         question,
         turnPlan,
@@ -832,19 +840,30 @@ export async function runLecture(
           primitive.text.trim().length > 0,
       );
       run.diagram.primitiveCount = selected.renderScene.primitives.length;
-      renderScene = selectedHasInk ? selected.renderScene : null;
-      run.diagram.declinedUnreadable = !selectedHasInk && run.diagram.primitiveCount > 0;
-      run.diagram.tier = selected.tier;
-      run.diagram.nonMetric = selected.nonMetric;
-      run.diagram.figureSource = selectedHasInk ? selected.figureSource : "text_only";
-      run.diagram.reason = selected.reason;
-      run.diagram.validationIssues = selected.validationReport.issues.map((issue) => ({
-        code: issue.code,
-        severity: issue.severity,
-        message: issue.message,
-      }));
-      figureFamily = selected.family ?? null;
-      run.diagram.family = figureFamily;
+      const suppressFallback = selectedHasInk &&
+        !acceptedExactScene &&
+        !evaluationAllowsFallback(options.arm ?? "current", selected.figureSource);
+      if (suppressFallback) {
+        run.diagram.suppressedFallback = {
+          figureSource: selected.figureSource,
+          family: selected.family ?? null,
+        };
+        run.diagram.reason = `strict evaluation suppressed ${selected.figureSource} fallback`;
+      } else {
+        renderScene = selectedHasInk ? selected.renderScene : null;
+        run.diagram.declinedUnreadable = !selectedHasInk && run.diagram.primitiveCount > 0;
+        run.diagram.tier = selected.tier;
+        run.diagram.nonMetric = selected.nonMetric;
+        run.diagram.figureSource = selectedHasInk ? selected.figureSource : "text_only";
+        run.diagram.reason = selected.reason;
+        run.diagram.validationIssues = selected.validationReport.issues.map((issue) => ({
+          code: issue.code,
+          severity: issue.severity,
+          message: issue.message,
+        }));
+        figureFamily = selected.family ?? null;
+        run.diagram.family = figureFamily;
+      }
     } catch (error) {
       if (!(error instanceof NoFigureNeeded)) {
         run.diagram.reason = error instanceof Error ? error.message : String(error);
@@ -935,6 +954,7 @@ export async function runLecture(
       deadlineRemainingMs: planning.attempts.deadlineRemainingMs,
       candidateCount: result?.candidates.length ?? 0,
       candidateErrorCodes: run.diagram.candidateErrorCodes,
+      fallbackSuppressed: run.diagram.suppressedFallback !== null,
     });
 
     if (options.figureOnly) {
