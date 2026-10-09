@@ -320,6 +320,7 @@ const galleryEntry: GalleryEntry = {
   family: "vector_diagram",
   figureCommitMs: 1234,
   emptyCause: "candidates_invalid",
+  suppressedFallback: { figureSource: "fast_family", family: "vectors_fbd" },
   examplesUsed: [{
     id: "vector-right",
     sourceKind: "curated",
@@ -354,6 +355,7 @@ for (const expected of [
   "Correct force arrow and label.",
   'option value="right" selected',
   "candidates_invalid",
+  "fast_family / vectors_fbd",
   "vector-right",
 ]) {
   assert.ok(gallery.includes(expected), `gallery must include ${expected}`);

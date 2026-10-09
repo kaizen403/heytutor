@@ -22,6 +22,7 @@ export interface GalleryEntry {
   family: string;
   figureCommitMs: number | null;
   emptyCause: DiagramEmptyCause | null;
+  suppressedFallback: { figureSource: string; family: string | null } | null;
   examplesUsed: Array<{
     id: string;
     sourceKind: "curated" | "synthesized";
@@ -70,6 +71,9 @@ function metadata(entry: GalleryEntry): string {
     <div><dt>family</dt><dd>${escapeHtml(entry.family)}</dd></div>
     <div><dt>figure time</dt><dd>${time}</dd></div>
     <div><dt>empty cause</dt><dd>${escapeHtml(entry.emptyCause ?? "—")}</dd></div>
+    <div><dt>suppressed fallback</dt><dd>${escapeHtml(entry.suppressedFallback
+      ? `${entry.suppressedFallback.figureSource} / ${entry.suppressedFallback.family ?? "none"}`
+      : "—")}</dd></div>
     <div><dt>examples</dt><dd>${escapeHtml(entry.examplesUsed.map((example) => example.id).join(", ") || "—")}</dd></div>
   </dl>`;
 }
@@ -297,6 +301,15 @@ export function readGalleryEntries(roundDir: string): GalleryEntry[] {
         figureCommitMs: typeof timings.figureCommitMs === "number" ? timings.figureCommitMs : null,
         emptyCause: typeof diagram.emptyCause === "string"
           ? diagram.emptyCause as DiagramEmptyCause
+          : null,
+        suppressedFallback: isRecord(diagram.suppressedFallback) &&
+          typeof diagram.suppressedFallback.figureSource === "string"
+          ? {
+              figureSource: diagram.suppressedFallback.figureSource,
+              family: typeof diagram.suppressedFallback.family === "string"
+                ? diagram.suppressedFallback.family
+                : null,
+            }
           : null,
         examplesUsed: Array.isArray(diagram.examplesUsed)
           ? diagram.examplesUsed.flatMap((example) => {
