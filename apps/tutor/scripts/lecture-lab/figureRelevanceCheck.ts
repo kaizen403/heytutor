@@ -7,17 +7,32 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { parseDiagramAnchors } from "./anchors";
 import { readRoundJudgments, type DiagramVerdict } from "./judging";
-import { resolveFireworksVisionModels } from "../../lib/llm/fireworksModels";
+import { cropDiagramZone } from "./judge-prep";
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
 import { parseProviderUsage, usageDetailsFromParsed } from "../../lib/obs/providerUsage";
 import { calculateLlmCostDetails, roundUsd, type UsageCounts } from "../../lib/obs/usageCost";
 
 const MAX_OUTPUT_TOKENS = 80;
 const MAX_IMAGE_INPUT_TOKENS = 64_000;
+
+/** Rescoring selects the recorded provider, never a live credential environment. */
+export function figureCheckRuntime(scoreOnly: boolean, saved: Record<string, unknown>, configured?: LlmEndpoint): { endpoint: LlmEndpoint; models: string[] } {
+  if (scoreOnly) {
+    const models = Array.isArray(saved.model) ? saved.model.filter((model): model is string => typeof model === "string") : [];
+    if ((saved.provider !== "azure" && saved.provider !== "fireworks") || models.length === 0 ||
+      (saved.provider === "azure" && typeof saved.deployment !== "string")) throw new Error("offline rescoring requires recorded provider/deployment metadata");
+    return { endpoint: { provider: saved.provider, deployment: typeof saved.deployment === "string" ? saved.deployment : null,
+      apiKey: undefined, url: "", fallbackReason: null }, models };
+  }
+  const endpoint = configured ?? resolveLlmEndpoint();
+  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey || !endpoint.deployment) {
+    throw new Error("figure checks require a fully configured Azure provider; Fireworks calls are disabled");
+  }
+  return { endpoint, models: [endpoint.deployment] };
+}
 
 type ReferenceVerdict = Extract<DiagramVerdict, "right" | "partial" | "wrong">;
 type FigureAnswer = "yes" | "no";
@@ -458,20 +473,19 @@ function parseOptions(argv: readonly string[]): CliOptions {
 }
 
 async function main(): Promise<void> {
-  process.loadEnvFile?.(resolve(process.cwd(), ".env.local"));
   const options = parseOptions(process.argv.slice(2));
-  const endpoint = resolveLlmEndpoint();
-  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey) {
-    throw new Error("figure checks require a fully configured Azure provider; Fireworks calls are disabled");
-  }
-  const models = resolveFireworksVisionModels();
+  if (!options.scoreOnly) process.loadEnvFile?.(resolve(process.cwd(), ".env.local"));
+  const summaryPath = resolve(options.outDir, "summary.json");
+  const checkpointPath = resolve(options.outDir, "spend-checkpoint.json");
+  const previous = existsSync(checkpointPath) ? record(JSON.parse(readFileSync(checkpointPath, "utf8")))
+    : existsSync(summaryPath) ? record(JSON.parse(readFileSync(summaryPath, "utf8"))) : {};
+  const { endpoint, models } = figureCheckRuntime(options.scoreOnly, previous);
   const resultsPath = resolve(options.outDir, "results.jsonl");
   const failuresPath = resolve(options.outDir, "failures.jsonl");
   const prior = readJsonl<FigureCheckResult>(resultsPath);
   const priorFailures = readJsonl<FigureCheckFailure>(failuresPath);
   let priorUnknownUsageCalls = 0;
   if (prior.length + priorFailures.length > 0) {
-    const previous = record(JSON.parse(readFileSync(resolve(options.outDir, "summary.json"), "utf8")));
     if (previous.provider !== endpoint.provider || previous.deployment !== endpoint.deployment
       || prior.some((row) => !models.includes(row.model))) throw new Error("figure-check provider/deployment changed");
     priorUnknownUsageCalls = Number(record(previous.admission).unknownUsageCalls ?? 0);
@@ -495,10 +509,9 @@ async function main(): Promise<void> {
   for (const input of inputs) {
     const crop = join(cropDir, `${input.id.replace(/[^a-z0-9]+/gi, "_")}_${imageHash(input.imagePath).slice(0, 16)}.png`);
     // Exclude the frame title, diagnostics, work area, and all rubric metadata.
-    execFileSync("/usr/bin/sips", [
-      "--cropToHeightWidth", "620", "760", "--cropOffset", "80", "400",
-      input.imagePath, "--out", crop,
-    ], { stdio: "ignore" });
+    // The name binds the original bytes. Never overwrite a retained model
+    // input (including historical sips crops) with another encoder's PNG.
+    if (!existsSync(crop)) cropDiagramZone(input.imagePath, crop, 760);
     input.imagePath = crop;
     input.imageSha256 = imageHash(crop);
   }
@@ -516,6 +529,17 @@ async function main(): Promise<void> {
   const spend = new VisionSpendCap(options.maxUsd);
   spend.restoreCharge(prior.reduce((sum, result) => sum + result.costUsd, 0), priorUnknownUsageCalls);
   spend.restoreCharge(priorFailures.reduce((sum, failure) => sum + failure.chargedUsd, 0));
+  const savedAdmission = record(previous.admission);
+  const checkpointCharge = Number(savedAdmission.chargedUsd ?? 0) + Number(savedAdmission.reservedUsd ?? 0);
+  if (!Number.isFinite(checkpointCharge) || checkpointCharge < 0) throw new Error("invalid figure-check spend checkpoint");
+  const restored = spend.snapshot().chargedUsd;
+  if (checkpointCharge > restored) spend.restoreCharge(checkpointCharge - restored);
+  const checkpoint = () => writeFileSync(checkpointPath, JSON.stringify({
+    provider: endpoint.provider, deployment: endpoint.deployment, model: models,
+    admission: spend.snapshot(),
+  }, null, 1) + "\n");
+  // A killed run can resume even before its first final summary exists.
+  if (!options.scoreOnly) checkpoint();
   const ceiling = Math.max(...inputs.map((input) => reservationUsd(input.question, models, endpoint)));
   console.log(JSON.stringify({
     model: models,
@@ -538,6 +562,7 @@ async function main(): Promise<void> {
         if (!spend.hasInflight()) spend.markStoppedForBudget();
         return;
       }
+      checkpoint();
       cursor += 1;
       try {
         const checked = await checkFigure(input, endpoint, models);
@@ -558,6 +583,7 @@ async function main(): Promise<void> {
         });
         writeJsonl(failuresPath, failures);
       }
+      checkpoint();
       const snapshot = spend.snapshot();
       if ((results.length + failures.length) % 25 === 0) {
         console.log(`figure-check ${results.length + failures.length}/${inputs.length}; $${snapshot.chargedUsd.toFixed(6)}`);

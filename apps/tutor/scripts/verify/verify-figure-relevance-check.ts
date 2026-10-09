@@ -6,8 +6,13 @@ import {
   resolveAnchorFigurePath,
   assertFigureCheckInputUnchanged,
   VisionSpendCap,
+  figureCheckRuntime,
   type FigureCheckResult,
 } from "../lecture-lab/figureRelevanceCheck";
+const offlineRuntime = figureCheckRuntime(true, { provider: "azure", deployment: "gpt-6-1-sol", model: ["gpt-6-1-sol"] });
+assert.equal(offlineRuntime.endpoint.apiKey, undefined);
+assert.deepEqual(offlineRuntime.models, ["gpt-6-1-sol"], "offline rescoring uses saved deployment without credentials");
+assert.throws(() => figureCheckRuntime(false, {}, offlineRuntime.endpoint), /configured Azure/);
 const priorInput = { id: "row", question: "q", imageSha256: "abc" };
 assertFigureCheckInputUnchanged(priorInput, { ...priorInput, referenceVerdict: "partial" });
 assert.throws(() => assertFigureCheckInputUnchanged(priorInput, { ...priorInput, imageSha256: "def" }), /changed/);
