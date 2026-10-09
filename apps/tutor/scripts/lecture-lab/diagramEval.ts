@@ -7,6 +7,7 @@ export type DiagramEvalArm =
   | "planner_first"
   | "planner_examples"
   | "planner_examples_strict";
+export type DiagramEvalModel = "standard" | "fast";
 export type DiagramEmptyCause =
   | "not_needed"
   | "not_attempted"
@@ -258,17 +259,25 @@ export function sampleDiagramEvalRows(
  * Preflight estimate, not a billing promise. Per-row token profiles are rounded
  * up from the completed r3 arms; the run record stores measured provider usage.
  */
-export function estimateEvaluationCostUsd(rowCount: number, arm: DiagramEvalArm): number {
+export function estimateEvaluationCostUsd(
+  rowCount: number,
+  arm: DiagramEvalArm,
+  model: DiagramEvalModel = "standard",
+): number {
   const profile = arm === "current"
     ? { input: 5_300, output: 1_500 }
     : arm === "planner_first"
       ? { input: 5_800, output: 1_450 }
-      : { input: 11_500, output: 2_000 };
+      : arm === "planner_examples_strict"
+        ? { input: 9_000, output: 1_800 }
+        : { input: 11_500, output: 2_000 };
   const planner = calculateLlmCostDetails(
     { input: rowCount * profile.input, output: rowCount * profile.output },
-    { model: "accounts/fireworks/models/kimi-k3" },
+    { model: model === "fast"
+      ? "accounts/fireworks/routers/kimi-k3-fast"
+      : "accounts/fireworks/models/kimi-k3" },
   ).total ?? 0;
-  const picker = arm === "planner_examples"
+  const picker = evaluationUsesExamples(arm)
     ? calculateLlmCostDetails(
         { input: rowCount * 6_000, output: rowCount * 60 },
         { model: "accounts/fireworks/models/deepseek-v4p1-flash" },
@@ -278,8 +287,18 @@ export function estimateEvaluationCostUsd(rowCount: number, arm: DiagramEvalArm)
 }
 
 /** Evaluation turns explicitly leave the production/default Fast behavior alone. */
-export function evaluationRunFastMode(isEvaluation: boolean): false | undefined {
-  return isEvaluation ? false : undefined;
+export function evaluationRunFastMode(
+  isEvaluation: boolean,
+  model: DiagramEvalModel = "standard",
+): boolean | undefined {
+  return isEvaluation ? model === "fast" : undefined;
+}
+
+export function evaluationUsesStandardModelHeader(
+  isEvaluation: boolean,
+  model: DiagramEvalModel,
+): boolean {
+  return isEvaluation && model === "standard";
 }
 
 export function evaluationSelectionOrder(arm: DiagramEvalArm): "current" | "planner_first" {

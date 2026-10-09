@@ -14,6 +14,7 @@ import {
   evaluationPlansChemistry,
   evaluationRunFastMode,
   evaluationSelectionOrder,
+  evaluationUsesStandardModelHeader,
   evaluationUsesExamples,
   estimateEvaluationCostUsd,
   formatDiagramFailureCounts,
@@ -169,7 +170,11 @@ assert.equal(
   "the approved 300-row three-arm round stays below the US$55 stop threshold",
 );
 assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
+assert.equal(evaluationRunFastMode(true, "fast"), true, "Fast evaluation requests must use the production router");
 assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");
+assert(evaluationUsesStandardModelHeader(true, "standard"));
+assert(!evaluationUsesStandardModelHeader(true, "fast"));
+assert(!evaluationUsesStandardModelHeader(false, "standard"));
 assert.equal(evaluationSelectionOrder("current"), "current");
 assert.equal(evaluationSelectionOrder("planner_first"), "planner_first");
 assert.equal(evaluationSelectionOrder("planner_examples"), "planner_first");
@@ -181,6 +186,14 @@ assert(evaluationAllowsFallback("planner_examples_strict", "chemistry_family"));
 assert(!evaluationAllowsFallback("planner_examples_strict", "family"));
 assert(!evaluationAllowsFallback("planner_examples_strict", "source_grounded"));
 assert(evaluationAllowsFallback("current", "family"));
+assert.equal(
+  Math.round((
+    estimateEvaluationCostUsd(300, "current", "fast") +
+    estimateEvaluationCostUsd(300, "planner_examples_strict", "fast")
+  ) * 1_000_000) / 1_000_000,
+  41.98788,
+  "the two-arm K3 Fast preflight uses Fast prices and stays below the US$45 stop threshold",
+);
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
 assert.throws(
   () => assertEvaluationCostAllowed(5.01, false),
