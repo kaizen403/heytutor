@@ -45,6 +45,8 @@ export interface FigureCheckCase {
   imagePath: string;
   referenceVerdict: ReferenceVerdict;
   imageSha256?: string;
+  sourceImageSha256?: string;
+  cropProvenance?: "source_hash" | "legacy_retained";
 }
 
 /** A resumed prediction may be rescored, but must never be reused for a new image/question. */
@@ -58,6 +60,27 @@ export function assertFigureCheckInputUnchanged(
 }
 
 const imageHash = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
+
+/** Keep the exact bytes a completed prediction saw, including historical sips crops. */
+export function prepareFigureCheckInput(input: FigureCheckCase, cropDir: string, prior?: FigureCheckCase): FigureCheckCase {
+  const sourceHash = imageHash(input.imagePath);
+  if (prior) {
+    if (prior.question !== input.question) throw new Error(`figure-check input changed: ${input.id}`);
+    if (prior.sourceImageSha256 && prior.sourceImageSha256 !== sourceHash) {
+      throw new Error(`figure-check source image changed: ${input.id}`);
+    }
+    const retainedHash = imageHash(prior.imagePath);
+    if (prior.imageSha256 && prior.imageSha256 !== retainedHash) {
+      throw new Error(`saved figure-check image changed: ${input.id}`);
+    }
+    return { ...input, imagePath: prior.imagePath, imageSha256: retainedHash,
+      sourceImageSha256: prior.sourceImageSha256,
+      cropProvenance: prior.sourceImageSha256 ? "source_hash" : "legacy_retained" };
+  }
+  const crop = join(cropDir, `${input.id.replace(/[^a-z0-9]+/gi, "_")}_${sourceHash.slice(0, 16)}.png`);
+  if (!existsSync(crop)) cropDiagramZone(input.imagePath, crop, 760);
+  return { ...input, imagePath: crop, imageSha256: imageHash(crop), sourceImageSha256: sourceHash, cropProvenance: "source_hash" };
+}
 
 /** Deterministic budget order: reference anchors, then balanced source/subject groups. */
 export function scheduleFigureCheckCases<T extends { source: string; subject: string }>(cases: readonly T[]): T[] {
@@ -506,14 +529,9 @@ async function main(): Promise<void> {
   mkdirSync(resolve(options.outDir), { recursive: true });
   const cropDir = resolve(options.outDir, "check-crops");
   mkdirSync(cropDir, { recursive: true });
-  for (const input of inputs) {
-    const crop = join(cropDir, `${input.id.replace(/[^a-z0-9]+/gi, "_")}_${imageHash(input.imagePath).slice(0, 16)}.png`);
-    // Exclude the frame title, diagnostics, work area, and all rubric metadata.
-    // The name binds the original bytes. Never overwrite a retained model
-    // input (including historical sips crops) with another encoder's PNG.
-    if (!existsSync(crop)) cropDiagramZone(input.imagePath, crop, 760);
-    input.imagePath = crop;
-    input.imageSha256 = imageHash(crop);
+  const retainedById = new Map([...prior, ...priorFailures].map((row) => [row.id, row]));
+  for (const [index, input] of inputs.entries()) {
+    inputs[index] = prepareFigureCheckInput(input, cropDir, retainedById.get(input.id));
   }
   const byId = new Map(inputs.map((row) => [row.id, row]));
   for (const row of [...prior, ...priorFailures]) {
@@ -521,6 +539,7 @@ async function main(): Promise<void> {
     if (!current) throw new Error(`saved figure-check input absent: ${row.id}`);
     assertFigureCheckInputUnchanged(row, current);
     row.referenceVerdict = current.referenceVerdict;
+    row.cropProvenance = current.cropProvenance;
   }
   const done = new Set([...prior, ...priorFailures].map((row) => row.id));
   const pending = inputs.filter((row) => !done.has(row.id));
