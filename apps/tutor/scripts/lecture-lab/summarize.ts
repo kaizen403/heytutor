@@ -15,6 +15,8 @@ export interface RoundSummary {
   transportFailures: number;
   passed: number;
   meanScore: number;
+  lessonGradingApplicable: boolean;
+  figureOnlyRows: number;
   findingCounts: Record<string, number>;
   duplicateFigures: { signature: string; probeIds: string[] }[];
   grades: LectureGrade[];
@@ -24,7 +26,7 @@ export function summarize(
   grades: readonly LectureGrade[],
   runs: readonly LectureRun[],
 ): RoundSummary {
-  const graded = grades.filter((grade) => !grade.transportFailure);
+  const graded = grades.filter((grade) => !grade.transportFailure && grade.lessonGradingApplicable !== false);
   const byCode = new Map<string, number>();
   for (const grade of grades) {
     for (const finding of grade.findings) {
@@ -34,7 +36,9 @@ export function summarize(
   return {
     total: grades.length,
     graded: graded.length,
-    transportFailures: grades.length - graded.length,
+    lessonGradingApplicable: graded.length > 0,
+    figureOnlyRows: grades.filter((grade) => grade.lessonGradingApplicable === false).length,
+    transportFailures: grades.filter((grade) => grade.transportFailure).length,
     passed: graded.filter((grade) => grade.passed).length,
     meanScore:
       graded.length > 0
@@ -49,6 +53,10 @@ export function summarize(
 }
 
 export function printSummary(summary: RoundSummary): void {
+  if (summary.figureOnlyRows > 0 && summary.graded === 0) {
+    console.log(`figure-only ${summary.figureOnlyRows} rows; lesson score and pass rate are not applicable`);
+    return;
+  }
   console.log(
     `passed ${summary.passed}/${summary.graded}  mean score ${summary.meanScore}` +
       (summary.transportFailures > 0

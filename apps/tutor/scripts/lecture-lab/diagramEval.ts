@@ -66,7 +66,7 @@ export function classifyDiagramEmptyCause(input: {
   visualRequirement: "required" | "optional" | "none";
   declinedUnreadable: boolean;
   primitiveCount: number;
-  plannerCalls: number;
+  plannerCalls: number | undefined;
   deadlineRemainingMs: number;
   candidateCount: number;
   candidateErrorCodes: readonly string[];
@@ -220,7 +220,22 @@ export function parseDiagramEvalJsonl(source: string): DiagramEvalRow[] {
     ids.add(row.id);
     rows.push(row);
   }
+  assertUniqueArtifactIds(rows);
   return rows;
+}
+
+export function labArtifactSlug(id: string): string {
+  return id.replace(/[^a-z0-9]+/gi, "_");
+}
+
+/** macOS filenames are case-insensitive; reject aliases before any paid work. */
+export function assertUniqueArtifactIds(rows: readonly { id: string }[]): void {
+  const slugs = new Map<string, string>();
+  for (const { id } of rows) {
+    const slug = labArtifactSlug(id).toLowerCase();
+    if (slugs.has(slug)) throw new Error(`artifact filename collision: ${slugs.get(slug)} and ${id}`);
+    slugs.set(slug, id);
+  }
 }
 
 export function combineDiagramEvalRows(
@@ -235,6 +250,7 @@ export function combineDiagramEvalRows(
       combined.push(row);
     }
   }
+  assertUniqueArtifactIds(combined);
   return combined;
 }
 

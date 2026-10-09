@@ -20,6 +20,7 @@ interface Summary {
   transportFailures?: number;
   passed: number;
   meanScore: number;
+  figureOnlyRows?: number;
   findingCounts: Record<string, number>;
   grades: { probeId: string; score: number; transportFailure?: boolean }[];
   judge?: JudgeSummary;
@@ -56,11 +57,11 @@ console.log(
 console.log(
   `candidate  ${formatDiagramFailureCounts(before.evaluation?.candidateErrorCodeCounts)} -> ${formatDiagramFailureCounts(after.evaluation?.candidateErrorCodeCounts)}`,
 );
-console.log(
-  `mean score ${before.meanScore} -> ${after.meanScore}  (${delta(after.meanScore - before.meanScore)})`,
-);
+if (before.figureOnlyRows || after.figureOnlyRows) {
+  console.log("lesson score / pass comparison: not applicable (figure-only rows)");
+} else console.log(`mean score ${before.meanScore} -> ${after.meanScore}  (${delta(after.meanScore - before.meanScore)})`);
 const graded = (summary: Summary) => summary.graded ?? summary.total;
-console.log(
+if (!before.figureOnlyRows && !after.figureOnlyRows) console.log(
   `passed     ${before.passed}/${graded(before)} -> ${after.passed}/${graded(after)}`,
 );
 if (before.transportFailures || after.transportFailures) {
@@ -94,7 +95,7 @@ const transportFailed = new Set(
     .filter((grade) => grade.transportFailure)
     .map((grade) => grade.probeId),
 );
-const moved = after.grades
+const moved = (before.figureOnlyRows || after.figureOnlyRows ? [] : after.grades)
   .map((grade) => ({
     probeId: grade.probeId,
     before: scoreBefore.get(grade.probeId),

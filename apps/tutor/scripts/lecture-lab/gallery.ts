@@ -134,7 +134,7 @@ function shell(title: string, description: string, body: string, script = ""): s
     .human-filter input { width:auto; margin:0; }
     .badge.human { border-color:#e0b66b; background:#fff0cf; color:#704b0d; }
     button:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid #82c8d1; outline-offset:2px; }
-    .compare-card .card-body { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+    .compare-card .card-body { grid-template-columns:var(--arm-columns, minmax(0,1fr) minmax(0,1fr)); }
     .arm { min-width:0; padding:16px; }
     .arm + .arm { border-left:1px solid var(--line); }
     .arm h3 { margin:0 0 10px; font-size:14px; }
@@ -260,7 +260,7 @@ export function buildMultiComparisonGalleryHtml(arms: readonly ComparisonGallery
     const entry = entries.find((candidate) => candidate !== undefined)!;
     const columns = `repeat(${arms.length},minmax(0,1fr))`;
     const renderedArms = arms.map(({ label }, index) => arm(entries[index], label)).join("");
-    return `<article id="${escapeHtml(id)}" class="card compare-card"><div class="card-head"><div><h2>${escapeHtml(entry.question)}</h2><p class="row-id">${escapeHtml(id)}</p></div><div class="badges"><span class="badge">${escapeHtml(entry.figureNeed)}</span><span class="badge">${escapeHtml(entry.figureKind)}</span></div></div><div class="card-body" style="grid-template-columns:${columns}">${renderedArms}</div><div class="compare-expectations">${list("must show", entry.mustShow)}${list("must label", entry.mustLabel)}${list("must not show", entry.mustNotShow)}</div></article>`;
+    return `<article id="${escapeHtml(id)}" class="card compare-card"><div class="card-head"><div><h2>${escapeHtml(entry.question)}</h2><p class="row-id">${escapeHtml(id)}</p></div><div class="badges"><span class="badge">${escapeHtml(entry.figureNeed)}</span><span class="badge">${escapeHtml(entry.figureKind)}</span></div></div><div class="card-body" style="--arm-columns:${columns}">${renderedArms}</div><div class="compare-expectations">${list("must show", entry.mustShow)}${list("must label", entry.mustLabel)}${list("must not show", entry.mustNotShow)}</div></article>`;
   }).join("\n");
   const labels = arms.map(({ label }) => label);
   return shell(
