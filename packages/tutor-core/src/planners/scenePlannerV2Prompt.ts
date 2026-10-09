@@ -111,7 +111,7 @@ export function buildSceneDocumentPlannerPrompt(
         : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
     ).join("\n")}\n`
     : "";
-  const operatorCatalog = fullCatalog && detailedOperators !== undefined
+  const operatorCatalog = fullCatalog
     ? "Every operator named in the contracts below."
     : operators.join(",");
 
