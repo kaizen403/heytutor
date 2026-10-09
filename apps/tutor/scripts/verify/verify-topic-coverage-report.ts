@@ -57,13 +57,21 @@ const rows: TopicCoverageRow[] = [
 
 const report = buildTopicCoverageReport(rows);
 assert.deepEqual(report.chapters, [
-  { chapter: "maths|3", topicsTested: 2, right: 0, partial: 0, wrong: 0, empty: 2, usefulShare: 0 },
-  { chapter: "physics|10", topicsTested: 2, right: 1, partial: 1, wrong: 0, empty: 0, usefulShare: 1 },
+  { chapter: "maths|3", topicsPlanned: 2, topicsTested: 2, untested: 0, right: 0, partial: 0, wrong: 0, empty: 2, usefulShare: 0 },
+  { chapter: "physics|10", topicsPlanned: 2, topicsTested: 2, untested: 0, right: 1, partial: 1, wrong: 0, empty: 0, usefulShare: 1 },
 ]);
 assert.equal(report.failureGroups.wrongStructureExample.count, 1);
 assert.equal(report.failureGroups.plannerDeclinedOrInvalid.count, 1);
 assert.deepEqual(report.failureGroups.plannerDeclinedOrInvalid.topErrorCodes, { invalid_id: 1 });
 assert.deepEqual(report.failureGroups.plannerDeclinedOrInvalid.missingDrawingKinds, { chart_table: 1 });
 assert.equal(report.failureGroups.nothingHonestToDraw.count, 1);
+const cappedReport = buildTopicCoverageReport([...rows, { ...rows[0]!, id: "pending", topicId: "physics|10|pending", verdict: "untested" }]);
+const cappedChapter = cappedReport.chapters.find((row) => row.chapter === "physics|10")!;
+assert.equal(cappedChapter.topicsPlanned, 3);
+assert.equal(cappedChapter.topicsTested, 2);
+assert.equal(cappedChapter.untested, 1);
+assert.equal(cappedChapter.empty, 0, "untested topics are not empty diagrams");
+assert.equal(cappedChapter.usefulShare, 1, "quality share uses tested topics only");
+assert.equal(cappedReport.failureGroups.plannerDeclinedOrInvalid.count, 1, "untested topics are not planner failures");
 
 console.log("topic coverage report verification passed");

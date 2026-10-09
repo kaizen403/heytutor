@@ -1,7 +1,7 @@
 /** Deterministic chapter, topic, and fix-group report for Part 14a. */
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import type { DiagramEmptyCause } from "./diagramEval";
+import { parseDiagramEvalJsonl, type DiagramEmptyCause } from "./diagramEval";
 import { readRoundJudgments, type DiagramVerdict } from "./judging";
 
 export interface TopicCoverageRow {
@@ -11,7 +11,7 @@ export interface TopicCoverageRow {
   chapter: string;
   figureNeed: "required" | "optional" | "none";
   figureKind: string;
-  verdict: DiagramVerdict;
+  verdict: DiagramVerdict | "untested";
   emptyCause: DiagramEmptyCause | null;
   candidateErrorCodes: string[];
   suppressedSource: string | null;
@@ -19,7 +19,9 @@ export interface TopicCoverageRow {
 
 interface ChapterSummary {
   chapter: string;
+  topicsPlanned: number;
   topicsTested: number;
+  untested: number;
   right: number;
   partial: number;
   wrong: number;
@@ -68,7 +70,7 @@ function sortedCounts(values: readonly string[]): Record<string, number> {
   ));
 }
 
-function isEmpty(verdict: DiagramVerdict): boolean {
+function isEmpty(verdict: TopicCoverageRow["verdict"]): boolean {
   return verdict === "empty_ok" || verdict === "empty_bad";
 }
 
@@ -87,13 +89,21 @@ export function buildTopicCoverageReport(
   for (const row of rows) {
     const summary = chapters.get(row.chapter) ?? {
       chapter: row.chapter,
+      topicsPlanned: 0,
       topicsTested: 0,
+      untested: 0,
       right: 0,
       partial: 0,
       wrong: 0,
       empty: 0,
       usefulShare: 0,
     };
+    summary.topicsPlanned += 1;
+    if (row.verdict === "untested") {
+      summary.untested += 1;
+      chapters.set(row.chapter, summary);
+      continue;
+    }
     summary.topicsTested += 1;
     if (row.verdict === "right") summary.right += 1;
     else if (row.verdict === "partial") summary.partial += 1;
@@ -182,9 +192,22 @@ function csv(value: string | number | null): string {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-export function writeTopicCoverageReport(roundArgument: string): TopicCoverageReport {
+export function writeTopicCoverageReport(roundArgument: string, sampleArgument?: string): TopicCoverageReport {
   const roundDir = resolve(roundArgument);
-  const report = buildTopicCoverageReport(readTopicCoverageRows(roundDir));
+  const rows = readTopicCoverageRows(roundDir);
+  if (sampleArgument) {
+    const planned = parseDiagramEvalJsonl(readFileSync(resolve(sampleArgument), "utf8"));
+    const tested = new Set(rows.map((row) => row.id));
+    const plannedIds = new Set(planned.map((row) => row.id));
+    if (rows.some((row) => !plannedIds.has(row.id))) throw new Error("tested row absent from original sample");
+    rows.push(...planned.filter((row) => !tested.has(row.id)).map((row): TopicCoverageRow => ({
+      id: row.id, topicId: row.topic_id, subject: row.subject,
+      chapter: chapterFromTopic(row.topic_id, row.subject), figureNeed: row.figure_need,
+      figureKind: row.figure_kind, verdict: "untested", emptyCause: null,
+      candidateErrorCodes: [], suppressedSource: null,
+    })));
+  }
+  const report = buildTopicCoverageReport(rows);
   const csvRows: Array<Array<string | number | null>> = [
     ["topic", "chapter", "verdict", "emptyCause", "candidate error codes", "suppressed source"],
     ...report.rows.map((row) => [
@@ -205,7 +228,7 @@ export function writeTopicCoverageReport(roundArgument: string): TopicCoverageRe
 if (process.argv[1]?.endsWith("topicCoverageReport.ts")) {
   const round = process.argv[2];
   if (!round) throw new Error("Usage: topicCoverageReport.ts <round>");
-  const report = writeTopicCoverageReport(round);
+  const report = writeTopicCoverageReport(round, process.argv[3]);
   console.log(JSON.stringify({
     topics: report.rows.length,
     chapters: report.chapters.length,
