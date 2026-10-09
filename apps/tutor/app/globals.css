@@ -1614,28 +1614,6 @@ html:fullscreen::backdrop {
 
 /* ── State ── */
 
-@keyframes wb-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: scale(1.25);
-  }
-}
-
-@keyframes wb-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 5px rgba(74, 158, 255, 0);
-  }
-}
-
 @keyframes wb-breathe {
   0%,
   100% {
@@ -1829,12 +1807,6 @@ html:fullscreen::backdrop {
 .animate-wb-bubble-fade {
   animation: wb-bubble-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.animate-wb-pulse {
-  animation: wb-pulse 1.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-.animate-wb-glow {
-  animation: wb-glow 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
 .animate-wb-breathe {
   animation: wb-breathe 4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
@@ -1865,8 +1837,6 @@ html:fullscreen::backdrop {
     transform: none !important;
   }
 
-  .animate-wb-pulse,
-  .animate-wb-glow,
   .animate-wb-breathe,
   .animate-pulse-ring,
   .animate-aurora,

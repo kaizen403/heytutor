@@ -14,7 +14,7 @@ v–t trapezoid), and that nothing checked a picture *corresponded* to the stem.
 
 | File | Job |
 | --- | --- |
-| `catalog.ts` | Closed vocabulary of ~58 archetypes. Each has a family, typed slots (with `required` / `metric` flags) and a **picture contract** — the roles, operators and symbols a document must contain to be that figure. No coordinates. |
+| `catalog.ts` | Closed vocabulary of 82 archetypes (`ARCHETYPE_IDS`). Each has a family, typed slots (with `required` / `metric` flags) and a **picture contract**: the roles, operators and symbols a document must contain to be that figure. No coordinates. |
 | `slots.ts` | Extraction utilities: plan givens first, stem numbers second, every value tagged with its source (`plan` / `stem` / `default`). |
 | `detect.ts` | Scored decision over the catalog: weighted cues, vetoes, structure bonuses from `lawIds` / ProblemIR intents, a margin rule. Fills slots. Returns `null` when no figure clears the bar. |
 | `generators/*.ts` | One parameterized generator per archetype. Geometry is computed from slots (trajectory from u and θ, incline components from θ, image position from the mirror formula, P–V cycle from the named processes, tangent from the stated curve…). Missing slots use declared display values. |
