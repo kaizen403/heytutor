@@ -31,10 +31,16 @@ const VOLT: Readonly<Record<string, string>> = { V: "V", volt: "V", volts: "V" }
 interface NodeInput { id: string; at: RenderPoint }
 interface BranchInput { id: string; from: string; to: string; kind: "resistor" | "source" | "wire"; resistance: number | null; emf: number }
 
+function isIdeal(branch: BranchInput): boolean {
+  return branch.kind === "wire" || (branch.kind === "source" && branch.resistance === 0);
+}
+
 function solve(nodes: NodeInput[], branches: BranchInput[], ground: string): Map<string, number> {
   const unknown = nodes.filter((node) => node.id !== ground);
-  const wires = branches.filter((branch) => branch.kind === "wire");
-  const size = unknown.length + wires.length;
+  // Ideal branches (wires, and sources with zero internal resistance) have no
+  // conductance to stamp; each adds its own current unknown and a voltage row.
+  const idealBranches = branches.filter(isIdeal);
+  const size = unknown.length + idealBranches.length;
   if (size === 0) invalid("ground", "a network needs at least one non-ground node or an ideal wire");
   const index = new Map(unknown.map((node, position) => [node.id, position]));
   const matrix = Array.from({ length: size }, () => Array<number>(size).fill(0));
@@ -48,21 +54,24 @@ function solve(nodes: NodeInput[], branches: BranchInput[], ground: string): Map
     rhs[row] += emfSign * conductance * emf;
   };
   for (const branch of branches) {
-    if (branch.kind === "wire") continue;
+    if (isIdeal(branch)) continue;
     const conductance = 1 / branch.resistance!;
     stamp(branch.from, branch.from, branch.to, conductance, -1, branch.emf);
     stamp(branch.to, branch.to, branch.from, conductance, 1, branch.emf);
   }
-  wires.forEach((wire, wireIndex) => {
-    const column = unknown.length + wireIndex;
+  idealBranches.forEach((branch, branchIndex) => {
+    const column = unknown.length + branchIndex;
     const row = column;
-    for (const [node, sign] of [[wire.from, 1], [wire.to, -1]] as const) {
+    for (const [node, sign] of [[branch.from, 1], [branch.to, -1]] as const) {
       if (node === ground) continue;
       const nodeIndex = index.get(node);
       if (nodeIndex === undefined) invalid("branches", "wire endpoint is not a declared node");
       matrix[nodeIndex]![column]! += sign;
       matrix[row]![nodeIndex]! += sign;
     }
+    // A source with r = 0 fixes V_from - V_to = -emf, the r -> 0 limit of
+    // I = (V_from - V_to + emf) / r; a wire fixes V_from - V_to = 0.
+    rhs[row] = branch.kind === "source" ? -branch.emf : 0;
   });
   for (let column = 0; column < size; column += 1) {
     let pivot = column;
@@ -83,11 +92,11 @@ function solve(nodes: NodeInput[], branches: BranchInput[], ground: string): Map
   }
   const voltage = new Map<string, number>([[ground, 0]]);
   unknown.forEach((node, position) => voltage.set(node.id, rhs[position]!));
-  wires.forEach((wire, wireIndex) => voltage.set(`wire:${wire.id}`, rhs[unknown.length + wireIndex]!));
+  idealBranches.forEach((branch, branchIndex) => voltage.set(`ideal:${branch.id}`, rhs[unknown.length + branchIndex]!));
   const residual = nodes.reduce((max, node) => {
     const leaving = branches.reduce((sum, branch) => {
-      const current = branch.kind === "wire"
-        ? voltage.get(`wire:${branch.id}`)!
+      const current = isIdeal(branch)
+        ? voltage.get(`ideal:${branch.id}`)!
         : (voltage.get(branch.from)! - voltage.get(branch.to)! + branch.emf) / branch.resistance!;
       return sum + (branch.from === node.id ? current : 0) - (branch.to === node.id ? current : 0);
     }, 0);
@@ -98,7 +107,7 @@ function solve(nodes: NodeInput[], branches: BranchInput[], ground: string): Map
 }
 
 function currentOf(branch: BranchInput, voltage: Map<string, number>): number {
-  if (branch.kind === "wire") return voltage.get(`wire:${branch.id}`) ?? invalid("network", "ideal-wire current was not solved");
+  if (isIdeal(branch)) return voltage.get(`ideal:${branch.id}`) ?? invalid("network", "ideal-branch current was not solved");
   const value = (voltage.get(branch.from)! - voltage.get(branch.to)! + branch.emf) / branch.resistance!;
   if (!Number.isFinite(value) || Math.abs(value) > 1e12) invalid("current", "branch current exceeds finite authority");
   return value === 0 ? 0 : value;
@@ -146,7 +155,7 @@ function readNetwork(inputs: Record<string, unknown>, context: SourceContext, do
     }
     requireUnits(branch.resistance, "ohm", OHM, document);
     const resistance = scalar(branch.resistance, "resistance", context);
-    if (!(resistance > 0)) invalid("resistance", "branch resistance must be positive");
+    if (kind === "source" ? !(resistance >= 0) : !(resistance > 0)) invalid("resistance", "passive branch resistance must be positive; an ideal source may declare zero internal resistance");
     const emf = branch.emf === undefined ? 0 : scalar(branch.emf, "emf", context);
     requireUnits(branch.emf, "V", VOLT, document);
     if (kind === "source" && emf === 0) invalid("emf", "a source branch requires a nonzero emf");
