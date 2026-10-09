@@ -708,7 +708,7 @@ async function requestSceneDocument(
       return null;
     }
 
-    const document = parseJsonObject(content);
+    const document = parseScenePlannerResponseJson(content);
     if (!document) {
       tutorDebug("planner", `semantic scene ${phase} returned invalid JSON`, {
         content_preview: content.slice(0, 200),
@@ -757,7 +757,7 @@ function notifySceneObserver(observer: () => void): void {
 }
 
 /** Parse only the JSON envelope; scene-engine owns all semantic validation. */
-function parseJsonObject(content: string): SceneDocumentCandidate | null {
+export function parseScenePlannerResponseJson(content: string): SceneDocumentCandidate | null {
   let text = content.trim();
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced?.[1]) text = fenced[1].trim();

@@ -1,6 +1,7 @@
-import type {
-  SceneCandidateValidation,
-  ScenePlannerResponse,
+import {
+  parseScenePlannerResponseJson,
+  type SceneCandidateValidation,
+  type ScenePlannerResponse,
 } from "@heytutor/tutor-core";
 
 const EVIDENCE_LIMIT_BYTES = 2048;
@@ -48,14 +49,7 @@ function record(value: unknown): Record<string, unknown> | null {
 function rawDocument(
   response: Pick<ScenePlannerResponse, "rawContent">,
 ): Record<string, unknown> | null {
-  try {
-    const text = response.rawContent.trim();
-    return record(
-      JSON.parse(text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? text),
-    );
-  } catch {
-    return null;
-  }
+  return parseScenePlannerResponseJson(response.rawContent);
 }
 
 function truncateUtf8(text: string) {
