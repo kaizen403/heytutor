@@ -31,11 +31,11 @@ import {
   startTurnTrace,
 } from "@/lib/obs/langfuse";
 import { fetchTeachingCompletion } from "@/lib/llm/teachingTransport";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import { prepareNotesChat } from "@/lib/llm/notesChatPolicy";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { registerWsConnectionRevocation } from "@/lib/tts/wsTicket";
 
-const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const NOTES_CHAT_MAX_MESSAGE_CHARS = 2000;
 const NOTES_CHAT_HISTORY_LIMIT = 12;
 const NOTES_CHAT_UI_LIMIT = 50;
@@ -290,7 +290,8 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   };
   const initialDispatchError = await dispatchAccessError();
   if (initialDispatchError) return initialDispatchError;
-  const apiKey = process.env.FIREWORKS_API_KEY?.trim();
+  const llm = resolveLlmEndpoint();
+  const apiKey = llm.apiKey;
   const mock = !apiKey;
   const traceId = genTraceId();
   const turnTrace = startTurnTrace({
@@ -358,7 +359,7 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
       },
     });
   }
-  const fireworksBody = JSON.stringify({
+  const providerBody = providerChatBody({
     model,
     max_tokens: NOTES_CHAT_MAX_TOKENS,
     temperature: 0.3,
@@ -370,10 +371,10 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
       ...history,
       { role: "user", content: userContent },
     ],
-  });
+  }, llm);
 
   const reservation = await reservePaidUsage({ actor, kind: "notes", traceId,
-    usd: maximumLlmCost(JSON.parse(fireworksBody).messages, NOTES_CHAT_MAX_TOKENS, [model]) });
+    usd: maximumLlmCost(providerBody.messages, completionTokenCap(providerBody), [model]) });
   if (reservation instanceof Response) return reservation;
   paid = reservation;
   const dispatchError = await dispatchAccessError();
@@ -385,7 +386,7 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   let upstream: Response;
   try {
     upstream = await fetchTeachingCompletion({
-      url: FIREWORKS_CHAT_URL,
+      url: llm.url,
       signal: requestSignal,
       init: {
         method: "POST",
@@ -393,7 +394,7 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
           Authorization: `Bearer ${apiKey}`,
           "content-type": "application/json",
         },
-        body: fireworksBody,
+        body: JSON.stringify(providerBody),
       },
     });
   } catch (error: unknown) {
