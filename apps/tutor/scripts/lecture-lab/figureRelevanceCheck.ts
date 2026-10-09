@@ -7,13 +7,14 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { parseDiagramAnchors } from "./anchors";
 import { readRoundJudgments, type DiagramVerdict } from "./judging";
 import { resolveFireworksVisionModels } from "../../lib/llm/fireworksModels";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
 import { parseProviderUsage, usageDetailsFromParsed } from "../../lib/obs/providerUsage";
 import { calculateLlmCostDetails, roundUsd, type UsageCounts } from "../../lib/obs/usageCost";
 
-const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const MAX_OUTPUT_TOKENS = 80;
 const MAX_IMAGE_INPUT_TOKENS = 64_000;
 
@@ -65,6 +66,7 @@ export interface FigureCheckSummary {
   reference: string;
   overall: SubjectScore;
   bySubject: Record<string, SubjectScore>;
+  bySource: Record<string, SubjectScore>;
   latencyMs: { p50: number | null; p90: number | null };
   cost: {
     maxUsd: number;
@@ -206,10 +208,12 @@ export function buildFigureCheckSummary(
 ): FigureCheckSummary {
   const overall = emptyScore();
   const bySubject: Record<string, SubjectScore> = {};
+  const bySource: Record<string, SubjectScore> = {};
   for (const result of results) {
     addScore(overall, result);
     const score = bySubject[result.subject] ??= emptyScore();
     addScore(score, result);
+    addScore(bySource[result.source] ??= emptyScore(), result);
   }
   const totalUsd = roundUsd(results.reduce((sum, result) => sum + result.costUsd, 0));
   return {
@@ -223,6 +227,7 @@ export function buildFigureCheckSummary(
       Object.entries(bySubject).sort(([left], [right]) => left.localeCompare(right))
         .map(([subject, score]) => [subject, finishScore(score)]),
     ),
+    bySource: Object.fromEntries(Object.entries(bySource).map(([source, score]) => [source, finishScore(score)])),
     latencyMs: {
       p50: percentile(results.map((result) => result.latencyMs), 0.5),
       p90: percentile(results.map((result) => result.latencyMs), 0.9),
@@ -318,18 +323,19 @@ function messagesFor(input: FigureCheckCase): unknown[] {
   ];
 }
 
-function reservationUsd(question: string, models: readonly string[]): number {
+function reservationUsd(question: string, models: readonly string[], endpoint: LlmEndpoint): number {
   const textTokensCeiling = new TextEncoder().encode(question).length + 2_048;
+  const outputCap = completionTokenCap(providerChatBody({ max_tokens: MAX_OUTPUT_TOKENS, reasoning_effort: "none" }, endpoint));
   return Math.max(...models.map((model) =>
     calculateLlmCostDetails(
-      { input: MAX_IMAGE_INPUT_TOKENS + textTokensCeiling, output: MAX_OUTPUT_TOKENS },
+      { input: MAX_IMAGE_INPUT_TOKENS + textTokensCeiling, output: outputCap },
       { model },
     ).total ?? 0.01));
 }
 
 async function checkFigure(
   input: FigureCheckCase,
-  apiKey: string,
+  endpoint: LlmEndpoint,
   models: readonly string[],
 ): Promise<Omit<FigureCheckResult, keyof FigureCheckCase> & { billedUsd: number | null }> {
   const messages = messagesFor(input);
@@ -338,11 +344,11 @@ async function checkFigure(
   let model = models[0]!;
   for (const [index, candidate] of models.entries()) {
     model = candidate;
-    response = await fetch(FIREWORKS_CHAT_URL, {
+    response = await fetch(endpoint.url, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      headers: { Authorization: `Bearer ${endpoint.apiKey}`, "content-type": "application/json" },
       signal: AbortSignal.timeout(45_000),
-      body: JSON.stringify({
+      body: JSON.stringify(providerChatBody({
         model,
         max_tokens: MAX_OUTPUT_TOKENS,
         n: 1,
@@ -350,7 +356,8 @@ async function checkFigure(
         reasoning_effort: "none",
         stream: false,
         messages,
-      }),
+        response_format: { type: "json_object" },
+      }, endpoint)),
     });
     if (response.status !== 404 || index === models.length - 1) break;
     await response.body?.cancel();
@@ -408,8 +415,10 @@ function parseOptions(argv: readonly string[]): CliOptions {
 async function main(): Promise<void> {
   process.loadEnvFile?.(resolve(process.cwd(), ".env.local"));
   const options = parseOptions(process.argv.slice(2));
-  const apiKey = process.env.FIREWORKS_API_KEY?.trim();
-  if (!apiKey) throw new Error("FIREWORKS_API_KEY is required");
+  const endpoint = resolveLlmEndpoint();
+  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey) {
+    throw new Error("figure checks require a fully configured Azure provider; Fireworks calls are disabled");
+  }
   const models = resolveFireworksVisionModels();
   const inputs = [
     ...options.rounds.flatMap((round) => collectRoundFigureCases(resolve(round.path), round.source)),
@@ -419,18 +428,33 @@ async function main(): Promise<void> {
     if (!existsSync(input.imagePath)) throw new Error(`missing image: ${input.imagePath}`);
   }
   mkdirSync(resolve(options.outDir), { recursive: true });
+  const cropDir = resolve(options.outDir, "check-crops");
+  mkdirSync(cropDir, { recursive: true });
+  for (const input of inputs) {
+    const crop = join(cropDir, `${input.id.replace(/[^a-z0-9]+/gi, "_")}.png`);
+    // Exclude the frame title, diagnostics, work area, and all rubric metadata.
+    execFileSync("/usr/bin/sips", [
+      "--cropToHeightWidth", "620", "760", "--cropOffset", "80", "400",
+      input.imagePath, "--out", crop,
+    ], { stdio: "ignore" });
+    input.imagePath = crop;
+  }
   const resultsPath = resolve(options.outDir, "results.jsonl");
   const failuresPath = resolve(options.outDir, "failures.jsonl");
   const prior = readJsonl<FigureCheckResult>(resultsPath);
-  const done = new Set(prior.map((row) => row.id));
+  const priorFailures = readJsonl<FigureCheckFailure>(failuresPath);
+  const done = new Set([...prior, ...priorFailures].map((row) => row.id));
   const pending = inputs.filter((row) => !done.has(row.id));
   const results = [...prior];
-  const failures: FigureCheckFailure[] = [];
+  const failures: FigureCheckFailure[] = [...priorFailures];
   const spend = new VisionSpendCap(options.maxUsd);
   spend.restoreCharge(prior.reduce((sum, result) => sum + result.costUsd, 0));
-  const ceiling = Math.max(...inputs.map((input) => reservationUsd(input.question, models)));
+  spend.restoreCharge(priorFailures.reduce((sum, failure) => sum + failure.chargedUsd, 0));
+  const ceiling = Math.max(...inputs.map((input) => reservationUsd(input.question, models, endpoint)));
   console.log(JSON.stringify({
     model: models,
+    provider: endpoint.provider,
+    deployment: endpoint.deployment,
     inputs: inputs.length,
     alreadyComplete: prior.length,
     pending: pending.length,
@@ -443,14 +467,14 @@ async function main(): Promise<void> {
     for (;;) {
       const input = pending[cursor];
       if (!input) return;
-      const reservedUsd = reservationUsd(input.question, models);
+      const reservedUsd = reservationUsd(input.question, models, endpoint);
       if (!spend.tryReserve(reservedUsd)) {
         if (!spend.hasInflight()) spend.markStoppedForBudget();
         return;
       }
       cursor += 1;
       try {
-        const checked = await checkFigure(input, apiKey, models);
+        const checked = await checkFigure(input, endpoint, models);
         spend.settle(reservedUsd, checked.billedUsd);
         const result: FigureCheckResult = {
           ...input,
@@ -487,6 +511,9 @@ async function main(): Promise<void> {
   summary.cost.perFigureUsd = paidCalls > 0 ? roundUsd(snapshot.chargedUsd / paidCalls) : null;
   writeFileSync(resolve(options.outDir, "summary.json"), `${JSON.stringify({
     ...summary,
+    provider: endpoint.provider,
+    deployment: endpoint.deployment,
+    plannedInputs: inputs.length,
     inputSources: [...new Set(inputs.map((input) => input.source))],
     admission: snapshot,
     cwd: process.cwd(),

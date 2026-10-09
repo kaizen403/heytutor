@@ -47,9 +47,8 @@ pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.json
 # planner-with-examples uses the same ordering plus up to three cheap-model-picked examples
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --max-usd 5 --out .lecture-lab/eval-planner-examples --yes
 # strict uses the same planner+examples path and teaches text-only if it fails.
-# Standard K3 may use the evaluation-only 120 s scene budget. Use the same
-# value for every arm being compared.
-pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples_strict --model standard --scene-planner-limit-ms 120000 --figure-only --max-usd 5 --out .lecture-lab/eval-strict --yes
+# Every paid lab uses the configured Azure deployment and production 60 s budget.
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples_strict --model configured --scene-planner-limit-ms 60000 --figure-only --max-usd 5 --out .lecture-lab/eval-strict --yes
 # rebuild the validated example library after exemplar branches are merged
 pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
 # compare legacy and current top-three retrieval without model calls; this adds
