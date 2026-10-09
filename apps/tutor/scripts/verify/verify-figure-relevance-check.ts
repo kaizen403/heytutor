@@ -4,9 +4,14 @@ import {
   parseFigureCheckAnswer,
   scheduleFigureCheckCases,
   resolveAnchorFigurePath,
+  assertFigureCheckInputUnchanged,
   VisionSpendCap,
   type FigureCheckResult,
 } from "../lecture-lab/figureRelevanceCheck";
+const priorInput = { id: "row", question: "q", imageSha256: "abc" };
+assertFigureCheckInputUnchanged(priorInput, { ...priorInput, referenceVerdict: "partial" });
+assert.throws(() => assertFigureCheckInputUnchanged(priorInput, { ...priorInput, imageSha256: "def" }), /changed/);
+assert.throws(() => assertFigureCheckInputUnchanged(priorInput, { ...priorInput, question: "different" }), /changed/);
 assert.equal(resolveAnchorFigurePath("../data/diagram-eval/v1/anchor-images/card.png", "/repo"), "/repo/data/diagram-eval/v1/anchor-images/card.png");
 assert.equal(resolveAnchorFigurePath("/private/card.png", "/repo"), "/private/card.png");
 

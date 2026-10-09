@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { parseDiagramAnchors } from "./anchors";
 import { readRoundJudgments, type DiagramVerdict } from "./judging";
 import { resolveFireworksVisionModels } from "../../lib/llm/fireworksModels";
@@ -28,7 +29,20 @@ export interface FigureCheckCase {
   question: string;
   imagePath: string;
   referenceVerdict: ReferenceVerdict;
+  imageSha256?: string;
 }
+
+/** A resumed prediction may be rescored, but must never be reused for a new image/question. */
+export function assertFigureCheckInputUnchanged(
+  prior: { id: string; question: string; imageSha256?: string },
+  current: { id: string; question: string; imageSha256?: string; referenceVerdict?: string },
+): void {
+  if (!prior.imageSha256 || prior.imageSha256 !== current.imageSha256 || prior.question !== current.question) {
+    throw new Error(`figure-check input changed: ${prior.id}; preserve prior spend and use a separate input version`);
+  }
+}
+
+const imageHash = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
 
 /** Deterministic budget order: reference anchors, then balanced source/subject groups. */
 export function scheduleFigureCheckCases<T extends { source: string; subject: string }>(cases: readonly T[]): T[] {
@@ -73,6 +87,7 @@ interface CliOptions {
   maxUsd: number;
   concurrency: number;
   yes: boolean;
+  scoreOnly: boolean;
 }
 
 interface SubjectScore {
@@ -163,9 +178,11 @@ export class VisionSpendCap {
     this.chargedUsd += actualUsd ?? reservedUsd;
   }
 
-  restoreCharge(usd: number): void {
+  restoreCharge(usd: number, unknownUsageCalls = 0): void {
     if (!Number.isFinite(usd) || usd < 0) throw new Error("restored charge must be non-negative");
+    if (!Number.isInteger(unknownUsageCalls) || unknownUsageCalls < 0) throw new Error("invalid unknown-usage count");
     this.chargedUsd += usd;
+    this.unknownUsageCalls += unknownUsageCalls;
   }
 
   hasInflight(): boolean {
@@ -415,7 +432,7 @@ async function checkFigure(
 
 function parseOptions(argv: readonly string[]): CliOptions {
   const options: CliOptions = {
-    rounds: [], anchors: null, outDir: "", maxUsd: Number.NaN, concurrency: 3, yes: false,
+    rounds: [], anchors: null, outDir: "", maxUsd: Number.NaN, concurrency: 3, yes: false, scoreOnly: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -429,13 +446,14 @@ function parseOptions(argv: readonly string[]): CliOptions {
     else if (arg === "--max-usd") options.maxUsd = Number.parseFloat(argv[++index] ?? "");
     else if (arg === "--concurrency") options.concurrency = Number.parseInt(argv[++index] ?? "", 10);
     else if (arg === "--yes") options.yes = true;
+    else if (arg === "--score-only") options.scoreOnly = true;
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (options.rounds.length === 0) throw new Error("at least one --round source=path is required");
   if (!options.outDir) throw new Error("--out is required");
   if (!Number.isFinite(options.maxUsd) || options.maxUsd <= 0) throw new Error("--max-usd must be a positive number");
   if (!Number.isInteger(options.concurrency) || options.concurrency < 1) throw new Error("--concurrency must be positive");
-  if (!options.yes) throw new Error("paid figure checks require --yes");
+  if (!options.yes && !options.scoreOnly) throw new Error("paid figure checks require --yes");
   return options;
 }
 
@@ -447,6 +465,23 @@ async function main(): Promise<void> {
     throw new Error("figure checks require a fully configured Azure provider; Fireworks calls are disabled");
   }
   const models = resolveFireworksVisionModels();
+  const resultsPath = resolve(options.outDir, "results.jsonl");
+  const failuresPath = resolve(options.outDir, "failures.jsonl");
+  const prior = readJsonl<FigureCheckResult>(resultsPath);
+  const priorFailures = readJsonl<FigureCheckFailure>(failuresPath);
+  let priorUnknownUsageCalls = 0;
+  if (prior.length + priorFailures.length > 0) {
+    const previous = record(JSON.parse(readFileSync(resolve(options.outDir, "summary.json"), "utf8")));
+    if (previous.provider !== endpoint.provider || previous.deployment !== endpoint.deployment
+      || prior.some((row) => !models.includes(row.model))) throw new Error("figure-check provider/deployment changed");
+    priorUnknownUsageCalls = Number(record(previous.admission).unknownUsageCalls ?? 0);
+    // Bind legacy records before any output crop is overwritten; fail closed on missing/tampered bytes.
+    for (const row of [...prior, ...priorFailures]) {
+      const hash = imageHash(row.imagePath);
+      if (row.imageSha256 && row.imageSha256 !== hash) throw new Error(`saved figure-check image changed: ${row.id}`);
+      row.imageSha256 = hash;
+    }
+  }
   const inputs = scheduleFigureCheckCases([
     ...options.rounds.flatMap((round) => collectRoundFigureCases(resolve(round.path), round.source)),
     ...(options.anchors ? collectAnchorFigureCases(resolve(options.anchors), resolve(process.cwd(), "../..")) : []),
@@ -458,24 +493,28 @@ async function main(): Promise<void> {
   const cropDir = resolve(options.outDir, "check-crops");
   mkdirSync(cropDir, { recursive: true });
   for (const input of inputs) {
-    const crop = join(cropDir, `${input.id.replace(/[^a-z0-9]+/gi, "_")}.png`);
+    const crop = join(cropDir, `${input.id.replace(/[^a-z0-9]+/gi, "_")}_${imageHash(input.imagePath).slice(0, 16)}.png`);
     // Exclude the frame title, diagnostics, work area, and all rubric metadata.
     execFileSync("/usr/bin/sips", [
       "--cropToHeightWidth", "620", "760", "--cropOffset", "80", "400",
       input.imagePath, "--out", crop,
     ], { stdio: "ignore" });
     input.imagePath = crop;
+    input.imageSha256 = imageHash(crop);
   }
-  const resultsPath = resolve(options.outDir, "results.jsonl");
-  const failuresPath = resolve(options.outDir, "failures.jsonl");
-  const prior = readJsonl<FigureCheckResult>(resultsPath);
-  const priorFailures = readJsonl<FigureCheckFailure>(failuresPath);
+  const byId = new Map(inputs.map((row) => [row.id, row]));
+  for (const row of [...prior, ...priorFailures]) {
+    const current = byId.get(row.id);
+    if (!current) throw new Error(`saved figure-check input absent: ${row.id}`);
+    assertFigureCheckInputUnchanged(row, current);
+    row.referenceVerdict = current.referenceVerdict;
+  }
   const done = new Set([...prior, ...priorFailures].map((row) => row.id));
   const pending = inputs.filter((row) => !done.has(row.id));
   const results = [...prior];
   const failures: FigureCheckFailure[] = [...priorFailures];
   const spend = new VisionSpendCap(options.maxUsd);
-  spend.restoreCharge(prior.reduce((sum, result) => sum + result.costUsd, 0));
+  spend.restoreCharge(prior.reduce((sum, result) => sum + result.costUsd, 0), priorUnknownUsageCalls);
   spend.restoreCharge(priorFailures.reduce((sum, failure) => sum + failure.chargedUsd, 0));
   const ceiling = Math.max(...inputs.map((input) => reservationUsd(input.question, models, endpoint)));
   console.log(JSON.stringify({
@@ -525,7 +564,9 @@ async function main(): Promise<void> {
       }
     }
   };
-  await Promise.all(Array.from({ length: options.concurrency }, () => worker()));
+  if (!options.scoreOnly) await Promise.all(Array.from({ length: options.concurrency }, () => worker()));
+  writeJsonl(resultsPath, results);
+  writeJsonl(failuresPath, failures);
   const snapshot = spend.snapshot();
   const summary = buildFigureCheckSummary(
     results,
@@ -541,6 +582,8 @@ async function main(): Promise<void> {
     provider: endpoint.provider,
     deployment: endpoint.deployment,
     plannedInputs: inputs.length,
+    untestedInputs: pending.length - cursor,
+    scoreOnly: options.scoreOnly,
     inputSources: [...new Set(inputs.map((input) => input.source))],
     admission: snapshot,
     cwd: process.cwd(),
