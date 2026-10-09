@@ -366,6 +366,21 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     const pricing = runCost.snapshotPricing().llm.find((row) => row.lane === "gpt-6.1-sol");
     assert.deepEqual(pricing, { lane: "gpt-6.1-sol", inputUsdPer1M: 2, cachedInputUsdPer1M: 0.1, outputUsdPer1M: 10 });
   }],
+  ["a custom deployment name keeps its Azure rates after a rollback to Fireworks", () => {
+    const saved = { provider: process.env.LLM_PROVIDER, deployment: process.env.AZURE_OPENAI_DEPLOYMENT };
+    try {
+      process.env.AZURE_OPENAI_DEPLOYMENT = "tutor-prod";
+      for (const active of ["azure", "fireworks", ""]) {
+        process.env.LLM_PROVIDER = active;
+        assert.equal(usageCost.resolveLlmRateLane("tutor-prod"), "gpt-6.1-sol", `LLM_PROVIDER=${active}`);
+      }
+      delete process.env.AZURE_OPENAI_DEPLOYMENT;
+      assert.equal(usageCost.resolveLlmRateLane("tutor-prod"), "unknown");
+    } finally {
+      if (saved.provider === undefined) delete process.env.LLM_PROVIDER; else process.env.LLM_PROVIDER = saved.provider;
+      if (saved.deployment === undefined) delete process.env.AZURE_OPENAI_DEPLOYMENT; else process.env.AZURE_OPENAI_DEPLOYMENT = saved.deployment;
+    }
+  }],
   ["mock mode follows the active provider's key", () => {
     assert.equal(flags.isProviderMockMode({} as unknown as NodeJS.ProcessEnv), true);
     assert.equal(flags.isProviderMockMode({ FIREWORKS_API_KEY: "fw" } as unknown as NodeJS.ProcessEnv), false);

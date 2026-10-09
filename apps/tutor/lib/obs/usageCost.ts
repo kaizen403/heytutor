@@ -67,10 +67,10 @@ export function resolveLlmRateLane(model?: string | null): LlmRateLane {
   if (id.includes("typesafe") || id.endsWith("/jev") || id === "jev" || id.startsWith("jev-")) {
     return "jev";
   }
-  if (
-    /gpt-6[.\-p_]1-sol/.test(id) ||
-    (process.env.LLM_PROVIDER?.trim().toLowerCase() === "azure" && id === process.env.AZURE_OPENAI_DEPLOYMENT?.trim().toLowerCase())
-  ) {
+  // The configured deployment keeps its rates whatever LLM_PROVIDER says, so a
+  // rollback to Fireworks never reprices runs already recorded on Azure.
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT?.trim().toLowerCase();
+  if (/gpt-6[.\-p_]1-sol/.test(id) || (deployment && id === deployment)) {
     return "gpt-6.1-sol";
   }
   if (id.includes("kimi-k3-fast") || id.includes("kimi_k3_fast")) {
