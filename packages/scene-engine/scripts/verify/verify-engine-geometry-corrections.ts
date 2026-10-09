@@ -187,6 +187,14 @@ await section("3 kirchhoff network solves ideal sources", async () => {
   close(current(mixed, "R2"), 5 / 13, "the right resistor current matches the nodal oracle");
   close(current(mixed, "V2"), -5 / 13, "the real right source current matches the nodal oracle");
   check(kcl(twoLoopNodes, mixed) <= 1e-12, "KCL holds at every node of the mixed network");
+  // A node id that looks like an internal key must not collide with a branch current.
+  const oddNodes: Array<{ id: string; at: [number, number] }> = [{ id: "ideal:E", at: [0, 0] }, { id: "b", at: [2, 0] }];
+  const odd = solve(oddNodes, [
+    { id: "E", from: "ideal:E", to: "b", kind: "source", resistance: 0, emf: 6 },
+    { id: "R", from: "b", to: "ideal:E", kind: "resistor", resistance: 2 },
+  ], "ideal:E");
+  close(current(odd, "E"), 3, "a node named ideal:E keeps the ideal source current at 3 A");
+  close(current(odd, "R"), 3, "and the return resistor carries the same 3 A");
 });
 
 // 4. Directed multi paths: curved field lines keep their sense, and the shared ink
@@ -197,10 +205,18 @@ await section("4 directed multi path keeps arrow semantics", async () => {
   check(typeof directedCurveInk === "function", "the engine exports directedCurveInk for the presentation");
   const straight = directedCurveInk!([{ x: 0, y: 0 }, { x: 3, y: 4 }]);
   check(straight.stroke.length === 2 && straight.arrow?.[0].x === 0 && straight.arrow[1].x === 3 && straight.arrow[1].y === 4, "a two point vector is one arrow from start to end");
-  const curve = [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1.5 }, { x: 3, y: 1.6 }];
+  const curve = [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 15 }, { x: 30, y: 16 }];
   const curved = directedCurveInk!(curve);
   check(curved.stroke.length === 4 && curved.stroke[0] === curve[0] && curved.stroke[3] === curve[3], "a curve keeps every vertex in its stroke, first to last");
   check(curved.arrow?.[0] === curve[2] && curved.arrow[1] === curve[3], "the head sits on the last segment of the curve");
+  // A densely sampled curve ends in sub-pixel steps; the board drops a head
+  // whose shaft is under 2 px, so the head walks back to a drawable shaft.
+  const dense = Array.from({ length: 40 }, (_, step) => ({ x: step * 0.5, y: Math.sqrt(step) }));
+  const denseInk = directedCurveInk!(dense);
+  const [tail, tip] = denseInk.arrow!;
+  check(tip === dense[dense.length - 1], "a dense curve's head still ends at its last vertex");
+  check(Math.hypot(tip.x - tail.x, tip.y - tail.y) >= 4, `a dense curve's head shaft is long enough to draw (${Math.hypot(tip.x - tail.x, tip.y - tail.y).toFixed(2)} px)`);
+  check(tail === dense[dense.indexOf(tail)] && dense.indexOf(tail) >= dense.length - 10, "the head starts at the nearest vertex far enough back, not at the start");
 
   const charges = [{ id: "plus", position: { x: -1, y: 0 }, charge: 1 }, { id: "minus", position: { x: 1, y: 0 }, charge: -1 }];
   const lines = await compiledPrimitives(scene("field_lines", {
@@ -250,6 +266,9 @@ await section("5 exact point line residual and section weights", async () => {
     const point = section(left, right, m, n);
     check(point.x === 0, `the ${m}:${n} section of x=${left[0]} and x=${right[0]} is exactly 0, got ${point.x}`);
   }
+  // A valid ratio written with tiny weights must not underflow its numerator.
+  const tiny = section([0, 0], [0.25, 1], Number.MIN_VALUE, Number.MIN_VALUE);
+  check(tiny.x === 0.125 && tiny.y === 0.5, `a 1:1 ratio written as MIN_VALUE:MIN_VALUE is the midpoint, got (${tiny.x}, ${tiny.y})`);
   // Guard: an ordinary internal section is unchanged.
   const plain = section([1, 2], [4, 8], 1, 2);
   close(plain.x, 2, "1:2 section x"); close(plain.y, 4, "1:2 section y");

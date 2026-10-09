@@ -35,7 +35,13 @@ function isIdeal(branch: BranchInput): boolean {
   return branch.kind === "wire" || (branch.kind === "source" && branch.resistance === 0);
 }
 
-function solve(nodes: NodeInput[], branches: BranchInput[], ground: string): Map<string, number> {
+/** Node voltages, and the currents of ideal branches, kept apart so no node id can collide with a branch. */
+interface NetworkSolution {
+  readonly voltage: Map<string, number>;
+  readonly idealCurrent: Map<string, number>;
+}
+
+function solve(nodes: NodeInput[], branches: BranchInput[], ground: string): NetworkSolution {
   const unknown = nodes.filter((node) => node.id !== ground);
   // Ideal branches (wires, and sources with zero internal resistance) have no
   // conductance to stamp; each adds its own current unknown and a voltage row.
@@ -92,22 +98,23 @@ function solve(nodes: NodeInput[], branches: BranchInput[], ground: string): Map
   }
   const voltage = new Map<string, number>([[ground, 0]]);
   unknown.forEach((node, position) => voltage.set(node.id, rhs[position]!));
-  idealBranches.forEach((branch, branchIndex) => voltage.set(`ideal:${branch.id}`, rhs[unknown.length + branchIndex]!));
+  const idealCurrent = new Map<string, number>();
+  idealBranches.forEach((branch, branchIndex) => idealCurrent.set(branch.id, rhs[unknown.length + branchIndex]!));
   const residual = nodes.reduce((max, node) => {
     const leaving = branches.reduce((sum, branch) => {
       const current = isIdeal(branch)
-        ? voltage.get(`ideal:${branch.id}`)!
+        ? idealCurrent.get(branch.id)!
         : (voltage.get(branch.from)! - voltage.get(branch.to)! + branch.emf) / branch.resistance!;
       return sum + (branch.from === node.id ? current : 0) - (branch.to === node.id ? current : 0);
     }, 0);
     return Math.max(max, Math.abs(leaving));
   }, 0);
   if (residual > 1e-6) invalid("precision", "solved currents do not satisfy KCL");
-  return voltage;
+  return { voltage, idealCurrent };
 }
 
-function currentOf(branch: BranchInput, voltage: Map<string, number>): number {
-  if (isIdeal(branch)) return voltage.get(`ideal:${branch.id}`) ?? invalid("network", "ideal-branch current was not solved");
+function currentOf(branch: BranchInput, { voltage, idealCurrent }: NetworkSolution): number {
+  if (isIdeal(branch)) return idealCurrent.get(branch.id) ?? invalid("network", "ideal-branch current was not solved");
   const value = (voltage.get(branch.from)! - voltage.get(branch.to)! + branch.emf) / branch.resistance!;
   if (!Number.isFinite(value) || Math.abs(value) > 1e12) invalid("current", "branch current exceeds finite authority");
   return value === 0 ? 0 : value;
@@ -165,7 +172,7 @@ function readNetwork(inputs: Record<string, unknown>, context: SourceContext, do
   if (new Set(branches.map((branch) => branch.id)).size !== branches.length) invalid("branches", "branch ids must be unique");
   const currentScale = scalar(inputs.currentScale, "currentScale", context);
   if (!(currentScale > 1e-6)) invalid("currentScale", "currentScale must exceed 1e-6");
-  const voltage = solve(nodes, branches, inputs.ground);
+  const solution = solve(nodes, branches, inputs.ground);
   const lanes = new Map<string, number>();
   const nodeMarks = nodes.map((node) => ({ kind: "point" as const, point: node.at, networkNode: { id: node.id } }));
   const glyphs = branches.map((branch) => {
@@ -174,7 +181,7 @@ function readNetwork(inputs: Record<string, unknown>, context: SourceContext, do
     lanes.set(key, lane + 0.18);
     const start = byId.get(branch.from)!.at;
     const end = byId.get(branch.to)!.at;
-    const current = currentOf(branch, voltage);
+    const current = currentOf(branch, solution);
     const definition: NetworkBranchDefinition = { ...branch, current, unit: "A", displayScale: currentScale, zero: current === 0 };
     return { kind: "compound" as const, paths: glyph(branch.kind, start, end, lane), terminals: [start, end] as [RenderPoint, RenderPoint], networkBranch: definition };
   });

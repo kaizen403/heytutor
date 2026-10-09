@@ -455,6 +455,23 @@ function exactWeightedSum(wa: number, xa: number, wb: number, xb: number): numbe
   catch { return invalid("geometry", "section point exceeds binary64 precision"); }
 }
 
+/**
+ * Both ratio weights times one power of two, so the larger is at least 1.
+ * Exact in binary64, and keeps the exact weighted numerator from underflowing
+ * when a valid ratio is written with tiny weights.
+ */
+function liftedWeights(m: number, n: number): [number, number] {
+  let shift = -Math.floor(Math.log2(Math.max(Math.abs(m), Math.abs(n))));
+  let [liftedM, liftedN] = [m, n];
+  while (shift > 0) {
+    const step = Math.min(shift, 1000);
+    liftedM *= 2 ** step;
+    liftedN *= 2 ** step;
+    shift -= step;
+  }
+  return [liftedM, liftedN];
+}
+
 function sectionPoint(inputs: Record<string, unknown>, context: AnalyticLineEvaluationContext): AnalyticLineGeometry[] {
   const mode = inputs.mode;
   if (mode !== "internal" && mode !== "external" && mode !== "midpoint") invalid("mode", "section mode must be internal, external, or midpoint");
@@ -466,12 +483,14 @@ function sectionPoint(inputs: Record<string, unknown>, context: AnalyticLineEval
   const n = mode === "midpoint" ? 1 : readCoefficient(inputs.n, "n", context);
   const denominator = mode === "external" ? ratioDenom(m, n, "external") : ratioDenom(m, n, "internal");
   const parameter = m / denominator;
-  const aNumeratorWeight = mode === "external" ? -n : n;
+  const [liftedM, liftedN] = liftedWeights(m, n);
+  const liftedDenominator = mode === "external" ? liftedM - liftedN : liftedM + liftedN;
+  const aNumeratorWeight = mode === "external" ? -liftedN : liftedN;
   const point = checkedPoint({
     // Form the weighted numerator exactly before dividing. Dividing each
     // weight first creates a nonzero rounding residue at a true zero point.
-    x: exactWeightedSum(aNumeratorWeight, a.x, m, b.x) / denominator,
-    y: exactWeightedSum(aNumeratorWeight, a.y, m, b.y) / denominator,
+    x: exactWeightedSum(aNumeratorWeight, a.x, liftedM, b.x) / liftedDenominator,
+    y: exactWeightedSum(aNumeratorWeight, a.y, liftedM, b.y) / liftedDenominator,
   }, "geometry");
   const reconstructed = checkedPoint({
     x: a.x + parameter * (b.x - a.x),
