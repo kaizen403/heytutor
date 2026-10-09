@@ -111,7 +111,7 @@ apps/tutor/
     components/  hooks/  hooks/turn/
     lib/
       scene/  board/  turn/  notes/  input/  replay/  code-lesson/
-      statusConfig.ts
+      sessionCapabilities.ts
   features/admin/              admin panel + syllabus playground
     nav/  analytics/  users/  turns/  shared/
     AdminPlayground.tsx        full-bleed playground (/admin/playground)
