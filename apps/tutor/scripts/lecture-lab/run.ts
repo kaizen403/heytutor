@@ -41,7 +41,7 @@ import {
   type DiagramEvalRow,
 } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
-import { readRoundJudgments } from "./judging";
+import { currentJudgeSummary, readRoundJudgments } from "./judging";
 import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
@@ -293,6 +293,11 @@ export function parseOptions(argv: string[]): Options {
 }
 
 /** Keep the full original evaluation for retrieval exclusions; skip only execution. */
+export function restoredDiagramPng(diagram: { svg?: string | null; png?: string | null }, available: (path: string) => boolean): string | null {
+  const path = diagram.png ?? diagram.svg?.replace(/\.svg$/i, ".png");
+  return path && available(path) ? path : null;
+}
+
 export function selectResumeProbes<T extends { id: string; question: string }>(
   probes: readonly T[],
   saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string }; executionConfig?: Record<string, unknown> }[],
@@ -709,8 +714,15 @@ async function main(): Promise<void> {
   const budgetDeniedTraces = new Set<string>();
   const budgetTerminatedRows: string[] = [];
   const writeSummary = () => {
+    const judgingStatus = {
+      preservedJudgeSummary: Boolean(previousSummary.judge),
+      reviewedRows: runs.filter((row) => reviewedIds.has(row.probeId)).length,
+      unreviewedRows: runs.filter((row) => !reviewedIds.has(row.probeId)).length,
+    };
     const summary = {
       ...previousSummary, options, providerConfig, executionConfig,
+      judge: currentJudgeSummary({ judge: previousSummary.judge, judgingStatus }),
+      priorSubsetJudgeSummary: judgingStatus.unreviewedRows > 0 ? previousSummary.judge : undefined,
       evaluationConfig: evaluationRows ? { ...providerConfig, scenePlannerLimitMs: options.scenePlannerLimitMs,
         sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint } : null,
       preflightEstimateUsd,
@@ -718,9 +730,7 @@ async function main(): Promise<void> {
       ...spendCap.summary(runs.length, probes.length), budgetTerminatedRows,
       evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
       ...summarize(grades, runs),
-      judgingStatus: { preservedJudgeSummary: Boolean(previousSummary.judge),
-        reviewedRows: runs.filter((row) => reviewedIds.has(row.probeId)).length,
-        unreviewedRows: runs.filter((row) => !reviewedIds.has(row.probeId)).length },
+      judgingStatus,
     };
     writeFileSync(`${outDir}/summary.json`, JSON.stringify(summary, null, 1) + "\n");
     return summary;
@@ -877,8 +887,9 @@ async function main(): Promise<void> {
   for (const file of readdirSync(`${outDir}/runs`).filter((name) => name.endsWith(".json"))) {
     const path = `${outDir}/runs/${file}`;
     const row = JSON.parse(readFileSync(path, "utf8"));
-    if (row.diagram.png && !existsSync(resolve(outDir, row.diagram.png))) {
-      row.diagram.png = null;
+    const png = restoredDiagramPng(row.diagram, (candidate) => existsSync(resolve(outDir, candidate)));
+    if (png !== row.diagram.png) {
+      row.diagram.png = png;
       writeFileSync(path, JSON.stringify(row, null, 1) + "\n");
     }
   }
