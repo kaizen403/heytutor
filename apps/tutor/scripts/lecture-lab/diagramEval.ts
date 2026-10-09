@@ -14,6 +14,7 @@ export type DiagramEmptyCause =
   | "planner_no_output"
   | "candidates_invalid"
   | "declined_unreadable"
+  | "fallback_suppressed"
   | "deadline";
 
 export interface DiagramEvalRow {
@@ -68,9 +69,11 @@ export function classifyDiagramEmptyCause(input: {
   deadlineRemainingMs: number;
   candidateCount: number;
   candidateErrorCodes: readonly string[];
+  fallbackSuppressed?: boolean;
 }): DiagramEmptyCause | null {
   if (input.committed) return null;
   if (input.visualRequirement === "none") return "not_needed";
+  if (input.fallbackSuppressed) return "fallback_suppressed";
   if (input.deadlineRemainingMs <= 1_000) return "deadline";
   if (input.plannerCalls === 0) return "not_attempted";
   if (input.candidateCount === 0 && input.candidateErrorCodes.length === 0) {

@@ -62,6 +62,7 @@ export function correctedEmptyCauseForStoredRun(value: unknown): DiagramEmptyCau
     deadlineRemainingMs,
     candidateCount,
     candidateErrorCodes: supplementedCodes,
+    fallbackSuppressed: Object.keys(record(diagram.suppressedFallback)).length > 0,
   });
 }
 

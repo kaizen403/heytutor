@@ -614,6 +614,15 @@ assert.equal(
 );
 assert.equal(classifyDiagramEmptyCause(emptyInput), "not_attempted");
 assert.equal(
+  classifyDiagramEmptyCause({
+    ...emptyInput,
+    fallbackSuppressed: true,
+    deadlineRemainingMs: 0,
+  }),
+  "fallback_suppressed",
+  "a strict-arm suppression must remain visible even when the planner used its deadline",
+);
+assert.equal(
   classifyDiagramEmptyCause({ ...emptyInput, plannerCalls: 2 }),
   "planner_no_output",
 );
