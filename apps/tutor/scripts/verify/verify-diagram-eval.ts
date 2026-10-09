@@ -708,9 +708,17 @@ const curatedQuestions = readdirSync(resolve(exemplarRoot, "chemistry"))
   .filter((file) => file.endsWith(".json"))
   .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "chemistry", file), "utf8")) as { question: string })
   .map((entry) => entry.question);
-assert.equal(curatedQuestions.length, 26);
+const unconvertedCuratedQuestions = readdirSync(resolve(exemplarRoot, "chemistry"))
+  .filter((file) => file.endsWith(".json.unconverted"))
+  .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "chemistry", file), "utf8")) as { question: string })
+  .map((entry) => entry.question);
+assert.equal(curatedQuestions.length, 10);
+assert.equal(unconvertedCuratedQuestions.length, 16);
 for (const question of curatedQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
+}
+for (const question of unconvertedCuratedQuestions) {
+  assert.ok(!builtLibrary.some((entry) => entry.question === question), `library must exclude unconverted exemplar: ${question}`);
 }
 const curatedMathsQuestions = readdirSync(resolve(exemplarRoot, "maths"))
   .filter((file) => file.endsWith(".json"))
