@@ -841,24 +841,8 @@ function angleClaim(bondAngle: string): "ideal" | "quoted" | "inequality" {
 
 const SPECIES_PITCH = 3.6;
 
-/**
- * The figure for a stem: one molecule, or up to four listed species in a
- * row, each its own reveal group. Null when no species grounds it.
- */
-export function buildVseprScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
-  void quantities;
-  void schematic;
-  const stem = chemStem(question);
-  if (!shapeIsTheAsk(stem) && fajanAsked(stem)) {
-    const fajan = buildFajanScene(question);
-    if (fajan) return fajan;
-  }
-  if (dipoleIsTheAsk(stem)) {
-    const dipole = buildDipoleScene(question, dipoleInputs(question));
-    if (dipole) return dipole;
-  }
-  const species = vseprSpecies(question);
-  if (species.length === 0) return null;
+function buildVseprResultsScene(question: string, species: readonly VseprResult[]): SceneDocument | null {
+  if (species.length === 0 || species.length > 4) return null;
   const single = species.length === 1;
   const reason = single
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
@@ -884,6 +868,32 @@ export function buildVseprScene(question: string, quantities: ChemPlanQuantity[]
     ? `${drawn[0]!.result.formula}: ${drawn[0]!.result.hybridisation}, ${drawn[0]!.result.shape}, ${drawn[0]!.result.lonePairs} lone pair${drawn[0]!.result.lonePairs === 1 ? "" : "s"}`
     : `Shapes of ${drawn.map((item) => item.result.formula).join(", ")}`;
   return c.build({ caption: caption.slice(0, 60) });
+}
+
+/** Build the verified VSEPR picture for an explicit molecular formula or ion. */
+export function buildVseprSceneForFormula(question: string, formula: string): SceneDocument | null {
+  const result = vseprGeometry(formula);
+  return result ? buildVseprResultsScene(question, [result]) : null;
+}
+
+/**
+ * The figure for a stem: one molecule, or up to four listed species in a
+ * row, each its own reveal group. Null when no species grounds it.
+ */
+export function buildVseprScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  void quantities;
+  void schematic;
+  const stem = chemStem(question);
+  if (!shapeIsTheAsk(stem) && fajanAsked(stem)) {
+    const fajan = buildFajanScene(question);
+    if (fajan) return fajan;
+  }
+  if (dipoleIsTheAsk(stem)) {
+    const dipole = buildDipoleScene(question, dipoleInputs(question));
+    if (dipole) return dipole;
+  }
+  const species = vseprSpecies(question);
+  return buildVseprResultsScene(question, species);
 }
 
 /* ------------------------------------------------------------------------- */

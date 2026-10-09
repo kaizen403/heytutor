@@ -16,7 +16,7 @@ import { buildAtomicRadiationScene, isAtomicRadiationStem } from "./atomicRadiat
 import { buildHydrogenicRadialScene, isHydrogenicRadialStem } from "./hydrogenicRadial";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { electronConfiguration, type Subshell } from "./electronConfiguration";
-import { ELEMENTS, elementBySymbol, type ElementRecord } from "./elements";
+import { ELEMENTS, elementBySymbol, elementByZ, type ElementRecord } from "./elements";
 import { complexTokens, formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
 
 export const ORBITAL_FAMILY = "chem_orbital" as const;
@@ -490,14 +490,21 @@ function panel(c: ChemScene, id: string, centre: Vec2, width: number, height: nu
 const PANEL_MIN_WIDTH = 3.0;
 const PANEL_MARGIN = 0.3;
 
-function buildBoxDocument(question: string, figures: readonly SpeciesFigure[], wantMoment: boolean): SceneDocument | null {
+function buildBoxDocument(
+  question: string,
+  figures: readonly SpeciesFigure[],
+  wantMoment: boolean,
+  spaciousLabels = false,
+): SceneDocument | null {
   if (figures.length === 0 || figures.length > 4) return null;
   const c = new ChemScene(question, "orbital box diagram of the named species", ORBITAL_FAMILY);
   const columns = figures.length <= 2 ? figures.length : 2;
   const widths = figures.map((figure) => rowsWidth(figure.rows));
   const panelWidth = Math.max(...widths, PANEL_MIN_WIDTH) + 2 * PANEL_MARGIN;
   const top = BOX / 2 + 0.36 + PANEL_MARGIN;
-  const bottom = -(BOX / 2 + 0.62 + (wantMoment ? 0.36 : 0) + PANEL_MARGIN);
+  const labelGap = spaciousLabels ? 0.9 : 0.62;
+  const momentGap = spaciousLabels ? 0.6 : 0.36;
+  const bottom = -(BOX / 2 + labelGap + (wantMoment ? momentGap : 0) + PANEL_MARGIN);
   const panelHeight = top - bottom;
   const columnPitch = panelWidth + 0.5;
   const rowPitch = panelHeight + 0.5;
@@ -513,12 +520,12 @@ function buildBoxDocument(question: string, figures: readonly SpeciesFigure[], w
     const titleId = c.text(`${prefix}_title`, { x: centreX, y: originY + BOX / 2 + 0.36 }, figure.title, "species label");
     ids.push(titleId);
     const condensed = condensedLabel(figure.core, figure.subshells);
-    const configY = originY - BOX / 2 - 0.62;
+    const configY = originY - BOX / 2 - labelGap;
     if (condensed && condensed !== figure.title) {
       ids.push(c.text(`${prefix}_cfg`, { x: centreX, y: configY }, condensed, "condensed configuration"));
     }
     if (wantMoment) {
-      const lineY = configY - 0.36;
+      const lineY = configY - momentGap;
       ids.push(c.text(`${prefix}_unp`, { x: centreX - 0.95, y: lineY }, unpairedLabel(figure.unpaired), "unpaired electron count"));
       ids.push(c.text(`${prefix}_mu`, { x: centreX + 0.95, y: lineY }, momentLabel(figure.unpaired), "spin only magnetic moment"));
     }
@@ -528,6 +535,28 @@ function buildBoxDocument(question: string, figures: readonly SpeciesFigure[], w
     captions.push(`${figure.title}: ${condensed || figure.subshells.map(subshellLabel).join(" ")}, ${unpairedLabel(figure.unpaired)}, ${momentLabel(figure.unpaired)}`);
   });
   return c.build({ caption: captions.join("; ") });
+}
+
+export interface OrbitalBoxSpeciesInput {
+  readonly atomicNumber: number;
+  readonly charge: number;
+}
+
+/** Build valence orbital boxes from explicit atomic numbers and ionic charges. */
+export function buildOrbitalBoxScene(
+  question: string,
+  speciesInputs: readonly OrbitalBoxSpeciesInput[],
+  showMagneticMoment: boolean,
+): SceneDocument | null {
+  if (speciesInputs.length === 0 || speciesInputs.length > 4) return null;
+  const figures = speciesInputs.map((input) => {
+    if (!Number.isInteger(input.atomicNumber) || !Number.isInteger(input.charge)) return null;
+    const element = elementByZ(input.atomicNumber);
+    if (!element || Math.abs(input.charge) > 4) return null;
+    return figureFromSpecies({ element, charge: input.charge, at: 0 });
+  });
+  if (figures.some((figure) => figure === null)) return null;
+  return buildBoxDocument(question, figures as SpeciesFigure[], showMagneticMoment, true);
 }
 
 /* Orbital shapes ---------------------------------------------------------- */

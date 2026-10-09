@@ -406,6 +406,28 @@ function prepareSlot(molecule: Molecule, cue: string): Slot | null {
   return { laid, caption: structureCaption(laid), cue };
 }
 
+export interface SkeletalMoleculeInput {
+  readonly name?: string;
+  readonly smiles?: string;
+}
+
+/** Build one skeletal structure from exactly one explicit name or SMILES graph. */
+export function buildSkeletalMoleculeScene(
+  question: string,
+  input: SkeletalMoleculeInput,
+): SceneDocument | null {
+  const hasName = typeof input.name === "string" && input.name.trim().length > 0;
+  const hasSmiles = typeof input.smiles === "string" && input.smiles.trim().length > 0;
+  if (hasName === hasSmiles) return null;
+  const molecule = hasName ? moleculeFromName(input.name!.trim()) : parseSmiles(input.smiles!.trim());
+  if (!molecule || heavyAtomCount(molecule) > MAX_HEAVY_ATOMS) return null;
+  const display = molecule.name ?? input.name?.trim() ?? input.smiles!.trim();
+  const slot = prepareSlot(molecule, `skeletal structure of ${display}`);
+  if (!slot) return null;
+  const c = new ChemScene(question, `skeletal structure of ${display}`, ORGANIC_FAMILY);
+  return assembleRow(c, [slot], `${display}: ${organicFacts(molecule).formulaPlain}`);
+}
+
 function factsLine(stem: string, molecule: Molecule): string {
   const facts = organicFacts(molecule);
   const parts: string[] = [`${molecule.name ?? "compound"} ${facts.formulaPlain}`];

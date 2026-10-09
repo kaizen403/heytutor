@@ -113,6 +113,7 @@ import {
 } from "./spaceDerivations";
 import { projectSolidPoint, solidAnchorPoint, solidSectionDimensions, type SolidProjection, type SolidProjectionKind } from "./solidAnchors";
 import { validateSolidMeasurements } from "./solidMeasurements";
+import { expandChemistryKitOperators } from "../chemistry/kits";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -200,8 +201,14 @@ export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
-  const structural = validateSceneDocument(document);
+  const kitExpansion = expandChemistryKitOperators(document);
+  if (!kitExpansion.document) {
+    const rejected = validateSceneDocument(document);
+    return { ok: false, renderScene: null, report: rejected.report };
+  }
+  const structural = validateSceneDocument(kitExpansion.document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
+  if (kitExpansion.document !== document) document = structural.document;
   const matrixSourceIssues = [
     ...validateMatrixSourceBinding(document),
     // A document claiming the admitted relative-motion source must be exactly
@@ -1416,6 +1423,11 @@ function evaluateConstruction(
     case "triangle_from_sas":
     case "triangle_from_asa":
     case "triangle_center": return evaluateTriangleConstruction(operator, inputs, constructionContext);
+    case "chem_skeletal_molecule":
+    case "chem_lewis_structure":
+    case "chem_vsepr_shape":
+    case "chem_reaction_energy_profile": throw new Error("chemistry kit operator was not expanded before compilation");
+    case "chem_orbital_boxes": throw new Error("chemistry kit operator was not expanded before compilation");
     case "conic":
     case "conic_anchor":
     case "conic_directrix":

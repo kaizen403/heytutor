@@ -254,6 +254,15 @@ interface ProfileSpec {
   caption: string;
 }
 
+export interface ReactionEnergyProfileInput {
+  readonly reactants: string;
+  readonly products: string;
+  readonly activationEnergy: number;
+  readonly deltaH: number;
+  readonly unit: string;
+  readonly catalysedActivationEnergy?: number;
+}
+
 const EXOTHERMIC = /exothermic|evolution\s+of\s+heat|heat\s+is\s+(?:evolved|released|liberated)|releases?\s+heat|liberates?\s+heat/;
 const ENDOTHERMIC = /endothermic|absorption\s+of\s+heat|heat\s+is\s+absorbed|absorbs?\s+heat/;
 
@@ -494,6 +503,38 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
   }
   s.labelled(...levelIds.filter((id) => id === "reactant_level" || id === "product_level").map((id) => `${id}_name`));
   return c.build({ caption: spec.caption });
+}
+
+/** Build an exact one-step energy profile from already-grounded chemistry facts. */
+export function buildReactionEnergyProfileScene(
+  question: string,
+  input: ReactionEnergyProfileInput,
+): SceneDocument | null {
+  const reactants = input.reactants.trim();
+  const products = input.products.trim();
+  const unit = canonicalUnit(input.unit);
+  const ea = input.activationEnergy;
+  const deltaH = input.deltaH;
+  const catalyst = input.catalysedActivationEnergy ?? null;
+  if (!reactants || !products || reactants.length > 16 || products.length > 16) return null;
+  if (!unit || !Number.isFinite(ea) || !Number.isFinite(deltaH) || ea <= 0 || ea - deltaH <= 0) return null;
+  if (catalyst !== null && (!Number.isFinite(catalyst) || catalyst <= 0 || catalyst >= ea || catalyst <= deltaH)) return null;
+  const backwards = ea - deltaH;
+  const caption = [
+    `E_a(forward) = ${fmt(ea)} ${unit}/mol and ΔH = ${signed(deltaH)} ${unit}/mol, so E_a(backward) = ${fmt(backwards)} ${unit}/mol.`,
+    deltaH < 0 ? "Exothermic: the products sit below the reactants." : deltaH > 0 ? "Endothermic: the products sit above the reactants." : "ΔH = 0: reactants and products are level.",
+    ...(catalyst === null ? [] : [`With the catalyst the barrier falls to ${fmt(catalyst)} ${unit}/mol; ΔH is unchanged.`]),
+  ].join(" ");
+  return buildProfile(question, {
+    steps: [{ ea, dH: deltaH, slow: true }],
+    exact: true,
+    eaKnown: true,
+    unit,
+    catalyst,
+    reactants,
+    products,
+    caption,
+  });
 }
 
 /* ---------------------------------------------------------------- gibbs */

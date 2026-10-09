@@ -194,6 +194,11 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - affine_point: {point:point_id,matrix:[[a,b],[c,d]],translation?:[tx,ty],inverse?:false}. Output one planar point computed as A*p+t, or A^-1*(p-t) when inverse=true. Matrix scalars are dimensionless; source coordinates and translation share one length scale. Singular forward matrices may project points; singular/ill-conditioned inverses fail closed. Do not pass 3D or field-result geometry.
 - affine_path: {path:path_id,matrix:[[a,b],[c,d]],translation?:[tx,ty],inverse?:false}. Output one entity with the same kind as the source planar path, preserving closure/direction/infinite-line status. Derive every vertex by the matrix. Regions that collapse to a line or point fail closed. Sampled-curve, conic, field, and 3D identities are unsupported here; never discard their mathematical metadata to imitate a transformed figure. Chain transforms through output IDs for composition.
 - Matrix arrays are nonmetric tables, not affine transforms. matrix_array takes explicit entries; matrix_add and matrix_product take left and right; matrix_scale takes matrix and scalar; matrix_transpose takes matrix. Every call needs origin [x,y], displayScale, and one matrix_array output. Entries are real, dimensions 1 through 6, at most 36 cells, and magnitude at most 1e6. A claimed type must hold. displayScale places the table and does not change entries.
+- chem_skeletal_molecule: chemistry facts only, exactly one of {name:"2-methylpropan-1-ol"} or {smiles:"CC(C)CO"}. Output one group; the engine resolves the graph, skeletal layout, labels and bonds.
+- chem_lewis_structure: {formula:"NO3",charge:-1,resonance:true}. Output one group; charge may be omitted only when already written in formula, and unsupported valence fails closed.
+- chem_vsepr_shape: {formula:"SF4",charge:0}. Output one group; the engine derives AXE class, geometry, lone pairs, bond projection and compact labels.
+- chem_reaction_energy_profile: {reactants:"R",products:"P",activationEnergyQuantityId:"Ea",deltaHQuantityId:"dH",catalysedActivationEnergyQuantityId?:"Ea_cat"}. Output one group; every energy names a plan quantity, all units match, and invalid barriers fail closed.
+- chem_orbital_boxes: {species:[{atomicNumber:24,charge:0}],showMagneticMoment:true}. Output one group; one to four species, integer atomic number and explicit charge, with configurations and Hund filling computed by the engine.
 - Coordinate lines use ax+by+c=0. coordinate_distance, section_point, axis_translation, line_relation, line_intercepts, line_equation, line_intersection_angle, line_concurrence, and point_line_distance each output one entity. Section mode is internal, external, or midpoint; external m=n rejects. A zero determinant is not a concurrence certificate. displayLength changes the drawn segment only.
 - Rigid mass: centre_of_mass outputs one mark per part plus the centre; com_motion outputs one acceleration vector, or a point when a_com is zero; point_mass_inertia and simple_body_inertia output one mark per mass or body; axes_theorem outputs one mark. Continuous centres and moments are integrated from the supplied density. A hole is negative mass. The perpendicular-axis theorem requires a declared planar lamina. displayLength scales markers only.
 - reflect_direction: {origin: point_id, incoming: vector_id, normal: vector_id}. Output exactly one visible reflected ray entity. Do not output a direction helper or wrap the result in ray/vector.
@@ -337,6 +342,11 @@ Every required visible entity must be the output of exactly one construction unl
 // Conditional and multi-output contracts must survive compaction as complete
 // statements; their arity cannot be inferred from the first prose sentence.
 const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
+  chem_skeletal_molecule: "Output 1 group; exactly one of name or smiles.",
+  chem_lewis_structure: "Output 1 group; formula required, charge/resonance optional.",
+  chem_vsepr_shape: "Output 1 group; formula required, charge optional.",
+  chem_reaction_energy_profile: "Output 1 group; energy inputs are plan quantity IDs.",
+  chem_orbital_boxes: "Output 1 group; one to four atomic species.",
   complex_point: "Output 1 point.",
   complex_transform: "Output 1 point.",
   harmonic_motion: "Output 1 polyline.",

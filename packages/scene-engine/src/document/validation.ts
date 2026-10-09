@@ -37,6 +37,7 @@ import { AC_OPERATORS, validateAcConstruction } from "../compile/acGeometry";
 import { WAVES_OPERATORS, validateWavesConstruction } from "../compile/wavesGeometry";
 import { GEOMETRIC_OPTICS_OPERATORS, validateGeometricOpticsConstruction } from "../compile/geometricOpticsGeometry";
 import { THERMODYNAMICS_OPERATORS, validateThermodynamicsConstruction } from "../compile/thermodynamicsGeometry";
+import { expandChemistryKitOperators } from "../chemistry/kits";
 
 import { COMPLEX_OPERATORS, validateComplexConstruction } from "../compile/complexGeometry";
 const COMPLEX_CONSTRUCTIONS = new Set<string>(COMPLEX_OPERATORS);
@@ -4020,11 +4021,17 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   if (!isRecord(raw)) {
     return result(null, [{ code: "invalid_document", message: "SceneDocument must be an object", severity: "fatal", path: "$" }]);
   }
+  const chemistryKits = expandChemistryKitOperators(raw);
+  if (!chemistryKits.document) return result(null, chemistryKits.issues);
+  const chemistryKitSource = (chemistryKits.document as unknown) !== raw
+    ? raw as unknown as SceneDocument
+    : null;
+  const expandedRaw = chemistryKits.document as unknown as Record<string, unknown>;
   const normalizedRaw: Record<string, unknown> = normalizeGenericPlannerSchema({
-    ...raw,
-    quantities: raw.quantities ?? [],
-    relations: raw.relations ?? [],
-    annotations: raw.annotations ?? [],
+    ...expandedRaw,
+    quantities: expandedRaw.quantities ?? [],
+    relations: expandedRaw.relations ?? [],
+    annotations: expandedRaw.annotations ?? [],
   });
   if (normalizedRaw.visualDecision === "scene" || normalizedRaw.visualDecision === "text_only") {
     normalizedRaw.visualDecision = {
@@ -4593,7 +4600,11 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
 
   if (!issues.some((issue) => issue.severity === "fatal")) issues.push(...validateMatrixSourceBinding(document));
 
-  return result(issues.some((issue) => issue.severity === "fatal") ? null : document, issues, document);
+  return result(
+    issues.some((issue) => issue.severity === "fatal") ? null : chemistryKitSource ?? document,
+    issues,
+    document,
+  );
 }
 
 function constructionByOutput(

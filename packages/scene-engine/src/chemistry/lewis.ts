@@ -1045,6 +1045,51 @@ function captionFor(result: LewisResult): string {
   return `${result.label}: σ = ${result.sigmaBonds}, π = ${result.piBonds}, lone pairs = ${result.lonePairs}`;
 }
 
+function buildLewisResultsScene(
+  question: string,
+  species: readonly LewisResult[],
+  wantsResonance: boolean,
+): SceneDocument | null {
+  if (species.length === 0 || species.length > 4) return null;
+  const single = species[0]!;
+  if (species.length === 1 && wantsResonance && single.resonanceCount > 1 && single.resonanceForms.length > 1) {
+    const c = new ChemScene(question, `Resonance structures of ${single.label}`, LEWIS_FAMILY);
+    const forms = single.resonanceForms.slice(0, 3);
+    const { offsets, cosmetics } = rowLayout(forms, 70);
+    forms.forEach((form, index) => {
+      const structure = drawForm(c, form, `f${index + 1}_`, offsets[index]!, index === Math.floor((forms.length - 1) / 2) ? "resonance" : null, cosmetics);
+      c.scene.group(`form_${index + 1}`, structure.ids, `Resonance form ${index + 1} of ${single.resonanceCount}`);
+    });
+    c.scene.labelled(`f1_${single.atoms[0]!.id}`);
+    c.scene.quantity("sigma_bonds", "σ", single.sigmaBonds);
+    c.scene.quantity("pi_bonds", "π", single.piBonds);
+    c.scene.quantity("resonance_structures", "n_res", single.resonanceCount);
+    return c.build({ caption: `${single.label}: ${single.resonanceCount} resonance forms, σ = ${single.sigmaBonds}, π = ${single.piBonds}` });
+  }
+
+  const c = new ChemScene(question, `Lewis structure${species.length > 1 ? "s" : ""} of ${species.map((item) => item.label).join(", ")}`, LEWIS_FAMILY);
+  const { offsets, cosmetics } = rowLayout(species, 80);
+  species.forEach((result, index) => {
+    const structure = drawForm(c, result, `s${index + 1}_`, offsets[index]!, result.label, cosmetics);
+    c.scene.group(`species_${index + 1}`, structure.ids, `Lewis structure of ${result.label}: σ = ${result.sigmaBonds}, π = ${result.piBonds}, lone pairs = ${result.lonePairs}`);
+  });
+  c.scene.labelled(`s1_${single.atoms[0]!.id}`, "s1_name");
+  c.scene.quantity("sigma_bonds", "σ", single.sigmaBonds);
+  c.scene.quantity("pi_bonds", "π", single.piBonds);
+  c.scene.quantity("lone_pairs", "n_lp", single.lonePairs);
+  return c.build({ caption: species.map(captionFor).join("; ") });
+}
+
+/** Build a verified Lewis structure from an explicit formula, independent of stem routing. */
+export function buildLewisSceneForFormula(
+  question: string,
+  formula: string,
+  wantsResonance = false,
+): SceneDocument | null {
+  const result = lewisStructure(formula);
+  return result ? buildLewisResultsScene(question, [result], wantsResonance) : null;
+}
+
 /**
  * The Lewis figure for the stem, or null when the stem names no species the
  * solver can place (or names more than four).
@@ -1084,39 +1129,7 @@ export function buildLewisScene(question: string, quantities: ChemPlanQuantity[]
   }
   const species = stemSpecies(question);
   if (species.length === 0) return null;
-
-  const wantsResonance = RESONANCE_CUE.test(stem);
-  const single = species[0]!;
-  if (species.length === 1 && wantsResonance && single.resonanceCount > 1 && single.resonanceForms.length > 1) {
-    const c = new ChemScene(question, `Resonance structures of ${single.label}`, LEWIS_FAMILY);
-    const forms = single.resonanceForms.slice(0, 3);
-    const { offsets, cosmetics } = rowLayout(forms, 70);
-    forms.forEach((form, index) => {
-      const structure = drawForm(c, form, `f${index + 1}_`, offsets[index]!, index === Math.floor((forms.length - 1) / 2) ? "resonance" : null, cosmetics);
-      c.scene.group(`form_${index + 1}`, structure.ids, `Resonance form ${index + 1} of ${single.resonanceCount}`);
-    });
-    c.scene.labelled(`f1_${single.atoms[0]!.id}`);
-    c.scene.quantity("sigma_bonds", "σ", single.sigmaBonds);
-    c.scene.quantity("pi_bonds", "π", single.piBonds);
-    c.scene.quantity("resonance_structures", "n_res", single.resonanceCount);
-    return c.build({ caption: `${single.label}: ${single.resonanceCount} resonance forms, σ = ${single.sigmaBonds}, π = ${single.piBonds}` });
-  }
-
-  // Several species draw side by side, each labelled; more than four would
-  // be a partial list that misleads a "how many of the following" count.
-  if (species.length > 4) return null;
-  const toDraw = species;
-  const c = new ChemScene(question, `Lewis structure${toDraw.length > 1 ? "s" : ""} of ${toDraw.map((item) => item.label).join(", ")}`, LEWIS_FAMILY);
-  const { offsets, cosmetics } = rowLayout(toDraw, 80);
-  toDraw.forEach((result, index) => {
-    const structure = drawForm(c, result, `s${index + 1}_`, offsets[index]!, result.label, cosmetics);
-    c.scene.group(`species_${index + 1}`, structure.ids, `Lewis structure of ${result.label}: σ = ${result.sigmaBonds}, π = ${result.piBonds}, lone pairs = ${result.lonePairs}`);
-  });
-  c.scene.labelled(`s1_${single.atoms[0]!.id}`, "s1_name");
-  c.scene.quantity("sigma_bonds", "σ", single.sigmaBonds);
-  c.scene.quantity("pi_bonds", "π", single.piBonds);
-  c.scene.quantity("lone_pairs", "n_lp", single.lonePairs);
-  return c.build({ caption: toDraw.map(captionFor).join("; ") });
+  return buildLewisResultsScene(question, species, RESONANCE_CUE.test(stem));
 }
 
 /* ------------------------------------------------------------------------- */
