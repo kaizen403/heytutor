@@ -325,6 +325,16 @@ export function evaluationAllowsFallback(
   return arm !== "planner_examples_strict" || figureSource === "chemistry_family";
 }
 
+/** Strict evaluation renders the selected scene only when it is planner-owned or the chemistry fallback. */
+export function evaluationSuppressesSelectedSource(
+  arm: DiagramEvalArm,
+  figureSource: FigureSource,
+): boolean {
+  return arm === "planner_examples_strict" &&
+    figureSource !== "planner" &&
+    !evaluationAllowsFallback(arm, figureSource);
+}
+
 export function assertEvaluationCostAllowed(estimatedUsd: number, confirmed: boolean): void {
   if (estimatedUsd > 5 && !confirmed) {
     throw new Error(`estimated planner cost is $${estimatedUsd.toFixed(2)}; rerun with --yes to allow a round above US$5`);

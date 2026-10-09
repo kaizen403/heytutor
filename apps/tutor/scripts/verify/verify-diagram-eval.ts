@@ -11,6 +11,7 @@ import {
   classifyDiagramEmptyCause,
   combineDiagramEvalRows,
   evaluationAllowsFallback,
+  evaluationSuppressesSelectedSource,
   evaluationPlansChemistry,
   evaluationRunFastMode,
   evaluationSelectionOrder,
@@ -40,6 +41,7 @@ import {
   ruleJudgmentForNoFigure,
 } from "../lecture-lab/judging";
 import { correctedEmptyCauseForStoredRun } from "../lecture-lab/regrade-empty-causes";
+import { suppressStoredStrictSelection } from "../lecture-lab/regrade-strict-suppression";
 import {
   LECTURE_LAB_HEADER,
   LECTURE_LAB_STANDARD_MODEL_HEADER,
@@ -210,6 +212,44 @@ assert(evaluationAllowsFallback("planner_examples_strict", "chemistry_family"));
 assert(!evaluationAllowsFallback("planner_examples_strict", "family"));
 assert(!evaluationAllowsFallback("planner_examples_strict", "source_grounded"));
 assert(evaluationAllowsFallback("current", "family"));
+assert(
+  evaluationSuppressesSelectedSource("planner_examples_strict", "archetype"),
+  "strict suppresses the selected hand-coded source even when a planner candidate also validated",
+);
+assert(!evaluationSuppressesSelectedSource("planner_examples_strict", "planner"));
+assert(!evaluationSuppressesSelectedSource("planner_examples_strict", "chemistry_family"));
+const storedStrictLeak = {
+  arm: "planner_examples_strict",
+  diagram: {
+    committed: true,
+    figureSource: "archetype",
+    family: "vector_diagram",
+    tier: "qualitative_verified",
+    nonMetric: true,
+    reason: "source-owned figure",
+    entityIds: ["car"],
+    focusableIds: ["car"],
+    labels: ["car"],
+    annotations: ["inward force"],
+    renderedLabels: ["car"],
+    labelByEntity: { car: "car" },
+    assertionCount: 1,
+    validationIssues: [],
+    suppressedFallback: null,
+    svg: "frames/car.svg",
+    png: "frames/car.png",
+  },
+  timings: { figureCommitMs: 1234 },
+};
+assert(suppressStoredStrictSelection(storedStrictLeak));
+assert.equal(storedStrictLeak.diagram.committed, false);
+assert.equal(storedStrictLeak.diagram.figureSource, "text_only");
+assert.equal(storedStrictLeak.diagram.reason, "strict evaluation suppressed archetype fallback");
+assert.deepEqual(storedStrictLeak.diagram.suppressedFallback, {
+  figureSource: "archetype",
+  family: "vector_diagram",
+});
+assert.equal(storedStrictLeak.timings.figureCommitMs, null);
 assert.equal(
   Math.round((
     estimateEvaluationCostUsd(300, "current", "fast") +

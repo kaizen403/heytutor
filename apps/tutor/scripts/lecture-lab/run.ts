@@ -290,7 +290,7 @@ export function transcript(run: LectureRun, grade: LectureGrade): string {
   return lines.join("\n");
 }
 
-function summarizeEvaluation(runs: readonly LectureRun[]) {
+export function summarizeEvaluation(runs: readonly LectureRun[]) {
   const sourceCounts: Record<string, number> = {};
   const tierCounts: Record<string, number> = {};
   const familyCounts: Record<string, number> = {};

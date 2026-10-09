@@ -82,7 +82,7 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import {
   classifyDiagramEmptyCause,
-  evaluationAllowsFallback,
+  evaluationSuppressesSelectedSource,
   evaluationPlansChemistry,
   evaluationSelectionOrder,
   evaluationUsesExamples,
@@ -809,7 +809,6 @@ export async function runLecture(
         problemIR: problemAuthority?.problemIR ?? null,
         turnPlan,
       });
-      const acceptedExactScene = Boolean(value && value.document.visualDecision.mode === "scene");
       const selected = fastRepresentation ?? selectVerifiedRepresentation({
         question,
         turnPlan,
@@ -841,8 +840,7 @@ export async function runLecture(
       );
       run.diagram.primitiveCount = selected.renderScene.primitives.length;
       const suppressFallback = selectedHasInk &&
-        !acceptedExactScene &&
-        !evaluationAllowsFallback(options.arm ?? "current", selected.figureSource);
+        evaluationSuppressesSelectedSource(options.arm ?? "current", selected.figureSource);
       if (suppressFallback) {
         run.diagram.suppressedFallback = {
           figureSource: selected.figureSource,
