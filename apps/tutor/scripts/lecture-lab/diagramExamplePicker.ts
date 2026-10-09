@@ -8,6 +8,7 @@ import {
   type DiagramExampleCatalogue,
   type DiagramExemplar,
 } from "./diagramExamples";
+import { estimateLabCallWorstCaseUsd } from "./diagramEval";
 
 const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 export const DIAGRAM_EXAMPLE_PICKER_MODEL = DEFAULT_CHEAP_FIREWORKS_MODEL;
@@ -44,6 +45,7 @@ export interface DiagramExamplePickerOptions {
   apiKey?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  onModelCost?: (usd: number) => void;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -184,6 +186,8 @@ export async function pickDiagramExamples(
   let outputTokens = 0;
   let totalTokens = 0;
   let estimatedCostUsd = 0;
+  let pendingWorstCaseUsd = 0;
+  let pendingCharged = true;
   const base = () => ({
     model,
     elapsedMs: Date.now() - startedAt,
@@ -202,6 +206,22 @@ export async function pickDiagramExamples(
     for (;;) {
       attempts += 1;
       const remainingMs = Math.max(1, deadline - Date.now());
+      const pickerPrompt = prompt(options.question, options.plan, catalogue);
+      const providerBody = {
+        model,
+        messages: [{ role: "user", content: pickerPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0,
+        max_tokens: 60,
+        reasoning_effort: "none",
+        stream: false,
+      };
+      pendingWorstCaseUsd = estimateLabCallWorstCaseUsd({
+        messages: providerBody.messages,
+        maxTokens: providerBody.max_tokens,
+        model,
+      });
+      pendingCharged = false;
       const response = await fetchImpl(FIREWORKS_CHAT_URL, {
         method: "POST",
         headers: {
@@ -209,15 +229,7 @@ export async function pickDiagramExamples(
           "content-type": "application/json",
         },
         signal: AbortSignal.timeout(remainingMs),
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "user", content: prompt(options.question, options.plan, catalogue) }],
-          response_format: { type: "json_object" },
-          temperature: 0,
-          max_tokens: 60,
-          reasoning_effort: "none",
-          stream: false,
-        }),
+        body: JSON.stringify(providerBody),
       });
       if (!response.ok) {
         await response.body?.cancel();
@@ -226,13 +238,17 @@ export async function pickDiagramExamples(
       const payload: unknown = await response.json();
       if (!isRecord(payload)) throw new PickerJsonError("picker response was not an object");
       const usage = parseProviderUsage(payload.usage);
+      let callCostUsd = pendingWorstCaseUsd;
       if (usage.known) {
         usageKnownCalls += 1;
         inputTokens += usage.input ?? 0;
         outputTokens += usage.output ?? 0;
         totalTokens += usage.total ?? (usage.input ?? 0) + (usage.output ?? 0);
-        estimatedCostUsd += calculateLlmCostDetails(usage, { model }).total ?? 0;
+        callCostUsd = calculateLlmCostDetails(usage, { model }).total ?? 0;
       }
+      estimatedCostUsd += callCostUsd;
+      options.onModelCost?.(callCostUsd);
+      pendingCharged = true;
       const choices = Array.isArray(payload.choices) ? payload.choices : [];
       const first = isRecord(choices[0]) ? choices[0] : null;
       const message = first && isRecord(first.message) ? first.message : null;
@@ -260,6 +276,11 @@ export async function pickDiagramExamples(
       }
     }
   } catch (error) {
+    if (attempts > 0 && !pendingCharged) {
+      estimatedCostUsd += pendingWorstCaseUsd;
+      options.onModelCost?.(pendingWorstCaseUsd);
+      pendingCharged = true;
+    }
     const timedOut = Date.now() >= deadline ||
       (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError"));
     const examples = fallback(exemplars, options);

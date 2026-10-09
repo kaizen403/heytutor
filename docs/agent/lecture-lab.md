@@ -25,25 +25,27 @@ function the board uses, so "the marker never moved" is a fact and not a guess.
 ## Commands
 
 The dev server must be up (`pnpm dev:tutor`); the lab talks to it exactly as the
-browser does, cookie included.
+browser does, cookie included. Every paid run requires `--max-usd`; provider
+usage is accumulated as calls finish, unknown usage is charged at the request
+ceiling, and no new row starts after the cap is reached.
 
 ```bash
 cd apps/tutor
 # one hard probe from every physics unit
-pnpm exec tsx scripts/lecture-lab/run.ts --difficulty hard --per-unit 1 --concurrency 4 --out .lecture-lab/round-01
+pnpm exec tsx scripts/lecture-lab/run.ts --difficulty hard --per-unit 1 --concurrency 4 --max-usd 5 --out .lecture-lab/round-01
 # every hard probe in two units
-pnpm exec tsx scripts/lecture-lab/run.ts --difficulty hard --units 16,11 --out .lecture-lab/optics
+pnpm exec tsx scripts/lecture-lab/run.ts --difficulty hard --units 16,11 --max-usd 5 --out .lecture-lab/optics
 # one named probe
-pnpm exec tsx scripts/lecture-lab/run.ts --only "physics|3|impulse|hard" --out .lecture-lab/one
+pnpm exec tsx scripts/lecture-lab/run.ts --only "physics|3|impulse|hard" --max-usd 1 --out .lecture-lab/one
 # questions a student actually typed, one per line, instead of the probe bank
-pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --out .lecture-lab/ask-01
+pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --max-usd 5 --out .lecture-lab/ask-01
 # deterministic diagram evaluation; repeat --eval to combine corpora. Private
 # real-student rows are always retained when --sample selects the public rows.
-pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm current --figure-only --out .lecture-lab/eval-current
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm current --figure-only --max-usd 5 --out .lecture-lab/eval-current
 # planner-first is an evaluation-only ordering; the student default is unchanged
-pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_first --figure-only --out .lecture-lab/eval-planner-first --yes
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_first --figure-only --max-usd 5 --out .lecture-lab/eval-planner-first --yes
 # planner-with-examples uses the same ordering plus up to three cheap-model-picked examples
-pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --out .lecture-lab/eval-planner-examples --yes
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --max-usd 5 --out .lecture-lab/eval-planner-examples --yes
 # rebuild the validated example library after exemplar branches are merged
 pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
 # compare legacy and current top-three retrieval without model calls; this adds

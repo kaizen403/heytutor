@@ -267,13 +267,22 @@ export function estimateEvaluationCostUsd(
   arm: DiagramEvalArm,
   model: DiagramEvalModel = "standard",
 ): number {
-  const profile = arm === "current"
+  const standardProfile = arm === "current"
     ? { input: 5_300, output: 1_500 }
     : arm === "planner_first"
       ? { input: 5_800, output: 1_450 }
       : arm === "planner_examples_strict"
         ? { input: 9_000, output: 1_800 }
         : { input: 11_500, output: 2_000 };
+  // Rounded up from the completed Part 12 calls. Fast produces materially
+  // more tokens than standard K3, so sharing the old profile understated the
+  // two-arm round by about US$26.
+  const fastProfile = arm === "current"
+    ? { input: 7_216, output: 2_503 }
+    : arm === "planner_examples_strict"
+      ? { input: 16_315, output: 3_524 }
+      : { input: standardProfile.input * 2, output: standardProfile.output * 2 };
+  const profile = model === "fast" ? fastProfile : standardProfile;
   const planner = calculateLlmCostDetails(
     { input: rowCount * profile.input, output: rowCount * profile.output },
     { model: model === "fast"
@@ -287,6 +296,19 @@ export function estimateEvaluationCostUsd(
       ).total ?? 0
     : 0;
   return Math.round((planner + picker) * 1_000_000) / 1_000_000;
+}
+
+/** Conservative charge when a lab model call returns no provider usage. */
+export function estimateLabCallWorstCaseUsd(input: {
+  messages: unknown;
+  maxTokens: number;
+  model: string;
+}): number {
+  const promptBytes = new TextEncoder().encode(JSON.stringify(input.messages)).length + 2_048;
+  return calculateLlmCostDetails(
+    { input: promptBytes, output: Math.max(0, input.maxTokens) },
+    { model: input.model },
+  ).total ?? 0;
 }
 
 /** Evaluation turns explicitly leave the production/default Fast behavior alone. */
@@ -380,15 +402,22 @@ function emptyUsage(): PlannerUsageSummary {
 /** Concurrent-safe accounting keyed by the trace id already carried by every planner request. */
 export class PlannerUsageTracker {
   private readonly byTrace = new Map<string, PlannerUsageSummary>();
+  private readonly pendingWorstCaseByTrace = new Map<string, number[]>();
 
-  recordRequest(traceId: string): void {
+  constructor(private readonly onCost?: (usd: number) => void) {}
+
+  recordRequest(traceId: string, worstCaseUsd = 0): void {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
     summary.calls += 1;
     this.byTrace.set(traceId, summary);
+    const pending = this.pendingWorstCaseByTrace.get(traceId) ?? [];
+    pending.push(Math.max(0, worstCaseUsd));
+    this.pendingWorstCaseByTrace.set(traceId, pending);
   }
 
   async recordResponse(traceId: string, response: Response): Promise<void> {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
+    const worstCaseUsd = this.takePendingWorstCase(traceId);
     const model = response.headers.get("x-heytutor-planner-model") ?? "unknown";
     const call: PlannerModelCall = {
       model,
@@ -416,23 +445,68 @@ export class PlannerUsageTracker {
         summary.outputTokens += call.outputTokens;
         summary.totalTokens += call.totalTokens;
         summary.cachedInputTokens += call.cachedInputTokens;
-        summary.estimatedCostUsd += call.estimatedCostUsd;
       }
     } catch {
       // A planner call still counts when its provider omitted or malformed usage.
     }
+    if (!call.usageKnown) call.estimatedCostUsd = worstCaseUsd;
     call.estimatedCostUsd = Math.round(call.estimatedCostUsd * 1_000_000) / 1_000_000;
+    summary.estimatedCostUsd += call.estimatedCostUsd;
     summary.modelCalls.push(call);
     this.byTrace.set(traceId, summary);
+    this.onCost?.(call.estimatedCostUsd);
+  }
+
+  recordFailure(traceId: string, model = "unknown"): void {
+    const summary = this.byTrace.get(traceId) ?? emptyUsage();
+    const estimatedCostUsd = Math.round(this.takePendingWorstCase(traceId) * 1_000_000) / 1_000_000;
+    summary.estimatedCostUsd += estimatedCostUsd;
+    summary.modelCalls.push({
+      model,
+      status: 0,
+      ok: false,
+      usageKnown: false,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      cachedInputTokens: 0,
+      estimatedCostUsd,
+    });
+    this.byTrace.set(traceId, summary);
+    this.onCost?.(estimatedCostUsd);
   }
 
   finish(traceId: string): PlannerUsageSummary {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
+    for (const worstCaseUsd of this.pendingWorstCaseByTrace.get(traceId) ?? []) {
+      const estimatedCostUsd = Math.round(worstCaseUsd * 1_000_000) / 1_000_000;
+      summary.estimatedCostUsd += estimatedCostUsd;
+      summary.modelCalls.push({
+        model: "unknown",
+        status: 0,
+        ok: false,
+        usageKnown: false,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        cachedInputTokens: 0,
+        estimatedCostUsd,
+      });
+      this.onCost?.(estimatedCostUsd);
+    }
     this.byTrace.delete(traceId);
+    this.pendingWorstCaseByTrace.delete(traceId);
     return {
       ...summary,
       estimatedCostUsd: Math.round(summary.estimatedCostUsd * 1_000_000) / 1_000_000,
       modelCalls: summary.modelCalls.map((call) => ({ ...call })),
     };
+  }
+
+  private takePendingWorstCase(traceId: string): number {
+    const pending = this.pendingWorstCaseByTrace.get(traceId);
+    const value = pending?.shift() ?? 0;
+    if (!pending || pending.length === 0) this.pendingWorstCaseByTrace.delete(traceId);
+    return value;
   }
 }

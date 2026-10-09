@@ -4,7 +4,7 @@
  * Usage (dev server must be up, AUTH_DISABLED=1, LECTURE_LAB_TOKEN set on
  * both the server and this process):
  *   pnpm --filter @heytutor/tutor exec tsx scripts/lecture-lab/run.ts \
- *     --difficulty hard --per-unit 1 --concurrency 3 --out .lecture-lab/run-01
+ *     --difficulty hard --per-unit 1 --concurrency 3 --max-usd 5 --out .lecture-lab/run-01
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -28,6 +28,7 @@ import {
   estimateEvaluationCostUsd,
   evaluationUsesExamples,
   evaluationUsesStandardModelHeader,
+  estimateLabCallWorstCaseUsd,
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
   sampleDiagramEvalRows,
@@ -41,6 +42,10 @@ import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
+import {
+  DEFAULT_FIREWORKS_FAST_MODEL,
+  DEFAULT_FIREWORKS_MODEL,
+} from "../../lib/llm/fireworksModels";
 
 export interface Options {
   difficulty: string;
@@ -69,6 +74,71 @@ export interface Options {
   model: DiagramEvalModel;
   figureOnly: boolean;
   yes: boolean;
+  maxUsd: number;
+}
+
+export interface LabSpendSummary {
+  maxUsd: number;
+  chargedUsd: number;
+  stoppedForBudget: boolean;
+  rowsDone: number;
+  rowsPlanned: number;
+}
+
+/** Shared admission state for a concurrent lab run. In-flight rows may finish. */
+export class LabSpendCap {
+  private chargedUsd = 0;
+  private stoppedForBudget = false;
+
+  constructor(readonly maxUsd: number) {
+    if (!Number.isFinite(maxUsd) || maxUsd <= 0) {
+      throw new Error("--max-usd must be a positive number");
+    }
+  }
+
+  recordCost(usd: number): void {
+    if (!Number.isFinite(usd) || usd <= 0) return;
+    this.chargedUsd += usd;
+    if (this.chargedUsd >= this.maxUsd) this.stoppedForBudget = true;
+  }
+
+  canStartRow(): boolean {
+    return !this.stoppedForBudget;
+  }
+
+  summary(rowsDone: number, rowsPlanned: number): LabSpendSummary {
+    return {
+      maxUsd: this.maxUsd,
+      chargedUsd: Math.round(this.chargedUsd * 1_000_000) / 1_000_000,
+      stoppedForBudget: this.stoppedForBudget,
+      rowsDone,
+      rowsPlanned,
+    };
+  }
+}
+
+export async function runBudgetedLabRows<T>(
+  rows: readonly T[],
+  concurrency: number,
+  spendCap: LabSpendCap,
+  runRow: (row: T, index: number) => Promise<void>,
+): Promise<number> {
+  let cursor = 0;
+  let done = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      if (!spendCap.canStartRow()) return;
+      const index = cursor;
+      cursor += 1;
+      if (index >= rows.length) return;
+      await runRow(rows[index]!, index);
+      done += 1;
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.max(1, concurrency) }, () => worker()),
+  );
+  return done;
 }
 
 export function parseOptions(argv: string[]): Options {
@@ -126,6 +196,14 @@ export function parseOptions(argv: string[]): Options {
   if (model !== "standard" && model !== "fast") {
     throw new Error(`--model must be standard or fast, received ${model}`);
   }
+  const maxUsdRaw = flags.get("max-usd");
+  if (maxUsdRaw === undefined) {
+    throw new Error("paid lecture-lab runs require --max-usd <positive dollars>");
+  }
+  const maxUsd = Number.parseFloat(maxUsdRaw);
+  if (!Number.isFinite(maxUsd) || maxUsd <= 0) {
+    throw new Error("--max-usd must be a positive number");
+  }
   return {
     difficulty: flags.get("difficulty") ?? "hard",
     units: list("units")?.map((entry) => Number.parseInt(entry, 10)) ?? null,
@@ -147,7 +225,28 @@ export function parseOptions(argv: string[]): Options {
     model,
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     yes: flags.get("yes") === "true",
+    maxUsd,
   };
+}
+
+function plannerRequestWorstCaseUsd(
+  init: RequestInit | undefined,
+  model: string,
+): number {
+  let messages: unknown = [];
+  let maxTokens = 4_000;
+  if (typeof init?.body === "string") {
+    try {
+      const body = JSON.parse(init.body) as { messages?: unknown; max_tokens?: unknown };
+      messages = body.messages ?? [];
+      if (typeof body.max_tokens === "number" && Number.isFinite(body.max_tokens)) {
+        maxTokens = body.max_tokens;
+      }
+    } catch {
+      // The output ceiling still provides a conservative charge for malformed bodies.
+    }
+  }
+  return estimateLabCallWorstCaseUsd({ messages, maxTokens, model });
 }
 
 /** Deterministic shuffle so a "sample one per unit" run is reproducible. */
@@ -430,7 +529,11 @@ async function main(): Promise<void> {
   // to the browser's. Eval rounds also account every non-streaming planner
   // response by the trace id already carried on the request.
   const nativeFetch = globalThis.fetch;
-  const usageTracker = new PlannerUsageTracker();
+  const spendCap = new LabSpendCap(options.maxUsd);
+  const worstCasePlannerModel = evaluationRows && options.model === "standard"
+    ? DEFAULT_FIREWORKS_MODEL
+    : DEFAULT_FIREWORKS_FAST_MODEL;
+  const usageTracker = new PlannerUsageTracker((usd) => spendCap.recordCost(usd));
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
@@ -446,27 +549,41 @@ async function main(): Promise<void> {
       }
     }
     const traceId = headers.get("x-heytutor-trace-id");
-    const plannerRequest = url.startsWith(options.origin) && headers.get("x-planner") === "1" && traceId;
-    if (plannerRequest) usageTracker.recordRequest(traceId);
-    const response = await nativeFetch(input, { ...init, headers });
-    if (plannerRequest) await usageTracker.recordResponse(traceId, response);
-    return response;
+    const chatRequest = url === `${options.origin}/api/chat` && traceId;
+    const plannerRequest = chatRequest && headers.get("x-planner") === "1";
+    const requestWorstCaseUsd = chatRequest
+      ? plannerRequestWorstCaseUsd(init, worstCasePlannerModel)
+      : 0;
+    if (plannerRequest) {
+      usageTracker.recordRequest(traceId, requestWorstCaseUsd);
+    } else if (chatRequest) {
+      // Teaching is streamed and its provider usage is consumed inside the
+      // route. Charge the safe request ceiling before dispatch instead of
+      // pretending that an unavailable stream usage record cost zero.
+      spendCap.recordCost(requestWorstCaseUsd);
+    }
+    try {
+      const response = await nativeFetch(input, { ...init, headers });
+      if (plannerRequest) await usageTracker.recordResponse(traceId, response);
+      return response;
+    } catch (error) {
+      if (plannerRequest) usageTracker.recordFailure(traceId, worstCasePlannerModel);
+      throw error;
+    }
   }) as typeof fetch;
 
   console.log(
-    `lecture lab: ${probes.length} ${evaluationRows ? "evaluation rows" : `${options.difficulty} probes`}, concurrency ${options.concurrency}, familiarity ${options.familiarity} -> ${options.out}`,
+    `lecture lab: ${probes.length} ${evaluationRows ? "evaluation rows" : `${options.difficulty} probes`}, concurrency ${options.concurrency}, max $${options.maxUsd.toFixed(2)}, familiarity ${options.familiarity} -> ${options.out}`,
   );
 
   const grades: LectureGrade[] = [];
   const runs: LectureRun[] = [];
-  let cursor = 0;
   let done = 0;
-  const worker = async (): Promise<void> => {
-    for (;;) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= probes.length) return;
-      const probe = probes[index];
+  await runBudgetedLabRows(
+    probes,
+    options.concurrency,
+    spendCap,
+    async (probe) => {
       const startedAt = Date.now();
       const traceId = crypto.randomUUID();
       const run = await runLecture(probe.question, {
@@ -484,6 +601,7 @@ async function main(): Promise<void> {
         traceId,
         diagramExamples,
         diagramExampleCatalogue,
+        onModelCost: (usd) => spendCap.recordCost(usd),
       });
       run.planner = usageTracker.finish(traceId);
       const grade = gradeLecture(run);
@@ -511,10 +629,7 @@ async function main(): Promise<void> {
         ? run.error ? "dead" : run.diagram.committed ? "fig " : "none"
         : grade.transportFailure ? "dead" : grade.passed ? "ok  " : "FAIL";
       console.log(`[${done}/${probes.length}] ${state} ${Math.round((Date.now() - startedAt) / 1000)}s ${probe.id}`);
-    }
-  };
-  await Promise.all(
-    Array.from({ length: Math.max(1, options.concurrency) }, () => worker()),
+    },
   );
 
   if (existsSync(`${outDir}/frames`)) {
@@ -525,9 +640,11 @@ async function main(): Promise<void> {
 
   const galleryPath = evaluationRows ? writeRoundGallery(outDir) : null;
 
+  const budgetSummary = spendCap.summary(runs.length, probes.length);
   const summary = {
     options,
     preflightEstimateUsd,
+    ...budgetSummary,
     evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
     ...summarize(grades, runs),
   };
@@ -535,6 +652,11 @@ async function main(): Promise<void> {
   console.log("");
   if (evaluationRows) console.log(JSON.stringify(summary.evaluation, null, 2));
   else printSummary(summary);
+  if (summary.stoppedForBudget) {
+    console.log(
+      `lecture lab stopped for budget after ${summary.rowsDone}/${summary.rowsPlanned} rows at $${summary.chargedUsd.toFixed(6)} / $${summary.maxUsd.toFixed(2)}`,
+    );
+  }
   if (galleryPath) console.log(`gallery: ${galleryPath}`);
 }
 

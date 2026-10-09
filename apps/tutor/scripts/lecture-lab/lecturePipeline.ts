@@ -255,6 +255,8 @@ export interface RunLectureOptions {
   diagramExamples?: readonly DiagramExemplar[];
   /** Built once per round from diagramExamples. */
   diagramExampleCatalogue?: DiagramExampleCatalogue;
+  /** Hard-cap accounting hook used by paid lecture-lab runs. */
+  onModelCost?: (usd: number) => void;
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
     diagram: VerifiedDiagram | null;
@@ -476,6 +478,7 @@ export async function runLecture(
           plan: turnPlan,
           families: pickerCapabilities.families,
           archetypeId: pickerArchetype?.id ?? null,
+          onModelCost: options.onModelCost,
         },
       );
       const pickerFinishedAt = Date.now();

@@ -69,17 +69,30 @@ import {
 } from "../../features/tutor-session/lib/scene/planningOverlap";
 import { sampleDiagramRowsAcrossChapters } from "../lecture-lab/retrieval-check";
 import { sampleDiagramRoundRows } from "../lecture-lab/roundSample";
-import { parseOptions as parseLectureLabOptions } from "../lecture-lab/run";
+import {
+  LabSpendCap,
+  parseOptions as parseLectureLabOptions,
+  runBudgetedLabRows,
+} from "../lecture-lab/run";
 
 const strictFastOptions = parseLectureLabOptions([
   "--eval", "sample.jsonl",
   "--arm", "planner_examples_strict",
   "--model", "fast",
+  "--max-usd", "20",
 ]);
 assert.equal(strictFastOptions.arm, "planner_examples_strict");
 assert.equal(strictFastOptions.model, "fast");
-assert.equal(parseLectureLabOptions([]).model, "standard");
-assert.throws(() => parseLectureLabOptions(["--model", "turbo"]), /--model must be standard or fast/);
+assert.equal(strictFastOptions.maxUsd, 20);
+assert.throws(() => parseLectureLabOptions([]), /--max-usd/);
+assert.throws(
+  () => parseLectureLabOptions(["--max-usd", "0"]),
+  /--max-usd must be a positive number/,
+);
+assert.throws(
+  () => parseLectureLabOptions(["--max-usd", "20", "--model", "turbo"]),
+  /--model must be standard or fast/,
+);
 const liveQuestionHandler = readFileSync(resolve(
   process.cwd(),
   "features/tutor-session/hooks/turn/useQuestionHandler.ts",
@@ -255,8 +268,8 @@ assert.equal(
     estimateEvaluationCostUsd(300, "current", "fast") +
     estimateEvaluationCostUsd(300, "planner_examples_strict", "fast")
   ) * 1_000_000) / 1_000_000,
-  41.98788,
-  "the two-arm K3 Fast preflight uses Fast prices and stays below the US$45 stop threshold",
+  72.85698,
+  "K3 Fast preflight uses the measured Part 12 tokens per call",
 );
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
 assert.throws(
@@ -858,6 +871,32 @@ void (async () => {
   assert.equal(usage.modelCalls[0]?.model, "accounts/fireworks/models/kimi-k3");
   assert.equal(usage.modelCalls[0]?.estimatedCostUsd, 18, "each call must be priced at its actual model rate");
   assert.equal(usage.estimatedCostUsd, 18);
+
+  const spendCap = new LabSpendCap(0.01);
+  const fakeProviderTracker = new PlannerUsageTracker((usd) => spendCap.recordCost(usd));
+  const startedRows: number[] = [];
+  const rowsDone = await runBudgetedLabRows([1, 2, 3], 1, spendCap, async (row) => {
+    startedRows.push(row);
+    const traceId = `fake-${row}`;
+    fakeProviderTracker.recordRequest(traceId, 0.02);
+    await fakeProviderTracker.recordResponse(traceId, Response.json({ choices: [] }));
+    const rowUsage = fakeProviderTracker.finish(traceId);
+    assert.equal(rowUsage.modelCalls[0]?.usageKnown, false);
+    assert.equal(
+      rowUsage.modelCalls[0]?.estimatedCostUsd,
+      0.02,
+      "unknown provider usage must charge the request worst case",
+    );
+  });
+  assert.deepEqual(startedRows, [1], "the cap must prevent the next row from starting");
+  assert.equal(rowsDone, 1);
+  assert.deepEqual(spendCap.summary(rowsDone, 3), {
+    maxUsd: 0.01,
+    chargedUsd: 0.02,
+    stoppedForBudget: true,
+    rowsDone: 1,
+    rowsPlanned: 3,
+  });
 
   const noFamilyPlan = {
     schemaVersion: "turn-plan/v3",
