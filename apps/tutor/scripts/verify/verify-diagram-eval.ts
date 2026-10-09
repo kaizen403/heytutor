@@ -75,6 +75,8 @@ import {
   parseOptions as parseLectureLabOptions,
   runBudgetedLabRows,
   selectResumeProbes,
+  labSampleFingerprint,
+  restoredLabCharge,
 } from "../lecture-lab/run";
 
 const strictStandardOptions = parseLectureLabOptions([
@@ -98,6 +100,11 @@ assert.deepEqual(selectResumeProbes(resumeProbes, [{ probeId: "a", question: "A"
 assert.deepEqual(selectResumeProbes(resumeProbes, [{ probeId: "a", question: "normalized A", evaluation: { question: "A" }, arm: "current", providerConfig: resumeProvider }], "current", resumeProvider), [resumeProbes[1]]);
 assert.throws(() => selectResumeProbes(resumeProbes, [{ probeId: "a", question: "changed", arm: "current", providerConfig: resumeProvider }], "current", resumeProvider), /incompatible saved row/);
 assert.throws(() => selectResumeProbes(resumeProbes, [{ probeId: "a", question: "A", arm: "planner_examples_strict", providerConfig: resumeProvider }], "current", resumeProvider), /incompatible saved row/);
+assert.notEqual(labSampleFingerprint(resumeProbes), labSampleFingerprint([resumeProbes[0], { id: "b", question: "changed pending question" }]));
+assert.equal(restoredLabCharge(10, { chargedUsd: 12, reservedUsd: 2 }, 1), 15);
+assert.equal(restoredLabCharge(10, null, 1), 11);
+assert.throws(() => restoredLabCharge(10, { chargedUsd: Number.NaN, reservedUsd: 2 }, 0), /invalid spend checkpoint/);
+assert.throws(() => restoredLabCharge(10, { chargedUsd: 12, reservedUsd: -2 }, 0), /invalid spend checkpoint/);
 assert.throws(() => parseLectureLabOptions([]), /--max-usd/);
 assert.throws(
   () => parseLectureLabOptions(["--max-usd", "0"]),
