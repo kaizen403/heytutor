@@ -96,6 +96,5 @@ legacy turns normalize to text-only.
 - New visual capability is implemented as reusable operators/assertions, never
   as a topic template, regex router, or fixed-pixel plugin.
 
-See [geometry-debug.md](geometry-debug.md),
-[../architecture/universal-illustration-engine-v4.md](../architecture/universal-illustration-engine-v4.md),
+See [geometry-debug.md](geometry-debug.md)
 and [../architecture/diagram-accuracy-architecture.md](../architecture/diagram-accuracy-architecture.md).

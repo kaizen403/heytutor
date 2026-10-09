@@ -8,9 +8,35 @@ Public package imports stay `@heytutor/scene-engine`, `@heytutor/tutor-core`,
 internal package paths. The one documented exception is
 `@heytutor/whiteboard/pen-spinner` (Konva-free chrome spinner).
 
-Cleanup backlog (renames, clustering, root hygiene):
-[folder-structure.md](../plans/folder-structure.md). When a move lands, update
-this file and strike it from that plan.
+This file is the live tree. Adding a folder means adding it here in the same PR.
+A new kind of file with no row in "Where new files go" gets its row first.
+
+## Do not
+
+- Do not add a package for a second consumer that does not exist.
+- Do not split `features/tutor-session` into many features. Home, `/c/[id]`,
+  notes, marking, and the code panel are one product surface
+  (`TutorSessionShell`). Cluster inside that feature when a folder is touched.
+- Do not add `features/landing` in the tutor app. Marketing is `apps/landing`.
+- Do not move DSA traces out of `scene-engine` or lesson plans out of
+  `tutor-core`.
+- Do not rename protocol types (`TurnPlanV3`, `SceneDocument/v2`,
+  `code-lesson/v1`) to drop the version.
+- Do not add a sibling at the `features/tutor-session/lib/` root. New helpers
+  go in `scene/`, `board/`, `turn/`, `notes/`, `input/`, `replay/`, or
+  `code-lesson/`. `statusConfig.ts` and `sessionCapabilities.ts` are the only
+  files at that root.
+
+## Later, only if a second consumer appears
+
+- A shared Brand or dither package. Until then, two copies
+  (`apps/tutor/components/dither`, `apps/landing/src/components/dither`) are
+  cheaper than a shallow `@heytutor/ui`.
+- Grouping `packages/whiteboard/src/` (`pen/`, `cursor/`). Flat is still
+  smaller than 20 files.
+- Subfolders in `features/tutor-session/components/`. Do not pre-split; a
+  subfolder is allowed when a cluster already has four files and is being
+  edited. `hooks/turn/` is the model.
 
 ## Where new files go
 

@@ -105,5 +105,5 @@ Done when narration starts only after a validated commit, and persisted commands
 - [packages.md](docs/agent/packages.md) — package maps
 - [backend.md](docs/agent/backend.md) — API, `lib/`, deploy env
 - [tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md) — voice ↔ WRITE
-- [universal-illustration-engine-v4.md](docs/architecture/universal-illustration-engine-v4.md) — tiers + operators
+- [diagram-accuracy-architecture.md](docs/architecture/diagram-accuracy-architecture.md): tiers, operators, adding coverage
 - [geometry-debug.md](docs/agent/geometry-debug.md) — Langfuse trace order

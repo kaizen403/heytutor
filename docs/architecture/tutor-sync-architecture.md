@@ -14,7 +14,7 @@ The product is an AI whiteboard tutor. It should teach like a human teacher:
 - The narration should teach concepts. It should not narrate UI actions like "I am drawing a circle."
 
 For diagram authority, representation tiers, and ownership rules see
-[universal-illustration-engine-v4.md](universal-illustration-engine-v4.md) and
+[diagram-accuracy-architecture.md](diagram-accuracy-architecture.md) and
 [../agent/architecture.md](../agent/architecture.md). This file is about speech ↔
 handwriting sync after the verified scene is committed.
 
