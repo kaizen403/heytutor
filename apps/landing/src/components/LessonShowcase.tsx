@@ -1,9 +1,8 @@
-import { Suspense, lazy, useEffect, useRef, useState, type RefObject } from 'react'
+import { Suspense, lazy, useRef, type RefObject } from 'react'
 import Reveal from './Reveal'
 import DitherColumn from './dither/DitherColumn'
 import SafariChrome from './lesson-showcase/SafariChrome'
 import { useNearViewport } from '../lib/useNearViewport'
-import { slice, useScrollProgress } from '../lib/useScrollProgress'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    The lesson showcase — the product, running in a Safari window.
@@ -22,7 +21,6 @@ import { slice, useScrollProgress } from '../lib/useScrollProgress'
    chunk, fetched once the section is within reach. */
 const LiveLessonWindow = lazy(() => import('./lesson-showcase/LiveLessonWindow'))
 
-const TILT_MQ = '(min-width: 640px) and (hover: hover) and (pointer: fine)'
 /** How far ahead of the viewport the live window starts loading. */
 const PRELOAD_MARGIN = '150% 0px'
 
@@ -75,69 +73,20 @@ function SafariWindow({ children }: { children: React.ReactNode }) {
   )
 }
 
-/**
- * The window unfolds on scroll: it arrives tilted back and slightly oversized,
- * rotates flat as it reaches the middle of the screen, then eases back out.
- * Scroll-driven rather than a one-shot entrance, so it stays alive the whole
- * way past.
- */
+/** A stable product frame. The demo never zooms or crops while visitors scroll. */
 function LiftedBoard() {
   const ref = useRef<HTMLDivElement>(null)
-  const [hover, setHover] = useState(false)
-  const [tiltOk, setTiltOk] = useState(false)
-  const p = useScrollProgress(ref)
-
-  useEffect(() => {
-    const mq = window.matchMedia(TILT_MQ)
-    const apply = () => setTiltOk(mq.matches)
-    apply()
-    mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
-  }, [])
-
-  /* Unfold values traced from the canonical implementation of this effect:
-     · LINEAR, not eased — the measured rotateX deltas across the window are
-       flat (~3deg per 60px of scroll), and an ease reads as a slow-down.
-     · The scale SHRINKS. Rotating back foreshortens the card, so it has to
-       start oversized to hold a constant apparent size; growing while it
-       flattens is what makes an unfold lurch.
-     · Origin is the card's centre, not its top edge.
-     · The card itself does not travel — translateY belongs to the copy above.
-     Phones skip the 3D tilt: rotateX breaks tap hit-testing and
-     IntersectionObserver, which is what silenced the lesson voice. */
-  const rise = slice(p, 0.1, 0.42) // ≈ one viewport-third of scroll
-  const settle = slice(p, 0.68, 0.99)
-
-  const tilt = tiltOk ? 18 * (1 - rise) - 3 * settle : 0
-  const scale = tiltOk ? 1.045 - 0.045 * rise - 0.02 * settle : 1
-  const lift = Math.max(0, rise - 0.55 * settle)
-
-  /* Observe this wrapper, not the board body: the child is rotateX'd, and
-     IntersectionObserver + CSS 3D flickers on phones and was cutting the voice. */
   return (
-    <div ref={ref} style={{ perspective: '1000px', perspectiveOrigin: '50% 50%' }}>
-      <div
-        className="relative will-change-transform"
-        style={{
-          transform: `rotateX(${tilt.toFixed(2)}deg) scale(${(scale * (hover ? 1.008 : 1)).toFixed(4)})`,
-          transformOrigin: '50% 50%',
-          transition: 'transform 300ms cubic-bezier(0.22,1,0.36,1)',
-        }}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-      >
-        {/* Depth cues are painted once and only faded — never re-blurred. A blur
-            radius animating per scroll tick would repaint the playing video
-            underneath every frame; opacity stays on the compositor. */}
+    <div ref={ref}>
+      <div className="relative">
         <div
           aria-hidden
           className="pointer-events-none absolute -inset-x-24 -bottom-28 top-4 rounded-[100px] bg-[radial-gradient(56%_54%_at_50%_58%,rgba(89,175,212,0.32)_0%,transparent_72%)] blur-[56px]"
-          style={{ opacity: lift * (hover ? 1 : 0.82), transition: 'opacity 320ms ease' }}
+          style={{ opacity: 0.72 }}
         />
         <SafariWindow>
           <LessonWindow visibilityRootRef={ref} />
         </SafariWindow>
-        {/* Floor: a reflected sheen under the laptop, not a mirrored video. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-8 top-full h-20 rounded-[40px]"
@@ -145,7 +94,7 @@ function LiftedBoard() {
             background:
               'linear-gradient(180deg, rgba(89,175,212,0.18) 0%, rgba(89,175,212,0.05) 34%, transparent 78%)',
             filter: 'blur(16px)',
-            opacity: lift,
+            opacity: 0.7,
           }}
         />
       </div>

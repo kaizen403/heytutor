@@ -8,6 +8,7 @@ import { DesktopSidebar } from './use-cases/DesktopChrome'
 import product from './use-cases/lessonAsset.json'
 import './use-cases/useCases.css'
 import './hero-lesson/heroProduct.css'
+import type { HeroLessonLocale } from './hero-lesson/heroLessonLocale'
 
 export interface DashboardDrive {
   question: string
@@ -19,12 +20,20 @@ export interface DashboardDrive {
   pressed?: 'replay' | 'download' | null
 }
 
-function DashboardChrome({ rootRef, drive }: { rootRef: RefObject<HTMLDivElement | null>; drive: DashboardDrive }) {
+function DashboardChrome({
+  rootRef,
+  drive,
+  compact,
+}: {
+  rootRef: RefObject<HTMLDivElement | null>
+  drive: DashboardDrive
+  compact: boolean
+}) {
   const { snapshot, boardRef, cursorState, question } = drive
   const live = snapshot.teaching || snapshot.phase === 'submit'
   const typed = question.slice(0, snapshot.typedCount)
   return (
-    <div ref={rootRef} className="hero-product" data-lesson-phase={snapshot.phase} data-lesson-clock={snapshot.timeSeconds ?? 0} style={product.theme as CSSProperties}>
+    <div ref={rootRef} className="hero-product" data-compact={compact} data-lesson-phase={snapshot.phase} data-lesson-clock={snapshot.timeSeconds ?? 0} style={product.theme as CSSProperties}>
       <DesktopSidebar title={LESSON_TITLE} preview="V = 48 cm³ · Surface area = 96 cm²" />
       <main className="hero-product-main">
         <header className="demo-session-header">
@@ -62,13 +71,23 @@ function DashboardChrome({ rootRef, drive }: { rootRef: RefObject<HTMLDivElement
   )
 }
 
-function StandaloneDashboard() {
+function StandaloneDashboard({ locale, compact }: { locale: HeroLessonLocale; compact: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null)
-  const drive = useLessonSimulation(rootRef)
-  return <DashboardChrome rootRef={rootRef} drive={{ ...drive, question: QUESTION_TEXT }} />
+  const drive = useLessonSimulation(rootRef, locale)
+  return <DashboardChrome rootRef={rootRef} drive={{ ...drive, question: QUESTION_TEXT }} compact={compact} />
 }
 
-export default function DashboardMockup({ drive }: { drive?: DashboardDrive }) {
+export default function DashboardMockup({
+  drive,
+  locale = 'en-GB',
+  compact = false,
+}: {
+  drive?: DashboardDrive
+  locale?: HeroLessonLocale
+  compact?: boolean
+}) {
   const rootRef = useRef<HTMLDivElement>(null)
-  return drive ? <DashboardChrome rootRef={rootRef} drive={drive} /> : <StandaloneDashboard />
+  return drive
+    ? <DashboardChrome rootRef={rootRef} drive={drive} compact={compact} />
+    : <StandaloneDashboard locale={locale} compact={compact} />
 }

@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Volume2 } from 'lucide-react'
-import metadata from '../hero-lesson/lessonMetadata.json'
-import { useHeroVideo } from '../hero-lesson/useHeroVideo'
+import DashboardMockup from '../DashboardMockup'
+import { QUESTION_TEXT } from '../hero-lesson/lessonScript'
+import { heroLessonLocaleLabel } from '../hero-lesson/heroLessonLocale'
+import { useHeroLessonLocale } from '../hero-lesson/useHeroLessonLocale'
+import { useLessonSimulation } from '../hero-lesson/useLessonSimulation'
 import SafariChrome from './SafariChrome'
-import { DESIGN_H, DESIGN_W, MOBILE_MQ, SIDEBAR_W } from './windowSize'
+import { COMPACT_DESIGN_W, DESIGN_H, DESIGN_W, MOBILE_MQ } from './windowSize'
 
 /**
- * A recording of the current tutor renderer, with speech and ink muxed onto
- * one clock. Loaded on demand and paused offscreen; reduced-motion users see
- * the finished board until they choose to play the lesson.
+ * The shipping whiteboard renderer playing a verified lesson on its own clock.
+ * Mobile removes the desktop sidebar before scaling, so no part of the board
+ * is cropped or digitally zoomed.
  */
 export default function LiveLessonWindow({
   visibilityRootRef,
@@ -16,16 +19,17 @@ export default function LiveLessonWindow({
   visibilityRootRef: RefObject<HTMLElement | null>
 }) {
   const bodyRef = useRef<HTMLDivElement>(null)
-  const { videoRef, sound, onScreen, toggleSound, reduced, onReady, onError } = useHeroVideo(visibilityRootRef)
-  const [view, setView] = useState({ fit: 0, cropSidebar: false })
+  const locale = useHeroLessonLocale()
+  const drive = useLessonSimulation(visibilityRootRef, locale)
+  const [view, setView] = useState({ fit: 0, compact: false })
 
   useEffect(() => {
     const node = bodyRef.current
     if (!node) return
     const mobile = window.matchMedia(MOBILE_MQ)
     const measure = () => {
-      const crop = mobile.matches
-      setView({ fit: node.clientWidth / (crop ? DESIGN_W - SIDEBAR_W : DESIGN_W), cropSidebar: crop })
+      const compact = mobile.matches
+      setView({ fit: node.clientWidth / (compact ? COMPACT_DESIGN_W : DESIGN_W), compact })
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -37,43 +41,35 @@ export default function LiveLessonWindow({
     }
   }, [])
 
-  const { fit, cropSidebar } = view
+  const { fit, compact } = view
+  const language = heroLessonLocaleLabel(locale)
 
   return (
     <>
-      <SafariChrome sound={sound} onToggle={toggleSound} />
+      <SafariChrome sound={drive.sound} onToggle={drive.toggleSound} locale={locale} />
       <div ref={bodyRef} className="overflow-hidden" style={{ height: DESIGN_H * fit }}>
         <div
+          className="origin-top-left"
           style={{
-            width: DESIGN_W * fit,
-            height: DESIGN_H * fit,
-            marginLeft: cropSidebar ? -SIDEBAR_W * fit : 0,
+            width: compact ? COMPACT_DESIGN_W : DESIGN_W,
+            height: DESIGN_H,
+            transform: `scale(${fit})`,
           }}
         >
-          <video
-            ref={videoRef}
-            src={`/hero/lesson-loop.mp4?v=${metadata.version}`}
-            poster={`/hero/lesson-poster.jpg?v=${metadata.version}`}
-            width={DESIGN_W}
-            height={DESIGN_H}
-            muted={sound !== 'on' || !onScreen}
-            loop
-            playsInline
-            preload={reduced ? 'none' : 'metadata'}
-            onLoadedData={onReady}
-            onError={onError}
-            aria-label={`Tutor lesson: ${metadata.question}`}
-            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'fill' }}
+          <DashboardMockup
+            compact={compact}
+            locale={locale}
+            drive={{ question: QUESTION_TEXT, ...drive }}
           />
         </div>
       </div>
-      {sound === 'off' && (
+      {drive.sound === 'off' && (
         <button
           type="button"
           data-sound-toggle
-          onClick={toggleSound}
-          aria-label="Play lesson voice"
-          className="lsn-listen absolute bottom-5 left-1/2 z-20 flex min-h-11 -translate-x-1/2 cursor-pointer touch-manipulation items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-medium text-[#F2F2F4] sm:bottom-7 sm:min-h-0 sm:px-5 sm:text-[14px]"
+          onClick={drive.toggleSound}
+          aria-label={`Play lesson voice in ${language}`}
+          className="lsn-listen absolute bottom-2 left-1/2 z-20 flex min-h-9 -translate-x-1/2 cursor-pointer touch-manipulation items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[11px] font-medium text-[#F2F2F4] sm:bottom-7 sm:min-h-0 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-[14px]"
           style={{
             background: 'rgba(21, 21, 23, 0.94)',
             border: '1px solid rgba(242, 242, 244, 0.12)',
@@ -81,8 +77,8 @@ export default function LiveLessonWindow({
             WebkitBackdropFilter: 'blur(8px)',
           }}
         >
-          <Volume2 size={16} aria-hidden />
-          Hear this lesson
+          <Volume2 size={14} aria-hidden />
+          Hear this lesson · {language}
         </button>
       )}
     </>
