@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import {
   needsHumanReview,
   readJudgeQueue,
@@ -236,17 +236,31 @@ export function buildComparisonGalleryHtml(
   leftLabel: string,
   rightLabel: string,
 ): string {
-  const leftById = new Map(left.map((entry) => [entry.id, entry]));
-  const rightById = new Map(right.map((entry) => [entry.id, entry]));
-  const ids = [...new Set([...leftById.keys(), ...rightById.keys()])].sort();
+  return buildMultiComparisonGalleryHtml([
+    { label: leftLabel, entries: left },
+    { label: rightLabel, entries: right },
+  ]);
+}
+
+export interface ComparisonGalleryArm {
+  label: string;
+  entries: readonly GalleryEntry[];
+}
+
+export function buildMultiComparisonGalleryHtml(arms: readonly ComparisonGalleryArm[]): string {
+  if (arms.length < 2) throw new Error("comparison gallery requires at least two arms");
+  const armMaps = arms.map(({ entries }) => new Map(entries.map((entry) => [entry.id, entry])));
+  const ids = [...new Set(armMaps.flatMap((entries) => [...entries.keys()]))].sort();
   const cards = ids.map((id) => {
-    const leftEntry = leftById.get(id);
-    const rightEntry = rightById.get(id);
-    const entry = leftEntry ?? rightEntry!;
-    return `<article class="card compare-card"><div class="card-head"><div><h2>${escapeHtml(entry.question)}</h2><p class="row-id">${escapeHtml(id)}</p></div><div class="badges"><span class="badge">${escapeHtml(entry.figureNeed)}</span><span class="badge">${escapeHtml(entry.figureKind)}</span></div></div><div class="card-body">${arm(leftEntry, leftLabel)}${arm(rightEntry, rightLabel)}</div><div class="compare-expectations">${list("must show", entry.mustShow)}${list("must label", entry.mustLabel)}${list("must not show", entry.mustNotShow)}</div></article>`;
+    const entries = armMaps.map((entriesById) => entriesById.get(id));
+    const entry = entries.find((candidate) => candidate !== undefined)!;
+    const columns = `repeat(${arms.length},minmax(0,1fr))`;
+    const renderedArms = arms.map(({ label }, index) => arm(entries[index], label)).join("");
+    return `<article id="${escapeHtml(id)}" class="card compare-card"><div class="card-head"><div><h2>${escapeHtml(entry.question)}</h2><p class="row-id">${escapeHtml(id)}</p></div><div class="badges"><span class="badge">${escapeHtml(entry.figureNeed)}</span><span class="badge">${escapeHtml(entry.figureKind)}</span></div></div><div class="card-body" style="grid-template-columns:${columns}">${renderedArms}</div><div class="compare-expectations">${list("must show", entry.mustShow)}${list("must label", entry.mustLabel)}${list("must not show", entry.mustNotShow)}</div></article>`;
   }).join("\n");
+  const labels = arms.map(({ label }) => label);
   return shell(
-    `${leftLabel} vs ${rightLabel}`,
+    labels.join(" vs "),
     `${ids.length} rows keyed by evaluation id`,
     `<div class="cards">${cards}</div>`,
   );
@@ -326,4 +340,26 @@ export function writeComparisonGallery(leftDir: string, rightDir: string): strin
     basename(right),
   ));
   return path;
+}
+
+export function writeMultiComparisonGallery(
+  arms: readonly { label: string; roundDir: string }[],
+  outputPath: string,
+): string {
+  const absoluteOutput = resolve(outputPath);
+  const outputDir = dirname(absoluteOutput);
+  const galleryArms = arms.map(({ label, roundDir }) => {
+    const absoluteRound = resolve(roundDir);
+    return {
+      label,
+      entries: readGalleryEntries(absoluteRound).map((entry) => ({
+        ...entry,
+        png: entry.png
+          ? join(relative(outputDir, absoluteRound), entry.png).replaceAll("\\", "/")
+          : null,
+      })),
+    };
+  });
+  writeFileSync(absoluteOutput, buildMultiComparisonGalleryHtml(galleryArms));
+  return absoluteOutput;
 }

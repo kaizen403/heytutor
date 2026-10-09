@@ -25,6 +25,7 @@ import {
 import {
   buildComparisonGalleryHtml,
   buildGalleryHtml,
+  buildMultiComparisonGalleryHtml,
   type GalleryEntry,
 } from "../lecture-lab/gallery";
 import {
@@ -321,6 +322,27 @@ assert.equal(
   "comparison must key by row id instead of duplicating question cards",
 );
 assert.ok(comparison.includes("no figure"), "comparison must render an empty arm explicitly");
+const threeArmComparison = buildMultiComparisonGalleryHtml([
+  { label: "current", entries: [galleryEntry] },
+  { label: "planner_first", entries: [{ ...galleryEntry, png: null }] },
+  { label: "planner_examples", entries: [{ ...galleryEntry, figureSource: "planner_examples" }] },
+]);
+for (const label of ["current", "planner_first", "planner_examples"]) {
+  assert.ok(threeArmComparison.includes(label), `multi-arm comparison must include ${label}`);
+}
+assert.equal(
+  threeArmComparison.match(/Draw a 3 N force to the right\./g)?.length,
+  1,
+  "multi-arm comparison must key all arms by row id",
+);
+assert.match(
+  threeArmComparison,
+  /style="grid-template-columns:repeat\(3,minmax\(0,1fr\)\)"/,
+);
+assert.ok(
+  threeArmComparison.includes('id="physics|1|vectors|q1"'),
+  "comparison rows must be directly linkable from the report",
+);
 
 const exemplarDocument = {
   schemaVersion: "scene-document/v2",
