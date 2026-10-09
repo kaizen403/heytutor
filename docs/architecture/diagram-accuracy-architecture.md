@@ -18,8 +18,13 @@ dimensions, directions, construction marks, layout, and reveal order. The
 teaching model owns narration and equation writing in the left work area. It
 never supplies diagram pixels or annotations.
 
-There is no live topic-template registry, domain plugin router, regex diagram
-matcher, pixel architect, or endpoint snap fallback.
+There is no live topic-template registry, domain plugin router, pixel
+architect, or endpoint snap fallback. Family and archetype choice still fall
+back to English cue tables when ProblemIR structure is missing
+(`synthesize/familyClassification.ts`, `archetypes/detect.ts`,
+`chemistry/classify.ts`). Their own headers call them a test oracle and a
+fallback that must not grow into the live coverage mechanism; structure-derived
+families win over them.
 
 ## Turn Pipeline
 
@@ -35,7 +40,11 @@ matcher, pixel architect, or endpoint snap fallback.
    and proof may reconcile the plan; contradictions stop before speech. The
    boundary repairs only exact-source offsets and typed-schema aliases, removes
    ungrounded evidence, and drops ambiguous requests rather than guessing them.
-3. The scene planner proposes coordinate-free `scene-document/v2` candidates.
+3. A fast deterministic family figure (`selectFastVerifiedRepresentation()`)
+   is tried first. Only when it finds nothing does the scene planner propose
+   coordinate-free `scene-document/v2` candidates (`planningOverlap.ts`; the
+   speculative overlap with ProblemIR is off unless
+   `NEXT_PUBLIC_SCENE_SPECULATION=1`).
 4. Reusable constraint compilers canonicalize relationships which the planner
    asserted: closed routes, owner-bound dimensions, paraxial reflection, and
    coincident or retraced construction paths. These are law-level operators;
@@ -53,15 +62,25 @@ matcher, pixel architect, or endpoint snap fallback.
    narrated structure, direction, and detail reveals share one canvas
    transaction. Cancellation or execution failure rolls back every owned node;
    successful completion commits the intro as a unit.
-10. `prepareVerifiedLessonSegments()` permits only work-area `WRITE` and `PAUSE`
-   from the teaching model. A rejected marker command does not discard useful
-   narration.
+10. `prepareVerifiedLessonSegments()` filters the teaching model's commands
+   (`packages/drawing/src/protocol/commandPlacement.ts`). Work-area `WRITE`,
+   `PAUSE`, `EMPHASIZE`, and the code-lesson `TYPE` and `FRAME` pass. `FOCUS`,
+   `POINT` and `ANNOTATE` pass only when they resolve to verified entities, and
+   a `FOCUS` is inferred for a figure part the step names aloud when the model
+   tagged none. A `WRITE` row in Devanagari is dropped. A rejected marker
+   command does not discard useful narration.
 
-If exact planning fails, the selector commits a source-grounded non-metric scene
-only when reusable operators can express meaningful structure, currently an
-explicit function graph. It otherwise commits zero ink for optional visuals or
-returns `retry_required` for required visuals. Question words are never rendered
-as boxes, and a fallback cannot display derived claims.
+`selectVerifiedRepresentation()` in `representationFallback.ts` picks the
+committed scene. A validated planner scene wins, except that a few source-owned
+figures outrank it (circular motion, constant-velocity relative motion, a
+complete mensuration figure, a metric-proved archetype). Without a surviving
+planner scene it tries, in order: a matrix source program drawn from the
+question, a synthesized family or archetype figure, a source-grounded
+representation such as an explicit function graph, and a last-resort scene.
+Each is compiled independently and commits at the tier it earns. When none
+applies, the turn is text-only. A required visual that ends text-only records
+`retry_required` as its status, and the lesson keeps teaching. Question words
+are never rendered as boxes, and a fallback cannot display derived claims.
 
 ## Representation Tiers
 
@@ -264,9 +283,13 @@ remote-provider and persistence trust-boundary tests, canvas rollback tests,
 label collision checks, and deterministic compiler mutation tests. Corpus
 fixtures are test oracles only and are never selected by the live runtime.
 
-The deterministic evaluation corpus currently covers 21 questions across seven
-physics domains plus calculus and mensuration families with adversarial
-mutations. Live and captured-provider checks include an electromagnetic
+The evaluation corpora in `packages/scene-engine/fixtures/evaluation/` are
+`jee-physics-core-v1` (21 questions across seven physics domains),
+`math-visual-core-v1` (13 calculus, mensuration and coordinate questions with
+adversarial mutations), `optics-syllabus-v1` (45), `typed-maths-v1` (119), and the frozen
+`coverage-eval-v1` baseline. `verify-syllabus-corpus.ts` and
+`verify-bank-family-compile.ts` run the live family layer over the local
+question bank. Live and captured-provider checks include an electromagnetic
 induction route with an owner-bound rod dimension, a concave-mirror construction
 with computed principal rays, and a bounded-parabola region whose exact area is
 reconciled from the planner's equality chain. This is evidence of the

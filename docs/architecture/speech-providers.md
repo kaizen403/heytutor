@@ -1,6 +1,6 @@
 # Speech providers
 
-Cartesia is the default for narration and microphone transcription. ElevenLabs remains available independently for each capability. All credentials and provider selection stay on the server.
+Cartesia is the default for narration and microphone transcription, and Sarvam speaks Hinglish (see below). ElevenLabs remains available independently for each capability. All credentials and provider selection stay on the server.
 
 ## Configuration
 
@@ -42,7 +42,7 @@ Gates: `verify-sarvam-tts`, `verify-sarvam-relay`, `verify-hinglish-lesson`, `ve
 - `StreamingSpeechClient` and `HttpSpeechClient` share playback, lookahead, pause/stop, capture, and timing. Old ElevenLabs class imports are compatibility aliases. The browser requests language and latency preferences; it does not select credentials or a provider.
 - `CartesiaContexts` keeps each concurrently generated sentence separate. It assembles 24 kHz signed 16-bit PCM into one WAV at completion. The browser already plays complete sentences, so this retains the existing lookahead policy. ElevenLabs continues to provide MP3.
 - Word timestamps map onto the submitted text's character offsets. Character positions inside a word are interpolated. If provider normalization prevents a reliable match, exact timings are omitted and the existing estimated handwriting schedule applies.
-- Live capture, uploads, private object keys, replay, and MP4 export accept both WAV and MP3. Existing MP3 objects remain readable. WAV needs more space: uploads allow 8 MiB per sentence, 96 MiB total audio and 128 MiB per request (about 35 minutes at 24 kHz mono). No concatenation of independent WAV headers is used.
+- Live capture, uploads, private object keys, replay, and MP4 export accept both WAV and MP3. Existing MP3 objects remain readable. WAV needs more space: uploads allow 8 MiB per sentence, 32 MiB total audio and 36 MiB per request (`lib/scene/turnUploadLimits.ts`, `lib/http/resourceLimits.ts`), about 11 minutes of 24 kHz mono WAV. No concatenation of independent WAV headers is used.
 
 `CARTESIA_USD_PER_1K_CHARS` controls the internal cost estimate (default $0.05). This is a configurable estimate, not an invoice: Cartesia charges credits and effective USD varies with the subscription. ElevenLabs retains its existing rate overrides. Both rates are visible in admin cost reporting.
 
