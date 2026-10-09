@@ -144,7 +144,7 @@ apps/tutor/
     components/  hooks/  hooks/turn/
     lib/
       scene/  board/  turn/  notes/  input/  replay/  code-lesson/
-      statusConfig.ts  sessionCapabilities.ts
+      sessionCapabilities.ts
   features/account/            account screens
   features/app-shell/          signed-in shell
   features/admin/              admin panel + syllabus playground

@@ -197,7 +197,6 @@ interface PlayButtonProps {
   glyph: PlayGlyph;
   label: string;
   busy: boolean;
-  collapsed: boolean;
   interactive: boolean;
   coarse: boolean;
   onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
@@ -207,7 +206,6 @@ const PlayButton = memo(function PlayButton({
   glyph,
   label,
   busy,
-  collapsed,
   interactive,
   coarse,
   onClick,
@@ -222,9 +220,7 @@ const PlayButton = memo(function PlayButton({
         PLAYER_BUTTON,
         buttonSize(coarse),
         interactive ? "pointer-events-auto" : "pointer-events-none",
-        collapsed
-          ? "bg-black/60 shadow-[0_2px_10px_rgba(0,0,0,0.3)] ring-1 ring-white/10 backdrop-blur-sm hover:bg-black/75"
-          : "hover:bg-white/15",
+        "hover:bg-white/15",
       )}
     >
       {busy ? (
@@ -494,7 +490,6 @@ export function LecturePlayerBar({
   });
 
   const [hovered, setHovered] = useState(false);
-  const [tapOpen, setTapOpen] = useState(false);
   const [keyboardFocus, setKeyboardFocus] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [idle, setIdle] = useState(false);
@@ -507,10 +502,7 @@ export function LecturePlayerBar({
   const playing = status === "playing";
   const scrubbing = scrubMs !== null;
   const engaged = hovered || keyboardFocus || menuOpen || scrubbing;
-  // Stay expanded after the lecture finishes. Collapse was a 3px rail that
-  // read as "no timeline" unless the pointer was already on the board edge.
-  const collapsed = false;
-  const chromeHidden = playing && idle && !engaged && !tapOpen;
+  const chromeHidden = playing && idle && !engaged;
   const fullShown = !chromeHidden;
 
   const holdMs =
@@ -611,15 +603,6 @@ export function LecturePlayerBar({
   }, [activityTargetRef, chromeHidden]);
 
   useEffect(() => {
-    if (!tapOpen) return undefined;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!stripRef.current?.contains(event.target as Node)) setTapOpen(false);
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
-  }, [tapOpen]);
-
-  useEffect(() => {
     const hoverTimer = hoverTimerRef;
     return () => window.clearTimeout(hoverTimer.current);
   }, []);
@@ -715,10 +698,6 @@ export function LecturePlayerBar({
     if ((event.key === " " || event.key === "Enter") && event.target instanceof HTMLButtonElement) {
       event.stopPropagation();
     }
-  }, []);
-
-  const openFromRail = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "mouse") setTapOpen(true);
   }, []);
 
   const onTimelinePointerDown = useCallback(
@@ -858,23 +837,6 @@ export function LecturePlayerBar({
         />
 
         <div
-          aria-hidden
-          onPointerDown={openFromRail}
-          className={cn(
-            "absolute inset-x-0 bottom-0 flex items-end transition-opacity duration-200",
-            coarse ? "h-6" : "h-4",
-            collapsed ? "pointer-events-auto opacity-100" : "opacity-0",
-          )}
-        >
-          <div className="relative h-[3px] w-full overflow-hidden bg-black/15" style={trackMaskStyle}>
-            <div
-              className="absolute inset-0 origin-left bg-sky-500"
-              style={{ transform: `scaleX(${playedFraction})` }}
-            />
-          </div>
-        </div>
-
-        <div
           className={cn(
             "relative px-3 transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none sm:px-4",
             fullscreen?.active ? "pb-[max(8px,env(safe-area-inset-bottom))]" : "pb-2",
@@ -882,7 +844,7 @@ export function LecturePlayerBar({
             chromeHidden && "translate-y-1 opacity-0",
           )}
         >
-          <div className={cn("relative transition-opacity duration-200", collapsed && "opacity-0")}>
+          <div className="relative">
             {showTooltip ? (
               <div
                 ref={tooltipRef}
@@ -957,16 +919,12 @@ export function LecturePlayerBar({
               glyph={face.glyph}
               label={face.label}
               busy={busy}
-              collapsed={collapsed}
               interactive={!chromeHidden}
               coarse={coarse}
               onClick={handlePlay}
             />
             <div
-              className={cn(
-                "flex min-w-0 flex-1 items-center gap-0.5 transition-opacity duration-200 sm:gap-1",
-                collapsed && "opacity-0",
-              )}
+              className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1"
             >
               <SkipButton direction="back" coarse={coarse} onSkip={skipBack} />
               <SkipButton direction="forward" coarse={coarse} onSkip={skipForward} />

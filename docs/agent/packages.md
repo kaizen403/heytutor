@@ -55,7 +55,6 @@ Generic whiteboard transport and animation utilities.
 | Board zones | `src/layout/boardZones.ts` |
 | Board typography | `src/layout/boardTypography.ts` |
 | Pen write-clock | `src/sync/writeAudioClock.ts`, `src/sync/scheduleFrame.ts` |
-| Stroke/cursor animation | `src/animation/strokeAnimation.ts`, `src/animation/cursorAnimation.ts` |
 
 This package no longer contains topic templates, a geometry compiler, domain
 plugins, or endpoint snapping.
