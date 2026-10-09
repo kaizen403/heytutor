@@ -111,8 +111,12 @@ export function buildSceneDocumentPlannerPrompt(
         : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
     ).join("\n")}\n`
     : "";
+  const contractNames = new Set(operatorContracts.match(/\b[a-z][a-z0-9_]*\b/g) ?? []);
+  const additionalOperators = operators.filter((operator) => !contractNames.has(operator));
   const operatorCatalog = fullCatalog
-    ? "Every operator named in the contracts below."
+    ? `Every operator named in the contracts below.${additionalOperators.length > 0
+      ? `\nAlso available: ${additionalOperators.join(",")}`
+      : ""}`
     : operators.join(",");
 
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
