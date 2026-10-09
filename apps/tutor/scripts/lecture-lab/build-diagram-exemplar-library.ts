@@ -130,7 +130,10 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
   for (const exemplar of exemplars) {
     const group = exemplarGroup(exemplar);
     const count = (groupCounts.get(group) ?? 0) + 1;
-    if (count > 2) throw new Error(`${group}: curated exemplar cap exceeds 2`);
+    // The molecule kit needs both comparison and reaction panel examples.
+    // Other families keep their existing curated cap.
+    const curatedCap = group === "family:chem_organic" ? 4 : 2;
+    if (count > curatedCap) throw new Error(`${group}: curated exemplar cap exceeds ${curatedCap}`);
     groupCounts.set(group, count);
   }
 

@@ -46,7 +46,7 @@ export interface Molecule {
 }
 
 const STANDARD_VALENCE: Record<string, number> = {
-  C: 4, N: 3, O: 2, S: 2, P: 3, B: 3, Si: 4,
+  H: 1, C: 4, N: 3, O: 2, S: 2, P: 3, B: 3, Si: 4,
   F: 1, Cl: 1, Br: 1, I: 1,
   Mg: 2, Li: 1, Na: 1, K: 1, Zn: 2,
 };
@@ -64,6 +64,9 @@ interface ParsedAtom {
 function readBracketAtom(text: string): ParsedAtom | null {
   const match = /^(\d+)?([A-Z][a-z]?|[cnosp])(@@?)?(H\d*)?([+-]\d*|[+]+|[-]+)?$/.exec(text);
   if (!match) return null;
+  // The renderer cannot preserve isotope or tetrahedral stereo marks yet.
+  // Reject them rather than silently drawing a different specified molecule.
+  if (match[1] || match[3]) return null;
   const symbolRaw = match[2]!;
   const aromatic = symbolRaw === symbolRaw.toLowerCase();
   const element = aromatic ? symbolRaw.toUpperCase() : symbolRaw;
@@ -76,6 +79,7 @@ function readBracketAtom(text: string): ParsedAtom | null {
     if (/^[+-]\d+$/.test(chargeText)) charge = Number(chargeText);
     else charge = (chargeText[0] === "+" ? 1 : -1) * chargeText.length;
   }
+  if (!Number.isSafeInteger(hydrogens) || hydrogens > 8 || !Number.isSafeInteger(charge) || Math.abs(charge) > 4) return null;
   return { element, aromatic, charge, hydrogens };
 }
 
@@ -89,7 +93,7 @@ export function parseSmiles(input: string): Molecule | null {
   if (!smiles) return null;
   const atoms: Atom[] = [];
   const bonds: Bond[] = [];
-  const stack: number[] = [];
+  const stack: Array<{ atom: number; atomCount: number }> = [];
   const ringOpen = new Map<number, { atom: number; order: BondOrder | null; direction?: "/" | "\\"; aromatic: boolean }>();
   let previous: number | null = null;
   let pendingOrder: BondOrder | null = null;
@@ -133,17 +137,18 @@ export function parseSmiles(input: string): Molecule | null {
       parsed = { element: ch.toUpperCase(), aromatic: true, charge: 0, hydrogens: null };
       i += 1;
     } else if (ch === "(") {
-      if (previous === null) return null;
-      stack.push(previous);
+      if (previous === null || pendingOrder !== null || pendingDirection || pendingExplicitSingle) return null;
+      stack.push({ atom: previous, atomCount: atoms.length });
       i += 1;
       continue;
     } else if (ch === ")") {
       const back = stack.pop();
-      if (back === undefined) return null;
-      previous = back;
+      if (back === undefined || back.atomCount === atoms.length || pendingOrder !== null || pendingDirection || pendingExplicitSingle) return null;
+      previous = back.atom;
       i += 1;
       continue;
     } else if (ch === "=" || ch === "#" || ch === "-" || ch === "/" || ch === "\\") {
+      if (previous === null || pendingOrder !== null || pendingDirection || pendingExplicitSingle) return null;
       if (ch === "=") pendingOrder = 2;
       else if (ch === "#") pendingOrder = 3;
       else if (ch === "-") pendingExplicitSingle = true;
@@ -155,13 +160,16 @@ export function parseSmiles(input: string): Molecule | null {
       const digit = Number(ch);
       const open = ringOpen.get(digit);
       if (open) {
+        if (open.atom === previous || bonds.some((bond) => (bond.a === open.atom && bond.b === previous) || (bond.b === open.atom && bond.a === previous))) return null;
+        if (open.order !== null && pendingOrder !== null && open.order !== pendingOrder) return null;
+        if ((open.order !== null && pendingExplicitSingle && open.order !== 1) || (pendingOrder !== null && open.order === 1)) return null;
         const order = open.order ?? pendingOrder;
         // A direction on the closing side reads from the closing atom towards the opening atom.
         const direction = open.direction ?? (pendingDirection ? (pendingDirection === "/" ? "\\" : "/") : undefined);
         addBond(open.atom, previous, order, direction, pendingExplicitSingle);
         ringOpen.delete(digit);
       } else {
-        ringOpen.set(digit, { atom: previous, order: pendingOrder, direction: pendingDirection, aromatic: atoms[previous]!.aromatic });
+        ringOpen.set(digit, { atom: previous, order: pendingExplicitSingle ? 1 : pendingOrder, direction: pendingDirection, aromatic: atoms[previous]!.aromatic });
       }
       pendingOrder = null;
       pendingDirection = undefined;
@@ -181,10 +189,12 @@ export function parseSmiles(input: string): Molecule | null {
     pendingDirection = undefined;
     pendingExplicitSingle = false;
   }
-  if (ringOpen.size > 0 || stack.length > 0) return null;
+  if (ringOpen.size > 0 || stack.length > 0 || pendingOrder !== null || pendingDirection || pendingExplicitSingle) return null;
   if (atoms.length === 0) return null;
   const molecule: Molecule = { atoms, bonds, smiles };
+  if (atoms.length > 64 || atoms.some((atom) => atom.aromatic && neighbours(molecule, atom.index).filter((entry) => entry.bond.aromatic).length < 2)) return null;
   if (!kekulize(molecule)) return null;
+  if (!valenceOk(molecule)) return null;
   assignImplicitHydrogens(molecule);
   return molecule;
 }
@@ -204,8 +214,12 @@ function bondOrderSum(molecule: Molecule, atom: number): number {
   return neighbours(molecule, atom).reduce((sum, entry) => sum + entry.bond.order, 0);
 }
 
-function valenceFor(atom: Atom): number {
+function valenceFor(atom: Atom, used = 0): number {
   const base = STANDARD_VALENCE[atom.element] ?? 0;
+  if (atom.charge === 0 && !atom.aromatic) {
+    const normal = atom.element === "S" ? [2, 4, 6] : atom.element === "P" || atom.element === "N" ? [3, 5] : [base];
+    return normal.find((valence) => valence >= used) ?? normal[normal.length - 1]!;
+  }
   if (atom.element === "N" || atom.element === "P") return base + atom.charge;
   if (atom.element === "O" || atom.element === "S") return base + atom.charge;
   if (atom.element === "C" || atom.element === "B") return base - Math.abs(atom.charge);
@@ -263,8 +277,8 @@ function kekulize(molecule: Molecule): boolean {
 function assignImplicitHydrogens(molecule: Molecule): void {
   for (const atom of molecule.atoms) {
     if (atom.explicitH) continue;
-    const valence = valenceFor(atom);
     const used = bondOrderSum(molecule, atom.index);
+    const valence = valenceFor(atom, used);
     atom.hydrogens = Math.max(0, valence - used);
   }
 }
@@ -320,7 +334,7 @@ export function attachMolecule(molecule: Molecule, atom: number, fragment: Molec
   if (molecule.formulaOverride) joined.formulaOverride = molecule.formulaOverride;
   for (const entry of joined.atoms) {
     if (entry.explicitH) continue;
-    entry.hydrogens = Math.max(0, valenceFor(entry) - bondOrderSum(joined, entry.index));
+    entry.hydrogens = Math.max(0, valenceFor(entry, bondOrderSum(joined, entry.index)) - bondOrderSum(joined, entry.index));
   }
   return joined;
 }
@@ -328,8 +342,8 @@ export function attachMolecule(molecule: Molecule, atom: number, fragment: Molec
 /** True when every atom has a chemically possible valence (no five-bonded carbon). */
 export function valenceOk(molecule: Molecule): boolean {
   for (const atom of molecule.atoms) {
-    const valence = valenceFor(atom);
     const used = bondOrderSum(molecule, atom.index) + (atom.explicitH ? atom.hydrogens : 0);
+    const valence = valenceFor(atom, used);
     if (used > valence) return false;
   }
   return true;

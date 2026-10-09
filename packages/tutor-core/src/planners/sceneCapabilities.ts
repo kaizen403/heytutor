@@ -50,10 +50,9 @@ const BASE_OPERATORS = [
 ];
 
 /**
- * Chemistry figures are computed by the engine's chemistry families from the
- * formula or the named process; the planner never authors one. The operator
- * lists still describe what those figures contain so the exact planner's
- * prompt stays truthful when it is consulted.
+ * Chemistry kit operators accept facts and delegate every mark to the same
+ * deterministic builders as the live chemistry families. Families without a
+ * kit still decline instead of asking the planner for atom-by-atom geometry.
  */
 const CHEMISTRY_STRUCTURE_OPERATORS = ["point", "segment", "polygon", "circle", "arc", "label", "vector"] as const;
 const CHEMISTRY_LEVEL_OPERATORS = ["point", "segment", "vector", "dimension", "label", "rectangle"] as const;
@@ -62,15 +61,15 @@ const CHEMISTRY_GRAPH_OPERATORS = ["axes", "function_curve", "polyline", "point"
 const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   chem_coordination: CHEMISTRY_STRUCTURE_OPERATORS,
   chem_cft: CHEMISTRY_LEVEL_OPERATORS,
-  chem_organic: CHEMISTRY_STRUCTURE_OPERATORS,
-  chem_vsepr: CHEMISTRY_STRUCTURE_OPERATORS,
-  chem_lewis: CHEMISTRY_STRUCTURE_OPERATORS,
+  chem_organic: ["chem_skeletal_molecule"],
+  chem_vsepr: ["chem_vsepr_shape"],
+  chem_lewis: ["chem_lewis_structure"],
   chem_mo: CHEMISTRY_LEVEL_OPERATORS,
-  chem_orbital: CHEMISTRY_LEVEL_OPERATORS,
+  chem_orbital: ["chem_orbital_boxes"],
   chem_electrochem: ["point", "segment", "polyline", "polygon", "rectangle", "circle", "vector", "label"],
   chem_unit_cell: ["point", "segment", "circle", "dimension", "label"],
   chem_kinetics: CHEMISTRY_GRAPH_OPERATORS,
-  chem_thermo: CHEMISTRY_GRAPH_OPERATORS,
+  chem_thermo: ["chem_reaction_energy_profile", ...CHEMISTRY_GRAPH_OPERATORS],
   chem_solutions: CHEMISTRY_GRAPH_OPERATORS,
   chem_periodic: ["axes", "polyline", "point", "rectangle", "label"],
   ray_path: [
@@ -178,20 +177,20 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
 };
 
 const CHEMISTRY_GUIDANCE =
-  "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression.";
+  "No planner kit exists for this chemistry figure; return text_only instead of authoring marks.";
 
 const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   chem_coordination: CHEMISTRY_GUIDANCE,
   chem_cft: CHEMISTRY_GUIDANCE,
-  chem_organic: CHEMISTRY_GUIDANCE,
-  chem_vsepr: CHEMISTRY_GUIDANCE,
-  chem_lewis: CHEMISTRY_GUIDANCE,
+  chem_organic: "Use chem_skeletal_molecule panels (1..4 molecules), preferring SMILES. Comparison or reaction layout; optional from/to arrows and reagent/condition labels. Unknown names need SMILES repair. Never supply geometry.",
+  chem_vsepr: "Use chem_vsepr_shape with formula and charge; otherwise text_only. Never supply geometry.",
+  chem_lewis: "Use chem_lewis_structure with formula, charge and resonance; otherwise text_only. Never supply geometry.",
   chem_mo: CHEMISTRY_GUIDANCE,
-  chem_orbital: CHEMISTRY_GUIDANCE,
+  chem_orbital: "For configurations or box diagrams use chem_orbital_boxes with atomic numbers and charges; orbital shapes are text_only.",
   chem_electrochem: CHEMISTRY_GUIDANCE,
   chem_unit_cell: CHEMISTRY_GUIDANCE,
   chem_kinetics: CHEMISTRY_GUIDANCE,
-  chem_thermo: CHEMISTRY_GUIDANCE,
+  chem_thermo: "For a one-step profile use chem_reaction_energy_profile with plan quantity IDs. Graph operators remain allowed; otherwise text_only.",
   chem_solutions: CHEMISTRY_GUIDANCE,
   chem_periodic: CHEMISTRY_GUIDANCE,
   ray_path: "Derive every reflected or refracted direction with reflect_at/refract_at or the surface-contact chain; never guess ray endpoints. Prove incidence, angle, convergence, or parallelism named by the question.",

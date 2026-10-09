@@ -57,6 +57,22 @@ export function estimatePxPerUnit(width: number, height: number): number {
   return Math.max(20, Math.min(700 / Math.max(width, 1), 340 / Math.max(height, 1)));
 }
 
+/** Preserve a kit caption using ordinary compact labels, never truncation or
+ * a validator exception. Prefer word/hyphen boundaries within 16 characters. */
+export function panelLabelLines(text: string): string[] {
+  const lines: string[] = [];
+  let remaining = text.replace(/\s+/g, " ").trim();
+  while (remaining.length > 16) {
+    const prefix = remaining.slice(0, 16);
+    const boundary = Math.max(prefix.lastIndexOf(" "), prefix.lastIndexOf("-"));
+    const end = boundary > 0 ? boundary : 16;
+    lines.push(remaining.slice(0, end).trim());
+    remaining = remaining.slice(end).trimStart();
+  }
+  if (remaining) lines.push(remaining);
+  return lines;
+}
+
 /** Caption under a structure: the name when it fits, else the formula. */
 export function structureCaption(laid: LaidOutMolecule): string {
   const name = laid.molecule.name ?? "";
@@ -70,7 +86,8 @@ export function structureCaption(laid: LaidOutMolecule): string {
  * Draw one molecule with its atoms offset by `origin`. Ids are prefixed so
  * several molecules share a scene. Returns the ids drawn and the bounds.
  */
-export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: string, origin: Vec2, caption: string | null, pxPerUnit = 100): RenderedMolecule {
+export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: string, origin: Vec2, caption: string | null, pxPerUnit = 100, options: { captionClearance?: number; captionLines?: string[] } = {}): RenderedMolecule {
+  const captionClearance = options.captionClearance ?? 0.3;
   const molecule = laid.molecule;
   const ids: string[] = [];
   const labelledAtomIds: string[] = [];
@@ -117,10 +134,14 @@ export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: stri
   const bounds = layoutBounds(laid);
   const shifted = { minX: bounds.minX + origin.x, maxX: bounds.maxX + origin.x, minY: bounds.minY + origin.y, maxY: bounds.maxY + origin.y };
   if (caption) {
-    const id = c.text(`${prefix}_name`, { x: (shifted.minX + shifted.maxX) / 2, y: shifted.minY - 0.3 }, caption, "compound name");
-    ids.push(id);
-    labels.push(caption);
-    shifted.minY -= 0.7;
+    const lines = options.captionLines ?? [caption];
+    const lineSpacing = 56 / pxPerUnit;
+    lines.forEach((line, index) => {
+      const id = c.text(`${prefix}_name${index ? `_${index}` : ""}`, { x: (shifted.minX + shifted.maxX) / 2, y: shifted.minY - captionClearance - index * lineSpacing }, line, "compound name");
+      ids.push(id);
+      labels.push(line);
+    });
+    shifted.minY -= captionClearance + 0.4 + Math.max(0, lines.length - 1) * lineSpacing;
   }
   // A dashed panel around structure and caption: real geometry, so the
   // auto-fit keeps every pinned label of this molecule inside the view.
@@ -134,4 +155,3 @@ export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: stri
   ids.push(panelId);
   return { ids, labelledAtomIds, bounds: { minX: centre.x - width / 2, maxX: centre.x + width / 2, minY: centre.y - height / 2, maxY: centre.y + height / 2 }, labels };
 }
-

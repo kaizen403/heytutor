@@ -4,10 +4,11 @@ import {
   SUPPORTED_SCENE_CONSTRUCTION_OPERATORS,
 } from "@heytutor/scene-engine";
 import { inferSceneCapabilities } from "../../src/planners/sceneCapabilities";
-import { buildSceneDocumentPlannerPrompt, selectConstructionInputContracts } from "../../src/planners/scenePlannerV2Prompt";
+import { buildSceneDocumentPlannerPrompt, DEFAULT_SCENE_CONSTRUCTION_OPERATORS, selectConstructionInputContracts } from "../../src/planners/scenePlannerV2Prompt";
 import { planSceneDocument, repairSceneDocument } from "../../src/planners/scenePlannerV2";
 
 const cases = [
+  {question:"Draw side-by-side skeletal structures of ethanol and methanol, then show the reaction to ethanal.",operators:["chem_skeletal_molecule"]},
   {question:"Draw the explicit permutation cycles and subset lattice of supplied finite items.",operators:["permutation_cycles","subset_lattice"]},
   {question:"Plot the explicit linear elastic stress strain law and mark the source strain state.",operators:["elastic_profile","elastic_state"]},
   {question:"Plot explicit changing magnetic flux and mark its flux and induced emf at a source time.",operators:["flux_process","induction_state"]},
@@ -112,6 +113,9 @@ const cases = [
   },
 ];
 
+const moleculeContract = selectConstructionInputContracts(["chem_skeletal_molecule"]);
+for (const term of ["molecules", "SMILES", "comparison", "reaction", "from", "to", "label", "repair"]) assert.ok(moleculeContract.includes(term), `molecule panel contract must preserve ${term}`);
+
 let contractChecks = 0;
 for (const testCase of cases) {
   const capabilities = inferSceneCapabilities(testCase.question);
@@ -142,6 +146,9 @@ assert.deepEqual(unknownCapabilities.families, [], "exercise the universal catal
 for (const operators of [SUPPORTED_SCENE_CONSTRUCTION_OPERATORS, [...SUPPORTED_SCENE_CONSTRUCTION_OPERATORS].reverse()]) {
   const prompt = buildSceneDocumentPlannerPrompt(unknownQuestion, { ...unknownCapabilities, constructionOperators: operators });
   assert(prompt.length + 800 <= 24_500, `full catalog must leave initial transport/strategy room: ${prompt.length}`);
+  for (const operator of DEFAULT_SCENE_CONSTRUCTION_OPERATORS) {
+    assert(new RegExp(`\\b${operator}\\b`).test(prompt), `universal initial catalog must keep supported operator visible: ${operator}`);
+  }
   for (const testCase of cases) for (const operator of testCase.operators) assert(prompt.includes(`- ${operator}: {`), `catalog must retain ${operator}`);
 }
 for (const [operator,conditions] of [
@@ -169,6 +176,9 @@ for (const [operator, ...outputContracts] of conditionalContracts) {
 const scopedPrompt = buildSceneDocumentPlannerPrompt("Construct two circle intersections.", { constructionOperators: ["circle_intersections"] });
 assert(scopedPrompt.includes("The requested multiplicity must be mathematically correct."), "scoped requests keep the full explanatory contract");
 const catalogRepairPrompt = buildSceneDocumentPlannerPrompt(unknownQuestion, unknownCapabilities, ["probability_tree"]);
+for (const operator of DEFAULT_SCENE_CONSTRUCTION_OPERATORS) {
+  assert(new RegExp(`\\b${operator}\\b`).test(catalogRepairPrompt), `universal repair catalog must keep supported operator visible: ${operator}`);
+}
 assert(catalogRepairPrompt.includes("No inferred complements or independence."), "used repair operator keeps its mathematical authority rules");
 const originalFetch = globalThis.fetch;
 const requests: Array<{ messages: Array<{ content: string }> }> = [];

@@ -111,11 +111,18 @@ export function buildSceneDocumentPlannerPrompt(
         : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
     ).join("\n")}\n`
     : "";
+  const contractNames = new Set(operatorContracts.match(/\b[a-z][a-z0-9_]*\b/g) ?? []);
+  const additionalOperators = operators.filter((operator) => !contractNames.has(operator));
+  const operatorCatalog = fullCatalog
+    ? `Every operator named in the contracts below.${additionalOperators.length > 0
+      ? `\nAlso available: ${additionalOperators.join(",")}`
+      : ""}`
+    : operators.join(",");
 
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
 
 AVAILABLE CONSTRUCTION OPERATORS
-${operators.join(",")}
+${operatorCatalog}
 
 OPERATOR INPUT CONTRACTS
 ${contracts}
@@ -194,6 +201,11 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - affine_point: {point:point_id,matrix:[[a,b],[c,d]],translation?:[tx,ty],inverse?:false}. Output one planar point computed as A*p+t, or A^-1*(p-t) when inverse=true. Matrix scalars are dimensionless; source coordinates and translation share one length scale. Singular forward matrices may project points; singular/ill-conditioned inverses fail closed. Do not pass 3D or field-result geometry.
 - affine_path: {path:path_id,matrix:[[a,b],[c,d]],translation?:[tx,ty],inverse?:false}. Output one entity with the same kind as the source planar path, preserving closure/direction/infinite-line status. Derive every vertex by the matrix. Regions that collapse to a line or point fail closed. Sampled-curve, conic, field, and 3D identities are unsupported here; never discard their mathematical metadata to imitate a transformed figure. Chain transforms through output IDs for composition.
 - Matrix arrays are nonmetric tables, not affine transforms. matrix_array takes explicit entries; matrix_add and matrix_product take left and right; matrix_scale takes matrix and scalar; matrix_transpose takes matrix. Every call needs origin [x,y], displayScale, and one matrix_array output. Entries are real, dimensions 1 through 6, at most 36 cells, and magnitude at most 1e6. A claimed type must hold. displayScale places the table and does not change entries.
+- chem_skeletal_molecule: {molecules:[{smiles:"CCO",label?:"ethanol"},{name:"methanol"}],layout:"comparison"|"reaction",arrows?:[{from:0,to:1,label?:"condition"}]}. Output 1 engine-drawn group; 1..4 molecules, at most 3 arrows with zero-based indices. Prefer SMILES; each molecule needs exactly one smiles or name. Unresolved names must be repaired with SMILES. Connected graphs only, <=24 atoms each; no isotope or tetrahedral @ stereo support. Legacy single {smiles:"CCO"} or {name:"ethanol"} still works. Use panels for comparisons/reactions, more than one panel for >4 molecules; never supply geometry or infer products in the kit.
+- chem_lewis_structure: {formula:"NO3",charge:-1,resonance:true}. Output 1 engine-drawn group.
+- chem_vsepr_shape: {formula:"SF4",charge:0}. Output 1 engine-drawn group.
+- chem_reaction_energy_profile: {reactants:"R",products:"P",activationEnergyQuantityId:"Ea",deltaHQuantityId:"dH",catalysedActivationEnergyQuantityId?:"Ea_cat"}. Output 1 group; IDs name same-unit energy quantities.
+- chem_orbital_boxes: {species:[{atomicNumber:24,charge:0}],showMagneticMoment:true}. Output 1 group; use 1..4 species.
 - Coordinate lines use ax+by+c=0. coordinate_distance, section_point, axis_translation, line_relation, line_intercepts, line_equation, line_intersection_angle, line_concurrence, and point_line_distance each output one entity. Section mode is internal, external, or midpoint; external m=n rejects. A zero determinant is not a concurrence certificate. displayLength changes the drawn segment only.
 - Rigid mass: centre_of_mass outputs one mark per part plus the centre; com_motion outputs one acceleration vector, or a point when a_com is zero; point_mass_inertia and simple_body_inertia output one mark per mass or body; axes_theorem outputs one mark. Continuous centres and moments are integrated from the supplied density. A hole is negative mass. The perpendicular-axis theorem requires a declared planar lamina. displayLength scales markers only.
 - reflect_direction: {origin: point_id, incoming: vector_id, normal: vector_id}. Output exactly one visible reflected ray entity. Do not output a direction helper or wrap the result in ray/vector.
@@ -337,6 +349,11 @@ Every required visible entity must be the output of exactly one construction unl
 // Conditional and multi-output contracts must survive compaction as complete
 // statements; their arity cannot be inferred from the first prose sentence.
 const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
+  chem_skeletal_molecule: "Output 1 group; 1..4 molecules, each exactly one smiles or name. Prefer SMILES; unknown names need SMILES repair. layout comparison/reaction; arrows from/to are zero-based, label optional. Legacy single input works.",
+  chem_lewis_structure: "Output 1 group; formula required, charge/resonance optional.",
+  chem_vsepr_shape: "Output 1 group; formula required, charge optional.",
+  chem_reaction_energy_profile: "Output 1 group; energy inputs are plan quantity IDs.",
+  chem_orbital_boxes: "Output 1 group; one to four atomic species.",
   complex_point: "Output 1 point.",
   complex_transform: "Output 1 point.",
   harmonic_motion: "Output 1 polyline.",

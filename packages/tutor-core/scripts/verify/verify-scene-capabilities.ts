@@ -266,6 +266,20 @@ if (DEFAULT_SCENE_PROOF_PREDICATES !== PLANNER_VISIBLE_SCENE_PROOF_PREDICATES) {
 function promptCapabilitySection(prompt: string, heading: string): string[] {
   const section = prompt.split(`${heading}\n`, 2)[1]?.split("\n\n", 1)[0];
   if (!section) throw new Error(`prompt omitted ${heading}`);
+  if (heading === "AVAILABLE CONSTRUCTION OPERATORS" && section.startsWith("Every operator named in the contracts below.")) {
+    const contracts = prompt.split("OPERATOR INPUT CONTRACTS\n", 2)[1]?.split("\nAVAILABLE PROOF PREDICATES", 1)[0];
+    if (!contracts) throw new Error("catalog reference omitted its operator contracts");
+    const contractNames = new Set(contracts.match(/\b[a-z][a-z0-9_]*\b/g) ?? []);
+    const additional = section.split("\n").find((line) => line.startsWith("Also available: "))
+      ?.slice("Also available: ".length).split(",").map((name) => name.trim()).filter(Boolean) ?? [];
+    const available = [...PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS.filter((name) => contractNames.has(name)), ...additional];
+    if (new Set(available).size !== available.length) throw new Error("catalog reference repeats a supported operator");
+    const supported = new Set<string>(PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS);
+    return [
+      ...PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS.filter((name) => available.includes(name)),
+      ...additional.filter((name) => !supported.has(name)),
+    ];
+  }
   // Operators are listed one per line ("- op"); predicates are a single
   // comma-separated line to keep the serialized prompt under its size budget.
   return section
@@ -275,6 +289,14 @@ function promptCapabilitySection(prompt: string, heading: string): string[] {
 }
 
 const defaultCapabilityPrompt = buildSceneDocumentPlannerPrompt("capability drift check");
+const missingOperatorPrompt = defaultCapabilityPrompt.replace(/\bcoulomb_pair\b,?/g, "");
+if (promptCapabilitySection(missingOperatorPrompt, "AVAILABLE CONSTRUCTION OPERATORS").includes("coulomb_pair")) {
+  throw new Error("catalog reference parser must detect an omitted supported operator");
+}
+const unsupportedOperatorPrompt = defaultCapabilityPrompt.replace("Also available: ", "Also available: __unknown_operator__,");
+if (!promptCapabilitySection(unsupportedOperatorPrompt, "AVAILABLE CONSTRUCTION OPERATORS").includes("__unknown_operator__")) {
+  throw new Error("catalog reference parser must retain unsupported names for the exact manifest check to reject");
+}
 assertExactCapabilityList(
   "prompt construction operators",
   promptCapabilitySection(defaultCapabilityPrompt, "AVAILABLE CONSTRUCTION OPERATORS"),
