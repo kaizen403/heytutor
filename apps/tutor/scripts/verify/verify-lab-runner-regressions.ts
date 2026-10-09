@@ -5,7 +5,7 @@ import {
   type DiagramEvalRow,
 } from "../lecture-lab/diagramEval";
 import { parseOptions, selectResumeProbes, assertLabOutputReusable, plannerRequestWorstCaseUsd, restoredDiagramPng } from "../lecture-lab/run";
-import { currentJudgeSummary } from "../lecture-lab/judging";
+import { currentJudgeSummary, priorSubsetJudgeSummary } from "../lecture-lab/judging";
 
 /** Pure, synthetic regression fixtures: importing run.ts does not run its CLI. */
 const failures: string[] = [];
@@ -103,6 +103,13 @@ check("partial resumed judging cannot be reported as completed totals", () => {
   const summary = { judge: { counts: {} }, judgingStatus: { unreviewedRows: 1 } };
   assert.equal(currentJudgeSummary(summary), undefined);
   assert.equal(currentJudgeSummary({ ...summary, judgingStatus: { unreviewedRows: 0 } }), summary.judge);
+});
+
+check("repeated resume preserves the previously reviewed subset totals", () => {
+  const prior = { counts: { right: 1 } };
+  assert.equal(priorSubsetJudgeSummary({ priorSubsetJudgeSummary: prior }, 1), prior);
+  assert.equal(priorSubsetJudgeSummary({ judge: prior }, 1), prior);
+  assert.equal(priorSubsetJudgeSummary({ priorSubsetJudgeSummary: prior }, 0), undefined);
 });
 
 if (failures.length > 0) {
