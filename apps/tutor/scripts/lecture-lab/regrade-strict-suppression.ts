@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import type { FigureSource } from "@heytutor/scene-engine";
+import { isChemistrySceneFamily, isChemistryQuestion, type FigureSource } from "@heytutor/scene-engine";
+import { parseDiagramSubject } from "@heytutor/tutor-core";
 import type { LectureRun } from "./lecturePipeline";
 import { evaluationSuppressesSelectedSource } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
@@ -27,11 +28,21 @@ export function suppressStoredStrictSelection(value: unknown): boolean {
   const run = record(value);
   const diagram = record(run.diagram);
   const source = diagram.figureSource;
+  const subject = parseDiagramSubject(record(run.evaluation).subject);
+  const context = {
+    subject,
+    chemistryLane: subject === "chemistry" ||
+      isChemistryQuestion(typeof run.question === "string" ? run.question : "") ||
+      (typeof diagram.family === "string" && isChemistrySceneFamily(diagram.family)),
+    codeLesson: run.isDsa === true,
+    dsa: run.isDsa === true,
+    doubt: false,
+  };
   if (
     run.arm !== "planner_examples_strict" ||
     diagram.committed !== true ||
     typeof source !== "string" ||
-    !evaluationSuppressesSelectedSource("planner_examples_strict", source as FigureSource)
+    !evaluationSuppressesSelectedSource("planner_examples_strict", source as FigureSource, context)
   ) {
     return false;
   }

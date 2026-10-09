@@ -1048,7 +1048,7 @@ export function useQuestionHandler(
           });
           diagramStrategyDecision = decision;
           tel.meta({ diagram_strategy: decision.strategy });
-          if (!decision.usePickedExamples || recoveredScene) {
+          if (!decision.usePickedExamples || recoveredScene || plan.visualRequirement === "none") {
             diagramExamplePickerSettled = true;
             return;
           }
@@ -1166,7 +1166,6 @@ export function useQuestionHandler(
           } else if (plannedTurn) {
             tel.mark("planner-numeric-authority-not-needed", { reason: "no_unstated_numeric_results" });
           }
-          startDiagramExamplePicker(turnPlan);
           const evaluatedVisualNeed = await awaitCurrentTurn(visualNeedPromise, isCurrentTurn);
           turnPlan = {
             ...turnPlan,
@@ -1181,6 +1180,7 @@ export function useQuestionHandler(
             evaluated: evaluatedVisualNeed,
             effective: turnPlan.visualRequirement,
           });
+          startDiagramExamplePicker(turnPlan);
         }
 
         // ProblemIR still decides family inference, the deterministic figure
