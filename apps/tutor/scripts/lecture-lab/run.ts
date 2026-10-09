@@ -26,11 +26,14 @@ import {
   combineDiagramEvalRows,
   evaluationRunFastMode,
   estimateEvaluationCostUsd,
+  evaluationUsesExamples,
+  evaluationUsesStandardModelHeader,
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
   sampleDiagramEvalRows,
   summarizeDiagramFailures,
   type DiagramEvalArm,
+  type DiagramEvalModel,
   type DiagramEvalRow,
 } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
@@ -39,7 +42,7 @@ import {
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
 
-interface Options {
+export interface Options {
   difficulty: string;
   units: number[] | null;
   subjects: string[];
@@ -63,11 +66,12 @@ interface Options {
   sample: number | null;
   topics: string[] | null;
   arm: DiagramEvalArm;
+  model: DiagramEvalModel;
   figureOnly: boolean;
   yes: boolean;
 }
 
-function parseOptions(argv: string[]): Options {
+export function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
   const evalFiles: string[] = [];
   const booleans = new Set(["figure-only", "yes"]);
@@ -108,8 +112,19 @@ function parseOptions(argv: string[]): Options {
     return Number.isFinite(value) ? value : fallback;
   };
   const arm = flags.get("arm") ?? "current";
-  if (arm !== "current" && arm !== "planner_first" && arm !== "planner_examples") {
-    throw new Error(`--arm must be current, planner_first or planner_examples, received ${arm}`);
+  if (
+    arm !== "current" &&
+    arm !== "planner_first" &&
+    arm !== "planner_examples" &&
+    arm !== "planner_examples_strict"
+  ) {
+    throw new Error(
+      `--arm must be current, planner_first, planner_examples or planner_examples_strict, received ${arm}`,
+    );
+  }
+  const model = flags.get("model") ?? "standard";
+  if (model !== "standard" && model !== "fast") {
+    throw new Error(`--model must be standard or fast, received ${model}`);
   }
   return {
     difficulty: flags.get("difficulty") ?? "hard",
@@ -129,6 +144,7 @@ function parseOptions(argv: string[]): Options {
     sample: number("sample", null),
     topics: list("topics"),
     arm,
+    model,
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     yes: flags.get("yes") === "true",
   };
@@ -363,7 +379,7 @@ async function main(): Promise<void> {
     ? loadEvaluationRows(options.evalFiles.map((path) => resolve(path)), options)
     : null;
   const evaluationById = new Map(evaluationRows?.map((row) => [row.id, row]) ?? []);
-  const diagramExamples = evaluationRows && options.arm === "planner_examples"
+  const diagramExamples = evaluationRows && evaluationUsesExamples(options.arm)
     ? loadDiagramExemplarLibrary(
         resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl"),
         evaluationRows.map((row) => row.question),
@@ -383,13 +399,13 @@ async function main(): Promise<void> {
       ? loadAskFile(resolve(options.ask))
       : loadProbes(repoRoot, options);
   const preflightEstimateUsd = evaluationRows
-    ? estimateEvaluationCostUsd(probes.length, options.arm)
+    ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
     : null;
   if (preflightEstimateUsd !== null) {
     console.log(
-      `diagram eval: ${probes.length} rows, arm ${options.arm}, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
+      `diagram eval: ${probes.length} rows, arm ${options.arm}, model ${options.model}, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
     );
-    if (options.arm === "planner_examples") {
+    if (evaluationUsesExamples(options.arm)) {
       console.log(`diagram eval: ${diagramExamples.length} leak-filtered examples available`);
       console.log(
         `diagram eval: ${diagramExampleCatalogue?.entries.length ?? 0} picker catalogue entries, ` +
@@ -424,7 +440,9 @@ async function main(): Promise<void> {
       applyLectureLabHeaders(headers);
       if (evaluationRows) {
         headers.set(LECTURE_LAB_ZERO_RETENTION_HEADER, "1");
-        headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
+        if (evaluationUsesStandardModelHeader(true, options.model)) {
+          headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
+        }
       }
     }
     const traceId = headers.get("x-heytutor-trace-id");
@@ -462,7 +480,7 @@ async function main(): Promise<void> {
         difficulty: probe.difficulty,
         arm: options.arm,
         figureOnly: options.figureOnly,
-        fastMode: evaluationRunFastMode(Boolean(evaluationRows)),
+        fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
         traceId,
         diagramExamples,
         diagramExampleCatalogue,

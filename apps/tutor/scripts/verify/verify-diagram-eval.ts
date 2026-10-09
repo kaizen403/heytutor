@@ -67,6 +67,17 @@ import {
 } from "../../features/tutor-session/lib/scene/planningOverlap";
 import { sampleDiagramRowsAcrossChapters } from "../lecture-lab/retrieval-check";
 import { sampleDiagramRoundRows } from "../lecture-lab/roundSample";
+import { parseOptions as parseLectureLabOptions } from "../lecture-lab/run";
+
+const strictFastOptions = parseLectureLabOptions([
+  "--eval", "sample.jsonl",
+  "--arm", "planner_examples_strict",
+  "--model", "fast",
+]);
+assert.equal(strictFastOptions.arm, "planner_examples_strict");
+assert.equal(strictFastOptions.model, "fast");
+assert.equal(parseLectureLabOptions([]).model, "standard");
+assert.throws(() => parseLectureLabOptions(["--model", "turbo"]), /--model must be standard or fast/);
 
 const rows = parseDiagramEvalJsonl([
   JSON.stringify({
