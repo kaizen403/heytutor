@@ -7,8 +7,9 @@ written into the old ledger as something it is not.
 
 ## TOPIC-READY for a declared scope
 
-This is the primary working milestone. A topic is READY for a declared scope
-when all five hold:
+This was the working milestone from 4 to 9 October 2026, when per-topic work
+paused; the counts below are final. A topic is READY for a declared scope when
+all five hold:
 
 1. **Integrated.** The implementation runs in the normal application path on the
    consolidated handoff branch. A kernel, a private patch or a specially cued
@@ -60,8 +61,10 @@ bank coverage.
 
 READY: 1. FULLY-CERTIFIED: 0.
 
-Wave one, 6 October 2026: reviewed implementation is integrated through
-`c6b41c4bf20cb581f673f2a8763827cde58db727`. No new topic met all five criteria.
+Wave one, 6 October 2026: reviewed implementation was integrated on a local
+handoff branch and published to main in 3d743709 (PR #91). The SHAs in the
+"Integrated at" column below are local handoff commits that no remote branch
+holds. No new topic met all five criteria.
 Real student runs exposed failures inside the proposed scopes despite passing
 bounded offline gates. The accepted ledger remains untouched. The wave-one
 report and its runtime log were removed from the tree in October 2026 and stay
