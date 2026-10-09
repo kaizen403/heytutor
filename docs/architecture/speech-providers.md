@@ -22,6 +22,18 @@ To use ElevenLabs again, set `TTS_PROVIDER=elevenlabs` with the existing `ELEVEN
 
 Restart the server after changing configuration. No database migration is required. A deployment without a usable selected provider can use the existing browser speech fallback; the speech-start guard surfaces failures when that fallback cannot start either.
 
+## Hinglish voice (Sarvam)
+
+Hinglish (`audioLanguage: "hinglish"`, voice key `hi-IN`) is spoken by Sarvam `bulbul:v3` with speaker `ritu` when `SARVAM_API_KEY` is set. `SARVAM_SPEAKER` and `SARVAM_MODEL` override them (`providerConfig.ts`). Without a Sarvam key, Hinglish is offered only when `CARTESIA_VOICE_ID_HI` is set, and Cartesia speaks it. A legacy `"hindi"` setting is no longer recognised and reads as English.
+
+- **Mixed script.** Narration is Hindi in Devanagari and English in Latin script (`packages/tutor-core/src/llm/hinglishNarration.ts`); the subtitle shows exactly what is spoken. The board stays in English: a `WRITE` row in Devanagari is dropped and its narration still plays (`isDevanagariWrite` in `commandPlacement.ts`).
+- **Digits as English words.** Sarvam reads "9" as a Hindi numeral, but the pen finds a board row by its English number words. The prompt asks for words, and `sarvamSpeechText` in `lib/tts/sarvamProtocol.ts` converts any digit left over before the text reaches Sarvam.
+- **Streaming.** The relay uses Sarvam's WebSocket (`wss://api.sarvam.ai/text-to-speech/ws`) and sends one sentence at a time, because Sarvam has no context ids. It pings every 25 s, since Sarvam closes an idle socket after a minute. Raw 24 kHz PCM is wrapped in the same WAV as Cartesia. HTTP is the fallback.
+- **No timings.** Sarvam returns no word alignment, so the pen keeps the estimated schedule. The WAV length feeds the speech-rate learner and the saved sentence duration for replay and export.
+- **Cost.** `SARVAM_USD_PER_1K_CHARS` sets the internal estimate.
+
+Gates: `verify-sarvam-tts`, `verify-sarvam-relay`, `verify-hinglish-lesson`, `verify-voice-language`, `verify-settings-persist`. Live probe: `scripts/live/probe-sarvam-voices.mjs`. Lecture lab: `--narration hinglish`.
+
 ## Boundaries
 
 - `lib/tts/providerConfig.ts` owns provider, credentials, voices, and model selection.

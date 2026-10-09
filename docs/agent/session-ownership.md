@@ -28,4 +28,4 @@ an optional `--report` / measure script, not a shared gate.
 A Cloudflare account token pasted into a chat is rolled by deleting that
 token in the dashboard or via `DELETE /accounts/{account_id}/tokens/{id}`.
 Checking that it still works does not close the leak. Never write a live
-token into the repo, `remaining.md`, or a commit message.
+token into the repo or a commit message.

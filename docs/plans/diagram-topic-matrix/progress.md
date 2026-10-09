@@ -1,6 +1,6 @@
 # Topic progress and agent completion logs
 
-Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](../../agent/coverage-continuation-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+Status, 9 October 2026: per-topic chapter diagram work is paused. This matrix is the topic checklist. Do not assign packets or claim rows.
 
 ## Execution policy of 4 October 2026
 
@@ -10,7 +10,7 @@ tracked in [readiness.md](readiness.md). The full certification gate below no
 longer blocks that work, but it still governs `accepted` in the ledger: a READY
 topic is never written as `accepted`, the counters below stay as they are, and
 old evidence is preserved. READY and FULLY-CERTIFIED are reported as separate
-counts. Execution log: [claude-execution-20261004.md](work-logs/claude-execution-20261004.md).
+counts.
 
 ## Pause of 3 October 2026 (superseded for the nine topic queue)
 
@@ -25,14 +25,12 @@ is increased from tests, workers finishing, or that one smoke.
 
 Tracking snapshot: **2026-10-02-topic-matrix-v1**. This ledger starts with **no newly accepted topic evidence**. Existing engine support is still unknown at topic level, not zero. Historical fractions such as Kinematics **6/14** remain a baseline inventory record; they are not automatically copied into accepted rows.
 
-## Mandatory completion workflow
+## Completion workflow
 
-1. The coordinator reads the [matrix](index.md), freezes the source/exam/evaluation version and assigns exact topic IDs, dependencies and disjoint files. Register the owner and version on those rows in [topic-progress.csv](topic-progress.csv).
-2. Each worker maintains a unique `work-logs/<packet>-<assignment-id>.md` using the [work-log template](work-logs/TEMPLATE.md). Record actual changed files, independent expectations, exact commands/results, artifacts and per-topic remaining variants. Write/update this log before reporting an assignment finished, including when blocked or only partially complete.
-3. The worker proposes `integration_pending`, `verification_pending` or `blocked`; finishing code or one gate does not authorize acceptance. Keep shared ledger/root-counter edits with the integration owner to prevent concurrent writers from losing each other's updates.
-4. The integration owner independently checks the full frozen topic contract and the root plan's shared/render/live/persistence/replay gates. Record the acceptance disposition in the worker log. Audit already-existing support the same way: new implementation is not required when existing code can supply all evidence.
-5. After review, update the exact ledger rows and recompute the unique accepted-topic counts for each chapter. Update both the chapter table below and the root queue's **Accepted topics (new audit)** column. A count changes only when the topic states/evidence change, not when a worker finishes or a new operator is named.
-6. Report the transition and remaining obligations, for example `6/14 -> 10/14`, or `14/14 accepted` after all fourteen full topic rows qualify. A compound topic with unverified required variants stays partial/pending. Apply the root >90% inventory threshold and lifecycle gates before declaring a chapter complete; accepted topic counts alone are not a release or merge authorization.
+Paused 9 October 2026. Per-topic packet work stopped, so no worker log or
+acceptance review is running. The 2 to 6 October packet logs that no ledger row
+cites were removed; the 12 logs that `topic-progress.csv` cites stay in
+`work-logs/`.
 
 ## Row contract
 

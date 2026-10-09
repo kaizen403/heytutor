@@ -1,6 +1,6 @@
 # Topic-to-agent delegation matrix
 
-Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](../../agent/coverage-continuation-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+Status, 9 October 2026: per-topic chapter diagram work is paused. This matrix is the topic checklist. Do not assign packets or claim rows.
 
 Version: **2026 syllabi / 2 October 2026**. This is a documentation-only dispatch plan. It starts no implementation work and certifies no new engine behaviour. The [root plan](../../../DIAGRAM_ENGINE_COVERAGE_PLAN.md#chapters-still-to-cover) retains its 34-chapter priority queue, historical record and DCP-01–DCP-12 backlog.
 

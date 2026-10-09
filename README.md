@@ -162,7 +162,6 @@ Full runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md). S3: [docs/ops/s3-setup.md]
 | [docs/agent/backend.md](docs/agent/backend.md) | API and lib modules |
 | [docs/agent/packages.md](docs/agent/packages.md) | Shared package map |
 | [docs/architecture/tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md) | Voice / handwriting sync |
-| [docs/architecture/universal-illustration-engine-v4.md](docs/architecture/universal-illustration-engine-v4.md) | Illustration engine v4 |
 | [docs/architecture/diagram-accuracy-architecture.md](docs/architecture/diagram-accuracy-architecture.md) | Verified diagram design |
 | [docs/ops/ci-cd.md](docs/ops/ci-cd.md) | Deploy runbook |
 
