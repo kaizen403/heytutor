@@ -24,7 +24,7 @@ Restart the server after changing configuration. No database migration is requir
 
 ## Hinglish voice (Sarvam)
 
-Hinglish (`audioLanguage: "hinglish"`, voice key `hi-IN`) is spoken by Sarvam `bulbul:v3` with speaker `ritu` when `SARVAM_API_KEY` is set. `SARVAM_SPEAKER` and `SARVAM_MODEL` override them (`providerConfig.ts`). Without a Sarvam key, Hinglish is offered only when `CARTESIA_VOICE_ID_HI` is set, and Cartesia speaks it. A legacy `"hindi"` setting is no longer recognised and reads as English.
+Hinglish (`audioLanguage: "hinglish"`, voice key `hi-IN`) is spoken by Sarvam `bulbul:v3` with speaker `ritu` when `SARVAM_API_KEY` is set. `SARVAM_SPEAKER` and `SARVAM_MODEL` override them (`providerConfig.ts`). A Sarvam key is required to offer Hinglish in Settings: without it the server hides the choice, ignores attempts to save it, and reads a saved Hinglish choice as English (`hinglishVoiceAvailable` checks only `SARVAM_API_KEY`). `CARTESIA_VOICE_ID_HI` sets the lower level Cartesia voice for `hi-IN` but does not enable the option for students. A legacy `"hindi"` setting is no longer recognised and reads as English.
 
 - **Mixed script.** Narration is Hindi in Devanagari and English in Latin script (`packages/tutor-core/src/llm/hinglishNarration.ts`); the subtitle shows exactly what is spoken. The board stays in English: a `WRITE` row in Devanagari is dropped and its narration still plays (`isDevanagariWrite` in `commandPlacement.ts`).
 - **Digits as English words.** Sarvam reads "9" as a Hindi numeral, but the pen finds a board row by its English number words. The prompt asks for words, and `sarvamSpeechText` in `lib/tts/sarvamProtocol.ts` converts any digit left over before the text reaches Sarvam.
