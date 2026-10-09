@@ -86,6 +86,7 @@ export interface StartTurnTraceParams {
   model?: string;
   name?: string;
   generationName?: string;
+  tags?: string[];
 }
 
 export function startTurnTrace({
@@ -98,6 +99,7 @@ export function startTurnTrace({
   model,
   name = "tutor-turn",
   generationName = "fireworks-llm",
+  tags,
 }: StartTurnTraceParams): TurnTrace | null {
   const lf = getClient();
 
@@ -115,7 +117,7 @@ export function startTurnTrace({
     sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
     metadata: userId ? { client_trace_id: traceId, client_session_id: sessionId } : undefined,
     ...(input ? { input } : {}),
-    tags: buildTraceTags(mock ? ["mock"] : undefined),
+    tags: buildTraceTags([...(tags ?? []), ...(mock ? ["mock"] : [])]),
   });
 
   const generation = trace.generation({
@@ -295,6 +297,7 @@ export interface UpdateTurnTraceParams {
   traceId: string;
   sessionId?: string;
   metadata: Record<string, unknown>;
+  tags?: string[];
 }
 
 function createTimedSpan(
@@ -357,6 +360,7 @@ export function updateTurnTrace({
   traceId,
   sessionId,
   metadata,
+  tags,
 }: UpdateTurnTraceParams): void {
   const lf = getClient();
 
@@ -367,7 +371,7 @@ export function updateTurnTrace({
   lf.trace({
     id: userId ? scopedTraceId(userId, traceId) : traceId,
     sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
-  }).update({ metadata });
+  }).update({ metadata, ...(tags ? { tags: buildTraceTags(tags) } : {}) });
 }
 
 const FLUSH_TIMEOUT_MS = 3000;

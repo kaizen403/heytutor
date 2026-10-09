@@ -82,10 +82,8 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import {
   classifyDiagramEmptyCause,
+  evaluationDecision,
   evaluationSuppressesSelectedSource,
-  evaluationPlansChemistry,
-  evaluationSelectionOrder,
-  evaluationUsesExamples,
   supplementCandidateErrorCodes,
   type DiagramEmptyCause,
   type DiagramEvalArm,
@@ -464,14 +462,20 @@ export async function runLecture(
         });
     }
 
-    if (evaluationUsesExamples(options.arm ?? "current")) {
+    const pickerCapabilities = inferSceneCapabilities(question, {
+      lawIds: turnPlan.lawIds,
+      problemIR: null,
+      turnPlan,
+    });
+    const pickerDecision = evaluationDecision(options.arm ?? "current", {
+      chemistryLane: pickerCapabilities.families.some(isChemistrySceneFamily) || isChemistryQuestion(question),
+      codeLesson: false,
+      dsa: false,
+      doubt: false,
+    });
+    if (pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
-      const pickerCapabilities = inferSceneCapabilities(question, {
-        lawIds: turnPlan.lawIds,
-        problemIR: null,
-        turnPlan,
-      });
       const pickerArchetype = detectArchetype(question, { turnPlan, problemIR: null });
       const picked = await pickDiagramExamples(
         examples,
@@ -593,6 +597,7 @@ export async function runLecture(
       shouldAttemptLlmScene: boolean;
       families: readonly string[];
       archetypeId: string | null;
+      diagramStrategy: ReturnType<typeof evaluationDecision>;
       examplesUsed: DiagramExemplar[];
       request: {
         conversationContext: string;
@@ -615,8 +620,13 @@ export async function runLecture(
       });
       const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
         || isChemistryQuestion(question);
-      const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" &&
-        (!chemistryLane || evaluationPlansChemistry(options.arm ?? "current"));
+      const diagramStrategy = evaluationDecision(options.arm ?? "current", {
+        chemistryLane,
+        codeLesson: false,
+        dsa: false,
+        doubt: false,
+      });
+      const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
       const archetype = detectArchetype(question, {
         turnPlan: planningTurnPlan,
         problemIR: authority?.problemIR ?? null,
@@ -640,13 +650,14 @@ export async function runLecture(
               ".",
           ]
         : [];
-      const examplesUsed = evaluationUsesExamples(options.arm ?? "current") ? pickedExamples : [];
+      const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
         sceneCapabilities,
         shouldPlanExactScene,
         shouldAttemptLlmScene,
         families: sceneCapabilities.families,
         archetypeId: archetype?.id ?? null,
+        diagramStrategy,
         examplesUsed,
         request: {
           conversationContext: planContext,
@@ -675,7 +686,7 @@ export async function runLecture(
       // Speculation follows NEXT_PUBLIC_SCENE_SPECULATION like the live hook
       // (SCENE_SPECULATION_ENABLED, default off).
       speculationAllowed: true,
-      selectionOrder: evaluationSelectionOrder(options.arm ?? "current"),
+      selectionOrder: (gate) => gate.diagramStrategy.selectionOrder,
       plannerStartedAt,
       deadlineMs: scenePlannerDeadlineMs,
       deriveGate: deriveSceneGate,
@@ -846,7 +857,12 @@ export async function runLecture(
       );
       run.diagram.primitiveCount = selected.renderScene.primitives.length;
       const suppressFallback = selectedHasInk &&
-        evaluationSuppressesSelectedSource(options.arm ?? "current", selected.figureSource);
+        evaluationSuppressesSelectedSource(options.arm ?? "current", selected.figureSource, {
+          chemistryLane: planning.gate.diagramStrategy.chemistryLane,
+          codeLesson: false,
+          dsa: false,
+          doubt: false,
+        });
       if (suppressFallback) {
         run.diagram.suppressedFallback = {
           figureSource: selected.figureSource,

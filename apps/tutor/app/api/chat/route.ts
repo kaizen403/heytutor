@@ -40,10 +40,18 @@ import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type Pa
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
 import {
+  DEFAULT_CHEAP_FIREWORKS_MODEL,
   DEFAULT_FIREWORKS_MODEL,
   resolveFireworksModel,
 } from "@/lib/llm/fireworksModels";
 import { setTimeout as sleepFor } from "node:timers/promises";
+import { resolveDiagramStrategyAssignment } from "@/lib/scene/diagramStrategy.server";
+import {
+  buildLiveDiagramPickerBody,
+  injectLiveDiagramExamples,
+  parseLiveDiagramExampleIds,
+  resolveLiveDiagramExamples,
+} from "@/lib/scene/diagramExampleLibrary.server";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
@@ -207,6 +215,25 @@ function finalizeMockPlannerTrace(
     output: content,
     usageDetails: { input: 0, output: 0, total: 0 },
     metadata: { mock: true, planner: true, scene_planner_version: 2 },
+    mock: true,
+    updateTrace: false,
+  });
+  flushInBackground();
+  return Response.json(
+    { choices: [{ message: { content } }] },
+    { headers: { "x-heytutor-trace-id": traceId } },
+  );
+}
+
+function finalizeMockDiagramExamplePickerTrace(
+  turnTrace: TurnTrace | null,
+  traceId: string,
+): Response {
+  const content = JSON.stringify({ ids: [] });
+  endLlmGeneration(turnTrace, {
+    output: content,
+    usageDetails: { input: 0, output: 0, total: 0 },
+    metadata: { mock: true, planner: true, diagram_example_picker: true },
     mock: true,
     updateTrace: false,
   });
@@ -552,6 +579,9 @@ interface PlannerRequestArgs {
   turnPlanV3: boolean;
   problemIRV1: boolean;
   codeLessonV1: boolean;
+  diagramExamplePicker: boolean;
+  diagramExampleIds: string[];
+  question: string;
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
   fastMode: boolean;
@@ -573,6 +603,9 @@ async function handlePlannerRequest({
   turnPlanV3,
   problemIRV1,
   codeLessonV1,
+  diagramExamplePicker,
+  diagramExampleIds,
+  question,
   plannerPhase,
   plannerLane,
   fastMode,
@@ -583,7 +616,7 @@ async function handlePlannerRequest({
   actor,
   grant,
 }: PlannerRequestArgs): Promise<Response> {
-  const plannerModels = resolvePlannerModels({
+  const plannerModels = diagramExamplePicker ? [DEFAULT_CHEAP_FIREWORKS_MODEL] : resolvePlannerModels({
     semanticSceneV2,
     turnPlanV3,
     problemIRV1,
@@ -602,9 +635,17 @@ async function handlePlannerRequest({
   );
   const boundedSignal = mergePlannerSignals(signal, deadlineController.signal);
   try {
-    const parsed = serverChatBody(JSON.parse(rawBody), "planner");
+    const preparedBody = diagramExamplePicker
+      ? buildLiveDiagramPickerBody(rawBody, question)
+      : semanticSceneV2 && diagramExampleIds.length > 0
+        ? injectLiveDiagramExamples(rawBody, resolveLiveDiagramExamples(question, diagramExampleIds))
+        : rawBody;
+    const parsed = serverChatBody(JSON.parse(preparedBody), "planner");
     delete parsed.reasoning_effort;
-    if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
+    if (diagramExamplePicker) {
+      parsed.thinking = { type: "disabled" };
+      parsed.max_tokens = 60;
+    } else if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
       // Complex scenes routinely exceed 1,400 output tokens; truncating JSON
       // makes an otherwise usable scene indistinguishable from no scene.
@@ -679,6 +720,7 @@ async function handlePlannerRequest({
           planner_model: transport.model,
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
+          diagram_example_picker: diagramExamplePicker || undefined,
         },
         model: transport.model,
         updateTrace: false,
@@ -727,6 +769,7 @@ async function handlePlannerRequest({
           planner_model: transport.model,
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
+          diagram_example_picker: diagramExamplePicker || undefined,
           usage_status: usage.known ? "known" : "unknown",
           cached_input_tokens: usage.cachedInput ?? 0,
         },
@@ -838,6 +881,7 @@ export async function POST(request: Request): Promise<Response> {
   const traceId = incomingTraceId ?? genTraceId();
   const attach = Boolean(incomingTraceId);
   const kind = resolveChatGenerationKind(request.headers);
+  const diagramExamplePicker = request.headers.get("x-diagram-example-picker") === "1";
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
   const evaluationModelOverride = shouldUseLectureLabStandardModel(request)
     ? DEFAULT_FIREWORKS_MODEL
@@ -853,6 +897,7 @@ export async function POST(request: Request): Promise<Response> {
   const serverModel = teachingRoute
     ? teachingRoute.model
     : evaluationModelOverride ?? resolveFireworksModel({ fastMode });
+  const diagramStrategyAssignment = resolveDiagramStrategyAssignment(actor);
   const turnTrace = shouldSuppressLectureLabTrace(request) ? null : startTurnTrace({
     userId: actor.userId,
     sessionId,
@@ -862,6 +907,7 @@ export async function POST(request: Request): Promise<Response> {
     mock,
     model: serverModel,
     generationName: chatGenerationName(kind),
+    tags: [`diagram-strategy-assigned:${diagramStrategyAssignment}`],
   });
 
   tutorDebug("chat", "POST /api/chat", {
@@ -869,6 +915,7 @@ export async function POST(request: Request): Promise<Response> {
     session_id: sessionId ?? null,
     mock,
     generation: chatGenerationName(kind),
+    diagram_strategy_assigned: diagramStrategyAssignment,
     attach,
     question_preview: (question ?? userInput).slice(0, 120),
     question_chars: (question ?? userInput).length,
@@ -877,6 +924,9 @@ export async function POST(request: Request): Promise<Response> {
   if (mock) {
     tutorDebug("chat", "using mock response (no FIREWORKS_API_KEY)");
     if (request.headers.get("x-planner") === "1") {
+      if (diagramExamplePicker) {
+        return finalizeMockDiagramExamplePickerTrace(turnTrace, traceId);
+      }
       if (request.headers.get("x-code-lesson-version") === "1") {
         return finalizeMockCodeLessonTrace(turnTrace, userInput, traceId);
       }
@@ -911,6 +961,9 @@ export async function POST(request: Request): Promise<Response> {
       turnPlanV3,
       problemIRV1,
       codeLessonV1,
+      diagramExamplePicker,
+      diagramExampleIds: parseLiveDiagramExampleIds(new URL(request.url).searchParams.get("diagramExampleIds")),
+      question: question ?? "",
       plannerPhase: request.headers.get("x-scene-planner-phase") === "repair" ? "repair" : "plan",
       plannerLane: (
         turnPlanV3

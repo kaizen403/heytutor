@@ -25,5 +25,6 @@ export async function POST(request: Request): Promise<Response> {
     planId: result.planId,
     nextResetAt: result.nextResetAt,
     ttsCharsRemaining: result.grant.ttsCharsRemaining,
+    diagramStrategy: result.diagramStrategy,
   });
 }
