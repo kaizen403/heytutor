@@ -96,19 +96,29 @@ const ELEMENT_SYMBOLS = new Set(
     "Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og").split(" "),
 );
 
-/** Symbols that are also common capitalised words in a Title Case title. */
+/**
+ * Symbols that are also common capitalised words in a Title Case title. They
+ * keep their case only when written as notation, with a charge ("As+").
+ */
 const WORD_LIKE_SYMBOLS = new Set(["In", "As", "At", "Be", "He", "No", "Am"]);
+
+/** Acronyms an all caps question still keeps ("DNA AND RNA"). */
+const SYLLABUS_ACRONYMS = new Set(
+  ("DNA RNA ATP ADP NAD NADH NADP NADPH EMF AC DC LED LCR LC RC SHM UV IR NMR SI CGS MKS STP NTP " +
+    "IUPAC VSEPR MO LCAO CFSE HCF LCM GCD AP GP HP AM GM LPG CNG").split(" "),
+);
 
 /**
  * A formula, symbol or acronym the writer cased on purpose: NaCl, H2O, pH,
- * DNA, Na+, Ca, and single letter symbols such as M (molar) or point A. Its
- * case is kept; every other word is sentence cased.
+ * DNA, Na+, As3+, Ca, and single letter symbols such as M (molar) or point A.
+ * Its case is kept; every other word is sentence cased.
  */
 function keepsWrittenCase(word: string): boolean {
   const core = word.replace(/[^A-Za-z0-9]/g, "");
   if (!core) return false;
   if (/\d/.test(core) || /[A-Z]/.test(core.slice(1)) || /^[A-Z]$/.test(core)) return true;
-  return ELEMENT_SYMBOLS.has(core) && !WORD_LIKE_SYMBOLS.has(core);
+  if (!ELEMENT_SYMBOLS.has(core)) return false;
+  return !WORD_LIKE_SYMBOLS.has(core) || /^[A-Z][a-z]?[+\-−]/.test(word);
 }
 
 function formatBoardTitle(raw: string): string {
@@ -132,7 +142,10 @@ function formatBoardTitle(raw: string): string {
   const words = title.split(/\s+/);
   // An all caps question is shouting, not a row of acronyms.
   const shouting = !/[a-z]/.test(title) && words.filter((word) => /[A-Z]{2,}/.test(word)).length >= 2;
-  const kept = (word: string) => (shouting ? /\d/.test(word) : keepsWrittenCase(word));
+  const kept = (word: string) =>
+    shouting
+      ? /\d/.test(word) || SYLLABUS_ACRONYMS.has(word.replace(/[^A-Za-z]/g, ""))
+      : keepsWrittenCase(word);
   title = words
     .map((word, index) => {
       if (kept(word)) return word;

@@ -114,6 +114,8 @@ for (const [question, expected] of [
   ["pH of 0.01 M HCl", "pH of 0.01 M HCl"],
   ["Find V across the 4 ohm resistor", "V across the 4 ohm resistor"],
   ["Distance between points A and B on a line", "Distance between points A and B on a line"],
+  ["Compare As+ and Sb+ in size", "Compare As+ and Sb+ in size"],
+  ["Why is He2+ an alpha particle", "Why is He2+ an alpha particle"],
 ] as const) {
   const title = deriveBoardTitleFromQuestion(question);
   assert(title === expected, `formula casing: "${question}" became "${title}", wanted "${expected}"`);
@@ -124,6 +126,8 @@ for (const [question, expected] of [
   ["Motion In One Dimension Explained", "Motion in one dimension explained"],
   ["WHAT IS OHM'S LAW?", "Ohm's law"],
   ["Explain Newton's Second Law", "Newton's second law"],
+  ["DNA AND RNA STRUCTURE", "DNA and RNA structure"],
+  ["WHY IS AC USED INSTEAD OF DC", "Why is AC used instead of DC"],
 ] as const) {
   const title = deriveBoardTitleFromQuestion(question);
   assert(title === expected, `sentence casing: "${question}" became "${title}", wanted "${expected}"`);

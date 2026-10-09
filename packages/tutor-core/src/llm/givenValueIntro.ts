@@ -340,18 +340,22 @@ function boardNumber(value: number, sourceText: unknown): string {
 
 /**
  * Is the number at `start` written with a plus sign ("+1", "state +1.0",
- * "= +2")? A plus between two terms ("5 + 2", "1+1") is addition.
+ * "= +2")? A plus after a term ("5 + 2", "5 +2", "x +2", "(a) + 1") is
+ * addition, whatever the spacing; after a word ("is +2") it is a sign.
  */
 function writtenWithPlus(text: string, start: number): boolean {
   let sign = start - 1;
   while (sign >= 0 && /\s/.test(text[sign]!)) sign--;
   if (text[sign] !== "+") return false;
-  let before = sign - 1;
-  while (before >= 0 && /\s/.test(text[before]!)) before--;
-  if (before < 0 || "=([{,:;".includes(text[before]!)) return true;
-  const spaceBefore = before < sign - 1;
-  const spaceAfter = sign < start - 1;
-  return spaceBefore && !spaceAfter;
+  let end = sign - 1;
+  while (end >= 0 && /\s/.test(text[end]!)) end--;
+  if (end < 0 || "=([{,:;".includes(text[end]!)) return true;
+  let begin = end;
+  while (begin > 0 && /[A-Za-z]/.test(text[begin - 1]!)) begin--;
+  const word = text.slice(begin, end + 1);
+  // A word of two or more letters is prose ("state", "is"); a lone letter,
+  // number or closing bracket is a term being added to.
+  return /^[A-Za-z]{2,}$/.test(word) && !/[\w)\]}]/.test(text[begin - 1] ?? "");
 }
 
 function speakNumber(value: number): string {

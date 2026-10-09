@@ -326,6 +326,10 @@ for (const [sourceText, value, board] of [
   ["= +2", 2, "q = +2"],
   ["1", 1, "q = 1"],
   ["5 + 2", 2, "q = 2"],
+  ["5 +2", 2, "q = 2"],
+  ["x +2", 2, "q = 2"],
+  ["(a) + 2", 2, "q = 2"],
+  ["is +2", 2, "q = +2"],
   ["1+1", 1, "q = 1"],
 ] as const) {
   const stated = `The value is ${sourceText}. Find q.`;
