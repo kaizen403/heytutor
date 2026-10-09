@@ -80,6 +80,14 @@ async function main(): Promise<void> {
       .map((row) => row.id),
   ]);
   if ([...unresolvedLocalDenials].some((id) => !rows.some((row) => row.id === id))) throw new Error("audit has foreign unresolved denials");
+  // The answer file is written before checkpoint denial clearance. If that
+  // second write was interrupted, its identity-checked answer proves recovery.
+  // The checkpoint's full charge remains authoritative and is never reduced.
+  for (const row of saved) {
+    if (!(row.assessment.source === "unavailable" && /^http_\d+$/.test(row.assessment.unavailableReason ?? ""))) {
+      unresolvedLocalDenials.delete(row.id);
+    }
+  }
   const completedRows = () => saved.filter((row) => !unresolvedLocalDenials.has(row.id));
   if (existsSync(resolve(process.cwd(), ".env.local"))) process.loadEnvFile(resolve(process.cwd(), ".env.local"));
   const endpoint = resolveLlmEndpoint();
