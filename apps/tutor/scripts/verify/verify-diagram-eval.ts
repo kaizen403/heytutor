@@ -1036,6 +1036,10 @@ void (async () => {
   outOfOrder.recordFailure("parallel", "gpt-6-1-sol", 0.08);
   outOfOrder.recordFailure("parallel", "gpt-6-1-sol", 0.04);
   assert.deepEqual(matchedCosts, [[0.08, 0.08], [0.04, 0.04]], "settle the matching request, not FIFO");
+  const retryTracker = new PlannerUsageTracker();
+  retryTracker.recordRequest("retry", 0.2);
+  await retryTracker.recordResponse("retry", Response.json({ usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }, { headers: { "x-heytutor-planner-model": "accounts/fireworks/models/kimi-k3", "x-heytutor-upstream-attempts": "2" } }), 0.2, 2);
+  assert.equal(retryTracker.finish("retry").estimatedCostUsd, 0.100018, "failed upstream attempts retain a per-attempt ceiling");
 
   const noFamilyPlan = {
     schemaVersion: "turn-plan/v3",

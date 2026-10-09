@@ -30,6 +30,9 @@ teaching, and picker request reserves its full cost ceiling before dispatch,
 including concurrent calls and Azure reasoning headroom. Measured usage releases
 the unused reservation; unknown usage consumes it. Budget-interrupted rows are
 untested, not empty-figure verdicts; their incurred cost remains in the ledger.
+Proxy reservations cover two planner or three teaching upstream attempts. A
+response reports its attempt count; earlier unmetered attempts retain their
+per-attempt allowance. Direct picker requests have no automatic retry.
 Resume into the same output folder with `--resume`, the full original sample,
 and a total `--max-usd` (not a fresh allowance). Saved rows are skipped only for
 execution, never for example leak filtering. The spend checkpoint carries

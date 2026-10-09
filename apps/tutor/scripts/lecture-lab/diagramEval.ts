@@ -438,7 +438,7 @@ export class PlannerUsageTracker {
     this.pendingWorstCaseByTrace.set(traceId, pending);
   }
 
-  async recordResponse(traceId: string, response: Response, reservedUsd?: number): Promise<void> {
+  async recordResponse(traceId: string, response: Response, reservedUsd?: number, maxAttempts = 1): Promise<void> {
     let usage: ReturnType<typeof parseProviderUsage> | null = null;
     try {
       const payload = await response.clone().json() as { usage?: unknown };
@@ -453,11 +453,12 @@ export class PlannerUsageTracker {
       response.headers.get("x-heytutor-planner-model") ?? "unknown",
       usage,
       reservedUsd,
+      this.retryAllowance(response, reservedUsd, maxAttempts),
     );
   }
 
   /** Observe a cloned SSE body without delaying the lesson consuming the original stream. */
-  recordStreamingResponse(traceId: string, response: Response, reservedUsd?: number): void {
+  recordStreamingResponse(traceId: string, response: Response, reservedUsd?: number, maxAttempts = 1): void {
     const operation = (async () => {
       let usage: ReturnType<typeof parseProviderUsage> | null = null;
       try {
@@ -478,6 +479,7 @@ export class PlannerUsageTracker {
         response.headers.get("x-heytutor-model") ?? "unknown",
         usage,
         reservedUsd,
+        this.retryAllowance(response, reservedUsd, maxAttempts),
       );
     })();
     const pending = this.pendingResponsesByTrace.get(traceId) ?? [];
@@ -498,6 +500,7 @@ export class PlannerUsageTracker {
     model: string,
     usage: ReturnType<typeof parseProviderUsage> | null,
     reservedUsd?: number,
+    retryAllowanceUsd = 0,
   ): void {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
     const worstCaseUsd = this.takePendingWorstCase(traceId, reservedUsd);
@@ -518,7 +521,7 @@ export class PlannerUsageTracker {
         call.outputTokens = usage.output ?? 0;
         call.totalTokens = usage.total ?? call.inputTokens + call.outputTokens;
         call.cachedInputTokens = usage.cachedInput ?? 0;
-        call.estimatedCostUsd = calculateLlmCostDetails(usage, { model }).total ?? 0;
+        call.estimatedCostUsd = (calculateLlmCostDetails(usage, { model }).total ?? 0) + retryAllowanceUsd;
         summary.usageCalls += 1;
         summary.inputTokens += call.inputTokens;
         summary.outputTokens += call.outputTokens;
@@ -531,6 +534,13 @@ export class PlannerUsageTracker {
     summary.modelCalls.push(call);
     this.byTrace.set(traceId, summary);
     this.onCost?.(call.estimatedCostUsd, worstCaseUsd);
+  }
+
+  private retryAllowance(response: Response, reservedUsd: number | undefined, maxAttempts: number): number {
+    if (maxAttempts <= 1 || !reservedUsd) return 0;
+    const attempts = Number(response.headers.get("x-heytutor-upstream-attempts") ?? maxAttempts);
+    const boundedAttempts = Number.isFinite(attempts) ? Math.min(maxAttempts, Math.max(1, attempts)) : maxAttempts;
+    return (reservedUsd / maxAttempts) * (boundedAttempts - 1);
   }
 
   recordFailure(traceId: string, model = "unknown", reservedUsd?: number): void {
