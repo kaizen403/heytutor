@@ -7,8 +7,9 @@ written into the old ledger as something it is not.
 
 ## TOPIC-READY for a declared scope
 
-This is the primary working milestone. A topic is READY for a declared scope
-when all five hold:
+This was the working milestone from 4 to 9 October 2026, when per-topic work
+paused; the counts below are final. A topic is READY for a declared scope when
+all five hold:
 
 1. **Integrated.** The implementation runs in the normal application path on the
    consolidated handoff branch. A kernel, a private patch or a specially cued
@@ -60,13 +61,15 @@ bank coverage.
 
 READY: 1. FULLY-CERTIFIED: 0.
 
-Wave one, 6 October 2026: reviewed implementation is integrated through
-`c6b41c4bf20cb581f673f2a8763827cde58db727`. No new topic met all five criteria.
+Wave one, 6 October 2026: reviewed implementation was integrated on a local
+handoff branch and published to main in 3d743709 (PR #91). The SHAs in the
+"Integrated at" column below are local handoff commits that no remote branch
+holds. No new topic met all five criteria.
 Real student runs exposed failures inside the proposed scopes despite passing
-bounded offline gates. The accepted ledger remains untouched. See the
-[wave-one report](work-logs/w1-wave-one-20261006.md) and
-[runtime evidence](work-logs/w1-runtime-audit.md); generic harness `ok: true`
-does not establish figure, teaching or lifecycle correctness.
+bounded offline gates. The accepted ledger remains untouched. The wave-one
+report and its runtime log were removed from the tree in October 2026 and stay
+in the repository history. A generic harness `ok: true` does not establish
+figure, teaching or lifecycle correctness.
 
 | Topic | READY scope | Integrated at | Evidence | Remaining for FULLY-CERTIFIED |
 | --- | --- | --- | --- | --- |
@@ -79,5 +82,3 @@ does not establish figure, teaching or lifecycle correctness.
 | `physics\|2\|relative-velocity` | **not ready:** normal train question produces no figure | 9031aac1 | reviewed reader/role/source-trust fixes; actual 72/54 km/h student turn | support actual "catch B and distance travelled" request and report source program to visual selection; native/holdout coverage |
 | `physics\|2\|uniform-circular-motion` | **not ready:** stone restoration rejects tiny recomputation drift and teaching has false arithmetic; car planner times out | c6b41c4b | reviewed identity/precision/JSONB fixes; current stone/car real student captures | deterministic source regeneration across persistence, truthful intermediate arithmetic/tangent narration, planner fallback; fractions, stated position and symbolic native source |
 | `physics\|12\|ohms-law-and-resistance` | **not ready:** both normal numeric meters/tree questions have no circuit | 9031aac1 | reviewed bounded numeric source program; actual full-IR student captures | generic full-IR body/dimension obligations and intermediate dependency authority; affected student lifecycle; native/holdouts, excluded internal-R and concept gaps |
-
-Execution log: [claude-execution-20261004.md](work-logs/claude-execution-20261004.md).

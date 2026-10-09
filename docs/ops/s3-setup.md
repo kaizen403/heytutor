@@ -13,7 +13,7 @@ Object keys:
 
 | Prefix | Contents |
 |--------|----------|
-| `lectures/{boardId}/{turnId}/{segmentIndex}.mp3` | Replay audio |
+| `lectures/{boardId}/{turnId}/{segmentIndex}.mp3` or `.wav` | Replay audio (Cartesia and Sarvam audio is WAV) |
 | `images/{userId}/{imageId}.{ext}` | Question photos |
 | `backups/postgres-*.sql.gz` | Nightly `pg_dump` from the EC2 box |
 
@@ -22,6 +22,13 @@ Object keys:
 Attach an instance role to the EC2 box. Do not put access keys on disk unless
 you are debugging locally.
 
+The app reads, writes and deletes lecture audio and photos. The backup script
+(`deploy/aws/backup-postgres.sh`) only creates backups. The policy below gives
+`backups/*` `PutObject` alone, which removes read and delete access. It does not
+stop an overwrite on its own: the script prevents replacing an existing backup
+with `--if-none-match '*'`. If the role must be unable to overwrite backups, add
+a bucket policy that enforces it.
+
 ```json
 {
   "Version": "2012-10-17",
@@ -29,7 +36,15 @@ you are debugging locally.
     {
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::heytutor-lectures/*"
+      "Resource": [
+        "arn:aws:s3:::heytutor-lectures/lectures/*",
+        "arn:aws:s3:::heytutor-lectures/images/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": "arn:aws:s3:::heytutor-lectures/backups/*"
     },
     {
       "Effect": "Allow",
