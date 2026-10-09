@@ -66,11 +66,22 @@ export function shouldSuppressLectureLabTrace(
     isLectureLabRequest(request, env);
 }
 
-/** Only authenticated evaluation traffic may move ProblemIR off its Fast default. */
+/** Only authenticated evaluation traffic may force every paid lane to standard K3. */
 export function shouldUseLectureLabStandardModel(
   request: Request,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   return request.headers.get(LECTURE_LAB_STANDARD_MODEL_HEADER) === "1" &&
     isLectureLabRequest(request, env);
+}
+
+/** Live planners stay at 60 s; authenticated standard-K3 scene evals may use 120 s. */
+export function lectureLabPlannerDeadlineCapMs(
+  request: Request,
+  env: NodeJS.ProcessEnv = process.env,
+): 60_000 | 120_000 {
+  return request.headers.get("x-scene-planner-version") === "2" &&
+      shouldUseLectureLabStandardModel(request, env)
+    ? 120_000
+    : 60_000;
 }

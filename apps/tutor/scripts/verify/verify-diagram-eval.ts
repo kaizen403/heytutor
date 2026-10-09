@@ -43,6 +43,7 @@ import {
 import { correctedEmptyCauseForStoredRun } from "../lecture-lab/regrade-empty-causes";
 import { suppressStoredStrictSelection } from "../lecture-lab/regrade-strict-suppression";
 import {
+  lectureLabPlannerDeadlineCapMs,
   LECTURE_LAB_HEADER,
   LECTURE_LAB_STANDARD_MODEL_HEADER,
   shouldUseLectureLabStandardModel,
@@ -75,15 +76,17 @@ import {
   runBudgetedLabRows,
 } from "../lecture-lab/run";
 
-const strictFastOptions = parseLectureLabOptions([
+const strictStandardOptions = parseLectureLabOptions([
   "--eval", "sample.jsonl",
   "--arm", "planner_examples_strict",
-  "--model", "fast",
+  "--model", "standard",
+  "--scene-planner-limit-ms", "120000",
   "--max-usd", "20",
 ]);
-assert.equal(strictFastOptions.arm, "planner_examples_strict");
-assert.equal(strictFastOptions.model, "fast");
-assert.equal(strictFastOptions.maxUsd, 20);
+assert.equal(strictStandardOptions.arm, "planner_examples_strict");
+assert.equal(strictStandardOptions.model, "standard");
+assert.equal(strictStandardOptions.scenePlannerLimitMs, 120_000);
+assert.equal(strictStandardOptions.maxUsd, 20);
 assert.throws(() => parseLectureLabOptions([]), /--max-usd/);
 assert.throws(
   () => parseLectureLabOptions(["--max-usd", "0"]),
@@ -92,6 +95,24 @@ assert.throws(
 assert.throws(
   () => parseLectureLabOptions(["--max-usd", "20", "--model", "turbo"]),
   /--model must be standard or fast/,
+);
+assert.throws(
+  () => parseLectureLabOptions([
+    "--eval", "sample.jsonl", "--model", "fast", "--max-usd", "20",
+  ]),
+  /evaluation rounds require --model standard/,
+);
+assert.throws(
+  () => parseLectureLabOptions([
+    "--scene-planner-limit-ms", "120000", "--max-usd", "20",
+  ]),
+  /--scene-planner-limit-ms is evaluation-only/,
+);
+assert.throws(
+  () => parseLectureLabOptions([
+    "--eval", "sample.jsonl", "--scene-planner-limit-ms", "90000", "--max-usd", "20",
+  ]),
+  /--scene-planner-limit-ms must be 60000 or 120000/,
 );
 const liveQuestionHandler = readFileSync(resolve(
   process.cwd(),
@@ -209,7 +230,11 @@ assert.equal(
   "the approved 300-row three-arm round stays below the US$55 stop threshold",
 );
 assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
-assert.equal(evaluationRunFastMode(true, "fast"), true, "Fast evaluation requests must use the production router");
+assert.throws(
+  () => evaluationRunFastMode(true, "fast"),
+  /standard Kimi K3/,
+  "Fast evaluation requests must be rejected",
+);
 assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");
 assert(evaluationUsesStandardModelHeader(true, "standard"));
 assert(!evaluationUsesStandardModelHeader(true, "fast"));
@@ -264,12 +289,14 @@ assert.deepEqual(storedStrictLeak.diagram.suppressedFallback, {
 });
 assert.equal(storedStrictLeak.timings.figureCommitMs, null);
 assert.equal(
-  Math.round((
-    estimateEvaluationCostUsd(300, "current", "fast") +
-    estimateEvaluationCostUsd(300, "planner_examples_strict", "fast")
-  ) * 1_000_000) / 1_000_000,
-  72.85698,
-  "K3 Fast preflight uses the measured Part 12 tokens per call",
+  estimateEvaluationCostUsd(20, "planner_examples_strict"),
+  estimateEvaluationCostUsd(20, "planner_examples"),
+  "strict uses the Part 11 standard-K3 planner+examples profile",
+);
+assert.throws(
+  () => estimateEvaluationCostUsd(300, "current", "fast"),
+  /standard Kimi K3/,
+  "preflight must never quote a Fast evaluation round",
 );
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
 assert.throws(
@@ -820,13 +847,25 @@ const modelEnv = {
 const authenticatedStandard = new Request("http://localhost/api/chat", { headers: {
   [LECTURE_LAB_HEADER]: "lab-secret",
   [LECTURE_LAB_STANDARD_MODEL_HEADER]: "1",
+  "x-scene-planner-version": "2",
 } });
 const unauthenticatedStandard = new Request("http://localhost/api/chat", { headers: {
   [LECTURE_LAB_HEADER]: "wrong",
   [LECTURE_LAB_STANDARD_MODEL_HEADER]: "1",
+  "x-scene-planner-version": "2",
 } });
 assert(shouldUseLectureLabStandardModel(authenticatedStandard, modelEnv));
 assert(!shouldUseLectureLabStandardModel(unauthenticatedStandard, modelEnv), "a request without the valid lab token must not override ProblemIR");
+assert.equal(lectureLabPlannerDeadlineCapMs(authenticatedStandard, modelEnv), 120_000);
+assert.equal(lectureLabPlannerDeadlineCapMs(unauthenticatedStandard, modelEnv), 60_000);
+assert.equal(
+  lectureLabPlannerDeadlineCapMs(new Request("http://localhost/api/chat", { headers: {
+    [LECTURE_LAB_HEADER]: "lab-secret",
+    [LECTURE_LAB_STANDARD_MODEL_HEADER]: "1",
+  } }), modelEnv),
+  60_000,
+  "the evaluation exception must not raise non-scene or live planner limits",
+);
 assert.deepEqual(resolvePlannerModels({
   semanticSceneV2: false,
   turnPlanV3: false,
@@ -837,6 +876,16 @@ assert.deepEqual(resolvePlannerModels({
     : undefined,
   env: modelEnv,
 }), ["accounts/fireworks/models/kimi-k3"]);
+assert.deepEqual(resolvePlannerModels({
+  semanticSceneV2: true,
+  turnPlanV3: false,
+  problemIRV1: false,
+  plannerPhase: "plan",
+  plannerLane: "primary",
+  fastMode: false,
+  evaluationModelOverride: "accounts/fireworks/models/kimi-k3",
+  env: { FIREWORKS_MODEL: "accounts/fireworks/models/not-the-evaluation-model" },
+}), ["accounts/fireworks/models/kimi-k3"], "evaluation rounds pin the exact standard K3 deployment");
 
 void (async () => {
   await pickerVerification;
@@ -871,6 +920,18 @@ void (async () => {
   assert.equal(usage.modelCalls[0]?.model, "accounts/fireworks/models/kimi-k3");
   assert.equal(usage.modelCalls[0]?.estimatedCostUsd, 18, "each call must be priced at its actual model rate");
   assert.equal(usage.estimatedCostUsd, 18);
+
+  const streamingTracker = new PlannerUsageTracker();
+  streamingTracker.recordRequest("stream-1", 9);
+  streamingTracker.recordStreamingResponse("stream-1", new Response([
+    'data: {"choices":[{"delta":{"content":"hello"}}]}',
+    'data: {"choices":[],"usage":{"prompt_tokens":1000000,"completion_tokens":1000000,"total_tokens":2000000}}',
+    "data: [DONE]",
+    "",
+  ].join("\n"), { headers: { "x-heytutor-model": "accounts/fireworks/models/kimi-k3" } }));
+  const streamingUsage = await streamingTracker.finishAsync("stream-1");
+  assert.equal(streamingUsage.modelCalls[0]?.usageKnown, true);
+  assert.equal(streamingUsage.modelCalls[0]?.estimatedCostUsd, 18);
 
   const spendCap = new LabSpendCap(0.01);
   const fakeProviderTracker = new PlannerUsageTracker((usd) => spendCap.recordCost(usd));

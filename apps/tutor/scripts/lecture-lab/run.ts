@@ -45,6 +45,8 @@ import {
 import {
   DEFAULT_FIREWORKS_FAST_MODEL,
   DEFAULT_FIREWORKS_MODEL,
+  DEFAULT_TEACHING_FAST_MODEL,
+  DEFAULT_TEACHING_MODEL,
 } from "../../lib/llm/fireworksModels";
 
 export interface Options {
@@ -72,6 +74,8 @@ export interface Options {
   topics: string[] | null;
   arm: DiagramEvalArm;
   model: DiagramEvalModel;
+  /** Evaluation-only end-to-end scene planning budget. */
+  scenePlannerLimitMs: 60_000 | 120_000;
   figureOnly: boolean;
   yes: boolean;
   maxUsd: number;
@@ -196,6 +200,19 @@ export function parseOptions(argv: string[]): Options {
   if (model !== "standard" && model !== "fast") {
     throw new Error(`--model must be standard or fast, received ${model}`);
   }
+  if (evalFiles.length > 0 && model !== "standard") {
+    throw new Error("evaluation rounds require --model standard (accounts/fireworks/models/kimi-k3)");
+  }
+  const scenePlannerLimitRaw = flags.get("scene-planner-limit-ms");
+  if (scenePlannerLimitRaw !== undefined && evalFiles.length === 0) {
+    throw new Error("--scene-planner-limit-ms is evaluation-only");
+  }
+  const parsedScenePlannerLimit = scenePlannerLimitRaw === undefined
+    ? 60_000
+    : Number(scenePlannerLimitRaw);
+  if (parsedScenePlannerLimit !== 60_000 && parsedScenePlannerLimit !== 120_000) {
+    throw new Error("--scene-planner-limit-ms must be 60000 or 120000");
+  }
   const maxUsdRaw = flags.get("max-usd");
   if (maxUsdRaw === undefined) {
     throw new Error("paid lecture-lab runs require --max-usd <positive dollars>");
@@ -223,6 +240,7 @@ export function parseOptions(argv: string[]): Options {
     topics: list("topics"),
     arm,
     model,
+    scenePlannerLimitMs: parsedScenePlannerLimit,
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     yes: flags.get("yes") === "true",
     maxUsd,
@@ -502,7 +520,7 @@ async function main(): Promise<void> {
     : null;
   if (preflightEstimateUsd !== null) {
     console.log(
-      `diagram eval: ${probes.length} rows, arm ${options.arm}, model ${options.model}, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
+      `diagram eval: ${probes.length} rows, arm ${options.arm}, model ${DEFAULT_FIREWORKS_MODEL}, scene planner limit ${options.scenePlannerLimitMs}ms, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
     );
     if (evaluationUsesExamples(options.arm)) {
       console.log(`diagram eval: ${diagramExamples.length} leak-filtered examples available`);
@@ -551,23 +569,22 @@ async function main(): Promise<void> {
     const traceId = headers.get("x-heytutor-trace-id");
     const chatRequest = url === `${options.origin}/api/chat` && traceId;
     const plannerRequest = chatRequest && headers.get("x-planner") === "1";
+    const requestModel = plannerRequest
+      ? worstCasePlannerModel
+      : options.model === "fast" ? DEFAULT_TEACHING_FAST_MODEL : DEFAULT_TEACHING_MODEL;
     const requestWorstCaseUsd = chatRequest
-      ? plannerRequestWorstCaseUsd(init, worstCasePlannerModel)
+      ? plannerRequestWorstCaseUsd(init, requestModel)
       : 0;
-    if (plannerRequest) {
+    if (chatRequest) {
       usageTracker.recordRequest(traceId, requestWorstCaseUsd);
-    } else if (chatRequest) {
-      // Teaching is streamed and its provider usage is consumed inside the
-      // route. Charge the safe request ceiling before dispatch instead of
-      // pretending that an unavailable stream usage record cost zero.
-      spendCap.recordCost(requestWorstCaseUsd);
     }
     try {
       const response = await nativeFetch(input, { ...init, headers });
       if (plannerRequest) await usageTracker.recordResponse(traceId, response);
+      else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response);
       return response;
     } catch (error) {
-      if (plannerRequest) usageTracker.recordFailure(traceId, worstCasePlannerModel);
+      if (chatRequest) usageTracker.recordFailure(traceId, requestModel);
       throw error;
     }
   }) as typeof fetch;
@@ -598,12 +615,13 @@ async function main(): Promise<void> {
         arm: options.arm,
         figureOnly: options.figureOnly,
         fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
+        scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
         traceId,
         diagramExamples,
         diagramExampleCatalogue,
         onModelCost: (usd) => spendCap.recordCost(usd),
       });
-      run.planner = usageTracker.finish(traceId);
+      run.planner = await usageTracker.finishAsync(traceId);
       const grade = gradeLecture(run);
       grades.push(grade);
       runs.push(run);
@@ -643,6 +661,10 @@ async function main(): Promise<void> {
   const budgetSummary = spendCap.summary(runs.length, probes.length);
   const summary = {
     options,
+    evaluationConfig: evaluationRows ? {
+      model: DEFAULT_FIREWORKS_MODEL,
+      scenePlannerLimitMs: options.scenePlannerLimitMs,
+    } : null,
     preflightEstimateUsd,
     ...budgetSummary,
     evaluation: evaluationRows ? summarizeEvaluation(runs) : null,

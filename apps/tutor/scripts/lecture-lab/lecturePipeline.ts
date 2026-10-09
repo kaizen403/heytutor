@@ -250,6 +250,8 @@ export interface RunLectureOptions {
   difficulty?: string;
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
+  /** Evaluation-only override; live turns keep SCENE_PLANNER_DEADLINE_MS. */
+  scenePlannerDeadlineMs?: number;
   traceId?: string;
   /** Leak-filtered library used only by the planner example evaluation arms. */
   diagramExamples?: readonly DiagramExemplar[];
@@ -322,6 +324,7 @@ export async function runLecture(
   const plannerUrl = `${options.origin}/api/chat`;
   const traceId = options.traceId ?? crypto.randomUUID();
   const startedAt = Date.now();
+  const scenePlannerDeadlineMs = options.scenePlannerDeadlineMs ?? SCENE_PLANNER_DEADLINE_MS;
   const dsaClassification = classifyDsaQuestion(question);
 
   const stages: LecturePlanningStages = {
@@ -329,7 +332,7 @@ export async function runLecture(
     problemIrMs: 0,
     deterministicFigureMs: 0,
     scenePlannerMs: 0,
-    deadlineRemainingMs: SCENE_PLANNER_DEADLINE_MS,
+    deadlineRemainingMs: scenePlannerDeadlineMs,
     revalidateMs: 0,
     plannerCalls: 0,
     speculative: false,
@@ -444,7 +447,7 @@ export async function runLecture(
     if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
       const remainingAuthorityMs = Math.max(
         1_000,
-        SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
+        scenePlannerDeadlineMs - (Date.now() - plannerStartedAt),
       );
       const problemIrStartedAt = Date.now();
       problemAuthorityPromise = planAndSolveProblemV1(question, turnPlan, {
@@ -674,7 +677,7 @@ export async function runLecture(
       speculationAllowed: true,
       selectionOrder: evaluationSelectionOrder(options.arm ?? "current"),
       plannerStartedAt,
-      deadlineMs: SCENE_PLANNER_DEADLINE_MS,
+      deadlineMs: scenePlannerDeadlineMs,
       deriveGate: deriveSceneGate,
       applyAuthority: (planToReconcile, authority) => {
         const reconciledPlan = reconcileTurnPlanWithSolver(
@@ -1109,7 +1112,7 @@ export async function runLecture(
   } catch (error) {
     run.error = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
     if (!run.diagram.committed && run.diagram.emptyCause === null) {
-      run.diagram.emptyCause = Date.now() - startedAt >= SCENE_PLANNER_DEADLINE_MS
+      run.diagram.emptyCause = Date.now() - startedAt >= scenePlannerDeadlineMs
         ? "deadline"
         : run.plan?.visualRequirement === "none"
           ? "not_needed"

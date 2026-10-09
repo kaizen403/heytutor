@@ -259,35 +259,27 @@ export function sampleDiagramEvalRows(
 }
 
 /**
- * Preflight estimate, not a billing promise. Per-row token profiles are rounded
- * up from the completed r3 arms; the run record stores measured provider usage.
+ * Preflight estimate, not a billing promise. Per-row profiles are rounded up
+ * from Part 11's standard-K3 usage: roughly four planner calls at 1,000-1,600
+ * input and 330-360 output tokens per call. Example arms retain the measured
+ * larger prompt allowance. The run record stores actual provider usage.
  */
 export function estimateEvaluationCostUsd(
   rowCount: number,
   arm: DiagramEvalArm,
   model: DiagramEvalModel = "standard",
 ): number {
+  if (model !== "standard") {
+    throw new Error("evaluation cost estimates require standard Kimi K3");
+  }
   const standardProfile = arm === "current"
     ? { input: 5_300, output: 1_500 }
     : arm === "planner_first"
       ? { input: 5_800, output: 1_450 }
-      : arm === "planner_examples_strict"
-        ? { input: 9_000, output: 1_800 }
-        : { input: 11_500, output: 2_000 };
-  // Rounded up from the completed Part 12 calls. Fast produces materially
-  // more tokens than standard K3, so sharing the old profile understated the
-  // two-arm round by about US$26.
-  const fastProfile = arm === "current"
-    ? { input: 7_216, output: 2_503 }
-    : arm === "planner_examples_strict"
-      ? { input: 16_315, output: 3_524 }
-      : { input: standardProfile.input * 2, output: standardProfile.output * 2 };
-  const profile = model === "fast" ? fastProfile : standardProfile;
+      : { input: 11_500, output: 2_000 };
   const planner = calculateLlmCostDetails(
-    { input: rowCount * profile.input, output: rowCount * profile.output },
-    { model: model === "fast"
-      ? "accounts/fireworks/routers/kimi-k3-fast"
-      : "accounts/fireworks/models/kimi-k3" },
+    { input: rowCount * standardProfile.input, output: rowCount * standardProfile.output },
+    { model: "accounts/fireworks/models/kimi-k3" },
   ).total ?? 0;
   const picker = evaluationUsesExamples(arm)
     ? calculateLlmCostDetails(
@@ -311,12 +303,15 @@ export function estimateLabCallWorstCaseUsd(input: {
   ).total ?? 0;
 }
 
-/** Evaluation turns explicitly leave the production/default Fast behavior alone. */
+/** Evaluation turns always use standard K3; ordinary lab runs retain their default. */
 export function evaluationRunFastMode(
   isEvaluation: boolean,
   model: DiagramEvalModel = "standard",
 ): boolean | undefined {
-  return isEvaluation ? model === "fast" : undefined;
+  if (isEvaluation && model !== "standard") {
+    throw new Error("evaluation rounds require standard Kimi K3");
+  }
+  return isEvaluation ? false : undefined;
 }
 
 export function evaluationUsesStandardModelHeader(
@@ -403,6 +398,7 @@ function emptyUsage(): PlannerUsageSummary {
 export class PlannerUsageTracker {
   private readonly byTrace = new Map<string, PlannerUsageSummary>();
   private readonly pendingWorstCaseByTrace = new Map<string, number[]>();
+  private readonly pendingResponsesByTrace = new Map<string, Promise<void>[]>();
 
   constructor(private readonly onCost?: (usd: number) => void) {}
 
@@ -416,13 +412,69 @@ export class PlannerUsageTracker {
   }
 
   async recordResponse(traceId: string, response: Response): Promise<void> {
+    let usage: ReturnType<typeof parseProviderUsage> | null = null;
+    try {
+      const payload = await response.clone().json() as { usage?: unknown };
+      usage = parseProviderUsage(payload.usage);
+    } catch {
+      // A planner call still counts when its provider omitted or malformed usage.
+    }
+    this.recordParsedResponse(
+      traceId,
+      response.status,
+      response.ok,
+      response.headers.get("x-heytutor-planner-model") ?? "unknown",
+      usage,
+    );
+  }
+
+  /** Observe a cloned SSE body without delaying the lesson consuming the original stream. */
+  recordStreamingResponse(traceId: string, response: Response): void {
+    const operation = (async () => {
+      let usage: ReturnType<typeof parseProviderUsage> | null = null;
+      try {
+        const text = await response.clone().text();
+        for (const line of text.split(/\r?\n/)) {
+          if (!line.startsWith("data: ") || line.slice(6).trim() === "[DONE]") continue;
+          const payload = JSON.parse(line.slice(6)) as { usage?: unknown };
+          const candidate = parseProviderUsage(payload.usage);
+          if (candidate.known) usage = candidate;
+        }
+      } catch {
+        // Missing, cancelled, or malformed streams are charged at request worst case.
+      }
+      this.recordParsedResponse(
+        traceId,
+        response.status,
+        response.ok,
+        response.headers.get("x-heytutor-model") ?? "unknown",
+        usage,
+      );
+    })();
+    const pending = this.pendingResponsesByTrace.get(traceId) ?? [];
+    pending.push(operation);
+    this.pendingResponsesByTrace.set(traceId, pending);
+  }
+
+  async finishAsync(traceId: string): Promise<PlannerUsageSummary> {
+    await Promise.all(this.pendingResponsesByTrace.get(traceId) ?? []);
+    this.pendingResponsesByTrace.delete(traceId);
+    return this.finish(traceId);
+  }
+
+  private recordParsedResponse(
+    traceId: string,
+    status: number,
+    ok: boolean,
+    model: string,
+    usage: ReturnType<typeof parseProviderUsage> | null,
+  ): void {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
     const worstCaseUsd = this.takePendingWorstCase(traceId);
-    const model = response.headers.get("x-heytutor-planner-model") ?? "unknown";
     const call: PlannerModelCall = {
       model,
-      status: response.status,
-      ok: response.ok,
+      status,
+      ok,
       usageKnown: false,
       inputTokens: 0,
       outputTokens: 0,
@@ -430,10 +482,7 @@ export class PlannerUsageTracker {
       cachedInputTokens: 0,
       estimatedCostUsd: 0,
     };
-    try {
-      const payload = await response.clone().json() as { usage?: unknown };
-      const usage = parseProviderUsage(payload.usage);
-      if (usage.known) {
+    if (usage?.known) {
         call.usageKnown = true;
         call.inputTokens = usage.input ?? 0;
         call.outputTokens = usage.output ?? 0;
@@ -445,9 +494,6 @@ export class PlannerUsageTracker {
         summary.outputTokens += call.outputTokens;
         summary.totalTokens += call.totalTokens;
         summary.cachedInputTokens += call.cachedInputTokens;
-      }
-    } catch {
-      // A planner call still counts when its provider omitted or malformed usage.
     }
     if (!call.usageKnown) call.estimatedCostUsd = worstCaseUsd;
     call.estimatedCostUsd = Math.round(call.estimatedCostUsd * 1_000_000) / 1_000_000;
@@ -496,6 +542,7 @@ export class PlannerUsageTracker {
     }
     this.byTrace.delete(traceId);
     this.pendingWorstCaseByTrace.delete(traceId);
+    this.pendingResponsesByTrace.delete(traceId);
     return {
       ...summary,
       estimatedCostUsd: Math.round(summary.estimatedCostUsd * 1_000_000) / 1_000_000,

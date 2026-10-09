@@ -29,6 +29,7 @@ import {
 } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
 import {
+  lectureLabPlannerDeadlineCapMs,
   shouldSuppressLectureLabTrace,
   shouldUseLectureLabStandardModel,
 } from "@/lib/billing/flags";
@@ -38,7 +39,10 @@ import type { SpendActor } from "@/lib/billing/actor";
 import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type PaidUsageReservation } from "@/lib/billing/paidUsage";
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
-import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import {
+  DEFAULT_FIREWORKS_MODEL,
+  resolveFireworksModel,
+} from "@/lib/llm/fireworksModels";
 import { setTimeout as sleepFor } from "node:timers/promises";
 import {
   fetchPlannerCompletion,
@@ -55,6 +59,7 @@ import {
   resolveTeachingReasoningEffort,
   teachingAttemptModel,
   teachingAttemptMayHaveGenerated,
+  type TeachingModelRoute,
   type TeachingUpstreamFailure,
 } from "@/lib/llm/teachingTransport";
 
@@ -550,6 +555,7 @@ interface PlannerRequestArgs {
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
   fastMode: boolean;
+  evaluationModelOverride?: string;
   problemIRModelOverride?: string;
   deadlineMs: number;
   signal: AbortSignal;
@@ -570,6 +576,7 @@ async function handlePlannerRequest({
   plannerPhase,
   plannerLane,
   fastMode,
+  evaluationModelOverride,
   problemIRModelOverride,
   deadlineMs,
   signal,
@@ -583,6 +590,7 @@ async function handlePlannerRequest({
     plannerPhase,
     plannerLane,
     fastMode,
+    evaluationModelOverride,
     problemIRModelOverride,
   });
 
@@ -807,7 +815,15 @@ export async function POST(request: Request): Promise<Response> {
   // What each dispatched upstream attempt may cost, priced for the model it called.
   const attemptCosts: number[] = [];
   const attemptedCost = () => attemptCosts.reduce((total, cost) => total + cost, 0);
-  const requestSignal = AbortSignal.any([request.signal, AbortSignal.timeout(120_000)]);
+  const extendedEvaluationScenePlanner =
+    request.headers.get("x-planner") === "1" &&
+    lectureLabPlannerDeadlineCapMs(request) === 120_000;
+  // The extra five seconds is transport headroom around the evaluation-only
+  // 120 s scene budget. Live requests retain their existing outer deadline.
+  const requestSignal = AbortSignal.any([
+    request.signal,
+    AbortSignal.timeout(extendedEvaluationScenePlanner ? 125_000 : 120_000),
+  ]);
   try {
   let rawBody: string;
   try {
@@ -823,13 +839,20 @@ export async function POST(request: Request): Promise<Response> {
   const attach = Boolean(incomingTraceId);
   const kind = resolveChatGenerationKind(request.headers);
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
+  const evaluationModelOverride = shouldUseLectureLabStandardModel(request)
+    ? DEFAULT_FIREWORKS_MODEL
+    : undefined;
   const apiKey = process.env.FIREWORKS_API_KEY;
   const mock = !apiKey;
   // A startup retry after a stalled Fast router runs on the standard deployment.
-  const teachingRoute = kind === "teaching"
-    ? resolveTeachingModelRoute(process.env, { fastMode, startupRetry: readTeachingStartupRetry(request.headers) })
+  const teachingRoute: TeachingModelRoute | null = kind === "teaching"
+    ? evaluationModelOverride
+      ? { model: evaluationModelOverride, alternate: null, fallbackReason: null }
+      : resolveTeachingModelRoute(process.env, { fastMode, startupRetry: readTeachingStartupRetry(request.headers) })
     : null;
-  const serverModel = teachingRoute ? teachingRoute.model : resolveFireworksModel({ fastMode });
+  const serverModel = teachingRoute
+    ? teachingRoute.model
+    : evaluationModelOverride ?? resolveFireworksModel({ fastMode });
   const turnTrace = shouldSuppressLectureLabTrace(request) ? null : startTurnTrace({
     userId: actor.userId,
     sessionId,
@@ -876,13 +899,15 @@ export async function POST(request: Request): Promise<Response> {
     const turnPlanV3 = request.headers.get("x-turn-planner-version") === "3";
     const problemIRV1 = request.headers.get("x-problem-ir-version") === "1";
     const codeLessonV1 = request.headers.get("x-code-lesson-version") === "1";
+    const semanticSceneV2 = !turnPlanV3 && !problemIRV1 && !codeLessonV1 &&
+      request.headers.get("x-scene-planner-version") === "2";
     return handlePlannerRequest({
       rawBody,
       apiKey,
       traceId,
       turnTrace,
       requestStartedAt,
-      semanticSceneV2: !turnPlanV3 && !problemIRV1 && !codeLessonV1 && request.headers.get("x-scene-planner-version") === "2",
+      semanticSceneV2,
       turnPlanV3,
       problemIRV1,
       codeLessonV1,
@@ -893,11 +918,12 @@ export async function POST(request: Request): Promise<Response> {
           : request.headers.get("x-scene-planner-lane")
       ) === "alternate" ? "alternate" : "primary",
       fastMode,
+      evaluationModelOverride,
       problemIRModelOverride: problemIRV1 && shouldUseLectureLabStandardModel(request)
         ? resolveFireworksModel({ fastMode: false })
         : undefined,
       deadlineMs: Math.min(
-        60_000,
+        semanticSceneV2 ? lectureLabPlannerDeadlineCapMs(request) : 60_000,
         Math.max(
           1_000,
           Number.parseInt(request.headers.get("x-planner-deadline-ms") ?? "60000", 10) || 60_000,
@@ -1115,6 +1141,7 @@ export async function POST(request: Request): Promise<Response> {
         "content-type": response.headers.get("content-type") ?? "text/event-stream",
         "cache-control": "no-cache",
         "x-heytutor-trace-id": traceId,
+        "x-heytutor-model": calledModel,
       },
     });
   } catch (error: unknown) {
