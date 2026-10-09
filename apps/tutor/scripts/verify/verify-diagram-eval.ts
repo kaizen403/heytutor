@@ -50,6 +50,7 @@ import {
   type DiagramExemplar,
 } from "../lecture-lab/diagramExamples";
 import {
+  DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS,
   parseDiagramExamplePickerResponse,
   pickDiagramExamples,
 } from "../lecture-lab/diagramExamplePicker";
@@ -329,17 +330,21 @@ assert.ok(catalogue.text.includes("vector-right | vectors_fbd | force vector lab
 assert.ok(!catalogue.text.includes("This entire curated question"), "catalogue uses depicts, never curated questions");
 assert.ok(catalogue.entries.every((entry) => entry.depicts.split(/\s+/).length <= 20));
 assert.deepEqual(
-  parseDiagramExamplePickerResponse('{"ids":["vector-left","circuit-series"]}', catalogue),
+  parseDiagramExamplePickerResponse('Picker result:\n```json\n{"ids":["vector-left","circuit-serie"]}\n```', catalogue),
   ["vector-left", "circuit-series"],
+  "the first JSON object and one unambiguous near-miss id must be accepted",
 );
-assert.throws(
-  () => parseDiagramExamplePickerResponse('```json\n{"ids":["vector-left"]}\n```', catalogue),
-  /strict JSON/,
+assert.deepEqual(
+  parseDiagramExamplePickerResponse('{"ids":["vector"]}', catalogue),
+  [],
+  "ambiguous shortened ids must be dropped",
 );
-assert.throws(
-  () => parseDiagramExamplePickerResponse('{"ids":["not-in-catalogue"]}', catalogue),
-  /unknown exemplar/,
+assert.deepEqual(
+  parseDiagramExamplePickerResponse('{"ids":["not-in-catalogue"]}', catalogue),
+  [],
+  "unknown ids must be dropped rather than failing the whole response",
 );
+assert.equal(DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS, 4_000);
 const pickerVerification = (async () => {
   const pickerRequests: Record<string, unknown>[] = [];
   const picked = await pickDiagramExamples(exemplars, catalogue, {
@@ -363,6 +368,25 @@ const pickerVerification = (async () => {
   assert.equal(pickerRequests[0]?.temperature, 0);
   assert.equal(pickerRequests[0]?.max_tokens, 60);
   assert.deepEqual(pickerRequests[0]?.response_format, { type: "json_object" });
+  let retryCalls = 0;
+  const retried = await pickDiagramExamples(exemplars, catalogue, {
+    question: "Show a resistor circuit.",
+    plan: null,
+    families: ["circuit_network"],
+    archetypeId: null,
+    apiKey: "test-key",
+    fetchImpl: async () => {
+      retryCalls += 1;
+      return Response.json({
+        choices: [{ message: { content: retryCalls === 1 ? "not json" : '{"ids":["circuit-series"]}' } }],
+        usage: { prompt_tokens: 100, completion_tokens: 5, total_tokens: 105 },
+      });
+    },
+  });
+  assert.equal(retryCalls, 2, "invalid JSON gets one retry while deadline remains");
+  assert.equal(retried.record.attempts, 2);
+  assert.equal(retried.record.inputTokens, 200);
+  assert.deepEqual(retried.examples.map((entry) => entry.id), ["circuit-series"]);
   const fellBack = await pickDiagramExamples(exemplars, catalogue, {
     question: "Show the force and velocity vectors on an object.",
     plan: null,
