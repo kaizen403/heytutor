@@ -165,6 +165,8 @@ export function visualNeedRequestWorstCaseUsd(init?: RequestInit): number {
 }
 
 export interface VisualNeedCallAccounting {
+  /** Distinguish a local HTTP denial from an upstream unavailable reason in a 200 reply. */
+  httpStatus: number | null;
   chargedUsd: number;
   reservedUsd: number;
   knownUsage: boolean;
@@ -206,12 +208,12 @@ export async function budgetedVisualNeedFetch(input: RequestInfo | URL, init: Re
       ? Math.max(calculateLlmCostDetails({ input: assessment.usage.inputTokens, output: assessment.usage.outputTokens },
         { model: JEV_GATEWAY_MODEL }).total ?? reservedUsd, assessment.usage.reportedCostUsd ?? 0)
       : provedNoDispatch ? 0 : reservedUsd;
-    account({ chargedUsd, knownUsage, inputTokens: knownUsage ? assessment!.usage!.inputTokens : 0,
+    account({ chargedUsd, knownUsage, httpStatus: response.status, inputTokens: knownUsage ? assessment!.usage!.inputTokens : 0,
       outputTokens: knownUsage ? assessment!.usage!.outputTokens : 0,
       unavailableReason: response.ok ? assessment?.unavailableReason ?? null : `http_${response.status}` });
     return response;
   } catch (error) {
-    if (!settled) account({ chargedUsd: reservedUsd, knownUsage: false, inputTokens: 0, outputTokens: 0, unavailableReason: "transport" });
+    if (!settled) account({ chargedUsd: reservedUsd, knownUsage: false, httpStatus: null, inputTokens: 0, outputTokens: 0, unavailableReason: "transport" });
     throw error;
   }
 }

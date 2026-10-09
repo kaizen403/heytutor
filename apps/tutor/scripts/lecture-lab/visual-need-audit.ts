@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
+import { resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { fetchVisualNeedAssessment } from "../../features/tutor-session/lib/scene/visualNeedClient";
 import { parseDiagramEvalJsonl } from "./diagramEval";
 import { applyLectureLabHeaders } from "./labAuth";
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
   }
   // Identity includes all source bytes, so resume cannot mix a changed historical vote/image admission.
   const identity = { sampleFingerprint: labSampleFingerprint(rows), policy: LAB_VISUAL_NEED_POLICY,
+    minIntervalMs: 650, tracePolicy: "one-audit-job/v1",
     historicalFingerprint: labSampleFingerprint(Object.entries(historical).map(([arm, records]) => [arm, [...records]])) };
   const outDir = resolve(output), origin = flags.get("origin") ?? "http://127.0.0.1:3000";
   const replayPath = resolve(outDir, "visual-need.jsonl"), checkpointPath = resolve(outDir, "spend-checkpoint.json");
@@ -70,11 +72,15 @@ async function main(): Promise<void> {
   const priorMap = parseVisualNeedReplay(saved.map((row) => JSON.stringify(row)).join("\n"), rows.filter((row) => saved.some((prior) => prior.id === row.id)));
   if (saved.some((row) => !rows.some((input) => input.id === row.id))) throw new Error("audit has foreign saved rows");
   if (existsSync(resolve(process.cwd(), ".env.local"))) process.loadEnvFile(resolve(process.cwd(), ".env.local"));
+  const endpoint = resolveLlmEndpoint();
+  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey || !endpoint.deployment) {
+    throw new Error("audit requires the configured Azure provider; Fireworks calls are disabled");
+  }
   const labHeaders = new Headers(); applyLectureLabHeaders(labHeaders);
   const configResponse = await fetch(`${origin}/api/lecture-lab/config`, { headers: labHeaders });
   if (!configResponse.ok) throw new Error("authenticated audit preflight failed");
   const config: unknown = await configResponse.json();
-  if (!record(config) || config.provider !== "azure" || config.deployment !== "gpt-6-1-sol" || config.configured !== true ||
+  if (!record(config) || config.provider !== endpoint.provider || config.deployment !== endpoint.deployment || config.configured !== true ||
     !record(config.visualNeed) || config.visualNeed.configured !== true ||
     Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => !record(config.visualNeed) || config.visualNeed[key] !== value)) {
     throw new Error("audit requires the expected Azure server and configured live Jev policy");
@@ -90,7 +96,16 @@ async function main(): Promise<void> {
   const pending = rows.filter((row) => !priorMap.has(row.id));
   const nativeFetch = globalThis.fetch;
   let budgetDenied = false;
+  let localHttpDenied = false;
+  let nextDispatchAt = 0;
+  const auditTraceId = crypto.randomUUID();
   await runBudgetedLabRows(pending, concurrency, cap, async (row) => {
+    if (localHttpDenied) return;
+    // Stay below production's 120 paid requests/minute; wait before the client's 3 s timer.
+    const dispatchAt = Math.max(Date.now(), nextDispatchAt);
+    nextDispatchAt = dispatchAt + 650;
+    await new Promise((ready) => setTimeout(ready, Math.max(0, dispatchAt - Date.now())));
+    if (localHttpDenied) return;
     const headers = new Headers(labHeaders); headers.set("cookie", cookie);
     let denied = false;
     const fetchImpl: typeof fetch = (input, init) => {
@@ -99,11 +114,12 @@ async function main(): Promise<void> {
       return budgetedVisualNeedFetch(input, { ...init, headers: combined }, nativeFetch, {
         reserve: (usd) => cap.reserveCall(usd), beforeDispatch: checkpoint,
         settle: (reserved, charged) => cap.settleCall(reserved, charged),
-        onAccounting: (call) => { calls.push(call); checkpoint(); }, onDenied: () => { denied = true; budgetDenied = true; },
+        onAccounting: (call) => { calls.push(call); if (call.httpStatus !== null && call.httpStatus >= 400) localHttpDenied = true; checkpoint(); },
+        onDenied: () => { denied = true; budgetDenied = true; },
       });
     };
     const assessment = await fetchVisualNeedAssessment({ url: `${origin}/api/visual-need`,
-      question: normalizeTutorQuestion(row.question), traceId: crypto.randomUUID(), fetchImpl });
+      question: normalizeTutorQuestion(row.question), traceId: auditTraceId, fetchImpl });
     if (denied) return; // Untested, not a service failure or a no-figure vote.
     saved.push({ id: row.id, questionHash: visualNeedQuestionHash(row.question), ...LAB_VISUAL_NEED_POLICY, assessment });
     writeFileSync(replayPath, saved.map((entry) => JSON.stringify(entry)).join("\n") + "\n");
@@ -116,11 +132,13 @@ async function main(): Promise<void> {
   writeFileSync(resolve(outDir, "changed-sample.jsonl"), compared.changedRows.map((row) => JSON.stringify(row)).join("\n") + (compared.changedRows.length ? "\n" : ""));
   const summary = { ...compared.summary, ...cap.summary(saved.length, rows.length),
     provider: "vercel_ai_gateway", model: LAB_VISUAL_NEED_POLICY.model, policy: LAB_VISUAL_NEED_POLICY,
-    figureProvider: "azure", figureDeployment: "gpt-6-1-sol", figureCalls: 0, scenePlannerLimitMs: 60_000,
-    identity, visualNeed: summarizeVisualNeedCalls(calls), untestedRows: rows.length - saved.length, budgetDenied };
+    figureProvider: endpoint.provider, figureDeployment: endpoint.deployment, figureCalls: 0, scenePlannerLimitMs: 60_000,
+    identity, visualNeed: summarizeVisualNeedCalls(calls), untestedRows: rows.length - saved.length, budgetDenied,
+    localHttpDenied, auditTraceId, measurementValid: !localHttpDenied && saved.some((row) => row.assessment.source === "jev") };
   writeFileSync(resolve(outDir, "summary.json"), JSON.stringify(summary, null, 2) + "\n");
   console.log(JSON.stringify({ completed: saved.length, planned: rows.length, actionChangedUnion: compared.changedRows.length,
     ...cap.summary(saved.length, rows.length), figureCalls: 0 }, null, 2));
+  if (localHttpDenied) throw new Error("audit stopped on a local HTTP denial; remaining rows are untested, not Jev answers");
 }
 
 if (process.argv[1]?.endsWith("visual-need-audit.ts")) {

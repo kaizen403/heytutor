@@ -68,6 +68,13 @@ The Jev-only audit uses no figure/teaching calls:
 pnpm exec tsx scripts/lecture-lab/visual-need-audit.ts --eval sample.jsonl --round current=.lecture-lab/current --round planner_examples_strict=.lecture-lab/strict --max-usd 1 --yes --out .lecture-lab/visual-need-audit
 ```
 
+The audit owns one stable lab trace (not a separate idle lesson slot per row)
+and spaces dispatches by at least 650 ms, below the unchanged production IP
+limit. Waiting occurs before the client's 3 s timer. A local HTTP denial stops
+the audit and leaves remaining rows untested; it is not a Jev answer. A key
+limited to Gateway free credits can list Jev but receive an upstream 403;
+Azure credits do not supply Vercel AI Gateway paid-model entitlement.
+
 It freezes identity-checked answers and writes an action-changed sample. Rerun
 that sample with `run.ts --visual-need-replay <audit>/visual-need.jsonl` and
 `--example-exclusions <original-full-sample.jsonl>` on both arms. Replay cannot
