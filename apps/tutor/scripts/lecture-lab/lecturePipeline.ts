@@ -467,7 +467,7 @@ export async function runLecture(
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
     const pickerDecision = evaluationDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
-      codeLesson: false, dsa: false, doubt: false,
+      codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
     });
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
@@ -515,7 +515,7 @@ export async function runLecture(
       });
       const diagramStrategy = evaluationDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
-        codeLesson: false, dsa: false, doubt: false,
+        codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
       });
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
