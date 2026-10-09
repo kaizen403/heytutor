@@ -23,7 +23,6 @@ import { repairLectureMarkup } from "../../features/tutor-session/lib/turn/lectu
 import {
   classifyDsaQuestion,
   createFallbackTurnPlanV3,
-  inferSceneCapabilities,
   normalizeTutorQuestion,
   planAndSolveProblemV1,
   planSceneDocumentWithRepair,
@@ -38,39 +37,29 @@ import {
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
 import {
-  ARCHETYPES,
+  FIGURE_SOURCES,
   buildSolverAuthorityProjection,
-  compileSceneDocument,
-  detectArchetype,
-  isChemistryQuestion,
-  isChemistrySceneFamily,
-  normalizeClaimedClosedRouteGeometry,
-  normalizeClaimedParaxialReflectionGeometry,
-  pruneDeadSceneEntities,
-  pruneUnverifiedSceneAnnotations,
   reconcileTurnPlanWithSolver,
-  validateSceneDocument,
-  validateSceneQuantityAgreement,
-  validateTurnPlanSceneProofs,
   verifyTurnPlanAgainstSolver,
   type FigureSource,
-  type RenderScene,
-  type SceneDocument,
   type TurnPlanV3,
-  type ValidationReport,
 } from "@heytutor/scene-engine";
+import {
+  deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  type ProductionSceneGate, type ValidatedSceneCandidate,
+} from "@/features/tutor-session/lib/scene/productionSceneSelection";
+import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
-  selectVerifiedRepresentation,
   type RepresentationTier,
 } from "@/features/tutor-session/lib/scene/representationFallback";
 import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   SCENE_PLANNER_DEADLINE_MS,
+  REQUIRED_DIAGRAM_RETRY_ENABLED,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
-  shouldAttemptExactScene,
   turnPlanNeedsNumericAuthority,
 } from "@/features/tutor-session/lib/scene/diagramGeneration";
 import {
@@ -86,7 +75,6 @@ import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCal
 import {
   classifyDiagramEmptyCause,
   evaluationDecision,
-  evaluationSuppressesSelectedSource,
   supplementCandidateErrorCodes,
   type DiagramEmptyCause,
   type DiagramEvalArm,
@@ -273,15 +261,6 @@ export interface RunLectureOptions {
     intro: TutorSegment[];
   }) => void;
 }
-
-/** The plan and the stem filter agree this question needs no picture. */
-class NoFigureNeeded extends Error {}
-
-type ValidatedSceneCandidate = {
-  document: SceneDocument;
-  renderScene: RenderScene;
-  report: ValidationReport;
-};
 
 /** Structural ink the teaching stream is never allowed to emit. */
 const TEACHING_OWNED_TAGS = new Set([
@@ -471,30 +450,22 @@ export async function runLecture(
         });
     }
 
-    const pickerCapabilities = inferSceneCapabilities(question, {
-      lawIds: turnPlan.lawIds,
-      problemIR: null,
-      turnPlan,
-    });
+    const pickerGate = deriveProductionSceneGate({ question, turnPlan, problemIR: null });
     const pickerDecision = evaluationDecision(options.arm ?? "current", {
-      subject: parseDiagramSubject(options.subject),
-      chemistryLane: pickerCapabilities.families.some(isChemistrySceneFamily) || isChemistryQuestion(question),
-      codeLesson: false,
-      dsa: false,
-      doubt: false,
+      subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
+      codeLesson: false, dsa: false, doubt: false,
     });
-    if (pickerDecision.usePickedExamples) {
+    if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
-      const pickerArchetype = detectArchetype(question, { turnPlan, problemIR: null });
       const picked = await pickDiagramExamples(
         examples,
         options.diagramExampleCatalogue ?? buildDiagramExampleCatalogue(examples),
         {
           question,
           plan: turnPlan,
-          families: pickerCapabilities.families,
-          archetypeId: pickerArchetype?.id ?? null,
+          families: pickerGate.families,
+          archetypeId: pickerGate.archetypeId,
           onModelCost: options.onModelCost,
           traceId: options.traceId,
         },
@@ -513,182 +484,32 @@ export async function runLecture(
     }
 
     const validateCandidateAgainstPlan = (
-      candidate: Record<string, unknown>,
-      authoritativePlan: TurnPlanV3,
-    ): SceneCandidateValidation<ValidatedSceneCandidate> => {
-      let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
-      if (!validated.document) {
-        return { valid: false, errors: validated.report.issues };
-      }
-      const routeNormalized = normalizeClaimedClosedRouteGeometry(
-        validated.document,
-        authoritativePlan,
-      );
-      const constraintNormalized = normalizeClaimedParaxialReflectionGeometry(
-        routeNormalized,
-        authoritativePlan,
-      );
-      if (constraintNormalized !== validated.document) {
-        validated = validateSceneDocument(
-          pruneDeadSceneEntities(constraintNormalized as unknown as Record<string, unknown>),
-        );
-        if (!validated.document) {
-          return { valid: false, errors: validated.report.issues };
-        }
-      }
-      const annotationPruned = pruneUnverifiedSceneAnnotations(
-        validated.document,
-        authoritativePlan,
-      );
-      if (annotationPruned !== validated.document) {
-        validated = validateSceneDocument(
-          pruneDeadSceneEntities(annotationPruned as unknown as Record<string, unknown>),
-        );
-        if (!validated.document) {
-          return { valid: false, errors: validated.report.issues };
-        }
-      }
-      const agreementIssues = validateSceneQuantityAgreement(
-        validated.document.quantities,
-        authoritativePlan,
-        [
-          ...validated.document.entities
-            .map((entity) => entity.label)
-            .filter((label): label is string => typeof label === "string"),
-          ...validated.document.annotations
-            .map((annotation) => annotation.text)
-            .filter((text): text is string => typeof text === "string"),
-        ],
-      );
-      const authorityIssues = agreementIssues.map((issue) => ({
-        code: issue.code,
-        message: issue.message,
-        path: issue.path,
-        severity: "fatal" as const,
-      }));
-      const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
-      const compiledScene = compileSceneDocument(validated.document);
-      const fatalIssues = [
-        ...authorityIssues,
-        ...proofIssues,
-        ...compiledScene.report.issues,
-      ].filter((issue) => issue.severity === "fatal");
-      if (fatalIssues.length > 0 || !compiledScene.ok || !compiledScene.renderScene) {
-        return {
-          valid: false,
-          errors: fatalIssues.length > 0 ? fatalIssues : compiledScene.report.issues,
-        };
-      }
-      return {
-        valid: true,
-        errors: [...proofIssues, ...compiledScene.report.issues],
-        qualityScore:
-          (validated.document.visualDecision.mode === "text_only" &&
-          authoritativePlan.visualRequirement !== "none"
-            ? authoritativePlan.visualRequirement === "required"
-              ? 100_000
-              : 10_000
-            : 0) +
-          compiledScene.report.issues.filter((issue) => issue.severity === "warning").length *
-            1_000 +
-          compiledScene.report.stats.primitiveCount * 2 +
-          compiledScene.report.stats.entityCount +
-          compiledScene.report.stats.constructionCount,
-        value: {
-          document: validated.document,
-          renderScene: compiledScene.renderScene,
-          report: compiledScene.report,
-        },
-      };
-    };
+      candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+    ): SceneCandidateValidation<ValidatedSceneCandidate> =>
+      validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
 
-    type BenchSceneGate = {
-      sceneCapabilities: ReturnType<typeof inferSceneCapabilities>;
-      shouldPlanExactScene: boolean;
-      shouldAttemptLlmScene: boolean;
-      families: readonly string[];
-      archetypeId: string | null;
+    type BenchSceneGate = ProductionSceneGate & {
       diagramStrategy: ReturnType<typeof evaluationDecision>;
       examplesUsed: DiagramExemplar[];
-      request: {
-        conversationContext: string;
-        constructionOperators?: ReturnType<typeof inferSceneCapabilities>["constructionOperators"];
-        proofPredicates?: ReturnType<typeof inferSceneCapabilities>["proofPredicates"];
-        planningGuidance?: string[];
-        workedExamples?: DiagramExemplar[];
-      };
+      request: ProductionSceneGate["request"] & { workedExamples?: DiagramExemplar[] };
     };
-    // Mirrors deriveSceneGate in the live hook: chemistry lane, exact gate,
-    // archetype guidance and the planner request built from the same plan.
     const deriveSceneGate = (
-      planningTurnPlan: TurnPlanV3,
-      authority: ProblemAuthorityV1Response | null,
+      planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
     ): BenchSceneGate => {
-      const sceneCapabilities = inferSceneCapabilities(question, {
-        lawIds: planningTurnPlan.lawIds,
-        problemIR: authority?.problemIR ?? null,
-        turnPlan: planningTurnPlan,
+      const gate = deriveProductionSceneGate({
+        question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
       });
-      const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
-        || isChemistryQuestion(question);
       const diagramStrategy = evaluationDecision(options.arm ?? "current", {
-        subject: parseDiagramSubject(options.subject),
-        chemistryLane,
-        codeLesson: false,
-        dsa: false,
-        doubt: false,
+        subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
+        codeLesson: false, dsa: false, doubt: false,
       });
-      const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
-      const archetype = detectArchetype(question, {
-        turnPlan: planningTurnPlan,
-        problemIR: authority?.problemIR ?? null,
-      });
-      const shouldAttemptLlmScene = shouldAttemptExactScene({
-        visualRequirement: planningTurnPlan.visualRequirement,
-        chemistryLane,
-        familyCount: sceneCapabilities.families.length,
-        hasArchetype: archetype !== null,
-      });
-      const planContext =
-        `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\n` +
-        "Do not contradict, replace, or independently recalculate these quantities and claims.";
-      const archetypeSpec = archetype ? ARCHETYPES[archetype.id] : null;
-      const archetypeGuidance = archetypeSpec
-        ? [
-            `Figure: ${archetypeSpec.label}. It must contain entities with roles: ${archetypeSpec.contract.roles.join(", ")}` +
-              (archetypeSpec.contract.operators?.length
-                ? `; use ${archetypeSpec.contract.operators.join(", ")}`
-                : "") +
-              ".",
-          ]
-        : [];
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
-        sceneCapabilities,
-        shouldPlanExactScene,
-        shouldAttemptLlmScene,
-        families: sceneCapabilities.families,
-        archetypeId: archetype?.id ?? null,
-        diagramStrategy,
-        examplesUsed,
+        ...gate, diagramStrategy, examplesUsed,
         request: {
-          conversationContext: planContext,
-          ...(examplesUsed.length > 0 ? { workedExamples: examplesUsed } : {}),
-          ...(sceneCapabilities.families.length > 0
-            ? {
-                constructionOperators: sceneCapabilities.constructionOperators,
-                proofPredicates: sceneCapabilities.proofPredicates,
-                planningGuidance: [...sceneCapabilities.planningGuidance, ...archetypeGuidance],
-              }
-            : archetypeGuidance.length > 0
-              ? { planningGuidance: archetypeGuidance }
-              : {}),
+          ...gate.request, ...(examplesUsed.length > 0 ? { workedExamples: examplesUsed } : {}),
           ...(options.sceneDeclinePolicy && options.sceneDeclinePolicy !== "unchanged" ? {
-            planningGuidance: [
-              ...(sceneCapabilities.families.length > 0 ? sceneCapabilities.planningGuidance : []),
-              ...archetypeGuidance,
-              ...sceneDeclineExperimentGuidance(options.sceneDeclinePolicy),
-            ],
+            planningGuidance: [...(gate.request.planningGuidance ?? []), ...sceneDeclineExperimentGuidance(options.sceneDeclinePolicy)],
           } : {}),
         },
       };
@@ -841,84 +662,33 @@ export async function runLecture(
           : "candidate_invalid";
     }
 
-    let sceneDocument: SceneDocument | null = null;
-    let renderScene: RenderScene | null = null;
-    let figureFamily: string | null = null;
-    try {
-      // Mirrors the live guard: a question whose plan and stem filter agree it
-      // needs no picture does not get a fallback one.
-      if (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)) {
-        run.diagram.reason = "the question asks for no figure";
-        throw new NoFigureNeeded();
-      }
-      const fallbackCapabilities = inferSceneCapabilities(question, {
-        lawIds: turnPlan.lawIds,
-        problemIR: problemAuthority?.problemIR ?? null,
-        turnPlan,
-      });
-      const selected = fastRepresentation ?? selectVerifiedRepresentation({
-        preferPlanner: options.arm === "planner_examples_strict",
-        question,
-        turnPlan,
-        problemIR: problemAuthority?.problemIR ?? null,
-        families:
-          fallbackCapabilities.families.length > 0
-            ? fallbackCapabilities.families
-            : sceneCapabilities.families,
-        exact:
-          value && value.document.visualDecision.mode === "scene"
-            ? {
-                sceneDocument: value.document,
-                renderScene: value.renderScene,
-                validationReport: value.report,
-              }
-            : null,
-        exactFigureSource: planning.figureSource === "verified_recovery"
-          ? "verified_recovery"
-          : "planner",
-      });
-      sceneDocument = selected.sceneDocument;
-      // Mirrors the live guard: a figure the student cannot read is not a
-      // figure, so the turn teaches as text only.
-      const selectedHasInk = selected.renderScene.primitives.some(
-        (primitive) =>
-          (primitive.kind === "label" || primitive.kind === "dimension") &&
-          typeof primitive.text === "string" &&
-          primitive.text.trim().length > 0,
-      );
-      run.diagram.primitiveCount = selected.renderScene.primitives.length;
-      const suppressFallback = selectedHasInk &&
-        evaluationSuppressesSelectedSource(options.arm ?? "current", selected.figureSource, {
-          chemistryLane: planning.gate.diagramStrategy.chemistryLane,
-          codeLesson: false,
-          dsa: false,
-          doubt: false,
-        });
-      if (suppressFallback) {
-        run.diagram.suppressedFallback = {
-          figureSource: selected.figureSource,
-          family: selected.family ?? null,
-        };
-        run.diagram.reason = `strict evaluation suppressed ${selected.figureSource} fallback`;
-      } else {
-        renderScene = selectedHasInk ? selected.renderScene : null;
-        run.diagram.declinedUnreadable = !selectedHasInk && run.diagram.primitiveCount > 0;
-        run.diagram.tier = selected.tier;
-        run.diagram.nonMetric = selected.nonMetric;
-        run.diagram.figureSource = selectedHasInk ? selected.figureSource : "text_only";
-        run.diagram.reason = selected.reason;
-        run.diagram.validationIssues = selected.validationReport.issues.map((issue) => ({
-          code: issue.code,
-          severity: issue.severity,
-          message: issue.message,
-        }));
-        figureFamily = selected.family ?? null;
-        run.diagram.family = figureFamily;
-      }
-    } catch (error) {
-      if (!(error instanceof NoFigureNeeded)) {
-        run.diagram.reason = error instanceof Error ? error.message : String(error);
-      }
+    const sceneSelection = selectProductionScene({
+      question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+      candidateValidation: result?.validation, fastRepresentation,
+      exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
+      solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+      policy: {
+        preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
+        allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
+      },
+    });
+    const selected = sceneSelection.representation;
+    const attempted = sceneSelection.attemptedRepresentation;
+    const sceneDocument = selected?.sceneDocument ?? null;
+    const renderScene = selected?.renderScene ?? null;
+    const figureFamily = selected?.family ?? null;
+    run.diagram.primitiveCount = attempted?.renderScene.primitives.length ?? 0;
+    run.diagram.declinedUnreadable = Boolean(attempted && !sceneSelection.hasReadableInk && run.diagram.primitiveCount > 0);
+    run.diagram.tier = selected?.tier ?? null;
+    run.diagram.nonMetric = selected?.nonMetric ?? false;
+    run.diagram.figureSource = selected?.figureSource ?? "text_only";
+    run.diagram.reason = sceneSelection.reason;
+    run.diagram.family = figureFamily;
+    run.diagram.validationIssues = attempted?.validationReport.issues.map((issue) => ({
+      code: issue.code, severity: issue.severity, message: issue.message,
+    })) ?? [];
+    if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
+      run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }
 
     run.timings.planMs = Date.now() - plannerStartedAt;

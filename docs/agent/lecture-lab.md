@@ -13,7 +13,7 @@ without a browser and writes down what happened.
 `lecturePipeline.ts` reproduces the non-DSA path of
 `useQuestionHandler`: `planTurnV3` -> `planAndSolveProblemV1` ->
 `planSceneDocumentWithRepair` -> `finalizeScenePlanAfterAuthority` ->
-`selectVerifiedRepresentation` -> `buildVerifiedDiagramPresentation` -> the
+`selectProductionScene` -> `buildVerifiedDiagramPresentation` -> the
 teaching stream with continuations. The teaching prompt is not rebuilt here: it
 comes from `features/tutor-session/lib/turn/turnTeachingPrompt.ts`, which the live
 hook calls too, so the lesson graded is the lesson taught. What is dropped is
@@ -21,6 +21,36 @@ presentation only: Konva, TTS, persistence, cancellation.
 
 FOCUS ids are resolved with `resolveVerifiedDiagramFocusTargets`, the same
 function the board uses, so "the marker never moved" is a fact and not a guess.
+
+## Shared production figure decision
+
+Import `selectProductionScene` from
+`apps/tutor/features/tutor-session/lib/scene/productionSceneSelection.ts`.
+The live hook and lab call it for the final figure/text-only decision. The same
+module exports `deriveSceneGate` for pre-request admission and
+`validateProductionSceneCandidate` for the asynchronous planner/revalidation
+callback. It preserves production's normalize/prune, quantity/source/proof,
+compile, readable-ink, source-policy, exact-obligation and save-admission order.
+No validator implementation, planner prompt or archetype slot rule is changed.
+
+Inputs are the question, full turn plan, ProblemIR, capabilities and optional
+visual-need decision (`null` means unavailable; omit only for an already-merged
+plan). Raw candidates or shared callback validations, a fast representation,
+solver contradiction, source policy and retry policy are explicit inputs.
+`representation` is null for text-only; `reason` explains the decision, while
+`selectionReason` retains the live artifact reason for backward compatibility.
+`attemptedRepresentation` is diagnostics only and must never be drawn/saved.
+The function performs no network, cache, persistence or environment reads.
+
+The lab now also applies production's source-program gate, matrix-source
+validation, solver block and save-admission guard; its old duplicated path did
+not. Chemistry remains production-exempt from model scene planning in every
+arm. Historical results are not rewritten. Execution identity records
+`production-scene-selection/v1`, so old divergent-admission rounds cannot be
+silently resumed with this policy. Jev service wiring is the separate 14c step.
+
+`pnpm --filter @heytutor/tutor verify:production-selection` checks the shared
+decision and the original six live/save figures plus both edited forgeries.
 
 ## Commands
 
