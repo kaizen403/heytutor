@@ -1,6 +1,10 @@
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "./llmProvider";
 import { resolvePlannerMaxTokens } from "./plannerTransport";
 import { resolveTeachingContentBudget } from "./teachingTransport";
+import { VISUAL_NEED_SERVER_TIMEOUT_MS } from "./visualNeedPolicy";
+import { EVALUATION_POLICY_VERSION, JEV_GATEWAY_MODEL } from "./evaluation/types";
+import { rubricVersionForJob } from "./evaluation/rubrics";
+import { VISUAL_NEED_CLIENT_TIMEOUT_MS, VISUAL_NEED_EVIDENCE_VERSION } from "../../features/tutor-session/lib/scene/visualNeedClient";
 
 /** Non-secret, authenticated preflight from the actual server configuration. */
 export function labProviderConfig() {
@@ -25,5 +29,9 @@ export function labProviderConfig() {
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured: Boolean(endpoint.apiKey && !endpoint.fallbackReason),
     plannerOutputCap: Math.max(...caps), teachingOutputCap: Math.max(...teachingCaps),
+    visualNeed: { evidenceVersion: VISUAL_NEED_EVIDENCE_VERSION, model: JEV_GATEWAY_MODEL,
+      rubricVersion: rubricVersionForJob("visual_need"), policyVersion: EVALUATION_POLICY_VERSION,
+      clientTimeoutMs: VISUAL_NEED_CLIENT_TIMEOUT_MS, serverTimeoutMs: VISUAL_NEED_SERVER_TIMEOUT_MS,
+      configured: Boolean(process.env.AI_GATEWAY_API_KEY?.trim()) },
   };
 }

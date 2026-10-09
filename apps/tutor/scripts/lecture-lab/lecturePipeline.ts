@@ -89,6 +89,8 @@ import {
   pickDiagramExamples,
   type DiagramExamplePickerRecord,
 } from "./diagramExamplePicker";
+import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features/tutor-session/lib/scene/visualNeedClient";
+import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
 
 export interface LectureStep {
   index: number;
@@ -162,6 +164,8 @@ export interface LectureRun {
   } | null;
   planner?: PlannerUsageSummary;
   examplePicker?: LectureExamplePickerRecord;
+  /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
+  visualNeed?: LabVisualNeedEvidence;
   diagram: PlannerEvidence & {
     committed: boolean;
     /**
@@ -242,6 +246,8 @@ export interface RunLectureOptions {
   /** Evaluation-only override; live turns keep SCENE_PLANNER_DEADLINE_MS. */
   scenePlannerDeadlineMs?: number;
   traceId?: string;
+  /** Frozen, identity-checked Jev answer for a lab rerun; undefined calls the live service. */
+  visualNeedReplay?: VisualNeedAssessment;
   /** Leak-filtered library used only by the planner example evaluation arms. */
   diagramExamples?: readonly DiagramExemplar[];
   /** Built once per round from diagramExamples. */
@@ -405,6 +411,9 @@ export async function runLecture(
     let turnPlan: TurnPlanV3;
     let problemAuthority: ProblemAuthorityV1Response | null = null;
     let pickedExamples: DiagramExemplar[] = [];
+    const visualNeedPromise = options.visualNeedReplay === undefined
+      ? fetchVisualNeedAssessment({ url: `${options.origin}/api/visual-need`, question, traceId })
+      : Promise.resolve(options.visualNeedReplay);
 
     const turnPlanStartedAt = Date.now();
     const plannedTurn = await planTurnV3(question, {
@@ -420,9 +429,8 @@ export async function runLecture(
       createFallbackTurnPlanV3(question),
       plannedTurn?.peerTurnPlans,
     );
-    // Mirrors the live hook: ProblemIR only when the plan needs numeric
-    // authority, started from the selected plan. The bench has no visual-need
-    // service, so the planner's own visual requirement stands.
+    // As in live, numeric authority starts from the unmerged selected plan
+    // while the visual-need request runs beside the turn planner.
     let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
     let problemAuthorityFinishedAt: number | null = null;
     if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
@@ -445,7 +453,13 @@ export async function runLecture(
         });
     }
 
-    const pickerGate = deriveProductionSceneGate({ question, turnPlan, problemIR: null });
+    const assessment = await visualNeedPromise;
+    const plannerRequirement = turnPlan.visualRequirement;
+    const pickerGate = deriveProductionSceneGate({ question, turnPlan, problemIR: null, visualNeedDecision: assessment.decision });
+    turnPlan = pickerGate.turnPlan;
+    run.visualNeed = { plannerRequirement, assessment, mergedRequirement: turnPlan.visualRequirement,
+      origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
+      questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
     if (pickerGate.shouldPlanExactScene && evaluationUsesExamples(options.arm ?? "current")) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();

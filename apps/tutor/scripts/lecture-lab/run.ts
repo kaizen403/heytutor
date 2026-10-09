@@ -16,6 +16,8 @@ import { gradeLecture, type LectureGrade } from "./grade";
 import { printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
 import { PRODUCTION_SCENE_SELECTION_VERSION } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { LAB_VISUAL_NEED_POLICY, budgetedVisualNeedFetch, parseVisualNeedReplay, summarizeVisualNeedCalls,
+  type VisualNeedCallAccounting } from "./labVisualNeed";
 import { applyLectureLabHeaders } from "./labAuth";
 import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
@@ -88,6 +90,8 @@ export interface Options {
   resume: boolean;
   /** Conservative allowance for an interrupted pre-checkpoint run. */
   resumeExtraUsd: number;
+  visualNeedReplay: string | null;
+  exampleExclusions: string | null;
 }
 
 export interface LabSpendSummary {
@@ -251,6 +255,9 @@ export function parseOptions(argv: string[]): Options {
     throw new Error("--max-usd must be a positive number");
   }
   const resume = flags.get("resume") === "true";
+  if ((flags.has("visual-need-replay") || flags.has("example-exclusions")) && evalFiles.length === 0) {
+    throw new Error("--visual-need-replay and --example-exclusions are evaluation-only");
+  }
   const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
@@ -279,6 +286,8 @@ export function parseOptions(argv: string[]): Options {
     maxUsd,
     resume,
     resumeExtraUsd,
+    visualNeedReplay: flags.get("visual-need-replay") ?? null,
+    exampleExclusions: flags.get("example-exclusions") ?? null,
   };
 }
 
@@ -586,10 +595,13 @@ async function main(): Promise<void> {
     ? loadEvaluationRows(options.evalFiles.map((path) => resolve(path)), options)
     : null;
   const evaluationById = new Map(evaluationRows?.map((row) => [row.id, row]) ?? []);
+  const exclusionQuestions = options.exampleExclusions
+    ? parseDiagramEvalJsonl(readFileSync(resolve(options.exampleExclusions), "utf8")).map((row) => row.question) : [];
+  const exampleExclusionFingerprint = labSampleFingerprint(exclusionQuestions);
   const diagramExamples = evaluationRows && evaluationUsesExamples(options.arm)
     ? loadDiagramExemplarLibrary(
         resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl"),
-        evaluationRows.map((row) => row.question),
+        [...evaluationRows.map((row) => row.question), ...exclusionQuestions],
       )
     : [];
   const diagramExampleCatalogue = diagramExamples.length > 0
@@ -609,15 +621,20 @@ async function main(): Promise<void> {
     ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
     : null;
   assertUniqueArtifactIds(probes);
+  const replayText = options.visualNeedReplay ? readFileSync(resolve(options.visualNeedReplay), "utf8") : null;
+  const visualNeedReplay = replayText === null ? null : parseVisualNeedReplay(replayText, probes);
   // Verify the server (not just this CLI's environment) before sending any model call.
   const configHeaders = new Headers();
   applyLectureLabHeaders(configHeaders);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
-  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number };
+  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown> };
   if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
     !Number.isFinite(serverConfig.plannerOutputCap) || !Number.isFinite(serverConfig.teachingOutputCap)) {
     throw new Error("server provider/deployment does not match the configured Azure lab");
+  }
+  if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
+    throw new Error("server visual-need policy does not match the live-matching lab");
   }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
@@ -625,6 +642,9 @@ async function main(): Promise<void> {
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
+    exampleExclusionFingerprint,
+    visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
+    visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
   };
   if (preflightEstimateUsd !== null) {
     console.log(
@@ -659,7 +679,7 @@ async function main(): Promise<void> {
   const reviewedIds = new Set(readRoundJudgments(outDir).map((row) => row.id));
   const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; executionConfig?: Record<string, unknown> }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[] }
     : null;
   if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
   if (options.resume && !oldCheckpoint) throw new Error("resume requires a spend checkpoint with proven execution identity");
@@ -669,7 +689,8 @@ async function main(): Promise<void> {
     JSON.stringify(oldCheckpoint.probeIds) !== JSON.stringify(probes.map((probe) => probe.id)) || oldCheckpoint.sampleFingerprint !== sampleFingerprint)) {
     throw new Error("resume requires the identical provider, arm, scene limit and full original sample");
   }
-  const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0), 0);
+  const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0)
+    + (run.visualNeed?.origin === "live_service" ? run.visualNeed.accounting?.chargedUsd ?? 0 : 0), 0);
   const priorChargeUsd = restoredLabCharge(storedRowUsd, oldCheckpoint, options.resumeExtraUsd);
   console.log(`resume: ${runs.length} saved, ${pendingProbes.length} pending, prior conservative charge $${priorChargeUsd.toFixed(6)}`);
 
@@ -686,10 +707,13 @@ async function main(): Promise<void> {
   const nativeFetch = globalThis.fetch;
   const spendCap = new LabSpendCap(options.maxUsd);
   spendCap.recordCost(priorChargeUsd);
+  const visualNeedCalls: VisualNeedCallAccounting[] = [...(oldCheckpoint?.visualNeedCalls ?? [])];
+  const visualNeedAccountingByTrace = new Map<string, VisualNeedCallAccounting>();
   const checkpointSpend = () => writeFileSync(checkpointPath, `${JSON.stringify({
     ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
     scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
     sampleFingerprint, executionConfig,
+    visualNeedCalls,
   }, null, 1)}\n`);
   checkpointSpend();
   const budgetDeniedTraces = new Set<string>();
@@ -706,6 +730,9 @@ async function main(): Promise<void> {
       priorSubsetJudgeSummary: priorSubsetJudgeSummary(previousSummary, judgingStatus.unreviewedRows),
       evaluationConfig: evaluationRows ? { ...providerConfig, scenePlannerLimitMs: options.scenePlannerLimitMs } : null,
       preflightEstimateUsd,
+      visualNeed: { ...summarizeVisualNeedCalls(visualNeedCalls),
+        replayedRows: runs.filter((run) => run.visualNeed?.origin === "frozen_replay").length,
+        interruptedUsdUnattributed: oldCheckpoint?.reservedUsd ?? 0 },
       resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },
       ...spendCap.summary(runs.length, probes.length), budgetTerminatedRows,
       evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
@@ -734,6 +761,13 @@ async function main(): Promise<void> {
       }
     }
     const traceId = headers.get("x-heytutor-trace-id");
+    if (url === `${options.origin}/api/visual-need`) {
+      return budgetedVisualNeedFetch(input, { ...init, headers }, nativeFetch, {
+        reserve: (usd) => spendCap.reserveCall(usd), beforeDispatch: checkpointSpend, settle: settleSpend,
+        onAccounting: (call) => { visualNeedCalls.push(call); if (traceId) visualNeedAccountingByTrace.set(traceId, call); checkpointSpend(); },
+        onDenied: () => { if (traceId) budgetDeniedTraces.add(traceId); },
+      });
+    }
     const chatRequest = url === `${options.origin}/api/chat` && traceId;
     const plannerRequest = chatRequest && headers.get("x-planner") === "1";
     const directProviderRequest = url === endpoint.url;
@@ -808,10 +842,12 @@ async function main(): Promise<void> {
         fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
         scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
         traceId,
+        visualNeedReplay: visualNeedReplay?.get(probe.id),
         diagramExamples,
         diagramExampleCatalogue,
       });
       run.planner = await usageTracker.finishAsync(traceId);
+      if (run.visualNeed?.origin === "live_service") run.visualNeed.accounting = visualNeedAccountingByTrace.get(traceId);
       if (budgetDeniedTraces.has(traceId)) {
         budgetTerminatedRows.push(probe.id);
         mkdirSync(`${outDir}/interrupted`, { recursive: true });
