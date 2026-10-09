@@ -10,6 +10,7 @@ import {
   type DiagramExemplar,
 } from "./diagramExamples";
 import { estimateLabCallWorstCaseUsd } from "./diagramEval";
+import { hasPricedUsage, type LabSpendMode } from "./labSpend";
 
 export const DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS = 15_000;
 
@@ -29,6 +30,9 @@ export interface DiagramExamplePickerRecord {
   totalTokens: number;
   estimatedCostUsd: number;
   fallbackReason: string | null;
+  knownUsageUsd?: number;
+  unresolvedUsageCalls?: number;
+  unresolvedAllowanceUsd?: number;
 }
 
 export interface DiagramExamplePickerResult {
@@ -47,6 +51,7 @@ export interface DiagramExamplePickerOptions {
   fetchImpl?: typeof fetch;
   onModelCost?: (usd: number) => void;
   traceId?: string;
+  spendMode?: LabSpendMode;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -188,6 +193,8 @@ export async function pickDiagramExamples(
   let outputTokens = 0;
   let totalTokens = 0;
   let estimatedCostUsd = 0;
+  let knownUsageUsd = 0;
+  let unresolvedAllowanceUsd = 0;
   let pendingWorstCaseUsd = 0;
   let pendingCharged = true;
   const base = () => ({
@@ -202,6 +209,9 @@ export async function pickDiagramExamples(
     outputTokens,
     totalTokens,
     estimatedCostUsd: Math.round(estimatedCostUsd * 1_000_000) / 1_000_000,
+    knownUsageUsd: Math.round(knownUsageUsd * 1_000_000) / 1_000_000,
+    unresolvedUsageCalls: attempts - usageKnownCalls,
+    unresolvedAllowanceUsd: Math.round(unresolvedAllowanceUsd * 1_000_000) / 1_000_000,
   });
   try {
     if (endpoint.fallbackReason) throw new Error("configured LLM provider is unavailable");
@@ -243,12 +253,16 @@ export async function pickDiagramExamples(
       if (!isRecord(payload)) throw new PickerJsonError("picker response was not an object");
       const usage = parseProviderUsage(payload.usage);
       let callCostUsd = pendingWorstCaseUsd;
-      if (usage.known) {
+      if (hasPricedUsage(usage)) {
         usageKnownCalls += 1;
         inputTokens += usage.input ?? 0;
         outputTokens += usage.output ?? 0;
         totalTokens += usage.total ?? (usage.input ?? 0) + (usage.output ?? 0);
         callCostUsd = calculateLlmCostDetails(usage, { model }).total ?? 0;
+        knownUsageUsd += callCostUsd;
+      } else {
+        unresolvedAllowanceUsd += pendingWorstCaseUsd;
+        if (options.spendMode === "response_usage") callCostUsd = 0;
       }
       estimatedCostUsd += callCostUsd;
       options.onModelCost?.(callCostUsd);
@@ -281,8 +295,10 @@ export async function pickDiagramExamples(
     }
   } catch (error) {
     if (attempts > 0 && !pendingCharged) {
-      estimatedCostUsd += pendingWorstCaseUsd;
-      options.onModelCost?.(pendingWorstCaseUsd);
+      unresolvedAllowanceUsd += pendingWorstCaseUsd;
+      const callCostUsd = options.spendMode === "response_usage" ? 0 : pendingWorstCaseUsd;
+      estimatedCostUsd += callCostUsd;
+      options.onModelCost?.(callCostUsd);
       pendingCharged = true;
     }
     const timedOut = Date.now() >= deadline ||
