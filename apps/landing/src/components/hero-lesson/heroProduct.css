@@ -11,6 +11,9 @@
   -webkit-font-smoothing: antialiased;
 }
 .hero-product-main { position: absolute; inset: 0 0 0 264px; }
+.hero-product[data-compact='true'] { width: 1016px; }
+.hero-product[data-compact='true'] > .demo-sidebar { display: none; }
+.hero-product[data-compact='true'] .hero-product-main { left: 0; }
 .hero-product-board { position: absolute; top: 73px; left: 0; right: 0; }
 .hero-product-composer {
   position: absolute;

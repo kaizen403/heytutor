@@ -79,6 +79,7 @@ export interface ProviderPerfMetadata {
  * header names, `server-time-to-first-token` and `server-processing-time`, in
  * seconds. A non-streamed response repeats them as `fireworks-*` headers. The
  * older `ttft_ms` / `tokens_per_sec` names are still read when present.
+ * Azure's `latency_checkpoint` reports `service_ttft_ms` and `service_ttlt_ms`.
  */
 export function providerPerfMetadata(
   perf: unknown,
@@ -87,8 +88,10 @@ export function providerPerfMetadata(
   const record = perf && typeof perf === "object" ? perf as Record<string, unknown> : {};
   const seconds = (key: string) =>
     perfNumber(record[key]) ?? perfNumber(options.headers?.get(`fireworks-${key}`));
-  const ttftSeconds = seconds("server-time-to-first-token");
-  const processingSeconds = seconds("server-processing-time");
+  const azureTtftMs = perfNumber(record.service_ttft_ms);
+  const azureTtltMs = perfNumber(record.service_ttlt_ms);
+  const ttftSeconds = seconds("server-time-to-first-token") ?? (azureTtftMs === undefined ? undefined : azureTtftMs / 1000);
+  const processingSeconds = seconds("server-processing-time") ?? (azureTtltMs === undefined ? undefined : azureTtltMs / 1000);
   const ttftMs = perfNumber(record.ttft_ms) ??
     (ttftSeconds === undefined ? undefined : Math.round(ttftSeconds * 1000));
   const generationSeconds = ttftSeconds !== undefined && processingSeconds !== undefined
