@@ -80,11 +80,15 @@ export interface Options {
   figureOnly: boolean;
   yes: boolean;
   maxUsd: number;
+  resume: boolean;
+  /** Conservative allowance for an interrupted pre-checkpoint run. */
+  resumeExtraUsd: number;
 }
 
 export interface LabSpendSummary {
   maxUsd: number;
   chargedUsd: number;
+  reservedUsd: number;
   stoppedForBudget: boolean;
   rowsDone: number;
   rowsPlanned: number;
@@ -133,6 +137,7 @@ export class LabSpendCap {
     return {
       maxUsd: this.maxUsd,
       chargedUsd: Math.round(this.chargedUsd * 1_000_000) / 1_000_000,
+      reservedUsd: Math.round(this.reservedUsd * 1_000_000) / 1_000_000,
       stoppedForBudget: this.stoppedForBudget,
       rowsDone,
       rowsPlanned,
@@ -167,7 +172,7 @@ export async function runBudgetedLabRows<T>(
 export function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
   const evalFiles: string[] = [];
-  const booleans = new Set(["figure-only", "yes"]);
+  const booleans = new Set(["figure-only", "yes", "resume"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) continue;
@@ -240,6 +245,10 @@ export function parseOptions(argv: string[]): Options {
   if (!Number.isFinite(maxUsd) || maxUsd <= 0) {
     throw new Error("--max-usd must be a positive number");
   }
+  const resume = flags.get("resume") === "true";
+  const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
+  if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
+  if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
   return {
     difficulty: flags.get("difficulty") ?? "hard",
     units: list("units")?.map((entry) => Number.parseInt(entry, 10)) ?? null,
@@ -263,7 +272,28 @@ export function parseOptions(argv: string[]): Options {
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     yes: flags.get("yes") === "true",
     maxUsd,
+    resume,
+    resumeExtraUsd,
   };
+}
+
+/** Keep the full original evaluation for retrieval exclusions; skip only execution. */
+export function selectResumeProbes<T extends { id: string; question: string }>(
+  probes: readonly T[],
+  saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string } }[],
+  arm: string,
+  provider: { provider: string; deployment?: string },
+): T[] {
+  const byId = new Map(probes.map((probe) => [probe.id, probe]));
+  const done = new Set<string>();
+  for (const row of saved) {
+    if (done.has(row.probeId) || byId.get(row.probeId)?.question !== (row.evaluation?.question ?? row.question) || row.arm !== arm ||
+      row.providerConfig?.provider !== provider.provider || row.providerConfig?.deployment !== provider.deployment) {
+      throw new Error(`incompatible saved row for resume: ${row.probeId}`);
+    }
+    done.add(row.probeId);
+  }
+  return probes.filter((probe) => !done.has(probe.id));
 }
 
 function plannerRequestWorstCaseUsd(
@@ -511,7 +541,7 @@ export function summarizeEvaluation(runs: readonly LectureRun[]) {
 async function main(): Promise<void> {
   if (existsSync(resolve(process.cwd(), ".env.local"))) process.loadEnvFile(resolve(process.cwd(), ".env.local"));
   const endpoint = resolveLlmEndpoint();
-  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey) {
+  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey || !endpoint.deployment) {
     throw new Error("paid lecture-lab runs require a fully configured Azure provider; Fireworks calls are disabled");
   }
   const providerConfig = { provider: endpoint.provider, deployment: endpoint.deployment, model: endpoint.deployment };
@@ -561,6 +591,26 @@ async function main(): Promise<void> {
   const outDir = resolve(process.cwd(), options.out);
   mkdirSync(`${outDir}/runs`, { recursive: true });
   mkdirSync(`${outDir}/transcripts`, { recursive: true });
+  const savedFiles = readdirSync(`${outDir}/runs`).filter((name) => name.endsWith(".json"));
+  if (savedFiles.length > 0 && !options.resume) throw new Error("output has saved runs; use --resume to avoid overwriting and duplicate spend");
+  const savedRuns: Array<LectureRun & { providerConfig: typeof providerConfig }> = options.resume
+    ? savedFiles.map((name) => JSON.parse(readFileSync(`${outDir}/runs/${name}`, "utf8")))
+    : [];
+  const pendingProbes = selectResumeProbes(probes, savedRuns, options.arm, providerConfig);
+  const runs: LectureRun[] = [...savedRuns];
+  const grades: LectureGrade[] = runs.map(gradeLecture);
+  const checkpointPath = `${outDir}/spend-checkpoint.json`;
+  const oldCheckpoint = options.resume && existsSync(checkpointPath)
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[] }
+    : null;
+  if (oldCheckpoint && (oldCheckpoint.arm !== options.arm || oldCheckpoint.providerConfig.provider !== providerConfig.provider ||
+    oldCheckpoint.providerConfig.deployment !== providerConfig.deployment || oldCheckpoint.scenePlannerLimitMs !== options.scenePlannerLimitMs ||
+    JSON.stringify(oldCheckpoint.probeIds) !== JSON.stringify(probes.map((probe) => probe.id)))) {
+    throw new Error("resume requires the identical provider, arm, scene limit and full original sample");
+  }
+  const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0), 0);
+  const priorChargeUsd = Math.max(storedRowUsd, oldCheckpoint ? oldCheckpoint.chargedUsd + oldCheckpoint.reservedUsd : 0) + options.resumeExtraUsd;
+  console.log(`resume: ${runs.length} saved, ${pendingProbes.length} pending, prior conservative charge $${priorChargeUsd.toFixed(6)}`);
 
   const landing = await fetch(`${options.origin}/`, { redirect: "manual" });
   const cookie = (landing.headers.getSetCookie?.() ?? [])
@@ -574,10 +624,17 @@ async function main(): Promise<void> {
   // response by the trace id already carried on the request.
   const nativeFetch = globalThis.fetch;
   const spendCap = new LabSpendCap(options.maxUsd);
+  spendCap.recordCost(priorChargeUsd);
+  const checkpointSpend = () => writeFileSync(checkpointPath, `${JSON.stringify({
+    ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
+    scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
+  }, null, 1)}\n`);
+  checkpointSpend();
   const budgetDeniedTraces = new Set<string>();
   const budgetTerminatedRows: string[] = [];
   const worstCasePlannerModel = resolveFireworksModel({ fastMode: options.model === "fast" });
-  const usageTracker = new PlannerUsageTracker((usd, reservedUsd) => spendCap.settleCall(reservedUsd, usd));
+  const settleSpend = (reservedUsd: number, usd: number) => { spendCap.settleCall(reservedUsd, usd); checkpointSpend(); };
+  const usageTracker = new PlannerUsageTracker((usd, reservedUsd) => settleSpend(reservedUsd, usd));
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
@@ -606,6 +663,7 @@ async function main(): Promise<void> {
       if (traceId) budgetDeniedTraces.add(traceId);
       throw new Error("lab request denied before sending: --max-usd reservation exhausted");
     }
+    if (chatRequest || directProviderRequest) checkpointSpend();
     if (chatRequest) {
       usageTracker.recordRequest(traceId, requestWorstCaseUsd);
     }
@@ -622,12 +680,12 @@ async function main(): Promise<void> {
         } catch {
           // Cancelled or malformed responses retain their full reservation.
         }
-        spendCap.settleCall(requestWorstCaseUsd, chargedUsd);
+        settleSpend(requestWorstCaseUsd, chargedUsd);
       }
       return response;
     } catch (error) {
       if (chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
-      else if (directProviderRequest) spendCap.settleCall(requestWorstCaseUsd, requestWorstCaseUsd);
+      else if (directProviderRequest) settleSpend(requestWorstCaseUsd, requestWorstCaseUsd);
       throw error;
     }
   }) as typeof fetch;
@@ -636,11 +694,10 @@ async function main(): Promise<void> {
     `lecture lab: ${probes.length} ${evaluationRows ? "evaluation rows" : `${options.difficulty} probes`}, concurrency ${options.concurrency}, max $${options.maxUsd.toFixed(2)}, familiarity ${options.familiarity} -> ${options.out}`,
   );
 
-  const grades: LectureGrade[] = [];
-  const runs: LectureRun[] = [];
-  let done = 0;
+  let done = runs.length;
+  let newRowsDone = 0;
   await runBudgetedLabRows(
-    probes,
+    pendingProbes,
     options.concurrency,
     spendCap,
     async (probe) => {
@@ -688,8 +745,10 @@ async function main(): Promise<void> {
       }, null, 1)}\n`);
       writeFileSync(`${outDir}/transcripts/${slug}.md`, `${transcript(run, grade)}\n`);
       done += 1;
-      if (evaluationRows && done === 5) {
-        assertRoundPlannerStarted(runs.map((completedRun) => completedRun.planner), 5);
+      newRowsDone += 1;
+      checkpointSpend();
+      if (evaluationRows && newRowsDone === 5) {
+        assertRoundPlannerStarted(runs.slice(-5).map((completedRun) => completedRun.planner), 5);
       }
       const state = evaluationRows
         ? run.error ? "dead" : run.diagram.committed ? "fig " : "none"
@@ -715,6 +774,7 @@ async function main(): Promise<void> {
       scenePlannerLimitMs: options.scenePlannerLimitMs,
     } : null,
     preflightEstimateUsd,
+    resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },
     ...budgetSummary,
     budgetTerminatedRows,
     evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
