@@ -2111,7 +2111,7 @@ export function validateSceneQuantityAgreement(
 
   const supportedDisplays = planQuantities.map((quantity) => ({
     value: quantity.value,
-    unit: normalizeUnit(quantity.unit),
+    unit: quantity.unit ?? "",
   })).concat(qualitativeEvidence);
   displayedTexts.forEach((text, index) => {
     for (const match of extractMeasuredValues(text)) {
@@ -3611,7 +3611,7 @@ function extractMeasuredValues(text: string): Array<{ value: number; unit: strin
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
     const value = Number(match[1]);
-    const unit = normalizeUnit(match[2]);
+    const unit = match[2]?.trim();
     if (Number.isFinite(value) && unit) {
       values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!) });
     }
@@ -4186,7 +4186,11 @@ function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
 }
 
 function measuredValuePattern(): RegExp {
-  return /(-?\d+(?:\.\d+)?)\s*(ohms?|Ω|volts?|V|amps?|A|mm|cm|km|m|deg|degrees?|°|rad|radians?|Hz|N|J|W)(?=\s|$|[,;).!?:])/gi;
+  // Match the whole physical unit, including powers and compound units.
+  // Reading only "m" silently missed speed/acceleration labels at the slash.
+  const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
+  const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
+  return new RegExp(`(-?\\d+(?:\\.\\d+)?(?:e[+-]?\\d+)?)\\s*(${factor}(?:\\s*[/·⋅*]\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
 }
 
 function sourceContainsMatchingMeasuredValue(
@@ -4282,13 +4286,14 @@ function canonicalMeasurement(
     case "scalar":
     case "unitless":
       return { value, dimension: "dimensionless" };
-    case "mm": return { value: value * 1e-3, dimension: "length" };
-    case "cm": return { value: value * 1e-2, dimension: "length" };
-    case "m": return { value, dimension: "length" };
-    case "km": return { value: value * 1e3, dimension: "length" };
     case "degree": return { value: value * Math.PI / 180, dimension: "angle" };
     case "radian": return { value, dimension: "angle" };
-    default: return { value, dimension: normalized };
+    default: {
+      const coherent = unitScale(unit);
+      return coherent
+        ? { value: value * coherent.factor, dimension: coherent.signature === "m^1" ? "length" : coherent.signature || "dimensionless" }
+        : { value, dimension: normalized };
+    }
   }
 }
 

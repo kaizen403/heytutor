@@ -30,6 +30,7 @@ import {
   planTurnV3,
   questionRequiresVisual,
   revalidateScenePlanWithRepairResult,
+  scenePlannerCandidateDiagnostics,
   streamLLMResponse,
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
@@ -207,6 +208,11 @@ export interface LectureRun {
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
     /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
     plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
+    /** All calls in rejected candidates; errors do not imply each call was faulty. */
+    plannerCandidateDiagnostics?: Array<ReturnType<typeof scenePlannerCandidateDiagnostics> & {
+      candidateId: string; phase: string; lane: string; valid: boolean; errorCodes: string[];
+    }>;
+    plannerDeclineReasons?: string[];
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
@@ -783,6 +789,13 @@ export async function runLecture(
       phase: candidate.response.phase, lane: candidate.response.lane,
       selected: candidate.selected, rawContent: candidate.response.rawContent,
     })) ?? [];
+    run.diagram.plannerCandidateDiagnostics = result?.candidates.map((candidate) => ({
+      ...scenePlannerCandidateDiagnostics(candidate.response.document, candidate.validation.valid),
+      candidateId: candidate.candidateId, phase: candidate.response.phase, lane: candidate.response.lane,
+      valid: candidate.validation.valid, errorCodes: candidate.validation.errors.map((error) => error.code),
+    })) ?? [];
+    run.diagram.plannerDeclineReasons = [...new Set((run.diagram.plannerCallOutcomes ?? [])
+      .flatMap((outcome) => outcome.declineReason ? [outcome.declineReason] : []))];
     run.diagram.archetypeId = planning.gate.archetypeId;
     run.diagram.examplesUsed = planning.gate.examplesUsed.map(({
       id,

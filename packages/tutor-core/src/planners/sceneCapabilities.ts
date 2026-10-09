@@ -47,6 +47,10 @@ export interface SceneStructureHints {
 const BASE_OPERATORS = [
   "point", "segment", "line", "polyline", "vector", "label", "dimension", "angle_mark",
   "tick_mark", "sign_badge",
+  // Generic geometry remains available when a physical operator needs
+  // measurements the source does not provide. These certify qualitative
+  // representatives without assigning values to physical quantities.
+  "circle", "function_curve", "curve_anchor",
 ];
 
 /**

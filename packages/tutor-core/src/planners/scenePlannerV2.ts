@@ -65,6 +65,40 @@ export interface ScenePlannerRequestOutcome {
   bodyParsed: boolean;
   promptChars: number;
   elapsedMs: number;
+  /** Model-stated refusal, never the deterministic fallback's reason. */
+  declineReason?: string | null;
+}
+
+export interface ScenePlannerCandidateDiagnostics {
+  declineReason: string | null;
+  rejectedCalls: Array<{ constructionId: string | null; operator: string; rawArguments: string; truncated: boolean }>;
+}
+
+/** Private evaluation evidence. Preserve rejected inputs without unbounded records. */
+export function scenePlannerCandidateDiagnostics(
+  document: SceneDocumentCandidate,
+  valid: boolean,
+): ScenePlannerCandidateDiagnostics {
+  const decision = isPlainObject(document.visualDecision) ? document.visualDecision : null;
+  const declined = decision?.mode === "text_only" || document.visualDecision === "text_only";
+  const source = isPlainObject(document.source) ? document.source : null;
+  const declineReason = declined
+    ? [decision?.reason, source?.visualLimitation, document.declineReason, document.reason]
+        .find((value): value is string => typeof value === "string" && value.trim() !== "") ?? null
+    : null;
+  const rejectedCalls = !valid && Array.isArray(document.constructions)
+    ? document.constructions.flatMap((construction) => {
+        if (!isPlainObject(construction) || typeof construction.operator !== "string") return [];
+        const bytes = new TextEncoder().encode(JSON.stringify(construction.inputs ?? null));
+        return [{
+          constructionId: typeof construction.id === "string" ? construction.id : null,
+          operator: construction.operator,
+          rawArguments: new TextDecoder().decode(bytes.slice(0, 2048), { stream: true }),
+          truncated: bytes.length > 2048,
+        }];
+      })
+    : [];
+  return { declineReason, rejectedCalls };
 }
 
 export interface ScenePlanWithRepairResult<T> {
@@ -612,6 +646,7 @@ async function requestSceneDocument(
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   let outcomeReported = false;
+  let declineReason: string | null = null;
   const reportOutcome = (error: string | null, bodyParsed: boolean) => {
     if (outcomeReported) return;
     outcomeReported = true;
@@ -624,6 +659,7 @@ async function requestSceneDocument(
         bodyParsed,
         promptChars: prompt.length,
         elapsedMs: Date.now() - startedAt,
+        declineReason,
       });
     } catch {
       // Diagnostics must never change planning behavior.
@@ -719,6 +755,7 @@ async function requestSceneDocument(
     }
 
     const elapsedMs = Date.now() - startedAt;
+    declineReason = scenePlannerCandidateDiagnostics(document, true).declineReason;
     tutorDebug("planner", `semantic scene ${phase} candidate ready`, {
       schema_version: document.schemaVersion,
       entity_count: Array.isArray(document.entities) ? document.entities.length : undefined,
