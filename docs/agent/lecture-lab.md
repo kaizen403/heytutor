@@ -115,6 +115,17 @@ metadata are still stripped from the examples sent to the scene planner.
 
 ## Judging a round
 
+Live subject opt-in: `DIAGRAM_STRICT_SUBJECTS=maths` (empty by default) applies
+strict planner/examples selection only to ordinary maths lessons. The server
+returns the allowed subjects with the begin-turn grant; the existing TurnPlanV3
+calls classify the subject only when this opt-in is set. Unknown or disagreeing
+peer subjects stay current. Eval rows supply their labelled subject through the
+same `maths` / `physics` / `chemistry` vocabulary. No new classifier call or
+keyword-to-figure router is added. Chemistry, code/DSA and doubts/resumes retain
+their exemptions. The older percentage/actor allowlist is independent and still
+assigns global strict when explicitly enabled. Leave all flags off in production.
+
+
 Run `judge-prep.ts <round>` to decide no-figure rows by rule, crop the diagram
 zone to roughly 700 px, and split drawn figures into `judge-batches/` files of
 ten. Give each batch to a Codex or Claude subagent with only the verdict rules

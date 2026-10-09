@@ -1,4 +1,5 @@
 import type { FigureSource } from "@heytutor/scene-engine";
+import type { DiagramSubject } from "@heytutor/tutor-core";
 
 export type DiagramStrategy = "current" | "strict";
 
@@ -7,6 +8,8 @@ export interface DiagramStrategyContext {
   codeLesson: boolean;
   dsa: boolean;
   doubt: boolean;
+  subject?: DiagramSubject;
+  strictSubjects?: readonly DiagramSubject[];
 }
 
 export interface DiagramStrategyDecision extends DiagramStrategyContext {
@@ -26,7 +29,8 @@ export function decideDiagramStrategy(
   input: DiagramStrategyContext & { assignedStrategy: DiagramStrategy },
 ): DiagramStrategyDecision {
   const eligible =
-    input.assignedStrategy === "strict" &&
+    (input.assignedStrategy === "strict" ||
+      (input.subject !== undefined && input.subject !== "other" && input.strictSubjects?.includes(input.subject))) &&
     !input.chemistryLane &&
     !input.codeLesson &&
     !input.dsa &&

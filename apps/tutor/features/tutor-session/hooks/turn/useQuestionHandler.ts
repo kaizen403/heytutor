@@ -830,8 +830,11 @@ export function useQuestionHandler(
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
       const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
+      let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
+        subject: diagramSubject,
+        strictSubjects: billed.diagramStrictSubjects,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
         dsa: dsaClassification.isDsa,
@@ -1033,6 +1036,8 @@ export function useQuestionHandler(
             isChemistryQuestion(question);
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
+            subject: diagramSubject,
+            strictSubjects: billed.diagramStrictSubjects,
             chemistryLane,
             codeLesson: false,
             dsa: dsaClassification.isDsa,
@@ -1118,6 +1123,7 @@ export function useQuestionHandler(
             timeoutMs: TURN_PLAN_DEADLINE_MS,
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
+            classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
           }), isCurrentTurn).catch(closeTurnPlanSpanOnFailure);
           // The turn-plan audit used to run here: a second LLM opinion on the
           // plan, awaited before the scene planner could start. Measured on
@@ -1135,6 +1141,8 @@ export function useQuestionHandler(
           // `auditTurnPlanV3` itself is untouched in tutor-core and keeps its
           // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
+          diagramSubject = plannedTurn?.subject ?? "other";
+          tel.meta({ diagram_subject: diagramSubject });
           turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
           turnPlan = selectBestAvailableTurnPlan(
             undefined,
@@ -1306,6 +1314,8 @@ export function useQuestionHandler(
             || isChemistryQuestion(question);
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
+            subject: diagramSubject,
+            strictSubjects: billed.diagramStrictSubjects,
             chemistryLane,
             codeLesson: Boolean(codeLesson),
             dsa: dsaClassification.isDsa,

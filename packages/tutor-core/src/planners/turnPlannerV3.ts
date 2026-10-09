@@ -11,6 +11,7 @@ import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws, type OpticsPlanAuditResult } from "./opticsPlanAudit";
+import { subjectFromTurnPlanContent, type DiagramSubject } from "./diagramSubject";
 
 export interface TurnPlannerV3Options {
   proxyUrl: string;
@@ -21,6 +22,8 @@ export interface TurnPlannerV3Options {
   timeoutMs: number;
   conversationContext?: string;
   fastMode?: boolean;
+  /** Optional policy metadata on the existing call; off preserves prompt bytes. */
+  classifySubject?: boolean;
 }
 
 export interface TurnPlanV3Response {
@@ -29,6 +32,7 @@ export interface TurnPlanV3Response {
   rawContent: string;
   elapsedMs: number;
   traceId?: string;
+  subject?: DiagramSubject;
 }
 
 const TURN_PLAN_MODEL = "server";
@@ -115,6 +119,11 @@ export async function planTurnV3(
   const selected = completed.find((response) => response.turnPlan === selectedPlan) ?? completed[0]!;
   return {
     ...selected,
+    ...(options.classifySubject ? {
+      subject: completed.every((response) => response.subject === selected.subject)
+        ? selected.subject
+        : "other" as const,
+    } : {}),
     peerTurnPlans: completed
       .filter((response) => response !== selected)
       .map((response) => response.turnPlan),
@@ -188,7 +197,9 @@ async function requestTurnPlanV3(
         messages: [
           {
             role: "system",
-            content: systemPrompt,
+            content: options.classifySubject
+              ? `${systemPrompt}\n\nAlso return a top-level subject: "maths", "physics", "chemistry", or "other". Classify the question's subject, not the mathematical tools used to solve it. Ambiguous or mixed-subject questions use "other". This is policy metadata, not a diagram instruction.`
+              : systemPrompt,
           },
           {
             role: "user",
@@ -212,6 +223,7 @@ async function requestTurnPlanV3(
       rawContent: content,
       elapsedMs: Date.now() - startedAt,
       traceId: response.headers.get("x-heytutor-trace-id") ?? undefined,
+      ...(options.classifySubject ? { subject: subjectFromTurnPlanContent(content) } : {}),
     };
   } catch (error) {
     tutorDebug("planner", `turn plan v3 ${phase} failed`, {

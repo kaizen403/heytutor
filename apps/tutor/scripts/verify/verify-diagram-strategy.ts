@@ -6,7 +6,7 @@ import {
   liveDiagramStrategyDecision,
   type DiagramStrategyContext,
 } from "../../features/tutor-session/lib/scene/diagramStrategy";
-import { resolveDiagramStrategyAssignment } from "../../lib/scene/diagramStrategy.server";
+import { resolveDiagramStrategyAssignment, resolveDiagramStrictSubjects } from "../../lib/scene/diagramStrategy.server";
 import {
   filterLiveDiagramExamples,
   injectLiveDiagramExamples,
@@ -40,6 +40,9 @@ const fixtures: Array<{ name: string; context: DiagramStrategyContext }> = [
   },
 ];
 
+assert.deepEqual(resolveDiagramStrictSubjects("maths,maths nonsense"), ["maths"]);
+assert.deepEqual(resolveDiagramStrictSubjects(""), []);
+
 for (const fixture of fixtures) {
   const current = decideDiagramStrategy({ assignedStrategy: "current", ...fixture.context });
   assert.equal(current.strategy, "current", `${fixture.name}: switch-off must preserve current`);
@@ -60,6 +63,24 @@ const strict = decideDiagramStrategy({
   dsa: false,
   doubt: false,
 });
+for (const subject of ["maths", "physics", "chemistry", "other"] as const) {
+  const scoped = decideDiagramStrategy({
+    assignedStrategy: "current",
+    subject,
+    strictSubjects: ["maths"],
+    chemistryLane: subject === "chemistry",
+    codeLesson: false,
+    dsa: false,
+    doubt: false,
+  });
+  assert.equal(scoped.strategy, subject === "maths" ? "strict" : "current", `${subject}: maths-only switch`);
+  assert.equal(scoped.selectionOrder, subject === "maths" ? "planner_first" : "current");
+  assert.equal(scoped.usePickedExamples, subject === "maths");
+  for (const exempt of ["doubt", "codeLesson", "dsa"] as const) {
+    assert.equal(decideDiagramStrategy({ ...scoped, [exempt]: true }).strategy, "current");
+  }
+  assert.equal(decideDiagramStrategy({ ...scoped, strictSubjects: [] }).strategy, "current", "empty scope preserves main");
+}
 assert.equal(strict.strategy, "strict");
 assert.equal(strict.selectionOrder, "planner_first");
 assert.equal(strict.usePickedExamples, true);

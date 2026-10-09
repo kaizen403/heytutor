@@ -1,4 +1,4 @@
-import { resolveApiUrl } from "@heytutor/tutor-core";
+import { resolveApiUrl, parseDiagramStrictSubjects, type DiagramSubject } from "@heytutor/tutor-core";
 import type { CheckoutPlanId } from "./catalog";
 import { isBillingErrorCode } from "./errors";
 import { isOutOfCreditsCode } from "./studentCopy";
@@ -22,6 +22,7 @@ export interface BeginTurnOk {
   nextResetAt: number | null;
   ttsCharsRemaining: number;
   diagramStrategy: DiagramStrategy;
+  diagramStrictSubjects?: DiagramSubject[];
 }
 
 export interface BeginTurnErr {
@@ -221,6 +222,7 @@ async function beginTurnOnce(input: {
     remaining: remainingPct,
     planId: typeof payload.planId === "string" ? payload.planId : "free",
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
+    diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };
