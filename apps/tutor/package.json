@@ -17,7 +17,7 @@
     "db:migrate:dev": "dotenv -e .env.local -- prisma migrate dev",
     "postinstall": "prisma generate",
     "verify:mobile": "tsx scripts/verify/verify-mobile-session.ts && tsx scripts/verify/verify-mobile-controls.ts",
-    "preverify": "tsx scripts/verify/verify-figure-source.ts && tsx scripts/verify/verify-diagram-strategy.ts && tsx scripts/verify/verify-live-diagram-picker.ts && tsx scripts/verify/verify-diagram-anchors.ts && tsx scripts/verify/verify-topic-coverage-sample.ts && tsx scripts/verify/verify-figure-relevance-check.ts && tsx scripts/verify/verify-diagram-eval.ts",
+    "preverify": "tsx scripts/verify/verify-figure-source.ts && tsx scripts/verify/verify-diagram-strategy.ts && tsx scripts/verify/verify-live-diagram-picker.ts && tsx scripts/verify/verify-diagram-anchors.ts && tsx scripts/verify/verify-topic-coverage-sample.ts && tsx scripts/verify/verify-topic-coverage-report.ts && tsx scripts/verify/verify-figure-relevance-check.ts && tsx scripts/verify/verify-diagram-eval.ts",
     "verify:diagram-client-bundle": "tsx scripts/verify/verify-diagram-client-bundle.ts",
     "diagram:anchor-gallery": "tsx scripts/lecture-lab/anchor-gallery.ts",
     "diagram:judge-check": "tsx scripts/lecture-lab/judge-check.ts",
