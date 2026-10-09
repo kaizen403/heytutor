@@ -333,7 +333,10 @@ function boardNumber(value: number, sourceText: unknown): string {
   const plain = formatNumber(value);
   if (typeof sourceText !== "string" || !(value > 0)) return plain;
   for (const match of sourceText.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)) {
-    if (Number(match[0]) === value && writtenWithPlus(sourceText, match.index ?? 0)) return `+${plain}`;
+    // The same unit rescalings questionStatesValue accepts: "+2 mC" is 0.002 C.
+    const written = Number(match[0]);
+    const sameValue = VALUE_SCALES.some((scale) => Number(formatNumber(value * scale)) === written);
+    if (sameValue && writtenWithPlus(sourceText, match.index ?? 0)) return `+${plain}`;
   }
   return plain;
 }
