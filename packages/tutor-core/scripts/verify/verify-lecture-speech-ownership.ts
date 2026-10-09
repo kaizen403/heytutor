@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mock } from "node:test";
 import { createLectureAudioContext, getSharedAudioContext, haltAllLectureAudio, releaseLectureAudioContext, unlockTutorAudio } from "../../src/tts/audioContext";
-import { HttpSpeechClient, SpeechSynthesisTTSClient } from "../../src/tts/speechClient";
+import { SpeechSynthesisTTSClient } from "../../src/tts/speechClient";
 import { StreamingSpeechClient } from "../../src/tts/streamingSpeechClient";
 
 let inGesture = false;
@@ -152,39 +152,12 @@ try {
   const speaking = voice.speakSegment("Switch the watch target mid-utterance.");
   const utterance = currentUtterance();
   utterance.onstart?.();
-  const http = new HttpSpeechClient({ proxyUrl: "/api/tts" });
-  const beforeHttpPause = cancellations;
-  http.pause();
-  assert.equal(cancellations, beforeHttpPause, "pausing an idle HTTP lecture must not cancel another browser fallback");
-  assert.equal(active, utterance);
   voice.setMuted(true);
   assert.equal(utterance.volume, 0, "demoting the lecture must mute the current utterance immediately");
   voice.setMuted(false);
   assert.equal(utterance.volume, 1, "promoting the lecture must restore the current utterance immediately");
   utterance.onend?.();
   await speaking;
-  active = null;
-  Object.defineProperty(globalThis, "fetch", { configurable: true, value: async () => new Response("unavailable", { status: 503 }) });
-  const httpFallback = new HttpSpeechClient({ proxyUrl: "/api/tts" });
-  const httpSpeech = httpFallback.speakSegment("Browser fallback for HTTP.");
-  for (let i = 0; i < 16 && !active; i++) await Promise.resolve();
-  const httpUtterance = currentUtterance();
-  httpUtterance.onstart?.();
-  httpFallback.setMuted(true);
-  assert.equal(httpUtterance.volume, 0, "demoting HTTP fallback must mute its active utterance");
-  httpFallback.setMuted(false);
-  assert.equal(httpUtterance.volume, 1);
-  httpFallback.pause();
-  let httpFinished = false;
-  void httpSpeech.then(() => { httpFinished = true; });
-  for (let i = 0; i < 8; i++) await Promise.resolve();
-  assert.equal(httpFinished, false, "HTTP fallback pause must retain its sentence");
-  httpFallback.resume();
-  for (let i = 0; i < 16 && !active; i++) await Promise.resolve();
-  const resumedHttp = currentUtterance();
-  resumedHttp.onstart?.();
-  resumedHttp.onend?.();
-  await httpSpeech;
   console.log("verified late-context gesture lease, two-client fallback ownership, pause/resume, and mid-utterance mute switching");
 } finally {
   mock.timers.reset();

@@ -47,13 +47,6 @@ export interface BoardViewport {
   measured: boolean;
 }
 
-export interface StatusDisplay {
-  color: string;
-  label: string;
-  dotClass: string;
-  labelColor: string;
-}
-
 /** Base draw budget for geometric commands — the adaptive function scales these. */
 const BASE_SHAPE_DRAW_MS: Partial<Record<DrawCommand["type"], number>> = {
   DRAW_CIRCLE: 1050,
