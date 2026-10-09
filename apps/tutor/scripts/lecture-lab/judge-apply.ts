@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeRoundGallery } from "./gallery";
 import {
@@ -17,12 +17,18 @@ export function applyJudgments(roundArgument: string) {
   const judgments = readRoundJudgments(roundDir);
   const queue = readJudgeQueue(roundDir);
   const ids = new Set<string>();
+  const runIds = new Set(readdirSync(join(roundDir, "runs")).filter((file) => file.endsWith(".json")).map((file) => {
+    const run = JSON.parse(readFileSync(join(roundDir, "runs", file), "utf8"));
+    return String(run.evaluation?.id ?? run.probeId ?? file.replace(/\.json$/, ""));
+  }));
   for (const judgment of judgments) {
     if (ids.has(judgment.id)) throw new Error(`duplicate judgment: ${judgment.id}`);
+    if (!runIds.has(judgment.id)) throw new Error(`foreign judgment not in round: ${judgment.id}`);
     ids.add(judgment.id);
   }
-  const missing = queue.filter((row) => !ids.has(row.id)).map((row) => row.id);
-  if (missing.length > 0) throw new Error(`missing queued judgments: ${missing.join(", ")}`);
+  for (const row of queue) if (!runIds.has(row.id)) throw new Error(`foreign queue row: ${row.id}`);
+  const missing = [...runIds].filter((id) => !ids.has(id));
+  if (missing.length > 0) throw new Error(`missing round judgments: ${missing.join(", ")}`);
 
   const missingLabelsById = new Map(queue.map((row) => [row.id, row.missing_labels]));
   const judge = buildJudgeSummary(judgments, missingLabelsById);

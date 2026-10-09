@@ -58,7 +58,7 @@ export function correctedEmptyCauseForStoredRun(value: unknown): DiagramEmptyCau
     visualRequirement,
     declinedUnreadable: diagram.declinedUnreadable === true,
     primitiveCount: number(diagram.primitiveCount),
-    plannerCalls: number(stages.plannerCalls),
+    plannerCalls: typeof stages.plannerCalls === "number" ? stages.plannerCalls : undefined,
     deadlineRemainingMs,
     candidateCount,
     candidateErrorCodes: supplementedCodes,

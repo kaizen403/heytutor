@@ -23,6 +23,8 @@ import {
 import { parseDiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
+  assertUniqueArtifactIds,
+  labArtifactSlug,
   assertRoundPlannerStarted,
   combineDiagramEvalRows,
   evaluationRunFastMode,
@@ -39,6 +41,7 @@ import {
   type DiagramEvalRow,
 } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
+import { readRoundJudgments } from "./judging";
 import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
@@ -292,15 +295,17 @@ export function parseOptions(argv: string[]): Options {
 /** Keep the full original evaluation for retrieval exclusions; skip only execution. */
 export function selectResumeProbes<T extends { id: string; question: string }>(
   probes: readonly T[],
-  saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string } }[],
+  saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string }; executionConfig?: Record<string, unknown> }[],
   arm: string,
   provider: { provider: string; deployment?: string },
+  executionConfig?: Record<string, unknown>,
 ): T[] {
   const byId = new Map(probes.map((probe) => [probe.id, probe]));
   const done = new Set<string>();
   for (const row of saved) {
     if (done.has(row.probeId) || byId.get(row.probeId)?.question !== (row.evaluation?.question ?? row.question) || row.arm !== arm ||
-      row.providerConfig?.provider !== provider.provider || row.providerConfig?.deployment !== provider.deployment) {
+      row.providerConfig?.provider !== provider.provider || row.providerConfig?.deployment !== provider.deployment ||
+      (executionConfig && JSON.stringify(row.executionConfig) !== JSON.stringify(executionConfig))) {
       throw new Error(`incompatible saved row for resume: ${row.probeId}`);
     }
     done.add(row.probeId);
@@ -310,6 +315,11 @@ export function selectResumeProbes<T extends { id: string; question: string }>(
 
 export function labSampleFingerprint(rows: readonly unknown[]): string {
   return createHash("sha256").update(JSON.stringify(rows)).digest("hex");
+}
+
+export function assertLabOutputReusable(checkpointExists: boolean, savedRows: number, resume: boolean): void {
+  if (!resume && (checkpointExists || savedRows > 0)) throw new Error("output already has paid evidence; use --resume");
+  if (resume && !checkpointExists) throw new Error("resume requires a spend checkpoint with proven execution identity");
 }
 
 export function restoredLabCharge(
@@ -324,9 +334,10 @@ export function restoredLabCharge(
   return Math.max(storedRowUsd, checkpoint ? checkpoint.chargedUsd + checkpoint.reservedUsd : 0) + extraUsd;
 }
 
-function plannerRequestWorstCaseUsd(
+export function plannerRequestWorstCaseUsd(
   init: RequestInit | undefined,
   model: string,
+  serverOutputCap = 0,
 ): number {
   let messages: unknown = [];
   let maxTokens = 4_000;
@@ -342,7 +353,7 @@ function plannerRequestWorstCaseUsd(
       // The output ceiling still provides a conservative charge for malformed bodies.
     }
   }
-  return estimateLabCallWorstCaseUsd({ messages, maxTokens, model });
+  return estimateLabCallWorstCaseUsd({ messages, maxTokens: Math.max(maxTokens, serverOutputCap), model });
 }
 
 /** Deterministic shuffle so a "sample one per unit" run is reproducible. */
@@ -606,6 +617,24 @@ async function main(): Promise<void> {
   const preflightEstimateUsd = evaluationRows
     ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
     : null;
+  assertUniqueArtifactIds(probes);
+  // Verify the server (not just this CLI's environment) before sending any model call.
+  const configHeaders = new Headers();
+  applyLectureLabHeaders(configHeaders);
+  const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
+  if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
+  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number };
+  if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
+    !Number.isFinite(serverConfig.plannerOutputCap) || !Number.isFinite(serverConfig.teachingOutputCap)) {
+    throw new Error("server provider/deployment does not match the configured Azure lab");
+  }
+  execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
+  const executionConfig = {
+    figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
+    familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
+    exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
+    sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
+  };
   if (preflightEstimateUsd !== null) {
     console.log(
       `diagram eval: ${probes.length} rows, arm ${options.arm}, provider ${endpoint.provider}, deployment ${endpoint.deployment}, scene planner limit ${options.scenePlannerLimitMs}ms, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
@@ -621,24 +650,31 @@ async function main(): Promise<void> {
   }
 
   const outDir = resolve(process.cwd(), options.out);
+  const checkpointPath = `${outDir}/spend-checkpoint.json`;
+  if (existsSync(checkpointPath) && !options.resume) throw new Error("output has a spend checkpoint; use --resume, never erase prior spend");
   mkdirSync(`${outDir}/runs`, { recursive: true });
   mkdirSync(`${outDir}/transcripts`, { recursive: true });
   const savedFiles = readdirSync(`${outDir}/runs`).filter((name) => name.endsWith(".json"));
+  assertLabOutputReusable(existsSync(checkpointPath), savedFiles.length, options.resume);
   if (savedFiles.length > 0 && !options.resume) throw new Error("output has saved runs; use --resume to avoid overwriting and duplicate spend");
   const savedRuns: Array<LectureRun & { providerConfig: typeof providerConfig }> = options.resume
     ? savedFiles.map((name) => JSON.parse(readFileSync(`${outDir}/runs/${name}`, "utf8")))
     : [];
-  const pendingProbes = selectResumeProbes(probes, savedRuns, options.arm, providerConfig);
+  const pendingProbes = selectResumeProbes(probes, savedRuns, options.arm, providerConfig, executionConfig);
   const runs: LectureRun[] = [...savedRuns];
   const grades: LectureGrade[] = runs.map(gradeLecture);
-  const checkpointPath = `${outDir}/spend-checkpoint.json`;
+  const previousSummary = options.resume && existsSync(`${outDir}/summary.json`)
+    ? JSON.parse(readFileSync(`${outDir}/summary.json`, "utf8")) as Record<string, unknown> : {};
+  const reviewedIds = new Set(readRoundJudgments(outDir).map((row) => row.id));
   const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown> }
     : null;
   if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
+  if (options.resume && !oldCheckpoint) throw new Error("resume requires a spend checkpoint with proven execution identity");
   if (oldCheckpoint && (oldCheckpoint.arm !== options.arm || oldCheckpoint.providerConfig.provider !== providerConfig.provider ||
     oldCheckpoint.providerConfig.deployment !== providerConfig.deployment || oldCheckpoint.scenePlannerLimitMs !== options.scenePlannerLimitMs ||
+    JSON.stringify(oldCheckpoint.executionConfig) !== JSON.stringify(executionConfig) ||
     JSON.stringify(oldCheckpoint.probeIds) !== JSON.stringify(probes.map((probe) => probe.id)) || oldCheckpoint.sampleFingerprint !== sampleFingerprint)) {
     throw new Error("resume requires the identical provider, arm, scene limit and full original sample");
   }
@@ -666,12 +702,30 @@ async function main(): Promise<void> {
   const checkpointSpend = () => writeFileSync(checkpointPath, `${JSON.stringify({
     ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
     scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
-    sampleFingerprint,
+    sampleFingerprint, executionConfig,
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
   }, null, 1)}\n`);
   checkpointSpend();
   const budgetDeniedTraces = new Set<string>();
   const budgetTerminatedRows: string[] = [];
+  const writeSummary = () => {
+    const summary = {
+      ...previousSummary, options, providerConfig, executionConfig,
+      evaluationConfig: evaluationRows ? { ...providerConfig, scenePlannerLimitMs: options.scenePlannerLimitMs,
+        sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint } : null,
+      preflightEstimateUsd,
+      resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },
+      ...spendCap.summary(runs.length, probes.length), budgetTerminatedRows,
+      evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
+      ...summarize(grades, runs),
+      judgingStatus: { preservedJudgeSummary: Boolean(previousSummary.judge),
+        reviewedRows: runs.filter((row) => reviewedIds.has(row.probeId)).length,
+        unreviewedRows: runs.filter((row) => !reviewedIds.has(row.probeId)).length },
+    };
+    writeFileSync(`${outDir}/summary.json`, JSON.stringify(summary, null, 1) + "\n");
+    return summary;
+  };
+  writeSummary();
   const worstCasePlannerModel = resolveFireworksModel({ fastMode: options.model === "fast" });
   const settleSpend = (reservedUsd: number, usd: number) => { spendCap.settleCall(reservedUsd, usd); checkpointSpend(); };
   const usageTracker = new PlannerUsageTracker((usd, reservedUsd) => settleSpend(reservedUsd, usd));
@@ -699,7 +753,7 @@ async function main(): Promise<void> {
     // The proxy dispatches up to two planner or three teaching attempts.
     const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
     const requestWorstCaseUsd = chatRequest || directProviderRequest
-      ? plannerRequestWorstCaseUsd(init, requestModel) * maxAttempts
+      ? plannerRequestWorstCaseUsd(init, requestModel, plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap) * maxAttempts
       : 0;
     if ((chatRequest || directProviderRequest) && !spendCap.reserveCall(requestWorstCaseUsd)) {
       if (traceId) budgetDeniedTraces.add(traceId);
@@ -709,6 +763,7 @@ async function main(): Promise<void> {
     if (chatRequest) {
       usageTracker.recordRequest(traceId, requestWorstCaseUsd);
     }
+    let accounted = false;
     try {
       const response = await nativeFetch(input, { ...init, headers });
       if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts);
@@ -724,10 +779,14 @@ async function main(): Promise<void> {
         }
         settleSpend(requestWorstCaseUsd, chargedUsd);
       }
+      accounted = true;
+      if (chatRequest && response.ok && response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model") !== providerConfig.deployment) {
+        throw new Error("lab received an unexpected or unrecorded server model; paid usage has been retained");
+      }
       return response;
     } catch (error) {
-      if (chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
-      else if (directProviderRequest) settleSpend(requestWorstCaseUsd, requestWorstCaseUsd);
+      if (!accounted && chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
+      else if (!accounted && directProviderRequest) settleSpend(requestWorstCaseUsd, requestWorstCaseUsd);
       throw error;
     }
   }) as typeof fetch;
@@ -767,13 +826,19 @@ async function main(): Promise<void> {
       run.planner = await usageTracker.finishAsync(traceId);
       if (budgetDeniedTraces.has(traceId)) {
         budgetTerminatedRows.push(probe.id);
+        mkdirSync(`${outDir}/interrupted`, { recursive: true });
+        writeFileSync(`${outDir}/interrupted/${labArtifactSlug(probe.id)}-${traceId}.json`, JSON.stringify({
+          ...run, providerConfig, executionConfig, evaluation: evaluationById.get(probe.id) ?? null,
+          status: "untested_budget", traceId,
+        }, null, 1) + "\n");
         console.log(`budget ended during ${probe.id}; untested, not an empty-figure verdict`);
+        writeSummary();
         return;
       }
       const grade = gradeLecture(run);
       grades.push(grade);
       runs.push(run);
-      const slug = probe.id.replace(/[^a-z0-9]+/gi, "_");
+      const slug = labArtifactSlug(probe.id);
       const svgPath = run.diagram.svg ? `frames/${slug}.svg` : null;
       const pngPath = run.diagram.svg ? `frames/${slug}.png` : null;
       if (run.diagram.svg) {
@@ -784,6 +849,7 @@ async function main(): Promise<void> {
       writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({
         ...run,
         providerConfig,
+        executionConfig,
         evaluation: evaluationById.get(probe.id) ?? null,
         diagram: { ...run.diagram, svg: svgPath, png: pngPath },
       }, null, 1)}\n`);
@@ -791,6 +857,7 @@ async function main(): Promise<void> {
       done += 1;
       newRowsDone += 1;
       checkpointSpend();
+      writeSummary();
       if (evaluationRows && newRowsDone === 5) {
         assertRoundPlannerStarted(runs.slice(-5).map((completedRun) => completedRun.planner), 5);
       }
@@ -801,32 +868,24 @@ async function main(): Promise<void> {
     },
   );
 
-  if (existsSync(`${outDir}/frames`)) {
-    execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), `${outDir}/frames`], {
-      stdio: "inherit",
-    });
+  // Paid records and summary exist before optional rendering can fail.
+  const summary = writeSummary();
+  const artifactErrors: string[] = [];
+  try {
+    if (existsSync(`${outDir}/frames`)) execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), `${outDir}/frames`], { stdio: "inherit" });
+  } catch (error) { artifactErrors.push(`rasterization failed: ${error instanceof Error ? error.message : String(error)}`); }
+  for (const file of readdirSync(`${outDir}/runs`).filter((name) => name.endsWith(".json"))) {
+    const path = `${outDir}/runs/${file}`;
+    const row = JSON.parse(readFileSync(path, "utf8"));
+    if (row.diagram.png && !existsSync(resolve(outDir, row.diagram.png))) {
+      row.diagram.png = null;
+      writeFileSync(path, JSON.stringify(row, null, 1) + "\n");
+    }
   }
-
-  const galleryPath = evaluationRows ? writeRoundGallery(outDir) : null;
-
-  const budgetSummary = spendCap.summary(runs.length, probes.length);
-  const summary = {
-    options,
-    providerConfig,
-    evaluationConfig: evaluationRows ? {
-      ...providerConfig,
-      scenePlannerLimitMs: options.scenePlannerLimitMs,
-      sceneDeclinePolicy: options.sceneDeclinePolicy,
-      exampleExclusionFingerprint,
-    } : null,
-    preflightEstimateUsd,
-    resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },
-    ...budgetSummary,
-    budgetTerminatedRows,
-    evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
-    ...summarize(grades, runs),
-  };
-  writeFileSync(`${outDir}/summary.json`, `${JSON.stringify(summary, null, 1)}\n`);
+  let galleryPath: string | null = null;
+  try { galleryPath = evaluationRows ? writeRoundGallery(outDir) : null; }
+  catch (error) { artifactErrors.push(`gallery failed: ${error instanceof Error ? error.message : String(error)}`); }
+  writeFileSync(`${outDir}/summary.json`, JSON.stringify({ ...summary, artifactErrors }, null, 1) + "\n");
   console.log("");
   if (evaluationRows) console.log(JSON.stringify(summary.evaluation, null, 2));
   else printSummary(summary);

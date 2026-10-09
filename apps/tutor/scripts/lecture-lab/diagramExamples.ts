@@ -240,9 +240,13 @@ export function filterDiagramExemplarsForEvaluation(
   exemplars: readonly DiagramExemplar[],
   evaluationQuestions: readonly string[],
 ): DiagramExemplar[] {
-  return exemplars.filter((exemplar) =>
-    exemplar.question === null ||
-    !evaluationQuestions.some((question) => diagramQuestionsNearDuplicate(exemplar.question!, question)));
+  return exemplars.filter((exemplar) => {
+    const source = exemplar.document.source as { question?: unknown } | undefined;
+    const sourceQuestion = exemplar.question ?? (typeof source?.question === "string" ? source.question : null);
+    // Synthesized entries retain provenance in the document even though the
+    // retrieval-facing question is null. Exclude it before stripping provenance.
+    return sourceQuestion === null || !evaluationQuestions.some((question) => diagramQuestionsNearDuplicate(sourceQuestion, question));
+  });
 }
 
 export function diagramPlanRetrievalText(plan: TurnPlanV3 | null | undefined): string {
@@ -341,5 +345,11 @@ export function loadDiagramExemplarLibrary(
         document: value.document as Record<string, unknown>,
       };
     });
-  return filterDiagramExemplarsForEvaluation(exemplars, evaluationQuestions);
+  return filterDiagramExemplarsForEvaluation(exemplars, evaluationQuestions).map((exemplar) => ({
+    ...exemplar,
+    document: {
+      ...exemplar.document,
+      source: Object.fromEntries(Object.entries((exemplar.document.source ?? {}) as Record<string, unknown>).filter(([key]) => key !== "question")),
+    },
+  }));
 }

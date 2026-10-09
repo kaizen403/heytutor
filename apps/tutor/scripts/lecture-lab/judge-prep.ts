@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -7,9 +8,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   findMissingDiagramLabels,
   resolveRoundDir,
+  readRoundJudgments,
   ruleJudgmentForNoFigure,
   type DiagramJudgment,
   type FigureNeed,
@@ -46,14 +49,8 @@ function writeJsonl(path: string, rows: readonly unknown[]): void {
   writeFileSync(path, rows.length > 0 ? `${rows.map((row) => JSON.stringify(row)).join("\n")}\n` : "");
 }
 
-function cropDiagramZone(source: string, destination: string): void {
-  execFileSync("/usr/bin/sips", [
-    "--cropToHeightWidth", "620", "760",
-    "--cropOffset", "80", "400",
-    source,
-    "--out", destination,
-  ], { stdio: "ignore" });
-  execFileSync("/usr/bin/sips", ["--resampleWidth", "700", destination], { stdio: "ignore" });
+export function cropDiagramZone(source: string, destination: string): void {
+  execFileSync(process.execPath, [fileURLToPath(new URL("./crop-diagram.mjs", import.meta.url)), source, destination], { stdio: "pipe" });
 }
 
 export function prepareJudgingRound(roundArgument: string): {
@@ -66,18 +63,30 @@ export function prepareJudgingRound(roundArgument: string): {
   const runsDir = join(roundDir, "runs");
   const cropDir = join(roundDir, "judge-crops");
   const batchDir = join(roundDir, "judge-batches");
+  const existing = readRoundJudgments(roundDir);
+  const existingById = new Map(existing.map((row) => [row.id, row]));
+  if (existingById.size !== existing.length) throw new Error("duplicate existing judgments");
+  const files = readdirSync(runsDir).filter((name) => name.endsWith(".json")).sort();
+  const runIds = new Set(files.map((file) => {
+    const run = record(JSON.parse(readFileSync(join(runsDir, file), "utf8")));
+    return String(record(run.evaluation).id ?? run.probeId ?? file.replace(/\.json$/, ""));
+  }));
+  for (const row of existing) if (!runIds.has(row.id)) throw new Error(`foreign existing judgment: ${row.id}`);
   clearPngFiles(cropDir);
   clearJsonlFiles(batchDir);
 
   const judgments: DiagramJudgment[] = [];
   const queue: JudgeQueueRow[] = [];
-  for (const file of readdirSync(runsDir).filter((name) => name.endsWith(".json")).sort()) {
+  for (const file of files) {
     const run = record(JSON.parse(readFileSync(join(runsDir, file), "utf8")));
     const evaluation = record(run.evaluation);
     const diagram = record(run.diagram);
-    const id = typeof evaluation.id === "string" ? evaluation.id : file.replace(/\.json$/, "");
+    const id = String(evaluation.id ?? run.probeId ?? file.replace(/\.json$/, ""));
     const figureNeed = evaluation.figure_need as FigureNeed;
     const png = typeof diagram.png === "string" ? diagram.png : null;
+    if (diagram.committed === true && (!png || !existsSync(resolve(roundDir, png)))) {
+      throw new Error(`missing image artifact for committed figure: ${id}; regenerate it before judging`);
+    }
     const drawn = diagram.committed === true && png !== null;
     if (!drawn) {
       judgments.push(ruleJudgmentForNoFigure(figureNeed, id));
@@ -87,6 +96,8 @@ export function prepareJudgingRound(roundArgument: string): {
     const source = resolve(roundDir, png);
     const destination = join(cropDir, basename(png));
     cropDiagramZone(source, destination);
+    const completed = existingById.get(id);
+    if (completed) judgments.push(completed);
     queue.push({
       id,
       cropped_png: destination,
@@ -103,18 +114,19 @@ export function prepareJudgingRound(roundArgument: string): {
 
   writeJsonl(join(roundDir, "judgments.jsonl"), judgments);
   writeJsonl(join(roundDir, "judge-queue.jsonl"), queue);
-  for (let index = 0; index < queue.length; index += 10) {
+  const pending = queue.filter((row) => !existingById.has(row.id));
+  for (let index = 0; index < pending.length; index += 10) {
     const batchNumber = Math.floor(index / 10) + 1;
     writeJsonl(
       join(batchDir, `batch-${String(batchNumber).padStart(3, "0")}.jsonl`),
-      queue.slice(index, index + 10),
+      pending.slice(index, index + 10),
     );
   }
   return {
     roundDir,
     ruleDecided: judgments.length,
     queued: queue.length,
-    batches: Math.ceil(queue.length / 10),
+    batches: Math.ceil(pending.length / 10),
   };
 }
 

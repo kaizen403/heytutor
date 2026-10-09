@@ -17,7 +17,7 @@ import {
   evaluationSelectionOrder,
   evaluationUsesStandardModelHeader,
   evaluationUsesExamples,
-  estimateEvaluationCostUsd,
+  estimateEvaluationCostUsd as estimateForProvider,
   formatDiagramFailureCounts,
   assertRoundPlannerStarted,
   parseDiagramEvalJsonl,
@@ -41,6 +41,9 @@ import {
   ruleJudgmentForNoFigure,
 } from "../lecture-lab/judging";
 import { correctedEmptyCauseForStoredRun } from "../lecture-lab/regrade-empty-causes";
+// Historical K3 fixtures must not inherit the operator's Azure dev environment.
+const estimateEvaluationCostUsd: typeof estimateForProvider = (count, arm, model, env = { LLM_PROVIDER: "fireworks" }) =>
+  estimateForProvider(count, arm, model, env);
 import { suppressStoredStrictSelection } from "../lecture-lab/regrade-strict-suppression";
 import {
   lectureLabPlannerDeadlineCapMs,
@@ -500,7 +503,7 @@ assert.equal(
 );
 assert.match(
   threeArmComparison,
-  /style="grid-template-columns:repeat\(3,minmax\(0,1fr\)\)"/,
+  /style="--arm-columns:repeat\(3,minmax\(0,1fr\)\)"/,
 );
 assert.ok(
   threeArmComparison.includes('id="physics|1|vectors|q1"'),
@@ -537,6 +540,11 @@ assert.deepEqual(
   filterDiagramExemplarsForEvaluation(exemplars, ["Sketch the rightward force of 3 N acting on the block."]).map((entry) => entry.id),
   ["vector-left", "circuit-series", "graph-line"],
   "exact and near-duplicate evaluation questions must never enter retrieval",
+);
+assert.deepEqual(
+  filterDiagramExemplarsForEvaluation([exemplars[1]!], ["Draw a rightward force."]),
+  [],
+  "synthesized document provenance cannot leak the source question into evaluation retrieval",
 );
 const retrieved = retrieveDiagramExemplars(exemplars, {
   question: "Show the force and velocity vectors on an object.",

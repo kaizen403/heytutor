@@ -37,8 +37,10 @@ Resume into the same output folder with `--resume`, the full original sample,
 and a total `--max-usd` (not a fresh allowance). Saved rows are skipped only for
 execution, never for example leak filtering. The spend checkpoint carries
 settled costs plus interrupted reservations forward and rejects a changed arm,
-provider, scene limit or sample. For legacy interrupted runs without a checkpoint,
-use an explicitly justified `--resume-extra-usd` allowance for unrecovered calls.
+provider, figure-only mode, language/familiarity, example library, scene limit or
+sample. A missing checkpoint or execution identity fails closed: verify the
+original settings and spend before an explicit local migration. An allowance
+alone cannot prove the original execution identity.
 The checkpoint fingerprints all original row contents, not only IDs. Invalid
 cost fields fail closed; legacy checkpoints without a fingerprint require an
 explicit local migration after verifying the original sample.
@@ -68,7 +70,7 @@ pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
 # compare legacy and current top-three retrieval without model calls; this adds
 # 100 chapter-balanced figure rows from the three eval branches to the round
 pnpm exec tsx scripts/lecture-lab/retrieval-check.ts --round .lecture-lab/eval-planner-examples --before-ref <r3-baseline-commit> --sample 100 --seed 7 --out .lecture-lab/retrieval-check.json
-# add --picker for the paid, question-only DeepSeek Flash top-three check
+# add --picker for the paid, question-only configured-provider top-three check
 node --env-file-if-exists=.env.local --import tsx scripts/lecture-lab/retrieval-check.ts --round .lecture-lab/eval-planner-examples --before-ref <r3-baseline-commit> --sample 100 --seed 7 --picker --out .lecture-lab/retrieval-picker.json
 # correct stored empty-cause labels without issuing model requests
 pnpm exec tsx scripts/lecture-lab/regrade-empty-causes.ts .lecture-lab/eval-current .lecture-lab/eval-planner-first
@@ -104,9 +106,10 @@ the validated document. Their source questions are neither stored nor prompted;
 human-curated entries retain their checked question pairing. A round builds one
 deduplicated catalogue of `<id> | <figure kind> | <depicts>` lines, with each
 description capped at 16 words and the whole catalogue held below roughly 6,000
-tokens. DeepSeek V4.1 Flash selects up to three exact ids with strict JSON,
-temperature 0, and a 60-token output cap. It starts beside ProblemIR and has a
-four-second deadline; failure or timeout invokes the explicitly named word
+tokens. The configured provider selects up to three exact ids with strict JSON
+and a 60-token content cap (Azure also reserves reasoning headroom). It starts
+beside ProblemIR with a 15-second offline deadline (four seconds live); failure
+or timeout invokes the explicitly named word
 fallback, while a valid empty selection remains empty. Weak word matches also
 remain empty instead of padding the planner with unrelated examples. Each run
 records picker method, status, latency, critical-path time, tokens, actual cost,

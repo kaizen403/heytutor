@@ -64,8 +64,9 @@ function findChrome(root) {
   return null;
 }
 
-const files = process.argv.slice(2).flatMap((target) => collect(target, []));
-if (files.length === 0) {
+const preflight = process.argv[2] === "--check-browser";
+const files = preflight ? [] : process.argv.slice(2).flatMap((target) => collect(target, []));
+if (!preflight && files.length === 0) {
   console.error("no .svg files found");
   process.exit(1);
 }
@@ -80,6 +81,7 @@ if (!chrome) {
   console.error("cached Playwright chrome-headless-shell was not found");
   process.exit(1);
 }
+if (preflight) process.exit(0);
 
 const profile = mkdtempSync(join(tmpdir(), "heytutor-chrome-cdp-"));
 const browser = spawn(chrome, [

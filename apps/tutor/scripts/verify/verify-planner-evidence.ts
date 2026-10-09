@@ -41,6 +41,28 @@ const response = {
   lane: "primary" as const,
   elapsedMs: 1,
 };
+const prefixed = createPlannerEvidence();
+const prefixedResponse = {
+  ...response,
+  rawContent: `Here is the scene:\n${JSON.stringify(raw)}\nEnd of scene.`,
+};
+recordPlannerResponse(prefixed, prefixedResponse);
+recordRejectedOperatorCalls(
+  prefixed,
+  prefixedResponse,
+  { valid: false, errors: [] },
+  "initial",
+);
+assert.equal(
+  prefixed.plannerDeclineReason,
+  raw.visualDecision.reason,
+  "accepted JSON-envelope extraction retains stated reasons",
+);
+assert.equal(
+  prefixed.rejectedOperatorCalls.length,
+  2,
+  "accepted prefixed envelopes retain original calls",
+);
 recordPlannerResponse(evidence, response);
 assert.equal(evidence.plannerDeclines[0]?.reason, raw.visualDecision.reason);
 recordRejectedOperatorCalls(
