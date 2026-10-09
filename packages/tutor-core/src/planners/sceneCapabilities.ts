@@ -177,20 +177,20 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
 };
 
 const CHEMISTRY_GUIDANCE =
-  "This chemistry family has no planner kit. Never author it mark by mark; return visualDecision text_only.";
+  "No planner kit exists for this chemistry figure; return text_only instead of authoring marks.";
 
 const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   chem_coordination: CHEMISTRY_GUIDANCE,
   chem_cft: CHEMISTRY_GUIDANCE,
-  chem_organic: "Use chem_skeletal_molecule with exactly one resolvable compound name or SMILES. Supply no atoms, bonds or coordinates; otherwise return text_only.",
-  chem_vsepr: "Use chem_vsepr_shape with the explicit formula and charge. The engine derives AXE class, lone pairs, shape and projection; otherwise return text_only.",
-  chem_lewis: "Use chem_lewis_structure with the explicit formula, charge and whether resonance forms are requested. Supply no atom or bond geometry; otherwise return text_only.",
+  chem_organic: "Use chem_skeletal_molecule with one resolvable name or SMILES; otherwise text_only. Never supply geometry.",
+  chem_vsepr: "Use chem_vsepr_shape with formula and charge; otherwise text_only. Never supply geometry.",
+  chem_lewis: "Use chem_lewis_structure with formula, charge and resonance; otherwise text_only. Never supply geometry.",
   chem_mo: CHEMISTRY_GUIDANCE,
-  chem_orbital: "For electron configurations or box diagrams, use chem_orbital_boxes with atomic numbers and explicit charges. Orbital shapes do not use this kit and must return text_only.",
+  chem_orbital: "For configurations or box diagrams use chem_orbital_boxes with atomic numbers and charges; orbital shapes are text_only.",
   chem_electrochem: CHEMISTRY_GUIDANCE,
   chem_unit_cell: CHEMISTRY_GUIDANCE,
   chem_kinetics: CHEMISTRY_GUIDANCE,
-  chem_thermo: "For a one-step reaction energy profile, use chem_reaction_energy_profile and bind Ea, delta H and optional catalysed Ea to exact plan quantity IDs. Other explicit function plots may use graph operators; otherwise return text_only.",
+  chem_thermo: "For a one-step profile use chem_reaction_energy_profile with plan quantity IDs. Graph operators remain allowed; otherwise text_only.",
   chem_solutions: CHEMISTRY_GUIDANCE,
   chem_periodic: CHEMISTRY_GUIDANCE,
   ray_path: "Derive every reflected or refracted direction with reflect_at/refract_at or the surface-contact chain; never guess ray endpoints. Prove incidence, angle, convergence, or parallelism named by the question.",
