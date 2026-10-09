@@ -80,6 +80,8 @@ import {
 import { buildTurnTeachingPrompt } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
+import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
+import { sceneDeclineExperimentGuidance, type SceneDeclinePolicy } from "./sceneDeclineExperiment";
 import {
   classifyDiagramEmptyCause,
   evaluationDecision,
@@ -202,6 +204,8 @@ export interface LectureRun {
     candidateCount?: number;
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
+    /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
+    plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
@@ -250,6 +254,9 @@ export interface RunLectureOptions {
   figureOnly?: boolean;
   /** Evaluation-only override; live turns keep SCENE_PLANNER_DEADLINE_MS. */
   scenePlannerDeadlineMs?: number;
+  /** Uses the same subject vocabulary as the live semantic planner. */
+  subject?: DiagramSubject;
+  sceneDeclinePolicy?: SceneDeclinePolicy;
   traceId?: string;
   /** Leak-filtered library used only by the planner example evaluation arms. */
   diagramExamples?: readonly DiagramExemplar[];
@@ -468,6 +475,7 @@ export async function runLecture(
       turnPlan,
     });
     const pickerDecision = evaluationDecision(options.arm ?? "current", {
+      subject: parseDiagramSubject(options.subject),
       chemistryLane: pickerCapabilities.families.some(isChemistrySceneFamily) || isChemistryQuestion(question),
       codeLesson: false,
       dsa: false,
@@ -622,6 +630,7 @@ export async function runLecture(
       const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily)
         || isChemistryQuestion(question);
       const diagramStrategy = evaluationDecision(options.arm ?? "current", {
+        subject: parseDiagramSubject(options.subject),
         chemistryLane,
         codeLesson: false,
         dsa: false,
@@ -672,6 +681,13 @@ export async function runLecture(
             : archetypeGuidance.length > 0
               ? { planningGuidance: archetypeGuidance }
               : {}),
+          ...(options.sceneDeclinePolicy && options.sceneDeclinePolicy !== "unchanged" ? {
+            planningGuidance: [
+              ...(sceneCapabilities.families.length > 0 ? sceneCapabilities.planningGuidance : []),
+              ...archetypeGuidance,
+              ...sceneDeclineExperimentGuidance(options.sceneDeclinePolicy),
+            ],
+          } : {}),
         },
       };
     };
@@ -754,6 +770,10 @@ export async function runLecture(
     const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
     const fastRepresentation = planning.fast;
     const result = planning.scene;
+    run.diagram.plannerResponses = result?.candidates.map((candidate) => ({
+      phase: candidate.response.phase, lane: candidate.response.lane,
+      selected: candidate.selected, rawContent: candidate.response.rawContent,
+    })) ?? [];
     run.diagram.archetypeId = planning.gate.archetypeId;
     run.diagram.examplesUsed = planning.gate.examplesUsed.map(({
       id,

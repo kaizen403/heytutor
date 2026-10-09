@@ -20,7 +20,7 @@ import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
   LECTURE_LAB_ZERO_RETENTION_HEADER,
 } from "../../lib/billing/flags";
-import type { SubjectFamiliarity } from "@heytutor/tutor-core";
+import { parseDiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
   assertRoundPlannerStarted,
@@ -50,6 +50,7 @@ import {
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
+import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
 
 export interface Options {
   difficulty: string;
@@ -84,6 +85,8 @@ export interface Options {
   resume: boolean;
   /** Conservative allowance for an interrupted pre-checkpoint run. */
   resumeExtraUsd: number;
+  sceneDeclinePolicy: SceneDeclinePolicy;
+  exampleExclusions: string | null;
 }
 
 export interface LabSpendSummary {
@@ -239,6 +242,12 @@ export function parseOptions(argv: string[]): Options {
     throw new Error("--scene-planner-limit-ms must be 60000 or 120000");
   }
   const maxUsdRaw = flags.get("max-usd");
+  const sceneDeclinePolicy = flags.get("scene-decline-policy") ?? "unchanged";
+  if (sceneDeclinePolicy !== "unchanged" && sceneDeclinePolicy !== "qualitative_setup_v1") {
+    throw new Error("--scene-decline-policy must be unchanged or qualitative_setup_v1");
+  }
+  if (flags.has("scene-decline-policy") && evalFiles.length === 0) throw new Error("--scene-decline-policy is evaluation-only");
+  if (flags.has("example-exclusions") && evalFiles.length === 0) throw new Error("--example-exclusions is evaluation-only");
   if (maxUsdRaw === undefined) {
     throw new Error("paid lecture-lab runs require --max-usd <positive dollars>");
   }
@@ -275,6 +284,8 @@ export function parseOptions(argv: string[]): Options {
     maxUsd,
     resume,
     resumeExtraUsd,
+    sceneDeclinePolicy,
+    exampleExclusions: flags.get("example-exclusions") ?? null,
   };
 }
 
@@ -569,10 +580,14 @@ async function main(): Promise<void> {
     ? loadEvaluationRows(options.evalFiles.map((path) => resolve(path)), options)
     : null;
   const evaluationById = new Map(evaluationRows?.map((row) => [row.id, row]) ?? []);
+  const exclusionQuestions = options.exampleExclusions
+    ? parseDiagramEvalJsonl(readFileSync(resolve(options.exampleExclusions), "utf8")).map((row) => row.question)
+    : [];
+  const exampleExclusionFingerprint = labSampleFingerprint(exclusionQuestions);
   const diagramExamples = evaluationRows && evaluationUsesExamples(options.arm)
     ? loadDiagramExemplarLibrary(
         resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl"),
-        evaluationRows.map((row) => row.question),
+        [...evaluationRows.map((row) => row.question), ...exclusionQuestions],
       )
     : [];
   const diagramExampleCatalogue = diagramExamples.length > 0
@@ -619,13 +634,17 @@ async function main(): Promise<void> {
   const checkpointPath = `${outDir}/spend-checkpoint.json`;
   const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string }
     : null;
   if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
   if (oldCheckpoint && (oldCheckpoint.arm !== options.arm || oldCheckpoint.providerConfig.provider !== providerConfig.provider ||
     oldCheckpoint.providerConfig.deployment !== providerConfig.deployment || oldCheckpoint.scenePlannerLimitMs !== options.scenePlannerLimitMs ||
     JSON.stringify(oldCheckpoint.probeIds) !== JSON.stringify(probes.map((probe) => probe.id)) || oldCheckpoint.sampleFingerprint !== sampleFingerprint)) {
     throw new Error("resume requires the identical provider, arm, scene limit and full original sample");
+  }
+  if (oldCheckpoint && ((oldCheckpoint.sceneDeclinePolicy ?? "unchanged") !== options.sceneDeclinePolicy ||
+    (oldCheckpoint.exampleExclusionFingerprint ?? labSampleFingerprint([])) !== exampleExclusionFingerprint)) {
+    throw new Error("resume requires the identical decline experiment and example exclusions");
   }
   const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0), 0);
   const priorChargeUsd = restoredLabCharge(storedRowUsd, oldCheckpoint, options.resumeExtraUsd);
@@ -648,6 +667,7 @@ async function main(): Promise<void> {
     ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
     scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
     sampleFingerprint,
+    sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
   }, null, 1)}\n`);
   checkpointSpend();
   const budgetDeniedTraces = new Set<string>();
@@ -738,6 +758,8 @@ async function main(): Promise<void> {
         figureOnly: options.figureOnly,
         fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
         scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
+        subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
+        sceneDeclinePolicy: options.sceneDeclinePolicy,
         traceId,
         diagramExamples,
         diagramExampleCatalogue,
@@ -794,6 +816,8 @@ async function main(): Promise<void> {
     evaluationConfig: evaluationRows ? {
       ...providerConfig,
       scenePlannerLimitMs: options.scenePlannerLimitMs,
+      sceneDeclinePolicy: options.sceneDeclinePolicy,
+      exampleExclusionFingerprint,
     } : null,
     preflightEstimateUsd,
     resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },
