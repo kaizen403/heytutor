@@ -331,6 +331,9 @@ for (const [sourceText, value, board] of [
   ["(a) + 2", 2, "q = 2"],
   ["is +2", 2, "q = +2"],
   ["+2", 0.002, "q = +0.002"],
+  ["Calcium has oxidation state +2 and atomic number 20", 20, "q = 20"],
+  ["Calcium has oxidation state +2 and atomic number 20", 2, "q = +2"],
+  ["+2 and 20", 0.2, "q = 0.2"],
   ["1+1", 1, "q = 1"],
 ] as const) {
   const stated = `The value is ${sourceText}. Find q.`;

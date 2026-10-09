@@ -332,13 +332,18 @@ function formatNumber(value: number): string {
 function boardNumber(value: number, sourceText: unknown): string {
   const plain = formatNumber(value);
   if (typeof sourceText !== "string" || !(value > 0)) return plain;
-  for (const match of sourceText.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)) {
-    // The same unit rescalings questionStatesValue accepts: "+2 mC" is 0.002 C.
-    const written = Number(match[0]);
-    const sameValue = VALUE_SCALES.some((scale) => Number(formatNumber(value * scale)) === written);
-    if (sameValue && writtenWithPlus(sourceText, match.index ?? 0)) return `+${plain}`;
-  }
-  return plain;
+  const numbers = [...sourceText.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)];
+  // The given's own number decides when the text writes it ("atomic number 20"
+  // is not the "+2" beside it).
+  const own = numbers.find((match) => Number(match[0]) === value);
+  // Otherwise a unit rescaling ("+2 mC" is 0.002 C) counts only when the text
+  // holds one number, so the plus cannot come from another quantity.
+  const scaled = !own && numbers.length === 1 &&
+    VALUE_SCALES.some((scale) => Number(formatNumber(value * scale)) === Number(numbers[0]![0]))
+    ? numbers[0]
+    : undefined;
+  const match = own ?? scaled;
+  return match && writtenWithPlus(sourceText, match.index ?? 0) ? `+${plain}` : plain;
 }
 
 /**
