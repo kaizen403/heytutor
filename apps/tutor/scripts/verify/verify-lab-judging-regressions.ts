@@ -125,6 +125,15 @@ function round(name: string, runs: readonly (LectureRun & { evaluation: DiagramE
 }
 
 try {
+  check("applying all judgments completes a resumed round's judging status", () => {
+    const path = round("completed-status", [fixture("drawn", true)], [judgment("drawn")]);
+    const summaryPath = join(path, "summary.json");
+    const summary = JSON.parse(readFileSync(summaryPath, "utf8"));
+    summary.judgingStatus = { reviewedRows: 0, unreviewedRows: 1 };
+    writeFileSync(summaryPath, JSON.stringify(summary));
+    applyJudgments(path);
+    assert.equal(JSON.parse(readFileSync(summaryPath, "utf8")).judgingStatus.unreviewedRows, 0);
+  });
   check("preparing a judged round preserves completed figure verdicts", () => {
     const completed = judgment("drawn");
     const path = round("prepare", [fixture("drawn", true), fixture("absent", false)], [completed]);

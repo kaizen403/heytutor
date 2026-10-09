@@ -44,6 +44,8 @@ export function applyJudgments(roundArgument: string) {
   const summaryPath = join(roundDir, "summary.json");
   const summary = JSON.parse(readFileSync(summaryPath, "utf8")) as Record<string, unknown>;
   summary.judge = judge;
+  summary.judgingStatus = { reviewedRows: runIds.size, unreviewedRows: 0, preservedJudgeSummary: false };
+  delete summary.priorSubsetJudgeSummary;
   writeFileSync(summaryPath, `${JSON.stringify(summary, null, 1)}\n`);
   const gallery = writeRoundGallery(roundDir);
   return { roundDir, gallery, ...judge };

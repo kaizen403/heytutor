@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { writeComparisonGallery } from "./gallery";
-import { formatJudgeCounts, type JudgeSummary } from "./judging";
+import { currentJudgeSummary, formatJudgeCounts, type JudgeSummary } from "./judging";
 import { formatDiagramFailureCounts } from "./diagramEval";
 
 interface Summary {
@@ -24,6 +24,7 @@ interface Summary {
   findingCounts: Record<string, number>;
   grades: { probeId: string; score: number; transportFailure?: boolean }[];
   judge?: JudgeSummary;
+  judgingStatus?: { unreviewedRows: number };
   evaluation?: {
     emptyCauseCounts?: Record<string, number>;
     candidateErrorCodeCounts?: Record<string, number>;
@@ -50,7 +51,10 @@ const after = read(afterPath);
 const delta = (value: number) => (value > 0 ? `+${value}` : String(value));
 
 console.log(`           ${beforePath}  ->  ${afterPath}`);
-console.log(`judge      ${formatJudgeCounts(before.judge)} -> ${formatJudgeCounts(after.judge)}`);
+console.log(`judge      ${formatJudgeCounts(currentJudgeSummary(before))} -> ${formatJudgeCounts(currentJudgeSummary(after))}`);
+if (before.judgingStatus?.unreviewedRows || after.judgingStatus?.unreviewedRows) {
+  console.log("judge totals: incomplete; resumed rows still need review");
+}
 console.log(
   `empty      ${formatDiagramFailureCounts(before.evaluation?.emptyCauseCounts)} -> ${formatDiagramFailureCounts(after.evaluation?.emptyCauseCounts)}`,
 );
