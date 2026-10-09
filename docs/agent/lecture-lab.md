@@ -46,6 +46,10 @@ pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.json
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_first --figure-only --max-usd 5 --out .lecture-lab/eval-planner-first --yes
 # planner-with-examples uses the same ordering plus up to three cheap-model-picked examples
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --max-usd 5 --out .lecture-lab/eval-planner-examples --yes
+# strict uses the same planner+examples path and teaches text-only if it fails.
+# Standard K3 may use the evaluation-only 120 s scene budget. Use the same
+# value for every arm being compared.
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples_strict --model standard --scene-planner-limit-ms 120000 --figure-only --max-usd 5 --out .lecture-lab/eval-strict --yes
 # rebuild the validated example library after exemplar branches are merged
 pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
 # compare legacy and current top-three retrieval without model calls; this adds
@@ -68,12 +72,21 @@ lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`
 owns that summary for both the runner and the regrader, so the two cannot drift.
 
-Evaluation requests explicitly turn Fast mode off, including an authenticated
-lecture-lab-only override for ProblemIR. They therefore use `FIREWORKS_MODEL`
-(Kimi K3 by default), while ordinary student and lecture-lab traffic keeps its
-existing model selection. Preflight and measured usage price Kimi K3 at US$3
-input / US$15 output per million tokens. Each run record stores the actual model
-and measured cost of every completed planner call.
+Evaluation requests reject `--model fast` and explicitly use
+`accounts/fireworks/models/kimi-k3`, including an authenticated lecture-lab-only
+override for ProblemIR. Ordinary student and non-evaluation lecture-lab traffic
+keeps its existing model selection. `--scene-planner-limit-ms 120000` is also
+evaluation-only; without it the scene budget remains 60 seconds, and live turns
+always retain their existing 60-second scene limit. Use the same scene limit for
+every arm in a comparison. `summary.json` records the exact evaluation model and
+scene limit under `evaluationConfig` as well as the hard `--max-usd` result.
+
+Preflight uses Part 11's standard-K3 planner usage (about 1,000-1,600 input and
+330-360 output tokens per call, rounded up per arm) and prices Kimi K3 at US$3
+input / US$15 output per million tokens. Each run record stores actual provider
+usage and model; unknown usage is charged at the request ceiling. Standard-K3
+evaluation durations are timeout-sensitive and must not be reported as product
+timing measurements.
 
 The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`.
 Synthesized entries are keyed by `depicts`: plain family/archetype language,
@@ -84,7 +97,7 @@ deduplicated catalogue of `<id> | <figure kind> | <depicts>` lines, with each
 description capped at 16 words and the whole catalogue held below roughly 6,000
 tokens. DeepSeek V4.1 Flash selects up to three exact ids with strict JSON,
 temperature 0, and a 60-token output cap. It starts beside ProblemIR and has a
-two-second deadline; failure or timeout invokes the explicitly named word
+four-second deadline; failure or timeout invokes the explicitly named word
 fallback, while a valid empty selection remains empty. Weak word matches also
 remain empty instead of padding the planner with unrelated examples. Each run
 records picker method, status, latency, critical-path time, tokens, actual cost,
@@ -100,6 +113,13 @@ from the batch prompt; it opens every cropped PNG once and appends its compact
 JSONL verdicts to `judgments.jsonl`. Then run `judge-apply.ts <round>` to write
 `verdicts.csv`, prefill and prioritize the gallery, add the Needs human filter,
 and record judge counts in `summary.json`.
+
+Every later comparison is judged in one session across all arms. Include the 40
+owner-marked cards in that session, then run
+`pnpm diagram:judge-check <session-judgments.jsonl>` to report agreement with
+`data/diagram-eval/v1/anchors.jsonl`. The owner creates that reference file by
+marking every card in `.context/diagram-anchor-gallery.html` and exporting it;
+the agent must not infer or substitute the owner's verdicts.
 
 - `right`: every `must_show` item is present and no `must_not_show` item appears.
 - `partial`: it is the right kind of figure, but something is missing.
