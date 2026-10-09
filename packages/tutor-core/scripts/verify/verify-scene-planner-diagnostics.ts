@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import { planSceneDocument, scenePlannerCandidateDiagnostics, type ScenePlannerRequestOutcome } from "../../src/planners/scenePlannerV2";
+import { inferSceneCapabilities } from "../../src/planners/sceneCapabilities";
+
+const symbolicCapabilities = inferSceneCapabilities("Explain periodic motion", { turnPlan: { visualRequirement: "required", givens: [] } });
+assert.ok(symbolicCapabilities.constructionOperators.includes("function_curve"));
+const numericCapabilities = inferSceneCapabilities("Two cells connected across a 4 W resistor", { turnPlan: { visualRequirement: "required", givens: [{ value: 4 }] } });
+assert.ok(!numericCapabilities.constructionOperators.includes("function_curve"));
 
 const document = {
   visualDecision: { mode: "text_only", reason: "missing symbolic construction" },

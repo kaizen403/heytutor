@@ -3610,10 +3610,10 @@ function extractMeasuredValues(text: string): Array<{ value: number; unit: strin
   const values: Array<{ value: number; unit: string; tolerance: number }> = [];
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
-    const value = Number(match[1]);
+    const value = Number(match[1]?.replace(/−/g, "-"));
     const unit = match[2]?.trim();
     if (Number.isFinite(value) && unit) {
-      values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!) });
+      values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!.replace(/−/g, "-")) });
     }
   }
   return values;
@@ -4190,7 +4190,7 @@ function measuredValuePattern(): RegExp {
   // Reading only "m" silently missed speed/acceleration labels at the slash.
   const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
   const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
-  return new RegExp(`(-?\\d+(?:\\.\\d+)?(?:e[+-]?\\d+)?)\\s*(${factor}(?:\\s*[/·⋅*]\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
+  return new RegExp(`(${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
 }
 
 function sourceContainsMatchingMeasuredValue(
@@ -4201,7 +4201,7 @@ function sourceContainsMatchingMeasuredValue(
   const unit = normalizeUnit(expectedUnit);
   if (!unit) return false;
   for (const match of sourceText.matchAll(measuredValuePattern())) {
-    const value = Number(match[1]);
+    const value = Number(match[1]?.replace(/−/g, "-"));
     if (
       Number.isFinite(value) &&
       normalizeUnit(match[2]) === unit &&

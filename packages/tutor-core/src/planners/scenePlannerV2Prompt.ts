@@ -115,7 +115,7 @@ export function buildSceneDocumentPlannerPrompt(
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
 
 AVAILABLE CONSTRUCTION OPERATORS
-${operators.join(",")}
+${fullCatalog && detailedOperators !== undefined ? "Use the operator names in the complete input contracts below." : operators.join(",")}
 
 OPERATOR INPUT CONTRACTS
 ${contracts}
@@ -142,7 +142,7 @@ Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relat
 Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
 
 AUTHORITY
-- Faithful visual:scene; else text_only with missing source/operator reason.
+- Faithful visual:scene; else text_only,empty arrays,source/operator reason.
 - Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Spatial targets need exact plan-backed geometry.
 - Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions. Display lengths never establish physical values.
 - Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. Dimensionless normalized world geometry/curves prove shape,not physical values. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
