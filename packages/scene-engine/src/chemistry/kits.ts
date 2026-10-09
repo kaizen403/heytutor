@@ -282,12 +282,15 @@ function skeletalDocument(question: string, inputs: Record<string, unknown>): Sc
   const molecule = name ? moleculeFromName(name) : parseSmiles(smiles!);
   const document = buildSkeletalMoleculeScene(question, { name, smiles });
   if (!molecule || !document) throw new Error(`${name ?? smiles} cannot produce a verified skeletal structure`);
+  const bondIds = document.entities.filter((entity) => entity.role === "bond").map((entity) => entity.id);
+  addCountProof(document, "kit_bond_count", bondIds, molecule.bonds.length, "skeletal bond count");
   document.source = {
     ...document.source,
     chemistryKitProof: {
       atomCount: molecule.atoms.length,
       heavyAtomCount: heavyAtomCount(molecule),
       bondCount: molecule.bonds.length,
+      bondOrderSum: molecule.bonds.reduce((sum, bond) => sum + bond.order, 0),
     },
   };
   return document;
