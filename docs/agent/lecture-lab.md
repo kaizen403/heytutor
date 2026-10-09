@@ -110,6 +110,19 @@ records picker method, status, latency, critical-path time, tokens, actual cost,
 fallback reason, and selected ids. Literal point coordinates and engine-only
 metadata are still stripped from the examples sent to the scene planner.
 
+## Planner evidence
+
+Every new run initializes `diagram.plannerDeclineReason` (selected candidate,
+or null), `plannerDeclines` (all parsed text-only responses, including discarded
+speculation), and `rejectedOperatorCalls` (all calls in every failed candidate,
+including repair and authority revalidation). Arguments come from the original
+raw JSON, not normalized geometry. Each `rawArguments` and reason string is
+limited to 2048 UTF-8 bytes, with original byte length and a truncation flag.
+Path/entity matches are diagnostic hints; `candidate_rejected` does not mean
+that each suboperator independently failed. These private records never change
+validation, prompts, selected scenes, or call counts. Historical missing text
+and arguments cannot be reconstructed from fallback reason strings.
+
 ## Judging a round
 
 Run `judge-prep.ts <round>` to decide no-figure rows by rule, crop the diagram
