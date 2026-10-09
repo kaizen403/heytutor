@@ -1,0 +1,152 @@
+{
+  "topic_id": "physics|7|fluid-pressure-and-pascals-law",
+  "question": "Represent two vessels of different cross-section joined by a horizontal connecting pipe.",
+  "figure_kind": "apparatus",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "connected vessels for a fluid apparatus"
+    },
+    "source": {
+      "question": "Represent two vessels of different cross-section joined by a horizontal connecting pipe.",
+      "synthesizedFamily": true
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "left",
+        "kind": "point",
+        "role": "vessel center"
+      },
+      {
+        "id": "right",
+        "kind": "point",
+        "role": "vessel center"
+      },
+      {
+        "id": "tank1",
+        "kind": "rectangle",
+        "role": "vessel"
+      },
+      {
+        "id": "tank2",
+        "kind": "rectangle",
+        "role": "vessel"
+      },
+      {
+        "id": "pipe",
+        "kind": "segment",
+        "role": "connecting pipe"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_left",
+        "operator": "point",
+        "inputs": {
+          "x": -2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "left"
+        ]
+      },
+      {
+        "id": "make_right",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "right"
+        ]
+      },
+      {
+        "id": "make_tank1",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "left",
+          "width": 1.4,
+          "height": 2
+        },
+        "outputs": [
+          "tank1"
+        ]
+      },
+      {
+        "id": "make_tank2",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "right",
+          "width": 1,
+          "height": 1.4
+        },
+        "outputs": [
+          "tank2"
+        ]
+      },
+      {
+        "id": "make_pipe",
+        "operator": "segment",
+        "inputs": {
+          "start": "left",
+          "end": "right"
+        },
+        "outputs": [
+          "pipe"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "vessels_exist",
+        "predicate": "exists",
+        "entities": [
+          "tank1",
+          "tank2",
+          "pipe"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "left",
+      "right",
+      "tank1",
+      "tank2",
+      "pipe"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "left",
+          "right",
+          "tank1",
+          "tank2",
+          "pipe"
+        ],
+        "dependsOn": [],
+        "narrationCue": "connected vessels for a fluid apparatus"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "connected vessels for a fluid apparatus"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

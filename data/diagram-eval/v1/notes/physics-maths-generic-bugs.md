@@ -29,4 +29,11 @@
 - Reproduction question: `Draw a labelled diagram of a screw gauge with pitch 1 mm and 50 circular scale divisions.`
 - Result on engine commit `ab46da7a`: validation and compilation succeed, but the rendered `ratchet` label lies entirely inside the thimble instead of the ratchet, without a leader. The sleeve and thimble are also separated by about 57 rendered pixels despite no exploded-view qualification.
 - Impact: a structurally accepted apparatus scene misidentifies one part and presents a disconnected mechanism.
-- Evaluation-set workaround: the screw-gauge candidate was removed; the independently qualified vernier-calliper scene supplies the apparatus exemplar instead.
+- Evaluation-set workaround: the screw-gauge candidate was removed. A connected-fluid-vessels scene supplies the apparatus exemplar instead.
+
+## Vernier jaw geometry can disagree with its displayed reading
+
+- Reproduction question: `Draw labelled vernier callipers whose closed zeros coincide, where 1 main-scale division is 1 mm and 10 vernier divisions span 9 main-scale divisions, for a main scale reading of 23 mm when the 4th vernier division coincides.`
+- Result on engine commit `ab46da7a`: validation and compilation succeed and the scale labels encode a `23.4 mm` reading, but the compiled inward jaw faces are only about `20.4 mm` apart. Moving the vernier zero to the closed-zero position would also make the jaws overlap by about `3 mm` instead of coincide.
+- Impact: an accepted measurement scene can show mutually inconsistent scale and jaw geometry, so the drawn object gap does not represent the stated reading.
+- Evaluation-set workaround: the vernier-calliper candidate was removed. No vernier exemplar is exported until the scale, zero, and jaw constraints are coupled and independently requalified.
