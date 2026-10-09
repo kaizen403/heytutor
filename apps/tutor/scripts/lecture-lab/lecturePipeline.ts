@@ -857,6 +857,7 @@ export async function runLecture(
         turnPlan,
       });
       const selected = fastRepresentation ?? selectVerifiedRepresentation({
+        preferPlanner: options.arm === "planner_examples_strict",
         question,
         turnPlan,
         problemIR: problemAuthority?.problemIR ?? null,

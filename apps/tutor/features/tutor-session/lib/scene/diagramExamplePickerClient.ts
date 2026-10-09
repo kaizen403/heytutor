@@ -7,6 +7,14 @@ import type { TurnPlanV3 } from "@heytutor/scene-engine";
 
 export const LIVE_DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS = 4_000;
 
+/** The picker itself owns the timeout; one join serves both authority paths. */
+export async function awaitLiveDiagramExamplePicker(picker: Promise<void> | null, shouldWait: boolean): Promise<number> {
+  if (!picker || !shouldWait) return 0;
+  const startedAt = Date.now();
+  await picker;
+  return Date.now() - startedAt;
+}
+
 export interface LiveDiagramExamplePickerResult {
   ids: string[];
   status: "picked" | "none" | "failed" | "timeout";

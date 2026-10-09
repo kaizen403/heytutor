@@ -40,7 +40,7 @@ import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type Pa
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
 import {
-  DEFAULT_CHEAP_FIREWORKS_MODEL,
+  resolveCheapFireworksModel,
   DEFAULT_FIREWORKS_MODEL,
   resolveFireworksModel,
 } from "@/lib/llm/fireworksModels";
@@ -628,7 +628,7 @@ async function handlePlannerRequest({
   actor,
   grant,
 }: PlannerRequestArgs): Promise<Response> {
-  const plannerModels = diagramExamplePicker ? [DEFAULT_CHEAP_FIREWORKS_MODEL] : resolvePlannerModels({
+  const plannerModels = diagramExamplePicker ? [resolveCheapFireworksModel()] : resolvePlannerModels({
     semanticSceneV2,
     turnPlanV3,
     problemIRV1,

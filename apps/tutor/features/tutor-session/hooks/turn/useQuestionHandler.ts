@@ -148,6 +148,7 @@ import {
 } from "../../lib/scene/diagramStrategy";
 import {
   pickLiveDiagramExampleIds,
+  awaitLiveDiagramExamplePicker,
   scenePlannerUrlWithExampleIds,
 } from "../../lib/scene/diagramExamplePickerClient";
 import {
@@ -1030,6 +1031,8 @@ export function useQuestionHandler(
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
         let diagramExampleIds: string[] = [];
         let diagramExamplePickerSettled = false;
+        let diagramExamplePickerPromise: Promise<void> | null = null;
+        let diagramExamplePickerWaitStartedAt: number | null = null;
         const startDiagramExamplePicker = (plan: TurnPlanV3) => {
           const capabilities = inferSceneCapabilities(question, { turnPlan: plan });
           const chemistryLane = capabilities.families.some(isChemistrySceneFamily) ||
@@ -1050,7 +1053,7 @@ export function useQuestionHandler(
             return;
           }
           const pickerSpan = tel.span("diagram-example-picker", "planner");
-          void pickLiveDiagramExampleIds({
+          diagramExamplePickerPromise = pickLiveDiagramExampleIds({
             question,
             plan,
             traceId: turnTraceId ?? undefined,
@@ -1064,7 +1067,7 @@ export function useQuestionHandler(
               status: picked.status,
               elapsed_ms: picked.elapsedMs,
               picked_count: picked.ids.length,
-              critical_path_wait_ms: 0,
+              critical_path_wait_ms: diagramExamplePickerWaitStartedAt === null ? 0 : Date.now() - diagramExamplePickerWaitStartedAt,
             });
           });
         };
@@ -1417,6 +1420,15 @@ export function useQuestionHandler(
         // callback repeats this on final IR before deriving any final gate.
         turnPlan = applyDeterministicSourceAuthority(turnPlan, null);
         let usedVerifiedRecovery = false;
+        // One bounded join for numeric and nonnumeric plans, before either
+        // speculative or final scene requests capture their example IDs.
+        const shouldWaitForDiagramExamples = diagramStrategyDecision.usePickedExamples && turnPlan.visualRequirement !== "none" && recoveredScene === null;
+        if (shouldWaitForDiagramExamples && !diagramExamplePickerSettled) diagramExamplePickerWaitStartedAt = Date.now();
+        const pickerWaitMs = await awaitCurrentTurn(awaitLiveDiagramExamplePicker(
+          diagramExamplePickerPromise,
+          shouldWaitForDiagramExamples,
+        ), isCurrentTurn);
+        if (pickerWaitMs > 0) tel.meta({ diagram_example_picker_critical_path_ms: pickerWaitMs });
         const planning = await runScenePlanningOverlap<
           ProblemAuthorityV1Response,
           SceneGate,
@@ -1618,6 +1630,7 @@ export function useQuestionHandler(
               throw new NoFigureNeeded();
             }
             const selected = fastRepresentation ?? selectVerifiedRepresentation({
+              preferPlanner: diagramStrategyDecision.strategy === "strict",
               question,
               turnPlan,
               problemIR: problemAuthority?.problemIR ?? null,

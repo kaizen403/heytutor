@@ -3,10 +3,20 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   pickLiveDiagramExampleIds,
+  awaitLiveDiagramExamplePicker,
   scenePlannerUrlWithExampleIds,
 } from "../../features/tutor-session/lib/scene/diagramExamplePickerClient";
 
 async function main(): Promise<void> {
+let selectedIds: string[] = [];
+let settlePicker!: () => void;
+const deferredPicker = new Promise<void>((resolve) => { settlePicker = () => { selectedIds = ["synthetic:segment"]; resolve(); }; });
+const joined = awaitLiveDiagramExamplePicker(deferredPicker, true);
+assert.deepEqual(selectedIds, []);
+settlePicker();
+await joined;
+assert.deepEqual(selectedIds, ["synthetic:segment"], "even a nonnumeric plan joins the bounded picker before scene construction");
+assert.equal(await awaitLiveDiagramExamplePicker(new Promise(() => {}), false), 0, "switch-off paths do not wait");
 const plan = {
   schemaVersion: "turn-plan/v3" as const,
   question: "Sketch a projectile trajectory",
@@ -60,7 +70,10 @@ assert.equal(
 );
 
 const routeSource = readFileSync(resolve(process.cwd(), "app/api/chat/route.ts"), "utf8");
-assert.match(routeSource, /diagramExamplePicker \? \[DEFAULT_CHEAP_FIREWORKS_MODEL\]/);
+assert.match(routeSource, /diagramExamplePicker \? \[resolveCheapFireworksModel\(\)\]/);
+const handlerSource = readFileSync(resolve(process.cwd(), "features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+assert(handlerSource.indexOf("const pickerWaitMs =") < handlerSource.indexOf("const planning = await runScenePlanningOverlap"));
+assert.match(handlerSource, /preferPlanner: diagramStrategyDecision\.strategy === "strict"/);
 assert.match(routeSource, /reservePaidUsage\(\{ actor, grant, kind: "planner"/);
 assert.match(routeSource, /diagram_example_picker: diagramExamplePicker/);
 assert.match(routeSource, /injectLiveDiagramExamples/);
