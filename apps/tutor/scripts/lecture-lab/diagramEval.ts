@@ -6,13 +6,14 @@ import {
   evaluationDiagramStrategyDecision,
   type DiagramStrategyContext,
 } from "../../features/tutor-session/lib/scene/diagramStrategy";
+import { resolveCheapFireworksModel, resolveFireworksModel } from "../../lib/llm/fireworksModels";
 
 export type DiagramEvalArm =
   | "current"
   | "planner_first"
   | "planner_examples"
   | "planner_examples_strict";
-export type DiagramEvalModel = "standard" | "fast";
+export type DiagramEvalModel = "configured" | "standard" | "fast";
 export type DiagramEmptyCause =
   | "not_needed"
   | "not_attempted"
@@ -272,10 +273,11 @@ export function sampleDiagramEvalRows(
 export function estimateEvaluationCostUsd(
   rowCount: number,
   arm: DiagramEvalArm,
-  model: DiagramEvalModel = "standard",
+  model: DiagramEvalModel = "configured",
+  env: Record<string, string | undefined> = process.env,
 ): number {
-  if (model !== "standard") {
-    throw new Error("evaluation cost estimates require standard Kimi K3");
+  if (model === "fast") {
+    throw new Error("evaluation cost estimates require the configured provider");
   }
   const standardProfile = arm === "current"
     ? { input: 5_300, output: 1_500 }
@@ -284,12 +286,12 @@ export function estimateEvaluationCostUsd(
       : { input: 11_500, output: 2_000 };
   const planner = calculateLlmCostDetails(
     { input: rowCount * standardProfile.input, output: rowCount * standardProfile.output },
-    { model: "accounts/fireworks/models/kimi-k3" },
+    { model: resolveFireworksModel({ fastMode: false, env }) },
   ).total ?? 0;
   const picker = evaluationUsesExamples(arm)
     ? calculateLlmCostDetails(
         { input: rowCount * 6_000, output: rowCount * 60 },
-        { model: "accounts/fireworks/models/deepseek-v4p1-flash" },
+        { model: resolveCheapFireworksModel({ env }) },
       ).total ?? 0
     : 0;
   return Math.round((planner + picker) * 1_000_000) / 1_000_000;
@@ -308,13 +310,13 @@ export function estimateLabCallWorstCaseUsd(input: {
   ).total ?? 0;
 }
 
-/** Evaluation turns always use standard K3; ordinary lab runs retain their default. */
+/** Evaluation turns use the configured provider without a Fast lane override. */
 export function evaluationRunFastMode(
   isEvaluation: boolean,
-  model: DiagramEvalModel = "standard",
+  model: DiagramEvalModel = "configured",
 ): boolean | undefined {
-  if (isEvaluation && model !== "standard") {
-    throw new Error("evaluation rounds require standard Kimi K3");
+  if (isEvaluation && model === "fast") {
+    throw new Error("evaluation rounds require the configured provider");
   }
   return isEvaluation ? false : undefined;
 }
@@ -323,7 +325,7 @@ export function evaluationUsesStandardModelHeader(
   isEvaluation: boolean,
   model: DiagramEvalModel,
 ): boolean {
-  return isEvaluation && model === "standard";
+  return isEvaluation && model !== "fast";
 }
 
 export function evaluationSelectionOrder(arm: DiagramEvalArm): "current" | "planner_first" {

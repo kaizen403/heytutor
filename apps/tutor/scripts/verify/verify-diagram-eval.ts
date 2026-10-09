@@ -94,13 +94,13 @@ assert.throws(
 );
 assert.throws(
   () => parseLectureLabOptions(["--max-usd", "20", "--model", "turbo"]),
-  /--model must be standard or fast/,
+  /--model must be configured, standard or fast/,
 );
 assert.throws(
   () => parseLectureLabOptions([
     "--eval", "sample.jsonl", "--model", "fast", "--max-usd", "20",
   ]),
-  /evaluation rounds require --model standard/,
+  /evaluation rounds require the configured provider/,
 );
 assert.throws(
   () => parseLectureLabOptions([
@@ -232,7 +232,7 @@ assert.equal(
 assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
 assert.throws(
   () => evaluationRunFastMode(true, "fast"),
-  /standard Kimi K3/,
+  /configured provider/,
   "Fast evaluation requests must be rejected",
 );
 assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");
@@ -310,7 +310,7 @@ assert.equal(
 );
 assert.throws(
   () => estimateEvaluationCostUsd(300, "current", "fast"),
-  /standard Kimi K3/,
+  /configured provider/,
   "preflight must never quote a Fast evaluation round",
 );
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
@@ -606,7 +606,7 @@ assert.deepEqual(
   [],
   "unknown ids must be dropped rather than failing the whole response",
 );
-assert.equal(DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS, 4_000);
+assert.equal(DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS, 15_000);
 const pickerVerification = (async () => {
   const pickerRequests: Record<string, unknown>[] = [];
   const picked = await pickDiagramExamples(exemplars, catalogue, {
@@ -630,6 +630,33 @@ const pickerVerification = (async () => {
   assert.equal(pickerRequests[0]?.temperature, 0);
   assert.equal(pickerRequests[0]?.max_tokens, 60);
   assert.deepEqual(pickerRequests[0]?.response_format, { type: "json_object" });
+  const azureEnv = {
+    LLM_PROVIDER: "azure",
+    AZURE_OPENAI_ENDPOINT: "https://test.cognitiveservices.azure.com/",
+    AZURE_OPENAI_DEPLOYMENT: "gpt-6-1-sol",
+    AZURE_OPENAI_API_KEY: "test-key",
+  };
+  let azureRequest: Record<string, unknown> = {};
+  let azureUrl = "";
+  const azurePicked = await pickDiagramExamples(exemplars, catalogue, {
+    question: "Show a resistor circuit.", families: [], archetypeId: null,
+    env: azureEnv,
+    fetchImpl: async (input, init) => {
+      azureUrl = String(input);
+      azureRequest = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return Response.json({
+        choices: [{ message: { content: '{"ids":["circuit-series"]}' } }],
+        usage: { prompt_tokens: 1_000, completion_tokens: 100, prompt_tokens_details: { cached_tokens: 500 } },
+      });
+    },
+  });
+  assert.equal(azureUrl, "https://test.cognitiveservices.azure.com/openai/v1/chat/completions");
+  assert.equal(azureRequest.model, "gpt-6-1-sol");
+  assert.equal(azureRequest.max_completion_tokens, 2108);
+  assert.equal(azureRequest.max_tokens, undefined);
+  assert.equal(azureRequest.temperature, undefined);
+  assert.equal(azurePicked.record.estimatedCostUsd, 0.00205);
+  assert.equal(estimateEvaluationCostUsd(419, "planner_examples_strict", "configured", azureEnv), 23.2964);
   let retryCalls = 0;
   const retried = await pickDiagramExamples(exemplars, catalogue, {
     question: "Show a resistor circuit.",
@@ -1019,5 +1046,5 @@ void (async () => {
   };
   assert.equal(await plannerCallsFor("current"), 0, "current keeps the family/archetype gate");
   assert.equal(await plannerCallsFor("planner_first"), 1, "planner-first tries an unmatched required figure");
-  console.log("diagram evaluation judging and Kimi K3 verification passed");
+console.log("diagram evaluation judging and configured-provider verification passed");
 })();

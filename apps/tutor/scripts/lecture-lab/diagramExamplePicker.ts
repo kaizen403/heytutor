@@ -1,5 +1,6 @@
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { DEFAULT_CHEAP_FIREWORKS_MODEL } from "../../lib/llm/fireworksModels";
+import { resolveCheapFireworksModel } from "../../lib/llm/fireworksModels";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import {
@@ -10,9 +11,7 @@ import {
 } from "./diagramExamples";
 import { estimateLabCallWorstCaseUsd } from "./diagramEval";
 
-const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
-export const DIAGRAM_EXAMPLE_PICKER_MODEL = DEFAULT_CHEAP_FIREWORKS_MODEL;
-export const DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS = 4_000;
+export const DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS = 15_000;
 
 export interface DiagramExamplePickerRecord {
   method: "model" | "word_fallback";
@@ -43,6 +42,7 @@ export interface DiagramExamplePickerOptions {
   families: readonly string[];
   archetypeId: string | null;
   apiKey?: string;
+  env?: Record<string, string | undefined>;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
   onModelCost?: (usd: number) => void;
@@ -175,8 +175,9 @@ export async function pickDiagramExamples(
   options: DiagramExamplePickerOptions,
 ): Promise<DiagramExamplePickerResult> {
   const startedAt = Date.now();
-  const model = DIAGRAM_EXAMPLE_PICKER_MODEL;
-  const apiKey = options.apiKey?.trim() || process.env.FIREWORKS_API_KEY?.trim();
+  const endpoint = resolveLlmEndpoint(options.env);
+  const model = resolveCheapFireworksModel({ env: options.env });
+  const apiKey = options.apiKey?.trim() || endpoint.apiKey;
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS;
   const deadline = startedAt + timeoutMs;
@@ -202,12 +203,13 @@ export async function pickDiagramExamples(
     estimatedCostUsd: Math.round(estimatedCostUsd * 1_000_000) / 1_000_000,
   });
   try {
-    if (!apiKey) throw new Error("missing FIREWORKS_API_KEY");
+    if (endpoint.fallbackReason) throw new Error("configured LLM provider is unavailable");
+    if (!apiKey) throw new Error("missing configured LLM provider key");
     for (;;) {
       attempts += 1;
       const remainingMs = Math.max(1, deadline - Date.now());
       const pickerPrompt = prompt(options.question, options.plan, catalogue);
-      const providerBody = {
+      const providerBody = providerChatBody({
         model,
         messages: [{ role: "user", content: pickerPrompt }],
         response_format: { type: "json_object" },
@@ -215,14 +217,14 @@ export async function pickDiagramExamples(
         max_tokens: 60,
         reasoning_effort: "none",
         stream: false,
-      };
+      }, endpoint);
       pendingWorstCaseUsd = estimateLabCallWorstCaseUsd({
         messages: providerBody.messages,
-        maxTokens: providerBody.max_tokens,
+        maxTokens: completionTokenCap(providerBody),
         model,
       });
       pendingCharged = false;
-      const response = await fetchImpl(FIREWORKS_CHAT_URL, {
+      const response = await fetchImpl(endpoint.url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
