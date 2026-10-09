@@ -1,15 +1,16 @@
 /** Chemistry bank rows the classifier does not read as chemistry, with evidence. */
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { chemistryEvidence, isChemistryStem } from "../../src/chemistry/classify";
-const root = "/Users/kaizen/heytutor";
+const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const subjectById = new Map<string, string>();
-for (const line of readFileSync(`${root}/data/question-bank/build/question-syllabus.jsonl`, "utf8").split("\n")) {
+for (const line of readFileSync(`${root}data/question-bank/build/question-syllabus.jsonl`, "utf8").split("\n")) {
   if (!line.trim()) continue;
   const row = JSON.parse(line) as { question_id: string; subject?: string | null };
   if (row.subject) subjectById.set(row.question_id, row.subject);
 }
 let shown = 0; let total = 0; let missed = 0;
-for (const line of readFileSync(`${root}/data/question-bank/build/questions.all.jsonl`, "utf8").split("\n")) {
+for (const line of readFileSync(`${root}data/question-bank/build/questions.all.jsonl`, "utf8").split("\n")) {
   if (!line.trim()) continue;
   const row = JSON.parse(line) as { question_id: string; text?: string };
   if (subjectById.get(row.question_id) !== "Chemistry") continue;
