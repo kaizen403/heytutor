@@ -19,6 +19,7 @@ import {
   sampleDiagramEvalRows,
   supplementCandidateErrorCodes,
   summarizeDiagramFailures,
+  type DiagramEvalRow,
 } from "../lecture-lab/diagramEval";
 import {
   buildComparisonGalleryHtml,
@@ -59,6 +60,7 @@ import {
   type SceneGateCore,
 } from "../../features/tutor-session/lib/scene/planningOverlap";
 import { sampleDiagramRowsAcrossChapters } from "../lecture-lab/retrieval-check";
+import { sampleDiagramRoundRows } from "../lecture-lab/roundSample";
 
 const rows = parseDiagramEvalJsonl([
   JSON.stringify({
@@ -110,13 +112,56 @@ const chapterSample = sampleDiagramRowsAcrossChapters(chapterSampleRows, 3, 91);
 assert.equal(chapterSample.length, 3);
 assert.equal(new Set(chapterSample.map((row) => `${row.subject}|${row.topic_id.split("|")[1]}`)).size, 3);
 assert.deepEqual(chapterSample, sampleDiagramRowsAcrossChapters(chapterSampleRows, 3, 91));
+const roundSource = Array.from({ length: 3 }, (_, chapterIndex) =>
+  Array.from({ length: 10 }, (_, rowIndex): DiagramEvalRow => ({
+    ...rows[0]!,
+    id: `subject|${chapterIndex + 1}|topic|q${rowIndex + 1}`,
+    topic_id: `subject|${chapterIndex + 1}|topic`,
+    subject: chapterIndex === 0 ? "physics" : chapterIndex === 1 ? "maths" : "chemistry",
+    ask_style: rowIndex < 7 ? "exam_stem" : rowIndex === 9 ? "vague_or_misspelled" : "topic_ask",
+    trap: rowIndex === 0 ? "near_miss_topic" : null,
+  })),
+).flat();
+const roundPrivate: DiagramEvalRow[] = [{
+  ...rows[0]!,
+  id: "real|q1",
+  topic_id: "physics|eval|real-student",
+  kind: "homework",
+  ask_style: "topic_ask",
+}];
+const roundSample = sampleDiagramRoundRows(roundSource, roundPrivate, {
+  publicCount: 15,
+  seed: 20261009,
+});
+assert.equal(roundSample.rows.length, 16);
+assert.equal(roundSample.publicRows.length, 15);
+assert.deepEqual(
+  roundSample.manifest.ids,
+  sampleDiagramRoundRows(roundSource, roundPrivate, { publicCount: 15, seed: 20261009 }).manifest.ids,
+  "the 300-row manifest must be reproducible from its fixed seed",
+);
+for (const chapter of ["1", "2", "3"]) {
+  const selected = roundSample.publicRows.filter((row) => row.topic_id.split("|")[1] === chapter);
+  assert.equal(selected.length, 5);
+  assert.ok(selected.some((row) => row.ask_style === "exam_stem"));
+  assert.ok(selected.some((row) => row.ask_style !== "exam_stem"));
+}
+assert.equal(roundSample.publicRows.filter((row) => row.trap !== null).length, 2);
+assert.equal(roundSample.rows.filter((row) => row.id === "real|q1").length, 1);
 assert.ok(estimateEvaluationCostUsd(20, "planner_first") > estimateEvaluationCostUsd(20, "current"));
-assert.equal(estimateEvaluationCostUsd(20, "current"), 2.25, "preflight must use Kimi K3 rates");
-assert.equal(estimateEvaluationCostUsd(20, "planner_first"), 3.75, "planner-first preflight must use Kimi K3 rates");
+assert.equal(estimateEvaluationCostUsd(20, "current"), 0.768, "preflight uses measured current-arm tokens at Kimi K3 rates");
+assert.equal(estimateEvaluationCostUsd(20, "planner_first"), 0.783, "preflight uses measured planner-first tokens at Kimi K3 rates");
 assert.equal(
   estimateEvaluationCostUsd(20, "planner_examples"),
-  3.777192,
-  "planner-examples preflight includes the bounded DeepSeek picker call",
+  1.317192,
+  "planner-examples preflight includes measured Kimi tokens and the bounded DeepSeek picker call",
+);
+assert.equal(
+  estimateEvaluationCostUsd(300, "current") +
+    estimateEvaluationCostUsd(300, "planner_first") +
+    estimateEvaluationCostUsd(300, "planner_examples"),
+  43.02288,
+  "the approved 300-row three-arm round stays below the US$55 stop threshold",
 );
 assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
 assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");

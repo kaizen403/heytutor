@@ -77,9 +77,9 @@ interface RetrievalCheckOptions {
 }
 
 const EVAL_SOURCES = [
-  { ref: "eval/diagram-eval-v1-physics-maths", file: "data/diagram-eval/v1/physics.jsonl" },
-  { ref: "eval/diagram-eval-v1-maths", file: "data/diagram-eval/v1/maths.jsonl" },
-  { ref: "eval/diagram-eval-v1-chemistry", file: "data/diagram-eval/v1/chemistry.jsonl" },
+  { ref: "origin/eval/diagram-eval-v1-physics-maths", file: "data/diagram-eval/v1/physics.jsonl" },
+  { ref: "origin/eval/diagram-eval-v1-maths", file: "data/diagram-eval/v1/maths.jsonl" },
+  { ref: "origin/eval/diagram-eval-v1-chemistry", file: "data/diagram-eval/v1/chemistry.jsonl" },
 ] as const;
 
 function stableRank(seed: number, id: string): string {
@@ -421,6 +421,7 @@ export async function runRetrievalCheck(repoRoot: string, options: RetrievalChec
   const pickerCalls = rows.flatMap((row) => row.picker ? [row.picker] : []);
   const pickerCostUsd = pickerCalls.reduce((sum, call) => sum + call.estimatedCostUsd, 0);
   const pickerNone = rows.filter((row) => row.pickerNone).length;
+  const validPickerResponses = pickerCalls.filter((call) => call.method === "model").length;
   const report = {
     schemaVersion: "diagram-example-retrieval-check/v1",
     beforeRef: options.beforeRef,
@@ -446,7 +447,10 @@ export async function runRetrievalCheck(repoRoot: string, options: RetrievalChec
     } : null,
     pickerUsage: options.picker ? {
       calls: pickerCalls.length,
-      usageKnownCalls: pickerCalls.filter((call) => call.usageKnown).length,
+      providerRequests: pickerCalls.reduce((sum, call) => sum + call.attempts, 0),
+      validResponses: validPickerResponses,
+      validResponseRate: pickerCalls.length > 0 ? validPickerResponses / pickerCalls.length : 0,
+      usageKnownCalls: pickerCalls.reduce((sum, call) => sum + call.usageKnownCalls, 0),
       fallbackCalls: pickerCalls.filter((call) => call.method === "word_fallback").length,
       inputTokens: pickerCalls.reduce((sum, call) => sum + call.inputTokens, 0),
       outputTokens: pickerCalls.reduce((sum, call) => sum + call.outputTokens, 0),

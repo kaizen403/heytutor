@@ -250,14 +250,17 @@ export function sampleDiagramEvalRows(
 }
 
 /**
- * Preflight estimate, not a billing promise: current assumes three planner
- * calls per row, planner-first five, at representative prompt/output sizes.
- * The run record stores measured provider usage once the calls finish.
+ * Preflight estimate, not a billing promise. Per-row token profiles are rounded
+ * up from the completed r3 arms; the run record stores measured provider usage.
  */
 export function estimateEvaluationCostUsd(rowCount: number, arm: DiagramEvalArm): number {
-  const calls = rowCount * (arm === "current" ? 3 : 5);
+  const profile = arm === "current"
+    ? { input: 5_300, output: 1_500 }
+    : arm === "planner_first"
+      ? { input: 5_800, output: 1_450 }
+      : { input: 11_500, output: 2_000 };
   const planner = calculateLlmCostDetails(
-    { input: calls * 3_500, output: calls * 1_800 },
+    { input: rowCount * profile.input, output: rowCount * profile.output },
     { model: "accounts/fireworks/models/kimi-k3" },
   ).total ?? 0;
   const picker = arm === "planner_examples"
