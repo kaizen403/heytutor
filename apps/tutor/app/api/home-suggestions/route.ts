@@ -21,13 +21,12 @@ import {
 } from "@/lib/billing/paidUsage";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import {
   parseProviderUsage,
   usageDetailsFromParsed,
 } from "@/lib/obs/providerUsage";
 
-const FIREWORKS_CHAT_URL =
-  "https://api.fireworks.ai/inference/v1/chat/completions";
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, {
@@ -145,7 +144,8 @@ export async function POST(request: Request): Promise<Response> {
   )
     return json({ suggestions: fallback, generated: false });
 
-  const apiKey = process.env.FIREWORKS_API_KEY?.trim();
+  const llm = resolveLlmEndpoint();
+  const apiKey = llm.apiKey;
   if (!apiKey) return json({ suggestions: fallback, generated: false });
 
   const day = now.toISOString().slice(0, 10);
@@ -184,10 +184,19 @@ export async function POST(request: Request): Promise<Response> {
       ),
     },
   ];
+  const body = providerChatBody({
+    model,
+    max_tokens: 2_800,
+    temperature: 0.8,
+    reasoning_effort: "low",
+    stream: false,
+    n: 1,
+    messages,
+  }, llm);
   const reservation = await reservePaidUsage({
     actor,
     kind: "suggestions",
-    usd: maximumLlmCost(messages, 2800, [model]),
+    usd: maximumLlmCost(messages, completionTokenCap(body), [model]),
   });
   if (reservation instanceof Response)
     return json({ suggestions: fallback, generated: false });
@@ -196,22 +205,14 @@ export async function POST(request: Request): Promise<Response> {
     return json({ suggestions: fallback, generated: false });
   }
   try {
-    const response = await fetch(FIREWORKS_CHAT_URL, {
+    const response = await fetch(llm.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(8_000)]),
-      body: JSON.stringify({
-        model,
-        max_tokens: 2_800,
-        temperature: 0.8,
-        reasoning_effort: "low",
-        stream: false,
-        n: 1,
-        messages,
-      }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       await response.body?.cancel();
