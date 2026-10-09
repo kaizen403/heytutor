@@ -1,7 +1,12 @@
 import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
+import type { FigureSource } from "@heytutor/scene-engine";
 
-export type DiagramEvalArm = "current" | "planner_first" | "planner_examples";
+export type DiagramEvalArm =
+  | "current"
+  | "planner_first"
+  | "planner_examples"
+  | "planner_examples_strict";
 export type DiagramEmptyCause =
   | "not_needed"
   | "not_attempted"
@@ -279,6 +284,23 @@ export function evaluationRunFastMode(isEvaluation: boolean): false | undefined 
 
 export function evaluationSelectionOrder(arm: DiagramEvalArm): "current" | "planner_first" {
   return arm === "current" ? "current" : "planner_first";
+}
+
+export function evaluationUsesExamples(arm: DiagramEvalArm): boolean {
+  return arm === "planner_examples" || arm === "planner_examples_strict";
+}
+
+/** Evaluation-only exception: production chemistry continues to skip the LLM scene planner. */
+export function evaluationPlansChemistry(arm: DiagramEvalArm): boolean {
+  return arm === "planner_examples_strict";
+}
+
+/** The strict arm keeps only the engine's deterministic chemistry fallback. */
+export function evaluationAllowsFallback(
+  arm: DiagramEvalArm,
+  figureSource: FigureSource,
+): boolean {
+  return arm !== "planner_examples_strict" || figureSource === "chemistry_family";
 }
 
 export function assertEvaluationCostAllowed(estimatedUsd: number, confirmed: boolean): void {

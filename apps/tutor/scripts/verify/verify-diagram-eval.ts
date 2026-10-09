@@ -10,8 +10,11 @@ import {
   assertEvaluationCostAllowed,
   classifyDiagramEmptyCause,
   combineDiagramEvalRows,
+  evaluationAllowsFallback,
+  evaluationPlansChemistry,
   evaluationRunFastMode,
   evaluationSelectionOrder,
+  evaluationUsesExamples,
   estimateEvaluationCostUsd,
   formatDiagramFailureCounts,
   assertRoundPlannerStarted,
@@ -170,6 +173,14 @@ assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requ
 assert.equal(evaluationSelectionOrder("current"), "current");
 assert.equal(evaluationSelectionOrder("planner_first"), "planner_first");
 assert.equal(evaluationSelectionOrder("planner_examples"), "planner_first");
+assert.equal(evaluationSelectionOrder("planner_examples_strict"), "planner_first");
+assert(evaluationUsesExamples("planner_examples_strict"));
+assert(evaluationPlansChemistry("planner_examples_strict"));
+assert(!evaluationPlansChemistry("planner_examples"));
+assert(evaluationAllowsFallback("planner_examples_strict", "chemistry_family"));
+assert(!evaluationAllowsFallback("planner_examples_strict", "family"));
+assert(!evaluationAllowsFallback("planner_examples_strict", "source_grounded"));
+assert(evaluationAllowsFallback("current", "family"));
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
 assert.throws(
   () => assertEvaluationCostAllowed(5.01, false),
