@@ -51,6 +51,9 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   fastMode?: boolean;
   /** Evaluation diagnostics for every HTTP attempt, including null candidates. */
   onRequestOutcome?: (outcome: ScenePlannerRequestOutcome) => void;
+  /** Optional private diagnostics, including responses from discarded speculative searches. */
+  onResponse?: (response: ScenePlannerResponse) => void;
+  onCandidateValidation?: (response: ScenePlannerResponse, validation: SceneCandidateValidation) => void;
 }
 
 export interface ScenePlannerRequestOutcome {
@@ -403,6 +406,7 @@ export async function planSceneDocumentWithRepair<T>(
   };
   const evaluate = async (candidate: ScenePlannerResponse) => {
     const candidateValidation = await validate(candidate.document);
+    notifySceneObserver(() => plannerOptions.onCandidateValidation?.(candidate, candidateValidation));
     tutorDebug("planner", "semantic scene candidate validation", {
       phase: candidate.phase,
       valid: candidateValidation.valid,
@@ -560,11 +564,13 @@ export async function planSceneDocumentWithRepair<T>(
 export async function revalidateScenePlanWithRepairResult<T>(
   result: ScenePlanWithRepairResult<T>,
   validate: SceneCandidateValidator<T>,
+  observe?: ScenePlannerOptions["onCandidateValidation"],
 ): Promise<ScenePlanWithRepairResult<T>> {
-  const candidates = await Promise.all(result.candidates.map(async (candidate) => ({
-    ...candidate,
-    validation: await validate(candidate.response.document),
-  })));
+  const candidates = await Promise.all(result.candidates.map(async (candidate) => {
+    const validation = await validate(candidate.response.document);
+    notifySceneObserver(() => observe?.(candidate.response, validation));
+    return { ...candidate, validation };
+  }));
   const selected = [...candidates].sort((first, second) =>
     compareValidations(first.validation, second.validation))[0]!;
   return {
@@ -720,7 +726,7 @@ async function requestSceneDocument(
     });
     reportOutcome(null, true);
 
-    return {
+    const plannedResponse: ScenePlannerResponse = {
       document,
       rawContent: content,
       phase,
@@ -728,6 +734,8 @@ async function requestSceneDocument(
       elapsedMs,
       traceId: response.headers.get("x-heytutor-trace-id") ?? undefined,
     };
+    notifySceneObserver(() => options.onResponse?.(plannedResponse));
+    return plannedResponse;
   } catch (error) {
     const isAbort = error instanceof DOMException && error.name === "AbortError";
     tutorDebug("planner", `semantic scene ${phase} failed`, {
@@ -742,6 +750,10 @@ async function requestSceneDocument(
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function notifySceneObserver(observer: () => void): void {
+  try { observer(); } catch { /* Diagnostics must never change planning behavior. */ }
 }
 
 /** Parse only the JSON envelope; scene-engine owns all semantic validation. */

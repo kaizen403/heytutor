@@ -82,6 +82,7 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
 import { sceneDeclineExperimentGuidance, type SceneDeclinePolicy } from "./sceneDeclineExperiment";
+import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, type PlannerEvidence } from "./plannerEvidence";
 import {
   classifyDiagramEmptyCause,
   evaluationDecision,
@@ -173,7 +174,7 @@ export interface LectureRun {
   } | null;
   planner?: PlannerUsageSummary;
   examplePicker?: LectureExamplePickerRecord;
-  diagram: {
+  diagram: PlannerEvidence & {
     committed: boolean;
     /**
      * A representation was built and then refused for carrying no readable
@@ -376,6 +377,7 @@ export async function runLecture(
       modelCalls: [],
     },
     diagram: {
+      ...createPlannerEvidence(),
       committed: false,
       declinedUnreadable: false,
       emptyCause: null,
@@ -757,12 +759,15 @@ export async function runLecture(
             fastMode,
             traceId,
             onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
+            onResponse: (response) => recordPlannerResponse(run.diagram, response),
+            onCandidateValidation: (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "initial"),
             ...gate.request,
           },
         ).catch(() => null),
       revalidate: (sceneResult, authoritativeTurnPlan) =>
         revalidateScenePlanWithRepairResult(sceneResult, (candidate) =>
           validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+          (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "authority_revalidation"),
         ),
     });
     turnPlan = planning.turnPlan;
@@ -770,6 +775,10 @@ export async function runLecture(
     const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
     const fastRepresentation = planning.fast;
     const result = planning.scene;
+    // The singular field belongs to the selected candidate, never to a fallback diagnostic.
+    const selectedEvidence = createPlannerEvidence();
+    if (result) recordPlannerResponse(selectedEvidence, result.response);
+    run.diagram.plannerDeclineReason = selectedEvidence.plannerDeclineReason;
     run.diagram.plannerResponses = result?.candidates.map((candidate) => ({
       phase: candidate.response.phase, lane: candidate.response.lane,
       selected: candidate.selected, rawContent: candidate.response.rawContent,

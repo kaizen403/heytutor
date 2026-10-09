@@ -18,7 +18,7 @@
     "postinstall": "prisma generate",
     "verify:mobile": "tsx scripts/verify/verify-mobile-session.ts && tsx scripts/verify/verify-mobile-controls.ts",
     "preverify": "pnpm verify:diagram-experiments && tsx scripts/verify/verify-figure-source.ts && tsx scripts/verify/verify-diagram-strategy.ts && tsx scripts/verify/verify-live-diagram-picker.ts && tsx scripts/verify/verify-diagram-anchors.ts && tsx scripts/verify/verify-topic-coverage-sample.ts && tsx scripts/verify/verify-topic-coverage-report.ts && tsx scripts/verify/verify-figure-relevance-check.ts && tsx scripts/verify/verify-diagram-eval.ts",
-    "verify:diagram-experiments": "tsx scripts/verify/verify-physics-hybrid.ts && tsx scripts/verify/verify-scene-decline-experiment.ts",
+    "verify:diagram-experiments": "tsx scripts/verify/verify-physics-hybrid.ts && tsx scripts/verify/verify-scene-decline-experiment.ts && tsx scripts/verify/verify-planner-evidence.ts",
     "verify:diagram-client-bundle": "tsx scripts/verify/verify-diagram-client-bundle.ts",
     "verify:lab-rasterization": "node scripts/verify/verify-lab-rasterization.mjs",
     "diagram:anchor-gallery": "tsx scripts/lecture-lab/anchor-gallery.ts",
