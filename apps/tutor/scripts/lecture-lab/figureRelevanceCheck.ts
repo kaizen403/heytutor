@@ -297,13 +297,18 @@ export function collectRoundFigureCases(
   return output;
 }
 
-export function collectAnchorFigureCases(anchorPath: string, projectDir: string): FigureCheckCase[] {
+/** Anchor paths were authored relative to the repository's .context gallery. */
+export function resolveAnchorFigurePath(figurePath: string, repoRoot: string): string {
+  return resolve(repoRoot, ".context", figurePath);
+}
+
+export function collectAnchorFigureCases(anchorPath: string, repoRoot: string): FigureCheckCase[] {
   return parseDiagramAnchors(readFileSync(anchorPath, "utf8")).map((anchor) => ({
     id: `codex-reference-anchors::${anchor.id}`,
     source: "codex-reference-anchors",
     subject: anchor.subject,
     question: anchor.question,
-    imagePath: resolve(projectDir, anchor.figurePath),
+    imagePath: resolveAnchorFigurePath(anchor.figurePath, repoRoot),
     referenceVerdict: anchor.verdict,
   }));
 }
@@ -444,7 +449,7 @@ async function main(): Promise<void> {
   const models = resolveFireworksVisionModels();
   const inputs = scheduleFigureCheckCases([
     ...options.rounds.flatMap((round) => collectRoundFigureCases(resolve(round.path), round.source)),
-    ...(options.anchors ? collectAnchorFigureCases(resolve(options.anchors), process.cwd()) : []),
+    ...(options.anchors ? collectAnchorFigureCases(resolve(options.anchors), resolve(process.cwd(), "../..")) : []),
   ]);
   for (const input of inputs) {
     if (!existsSync(input.imagePath)) throw new Error(`missing image: ${input.imagePath}`);

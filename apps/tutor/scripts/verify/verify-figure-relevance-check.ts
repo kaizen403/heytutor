@@ -3,9 +3,12 @@ import {
   buildFigureCheckSummary,
   parseFigureCheckAnswer,
   scheduleFigureCheckCases,
+  resolveAnchorFigurePath,
   VisionSpendCap,
   type FigureCheckResult,
 } from "../lecture-lab/figureRelevanceCheck";
+assert.equal(resolveAnchorFigurePath("../data/diagram-eval/v1/anchor-images/card.png", "/repo"), "/repo/data/diagram-eval/v1/anchor-images/card.png");
+assert.equal(resolveAnchorFigurePath("/private/card.png", "/repo"), "/private/card.png");
 
 assert.deepEqual(parseFigureCheckAnswer('{"answer":"yes","reason":"It shows the requested circuit."}'), {
   answer: "yes",
