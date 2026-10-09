@@ -25,8 +25,7 @@ A new kind of file with no row in "Where new files go" gets its row first.
   `code-lesson/v1`) to drop the version.
 - Do not add a sibling at the `features/tutor-session/lib/` root. New helpers
   go in `scene/`, `board/`, `turn/`, `notes/`, `input/`, `replay/`, or
-  `code-lesson/`. `statusConfig.ts` and `sessionCapabilities.ts` are the only
-  files at that root.
+  `code-lesson/`. `sessionCapabilities.ts` is the only file at that root.
 
 ## Later, only if a second consumer appears
 
