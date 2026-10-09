@@ -30,6 +30,12 @@ teaching, and picker request reserves its full cost ceiling before dispatch,
 including concurrent calls and Azure reasoning headroom. Measured usage releases
 the unused reservation; unknown usage consumes it. Budget-interrupted rows are
 untested, not empty-figure verdicts; their incurred cost remains in the ledger.
+Resume into the same output folder with `--resume`, the full original sample,
+and a total `--max-usd` (not a fresh allowance). Saved rows are skipped only for
+execution, never for example leak filtering. The spend checkpoint carries
+settled costs plus interrupted reservations forward and rejects a changed arm,
+provider, scene limit or sample. For legacy interrupted runs without a checkpoint,
+use an explicitly justified `--resume-extra-usd` allowance for unrecovered calls.
 
 ```bash
 cd apps/tutor

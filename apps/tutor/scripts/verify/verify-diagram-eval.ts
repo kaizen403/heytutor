@@ -74,6 +74,7 @@ import {
   LabSpendCap,
   parseOptions as parseLectureLabOptions,
   runBudgetedLabRows,
+  selectResumeProbes,
 } from "../lecture-lab/run";
 
 const strictStandardOptions = parseLectureLabOptions([
@@ -87,6 +88,16 @@ assert.equal(strictStandardOptions.arm, "planner_examples_strict");
 assert.equal(strictStandardOptions.model, "standard");
 assert.equal(strictStandardOptions.scenePlannerLimitMs, 120_000);
 assert.equal(strictStandardOptions.maxUsd, 20);
+const resumeOptions = parseLectureLabOptions(["--eval", "sample.jsonl", "--resume", "--resume-extra-usd", "2.720665", "--max-usd", "65"]);
+assert.equal(resumeOptions.resume, true);
+assert.equal(resumeOptions.resumeExtraUsd, 2.720665);
+assert.throws(() => parseLectureLabOptions(["--resume-extra-usd", "1", "--max-usd", "65"]), /requires --resume/);
+const resumeProbes = [{ id: "a", question: "A" }, { id: "b", question: "B" }];
+const resumeProvider = { provider: "azure", deployment: "gpt-6-1-sol" };
+assert.deepEqual(selectResumeProbes(resumeProbes, [{ probeId: "a", question: "A", arm: "current", providerConfig: resumeProvider }], "current", resumeProvider), [resumeProbes[1]]);
+assert.deepEqual(selectResumeProbes(resumeProbes, [{ probeId: "a", question: "normalized A", evaluation: { question: "A" }, arm: "current", providerConfig: resumeProvider }], "current", resumeProvider), [resumeProbes[1]]);
+assert.throws(() => selectResumeProbes(resumeProbes, [{ probeId: "a", question: "changed", arm: "current", providerConfig: resumeProvider }], "current", resumeProvider), /incompatible saved row/);
+assert.throws(() => selectResumeProbes(resumeProbes, [{ probeId: "a", question: "A", arm: "planner_examples_strict", providerConfig: resumeProvider }], "current", resumeProvider), /incompatible saved row/);
 assert.throws(() => parseLectureLabOptions([]), /--max-usd/);
 assert.throws(
   () => parseLectureLabOptions(["--max-usd", "0"]),
@@ -996,6 +1007,7 @@ void (async () => {
   assert.deepEqual(spendCap.summary(rowsDone, 3), {
     maxUsd: 0.01,
     chargedUsd: 0.02,
+    reservedUsd: 0,
     stoppedForBudget: true,
     rowsDone: 1,
     rowsPlanned: 3,
