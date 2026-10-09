@@ -20,6 +20,7 @@ import type {
 } from "@heytutor/scene-engine";
 import {
   describeSceneFamily,
+  directedCurveInk,
   obstaclesFromPrimitives,
   placeLabels,
   workColumnObstacle,
@@ -1344,8 +1345,11 @@ function primitiveCommands(
     }
     case "ray":
     case "vector": {
-      const start = points[0]; const end = points.at(-1);
-      if (start && end) commands.push({ type: "ARROW", params: [start.x, start.y, end.x, end.y], ...dsaStyle });
+      // A two point vector is one ARROW, as before. A directed curve keeps
+      // every vertex and puts the head on its last segment.
+      const ink = directedCurveInk(points);
+      if (ink.stroke.length > 2) commands.push({ type: "DRAW_LINE", params: flatten(ink.stroke), ...dsaStyle });
+      if (ink.arrow) commands.push({ type: "ARROW", params: [ink.arrow[0].x, ink.arrow[0].y, ink.arrow[1].x, ink.arrow[1].y], ...dsaStyle });
       break;
     }
     case "circle": {
@@ -1618,7 +1622,7 @@ function orderedRevealGroupIds(scene: RenderScene): string[] {
 }
 
 
-function flatten(points: Array<{ x: number; y: number }>): number[] {
+function flatten(points: readonly { x: number; y: number }[]): number[] {
   return points.flatMap((point) => [point.x, point.y]);
 }
 
