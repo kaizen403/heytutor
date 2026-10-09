@@ -113,8 +113,6 @@ records picker method, status, latency, critical-path time, tokens, actual cost,
 fallback reason, and selected ids. Literal point coordinates and engine-only
 metadata are still stripped from the examples sent to the scene planner.
 
-## Judging a round
-
 Live subject opt-in: `DIAGRAM_STRICT_SUBJECTS=maths` (empty by default) applies
 strict planner/examples selection only to ordinary maths lessons. The server
 returns the allowed subjects with the begin-turn grant; the existing TurnPlanV3
@@ -125,6 +123,17 @@ keyword-to-figure router is added. Chemistry, code/DSA and doubts/resumes retain
 their exemptions. The older percentage/actor allowlist is independent and still
 assigns global strict when explicitly enabled. Leave all flags off in production.
 
+Part 15 decline experiment (lab only): `--scene-decline-policy
+qualitative_setup_v1` clarifies faithful nonmetric concept setups, without
+relaxing operator/source/proof gates. Keep `--model configured`, the production
+`--scene-planner-limit-ms 60000`, and a hard `--max-usd` cap. Subsample rounds
+can preserve their original full-sample leak guard with `--example-exclusions
+<full-sample.jsonl>`; resume rejects changed experiment or exclusions. Private
+run artifacts retain raw candidate responses separately from deterministic
+fallback diagnostics. `physicsHybrid.ts <output.json>` computes the read-only
+counterfactual over previously judged Part 11/12/14 artifacts, with no API calls.
+
+## Judging a round
 
 Run `judge-prep.ts <round>` to decide no-figure rows by rule, crop the diagram
 zone to roughly 700 px, and split drawn figures into `judge-batches/` files of
