@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   buildFigureCheckSummary,
   parseFigureCheckAnswer,
+  scheduleFigureCheckCases,
   VisionSpendCap,
   type FigureCheckResult,
 } from "../lecture-lab/figureRelevanceCheck";
@@ -22,6 +23,15 @@ assert.throws(
   () => parseFigureCheckAnswer('{"answer":"no","reason":"one two three four five six seven eight nine ten eleven twelve thirteen"}'),
   /12 words/,
 );
+const ordered = scheduleFigureCheckCases([
+  { id: "a1", source: "a", subject: "physics" },
+  { id: "a2", source: "a", subject: "physics" },
+  { id: "b1", source: "b", subject: "physics" },
+  { id: "m1", source: "a", subject: "maths" },
+  { id: "anchor", source: "codex-reference-anchors", subject: "physics" },
+]);
+assert.deepEqual(ordered.map((row) => row.id), ["anchor", "a1", "b1", "m1", "a2"],
+  "check anchors first, then interleave source/subject groups so a cap cannot consume only the first arm");
 
 const cap = new VisionSpendCap(0.03);
 assert.equal(cap.tryReserve(0.02), true);

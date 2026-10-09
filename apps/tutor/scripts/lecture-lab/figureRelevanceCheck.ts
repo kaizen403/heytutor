@@ -30,6 +30,28 @@ export interface FigureCheckCase {
   referenceVerdict: ReferenceVerdict;
 }
 
+/** Deterministic budget order: reference anchors, then balanced source/subject groups. */
+export function scheduleFigureCheckCases<T extends { source: string; subject: string }>(cases: readonly T[]): T[] {
+  const anchors = cases.filter((row) => row.source === "codex-reference-anchors");
+  const groups = new Map<string, T[]>();
+  for (const row of cases) {
+    if (row.source === "codex-reference-anchors") continue;
+    const key = `${row.source}|${row.subject}`;
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  const rest: T[] = [];
+  const queues = [...groups.values()];
+  for (let index = 0; queues.some((group) => index < group.length); index += 1) {
+    for (const group of queues) {
+      const row = group[index];
+      if (row) rest.push(row);
+    }
+  }
+  return [...anchors, ...rest];
+}
+
 export interface FigureCheckResult extends FigureCheckCase {
   answer: FigureAnswer;
   reason: string;
@@ -420,10 +442,10 @@ async function main(): Promise<void> {
     throw new Error("figure checks require a fully configured Azure provider; Fireworks calls are disabled");
   }
   const models = resolveFireworksVisionModels();
-  const inputs = [
+  const inputs = scheduleFigureCheckCases([
     ...options.rounds.flatMap((round) => collectRoundFigureCases(resolve(round.path), round.source)),
     ...(options.anchors ? collectAnchorFigureCases(resolve(options.anchors), process.cwd()) : []),
-  ];
+  ]);
   for (const input of inputs) {
     if (!existsSync(input.imagePath)) throw new Error(`missing image: ${input.imagePath}`);
   }
