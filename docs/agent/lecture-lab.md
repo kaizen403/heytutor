@@ -25,9 +25,11 @@ function the board uses, so "the marker never moved" is a fact and not a guess.
 ## Commands
 
 The dev server must be up (`pnpm dev:tutor`); the lab talks to it exactly as the
-browser does, cookie included. Every paid run requires `--max-usd`; provider
-usage is accumulated as calls finish, unknown usage is charged at the request
-ceiling, and no new row starts after the cap is reached.
+browser does, cookie included. Every paid run requires `--max-usd`. Each planner,
+teaching, and picker request reserves its full cost ceiling before dispatch,
+including concurrent calls and Azure reasoning headroom. Measured usage releases
+the unused reservation; unknown usage consumes it. Budget-interrupted rows are
+untested, not empty-figure verdicts; their incurred cost remains in the ledger.
 
 ```bash
 cd apps/tutor

@@ -402,7 +402,7 @@ export class PlannerUsageTracker {
   private readonly pendingWorstCaseByTrace = new Map<string, number[]>();
   private readonly pendingResponsesByTrace = new Map<string, Promise<void>[]>();
 
-  constructor(private readonly onCost?: (usd: number) => void) {}
+  constructor(private readonly onCost?: (usd: number, reservedUsd: number) => void) {}
 
   recordRequest(traceId: string, worstCaseUsd = 0): void {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
@@ -413,7 +413,7 @@ export class PlannerUsageTracker {
     this.pendingWorstCaseByTrace.set(traceId, pending);
   }
 
-  async recordResponse(traceId: string, response: Response): Promise<void> {
+  async recordResponse(traceId: string, response: Response, reservedUsd?: number): Promise<void> {
     let usage: ReturnType<typeof parseProviderUsage> | null = null;
     try {
       const payload = await response.clone().json() as { usage?: unknown };
@@ -427,11 +427,12 @@ export class PlannerUsageTracker {
       response.ok,
       response.headers.get("x-heytutor-planner-model") ?? "unknown",
       usage,
+      reservedUsd,
     );
   }
 
   /** Observe a cloned SSE body without delaying the lesson consuming the original stream. */
-  recordStreamingResponse(traceId: string, response: Response): void {
+  recordStreamingResponse(traceId: string, response: Response, reservedUsd?: number): void {
     const operation = (async () => {
       let usage: ReturnType<typeof parseProviderUsage> | null = null;
       try {
@@ -451,6 +452,7 @@ export class PlannerUsageTracker {
         response.ok,
         response.headers.get("x-heytutor-model") ?? "unknown",
         usage,
+        reservedUsd,
       );
     })();
     const pending = this.pendingResponsesByTrace.get(traceId) ?? [];
@@ -470,9 +472,10 @@ export class PlannerUsageTracker {
     ok: boolean,
     model: string,
     usage: ReturnType<typeof parseProviderUsage> | null,
+    reservedUsd?: number,
   ): void {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
-    const worstCaseUsd = this.takePendingWorstCase(traceId);
+    const worstCaseUsd = this.takePendingWorstCase(traceId, reservedUsd);
     const call: PlannerModelCall = {
       model,
       status,
@@ -502,12 +505,13 @@ export class PlannerUsageTracker {
     summary.estimatedCostUsd += call.estimatedCostUsd;
     summary.modelCalls.push(call);
     this.byTrace.set(traceId, summary);
-    this.onCost?.(call.estimatedCostUsd);
+    this.onCost?.(call.estimatedCostUsd, worstCaseUsd);
   }
 
-  recordFailure(traceId: string, model = "unknown"): void {
+  recordFailure(traceId: string, model = "unknown", reservedUsd?: number): void {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
-    const estimatedCostUsd = Math.round(this.takePendingWorstCase(traceId) * 1_000_000) / 1_000_000;
+    const worstCaseUsd = this.takePendingWorstCase(traceId, reservedUsd);
+    const estimatedCostUsd = Math.round(worstCaseUsd * 1_000_000) / 1_000_000;
     summary.estimatedCostUsd += estimatedCostUsd;
     summary.modelCalls.push({
       model,
@@ -521,7 +525,7 @@ export class PlannerUsageTracker {
       estimatedCostUsd,
     });
     this.byTrace.set(traceId, summary);
-    this.onCost?.(estimatedCostUsd);
+    this.onCost?.(estimatedCostUsd, worstCaseUsd);
   }
 
   finish(traceId: string): PlannerUsageSummary {
@@ -540,7 +544,7 @@ export class PlannerUsageTracker {
         cachedInputTokens: 0,
         estimatedCostUsd,
       });
-      this.onCost?.(estimatedCostUsd);
+      this.onCost?.(estimatedCostUsd, worstCaseUsd);
     }
     this.byTrace.delete(traceId);
     this.pendingWorstCaseByTrace.delete(traceId);
@@ -552,9 +556,10 @@ export class PlannerUsageTracker {
     };
   }
 
-  private takePendingWorstCase(traceId: string): number {
+  private takePendingWorstCase(traceId: string, reservedUsd?: number): number {
     const pending = this.pendingWorstCaseByTrace.get(traceId);
-    const value = pending?.shift() ?? 0;
+    const index = reservedUsd === undefined ? 0 : pending?.indexOf(reservedUsd) ?? -1;
+    const value = index >= 0 ? pending?.splice(index, 1)[0] ?? 0 : 0;
     if (!pending || pending.length === 0) this.pendingWorstCaseByTrace.delete(traceId);
     return value;
   }
