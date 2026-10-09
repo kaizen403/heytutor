@@ -41,7 +41,7 @@ import {
   type DiagramEvalRow,
 } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
-import { currentJudgeSummary, readRoundJudgments } from "./judging";
+import { currentJudgeSummary, priorSubsetJudgeSummary, readRoundJudgments } from "./judging";
 import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
@@ -694,14 +694,14 @@ async function main(): Promise<void> {
   const budgetTerminatedRows: string[] = [];
   const writeSummary = () => {
     const judgingStatus = {
-      preservedJudgeSummary: Boolean(previousSummary.judge),
+      preservedJudgeSummary: Boolean(previousSummary.judge ?? previousSummary.priorSubsetJudgeSummary),
       reviewedRows: runs.filter((row) => reviewedIds.has(row.probeId)).length,
       unreviewedRows: runs.filter((row) => !reviewedIds.has(row.probeId)).length,
     };
     const summary = {
       ...previousSummary, options, providerConfig, executionConfig,
       judge: currentJudgeSummary({ judge: previousSummary.judge, judgingStatus }),
-      priorSubsetJudgeSummary: judgingStatus.unreviewedRows > 0 ? previousSummary.judge : undefined,
+      priorSubsetJudgeSummary: priorSubsetJudgeSummary(previousSummary, judgingStatus.unreviewedRows),
       evaluationConfig: evaluationRows ? { ...providerConfig, scenePlannerLimitMs: options.scenePlannerLimitMs } : null,
       preflightEstimateUsd,
       resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },

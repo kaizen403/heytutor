@@ -37,6 +37,10 @@ export function currentJudgeSummary<T extends { judge?: unknown; judgingStatus?:
     ? undefined : summary.judge;
 }
 
+export function priorSubsetJudgeSummary(summary: { judge?: unknown; priorSubsetJudgeSummary?: unknown }, unreviewedRows: number): unknown {
+  return unreviewedRows > 0 ? summary.judge ?? summary.priorSubsetJudgeSummary : undefined;
+}
+
 export function normalizeDiagramLabel(value: string): string {
   return value
     .normalize("NFKC")
