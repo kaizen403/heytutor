@@ -133,6 +133,8 @@ run artifacts retain raw candidate responses separately from deterministic
 fallback diagnostics. `physicsHybrid.ts <output.json>` computes the read-only
 counterfactual over previously judged Part 11/12/14 artifacts, with no API calls.
 
+## Planner evidence
+
 Every new run initializes `diagram.plannerDeclineReason` (selected candidate,
 or null), `plannerDeclines` (all parsed text-only responses, including discarded
 speculation), and `rejectedOperatorCalls` (all calls in every failed candidate,
