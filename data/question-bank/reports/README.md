@@ -3,7 +3,6 @@
 Reports are grouped without deleting history:
 
 - `coverage/` — corpus, syllabus, acquisition, validation, and import baselines
-- `ocr/` — NTA OCR one-off runs
 - `reviews/` — cursor-assist / codex sidecar reviews
 
 Validation and ingestion reports may be committed here when they document a

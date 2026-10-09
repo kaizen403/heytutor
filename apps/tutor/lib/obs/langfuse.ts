@@ -7,6 +7,7 @@ import {
   type LangfuseTraceClient,
 } from "langfuse";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import { resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import { scopedTraceId, scopedSessionId } from "./traceOwnership";
 import {
   calculateLlmCostDetails,
@@ -64,7 +65,7 @@ export function genTraceId(): string {
 
 function buildTraceTags(extra?: string[]): string[] {
   const env = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
-  return [`env:${env}`, ...(extra ?? [])];
+  return [`env:${env}`, `llm:${resolveLlmEndpoint().provider}`, ...(extra ?? [])];
 }
 
 export interface TurnTrace {

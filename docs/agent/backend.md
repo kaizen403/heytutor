@@ -89,7 +89,9 @@ Production and dev both use `tsx server.ts` (not `next start`):
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `DATABASE_URL` | Yes | Postgres connection string |
-| `FIREWORKS_API_KEY` | No | LLM — mock mode without it |
+| `LLM_PROVIDER` | No | `azure` sends every LLM lane to `AZURE_OPENAI_DEPLOYMENT`; `fireworks` or unset keeps Kimi K3. See [llm-provider.md](llm-provider.md) |
+| `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` / `AZURE_OPENAI_DEPLOYMENT` | With `azure` | Foundry resource endpoint, key, and deployment (`gpt-6-1-sol`). Any one missing: one error, then Fireworks |
+| `FIREWORKS_API_KEY` | No | LLM — mock mode without it (or without the Azure key on `azure`) |
 | `FIREWORKS_MODEL` | No | Planner model. Default: Kimi K3 |
 | `FIREWORKS_FAST_MODEL` | No | Planner Fast serving. Default: Kimi K3 Fast |
 | `FIREWORKS_PROBLEM_IR_MODEL` | No | Problem IR. Default: Kimi K3 Fast in both modes. Also overrides the cheap notes-chat model (default DeepSeek V4.1 Flash) |

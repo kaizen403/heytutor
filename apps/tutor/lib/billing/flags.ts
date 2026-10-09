@@ -1,6 +1,7 @@
 import { ttsConfig } from "../tts/providerConfig";
 import { timingSafeEqualText } from "@/lib/crypto/timingSafeEqualText";
 import { usesRazorpay } from "./razorpayConfig";
+import { resolveLlmEndpoint } from "../llm/llmProvider";
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 const FALSY = new Set(["0", "false", "no", "off"]);
@@ -28,8 +29,9 @@ export function isAutumnEnabled(
   return nodeEnv === "production";
 }
 
+/** No key for the provider that serves the LLM lanes (`LLM_PROVIDER`). */
 export function isProviderMockMode(env: NodeJS.ProcessEnv = process.env): boolean {
-  return !env.FIREWORKS_API_KEY?.trim();
+  return !resolveLlmEndpoint(env).apiKey;
 }
 
 export function isTtsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
