@@ -107,6 +107,9 @@ export function RunCostBox({
   const voiceHint = totals
     ? `${formatCharCount(totals.characters)} chars`
     : "—";
+  const azureRate = data?.pricing.llmProvider === "azure"
+    ? data.pricing.llm.find((row) => row.lane === "gpt-6.1-sol")
+    : undefined;
   const jevRate = data?.pricing.llm.find(
     (row) => row.lane === "jev",
   )?.inputUsdPer1M;
@@ -233,7 +236,9 @@ export function RunCostBox({
             ) : null}
 
             <p className="type-accent-xs leading-relaxed text-faint">
-              AI is Fireworks serverless
+              {azureRate
+                ? `AI is gpt-6.1-sol on Azure, ${formatUsd(azureRate.inputUsdPer1M)} in and ${formatUsd(azureRate.outputUsdPer1M)} out per 1M tokens`
+                : "AI is Fireworks serverless"}
               {jevRate != null
                 ? ` plus Jev at ${formatUsd(jevRate)} / 1M input tokens`
                 : ""}

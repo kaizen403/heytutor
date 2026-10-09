@@ -67,6 +67,7 @@ the canvas and still teach. Invalid or partial candidates never render.
 - [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist
 - [DSA lessons](docs/agent/dsa-lessons.md) — the LeetCode lane: simulators, what a frame may draw, lesson shape, and the gates
 - [Chemistry lessons](docs/agent/chemistry-lessons.md) — the chemistry lane: 13 figure families computed from the formula, the subject test, the board notation, and the gates
+- [LLM provider](docs/agent/llm-provider.md): `LLM_PROVIDER=azure` (gpt-6.1-sol on Foundry) or `fireworks` (Kimi K3); what the Azure model accepts and same-harness numbers
 - [Lecture lab](docs/agent/lecture-lab.md) — run whole lectures offline against the dev server, grade them, and diff rounds; the DSA lane replays a LeetCode turn and renders every board frame
 - [Wrong figures: causes and ranked fixes](docs/plans/figure-relevance-fixes.md) — 87 wrong figures traced to the probe cue and the family layer, with counts per fix
 - [Start — architecture map](start.md)
