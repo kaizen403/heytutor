@@ -84,18 +84,19 @@ const cue = (id: string, turnIndex: number, startMs: number, text: string): Repl
   segment,
 });
 
-type Executed = { label: string; trusted: boolean; applyLayout: boolean | undefined };
+type Executed = { label: string; trusted: boolean; applyLayout: boolean | undefined; durationScale: number | undefined };
 
 function recorder() {
   const executed: Executed[] = [];
   const executeCommand = async (
     command: DrawCommand,
-    options?: { trustedDiagramGeometry?: boolean; applyLayout?: boolean },
+    options?: { trustedDiagramGeometry?: boolean; applyLayout?: boolean; durationScale?: number },
   ) => {
     executed.push({
       label: command.semanticRef?.primitiveId ?? command.text ?? command.type,
       trusted: options?.trustedDiagramGeometry === true,
       applyLayout: options?.applyLayout,
+      durationScale: options?.durationScale,
     });
   };
   return { executed, executeCommand };
@@ -174,6 +175,10 @@ const nextTurn = cue("t1-a", 1, 200, "next turn");
     assert(order.filter((label) => label === "first" || label === "last" || label === "next turn").length === 3, "a cue drew more or less than once");
     assert(lastAt >= 0 && labelAt > lastAt && nextAt > labelAt, `withheld marks must land between turns, got ${order.join(" > ")}`);
     assert(order.filter((label) => label === "length_label").length === 1, "the withheld label drew more than once");
+    // The finished lecture's audio has no gap between turns: any animation
+    // here would push the next turn's ink behind its own voice.
+    const flushed = executed.filter((entry) => entry.trusted);
+    assert(flushed.length === 4 && flushed.every((entry) => entry.durationScale === 0), "forward playback must land withheld marks instantly on the audio clock");
   }
 
   console.log("verify-replay-diagram-completion: ok");

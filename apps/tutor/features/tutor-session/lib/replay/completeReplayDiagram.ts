@@ -74,6 +74,9 @@ export async function drawReplayDiagramTimeline(
       startCueIndex: 0,
       onCueStart: () => options.onCueStart?.(cue, index),
     });
+    // The finished lecture's voice is one stitched track with no gap between
+    // turns, so the marks land instantly: animating them would push the next
+    // turn's ink behind its own voice.
     await completeReplayDiagramTurn({
       cue,
       nextCue: cues[index + 1],
@@ -81,6 +84,7 @@ export async function drawReplayDiagramTimeline(
       diagram: options.getDiagram(),
       executeCommand: options.executeCommand,
       shouldCancel: options.shouldCancel,
+      durationScale: 0,
     });
   }
 }
