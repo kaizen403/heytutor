@@ -8,6 +8,7 @@ import { buildSceneDocumentPlannerPrompt, DEFAULT_SCENE_CONSTRUCTION_OPERATORS, 
 import { planSceneDocument, repairSceneDocument } from "../../src/planners/scenePlannerV2";
 
 const cases = [
+  {question:"Draw side-by-side skeletal structures of ethanol and methanol, then show the reaction to ethanal.",operators:["chem_skeletal_molecule"]},
   {question:"Draw the explicit permutation cycles and subset lattice of supplied finite items.",operators:["permutation_cycles","subset_lattice"]},
   {question:"Plot the explicit linear elastic stress strain law and mark the source strain state.",operators:["elastic_profile","elastic_state"]},
   {question:"Plot explicit changing magnetic flux and mark its flux and induced emf at a source time.",operators:["flux_process","induction_state"]},
@@ -111,6 +112,9 @@ const cases = [
     operators: ["cyclotron"],
   },
 ];
+
+const moleculeContract = selectConstructionInputContracts(["chem_skeletal_molecule"]);
+for (const term of ["molecules", "SMILES", "comparison", "reaction", "from", "to", "label", "repair"]) assert.ok(moleculeContract.includes(term), `molecule panel contract must preserve ${term}`);
 
 let contractChecks = 0;
 for (const testCase of cases) {

@@ -4,13 +4,16 @@ import type {
 } from "../types";
 import { parseFormula } from "./formula";
 import { buildLewisSceneForFormula, lewisStructure } from "./lewis";
-import { buildSkeletalMoleculeScene, moleculeFromName } from "./organic";
+import { moleculeFromName } from "./organic";
+import { buildMoleculePanelScene, type MoleculePanelArrow } from "./organic/panel";
 import { heavyAtomCount, parseSmiles } from "./organic/smiles";
+import { layoutMolecule } from "./organic/layout";
 import { buildReactionEnergyProfileScene } from "./thermoGraphs";
 import { buildVseprSceneForFormula, vseprGeometry } from "./vsepr";
 import { electronConfiguration } from "./electronConfiguration";
 import { buildOrbitalBoxScene, type OrbitalBoxSpeciesInput } from "./orbitalBox";
 import { elementByZ } from "./elements";
+import { arrangeChemistryKitDocuments } from "./kitLayout";
 
 export const CHEMISTRY_KIT_OPERATORS = [
   "chem_skeletal_molecule",
@@ -225,7 +228,7 @@ function lewisDocument(question: string, inputs: Record<string, unknown>): Scene
   const formula = formulaWithCharge(inputs.formula, inputs.charge);
   const resonance = optionalBoolean(inputs.resonance, "resonance") ?? false;
   const result = lewisStructure(formula);
-  const document = buildLewisSceneForFormula(question, formula, resonance);
+  const document = buildLewisSceneForFormula(question, formula, resonance, 1.5);
   if (!result || !document) throw new Error(`formula ${formula} cannot produce a verified Lewis structure`);
   const atomIds = document.entities.filter((entity) => / atom$/.test(entity.role)).map((entity) => entity.id);
   const bondIds = document.entities.filter((entity) => /^(?:single|double|triple) bond(?: stroke)?$/.test(entity.role)).map((entity) => entity.id);
@@ -254,7 +257,7 @@ function lewisDocument(question: string, inputs: Record<string, unknown>): Scene
 function vseprDocument(question: string, inputs: Record<string, unknown>): SceneDocument {
   const formula = formulaWithCharge(inputs.formula, inputs.charge);
   const result = vseprGeometry(formula);
-  const document = buildVseprSceneForFormula(question, formula);
+  const document = buildVseprSceneForFormula(question, formula, 1.4, 1.8);
   if (!result || !document) throw new Error(`formula ${formula} cannot produce a verified VSEPR shape`);
   const atomIds = document.entities.filter((entity) => /central atom$| ligand$/.test(entity.role)).map((entity) => entity.id);
   const lonePairIds = document.entities.filter((entity) => entity.role === "lone pair electron").map((entity) => entity.id);
@@ -276,21 +279,54 @@ function vseprDocument(question: string, inputs: Record<string, unknown>): Scene
 }
 
 function skeletalDocument(question: string, inputs: Record<string, unknown>): SceneDocument {
-  const name = optionalString(inputs.name, "name");
-  const smiles = optionalString(inputs.smiles, "smiles");
-  if ((name === undefined) === (smiles === undefined)) throw new Error("provide exactly one of name or smiles");
-  const molecule = name ? moleculeFromName(name) : parseSmiles(smiles!);
-  const document = buildSkeletalMoleculeScene(question, { name, smiles });
-  if (!molecule || !document) throw new Error(`${name ?? smiles} cannot produce a verified skeletal structure`);
+  const rawItems = inputs.molecules ?? [inputs];
+  if (!Array.isArray(rawItems) || rawItems.length === 0 || rawItems.length > 4) throw new Error("molecules must contain one to four molecules");
+  if (inputs.molecules !== undefined && (inputs.name !== undefined || inputs.smiles !== undefined)) throw new Error("use molecules or the legacy single name/smiles, not both");
+  const items = rawItems.map((item, index) => {
+    if (!isRecord(item)) throw new Error(`molecules[${index}] must be an object`);
+    const name = optionalString(item.name, "name");
+    const smiles = optionalString(item.smiles, "smiles");
+    if ((name === undefined) === (smiles === undefined)) throw new Error("provide exactly one of name or smiles per molecule; prefer smiles");
+    const molecule = smiles ? parseSmiles(smiles) : moleculeFromName(name!);
+    if (!molecule) throw new Error(name
+      ? `name ${name} cannot be resolved; send SMILES instead`
+      : "smiles must be a valid supported connected SMILES graph; check syntax and valence (isotopes and tetrahedral @ stereo are unsupported)");
+    if (heavyAtomCount(molecule) > 24) throw new Error(`molecules[${index}] exceeds 24 atoms`);
+    const label = optionalString(item.label, "label");
+    if (label && label.length > 48) throw new Error("molecule label must be at most 48 characters");
+    return { molecule, label };
+  });
+  const layout = inputs.layout ?? "comparison";
+  if (layout !== "comparison" && layout !== "reaction") throw new Error("layout must be comparison or reaction");
+  const rawArrows = inputs.arrows ?? [];
+  if (!Array.isArray(rawArrows) || rawArrows.length > 3) throw new Error("arrows must contain at most three reaction arrows");
+  if (layout === "comparison" && rawArrows.length) throw new Error("reaction arrows require layout reaction");
+  const arrows: MoleculePanelArrow[] = rawArrows.map((arrow) => {
+    if (!isRecord(arrow) || typeof arrow.from !== "number" || typeof arrow.to !== "number" || !Number.isInteger(arrow.from) || !Number.isInteger(arrow.to) || arrow.from === arrow.to || Math.min(arrow.from, arrow.to) < 0 || Math.max(arrow.from, arrow.to) >= items.length) throw new Error("each arrow needs distinct valid zero-based from/to molecule indices");
+    const label = optionalString(arrow.label, "arrow label");
+    if (label && label.length > 48) throw new Error("arrow label must be at most 48 characters");
+    return { from: arrow.from, to: arrow.to, label };
+  });
+  if (new Set(arrows.map((arrow) => [arrow.from, arrow.to].sort().join(":"))).size !== arrows.length) throw new Error("duplicate reaction arrow pair");
+  const document = buildMoleculePanelScene(question, items, arrows);
+  // Collapsed nitro/sulphonic/diazonium groups deliberately replace their
+  // internal bonds with a checked group label, not missing geometry.
+  const visibleBonds = items.flatMap(({ molecule }) => {
+    const laid = layoutMolecule(molecule)!;
+    return [...molecule.bonds.filter((bond) => !laid.hidden.has(bond.a) && !laid.hidden.has(bond.b)), ...laid.extraLabels];
+  });
   const bondIds = document.entities.filter((entity) => entity.role === "bond").map((entity) => entity.id);
-  addCountProof(document, "kit_bond_count", bondIds, molecule.bonds.length, "skeletal bond count");
+  addCountProof(document, "kit_bond_count", bondIds, visibleBonds.length, "skeletal visible bond count");
   document.source = {
     ...document.source,
     chemistryKitProof: {
-      atomCount: molecule.atoms.length,
-      heavyAtomCount: heavyAtomCount(molecule),
-      bondCount: molecule.bonds.length,
-      bondOrderSum: molecule.bonds.reduce((sum, bond) => sum + bond.order, 0),
+      layout,
+      molecules: items.map(({ molecule }) => ({
+        atomCount: molecule.atoms.length,
+        heavyAtomCount: heavyAtomCount(molecule),
+        bondCount: molecule.bonds.length,
+        bondOrderSum: molecule.bonds.reduce((sum, bond) => sum + bond.order, 0),
+      })),
     },
   };
   return document;
@@ -427,6 +463,7 @@ export function expandChemistryKitOperators(raw: unknown): ChemistryKitExpansion
   let requiredEntityIds = [...raw.requiredEntityIds];
   let revealGroups = [...raw.revealGroups];
   const usedOperators: string[] = [];
+  const generatedDocuments: SceneDocument[] = [];
 
   for (const candidate of kitConstructions) {
     const construction = candidate as Record<string, unknown>;
@@ -448,7 +485,9 @@ export function expandChemistryKitOperators(raw: unknown): ChemistryKitExpansion
       });
       if (externalReference) throw new Error(`output ${output} cannot be referenced outside its reveal and required lists`);
       if (!isRecord(construction.inputs)) throw new Error("inputs must be an object");
-      const generated = prefixDocument(buildKitDocument(operator, question, construction.inputs, quantities), output);
+      const kit = buildKitDocument(operator, question, construction.inputs, quantities);
+      const generated = prefixDocument(kit, output);
+      generatedDocuments.push(generated);
       entities = [
         ...entities.filter((entity) => !isRecord(entity) || entity.id !== output),
         ...generated.entities,
@@ -480,6 +519,11 @@ export function expandChemistryKitOperators(raw: unknown): ChemistryKitExpansion
     }
   }
   if (issues.length > 0) return { document: null, issues };
+  try {
+    arrangeChemistryKitDocuments(generatedDocuments);
+  } catch (error) {
+    return { document: null, issues: [{ code: "invalid_chemistry_kit_input", message: error instanceof Error ? error.message : String(error), severity: "fatal" }] };
+  }
 
   return {
     document: {

@@ -1,0 +1,17 @@
+{
+  "topic_id": "chemistry|17|preparation-of-aldehydes-and-ketones",
+  "question": "Show butan-1-ol converting to butanal with PCC, with the reagent above the arrow.",
+  "figure_kind": "molecule",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": { "mode": "scene", "reason": "explicit reactant and product SMILES in a reaction panel" },
+    "source": { "question": "Show butan-1-ol converting to butanal with PCC, with the reagent above the arrow.", "chemistryFamily": "chem_organic" },
+    "quantities": [],
+    "entities": [{ "id": "profile", "kind": "group", "role": "reaction panel" }],
+    "constructions": [{ "id": "draw_profile", "operator": "chem_skeletal_molecule", "inputs": { "molecules": [{ "smiles": "CCCCO", "label": "butan-1-ol" }, { "smiles": "CCCC=O", "label": "butanal" }], "layout": "reaction", "arrows": [{ "from": 0, "to": 1, "label": "PCC" }] }, "outputs": ["profile"] }],
+    "relations": [], "assertions": [], "annotations": [],
+    "requiredEntityIds": ["profile"],
+    "revealGroups": [{ "id": "energy", "entityIds": ["profile"], "dependsOn": [], "narrationCue": "show reactant, reagent and product" }],
+    "teachingTimeline": [{ "id": "reveal_energy", "action": "reveal", "targetId": "energy", "dependsOn": [], "narrationIntent": "show the oxidation" }]
+  }
+}

@@ -905,7 +905,7 @@ function atomsBox(form: LewisForm): Box {
   return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
 }
 
-function drawForm(c: ChemScene, form: LewisForm, prefix: string, offset: Vec2, under: string | null, cosmetics: Cosmetics): DrawnStructure {
+function drawForm(c: ChemScene, form: LewisForm, prefix: string, offset: Vec2, under: string | null, cosmetics: Cosmetics, chargeClearance = 1): DrawnStructure {
   const { px } = cosmetics;
   const ids: string[] = [];
   const positions = new Map<string, Vec2>();
@@ -963,7 +963,7 @@ function drawForm(c: ChemScene, form: LewisForm, prefix: string, offset: Vec2, u
     if (atom.formalCharge !== 0) {
       const angle = chargeDirection(atom, positions);
       const rad = (angle * Math.PI) / 180;
-      const reach = (atom.symbol.length > 1 ? 31 : 27) * px;
+      const reach = (atom.symbol.length > 1 ? 31 : 27) * px * chargeClearance;
       ids.push(c.text(`${prefix}fc_${atom.id}`, { x: at.x + Math.cos(rad) * reach, y: at.y + Math.sin(rad) * reach }, chargeText(atom.formalCharge), "formal charge"));
     }
   }
@@ -1049,6 +1049,7 @@ function buildLewisResultsScene(
   question: string,
   species: readonly LewisResult[],
   wantsResonance: boolean,
+  chargeClearance = 1,
 ): SceneDocument | null {
   if (species.length === 0 || species.length > 4) return null;
   const single = species[0]!;
@@ -1057,7 +1058,7 @@ function buildLewisResultsScene(
     const forms = single.resonanceForms.slice(0, 3);
     const { offsets, cosmetics } = rowLayout(forms, 70);
     forms.forEach((form, index) => {
-      const structure = drawForm(c, form, `f${index + 1}_`, offsets[index]!, index === Math.floor((forms.length - 1) / 2) ? "resonance" : null, cosmetics);
+      const structure = drawForm(c, form, `f${index + 1}_`, offsets[index]!, index === Math.floor((forms.length - 1) / 2) ? "resonance" : null, cosmetics, chargeClearance);
       c.scene.group(`form_${index + 1}`, structure.ids, `Resonance form ${index + 1} of ${single.resonanceCount}`);
     });
     c.scene.labelled(`f1_${single.atoms[0]!.id}`);
@@ -1070,7 +1071,7 @@ function buildLewisResultsScene(
   const c = new ChemScene(question, `Lewis structure${species.length > 1 ? "s" : ""} of ${species.map((item) => item.label).join(", ")}`, LEWIS_FAMILY);
   const { offsets, cosmetics } = rowLayout(species, 80);
   species.forEach((result, index) => {
-    const structure = drawForm(c, result, `s${index + 1}_`, offsets[index]!, result.label, cosmetics);
+    const structure = drawForm(c, result, `s${index + 1}_`, offsets[index]!, result.label, cosmetics, chargeClearance);
     c.scene.group(`species_${index + 1}`, structure.ids, `Lewis structure of ${result.label}: σ = ${result.sigmaBonds}, π = ${result.piBonds}, lone pairs = ${result.lonePairs}`);
   });
   c.scene.labelled(`s1_${single.atoms[0]!.id}`, "s1_name");
@@ -1085,9 +1086,10 @@ export function buildLewisSceneForFormula(
   question: string,
   formula: string,
   wantsResonance = false,
+  chargeClearance = 1,
 ): SceneDocument | null {
   const result = lewisStructure(formula);
-  return result ? buildLewisResultsScene(question, [result], wantsResonance) : null;
+  return result ? buildLewisResultsScene(question, [result], wantsResonance, chargeClearance) : null;
 }
 
 /**

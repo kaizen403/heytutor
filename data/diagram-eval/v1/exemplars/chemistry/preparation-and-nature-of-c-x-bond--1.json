@@ -1,0 +1,17 @@
+{
+  "topic_id": "chemistry|16|preparation-and-nature-of-c-x-bond",
+  "question": "Show 1-bromopropane converting to 1-iodopropane with NaI in dry acetone.",
+  "figure_kind": "molecule",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": { "mode": "scene", "reason": "explicit molecular graphs and a labelled reaction arrow" },
+    "source": { "question": "Show 1-bromopropane converting to 1-iodopropane with NaI in dry acetone.", "chemistryFamily": "chem_organic" },
+    "quantities": [],
+    "entities": [{ "id": "boxes", "kind": "group", "role": "reaction panel" }],
+    "constructions": [{ "id": "draw_boxes", "operator": "chem_skeletal_molecule", "inputs": { "molecules": [{ "smiles": "CCCBr", "label": "1-bromopropane" }, { "smiles": "CCCI", "label": "1-iodopropane" }], "layout": "reaction", "arrows": [{ "from": 0, "to": 1, "label": "NaI / dry acetone" }] }, "outputs": ["boxes"] }],
+    "relations": [], "assertions": [], "annotations": [],
+    "requiredEntityIds": ["boxes"],
+    "revealGroups": [{ "id": "configuration", "entityIds": ["boxes"], "dependsOn": [], "narrationCue": "show the substitution" }],
+    "teachingTimeline": [{ "id": "reveal_configuration", "action": "reveal", "targetId": "configuration", "dependsOn": [], "narrationIntent": "show the reaction" }]
+  }
+}

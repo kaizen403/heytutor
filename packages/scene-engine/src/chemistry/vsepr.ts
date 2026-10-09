@@ -741,9 +741,15 @@ function panel(c: ChemScene, id: string, center: Vec2, width: number, height: nu
   return rectId;
 }
 
-function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, withAngle: boolean): DrawnSpecies | null {
-  const layout = layoutFor(result);
-  if (!layout) return null;
+function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, withAngle: boolean, labelSpacing = 1, moleculeScale = 1): DrawnSpecies | null {
+  const baseLayout = layoutFor(result);
+  if (!baseLayout) return null;
+  const layout = {
+    ...baseLayout,
+    bonds: baseLayout.bonds.map((slot) => ({ ...slot, len: slot.len * moleculeScale })),
+    lonePairs: baseLayout.lonePairs.map((pair) => ({ ...pair, dist: pair.dist * moleculeScale })),
+    angleRadius: (baseLayout.angleRadius ?? 0.36) * moleculeScale,
+  };
   const seated = seatLigands(result, layout);
   if (!seated) return null;
   const orders = drawOrders(result);
@@ -792,12 +798,12 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
     minY = Math.min(minY, origin.y - radius);
     maxY = Math.max(maxY, origin.y + radius);
   }
-  const titleY = maxY + TITLE_GAP;
+  const titleY = maxY + TITLE_GAP * labelSpacing;
   const hybridY = minY - CAPTION_GAP;
-  const shapeY = hybridY - CAPTION_STEP;
-  const domainY = shapeY - CAPTION_STEP;
+  const shapeY = hybridY - CAPTION_STEP * labelSpacing;
+  const domainY = shapeY - CAPTION_STEP * labelSpacing;
   const claim = result.bondAngle ? angleClaim(result.bondAngle) : null;
-  const claimY = claim ? domainY - CAPTION_STEP : domainY;
+  const claimY = claim ? domainY - CAPTION_STEP * labelSpacing : domainY;
   const titleId = c.text(`${tag}_title`, { x: origin.x, y: titleY }, result.label, "species formula");
   frameIds.push(titleId);
   const hybridId = c.text(`${tag}_hyb`, { x: origin.x, y: hybridY }, result.hybridisationLabel, "hybridisation");
@@ -841,7 +847,7 @@ function angleClaim(bondAngle: string): "ideal" | "quoted" | "inequality" {
 
 const SPECIES_PITCH = 3.6;
 
-function buildVseprResultsScene(question: string, species: readonly VseprResult[]): SceneDocument | null {
+function buildVseprResultsScene(question: string, species: readonly VseprResult[], labelSpacing = 1, moleculeScale = 1): SceneDocument | null {
   if (species.length === 0 || species.length > 4) return null;
   const single = species.length === 1;
   const reason = single
@@ -851,7 +857,7 @@ function buildVseprResultsScene(question: string, species: readonly VseprResult[
   const drawn: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
   species.forEach((result, index) => {
     const origin = { x: index * SPECIES_PITCH, y: 0 };
-    const item = drawSpecies(c, result, origin, `m${index + 1}`, true);
+    const item = drawSpecies(c, result, origin, `m${index + 1}`, true, labelSpacing, moleculeScale);
     if (item) drawn.push({ result, drawn: item });
   });
   if (drawn.length === 0) return null;
@@ -871,9 +877,9 @@ function buildVseprResultsScene(question: string, species: readonly VseprResult[
 }
 
 /** Build the verified VSEPR picture for an explicit molecular formula or ion. */
-export function buildVseprSceneForFormula(question: string, formula: string): SceneDocument | null {
+export function buildVseprSceneForFormula(question: string, formula: string, labelSpacing = 1, moleculeScale = 1): SceneDocument | null {
   const result = vseprGeometry(formula);
-  return result ? buildVseprResultsScene(question, [result]) : null;
+  return result ? buildVseprResultsScene(question, [result], labelSpacing, moleculeScale) : null;
 }
 
 /**

@@ -182,7 +182,7 @@ const CHEMISTRY_GUIDANCE =
 const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   chem_coordination: CHEMISTRY_GUIDANCE,
   chem_cft: CHEMISTRY_GUIDANCE,
-  chem_organic: "Use chem_skeletal_molecule with one resolvable name or SMILES; otherwise text_only. Never supply geometry.",
+  chem_organic: "Use chem_skeletal_molecule panels (1..4 molecules), preferring SMILES. Comparison or reaction layout; optional from/to arrows and reagent/condition labels. Unknown names need SMILES repair. Never supply geometry.",
   chem_vsepr: "Use chem_vsepr_shape with formula and charge; otherwise text_only. Never supply geometry.",
   chem_lewis: "Use chem_lewis_structure with formula, charge and resonance; otherwise text_only. Never supply geometry.",
   chem_mo: CHEMISTRY_GUIDANCE,

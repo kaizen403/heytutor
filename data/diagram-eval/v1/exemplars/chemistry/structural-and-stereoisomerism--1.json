@@ -1,14 +1,14 @@
 {
   "topic_id": "chemistry|14|structural-and-stereoisomerism",
-  "question": "Draw the skeletal structure of trans-but-2-ene.",
+  "question": "Compare cis- and trans-but-2-ene side by side.",
   "figure_kind": "molecule",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
-    "visualDecision": { "mode": "scene", "reason": "skeletal structure from a stereochemical name" },
-    "source": { "question": "Draw the skeletal structure of trans-but-2-ene.", "chemistryFamily": "chem_organic" },
+    "visualDecision": { "mode": "scene", "reason": "comparison of two explicitly specified alkene geometries" },
+    "source": { "question": "Compare cis- and trans-but-2-ene side by side.", "chemistryFamily": "chem_organic" },
     "quantities": [],
     "entities": [{ "id": "molecule", "kind": "group", "role": "skeletal molecule" }],
-    "constructions": [{ "id": "draw_molecule", "operator": "chem_skeletal_molecule", "inputs": { "name": "trans-but-2-ene" }, "outputs": ["molecule"] }],
+    "constructions": [{ "id": "draw_molecule", "operator": "chem_skeletal_molecule", "inputs": { "molecules": [{ "smiles": "C/C=C\\C", "label": "cis-but-2-ene" }, { "smiles": "C/C=C/C", "label": "trans-but-2-ene" }], "layout": "comparison" }, "outputs": ["molecule"] }],
     "relations": [], "assertions": [], "annotations": [],
     "requiredEntityIds": ["molecule"],
     "revealGroups": [{ "id": "structure", "entityIds": ["molecule"], "dependsOn": [], "narrationCue": "show the trans alkene" }],

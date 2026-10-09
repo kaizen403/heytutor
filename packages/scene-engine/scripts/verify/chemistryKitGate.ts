@@ -44,6 +44,7 @@ export function assertReadableLabels(scene: RenderScene): void {
     const first = labels[index]!;
     const firstBounds = first.provenance?.labelBounds as LabelBounds | undefined;
     assert.ok(firstBounds, `label ${first.entityId} needs verified ink bounds`);
+    assert.ok(firstBounds!.x >= 400 && firstBounds!.x + firstBounds!.width <= 1160 && firstBounds!.y >= 0 && firstBounds!.y + firstBounds!.height <= 700, `label ${first.entityId} must fit the diagram zone`);
     for (const second of labels.slice(index + 1)) {
       const secondBounds = second.provenance?.labelBounds as LabelBounds | undefined;
       assert.ok(secondBounds, `label ${second.entityId} needs verified ink bounds`);
