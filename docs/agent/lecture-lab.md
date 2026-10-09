@@ -115,11 +115,13 @@ JSONL verdicts to `judgments.jsonl`. Then run `judge-apply.ts <round>` to write
 and record judge counts in `summary.json`.
 
 Every later comparison is judged in one session across all arms. Include the 40
-owner-marked cards in that session, then run
+reference cards in that session, then run
 `pnpm diagram:judge-check <session-judgments.jsonl>` to report agreement with
-`data/diagram-eval/v1/anchors.jsonl`. The owner creates that reference file by
-marking every card in `.context/diagram-anchor-gallery.html` and exporting it;
-the agent must not infer or substitute the owner's verdicts.
+the local, gitignored `data/diagram-eval/v1/anchors.jsonl`. References marked
+`owner` or `codex-reference` are accepted and their provenance is printed. A
+Codex reference score measures judge consistency between sessions, not human
+accuracy. Never commit the reference JSONL or `anchor-images/`: they may contain
+real student questions and figures.
 
 - `right`: every `must_show` item is present and no `must_not_show` item appears.
 - `partial`: it is the right kind of figure, but something is missing.
