@@ -11,7 +11,12 @@ export class TraceTagRegistry {
   }
 
   remember(key: string, tags: readonly string[], now = Date.now()): string[] {
-    const merged = [...new Set([...(this.current(key, now) ?? []), ...tags])];
+    // Effective strategy is a single-valued label: a provisional current
+    // decision may become strict once the subject is known. Assignment and
+    // mock tags are independent and must survive that replacement.
+    const effectiveStrategy = [...tags].reverse().find((tag) => tag.startsWith("diagram-strategy:"));
+    const merged = [...new Set([...(this.current(key, now) ?? []), ...tags])]
+      .filter((tag) => !effectiveStrategy || !tag.startsWith("diagram-strategy:") || tag === effectiveStrategy);
     this.entries.delete(key);
     this.entries.set(key, { tags: merged, at: now });
     while (this.entries.size > this.maximum) this.entries.delete(this.entries.keys().next().value!);
