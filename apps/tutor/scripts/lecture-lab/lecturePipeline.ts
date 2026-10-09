@@ -486,6 +486,7 @@ export async function runLecture(
           families: pickerCapabilities.families,
           archetypeId: pickerArchetype?.id ?? null,
           onModelCost: options.onModelCost,
+          traceId: options.traceId,
         },
       );
       const pickerFinishedAt = Date.now();

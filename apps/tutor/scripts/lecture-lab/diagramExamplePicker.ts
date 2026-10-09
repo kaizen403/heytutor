@@ -46,6 +46,7 @@ export interface DiagramExamplePickerOptions {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
   onModelCost?: (usd: number) => void;
+  traceId?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -229,6 +230,7 @@ export async function pickDiagramExamples(
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "content-type": "application/json",
+          ...(options.traceId ? { "x-heytutor-trace-id": options.traceId } : {}),
         },
         signal: AbortSignal.timeout(remainingMs),
         body: JSON.stringify(providerBody),

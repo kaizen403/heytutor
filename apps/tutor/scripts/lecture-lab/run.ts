@@ -47,6 +47,8 @@ import {
   resolveTeachingFireworksModel,
 } from "../../lib/llm/fireworksModels";
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
+import { parseProviderUsage } from "../../lib/obs/providerUsage";
+import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 
 export interface Options {
   difficulty: string;
@@ -88,9 +90,10 @@ export interface LabSpendSummary {
   rowsPlanned: number;
 }
 
-/** Shared admission state for a concurrent lab run. In-flight rows may finish. */
+/** Reserve each paid request before sending; unknown usage consumes its reservation. */
 export class LabSpendCap {
   private chargedUsd = 0;
+  private reservedUsd = 0;
   private stoppedForBudget = false;
 
   constructor(readonly maxUsd: number) {
@@ -103,6 +106,23 @@ export class LabSpendCap {
     if (!Number.isFinite(usd) || usd <= 0) return;
     this.chargedUsd += usd;
     if (this.chargedUsd >= this.maxUsd) this.stoppedForBudget = true;
+  }
+
+  reserveCall(worstCaseUsd: number): boolean {
+    if (!Number.isFinite(worstCaseUsd) || worstCaseUsd <= 0) {
+      throw new Error("paid lab calls require a positive cost ceiling");
+    }
+    if (this.stoppedForBudget || this.chargedUsd + this.reservedUsd + worstCaseUsd > this.maxUsd + 1e-9) {
+      this.stoppedForBudget = true;
+      return false;
+    }
+    this.reservedUsd += worstCaseUsd;
+    return true;
+  }
+
+  settleCall(reservedUsd: number, chargedUsd: number): void {
+    this.reservedUsd = Math.max(0, this.reservedUsd - reservedUsd);
+    this.recordCost(chargedUsd);
   }
 
   canStartRow(): boolean {
@@ -554,8 +574,10 @@ async function main(): Promise<void> {
   // response by the trace id already carried on the request.
   const nativeFetch = globalThis.fetch;
   const spendCap = new LabSpendCap(options.maxUsd);
+  const budgetDeniedTraces = new Set<string>();
+  const budgetTerminatedRows: string[] = [];
   const worstCasePlannerModel = resolveFireworksModel({ fastMode: options.model === "fast" });
-  const usageTracker = new PlannerUsageTracker((usd) => spendCap.recordCost(usd));
+  const usageTracker = new PlannerUsageTracker((usd, reservedUsd) => spendCap.settleCall(reservedUsd, usd));
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
@@ -573,22 +595,39 @@ async function main(): Promise<void> {
     const traceId = headers.get("x-heytutor-trace-id");
     const chatRequest = url === `${options.origin}/api/chat` && traceId;
     const plannerRequest = chatRequest && headers.get("x-planner") === "1";
+    const directProviderRequest = url === endpoint.url;
     const requestModel = plannerRequest
       ? worstCasePlannerModel
       : resolveTeachingFireworksModel({ fastMode: options.model === "fast" });
-    const requestWorstCaseUsd = chatRequest
+    const requestWorstCaseUsd = chatRequest || directProviderRequest
       ? plannerRequestWorstCaseUsd(init, requestModel)
       : 0;
+    if ((chatRequest || directProviderRequest) && !spendCap.reserveCall(requestWorstCaseUsd)) {
+      if (traceId) budgetDeniedTraces.add(traceId);
+      throw new Error("lab request denied before sending: --max-usd reservation exhausted");
+    }
     if (chatRequest) {
       usageTracker.recordRequest(traceId, requestWorstCaseUsd);
     }
     try {
       const response = await nativeFetch(input, { ...init, headers });
-      if (plannerRequest) await usageTracker.recordResponse(traceId, response);
-      else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response);
+      if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd);
+      else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response, requestWorstCaseUsd);
+      else if (directProviderRequest) {
+        let chargedUsd = requestWorstCaseUsd;
+        try {
+          const payload = await response.clone().json() as { usage?: unknown };
+          const usage = parseProviderUsage(payload.usage);
+          if (usage.known) chargedUsd = calculateLlmCostDetails(usage, { model: requestModel }).total ?? requestWorstCaseUsd;
+        } catch {
+          // Cancelled or malformed responses retain their full reservation.
+        }
+        spendCap.settleCall(requestWorstCaseUsd, chargedUsd);
+      }
       return response;
     } catch (error) {
-      if (chatRequest) usageTracker.recordFailure(traceId, requestModel);
+      if (chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
+      else if (directProviderRequest) spendCap.settleCall(requestWorstCaseUsd, requestWorstCaseUsd);
       throw error;
     }
   }) as typeof fetch;
@@ -623,9 +662,13 @@ async function main(): Promise<void> {
         traceId,
         diagramExamples,
         diagramExampleCatalogue,
-        onModelCost: (usd) => spendCap.recordCost(usd),
       });
       run.planner = await usageTracker.finishAsync(traceId);
+      if (budgetDeniedTraces.has(traceId)) {
+        budgetTerminatedRows.push(probe.id);
+        console.log(`budget ended during ${probe.id}; untested, not an empty-figure verdict`);
+        return;
+      }
       const grade = gradeLecture(run);
       grades.push(grade);
       runs.push(run);
@@ -673,6 +716,7 @@ async function main(): Promise<void> {
     } : null,
     preflightEstimateUsd,
     ...budgetSummary,
+    budgetTerminatedRows,
     evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
     ...summarize(grades, runs),
   };

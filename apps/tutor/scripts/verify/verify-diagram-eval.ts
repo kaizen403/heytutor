@@ -1001,6 +1001,30 @@ void (async () => {
     rowsPlanned: 3,
   });
 
+  const concurrentCap = new LabSpendCap(0.1);
+  assert.equal(concurrentCap.reserveCall(0.06), true);
+  assert.equal(concurrentCap.reserveCall(0.06), false, "concurrent calls must reserve before sending");
+  concurrentCap.settleCall(0.06, 0.02);
+  assert.equal(concurrentCap.summary(1, 2).chargedUsd, 0.02);
+  assert.equal(concurrentCap.summary(1, 2).stoppedForBudget, true);
+  const refundCap = new LabSpendCap(0.1);
+  assert.equal(refundCap.reserveCall(0.08), true);
+  refundCap.settleCall(0.08, 0.01);
+  assert.equal(refundCap.reserveCall(0.08), true, "measured usage releases unused reservation");
+  refundCap.settleCall(0.08, 0.08);
+  assert.equal(refundCap.reserveCall(0.02), false);
+  const failedCap = new LabSpendCap(0.1);
+  assert.equal(failedCap.reserveCall(0.1), true);
+  failedCap.settleCall(0.1, 0.1);
+  assert.equal(failedCap.summary(1, 2).chargedUsd, 0.1, "unknown usage consumes its full reservation");
+  const matchedCosts: Array<[number, number]> = [];
+  const outOfOrder = new PlannerUsageTracker((usd, reservedUsd) => matchedCosts.push([usd, reservedUsd]));
+  outOfOrder.recordRequest("parallel", 0.04);
+  outOfOrder.recordRequest("parallel", 0.08);
+  outOfOrder.recordFailure("parallel", "gpt-6-1-sol", 0.08);
+  outOfOrder.recordFailure("parallel", "gpt-6-1-sol", 0.04);
+  assert.deepEqual(matchedCosts, [[0.08, 0.08], [0.04, 0.04]], "settle the matching request, not FIFO");
+
   const noFamilyPlan = {
     schemaVersion: "turn-plan/v3",
     question: "Show the triangle for the cosine rule.",
