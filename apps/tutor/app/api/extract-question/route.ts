@@ -16,6 +16,7 @@ import {
   readExtractedContent,
 } from "@/lib/llm/extractQuestion";
 import { resolveFireworksVisionModels } from "@/lib/llm/fireworksModels";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import {
   endLlmGeneration,
   flushInBackground,
@@ -30,9 +31,6 @@ import { enqueueObjectDeletion } from "@/lib/object-store/deletionJobs";
 import { questionImageKey } from "@/lib/object-store/keys";
 import { readQuestionImage } from "@/lib/object-store/questionImage";
 import { uploadImage } from "@/lib/object-store/s3";
-
-const FIREWORKS_CHAT_URL =
-  "https://api.fireworks.ai/inference/v1/chat/completions";
 
 export async function POST(request: Request): Promise<Response> {
   const gated = await requireLessonCredits(request);
@@ -60,12 +58,14 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
 
-  const apiKey = process.env.FIREWORKS_API_KEY?.trim();
+  const llm = resolveLlmEndpoint();
+  const apiKey = llm.apiKey;
   if (!apiKey)
     return Response.json(
       { error: "Question photos need FIREWORKS_API_KEY." },
       { status: 503 },
     );
+
   const models = resolveFireworksVisionModels();
   let model = models[0]!;
   const messages = [
@@ -77,6 +77,15 @@ export async function POST(request: Request): Promise<Response> {
       ],
     },
   ];
+  const requestBody = (candidate: string) => providerChatBody({
+    model: candidate,
+    max_tokens: 1024,
+    n: 1,
+    temperature: 0,
+    reasoning_effort: "none",
+    stream: false,
+    messages,
+  }, llm);
   // The image parser bounds static decoded dimensions. Add a conservative
   // 64k vision-token allowance as well as the encoded-input/output ceiling.
   const reservation = await reservePaidUsage({
@@ -85,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
     kind: "photo",
     traceId: request.headers.get("x-heytutor-trace-id") ?? undefined,
     usd:
-      maximumLlmCost(messages, 1024, models) +
+      maximumLlmCost(messages, completionTokenCap(requestBody(model)), models) +
       Math.max(
         ...models.map(
           (candidate) =>
@@ -112,24 +121,16 @@ export async function POST(request: Request): Promise<Response> {
     let response: Response | null = null;
     for (const [index, candidate] of models.entries()) {
       model = candidate;
-      response = await fetch(FIREWORKS_CHAT_URL, {
+      response = await fetch(llm.url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "content-type": "application/json",
         },
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(30_000)]),
-        body: JSON.stringify({
-          model,
-          max_tokens: 1024,
-          n: 1,
-          temperature: 0,
-          reasoning_effort: "none",
-          stream: false,
-          messages,
-        }),
+        body: JSON.stringify(requestBody(model)),
       });
-      // 404 means Fireworks no longer serves this model. Nothing was billed,
+      // 404 means the provider no longer serves this model. Nothing was billed,
       // so try the next one rather than failing the photo.
       if (response.status !== 404 || index === models.length - 1) break;
       console.warn(`[extract-question] vision model unavailable: ${model}`);
