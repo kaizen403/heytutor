@@ -117,6 +117,20 @@ async function main(): Promise<void> {
     assert.equal(recovered.visualNeed.unknownUsageCalls, 1, "successful retry does not erase the earlier denied reservation");
     assert(recovered.chargedUsd > initialCharge);
     assert.equal(readFileSync(replayPath, "utf8").trim().split("\n").length, 7, "legacy denied evidence is replaced without duplicate replay IDs");
+
+    // Crash between saving the successful retry and clearing its denial in
+    // the checkpoint: the retained answer is authoritative, even with no cap left.
+    const staleCheckpoint = JSON.parse(readFileSync(checkpointPath, "utf8"));
+    staleCheckpoint.unresolvedLocalDenials = [sample[1]!.id];
+    writeFileSync(checkpointPath, JSON.stringify(staleCheckpoint));
+    const recoveredCalls = calls.length;
+    assert.equal(await run({ output: deniedOutput, resume: true, maxUsd: "0.000001" }), 0);
+    const crashResumed = JSON.parse(readFileSync(join(deniedOutput, "summary.json"), "utf8"));
+    assert.equal(crashResumed.measurementValid, true, "saved successful retry clears a stale checkpoint denial before choosing pending work");
+    assert.equal(crashResumed.untestedRows, 0);
+    assert.deepEqual(crashResumed.unresolvedLocalDenials, []);
+    assert.equal(calls.length, recoveredCalls, "a checkpoint crash cannot pay for an already retained answer again");
+    assert.equal(crashResumed.chargedUsd, recovered.chargedUsd, "crash recovery retains all charges, including the earlier denial");
   } finally { server.close(); resetTurnGrantsForTests(); rmSync(directory, { recursive: true, force: true }); }
   console.log("visual-need audit CLI: stable trace, configured deployment, metered answers, denied-row and legacy resumes pass");
 }
