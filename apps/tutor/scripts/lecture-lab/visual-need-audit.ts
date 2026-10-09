@@ -65,12 +65,22 @@ async function main(): Promise<void> {
   if (resume && !existsSync(checkpointPath)) throw new Error("audit resume requires its spend checkpoint");
   const previous = resume ? JSON.parse(readFileSync(checkpointPath, "utf8")) as {
     identity: typeof identity; chargedUsd: number; reservedUsd: number; calls: VisualNeedCallAccounting[];
+    unresolvedLocalDenials?: string[];
   } : null;
   if (previous && JSON.stringify(previous.identity) !== JSON.stringify(identity)) throw new Error("audit resume identity changed");
   const saved: VisualNeedReplayRow[] = existsSync(replayPath)
     ? readFileSync(replayPath, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)) : [];
   const priorMap = parseVisualNeedReplay(saved.map((row) => JSON.stringify(row)).join("\n"), rows.filter((row) => saved.some((prior) => prior.id === row.id)));
   if (saved.some((row) => !rows.some((input) => input.id === row.id))) throw new Error("audit has foreign saved rows");
+  const unresolvedLocalDenials = new Set([
+    ...(previous?.unresolvedLocalDenials ?? []),
+    // Pre-fix audits froze HTTP denials as unavailable answers. Keep the
+    // original evidence until a retry replaces it, but never count it tested.
+    ...saved.filter((row) => row.assessment.source === "unavailable" && /^http_\d+$/.test(row.assessment.unavailableReason ?? ""))
+      .map((row) => row.id),
+  ]);
+  if ([...unresolvedLocalDenials].some((id) => !rows.some((row) => row.id === id))) throw new Error("audit has foreign unresolved denials");
+  const completedRows = () => saved.filter((row) => !unresolvedLocalDenials.has(row.id));
   if (existsSync(resolve(process.cwd(), ".env.local"))) process.loadEnvFile(resolve(process.cwd(), ".env.local"));
   const endpoint = resolveLlmEndpoint();
   if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey || !endpoint.deployment) {
@@ -91,9 +101,10 @@ async function main(): Promise<void> {
   const cap = new LabSpendCap(maxUsd), calls: VisualNeedCallAccounting[] = [...(previous?.calls ?? [])];
   cap.recordCost(restoredLabCharge(calls.reduce((sum, call) => sum + call.chargedUsd, 0), previous, 0));
   mkdirSync(outDir, { recursive: true });
-  const checkpoint = () => writeFileSync(checkpointPath, JSON.stringify({ ...cap.summary(saved.length, rows.length), identity, calls }) + "\n");
+  const checkpoint = () => writeFileSync(checkpointPath, JSON.stringify({ ...cap.summary(completedRows().length, rows.length), identity, calls,
+    unresolvedLocalDenials: [...unresolvedLocalDenials] }) + "\n");
   checkpoint();
-  const pending = rows.filter((row) => !priorMap.has(row.id));
+  const pending = rows.filter((row) => !priorMap.has(row.id) || unresolvedLocalDenials.has(row.id));
   const nativeFetch = globalThis.fetch;
   let budgetDenied = false;
   let localHttpDenied = false;
@@ -108,36 +119,48 @@ async function main(): Promise<void> {
     if (localHttpDenied) return;
     const headers = new Headers(labHeaders); headers.set("cookie", cookie);
     let denied = false;
+    let rowHttpDenied = false;
     const fetchImpl: typeof fetch = (input, init) => {
       if (String(input) !== `${origin}/api/visual-need`) throw new Error("Jev-only audit forbids other paid endpoints");
       const combined = new Headers(init?.headers); headers.forEach((value, key) => combined.set(key, value));
       return budgetedVisualNeedFetch(input, { ...init, headers: combined }, nativeFetch, {
         reserve: (usd) => cap.reserveCall(usd), beforeDispatch: checkpoint,
         settle: (reserved, charged) => cap.settleCall(reserved, charged),
-        onAccounting: (call) => { calls.push(call); if (call.httpStatus !== null && call.httpStatus >= 400) localHttpDenied = true; checkpoint(); },
+        onAccounting: (call) => {
+          calls.push(call);
+          if (call.httpStatus !== null && call.httpStatus >= 400) {
+            localHttpDenied = true; rowHttpDenied = true; unresolvedLocalDenials.add(row.id);
+          }
+          checkpoint();
+        },
         onDenied: () => { denied = true; budgetDenied = true; },
       });
     };
     const assessment = await fetchVisualNeedAssessment({ url: `${origin}/api/visual-need`,
       question: normalizeTutorQuestion(row.question), traceId: auditTraceId, fetchImpl });
-    if (denied) return; // Untested, not a service failure or a no-figure vote.
-    saved.push({ id: row.id, questionHash: visualNeedQuestionHash(row.question), ...LAB_VISUAL_NEED_POLICY, assessment });
+    if (denied || rowHttpDenied) return; // Untested, not a service failure or a no-figure vote.
+    const answer = { id: row.id, questionHash: visualNeedQuestionHash(row.question), ...LAB_VISUAL_NEED_POLICY, assessment };
+    const priorIndex = saved.findIndex((entry) => entry.id === row.id);
+    if (priorIndex === -1) saved.push(answer); else saved[priorIndex] = answer;
     writeFileSync(replayPath, saved.map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+    unresolvedLocalDenials.delete(row.id);
     checkpoint();
     if (saved.length % 50 === 0) console.log(`Jev audit ${saved.length}/${rows.length}; $${cap.summary(0, 0).chargedUsd.toFixed(6)} conservative`);
   });
-  const assessments = parseVisualNeedReplay(saved.map((row) => JSON.stringify(row)).join("\n"), rows.filter((row) => saved.some((prior) => prior.id === row.id)));
+  const completed = completedRows();
+  const assessments = parseVisualNeedReplay(completed.map((row) => JSON.stringify(row)).join("\n"), rows.filter((row) => completed.some((prior) => prior.id === row.id)));
   const compared = compareVisualNeedAudit(rows, assessments, historical);
   writeFileSync(resolve(outDir, "comparison.jsonl"), compared.records.map((row) => JSON.stringify(row)).join("\n") + "\n");
   writeFileSync(resolve(outDir, "changed-sample.jsonl"), compared.changedRows.map((row) => JSON.stringify(row)).join("\n") + (compared.changedRows.length ? "\n" : ""));
-  const summary = { ...compared.summary, ...cap.summary(saved.length, rows.length),
+  const summary = { ...compared.summary, ...cap.summary(completed.length, rows.length),
     provider: "vercel_ai_gateway", model: LAB_VISUAL_NEED_POLICY.model, policy: LAB_VISUAL_NEED_POLICY,
     figureProvider: endpoint.provider, figureDeployment: endpoint.deployment, figureCalls: 0, scenePlannerLimitMs: 60_000,
-    identity, visualNeed: summarizeVisualNeedCalls(calls), untestedRows: rows.length - saved.length, budgetDenied,
-    localHttpDenied, auditTraceId, measurementValid: !localHttpDenied && saved.some((row) => row.assessment.source === "jev") };
+    identity, visualNeed: summarizeVisualNeedCalls(calls), untestedRows: rows.length - completed.length, budgetDenied,
+    localHttpDenied, unresolvedLocalDenials: [...unresolvedLocalDenials], auditTraceId,
+    measurementValid: !localHttpDenied && unresolvedLocalDenials.size === 0 && completed.some((row) => row.assessment.source === "jev") };
   writeFileSync(resolve(outDir, "summary.json"), JSON.stringify(summary, null, 2) + "\n");
-  console.log(JSON.stringify({ completed: saved.length, planned: rows.length, actionChangedUnion: compared.changedRows.length,
-    ...cap.summary(saved.length, rows.length), figureCalls: 0 }, null, 2));
+  console.log(JSON.stringify({ completed: completed.length, planned: rows.length, actionChangedUnion: compared.changedRows.length,
+    ...cap.summary(completed.length, rows.length), figureCalls: 0 }, null, 2));
   if (localHttpDenied) throw new Error("audit stopped on a local HTTP denial; remaining rows are untested, not Jev answers");
 }
 

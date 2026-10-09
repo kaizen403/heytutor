@@ -71,7 +71,10 @@ pnpm exec tsx scripts/lecture-lab/visual-need-audit.ts --eval sample.jsonl --rou
 The audit owns one stable lab trace (not a separate idle lesson slot per row)
 and spaces dispatches by at least 650 ms, below the unchanged production IP
 limit. Waiting occurs before the client's 3 s timer. A local HTTP denial stops
-the audit and leaves remaining rows untested; it is not a Jev answer. A key
+the audit and leaves that row and remaining rows untested; it is not a Jev answer.
+Unresolved local denials persist through budget-blocked resumes. Legacy saved
+HTTP-denial assessments stay pending until retried; their original call charges
+remain in the ledger even after successful recovery. A key
 limited to Gateway free credits can list Jev but receive an upstream 403;
 Azure credits do not supply Vercel AI Gateway paid-model entitlement.
 
