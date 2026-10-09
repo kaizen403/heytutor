@@ -47,10 +47,52 @@ validation, solver block and save-admission guard; its old duplicated path did
 not. Chemistry remains production-exempt from model scene planning in every
 arm. Historical results are not rewritten. Execution identity records
 `production-scene-selection/v1`, so old divergent-admission rounds cannot be
-silently resumed with this policy. Jev service wiring is the separate 14c step.
+silently resumed with this policy.
 
 `pnpm --filter @heytutor/tutor verify:production-selection` checks the shared
 decision and the original six live/save figures plus both edited forgeries.
+
+## Live visual-need parity (Part 14c)
+
+Every new non-DSA lab turn calls the live `/api/visual-need` client beside the
+turn planner, with the same 3,000 ms client and 2,400 ms server limits. Numeric
+authority starts from the unmerged selected plan; Jev is merged by the shared
+production gate before picker/scene admission. Records retain the selected
+planner vote, typed Jev answer or unavailable reason, merged requirement,
+policy/model provenance and separate Jev accounting. Unavailable is null, never
+an explicit `none`. Live behaviour and default-off strict flags do not change.
+
+The Jev-only audit uses no figure/teaching calls:
+
+```bash
+pnpm exec tsx scripts/lecture-lab/visual-need-audit.ts --eval sample.jsonl --round current=.lecture-lab/current --round planner_examples_strict=.lecture-lab/strict --max-usd 1 --yes --out .lecture-lab/visual-need-audit
+```
+
+The audit owns one stable lab trace (not a separate idle lesson slot per row)
+and spaces dispatches by at least 650 ms, below the unchanged production IP
+limit. Waiting occurs before the client's 3 s timer. A local HTTP denial stops
+the audit and leaves remaining rows untested; it is not a Jev answer. A key
+limited to Gateway free credits can list Jev but receive an upstream 403;
+Azure credits do not supply Vercel AI Gateway paid-model entitlement.
+
+It freezes identity-checked answers and writes an action-changed sample. Rerun
+that sample with `run.ts --visual-need-replay <audit>/visual-need.jsonl` and
+`--example-exclusions <original-full-sample.jsonl>` on both arms. Replay cannot
+silently fall back to paid Jev calls; missing/changed questions, model, rubric,
+policy or deadlines fail closed. Execution identity binds the frozen bytes and
+full retrieval exclusions, so historical planner-only rounds cannot be resumed
+under the new policy. Audit resumes retain unknown in-flight reservations.
+
+Jev requests reserve before dispatch just like Azure, including concurrent
+calls. Unknown dispatched usage consumes the full reservation; proved
+missing-key/open-circuit non-dispatches cost zero. Summaries separately name
+Vercel AI Gateway / `typesafe-ai/jev` and the Azure figure deployment. Historical
+final planner requirements are only proxies for the old merge comparison: old
+rows did not retain their initial raw vote. Missing historical rows remain
+untested, not `none`. A stronger optional-to-required vote is reported but alone
+does not prove changed figure admission. Changed reruns also inherit the new
+shared production admission guards, so their outcomes cannot be attributed
+solely to Jev. No lab result establishes production timing.
 
 ## Commands
 
