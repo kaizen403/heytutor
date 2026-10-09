@@ -23,8 +23,11 @@ Attach an instance role to the EC2 box. Do not put access keys on disk unless
 you are debugging locally.
 
 The app reads, writes and deletes lecture audio and photos. The backup script
-(`deploy/aws/backup-postgres.sh`) only creates backups: the instance must not be
-able to read, delete or overwrite one, so `backups/*` gets `PutObject` alone.
+(`deploy/aws/backup-postgres.sh`) only creates backups. The policy below gives
+`backups/*` `PutObject` alone, which removes read and delete access. It does not
+stop an overwrite on its own: the script prevents replacing an existing backup
+with `--if-none-match '*'`. If the role must be unable to overwrite backups, add
+a bucket policy that enforces it.
 
 ```json
 {
