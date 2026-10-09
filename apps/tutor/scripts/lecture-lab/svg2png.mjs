@@ -7,6 +7,7 @@
  * Every .svg found recursively gets a sibling .png.
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   accessSync,
   constants,
@@ -139,6 +140,35 @@ const send = (method, params = {}, sessionId) => new Promise((resolveSend, rejec
   ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
 });
 
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+
+async function waitForSvg(expectedUrl, sessionId) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await send("Runtime.evaluate", {
+        expression: "({ actualUrl: location.href, readyState: document.readyState, root: document.documentElement?.localName })",
+        returnByValue: true,
+      }, sessionId);
+      const state = response.result?.value;
+      if (state?.actualUrl === expectedUrl && state.readyState === "complete" && state.root === "svg") {
+        const painted = await send("Runtime.evaluate", {
+          expression: "(async () => { if (document.fonts) await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return { actualUrl: location.href, readyState: document.readyState, root: document.documentElement?.localName, paintReady: true }; })()",
+          awaitPromise: true,
+          returnByValue: true,
+        }, sessionId);
+        const evidence = painted.result?.value;
+        if (!painted.exceptionDetails && evidence?.actualUrl === expectedUrl
+          && evidence.readyState === "complete" && evidence.root === "svg" && evidence.paintReady) return evidence;
+      }
+    } catch {
+      // Navigation can briefly destroy the prior execution context. Never capture it.
+    }
+    await sleep(20);
+  }
+  throw new Error(`SVG did not finish navigation and paint: ${expectedUrl}`);
+}
+
 let failures = 0;
 try {
   const { targetId } = await send("Target.createTarget", { url: "about:blank" });
@@ -153,18 +183,22 @@ try {
 
   for (const file of files) {
     try {
-      await send("Page.navigate", { url: pathToFileURL(file).href }, sessionId);
-      await send("Runtime.evaluate", {
-        expression: "document.fonts ? document.fonts.ready : Promise.resolve()",
-        awaitPromise: true,
-        returnByValue: true,
-      }, sessionId);
+      const svgSha256 = sha256(readFileSync(file));
+      const expectedUrl = pathToFileURL(file).href;
+      const navigation = await send("Page.navigate", { url: expectedUrl }, sessionId);
+      if (navigation.errorText) throw new Error(navigation.errorText);
+      const evidence = await waitForSvg(expectedUrl, sessionId);
       const shot = await send("Page.captureScreenshot", {
         format: "png",
         fromSurface: true,
         captureBeyondViewport: false,
       }, sessionId);
-      writeFileSync(file.replace(/\.svg$/, ".png"), Buffer.from(shot.data, "base64"));
+      if (sha256(readFileSync(file)) !== svgSha256) throw new Error("SVG changed during capture");
+      const png = Buffer.from(shot.data, "base64");
+      writeFileSync(file.replace(/\.svg$/, ".png"), png);
+      writeFileSync(file.replace(/\.svg$/, ".render.json"), `${JSON.stringify({
+        version: 1, expectedUrl, ...evidence, svgSha256, pngSha256: sha256(png),
+      }, null, 2)}\n`);
     } catch (error) {
       failures += 1;
       console.error(`failed ${file}: ${error instanceof Error ? error.message : String(error)}`);

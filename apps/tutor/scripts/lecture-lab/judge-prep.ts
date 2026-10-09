@@ -48,8 +48,8 @@ function writeJsonl(path: string, rows: readonly unknown[]): void {
 
 function cropDiagramZone(source: string, destination: string): void {
   execFileSync("/usr/bin/sips", [
-    "--cropToHeightWidth", "700", "760",
-    "--cropOffset", "0", "400",
+    "--cropToHeightWidth", "620", "760",
+    "--cropOffset", "80", "400",
     source,
     "--out", destination,
   ], { stdio: "ignore" });
