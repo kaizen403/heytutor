@@ -84,9 +84,27 @@ export interface CanonicalTurnSceneMetadata {
   segments: SubmittedTurnSegment[];
 }
 
+/** Stable validator leaves; never built from submitted text or error details. */
+export type TurnSceneRejectionCode =
+  | "scene_question_required" | "scene_segments_invalid" | "scene_segment_order_invalid"
+  | "scene_code_lesson_invalid" | "scene_unvalidated_trusted_geometry"
+  | "scene_artifacts_missing" | "scene_artifacts_schema_invalid" | "scene_result_not_ready"
+  | "scene_representation_tier_invalid" | "scene_non_metric_mismatch"
+  | "scene_document_invalid" | "scene_turn_plan_invalid" | "scene_representation_not_scene"
+  | "scene_source_question_mismatch" | "scene_document_tier_mismatch" | "scene_metric_geometry_outside_exact"
+  | "scene_compile_failed" | "scene_proof_failed" | "scene_admission_failed" | "scene_validation_report_invalid"
+  | "scene_point_line_annotation_invalid" | "scene_point_line_quantity_invalid"
+  | "scene_point_line_solver_binding_required" | "scene_point_line_solver_evidence_invalid"
+  | "scene_point_line_solver_quantity_mismatch" | "scene_solver_artifacts_incomplete"
+  | "scene_problem_ir_invalid" | "scene_solver_result_invalid" | "scene_solver_recomputation_failed"
+  | "scene_solver_values_mismatch" | "scene_solver_plan_contradiction"
+  | "scene_teaching_envelope_invalid" | "scene_teaching_type_plan_required" | "scene_teaching_command_not_allowed";
+
+type TurnSceneFailure = { ok: false; error: string; code?: TurnSceneRejectionCode };
+
 export type TurnScenePersistenceResult =
   | { ok: true; value: CanonicalTurnSceneMetadata }
-  | { ok: false; error: string };
+  | TurnSceneFailure;
 
 /**
  * Re-establish every diagram trust claim at the server boundary. A browser may
@@ -97,10 +115,10 @@ export async function canonicalizeTurnSceneMetadata(
   submittedMetadata: SubmittedTurnSceneMetadata,
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
-  if (!question) return failure("question is required for scene validation");
-  if (!Array.isArray(submittedMetadata.segments)) return failure("segments must be an array");
+  if (!question) return failure("scene_question_required", "question is required for scene validation");
+  if (!Array.isArray(submittedMetadata.segments)) return failure("scene_segments_invalid", "segments must be an array");
   if (!validSegmentOrder(submittedMetadata.segments)) {
-    return failure("segment orderIndex values must be unique non-negative integers");
+    return failure("scene_segment_order_invalid", "segment orderIndex values must be unique non-negative integers");
   }
   const metadata: SubmittedTurnSceneMetadata = {
     ...submittedMetadata,
@@ -115,13 +133,13 @@ export async function canonicalizeTurnSceneMetadata(
   // "command not allowed" error, and invalid code must never be persisted.
   const codeLessonParse = parseStoredCodeLesson(metadata.sceneArtifacts, question);
   if (codeLessonParse.status === "invalid") {
-    return failure(`persisted code lesson plan is invalid: ${codeLessonParse.reason}`);
+    return failure("scene_code_lesson_invalid", `persisted code lesson plan is invalid: ${codeLessonParse.reason}`);
   }
   const codeLesson = codeLessonParse.status === "valid" ? codeLessonParse.plan : null;
 
   if (metadata.visualStatus !== "validated") {
     if (metadata.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) {
-      return failure("trusted diagram commands require a server-validated scene");
+      return failure("scene_unvalidated_trusted_geometry", "trusted diagram commands require a server-validated scene");
     }
     const teachingCommands = canonicalizeTeachingCommands(metadata.segments, null, codeLesson);
     if (!teachingCommands.ok) return teachingCommands;
@@ -163,19 +181,19 @@ export async function canonicalizeTurnSceneMetadata(
   }
 
   if (!isRecord(metadata.sceneArtifacts)) {
-    return failure("validated scenes require scene-artifacts/v3");
+    return failure("scene_artifacts_missing", "validated scenes require scene-artifacts/v3");
   }
   if (metadata.sceneArtifacts.schemaVersion !== SCENE_ARTIFACTS_V3_VERSION) {
-    return failure(`validated scenes require ${SCENE_ARTIFACTS_V3_VERSION}`);
+    return failure("scene_artifacts_schema_invalid", `validated scenes require ${SCENE_ARTIFACTS_V3_VERSION}`);
   }
   if (metadata.sceneArtifacts.diagramResultStatus !== "ready") {
-    return failure("validated scenes require diagramResultStatus ready");
+    return failure("scene_result_not_ready", "validated scenes require diagramResultStatus ready");
   }
   const tier = metadata.sceneArtifacts.representationTier;
-  if (!isRepresentationTier(tier)) return failure("validated scene has an invalid representation tier");
+  if (!isRepresentationTier(tier)) return failure("scene_representation_tier_invalid", "validated scene has an invalid representation tier");
   const nonMetric = tier !== "exact_verified";
   if (metadata.sceneArtifacts.nonMetric !== nonMetric) {
-    return failure("representation tier and nonMetric flag disagree");
+    return failure("scene_non_metric_mismatch", "representation tier and nonMetric flag disagree");
   }
 
   const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, question);
@@ -191,10 +209,10 @@ export async function canonicalizeTurnSceneMetadata(
     if (!submitted.document) {
       // A document that does not even parse is structurally invalid; saying it
       // has a bad plan would hide the real reason from the caller.
-      return failure(`exact scene is structurally invalid: ${formatIssues(submitted.report.issues)}`);
+      return failure("scene_document_invalid", `exact scene is structurally invalid: ${formatIssues(submitted.report.issues)}`);
     }
     if (archetypeProvenance(submitted.document).exactGrounding !== "stem") {
-      return failure(`exact scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
+      return failure("scene_turn_plan_invalid", `exact scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
     }
   }
 
@@ -212,21 +230,21 @@ export async function canonicalizeTurnSceneMetadata(
     // never from the browser's trusted-geometry payload.
     const structural = validateSceneDocument(metadata.sceneDocument);
     if (!structural.document) {
-      return failure(`accepted representation is structurally invalid: ${formatIssues(structural.report.issues)}`);
+      return failure("scene_document_invalid", `accepted representation is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
     document = structural.document;
     if (document.visualDecision.mode !== "scene") {
-      return failure("accepted representation persisted as text-only");
+      return failure("scene_representation_not_scene", "accepted representation persisted as text-only");
     }
     if (!sourceQuestionMatches(document, question)) {
-      return failure("scene source question does not match the submitted question");
+      return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
     }
     const declaredTier = document.source.representationTier;
     if (declaredTier !== undefined && declaredTier !== tier) {
-      return failure("submitted fallback tier does not match the accepted document");
+      return failure("scene_document_tier_mismatch", "submitted fallback tier does not match the accepted document");
     }
     if (document.source.nonMetric === false) {
-      return failure("accepted document declares metric geometry outside the exact path");
+      return failure("scene_metric_geometry_outside_exact", "accepted document declares metric geometry outside the exact path");
     }
     // DSA structure diagrams were compiled into the code-lesson split live;
     // recompiling into the default viewport would move every primitive under
@@ -236,18 +254,18 @@ export async function canonicalizeTurnSceneMetadata(
       isDsaSceneDocument(document) ? { viewport: DSA_DIAGRAM_ZONE } : {},
     );
     if (!compiled.ok || !compiled.renderScene) {
-      return failure(`accepted representation does not compile: ${formatIssues(compiled.report.issues)}`);
+      return failure("scene_compile_failed", `accepted representation does not compile: ${formatIssues(compiled.report.issues)}`);
     }
     report = compiled.report;
     renderScene = compiled.renderScene;
   } else {
     const structural = validateSceneDocument(metadata.sceneDocument);
     if (!structural.document) {
-      return failure(`exact scene is structurally invalid: ${formatIssues(structural.report.issues)}`);
+      return failure("scene_document_invalid", `exact scene is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
     document = structural.document;
     if (!sourceQuestionMatches(document, question)) {
-      return failure("scene source question does not match the submitted question");
+      return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
     }
     // Both checks below reconcile the scene against the plan. A stem-grounded
     // exact scene has no plan to reconcile with — it was computed from the
@@ -258,12 +276,12 @@ export async function canonicalizeTurnSceneMetadata(
     if (turnPlan) {
       const proofIssues = validateTurnPlanSceneProofs(document, turnPlan);
       if (proofIssues.some((issue) => issue.severity === "fatal")) {
-        return failure(`scene proof obligations failed: ${formatIssues(proofIssues)}`);
+        return failure("scene_proof_failed", `scene proof obligations failed: ${formatIssues(proofIssues)}`);
       }
     }
     const compiled = compileSceneDocument(document);
     if (!compiled.ok || !compiled.renderScene) {
-      return failure(`exact scene does not compile: ${formatIssues(compiled.report.issues)}`);
+      return failure("scene_compile_failed", `exact scene does not compile: ${formatIssues(compiled.report.issues)}`);
     }
     report = compiled.report;
     renderScene = compiled.renderScene;
@@ -272,10 +290,10 @@ export async function canonicalizeTurnSceneMetadata(
   // The same function runs live before a figure is drawn (useQuestionHandler),
   // so a scene this would refuse is never shown and then lost.
   const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier });
-  if (admissionFailure) return failure(admissionFailure);
+  if (admissionFailure) return failure("scene_admission_failed", admissionFailure);
 
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
-    return failure("current scene engine did not produce a valid report");
+    return failure("scene_validation_report_invalid", "current scene engine did not produce a valid report");
   }
   const expectedPresentation = buildVerifiedDiagramPresentation(
     document,
@@ -306,13 +324,13 @@ export async function canonicalizeTurnSceneMetadata(
         annotation.targetIds.includes(outputId) && annotation.quantityId !== undefined);
       const link = links[0];
       if (links.length !== 1 || !link || link.targetIds.length !== 1) {
-        return failure("point-line distance requires one unambiguous quantity-backed output annotation");
+        return failure("scene_point_line_annotation_invalid", "point-line distance requires one unambiguous quantity-backed output annotation");
       }
       const quantities = document.quantities.filter((quantity) => quantity.id === link.quantityId);
       const planned = turnPlan && [...turnPlan.givens, ...turnPlan.derived]
         .filter((quantity) => quantity.id === link.quantityId);
       if (quantities.length !== 1 || !turnPlan || !planned || planned.length !== 1) {
-        return failure("point-line distance annotation requires a validated plan quantity");
+        return failure("scene_point_line_quantity_invalid", "point-line distance annotation requires a validated plan quantity");
       }
       const claimedResult = turnPlan.derived.some((quantity) => quantity.id === link.quantityId) ||
         turnPlan.unknowns.some((quantity) => quantity.id === link.quantityId);
@@ -321,19 +339,19 @@ export async function canonicalizeTurnSceneMetadata(
         binding.quantityId === link.quantityId) ?? [];
       const binding = bindings[0];
       if (bindings.length !== 1 || !binding || typeof binding.approximate !== "number") {
-        return failure("claimed point-line distance requires one explicit scalar solver result binding");
+        return failure("scene_point_line_solver_binding_required", "claimed point-line distance requires one explicit scalar solver result binding");
       }
       const request = solver.problemIR?.solveRequests.find((candidate) => candidate.id === binding.requestId);
       if (!request?.resultBinding || !request.resultBinding.evidenceFactIds.every((factId) =>
         solver.problemIR?.facts.some((fact) => fact.id === factId && fact.kind === "requested"))) {
-        return failure("claimed point-line distance solver binding requires requested-fact evidence");
+        return failure("scene_point_line_solver_evidence_invalid", "claimed point-line distance solver binding requires requested-fact evidence");
       }
       const resultIssues = validateSceneQuantityAgreement(
         [{ id: binding.quantityId, value: binding.approximate, unit: binding.unit }],
         turnPlan,
       );
       if (resultIssues.length > 0) {
-        return failure(`point-line distance solver binding disagrees with TurnPlanV3: ${formatIssues(resultIssues)}`);
+        return failure("scene_point_line_solver_quantity_mismatch", `point-line distance solver binding disagrees with TurnPlanV3: ${formatIssues(resultIssues)}`);
       }
     }
   }
@@ -396,7 +414,7 @@ async function canonicalSolverArtifacts(
   question: string,
 ): Promise<
   | { ok: true; problemIR: SceneArtifactsV3["problemIR"]; solverResult: SceneArtifactsV3["solverResult"]; solverAuthority: SceneArtifactsV3["solverAuthority"] }
-  | { ok: false; error: string }
+  | TurnSceneFailure
 > {
   const hasProblem = artifacts.problemIR != null;
   const hasResult = artifacts.solverResult != null;
@@ -404,15 +422,15 @@ async function canonicalSolverArtifacts(
     return { ok: true, problemIR: null, solverResult: null, solverAuthority: null };
   }
   if (!hasProblem || !hasResult || !turnPlan) {
-    return failure("solver authority requires ProblemIR, SolverResult, and a valid TurnPlanV3");
+    return failure("scene_solver_artifacts_incomplete", "solver authority requires ProblemIR, SolverResult, and a valid TurnPlanV3");
   }
   const problemValidation = validateProblemIR(artifacts.problemIR, question);
   if (!problemValidation.problem) {
-    return failure(`persisted ProblemIR is invalid: ${formatIssues(problemValidation.issues)}`);
+    return failure("scene_problem_ir_invalid", `persisted ProblemIR is invalid: ${formatIssues(problemValidation.issues)}`);
   }
   const submittedResult = validateSolverResult(artifacts.solverResult, problemValidation.problem);
   if (!submittedResult.result || submittedResult.result.status !== "solved") {
-    return failure(`persisted SolverResult is invalid: ${formatIssues(submittedResult.issues)}`);
+    return failure("scene_solver_result_invalid", `persisted SolverResult is invalid: ${formatIssues(submittedResult.issues)}`);
   }
   const controller = new AbortController();
   const recomputed = await new LocalDeterministicSolverProvider().solve(problemValidation.problem, {
@@ -421,10 +439,10 @@ async function canonicalSolverArtifacts(
   });
   const recomputedValidation = validateSolverResult(recomputed, problemValidation.problem);
   if (!recomputedValidation.result || recomputedValidation.result.status !== "solved") {
-    return failure("the current deterministic solver could not reproduce the submitted result");
+    return failure("scene_solver_recomputation_failed", "the current deterministic solver could not reproduce the submitted result");
   }
   if (!sameSolverValues(submittedResult.result.values, recomputedValidation.result.values)) {
-    return failure("submitted solver values differ from server recomputation");
+    return failure("scene_solver_values_mismatch", "submitted solver values differ from server recomputation");
   }
   const audit = verifyTurnPlanAgainstSolver(
     problemValidation.problem,
@@ -433,7 +451,7 @@ async function canonicalSolverArtifacts(
     question,
   );
   if (audit.status === "contradiction") {
-    return failure(`solver authority contradicts TurnPlanV3: ${formatIssues(audit.issues)}`);
+    return failure("scene_solver_plan_contradiction", `solver authority contradicts TurnPlanV3: ${formatIssues(audit.issues)}`);
   }
   return {
     ok: true,
@@ -585,7 +603,7 @@ function canonicalizeTeachingCommands(
   segments: SubmittedTurnSegment[],
   diagram: Parameters<typeof isBlockedVerifiedDiagramCommand>[1],
   codeLesson: CodeLessonPlan | null = null,
-): { ok: true; segments: SubmittedTurnSegment[] } | { ok: false; error: string } {
+): { ok: true; segments: SubmittedTurnSegment[] } | TurnSceneFailure {
   const canonical: SubmittedTurnSegment[] = [];
 
   for (const [segmentIndex, segment] of segments.entries()) {
@@ -596,7 +614,7 @@ function canonicalizeTeachingCommands(
 
     const commands = parseStoredSegmentCommands(segment.command);
     if (commands.length === 0 || commands.length > 16) {
-      return failure(`segment ${segment.orderIndex} has an invalid teaching command envelope`);
+      return failure("scene_teaching_envelope_invalid", `segment ${segment.orderIndex} has an invalid teaching command envelope`);
     }
 
     const normalized: DrawCommand[] = [];
@@ -607,7 +625,7 @@ function canonicalizeTeachingCommands(
       // stale FOCUS target — the narration survives, nothing untrusted renders.
       if (isRecord(command) && command.type === "TYPE") {
         if (!codeLesson) {
-          return failure("TYPE commands require a persisted code lesson plan");
+          return failure("scene_teaching_type_plan_required", "TYPE commands require a persisted code lesson plan");
         }
         const rebuilt = canonicalTypeCommand(command, codeLesson);
         if (rebuilt) normalized.push(rebuilt);
@@ -650,7 +668,10 @@ function canonicalizeTeachingCommands(
         const type = isRecord(command) && typeof command.type === "string"
           ? command.type
           : "unknown";
-        return failure(`teaching command ${type} is not allowed for persistence`);
+        return failure(
+          normalized.length + allowed.length > 16 ? "scene_teaching_envelope_invalid" : "scene_teaching_command_not_allowed",
+          `teaching command ${type} is not allowed for persistence`,
+        );
       }
       normalized.push(...allowed);
     }
@@ -778,24 +799,32 @@ function canonicalTeachingCommand(command: unknown): DrawCommand | null {
     };
   }
 
-  if (
-    command.type === "FOCUS" &&
-    command.params.length === 0 &&
-    typeof command.text === "string" &&
-    command.text.trim().length > 0 &&
-    command.text.length <= 160
-  ) {
+  if (command.type === "FOCUS" || command.type === "ANNOTATE") {
+    // The live resolver gives an explicit semantic target precedence over
+    // text, including its emphasis suffix. Persist that same target as text
+    // so replay needs no client-owned reference or coordinate authority.
+    const semanticTarget = isRecord(command.semanticRef) ? command.semanticRef.entityId : undefined;
+    const target = semanticTarget ?? command.text;
+    const limit = command.type === "FOCUS" ? 160 : 128;
+    const providedTextValid = command.text === undefined || (
+      typeof command.text === "string" && command.text.trim().length > 0 && command.text.length <= limit
+    );
+    if (
+      command.params.length !== 0 ||
+      typeof target !== "string" || target.trim().length === 0 || target.length > limit ||
+      !providedTextValid
+    ) return null;
     return {
-      type: "FOCUS",
+      type: command.type,
       params: [],
-      text: command.text.trim(),
+      text: target.trim(),
       charPosition: charPosition as number,
       narrationBefore,
     };
   }
 
   if (
-    (command.type === "EMPHASIZE" || command.type === "ANNOTATE") &&
+    command.type === "EMPHASIZE" &&
     command.params.length === 0 &&
     typeof command.text === "string" &&
     command.text.trim().length > 0 &&
@@ -878,8 +907,8 @@ function formatIssues(issues: Array<{ code?: string; path?: string; message: str
   ).join("; ");
 }
 
-function failure(error: string): { ok: false; error: string } {
-  return { ok: false, error };
+function failure(code: TurnSceneRejectionCode, error: string): { ok: false; error: string; code: TurnSceneRejectionCode } {
+  return { ok: false, error, code };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
