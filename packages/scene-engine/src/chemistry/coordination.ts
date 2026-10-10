@@ -25,6 +25,7 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { complexTokens, normalizeChemistryText, parseComplex, type LigandSpec, type ParsedComplex } from "./formula";
+import { fourCoordinateGeometry } from "./foundation/coordinationGeometry";
 
 export const COORD_FAMILY = "chem_coordination" as const;
 
@@ -274,20 +275,13 @@ function enumerateArrangements(instances: LigandInstance[], sites: SiteSet): Arr
 /* Geometry, names, helicity                                                 */
 /* ------------------------------------------------------------------------- */
 
-const SQUARE_PLANAR_METALS = new Map<string, number[]>([["Pt", [2]], ["Pd", [2]], ["Au", [3]], ["Rh", [1]], ["Ir", [1]]]);
-
 function geometryOf(complex: ParsedComplex): CoordGeometry | null {
   const cn = complex.coordinationNumber;
   if (cn === 6) return "octahedral";
   if (cn === 2) return "linear";
   if (cn !== 4) return null;
-  const metal = complex.metal.symbol;
-  const ox = complex.oxidationState;
-  const keys = complex.ligands.map((ligand) => ligand.spec.key);
-  if ((SQUARE_PLANAR_METALS.get(metal) ?? []).includes(ox)) return "square planar";
-  if (metal === "Ni" && ox === 2 && keys.every((key) => key === "CN" || key === "dmg")) return "square planar";
-  if (metal === "Cu" && ox === 2 && keys.every((key) => key === "NH3" || key === "en")) return "square planar";
-  return "tetrahedral";
+  const supported = fourCoordinateGeometry(complex);
+  return supported === "square_planar" ? "square planar" : supported;
 }
 
 function sitesFor(geometry: CoordGeometry): SiteSet {

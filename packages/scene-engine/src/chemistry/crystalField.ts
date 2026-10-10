@@ -29,6 +29,7 @@ import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKi
 import { complexTokens, formulaTokens, normalizeChemistryText, parseComplex, type ParsedComplex } from "./formula";
 import { dElectronCount } from "./electronConfiguration";
 import { elementBySymbol } from "./elements";
+import { fourCoordinateGeometry } from "./foundation/coordinationGeometry";
 // The label engine reserves boxes measured with the board's own glyph
 // metrics, so pinned labels are offset by the same measure.
 import { measureTextWidth } from "@heytutor/drawing";
@@ -93,7 +94,6 @@ export interface CftResult {
 /* Solver                                                                    */
 /* ------------------------------------------------------------------------- */
 
-const SQUARE_PLANAR_D8_METALS = new Set(["Pt", "Pd", "Au", "Rh", "Ir"]);
 const STRONG_RANK = 13;
 const COBALT_III_STRONG_RANK = 7;
 const ROMAN = ["0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
@@ -195,14 +195,9 @@ export function crystalFieldAnalysis(complexText: string): CftResult | null {
   if (cn === 6) geometry = "octahedral";
   else if (cn === 2) geometry = "linear";
   else {
-    // Ligand strength alone does not establish CN4 geometry. Match the
-    // independently supported ligand sets also used by coordination.ts.
-    const nickelPlanarSet = complex.ligands.every((ligand) => ["CN", "dmg"].includes(ligand.spec.key));
-    const copperPlanarSet = complex.ligands.every((ligand) => ["NH3", "en"].includes(ligand.spec.key));
-    const squarePlanar =
-      (dCount === 8 && (SQUARE_PLANAR_D8_METALS.has(metal.symbol) || (metal.symbol === "Ni" && oxidationState === 2 && nickelPlanarSet))) ||
-      (dCount === 9 && metal.symbol === "Cu" && oxidationState === 2 && copperPlanarSet);
-    geometry = squarePlanar ? "square_planar" : "tetrahedral";
+    const supported = fourCoordinateGeometry(complex);
+    if (!supported) return null;
+    geometry = supported;
   }
 
   let strongDonors = 0;

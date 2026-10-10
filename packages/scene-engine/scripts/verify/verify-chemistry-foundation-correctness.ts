@@ -523,6 +523,99 @@ if (process.argv.includes("--probes")) check("preserve-existing-touched-family-p
   }
   console.log(JSON.stringify({ preservedProbeDraws: draws, preservedProbeDeclines: declines }));
 });
+// BEGIN PR136 CN4 DEFAULT REGRESSIONS — old literal oracles above remain unchanged.
+const cn4Prior = { passed, failed: failures.length };
+const cn4Evidence: Record<string, unknown>[] = [];
+const { parseComplex: readCn4Complex } = await import("../../src/chemistry/formula");
+function cn4CompileOutcome(document: SceneDocument | null): Record<string, unknown> | null {
+  if (!document) return null;
+  const valid = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>));
+  if (!valid.document) return { ok: false, issues: valid.report.issues };
+  const result = compileSceneDocument(valid.document);
+  return { ok: result.ok, family: document.source?.chemistryFamily, scene: result.renderScene, issues: result.report.issues };
+}
+for (const [complex, metal, charge] of [
+  ["[Ni(NO2)4]2-", "Ni", -2],
+  ["[Ni(NO2)4]²⁻", "Ni", -2],
+  ["[Ni(NO2)4]²−", "Ni", -2],
+  ["[Ni(NO2)4]^(2-)", "Ni", -2],
+  ["[Ni(CN)2(NH3)2]", "Ni", 0],
+  ["[Ni(NH3)2(CN)2]", "Ni", 0],
+  ["[Ni(en)(CN)2]", "Ni", 0],
+  ["[Cu(py)4]2+", "Cu", 2],
+  ["[Cu(bipy)2]2+", "Cu", 2],
+] as const) check(`CN4-unsupported-source-atomic-refusal-${complex}`, () => {
+  const parsed = readCn4Complex(complex);
+  assert.ok(parsed, "must exercise a parsed complete complex, not an absent/garbled token");
+  assert.equal(parsed.metal.symbol, metal);
+  if (charge === 0) assert.equal(Math.abs(parsed.charge), 0, "neutral net charge has no signed-zero distinction");
+  else assert.equal(parsed.charge, charge);
+  assert.equal(parsed.oxidationState, 2);
+  assert.equal(parsed.coordinationNumber, 4);
+  const cft = api.crystalFieldAnalysis(complex);
+  const coordination = api.coordinationIsomers(complex);
+  const cftQuestion = `Draw the crystal field splitting and magnetic character of ${complex}.`;
+  const coordinationQuestion = `Draw the structure of ${complex}.`;
+  const cftDocument = api.buildCrystalFieldScene(cftQuestion, [], false);
+  const coordinationDocument = api.buildCoordinationScene(coordinationQuestion, [], false);
+  const synthesized = synthesizeFamilyScene({ question: coordinationQuestion });
+  cn4Evidence.push({ complex, expected: "unsupported/refuse", parsed, cft, coordination,
+    cftCompiled: cn4CompileOutcome(cftDocument), coordinationCompiled: cn4CompileOutcome(coordinationDocument),
+    synthesizedFamily: synthesized?.family ?? null });
+  assert.equal(cft, null, "unmatched ligand evidence cannot certify tetrahedral splitting");
+  assert.equal(coordination, null, "the coordination family must share the same refusal");
+  assert.equal(cftDocument, null);
+  assert.equal(coordinationDocument, null);
+  assert.equal(synthesized, null, "ordinary synthesis must not rescue a wrong complex through another family");
+});
+for (const [complex, geometry, electrons, unpaired] of [
+  ["[NiCl2(PPh3)2]", "tetrahedral", 8, 2],
+  ["[NiCl4]2-", "tetrahedral", 8, 2],
+  ["[Ni(CO)4]", "tetrahedral", 10, 0],
+  ["[CoCl4]2-", "tetrahedral", 7, 3],
+  ["[CuCl4]2-", "tetrahedral", 9, 1],
+  ["[Zn(CN)4]2-", "tetrahedral", 10, 0],
+  ["[Ni(CN)4]2-", "square_planar", 8, 0],
+  ["[Ni(dmg)2]", "square_planar", 8, 0],
+  ["[Cu(NH3)4]2+", "square_planar", 9, 1],
+  ["[Cu(en)2]2+", "square_planar", 9, 1],
+  ["[PtCl4]2-", "square_planar", 8, 0],
+  ["[PdCl4]2-", "square_planar", 8, 0],
+  ["[AuCl4]-", "square_planar", 8, 0],
+  ["[Ag(NH3)2]+", "linear", 10, 0],
+  ["[Fe(CN)6]3-", "octahedral", 5, 1],
+  ["[Ni(NO2)6]4-", "octahedral", 8, 2],
+  ["[Cu(py)6]2+", "octahedral", 9, 1],
+] as const) check(`CN4-preserve-supported-and-other-CN-${complex}`, () => {
+  const cft: CftResult | null = api.crystalFieldAnalysis(complex);
+  assert.ok(cft);
+  assert.equal(cft.geometry, geometry);
+  assert.equal(cft.dCount, electrons);
+  assert.equal(cft.levels.flatMap((level) => level.boxes).reduce((sum, count) => sum + count, 0), electrons);
+  assert.equal(cft.unpaired, unpaired);
+  assert.equal(cft.magnetism, unpaired ? "paramagnetic" : "diamagnetic");
+  assert.equal(api.coordinationIsomers(complex)?.geometry, geometry.replace("_", " "));
+  const cftDocument = api.buildCrystalFieldScene(`Draw the crystal field splitting of ${complex}.`, [], false);
+  const coordinationDocument = api.buildCoordinationScene(`Draw the structure of ${complex}.`, [], false);
+  if (geometry === "linear") assert.equal(cftDocument, null, "preserve the existing CN2 splitting-adapter refusal");
+  else compiled(`CN4-neighbor-CFT-${complex.replace(/[^A-Za-z0-9]/g, "")}`, cftDocument);
+  compiled(`CN4-neighbor-coordination-${complex.replace(/[^A-Za-z0-9]/g, "")}`, coordinationDocument);
+  cn4Evidence.push({ complex, expected: geometry, cft,
+    cftCompiled: cn4CompileOutcome(cftDocument), coordinationCompiled: cn4CompileOutcome(coordinationDocument) });
+});
+check("CN4-preserve-malformed-and-unsupported-CN-refusal", () => {
+  for (const complex of ["[Ni(CN)4]", "[Ni(Qq)4]2-", "[NiCl3]-", "[Fe(CO)5]"]) {
+    assert.equal(api.crystalFieldAnalysis(complex), null);
+    assert.equal(api.buildCrystalFieldScene(`Draw the crystal field splitting of ${complex}.`, [], false), null);
+  }
+});
+const cn4Report = { oldGroups: cn4Prior.passed + cn4Prior.failed, oldPassed: cn4Prior.passed, oldFailed: cn4Prior.failed,
+  addedGroups: passed + failures.length - cn4Prior.passed - cn4Prior.failed,
+  addedPassed: passed - cn4Prior.passed, addedFailed: failures.length - cn4Prior.failed, evidence: cn4Evidence };
+const cn4ReportArg = process.argv.indexOf("--cn4-report");
+if (cn4ReportArg >= 0) writeFileSync(resolve(process.argv[cn4ReportArg + 1]!), JSON.stringify(cn4Report, null, 2) + "\n");
+console.log(JSON.stringify({ ...cn4Report, evidence: undefined }));
+// END PR136 CN4 DEFAULT REGRESSIONS.
 const report = { mode: "actual installed public source (offline)", candidateGroups: passed + failures.length, engineAssertions, passed, failed: failures.length, renders, writtenRenders, failures, printedConfigurationChecks,
   parentComparisons: { executed: parentComparisonsExecuted, skipped: parentComparisonsSkipped, rows: parentComparisonRows }, historicalOverlayComparisonsExecuted: 0,
   excludedF2Controls: { count: 5, status: "deferred, not executed or passed", names: ["composition-network-whole-source-refusal (F2 binding audit)", "composition-supported-CO2-whole-source (F2 admission)", "composition-bound-H3PO2-source-and-graph", "composition-bound-H3PO3-source-and-graph", "composition-bound-H3PO4-source-and-graph"] },
