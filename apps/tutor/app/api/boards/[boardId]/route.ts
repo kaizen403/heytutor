@@ -97,6 +97,7 @@ export async function GET(request: Request, context: RouteContext) {
         command: segment.command,
         audioUrl: segment.audioUrl,
         audioFormat: segment.audioFormat,
+        audioRef: segment.audioRef,
         durationMs: segment.durationMs,
         timings: segment.timings,
       })),

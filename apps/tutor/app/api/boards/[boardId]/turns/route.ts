@@ -72,6 +72,7 @@ function turnResponse(turn: Turn, insertedSegments: Segment[]) {
           command: segment.command,
           audioUrl: segment.audioUrl,
           audioFormat: segment.audioFormat,
+          audioRef: segment.audioRef,
           durationMs: segment.durationMs,
           timings: segment.timings,
         })),
@@ -302,6 +303,7 @@ export async function POST(request: Request, context: RouteContext) {
           command: segment.command === undefined ? undefined : (segment.command as Prisma.InputJsonValue),
           audioUrl: audioUrls.get(segment.orderIndex) ?? null,
           audioFormat: audioFormats.get(segment.orderIndex) ?? "audio/mpeg",
+          audioRef: segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex,
           durationMs: segment.durationMs ?? null,
           timings: segment.timings === undefined ? undefined : (segment.timings as Prisma.InputJsonValue),
         }));

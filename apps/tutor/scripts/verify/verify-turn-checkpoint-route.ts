@@ -29,6 +29,8 @@ import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as storedSceneSource from "../../lib/scene/storedSceneSource";
 import { canonicalizeTurnSceneMetadata as canonicalizeRealScene } from "../../lib/scene/turnScenePersistence";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
+import { enrichStoredSegmentsWithReplayAudio, replayAudioBytesForUrl, releaseReplayAudioBytes } from "../../lib/replay/replayTurns";
+import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -59,6 +61,8 @@ let canonicalizeCalls = 0;
 let clock = Date.now();
 let uploadPause: ((key: string) => Promise<void>) | null = null;
 let canonicalPause: (() => Promise<void>) | null = null;
+let growthBytesLimit: number | null = null;
+let growthPause: (() => Promise<void>) | null = null;
 
 function clean(value: unknown): unknown {
   return value === DB_NULL ? null : value;
@@ -215,8 +219,10 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
       return reservation;
     },
     reserveTurnGrowthStorage: async (input: Row) => {
+      if (growthBytesLimit !== null && input.bytes > growthBytesLimit) throw new StorageQuotaError("account storage quota exceeded");
       const reservation = { ...input, type: "growth", cleanupId: crypto.randomUUID(), pendingTurns: 0, state: "open" };
       reservations.push(reservation);
+      await growthPause?.();
       return reservation;
     },
     settleTurnStorage: async (reservation: Row) => { reservation.state = "settled"; },
@@ -564,7 +570,65 @@ async function firstSceneHasIndependentReceipt() {
   } finally { globalThis.fetch = originalFetch; }
 }
 
+async function metadataOnlyCloseChargesGrowth() {
+  const id = crypto.randomUUID();
+  const first = await put(id, { seq: 1, baseCount: 0, rawResponse: "Opening.", resumeState: { small: "state" },
+    appendSegments: [row(0, "", CLEAR), row(1, "Opening.")] });
+  assert.equal(first.status, 200);
+  const charged = stored(id).storageBytes as bigint; const metadata = stored(id).metadataBytes as bigint;
+  const uploadCount = uploads.length;
+  const grown = await close(id, { seq: 2, baseCount: 99, status: "stopped", rawResponse: "x".repeat(2000), resumeState: { solver: "r".repeat(2000) } });
+  assert.equal(grown.status, 200, JSON.stringify(grown.body));
+  assert.equal(stored(id).rawResponse.length, 2000); assert.equal(rowsOf(id).length, 2); assert.equal(uploads.length, uploadCount);
+  assert(stored(id).metadataBytes > metadata, "a metadata-only close charges the newly stored header/state bytes");
+  const growth = reservations.at(-1)!;
+  assert.equal(growth.type, "growth"); assert.equal(growth.state, "settled");
+  assert.equal(stored(id).storageBytes, charged + BigInt(growth.bytes));
+  assert.equal(grown.body.serverSceneSeq, 1, "header growth never advances scene authority");
+  const once = stored(id).storageBytes; const count = reservations.length;
+  await close(id, { seq: 2, status: "stopped", rawResponse: "stale".repeat(1000), resumeState: { stale: true } });
+  assert.equal(stored(id).storageBytes, once); assert.equal(reservations.length, count);
+  assert.equal(stored(id).rawResponse.length, 2000, "same/older sequence never changes or charges metadata");
+  const snapshot = JSON.stringify(stored(id), (_key, value) => typeof value === "bigint" ? value.toString() : value);
+  growthBytesLimit = 0;
+  try {
+    const refused = await close(id, { seq: 3, status: "stopped", rawResponse: "b".repeat(4000), resumeState: { bigger: "b".repeat(4000) } });
+    assert.equal(refused.status, 413, "metadata-only close observes the same account byte quota");
+    assert.equal(JSON.stringify(stored(id), (_key, value) => typeof value === "bigint" ? value.toString() : value), snapshot,
+      "quota denial leaves rows, scene and newer metadata untouched");
+  } finally { growthBytesLimit = null; }
+  const cleared = await close(id, { seq: 3, status: "stopped", rawResponse: "Short.", resumeState: null });
+  assert.equal(cleared.status, 200); assert.equal(stored(id).resumeState, null);
+  assert.equal(stored(id).storageBytes, once, "shrinking or clearing preserves the existing allocation high-water mark");
+  assert.equal(reservations.length, count);
+
+  const race = crypto.randomUUID();
+  await put(race, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  let started!: () => void, release!: () => void;
+  const pending = new Promise<void>(resolve => { started = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let paused = false;
+  growthPause = async () => { if (!paused) { paused = true; started(); await held; } };
+  try {
+    const closing = close(race, { seq: 2, status: "stopped", rawResponse: "Old close.".repeat(100), resumeState: { old: true } });
+    await pending;
+    const newer = await put(race, { seq: 3, baseCount: 1, rawResponse: "New row header.", resumeState: { newer: true },
+      appendSegments: [row(1, "New row.")] });
+    assert.equal(newer.status, 200);
+    release();
+    assert.equal((await closing).status, 200, "a close re-reads a concurrently appended row instead of losing Stop");
+    assert.equal(stored(race).status, "stopped"); assert.equal(rowsOf(race).length, 2);
+    assert.equal(stored(race).rawResponse, "New row header.");
+    assert.deepEqual(JSON.parse(JSON.stringify(stored(race).resumeState)), { newer: true });
+    assert.equal(reservations.filter(entry => entry.state === "open").length, 0,
+      "the superseded metadata reservation is abandoned, not double-settled");
+    assert.equal(stored(race).storageBytes, reservations.filter(entry => entry.turnId === race && entry.state === "settled")
+      .reduce((total, entry) => total + BigInt(entry.bytes), 0n));
+  } finally { release(); growthPause = null; }
+}
+
 async function main() {
+  await metadataOnlyCloseChargesGrowth();
   await firstSceneHasIndependentReceipt();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   await failedEarlierCreationKeepsDurableOrder();
@@ -666,6 +730,39 @@ async function main() {
   assert.equal(afterIntro[2]!.audioRef, 1);
   assert.equal(audioKeyOf(afterIntro[3]!.audioUrl), secondKey);
   assert.match(audioKeyOf(afterIntro[5]!.audioUrl)!, /\/4\.mp3$/);
+  // Drive the real same-tab replay/export enrichment with the actual route
+  // receipt. Canonical intro insertion changes rows; audio identity must not.
+  const recorded = [row(0, "", CLEAR), row(1, "Write the rise."), row(2, "Then the run."), row(3, "Divide."), row(4, "Look at the line.")]
+    .map((r): RecordedSegmentPayload => ({ ...r, command: r.command as RecordedSegmentPayload["command"],
+      audioBytes: [1, 2, 4].includes(r.orderIndex) ? MP3(r.orderIndex) : null, timings: null }));
+  const localUrls: string[] = [];
+  const assertReplayClips = (saved: Row) => {
+    const enriched = enrichStoredSegmentsWithReplayAudio(saved.segments, recorded, url => localUrls.push(url));
+    assert.equal(enriched[1]!.audioUrl, null, "a server-inserted intro never borrows the next explanation's voice");
+    for (const [canonicalIndex, submittedIndex] of [[2, 1], [3, 2], [5, 4]]) {
+      assert.deepEqual(replayAudioBytesForUrl(enriched[canonicalIndex!]!.audioUrl!)!, MP3(submittedIndex!),
+        "replay and video use the same recorded bytes as the row's submitted source");
+    }
+    assert.equal(enriched[4]!.audioUrl, null, "a silent submitted row stays silent after insertion");
+  };
+  assertReplayClips(upgraded.body.turn);
+  const freshAudio = await boardRoute.GET(new Request("https://example.test/api/boards/board-a"), { params: Promise.resolve({ boardId: "board-a" }) });
+  assertReplayClips((await freshAudio.json()).turns.find((turn: Row) => turn.id === lesson));
+  const legacy = { ...upgraded.body.turn.segments[2], orderIndex: 1, audioRef: undefined, audioUrl: null };
+  const matchingLegacy = enrichStoredSegmentsWithReplayAudio([legacy], recorded, url => localUrls.push(url))[0]!;
+  assert.deepEqual(replayAudioBytesForUrl(matchingLegacy.audioUrl!)!, MP3(1), "legacy omitted references retain a matching same-index recording");
+  for (const controlled of [
+    { ...legacy, narration: "Different row." },
+    { ...legacy, command: write("Different work.") },
+    { ...legacy, audioRef: null },
+    { ...legacy, audioRef: 99 },
+    { ...legacy, audioRef: -1 },
+  ]) {
+    assert.equal(enrichStoredSegmentsWithReplayAudio([controlled], recorded, url => localUrls.push(url))[0]!.audioUrl,
+      null, "unknown, silent or unrelated rows never borrow a same-index recording");
+  }
+  for (const url of localUrls) { releaseReplayAudioBytes(url); URL.revokeObjectURL(url); }
+
 
   // --- 7. status only moves forward; complete is final ------------------------
   const stopped = await put(lesson, { seq: 4, baseCount: 5, status: "stopped", visualStatus: "validated",

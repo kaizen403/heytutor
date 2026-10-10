@@ -15,6 +15,8 @@ export interface StoredSegment {
   spokenText: string;
   command: DrawCommand | StoredCommandEnvelope | null;
   audioUrl: string | null;
+  /** Submitted recording index; null denotes server-generated ink with no clip. */
+  audioRef?: number | null;
   durationMs: number | null;
   timings: AudioTimings | null;
 }

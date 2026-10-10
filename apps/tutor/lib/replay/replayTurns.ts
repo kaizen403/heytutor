@@ -1,3 +1,4 @@
+import { parseStoredSegmentCommands } from "@heytutor/drawing";
 import { speechAudioMimeType } from "@heytutor/tutor-core";
 import type {
   RecordedSegmentPayload,
@@ -35,7 +36,15 @@ export function enrichStoredSegmentsWithReplayAudio(
   registerBlobUrl: (url: string) => void,
 ): StoredSegment[] {
   return segments.map((segment) => {
-    const captured = recorded.find((entry) => entry.orderIndex === segment.orderIndex);
+    // Canonical figure insertion may shift every rendered row. A submitted
+    // index is a recording identity; the canonical display index is not.
+    const captured = segment.audioRef === undefined
+      ? recorded.find((entry) => entry.orderIndex === segment.orderIndex &&
+        entry.narration === segment.narration && entry.spokenText === segment.spokenText &&
+        JSON.stringify(parseStoredSegmentCommands(entry.command)) === JSON.stringify(parseStoredSegmentCommands(segment.command)))
+      : Number.isSafeInteger(segment.audioRef) && segment.audioRef !== null && segment.audioRef >= 0
+        ? recorded.find((entry) => entry.orderIndex === segment.audioRef)
+        : undefined;
     if (!captured?.audioBytes?.length) {
       return segment;
     }

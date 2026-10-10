@@ -187,11 +187,64 @@ async function main() {
       assert.equal(page, null, "bounded actual history reads cover all private fixture rows");
       return { turns };
     };
+    // --- metadata-only close uses the real account quota and byte charge -------
+    const headerTurn = randomUUID();
+    assert.equal((await put(headerTurn, { seq: 1, baseCount: 0, rawResponse: "Opening.",
+      appendSegments: [row(0, "Opening.")] })).status, 200);
+    const headerBefore = await turnRow(headerTurn), accountBefore = await balance();
+    const headerGrowth = await close(headerTurn, { seq: 2, status: "stopped", rawResponse: "n".repeat(2000),
+      resumeState: { solver: "s".repeat(2000) } });
+    assert.equal(headerGrowth.status, 200, JSON.stringify(headerGrowth.body));
+    const headerAfter = await turnRow(headerTurn), accountAfter = await balance();
+    assert(headerAfter.metadataBytes > headerBefore.metadataBytes, "close header/state growth is charged in the actual database");
+    assert.equal(headerAfter.storageBytes - headerBefore.storageBytes, headerAfter.metadataBytes - headerBefore.metadataBytes,
+      "metadata-only growth charges no existing voice bytes again");
+    assert.equal(accountAfter.reservedBytes - accountBefore.reservedBytes, headerAfter.storageBytes - headerBefore.storageBytes);
+    assert.equal(accountAfter.pendingTurns, 0); assert.equal(await prisma.objectDeletionJob.count({ where: { userId } }), 0);
+    assert.equal(await prisma.segment.count({ where: { turnId: headerTurn } }), 1);
+    const freshHeader = (await get()).turns.find(entry => entry.id === headerTurn)!;
+    assert.equal(freshHeader.rawResponse, "n".repeat(2000)); assert.deepEqual(freshHeader.resumeState, { solver: "s".repeat(2000) });
+    await close(headerTurn, { seq: 2, status: "stopped", rawResponse: "stale".repeat(1000), resumeState: { stale: true } });
+    assert.equal((await balance()).reservedBytes, accountAfter.reservedBytes, "replayed close metadata charges no bytes");
+    assert.equal((await turnRow(headerTurn)).rawResponse, headerAfter.rawResponse);
+    const heldBalance = (await balance()).reservedBytes;
+    const headerAtQuota = await turnRow(headerTurn);
+    await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: BigInt(storage.MAX_ACCOUNT_STORAGE_BYTES) } });
+    try {
+      const refusedHeader = await close(headerTurn, { seq: 3, status: "stopped", rawResponse: "n".repeat(4000),
+        resumeState: { solver: "s".repeat(4000) } });
+      assert.equal(refusedHeader.status, 413, "real account quota rejects metadata-only close growth");
+      assert.deepEqual(await turnRow(headerTurn), headerAtQuota, "quota refusal leaves turn metadata/status/sequence unchanged");
+      assert.equal(await prisma.objectDeletionJob.count({ where: { userId } }), 0);
+      assert.equal((await balance()).reservedBytes, BigInt(storage.MAX_ACCOUNT_STORAGE_BYTES));
+    } finally {
+      await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: heldBalance } });
+    }
+    assert.equal((await close(headerTurn, { seq: 3, status: "stopped", rawResponse: "Short.", resumeState: null })).status, 200);
+    assert.equal((await balance()).reservedBytes, heldBalance, "clearing metadata keeps the allocated high-water charge");
+    assert.equal((await turnRow(headerTurn)).resumeState, null);
+    const [closeA, closeB] = await Promise.all([
+      close(headerTurn, { seq: 4, status: "stopped", rawResponse: "older".repeat(1000), resumeState: { older: true } }),
+      close(headerTurn, { seq: 5, status: "stopped", rawResponse: "newer".repeat(1500), resumeState: { newer: true } }),
+    ]);
+    assert.equal(closeA.status, 200, JSON.stringify(closeA.body)); assert.equal(closeB.status, 200, JSON.stringify(closeB.body));
+    assert.equal((await turnRow(headerTurn)).rawResponse, "newer".repeat(1500));
+    assert.deepEqual((await turnRow(headerTurn)).resumeState, { newer: true });
+    await runObjectDeletionBatch({ now: later });
+    assert.equal((await balance()).reservedBytes,
+      (await prisma.turn.aggregate({ where: { userId }, _sum: { storageBytes: true } }))._sum.storageBytes,
+      "concurrent close reservations settle or clean up to exactly the stored allocation");
+    assert.equal((await balance()).pendingTurns, 0);
+
     let detail = await get();
     const listed = detail.turns.find((entry) => entry.id === lesson)!;
     assert.equal(listed.status, "live");
     assert.equal(listed.kind, "lesson");
     assert.ok("traceId" in listed);
+    const listedSegments = listed.segments as Array<Record<string, unknown>>;
+    assert.equal(listedSegments[1]!.audioRef, 1, "fresh GET preserves the submitted voice identity");
+    assert.equal(((first.body.turn as Record<string, unknown>).segments as Array<Record<string, unknown>>)[1]!.audioRef, 1,
+      "checkpoint receipt carries the same audio identity as the fresh GET");
     assert.equal("submittedSegments" in listed, false, "the board GET never sends the submitted rows");
     await prisma.$executeRaw`UPDATE turns SET updated_at = now() - interval '3 minutes' WHERE id = ${lesson}::uuid`;
     detail = await get();
@@ -303,6 +356,29 @@ async function main() {
 
     // --- independent scene authority survives a destroyed producer tab --------
     const sceneFixture = await checkpointSceneFixture();
+    const insertedIntroTurn = randomUUID();
+    const insertedWav = WAV();
+    assert.equal((await put(insertedIntroTurn, { question: sceneFixture.question, seq: 1, baseCount: 0,
+      rawResponse: "The sum is five.", appendSegments: [row(0, "", CLEAR), row(1, "The sum is five.")] },
+      { 1: insertedWav }, "audio/wav")).status, 200);
+    const inserted = await put(insertedIntroTurn, { ...sceneFixture.metadata, seq: 2, baseCount: 2,
+      rawResponse: "The sum is five.", resumeState: { v: 1, solverProjection: sceneFixture.projection }, appendSegments: [] });
+    assert.equal(inserted.status, 200, JSON.stringify(inserted.body));
+    const insertedFresh = (await get()).turns.find(entry => entry.id === insertedIntroTurn)!;
+    const insertedRows = insertedFresh.segments as Array<Record<string, unknown>>;
+    const insertedFigure = insertedRows.filter(segment => isStoredCommandTrustedGeometry(segment.command));
+    assert(insertedFigure.length > 0, "real canonicalizer inserts the absent verified intro");
+    for (const segment of insertedFigure) {
+      assert.equal(segment.audioRef, null, "a newly server-inserted intro has no submitted recording identity");
+      assert.equal(segment.audioUrl, null);
+    }
+    const shiftedVoice = insertedRows.find(segment => segment.narration === "The sum is five.")!;
+    assert.equal(shiftedVoice.audioRef, 1); assert.notEqual(shiftedVoice.orderIndex, 1);
+    assert.equal(shiftedVoice.audioFormat, "audio/wav"); assert.match(keyOf(shiftedVoice.audioUrl as string)!, /\/1\.wav$/);
+    assert.equal(objects.get(keyOf(shiftedVoice.audioUrl as string)!), insertedWav.length);
+    const insertedReceipt = (inserted.body.turn as Record<string, unknown>).segments as Array<Record<string, unknown>>;
+    assert.deepEqual(insertedReceipt.map(segment => segment.audioRef), insertedRows.map(segment => segment.audioRef),
+      "real checkpoint receipt and fresh GET agree after figure insertion");
     for (const mode of ["dead-tab", "first-create", "changed-authority", "new-fallback", "legacy"] as const) {
       const id = randomUUID();
       if (mode !== "first-create") {
@@ -364,6 +440,13 @@ async function main() {
         const voiced = savedRows.find(segment => segment.narration === "The sum is five.")!;
         const key = keyOf(voiced.audioUrl as string)!;
         assert.equal(voiced.audioFormat, "audio/wav"); assert(key.endsWith(`/${voiceIndex}.wav`));
+        assert.equal(voiced.audioRef, voiceIndex, "canonical figure rows retain the submitted WAV identity");
+        for (const segment of savedRows.filter(segment => isStoredCommandTrustedGeometry(segment.command))) {
+          const submittedIntro = intro.find(source => source.orderIndex === segment.audioRef);
+          assert(submittedIntro, "replaced submitted intro keeps its original recording identity");
+          assert.equal(segment.narration, submittedIntro.narration);
+          assert.equal(segment.audioUrl, null, "this submitted intro supplied no voice file");
+        }
         assert.equal(objects.get(key), wav.length);
         const objectCount = objects.size;
         await put(id, old, { [voiceIndex]: wav }, "audio/wav");

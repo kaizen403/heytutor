@@ -68,7 +68,7 @@ const prisma = {
 };
 
 function load(relativePath: string, dependencies: Record<string, unknown>): Row {
-  const code = ts.transpileModule(readFileSync(resolve(root, relativePath), "utf8"), {
+  const code = ts.transpileModule(readFileSync(relativePath === "app/api/boards/[boardId]/turns/route.ts" && process.env.TURN_POST_TEST_SOURCE ? process.env.TURN_POST_TEST_SOURCE : resolve(root, relativePath), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports: Row = {};
@@ -149,6 +149,7 @@ async function main() {
     assert.equal(saved?.id, turns[0]?.id, "retry returns the original persisted turn");
     assert.equal(saved?.segments[0]?.id, segments[0]?.id, "retry returns the persisted segment, not a rebuilt copy");
     assert.equal(saved?.segments[0]?.audioUrl, "https://example.test/audio", "retry retains its stored audio URL");
+    assert.equal(saved?.segments[0]?.audioRef, 0, "legacy one-shot rows without sourceOrderIndex retain submitted index zero");
     assert.match(turns[0]?.idempotencyKey, /^[0-9a-f-]{36}$/, "save sends a stable UUID idempotency key");
 
     requests = 0;
@@ -208,7 +209,11 @@ async function main() {
       method: "POST", body: remapped,
     }), { params: Promise.resolve({ boardId: "board-a" }) });
     assert.equal(remapResponse.status, 200);
-    assert.equal((await remapResponse.json()).turn.segments[0].orderIndex, 0,
+    const remapTurn = (await remapResponse.json()).turn;
+    assert.equal(remapTurn.segments[0].audioRef, 7, "one-shot receipt retains the submitted recording identity");
+    assert.equal(segments.find(segment => segment.turnId === remapTurn.id)!.audioRef, 7,
+      "one-shot persistence retains recording identity for a later board GET");
+    assert.equal(remapTurn.segments[0].orderIndex, 0,
       "canonicalization may reindex the stored segment");
     assert.deepEqual(uploadedAudio.at(-1), [73, 68, 51, 7, 8, 9],
       "audio lookup must use sourceOrderIndex, not the reindexed segment's orderIndex");

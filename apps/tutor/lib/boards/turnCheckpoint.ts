@@ -222,6 +222,7 @@ export function checkpointTurnJson(turn: Turn, segments: Segment[]) {
         command: segment.command,
         audioUrl: segment.audioUrl,
         audioFormat: segment.audioFormat,
+        audioRef: segment.audioRef,
         durationMs: segment.durationMs,
         timings: segment.timings,
       })),
@@ -494,10 +495,11 @@ async function closeStatusOnly(
   existing: Turn,
   input: Omit<CheckpointInput, "scene" | "tolerateOverlap">,
 ): Promise<Response> {
-  // A known scene-less close freezes legacy scene authority before advancing
-  // the header sequence. Use the normal charged checkpoint path to account
-  // for the private receipt envelope as well as preserving the existing rows.
-  if (Array.isArray(existing.submittedSegments)) {
+  // New metadata has the same canonical byte budget/quota as a full save.
+  // Only a status-only or stale-header close may skip that charged path.
+  // Legacy rows also need their existing scene receipt envelope accounted.
+  if (Array.isArray(existing.submittedSegments) || (input.seq > existing.checkpointSeq &&
+    (input.rawResponse !== undefined || input.resumeState !== undefined))) {
     return applyCheckpoint(request, userId, params, {
       ...input, baseCount: heldRows(existing).length, appendSegments: [],
       scene: "stored", tolerateOverlap: true,
@@ -612,7 +614,8 @@ async function applyCheckpoint(
     append = append.filter((row) => row.orderIndex >= stored.length);
   }
   const seq = Math.max(input.seq, before?.checkpointSeq ?? 0);
-  if (before && input.tolerateOverlap && append.length === 0 && !Array.isArray(before.submittedSegments)) {
+  if (before && input.tolerateOverlap && append.length === 0 && !Array.isArray(before.submittedSegments) &&
+    (input.seq <= before.checkpointSeq || (input.rawResponse === undefined && input.resumeState === undefined))) {
     return closeStatusOnly(request, userId, { boardId, turnId }, before, input);
   }
 
@@ -764,7 +767,11 @@ async function applyCheckpoint(
             // canonical rows above were built on an old state: resend.
             if (heldRows(current).length !== stored.length || current.checkpointSeq !== (before?.checkpointSeq ?? 0) || heldSceneSeq(current) !== heldSceneSeq(before)) {
               await release();
-              if (current.status === "stopped" && stoppedRetries < 2 && (hasMissingCheckpointPayload(current, input, files) || hasNewerCheckpointScene(current, input))) {
+              if (stoppedRetries < 2 && ((current.status === "stopped" &&
+                (hasMissingCheckpointPayload(current, input, files) || hasNewerCheckpointScene(current, input))) ||
+                (input.tolerateOverlap && input.appendSegments.length === 0))) {
+                // A metadata-only close can race a later row checkpoint. Re-read
+                // its header/rows before charging, but still honour Stop.
                 return { kind: "retry_stopped" };
               }
               return { kind: "conflict", serverCount: heldRows(current).length, serverSeq: current.checkpointSeq };
