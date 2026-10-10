@@ -137,6 +137,9 @@ pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.json
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_first --figure-only --max-usd 5 --out .lecture-lab/eval-planner-first --yes
 # planner-with-examples uses the same ordering plus up to three cheap-model-picked examples
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --max-usd 5 --out .lecture-lab/eval-planner-examples --yes
+# strict uses the same planner+examples path and teaches text-only if it fails.
+# Every paid lab uses the configured Azure deployment and production 60 s budget.
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples_strict --model configured --scene-planner-limit-ms 60000 --figure-only --max-usd 5 --out .lecture-lab/eval-strict --yes
 # rebuild the validated example library after exemplar branches are merged
 pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
 # compare legacy and current top-three retrieval without model calls; this adds
@@ -221,12 +224,33 @@ deduplicated catalogue of `<id> | <figure kind> | <depicts>` lines, with each
 description capped at 16 words and the whole catalogue held below roughly 6,000
 tokens. The configured provider selects up to three exact ids with strict JSON
 and a 60-token content cap (Azure also reserves reasoning headroom). It starts
-beside ProblemIR and has a 15-second offline deadline; failure or timeout invokes the explicitly named word
+beside ProblemIR with a 15-second offline deadline (four seconds live); failure
+or timeout invokes the explicitly named word
 fallback, while a valid empty selection remains empty. Weak word matches also
 remain empty instead of padding the planner with unrelated examples. Each run
 records picker method, status, latency, critical-path time, tokens, actual cost,
 fallback reason, and selected ids. Literal point coordinates and engine-only
 metadata are still stripped from the examples sent to the scene planner.
+
+Live subject opt-in: `DIAGRAM_STRICT_SUBJECTS=maths` (empty by default) applies
+strict planner/examples selection only to ordinary maths lessons. The server
+returns the allowed subjects with the begin-turn grant; the existing TurnPlanV3
+calls classify the subject only when this opt-in is set. Unknown or disagreeing
+peer subjects stay current. Eval rows supply their labelled subject through the
+same `maths` / `physics` / `chemistry` vocabulary. No new classifier call or
+keyword-to-figure router is added. Chemistry, code/DSA and doubts/resumes retain
+their exemptions. The older percentage/actor allowlist is independent and still
+assigns global strict when explicitly enabled. Leave all flags off in production.
+
+Part 15 decline experiment (lab only): `--scene-decline-policy
+qualitative_setup_v1` clarifies faithful nonmetric concept setups, without
+relaxing operator/source/proof gates. Keep `--model configured`, the production
+`--scene-planner-limit-ms 60000`, and a hard `--max-usd` cap. Subsample rounds
+can preserve their original full-sample leak guard with `--example-exclusions
+<full-sample.jsonl>`; resume rejects changed experiment or exclusions. Private
+run artifacts retain raw candidate responses separately from deterministic
+fallback diagnostics. `physicsHybrid.ts <output.json>` computes the read-only
+counterfactual over previously judged Part 11/12/14 artifacts, with no API calls.
 
 ## Planner evidence
 
@@ -250,6 +274,15 @@ from the batch prompt; it opens every cropped PNG once and appends its compact
 JSONL verdicts to `judgments.jsonl`. Then run `judge-apply.ts <round>` to write
 `verdicts.csv`, prefill and prioritize the gallery, add the Needs human filter,
 and record judge counts in `summary.json`.
+
+Every later comparison is judged in one session across all arms. Include the 40
+reference cards in that session, then run
+`pnpm diagram:judge-check <session-judgments.jsonl>` to report agreement with
+the local, gitignored `data/diagram-eval/v1/anchors.jsonl`. References marked
+`owner` or `codex-reference` are accepted and their provenance is printed. A
+Codex reference score measures judge consistency between sessions, not human
+accuracy. Never commit the reference JSONL or `anchor-images/`: they may contain
+real student questions and figures.
 
 - `right`: every `must_show` item is present and no `must_not_show` item appears.
 - `partial`: it is the right kind of figure, but something is missing.

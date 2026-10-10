@@ -182,6 +182,31 @@ try {
     assert.equal(readGalleryEntries(path)[0]?.judgment?.verdict, "empty_bad");
   });
 
+  check("strict suppression preserves an exempt chemistry figure and its existing judgment", () => {
+    const run = fixture("chemistry-exempt", true);
+    run.question = "Draw the Lewis structure of H2O, including the two O-H bonds and two lone pairs on oxygen.";
+    run.topicId = "chemistry|1|synthetic-lewis";
+    run.unitId = "chemistry|1";
+    run.evaluation = {
+      ...run.evaluation, question: run.question, topic_id: run.topicId, subject: "chemistry",
+      figure_kind: "lewis", must_show: ["two O-H bonds", "two oxygen lone pairs"], must_label: ["O", "H"],
+    };
+    run.diagram.figureSource = "chemistry_family";
+    run.diagram.family = "chem_lewis";
+    const completed = judgment(run.evaluation.id);
+    const path = round("strict-chemistry-exempt", [run], [completed]);
+    applyJudgments(path);
+    const originalDiagram = structuredClone(run.diagram);
+
+    assert.equal(regradeStrictSuppression(path).suppressed, 0);
+    const updated = JSON.parse(readFileSync(join(path, "runs", "0.json"), "utf8"));
+    assert.deepEqual(updated.diagram, originalDiagram);
+    assert.deepEqual(readRoundJudgments(path), [completed]);
+    const summary = JSON.parse(readFileSync(join(path, "summary.json"), "utf8"));
+    assert.deepEqual(summary.judge.counts, { right: 1 });
+    assert.equal(readGalleryEntries(path)[0]?.judgment?.verdict, "right");
+  });
+
   check("strict suppression regrades lesson score after changing the committed figure", () => {
     const run = fixture("scored", true);
     const path = round("strict-score", [run], [judgment("scored")]);

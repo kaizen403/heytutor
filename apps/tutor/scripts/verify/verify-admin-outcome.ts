@@ -72,6 +72,7 @@ function assert(condition: unknown, message: string): asserts condition {
     representationTier: "exact_verified",
     figureSource: "planner",
     diagramResultStatus: "ready",
+    diagramStrategy: "strict",
     degradation: {
       attemptedTier: "exact_verified",
       reason: "missing_capability",
@@ -84,6 +85,7 @@ function assert(condition: unknown, message: string): asserts condition {
       healthy.representationTier === "exact_verified" &&
       healthy.figureSource === "planner" &&
       healthy.diagramResultStatus === "ready" &&
+      healthy.diagramStrategy === "strict" &&
       healthy.degradationReason === "missing_capability" &&
       healthy.candidateCount === 3,
     "a well-formed artifact reads through",

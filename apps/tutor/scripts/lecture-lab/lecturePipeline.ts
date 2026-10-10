@@ -37,6 +37,7 @@ import {
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
 import {
+  FIGURE_SOURCES,
   buildSolverAuthorityProjection,
   reconcileTurnPlanWithSolver,
   verifyTurnPlanAgainstSolver,
@@ -44,12 +45,10 @@ import {
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
-  deriveSceneGate as deriveProductionSceneGate,
-  selectProductionScene,
-  validateProductionSceneCandidate,
-  type ProductionSceneGate,
-  type ValidatedSceneCandidate,
+  deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
+import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -70,11 +69,12 @@ import {
 import { buildTurnTeachingPrompt } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
+import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
+import { sceneDeclineExperimentGuidance, type SceneDeclinePolicy } from "./sceneDeclineExperiment";
 import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, type PlannerEvidence } from "./plannerEvidence";
 import {
   classifyDiagramEmptyCause,
-  evaluationSelectionOrder,
-  evaluationUsesExamples,
+  evaluationDecision,
   supplementCandidateErrorCodes,
   type DiagramEmptyCause,
   type DiagramEvalArm,
@@ -198,6 +198,8 @@ export interface LectureRun {
     candidateCount?: number;
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
+    /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
+    plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
@@ -246,6 +248,9 @@ export interface RunLectureOptions {
   figureOnly?: boolean;
   /** Evaluation-only override; live turns keep SCENE_PLANNER_DEADLINE_MS. */
   scenePlannerDeadlineMs?: number;
+  /** Uses the same subject vocabulary as the live semantic planner. */
+  subject?: DiagramSubject;
+  sceneDeclinePolicy?: SceneDeclinePolicy;
   traceId?: string;
   /** Frozen, identity-checked Jev answer for a lab rerun; undefined calls the live service. */
   visualNeedReplay?: VisualNeedAssessment;
@@ -462,7 +467,11 @@ export async function runLecture(
     run.visualNeed = { plannerRequirement, assessment, mergedRequirement: turnPlan.visualRequirement,
       origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
-    if (pickerGate.shouldPlanExactScene && evaluationUsesExamples(options.arm ?? "current")) {
+    const pickerDecision = evaluationDecision(options.arm ?? "current", {
+      subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
+      codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
+    });
+    if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
       const picked = await pickDiagramExamples(
@@ -497,6 +506,7 @@ export async function runLecture(
       validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
 
     type BenchSceneGate = ProductionSceneGate & {
+      diagramStrategy: ReturnType<typeof evaluationDecision>;
       examplesUsed: DiagramExemplar[];
       request: ProductionSceneGate["request"] & { workedExamples?: DiagramExemplar[] };
     };
@@ -506,10 +516,19 @@ export async function runLecture(
       const gate = deriveProductionSceneGate({
         question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
       });
-      const examplesUsed = !gate.chemistryLane && evaluationUsesExamples(options.arm ?? "current") ? pickedExamples : [];
+      const diagramStrategy = evaluationDecision(options.arm ?? "current", {
+        subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
+        codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
+      });
+      const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
-        ...gate, examplesUsed,
-        request: { ...gate.request, ...(examplesUsed.length > 0 ? { workedExamples: examplesUsed } : {}) },
+        ...gate, diagramStrategy, examplesUsed,
+        request: {
+          ...gate.request, ...(examplesUsed.length > 0 ? { workedExamples: examplesUsed } : {}),
+          ...(options.sceneDeclinePolicy && options.sceneDeclinePolicy !== "unchanged" ? {
+            planningGuidance: [...(gate.request.planningGuidance ?? []), ...sceneDeclineExperimentGuidance(options.sceneDeclinePolicy)],
+          } : {}),
+        },
       };
     };
 
@@ -524,7 +543,7 @@ export async function runLecture(
       // Speculation follows NEXT_PUBLIC_SCENE_SPECULATION like the live hook
       // (SCENE_SPECULATION_ENABLED, default off).
       speculationAllowed: true,
-      selectionOrder: (gate) => gate.chemistryLane ? "current" : evaluationSelectionOrder(options.arm ?? "current"),
+      selectionOrder: (gate) => gate.diagramStrategy.selectionOrder,
       plannerStartedAt,
       deadlineMs: scenePlannerDeadlineMs,
       deriveGate: deriveSceneGate,
@@ -598,6 +617,10 @@ export async function runLecture(
     const selectedEvidence = createPlannerEvidence();
     if (result) recordPlannerResponse(selectedEvidence, result.response);
     run.diagram.plannerDeclineReason = selectedEvidence.plannerDeclineReason;
+    run.diagram.plannerResponses = result?.candidates.map((candidate) => ({
+      phase: candidate.response.phase, lane: candidate.response.lane,
+      selected: candidate.selected, rawContent: candidate.response.rawContent,
+    })) ?? [];
     run.diagram.archetypeId = planning.gate.archetypeId;
     run.diagram.examplesUsed = planning.gate.examplesUsed.map(({
       id,
@@ -662,9 +685,8 @@ export async function runLecture(
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
       policy: {
-        preferPlanner: options.arm === "planner_examples_strict" && !planning.gate.chemistryLane,
-        ...(options.arm === "planner_examples_strict" && !planning.gate.chemistryLane
-          ? { allowedFigureSources: ["planner", "verified_recovery", "text_only"] as const } : {}),
+        preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
+        allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
       },
     });
     const selected = sceneSelection.representation;

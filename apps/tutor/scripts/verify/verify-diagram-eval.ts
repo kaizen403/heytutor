@@ -266,9 +266,19 @@ assert.equal(evaluationSelectionOrder("planner_first"), "planner_first");
 assert.equal(evaluationSelectionOrder("planner_examples"), "planner_first");
 assert.equal(evaluationSelectionOrder("planner_examples_strict"), "planner_first");
 assert(evaluationUsesExamples("planner_examples_strict"));
-assert(evaluationPlansChemistry("planner_examples_strict"));
+assert(!evaluationPlansChemistry("planner_examples_strict", {
+  chemistryLane: true,
+  codeLesson: false,
+  dsa: false,
+  doubt: false,
+}));
 assert(!evaluationPlansChemistry("planner_examples"));
-assert(evaluationAllowsFallback("planner_examples_strict", "chemistry_family"));
+assert(evaluationAllowsFallback("planner_examples_strict", "chemistry_family", {
+  chemistryLane: true,
+  codeLesson: false,
+  dsa: false,
+  doubt: false,
+}));
 assert(!evaluationAllowsFallback("planner_examples_strict", "family"));
 assert(!evaluationAllowsFallback("planner_examples_strict", "source_grounded"));
 assert(evaluationAllowsFallback("current", "family"));
@@ -277,7 +287,12 @@ assert(
   "strict suppresses the selected hand-coded source even when a planner candidate also validated",
 );
 assert(!evaluationSuppressesSelectedSource("planner_examples_strict", "planner"));
-assert(!evaluationSuppressesSelectedSource("planner_examples_strict", "chemistry_family"));
+assert(!evaluationSuppressesSelectedSource("planner_examples_strict", "chemistry_family", {
+  chemistryLane: true,
+  codeLesson: false,
+  dsa: false,
+  doubt: false,
+}));
 const storedStrictLeak = {
   arm: "planner_examples_strict",
   diagram: {

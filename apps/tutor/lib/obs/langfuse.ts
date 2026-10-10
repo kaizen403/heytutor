@@ -9,6 +9,7 @@ import {
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 import { resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import { scopedTraceId, scopedSessionId } from "./traceOwnership";
+import { TraceTagRegistry } from "./traceTags";
 import {
   calculateLlmCostDetails,
   calculateTtsCostDetails,
@@ -16,6 +17,7 @@ import {
 } from "./usageCost";
 
 let client: Langfuse | null | undefined;
+const traceTags = new TraceTagRegistry();
 
 export function isLangfuseConfigured(): boolean {
   const flag = process.env.LANGFUSE_ENABLED;
@@ -87,6 +89,7 @@ export interface StartTurnTraceParams {
   model?: string;
   name?: string;
   generationName?: string;
+  tags?: string[];
 }
 
 export function startTurnTrace({
@@ -99,6 +102,7 @@ export function startTurnTrace({
   model,
   name = "tutor-turn",
   generationName = "fireworks-llm",
+  tags,
 }: StartTurnTraceParams): TurnTrace | null {
   const lf = getClient();
 
@@ -108,15 +112,16 @@ export function startTurnTrace({
 
   const serverModel =
     model ?? resolveFireworksModel();
+  const id = userId ? scopedTraceId(userId, traceId) : traceId;
 
   const trace = lf.trace({
-    id: userId ? scopedTraceId(userId, traceId) : traceId,
+    id,
     name,
     userId,
     sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
     metadata: userId ? { client_trace_id: traceId, client_session_id: sessionId } : undefined,
     ...(input ? { input } : {}),
-    tags: buildTraceTags(mock ? ["mock"] : undefined),
+    tags: traceTags.remember(id, buildTraceTags([...(tags ?? []), ...(mock ? ["mock"] : [])])),
   });
 
   const generation = trace.generation({
@@ -296,6 +301,7 @@ export interface UpdateTurnTraceParams {
   traceId: string;
   sessionId?: string;
   metadata: Record<string, unknown>;
+  tags?: string[];
 }
 
 function createTimedSpan(
@@ -358,6 +364,7 @@ export function updateTurnTrace({
   traceId,
   sessionId,
   metadata,
+  tags,
 }: UpdateTurnTraceParams): void {
   const lf = getClient();
 
@@ -365,10 +372,13 @@ export function updateTurnTrace({
     return;
   }
 
+  const id = userId ? scopedTraceId(userId, traceId) : traceId;
+  const mergedTags = tags ? traceTags.appendKnown(id, buildTraceTags(tags)) : undefined;
+
   lf.trace({
-    id: userId ? scopedTraceId(userId, traceId) : traceId,
+    id,
     sessionId: userId && sessionId ? scopedSessionId(userId, sessionId) : sessionId,
-  }).update({ metadata });
+  }).update({ metadata, ...(mergedTags ? { tags: mergedTags } : {}) });
 }
 
 const FLUSH_TIMEOUT_MS = 3000;

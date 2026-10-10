@@ -23,7 +23,7 @@ import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
   LECTURE_LAB_ZERO_RETENTION_HEADER,
 } from "../../lib/billing/flags";
-import type { SubjectFamiliarity } from "@heytutor/tutor-core";
+import { parseDiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
   assertUniqueArtifactIds,
@@ -58,6 +58,7 @@ import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
+import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
 
 export interface Options {
   difficulty: string;
@@ -93,6 +94,7 @@ export interface Options {
   resume: boolean;
   /** Conservative allowance for an interrupted pre-checkpoint run. */
   resumeExtraUsd: number;
+  sceneDeclinePolicy: SceneDeclinePolicy;
   visualNeedReplay: string | null;
   exampleExclusions: string | null;
 }
@@ -321,6 +323,12 @@ export function parseOptions(argv: string[]): Options {
   const maxUsdRaw = flags.get("max-usd");
   const spendMode = flags.get("spend-mode") ?? "conservative";
   if (spendMode !== "conservative" && spendMode !== "response_usage") throw new Error("--spend-mode must be conservative or response_usage");
+  const sceneDeclinePolicy = flags.get("scene-decline-policy") ?? "unchanged";
+  if (sceneDeclinePolicy !== "unchanged" && sceneDeclinePolicy !== "qualitative_setup_v1") {
+    throw new Error("--scene-decline-policy must be unchanged or qualitative_setup_v1");
+  }
+  if (flags.has("scene-decline-policy") && evalFiles.length === 0) throw new Error("--scene-decline-policy is evaluation-only");
+  if (flags.has("example-exclusions") && evalFiles.length === 0) throw new Error("--example-exclusions is evaluation-only");
   if (maxUsdRaw === undefined) {
     throw new Error("paid lecture-lab runs require --max-usd <positive dollars>");
   }
@@ -362,6 +370,7 @@ export function parseOptions(argv: string[]): Options {
     spendMode,
     resume,
     resumeExtraUsd,
+    sceneDeclinePolicy,
     visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
   };
@@ -682,7 +691,8 @@ async function main(): Promise<void> {
     : null;
   const evaluationById = new Map(evaluationRows?.map((row) => [row.id, row]) ?? []);
   const exclusionQuestions = options.exampleExclusions
-    ? parseDiagramEvalJsonl(readFileSync(resolve(options.exampleExclusions), "utf8")).map((row) => row.question) : [];
+    ? parseDiagramEvalJsonl(readFileSync(resolve(options.exampleExclusions), "utf8")).map((row) => row.question)
+    : [];
   const exampleExclusionFingerprint = labSampleFingerprint(exclusionQuestions);
   const diagramExamples = evaluationRows && evaluationUsesExamples(options.arm)
     ? loadDiagramExemplarLibrary(
@@ -728,7 +738,7 @@ async function main(): Promise<void> {
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
-    exampleExclusionFingerprint,
+    sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
@@ -769,7 +779,7 @@ async function main(): Promise<void> {
   const reviewedIds = new Set(readRoundJudgments(outDir).map((row) => row.id));
   const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; spendMode?: LabSpendMode; knownUsageUsd?: number; unresolvedCalls?: LabUnresolvedCall[]; inFlightCalls?: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[] }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; spendMode?: LabSpendMode; knownUsageUsd?: number; unresolvedCalls?: LabUnresolvedCall[]; inFlightCalls?: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[] }
     : null;
   if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
   if (options.resume && !oldCheckpoint) throw new Error("resume requires a spend checkpoint with proven execution identity");
@@ -782,6 +792,10 @@ async function main(): Promise<void> {
     JSON.stringify(oldCheckpoint.executionConfig) !== JSON.stringify(executionConfig) ||
     JSON.stringify(oldCheckpoint.probeIds) !== JSON.stringify(probes.map((probe) => probe.id)) || oldCheckpoint.sampleFingerprint !== sampleFingerprint)) {
     throw new Error("resume requires the identical provider, arm, scene limit and full original sample");
+  }
+  if (oldCheckpoint && ((oldCheckpoint.sceneDeclinePolicy ?? "unchanged") !== options.sceneDeclinePolicy ||
+    (oldCheckpoint.exampleExclusionFingerprint ?? labSampleFingerprint([])) !== exampleExclusionFingerprint)) {
+    throw new Error("resume requires the identical decline experiment and example exclusions");
   }
   const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0)
     + (run.visualNeed?.origin === "live_service" ? run.visualNeed.accounting?.chargedUsd ?? 0 : 0), 0);
@@ -814,6 +828,7 @@ async function main(): Promise<void> {
     ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
     scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
     sampleFingerprint, executionConfig,
+    sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedCalls,
   }, null, 1)}\n`);
   checkpointSpend();
@@ -829,7 +844,8 @@ async function main(): Promise<void> {
       ...previousSummary, options, providerConfig, executionConfig,
       judge: currentJudgeSummary({ judge: previousSummary.judge, judgingStatus }),
       priorSubsetJudgeSummary: priorSubsetJudgeSummary(previousSummary, judgingStatus.unreviewedRows),
-      evaluationConfig: evaluationRows ? { ...providerConfig, scenePlannerLimitMs: options.scenePlannerLimitMs } : null,
+      evaluationConfig: evaluationRows ? { ...providerConfig, scenePlannerLimitMs: options.scenePlannerLimitMs,
+        sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint } : null,
       preflightEstimateUsd,
       visualNeed: { ...summarizeVisualNeedCalls(visualNeedCalls),
         replayedRows: runs.filter((run) => run.visualNeed?.origin === "frozen_replay").length,
@@ -958,6 +974,8 @@ async function main(): Promise<void> {
           figureOnly: options.figureOnly,
           fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
           scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
+          subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
+          sceneDeclinePolicy: options.sceneDeclinePolicy,
           traceId,
           visualNeedReplay: visualNeedReplay?.get(probe.id),
           diagramExamples,
