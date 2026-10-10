@@ -286,6 +286,7 @@ function compileSceneDocumentInternal(document: SceneDocument, options: CompileO
   }
   if (constructionClaimsOnly) {
     validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
+    validatePhysicsRegionClaims(document, geometry, value => resolveNumber(value, quantities), issues);
     return { ok: false, renderScene: null, report: report(document, issues, 0) };
   }
   for (const construction of document.constructions) {

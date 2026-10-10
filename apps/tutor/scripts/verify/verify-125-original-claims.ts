@@ -36,5 +36,20 @@ callout.quantities = [{ id: "pitch", symbol: "p", value: 9, unit: "m" }]; callou
 check(pruneUnverifiedSceneAnnotations(callout, plan) === callout && !production(callout).valid, "owned false quantity annotation checked before pruning");
 const generic = structuredClone(scene); generic.annotations = [{ id: "optional", kind: "callout", targetIds: ["O"], text: "distance 999 m" }];
 check(!pruneUnverifiedSceneAnnotations(generic, plan).annotations.some((annotation) => annotation.id === "optional") && production(generic).valid, "optional generic measured text still prunes without losing the valid helix");
+const regionIds = ["a", "b", "c", "d", "s", "t", "region", "E"];
+const zeroRegion: SceneDocument = { ...structuredClone(scene), quantities: [{ id: "Einside", symbol: "E", value: 0, unit: "N/C" }],
+  entities: regionIds.map((id) => ({ id, kind: id === "region" ? "polygon" : id === "E" ? "vector" : "point", role: id === "E" ? "electric field" : "source region" })),
+  constructions: [
+    ...[[0, 0], [2, 0], [2, 2], [0, 2], [0.5, 1], [1.5, 1]].map(([x, y], index) => ({ id: `point_${index}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [regionIds[index]!] })),
+    { id: "boundary", operator: "polygon", inputs: { points: ["a", "b", "c", "d"] }, outputs: ["region"] },
+    { id: "field", operator: "vector", inputs: { start: "s", end: "t" }, outputs: ["E"] },
+  ], annotations: [{ id: "zero", kind: "label", targetIds: ["region"], text: "E=0 N/C", quantityId: "Einside" }],
+  requiredEntityIds: regionIds, revealGroups: [{ id: "g", entityIds: regionIds, dependsOn: [], narrationCue: "source region and field" }],
+};
+check(compileSceneDocument(zeroRegion).report.issues.some((issue) => issue.code === "field_in_zero_region"), "original declared zero field disagrees with the nonzero interior arrow");
+check(pruneUnverifiedSceneAnnotations(zeroRegion, plan) === zeroRegion, "zero-field quantity/region association cannot be erased before checking");
+check(!production(zeroRegion).valid, "production refuses the contradictory zero-region candidate");
+const outsideRegion = structuredClone(zeroRegion); outsideRegion.constructions[4]!.inputs.x = 2.5; outsideRegion.constructions[5]!.inputs.x = 3.5;
+check(compileSceneDocument(outsideRegion).ok, "a nonzero arrow outside the declared zero-field region remains valid");
 assert.equal(failures.length, 0, failures.join("\n"));
 console.log(`125 original claims: ${checks} actual-production checks passed`);
