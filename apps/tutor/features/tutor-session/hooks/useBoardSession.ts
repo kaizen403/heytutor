@@ -38,7 +38,7 @@ import {
   storedTurnContinuesBoard,
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
-import { storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
+import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
@@ -638,6 +638,8 @@ export function useBoardSession({
         // doubt answered on the lesson's page is part of that page: same notes
         // page, same question, same figure and code panel.
         let restoredInk = false;
+        let restoredCodePlanKey: string | null = null;
+        let restoredCodeComplete = false;
         const inkStale = () => isStale() || ink.cancelled;
         for (const turn of turns) {
           if (inkStale()) return;
@@ -659,6 +661,8 @@ export function useBoardSession({
           // it first also brings the code panel back for the restored board.
           const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
           if (!continuesPage) {
+            restoredCodePlanKey = codeLesson ? JSON.stringify(codeLesson) : null;
+            restoredCodeComplete = false;
             const controller = codeLessonControllerRef?.current;
             if (codeLesson) {
               controller?.commit(codeLesson);
@@ -705,13 +709,32 @@ export function useBoardSession({
             }
           }
 
-          // A finished lesson opens its panel in "complete" mode so type-along
-          // is available at once. A stopped one has more to teach.
           if (codeLesson && storedTurnStatus(turn) === "complete") {
-            codeLessonControllerRef?.current?.markLessonComplete();
+            restoredCodeComplete = true;
+          }
+          // Continuations retain the opening plan, but only that page/plan's
+          // final resume may establish completion. Missing plans inherit it;
+          // invalid or changed plans break the completion lineage.
+          if (continuesPage && restoredCodePlanKey) {
+            const activePlan = codeLessonControllerRef?.current?.getActivePlan();
+            const parsed = parseStoredCodeLesson(turn.sceneArtifacts);
+            if (!activePlan || activePlan.question.trim() !== storedTurnPageQuestion(turn).trim() ||
+              parsed.status === "invalid" ||
+              (parsed.status === "valid" && JSON.stringify(parsed.plan) !== restoredCodePlanKey)) {
+              restoredCodePlanKey = null;
+              restoredCodeComplete = false;
+            } else if (turn.kind === "resume") {
+              restoredCodeComplete = storedTurnStatus(turn) === "complete";
+            }
           }
         }
 
+        if (inkStale()) return;
+        const controller = codeLessonControllerRef?.current;
+        if (restoredCodeComplete && controller?.getActivePlan() &&
+          JSON.stringify(controller.getActivePlan()) === restoredCodePlanKey) {
+          controller.markLessonComplete();
+        }
         if (isStale()) return;
       } catch {
         // Network-level fetch failures must still clear the loading overlay.
