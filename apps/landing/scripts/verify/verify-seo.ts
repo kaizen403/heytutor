@@ -17,6 +17,7 @@ import {
   jsonLdGraph,
   pageByPath,
 } from "../../src/lib/seo.ts";
+import { SITE_DESCRIPTION, SITE_PREVIEW, SITE_TAGLINE, getSiteUrl } from "../../../tutor/lib/site.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -79,6 +80,21 @@ for (const page of PAGES) {
   assert.ok(stamped.includes(`href="${canonicalUrl(page.path)}"`));
   assert.ok(stamped.includes(page.headline));
 
+  for (const [attribute, name, value] of [
+    ["property", "og:image", SITE.ogImage],
+    ["property", "og:image:secure_url", SITE.ogImage],
+    ["property", "og:image:alt", SITE.ogImageAlt],
+    ["property", "og:video", SITE.ogVideo],
+    ["property", "og:video:secure_url", SITE.ogVideo],
+    ["name", "twitter:image", SITE.ogImage],
+    ["name", "twitter:image:alt", SITE.ogImageAlt],
+  ]) {
+    const tags = [...stamped.matchAll(new RegExp(`<meta ${attribute}="${name}" content="([^"]+)"`, "g"))];
+    assert.equal(tags.length, 1, `${page.path}: exactly one ${name}`);
+    assert.equal(tags[0][1], value);
+  }
+  assert.doesNotMatch(stamped, /velocity-time|AI whiteboard math tutor/);
+
   if (page.kind === "article") {
     assert.ok(
       articleWordCount(page) >= 250,
@@ -117,6 +133,46 @@ assert.ok(llms.includes("https://accelute.co/ai-study"));
 assert.ok(llms.includes("https://accelute.co/about"));
 
 const home = pageByPath("/")!;
+assert.equal(home.description, SITE_DESCRIPTION);
+assert.equal(home.title, `Accelute | ${SITE_TAGLINE}`);
+assert.equal(new URL(SITE.ogImage).pathname, SITE_PREVIEW.image);
+assert.equal(new URL(SITE.ogVideo).pathname, SITE_PREVIEW.video);
+assert.equal(SITE.ogImageAlt, SITE_PREVIEW.imageAlt);
+assert.equal(SITE.ogVideoAlt, SITE_PREVIEW.videoAlt);
+assert.equal(SITE.previewWidth, SITE_PREVIEW.width);
+assert.equal(SITE.previewHeight, SITE_PREVIEW.height);
+
+const image = readFileSync(resolve(root, `public${SITE_PREVIEW.image}`));
+assert.equal(image.subarray(1, 4).toString(), "PNG");
+assert.equal(image.readUInt32BE(16), SITE.previewWidth);
+assert.equal(image.readUInt32BE(20), SITE.previewHeight);
+const video = readFileSync(resolve(root, `public${SITE_PREVIEW.video}`));
+assert.equal(video.subarray(4, 8).toString(), "ftyp");
+assert.ok(video.indexOf(Buffer.from("moov")) < video.indexOf(Buffer.from("mdat")), "video must be faststart");
+for (const path of [SITE_PREVIEW.image, SITE_PREVIEW.video]) {
+  assert.deepEqual(readFileSync(resolve(root, `public${path}`)), readFileSync(resolve(root, `../tutor/public${path}`)));
+}
+for (const path of ["public/site.webmanifest", "../tutor/public/site.webmanifest"]) {
+  assert.equal(JSON.parse(read(path)).description, home.description);
+}
+const app = jsonLdGraph(home)["@graph"].find((node) => node["@type"] === "SoftwareApplication")!;
+assert.equal(app.image, SITE.ogImage);
+assert.equal(app.screenshot, SITE.ogImage);
+assert.equal(app.description, home.description);
+
+const savedEnv = { ...process.env };
+try {
+  delete process.env.NEXT_PUBLIC_SITE_URL;
+  delete process.env.VERCEL_URL;
+  process.env.NODE_ENV = "production";
+  assert.equal(getSiteUrl().origin, SITE.appOrigin);
+  process.env.NODE_ENV = "development";
+  assert.equal(getSiteUrl().origin, "http://localhost:3000");
+  process.env.NEXT_PUBLIC_SITE_URL = "https://preview.accelute.co";
+  assert.equal(getSiteUrl().origin, "https://preview.accelute.co");
+} finally {
+  process.env = savedEnv;
+}
 assert.ok(home.faqs.some((faq) => /whiteboard/i.test(faq.question)));
 assert.ok(home.faqs.some((faq) => /tutor/i.test(faq.question)));
 assert.ok(home.faqs.some((faq) => /Accelute/i.test(faq.question)));
