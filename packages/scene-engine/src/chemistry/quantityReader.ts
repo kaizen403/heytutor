@@ -417,6 +417,8 @@ function valuesAgree(actual: number, expected: number): boolean {
   if (actual === 0 || expected === 0 || Math.sign(actual) !== Math.sign(expected)) return false;
   return Math.abs(actual - expected) <= Math.max(Math.abs(actual), Math.abs(expected)) * 1e-9;
 }
+/** Compare already-read values in the same canonical unit; this grants no source or unit authority. */
+export const chemistryCanonicalValuesAgree = valuesAgree;
 /** A fixed-reference solver may run only when its stated constant agrees.
  * A different supplied value requires a parameterized solver; until then decline. */
 export function chemistryReferenceConstantValid(question: string, after: RegExp, dimension: ChemistryDimension, unit: ChemistryUnit, reference: number): boolean {

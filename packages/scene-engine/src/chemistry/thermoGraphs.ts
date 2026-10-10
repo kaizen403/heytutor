@@ -90,7 +90,7 @@ export function isThermoGraphStem(question: string): boolean {
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryReferenceConstantValid, type ChemistryDimension } from "./quantityReader";
+import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, type ChemistryDimension } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -98,10 +98,14 @@ interface Energy {
   unit: string;
 }
 
+/** Share the bounded original role cue between literal validation and reading. */
+function energyCueAfter(phrase: RegExp): RegExp {
+  return new RegExp(`(?:${phrase.source})(?:\\s+(?:of|for)\\b[^=,;]{0,45}?(?:is|=|:))?`, "i");
+}
 /** Physical energy units are always read from original question text. */
 function energyNear(question: string, phrase: RegExp, _window = 70): Energy | null {
   for (const [dimension, targetUnit] of [["molar_energy", "kJ/mol"], ["energy", "kJ"]] as const) {
-    const after = new RegExp(`(?:${phrase.source})(?:\\s+(?:of|for)\\b[^=,;]{0,45}?(?:is|=|:))?`, "i");
+    const after = energyCueAfter(phrase);
     const read = readChemistryQuantity({question, after, dimension, targetUnit});
     if (read.ok) return {value: read.reading.value, unit: targetUnit};
     if (read.code === "malformed" || read.code === "ambiguous") return null;
@@ -296,9 +300,7 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   // the separately read backward barrier keeps its distinct physical role.
   if (eaExplicitForward && eaGeneric &&
       (eaExplicitForward.unit !== eaGeneric.unit ||
-       !chemistryReferenceConstantValid(question, new RegExp(GENERIC_ACTIVATION.source, "i"),
-         eaExplicitForward.unit === "kJ/mol" ? "molar_energy" : "energy",
-         eaExplicitForward.unit === "kJ/mol" ? "kJ/mol" : "kJ", eaExplicitForward.value))) return null;
+       !chemistryCanonicalValuesAgree(eaGeneric.value, eaExplicitForward.value))) return null;
   const eaForwardStem = eaExplicitForward ?? eaGeneric;
   const threshold = energyNear(question, /threshold\s+energy/);
   const energyR = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/);
@@ -788,7 +790,7 @@ function buildMaxwell(question: string, stem: string): SceneDocument {
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
   if (!chemistryQuantityCuesValid(question, [
-    ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(after=>({after,dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
+    ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
     {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
   ])) return null;
   if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);

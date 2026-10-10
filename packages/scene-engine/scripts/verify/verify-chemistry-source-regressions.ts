@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { kineticsFromStem, solveKinetics, buildKineticsScene } from "../../src/chemistry/kinetics";
 import { parseCellNotation, cellEmf, buildElectrochemScene } from "../../src/chemistry/electrochemistry";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
-import { readChemistryArrheniusEquation, parseChemistryScalar, readChemistryQuantity } from "../../src/chemistry/quantityReader";
+import { readChemistryArrheniusEquation, parseChemistryScalar, readChemistryQuantity, chemistryCanonicalValuesAgree } from "../../src/chemistry/quantityReader";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { SceneDocument } from "../../src/types";
@@ -217,6 +217,49 @@ check("Given planner energy must still match its exact original source span",()=
  assert.equal(buildThermoGraphScene(question,[given],false),null);
  const result=compiled(buildThermoGraphScene(question,[{...given,value:60}],false));
  near(result.document.quantities.find(q=>q.id==="Ea_forward")?.value,60);
+});
+
+// PR137 connected role givens retain one source cue for validation and reads.
+for(const energies of [
+ "Activation energy of the reaction is 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy for the reaction is 60 kJ/mol. Forward activation energy is 60000 J/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy of reaction is 60000 J/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol. Activation energy for reaction is 60 kJ/mol.",
+ "Activation energy of the reaction: 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy for the reaction = 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "ACTIVATION ENERGY OF THE REACTION IS 60 kJ/mol. FORWARD ACTIVATION ENERGY IS 60 kJ/mol AND BACKWARD ACTIVATION ENERGY IS 80 kJ/mol.",
+ "Activation energy of the reaction is 60 kJ. Forward activation energy is 60000 J and backward activation energy is 80 kJ.",
+])check("Connected agreeing role givens compile: "+energies,()=>{
+ const result=compiled(buildThermoGraphScene("Draw an energy profile. "+energies,[],false));
+ near(result.document.quantities.find(q=>q.id==="Ea_forward")?.value,60);
+ near(result.document.quantities.find(q=>q.id==="Ea_backward")?.value,80);
+ near(result.document.quantities.find(q=>q.id==="dH")?.value,-20);
+});
+for(const energies of [
+ "Activation energy of the reaction is 4e- kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy for the reaction is 1e999 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy of the reaction is 60 kJ/mol/s. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy for the reaction is 60 kg. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy of the reaction is 50 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol. Activation energy for the reaction is 50 kJ/mol.",
+ "Activation energy of the reaction is 50 kJ/mol. Activation energy of the reaction is 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy of the reaction is 60 kJ. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Forward activation energy for the reaction is 4e- kJ/mol. Activation energy of the reaction is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Backward activation energy of the reaction is 4e- kJ/mol. Activation energy of the reaction is 60 kJ/mol and forward activation energy is 60 kJ/mol.",
+ "Activation energy of the reaction is 60 kJ/mol. Forward activation energy for the reaction is 70 kJ/mol and backward activation energy is 80 kJ/mol.",
+])check("Connected role conflict/damage atomically declines: "+energies,()=>{
+ const question="Draw an energy profile. "+energies;
+ assert.equal(buildThermoGraphScene(question,[],false),null);
+ assert.equal(buildThermoGraphScene(question,[],true),null);
+});
+
+// Export-only shared agreement control: these values have no source authority.
+for(const [actual,expected,agrees] of [
+ [0,0,true], [0,1e-12,false], [-1e-12,1e-12,false], [1e-100,2e-100,false],
+ [1e-100,1.0000000005e-100,true], [60,60+5e-8,true], [60,60+7e-8,false], [60,60,true],
+ [Number.NaN,60,false], [Infinity,Infinity,false], [-Infinity,-Infinity,false], [60,Infinity,false],
+] as const)check(`Shared canonical agreement: ${actual} / ${expected}`,()=>{
+ assert.equal(chemistryCanonicalValuesAgree(actual,expected),agrees);
 });
 
 const output=process.argv.indexOf("--out");
