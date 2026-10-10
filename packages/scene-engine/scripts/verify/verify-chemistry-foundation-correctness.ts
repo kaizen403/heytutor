@@ -424,6 +424,8 @@ for (const [index, question] of [
   "In sawhorse projections, sketch the staggered and eclipsed forms of ethane.",
   "Via Newman projections, show the forms of butane.",
   "Using Newman projections, show C2.",
+  "Using Newman projections, explain the anti and gauche forms of butane.",
+  "With sawhorse projections, discuss the staggered and eclipsed forms of ethane.",
   "Show the skeletal structure of ethanol; using Newman projections, depict the anti and gauche forms of butane.",
   "Using Newman projections, show the anti and gauche forms of butane, but do not draw sawhorse projections.",
 ].entries()) check(`preposed-projection-decline-${index}`, () => {
@@ -439,6 +441,7 @@ for (const [index, question] of [
   "Using Newman projections as background, draw the skeletal structure of butane.",
   "Using no Newman projections, draw the skeletal structure of butane.",
   "Using Newman projections, do not show the anti and gauche forms; draw the skeletal structure of butane.",
+  "Using Newman projections, explain the anti and gauche forms of butane; draw the skeletal structure of butane.",
 ].entries()) check(`preserve-preposed-projection-exclusion-${index}`, () => {
   assert.equal(api.isOrganicStem(question), true);
   const document = api.buildOrganicScene(question, [], false);

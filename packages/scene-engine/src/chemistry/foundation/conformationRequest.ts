@@ -43,7 +43,7 @@ function requestClauses(text: string): string[] {
       return ` ${content} `;
     });
   }
-  // A leading "Using Newman projections, show ..." is one drawing request.
+  // A leading "Using Newman projections, show ..." is one request.
   // Keep that explicit convention with its first predicate; background phrases,
   // excluded styles and sentence-separated requests keep their own boundaries.
   return [outside, ...parentheticals].flatMap((part) =>
@@ -82,7 +82,7 @@ function clauseIntent(clause: string): ClauseIntent {
       intent.projection ||= projection;
       intent.otherFigure ||= DRAW_VERBS.has(verb) && !projection && OTHER_FIGURE_OBJECT.test(object);
     } else if (EXPLANATION_VERBS.has(verb)) {
-      intent.explanation ||= hasProjectionObject(object, false, true);
+      intent.explanation ||= preposedProjection || hasProjectionObject(object, false, true);
     }
   }
   // A figure title supplies its requested object without an imperative verb.
