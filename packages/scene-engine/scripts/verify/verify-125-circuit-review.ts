@@ -35,6 +35,7 @@ for (const expected of [
   "The current through cell1 I=0e-4 A.", "Current=.000 A.", "The current I=0.",
   "Current=0.00.", "The current I=0e+10 A.",
   "The current I=0 A and I_2=−0.00e-100 A.", "The current I=0 while V=1 V.",
+  "The current J=0 while V=1 V.",
 ]) {
   const noCurrent = structuredClone(unloaded); noCurrent.qualitativeClaims = [{ id: "behavior", claim: "cell_behavior", expected }];
   check(validateTurnPlanSceneProofs(openCells, noCurrent).length === 0, `a declared zero/no-current unloaded source still permits open terminals: ${expected}`);
@@ -48,6 +49,7 @@ for (const expected of [
   "The current I=0 initially, but I=1 A now",
   "There is no flow of current, but I=0.000001 A",
   "The current I=0 A and I_2=-1e-9 A",
+  "The current J=0 initially, but J=1 A now", "The current J=0 A and J_2=-1e-9 A",
   "There is no flow of current, but I=1e-1000000 A.",
   "There is no flow of current, but I=0+1 A.",
   "The current I=-0.000001 A.", "The current I=0+1 A.", "Current=0+1 A.",

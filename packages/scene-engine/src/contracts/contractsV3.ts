@@ -3659,15 +3659,22 @@ function expectedClaimDemandsCurrent(text: string): boolean {
   // Only literal zero denies flow. Arithmetic after zero (with or without
   // an ampere unit) must retain the current demand rather than erase a prefix.
   const arithmeticContinuation = /^\s*(?:(?:[a-zµμ]*a|amperes?|amps?)\b\s*)?(?:[+*/×÷·⋅^=-]|\b(?:plus|minus|times|over|divided)\b)/u;
-  // A later I binding can contradict a no-flow/zero clause without repeating
-  // "current". Check the literal spelling so tiny nonzero values never become
-  // zero through a magnitude threshold or floating-point underflow.
+  // A later binding of I or an explicitly declared current name can contradict
+  // a zero clause without repeating "current". Check the literal spelling so
+  // tiny values never become zero through a threshold or floating-point underflow.
   if (/\bcurrents?\b/.test(normalized)) {
     const literalZero = new RegExp(`^${zeroValue}`, "u");
-    for (const binding of normalized.matchAll(/\bi(?:[\p{N}_][\p{L}\p{N}_]*)?\s*(?:=|is|equals?)\s*/gu)) {
-      const rhs = normalized.slice(binding.index + binding[0].length);
-      const zero = literalZero.exec(rhs);
-      if (!zero || arithmeticContinuation.test(rhs.slice(zero[0].length))) return true;
+    const currentNames = new Set(["i"]);
+    for (const declaration of normalized.matchAll(/\bcurrents?\s+([\p{L}_][\p{L}\p{N}_]*)\s*(?:=|is|equals?)\s*/gu)) {
+      currentNames.add(declaration[1]!);
+    }
+    for (const name of currentNames) {
+      const namedBindings = new RegExp(`(?<![\\p{L}\\p{N}_])${name}(?:[\\p{N}_][\\p{L}\\p{N}_]*)?\\s*(?:=|is|equals?)\\s*`, "gu");
+      for (const binding of normalized.matchAll(namedBindings)) {
+        const rhs = normalized.slice(binding.index + binding[0].length);
+        const zero = literalZero.exec(rhs);
+        if (!zero || arithmeticContinuation.test(rhs.slice(zero[0].length))) return true;
+      }
     }
   }
   const positiveText = normalized
