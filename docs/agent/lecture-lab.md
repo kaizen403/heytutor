@@ -230,6 +230,12 @@ allowance to this mode. The offline gate uses zero network/model calls and is in
 lab checks: `pnpm --filter @heytutor/tutor verify:lab`.
 
 The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`.
+The shared picker catalogue keeps exact library IDs (including curated subject
+slashes), deduplicates figure descriptions and stays below 6,000 estimated
+tokens. On overflow, it packs a deterministic question/turn-plan shortlist;
+`omittedEntries` counts budget omissions. It never includes source questions or
+raises the live picker's 4-second deadline. Ordinary lab arms rebuild an
+overflowed catalogue per turn rather than reusing a global truncated shortlist.
 Synthesized entries are keyed by `depicts`: plain family/archetype language,
 construction and entity kinds, relations, and readable labels extracted from
 the validated document. Their source questions are neither stored nor prompted;
