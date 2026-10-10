@@ -142,7 +142,8 @@ export function validateMagneticHelixLabels(construction: SceneConstruction, doc
       const expected = /^(?:r|radius)(?:\s|$)/i.test(symbol) ? definition.radius : /^(?:p|pitch)(?:\s|$)/i.test(symbol) ? definition.pitch : undefined;
       if (expected === undefined) fail("helix quantity annotations must identify radius or pitch");
       const factor = { m: 1, cm: 0.01, mm: 0.001 }[String(quantity?.unit) as "m" | "cm" | "mm"];
-      if (factor === undefined || Math.abs(documentNumber(quantityId, document) * factor - expected) > 1e-9 * Math.abs(expected)) fail("helix quantity contradicts its source-derived measurement");
+      const tolerance = /[≈~]/.test(text) ? 0.001 : 1e-9;
+      if (factor === undefined || Math.abs(documentNumber(quantityId, document) * factor - expected) > tolerance * Math.abs(expected)) fail("helix quantity contradicts its source-derived measurement");
     }
   };
   try {
