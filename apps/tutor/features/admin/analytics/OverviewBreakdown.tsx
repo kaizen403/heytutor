@@ -1,6 +1,7 @@
 import type {
   BoundedAggregate,
   DegradationReasonCount,
+  DiagramStrategyCount,
   FigureSourceCount,
   OutcomeCounts,
   OverviewPayload,
@@ -50,6 +51,14 @@ function figureSourceEntries(sources: FigureSourceCount[]): BarListEntry[] {
   }));
 }
 
+function diagramStrategyEntries(strategies: DiagramStrategyCount[]): BarListEntry[] {
+  return strategies.map((row) => ({
+    label: row.strategy === "unrecorded" ? "Unrecorded (legacy)" : row.strategy,
+    count: row.count,
+    tone: row.strategy === "unrecorded" ? "muted" : undefined,
+  }));
+}
+
 function boundedNote(aggregate: BoundedAggregate): string | undefined {
   return aggregate.truncated ? `newest ${aggregate.scanned} turns of more` : undefined;
 }
@@ -78,6 +87,11 @@ export function OverviewBreakdown({ payload }: { payload: OverviewPayload }) {
           title="Figure source · 7 days"
           entries={figureSourceEntries(payload.figureSources7d.sources)}
           note={boundedNote(payload.figureSources7d)}
+        />
+        <BarList
+          title="Diagram strategy · 7 days"
+          entries={diagramStrategyEntries(payload.diagramStrategies7d.strategies)}
+          note={boundedNote(payload.diagramStrategies7d)}
         />
         <BarList
           title="Degradation reasons · 7 days"

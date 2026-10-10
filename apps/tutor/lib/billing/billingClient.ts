@@ -1,9 +1,10 @@
-import { resolveApiUrl } from "@heytutor/tutor-core";
+import { resolveApiUrl, parseDiagramStrictSubjects, type DiagramSubject } from "@heytutor/tutor-core";
 import type { CheckoutPlanId } from "./catalog";
 import { isBillingErrorCode } from "./errors";
 import { isOutOfCreditsCode } from "./studentCopy";
 import { patchEntitlementSnapshot, setEntitlementSnapshot, type Entitlement } from "./entitlementState";
 import { openRazorpayCheckout, type RazorpayCheckout } from "./razorpayCheckout";
+import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
 export type BillingTurnKind = "lesson" | "doubt" | "resume";
 
@@ -20,6 +21,8 @@ export interface BeginTurnOk {
   planId: string;
   nextResetAt: number | null;
   ttsCharsRemaining: number;
+  diagramStrategy: DiagramStrategy;
+  diagramStrictSubjects?: DiagramSubject[];
 }
 
 export interface BeginTurnErr {
@@ -218,6 +221,8 @@ async function beginTurnOnce(input: {
     remainingPct,
     remaining: remainingPct,
     planId: typeof payload.planId === "string" ? payload.planId : "free",
+    diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
+    diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };
