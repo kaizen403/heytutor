@@ -134,10 +134,38 @@ function sourceComponents(value: unknown, context: VectorEvaluationContext): Com
   if (typeof value !== "string" || !value.trim()) invalid("vector", "vector inputs must reference verified vector entities");
   const source = context.geometry(value);
   if (!isRecord(source) || source.kind !== "path" && source.kind !== "point") invalid("vector", "vector reference must resolve to a directed finite vector or verified zero marker");
-  keys(source, ["kind", "points", "point", "directed", "closed", "infinite", "vectorDefinition"], "vector");
+  keys(source, ["kind", "points", "point", "directed", "closed", "infinite", "vectorDefinition", "calculusDerivative", "calculusAnchor"], "vector");
   if (source.infinite !== undefined && source.infinite !== false || source.closed !== undefined && source.closed !== false) invalid("vector", "infinite rays and closed paths are not free vectors");
   let components: Components;
-  if (source.vectorDefinition !== undefined) {
+  if (source.calculusDerivative !== undefined) {
+    const derivative = source.calculusDerivative;
+    if (!isRecord(derivative)) invalid("vector", "analytic derivative metadata is missing");
+    keys(derivative, ["curveId", "parameter", "derivative", "parameterScale"], "vector");
+    if (typeof derivative.curveId !== "string" || typeof derivative.parameter !== "number" || !Number.isFinite(derivative.parameter)
+      || typeof derivative.parameterScale !== "number" || !(derivative.parameterScale > 0)) invalid("vector", "analytic derivative requires bounded source identity and scale");
+    const curve = context.geometry(derivative.curveId);
+    if (!isRecord(curve) || curve.kind !== "path" || !isRecord(curve.sampledCurve)) invalid("vector", "analytic source is not an ordinary mathematical curve");
+    keys(curve, ["kind", "points", "sampledCurve"], "vector");
+    const sample = curve.sampledCurve;
+    if (typeof sample.evaluate !== "function" || typeof sample.derivative !== "function") invalid("vector", "exact analytic callbacks are required");
+    if (typeof sample.parameterMin !== "number" || typeof sample.parameterMax !== "number" || !Number.isFinite(sample.parameterMin) || !Number.isFinite(sample.parameterMax)
+      || derivative.parameter < sample.parameterMin || derivative.parameter > sample.parameterMax) invalid("vector", "analytic derivative must remain inside its verified parameter domain");
+    const origin = checkedPoint(sample.evaluate(derivative.parameter), "vector");
+    const evaluated = checkedPoint(sample.derivative(derivative.parameter), "vector");
+    const declared = checkedPoint(derivative.derivative, "vector");
+    if (evaluated.x !== declared.x || evaluated.y !== declared.y) invalid("vector", "analytic derivative contradicts its source callback");
+    const dx = bounded(evaluated.x * derivative.parameterScale, "vector");
+    const dy = bounded(evaluated.y * derivative.parameterScale, "vector");
+    if (dx === 0 && dy === 0) {
+      const point = checkedPoint(source.point, "vector");
+      if (source.kind !== "point" || point.x !== origin.x || point.y !== origin.y) invalid("vector", "zero analytic marker contradicts its verified origin");
+    } else {
+      if (source.kind !== "path" || source.directed !== true || !Array.isArray(source.points) || source.points.length !== 2) invalid("vector", "nonzero analytic derivative requires a directed arrow");
+      const start = checkedPoint(source.points[0], "vector"); const end = checkedPoint(source.points[1], "vector");
+      if (start.x !== origin.x || start.y !== origin.y || Math.hypot(end.x - start.x - dx, end.y - start.y - dy) > POSITION_RELATIVE_ERROR * Math.hypot(dx, dy)) invalid("vector", "analytic arrow placement contradicts its derivative");
+    }
+    components = { x: exact(dx), y: exact(dy) };
+  } else if (source.vectorDefinition !== undefined) {
     const definition = source.vectorDefinition;
     if (!isRecord(definition) || !isRecord(definition.exactComponents)) invalid("vector", "vector definition metadata is malformed");
     keys(definition, ["operation", "origin", "components", "exactComponents", "magnitude", "zero", "sourceIds", "scaleFactor", "projection"], "vector");
@@ -316,7 +344,14 @@ export function validateVectorConstruction(construction: SceneConstruction, inde
     } else if (producer.operator === "affine_path" && typeof producer.inputs.path === "string") {
       collectVectorUnits(producer.inputs.path, depth + 1);
       if (producer.inputs.translation !== undefined) collectPointUnits(producer.inputs.translation, depth + 1);
-    } else invalid("vector", "physical, analytic, 3D, ray, and region constructions cannot be reinterpreted as free vectors");
+    } else if (producer.operator === "curve_derivative") {
+      knownUnits.add("unit");
+      const curve = typeof producer.inputs.curve === "string" ? constructionByOutput.get(producer.inputs.curve) : undefined;
+      if (!curve || !["function_curve", "parametric_curve", "polar_curve"].includes(curve.operator)) invalid("vector", "physical analytic derivatives cannot be reinterpreted as free vectors");
+      for (const value of [producer.inputs.at, producer.inputs.parameterScale, ...["xMin", "xMax", "tMin", "tMax", "thetaMin", "thetaMax"].map((key) => curve.inputs[key])]) {
+        for (const unit of scalarUnits(value, document)) if (!DIMENSIONLESS_UNITS.has(unit) && !["rad", "radian", "radians"].includes(unit)) invalid("units", "ordinary analytic derivative composition requires dimensionless mathematical parameters");
+      }
+    } else invalid("vector", "physical, 3D, ray, and region constructions cannot be reinterpreted as free vectors");
   };
   const evaluating = new Set<string>();
   const context: VectorEvaluationContext = {

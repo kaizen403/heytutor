@@ -1797,15 +1797,18 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
     issues.push({code:"invalid_display_metric_assertion",message:"Independently normalized arrows and scaled physical plots cannot certify length equality or distance ratios",severity:"fatal",entityIds:assertion.entities});
     return;
   }
-  if (["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_angle", "angle_between", "same_side"].includes(predicate) &&
-      hasDisplayAncestor(assertion.entities, geometry, document, hasPageNormalGlyph)) {
+  const normalSenses = values.map(pageNormalSense);
+  const normalSenseProof = ["same_direction", "opposite_direction"].includes(predicate)
+    && normalSenses.length === 2 && normalSenses.every((sense) => sense !== null);
+  if (["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_angle", "angle_between", "same_side", "same_direction", "opposite_direction", "vector_sum"].includes(predicate) &&
+      !normalSenseProof && hasDisplayAncestor(assertion.entities, geometry, document, hasPageNormalGlyph)) {
     issues.push({code:"invalid_page_normal_assertion",message:"A page-normal dot/cross glyph cannot certify an in-plane incidence or direction relation",severity:"fatal",entityIds:assertion.entities});
     return;
   }
   if (!["exists", "entity_count", "label_attached"].includes(predicate)) {
     const worldCompatibility = spaceProofCompatibility(values);
     if (worldCompatibility !== null && (worldCompatibility === false ||
-      !["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_length", "equal_angle", "angle_between", "distance_ratio", "opposite_direction"].includes(predicate))) {
+      !["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_length", "equal_angle", "angle_between", "distance_ratio", "opposite_direction", "same_direction"].includes(predicate))) {
       issues.push({ code: "invalid_world_assertion", message: "World-space assertions require compatible world operands and an implemented world predicate", severity: "fatal", entityIds: assertion.entities });
       return;
     }
@@ -2002,6 +2005,11 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         break;
       }
       case "opposite_direction": {
+        if (normalSenseProof) {
+          residual = 0;
+          passed = normalSenses[0] !== normalSenses[1];
+          break;
+        }
         const worldOpposite = spaceOppositeDirection(values[0], values[1]);
         if (worldOpposite !== null) {
           residual = worldOpposite.residual;
@@ -2015,6 +2023,30 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         residual = Math.abs(firstDirection.x * secondDirection.y - firstDirection.y * secondDirection.x);
         passed = residual < tolerance(assertion) &&
           firstDirection.x * secondDirection.x + firstDirection.y * secondDirection.y < 0;
+        break;
+      }
+      case "same_direction": {
+        if (normalSenseProof) {
+          residual = normalSenses[0] === normalSenses[1] ? 0 : Math.PI;
+          passed = residual === 0;
+          break;
+        }
+        if (values.length !== 2 || values.some((value) => value?.kind !== "path" || value.directed !== true || value.points.length !== 2
+          || !(distance(value.points[0]!, value.points[1]!) > EPSILON))) {
+          issues.push({ code: "invalid_sensed_direction", message: "Same direction requires two nonzero directed vectors or typed page normals; an unsensed line or zero marker has no sense", severity: "fatal", entityIds: assertion.entities });
+          return;
+        }
+        const worldAngle = spaceAcuteAngle(values[0], values[1]);
+        if (worldAngle !== null) {
+          residual = Math.abs(worldAngle);
+          passed = residual < angularTolerance(assertion);
+          break;
+        }
+        const firstLine = asLine(values[0]); const secondLine = asLine(values[1]);
+        const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
+        const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
+        residual = Math.abs(firstDirection.x * secondDirection.y - firstDirection.y * secondDirection.x);
+        passed = residual < tolerance(assertion) && firstDirection.x * secondDirection.x + firstDirection.y * secondDirection.y > 0;
         break;
       }
       case "vector_sum": {
@@ -4404,6 +4436,14 @@ function metricWaveDimension(inputs: Record<string, unknown>, geometry: Map<stri
 }
 function hasPageNormalGlyph(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => metadata.pageNormal === "out" || metadata.pageNormal === "in");
+}
+function pageNormalSense(value: Geometry | undefined): "out" | "in" | null {
+  if (!value) return null;
+  for (const key of ["pageNormalVector", "dipoleField", "magneticForce", "remainder"]) {
+    const metadata: unknown = key in value ? value[key as keyof typeof value] : undefined;
+    if (isRecord(metadata) && (metadata.pageNormal === "out" || metadata.pageNormal === "in")) return metadata.pageNormal;
+  }
+  return null;
 }
 /** Numeric ink on an untyped descendant cannot recover erased physical units/scales. */
 function validateDisplayDescendantClaims(document: SceneDocument, geometry: Map<string, Geometry>, checkedOutputIds: Set<string>, issues: SceneIssue[]): void {

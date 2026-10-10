@@ -310,6 +310,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     { id: "distance_ratio", plannerVisible: true, evaluator: "geometry" },
     { id: "same_side", plannerVisible: true, evaluator: "geometry" },
     { id: "opposite_direction", plannerVisible: true, evaluator: "geometry" },
+    { id: "same_direction", plannerVisible: true, evaluator: "geometry" },
     // Kept executable for validated internal documents; it is not in the planner contract.
     { id: "vector_sum", plannerVisible: false, evaluator: "geometry" },
     { id: "inside", plannerVisible: true, evaluator: "geometry" },
