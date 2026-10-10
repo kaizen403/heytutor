@@ -1,6 +1,6 @@
 # Speech providers
 
-Cartesia is the default for narration and microphone transcription. ElevenLabs remains available independently for each capability. All credentials and provider selection stay on the server.
+Cartesia is the default for narration and microphone transcription, and Sarvam speaks Hinglish (see below). ElevenLabs remains available independently for each capability. All credentials and provider selection stay on the server.
 
 ## Configuration
 
@@ -22,15 +22,27 @@ To use ElevenLabs again, set `TTS_PROVIDER=elevenlabs` with the existing `ELEVEN
 
 Restart the server after changing configuration. No database migration is required. A deployment without a usable selected provider can use the existing browser speech fallback; the speech-start guard surfaces failures when that fallback cannot start either.
 
+## Hinglish voice (Sarvam)
+
+Hinglish (`audioLanguage: "hinglish"`, voice key `hi-IN`) is spoken by Sarvam `bulbul:v3` with speaker `ritu` when `SARVAM_API_KEY` is set. `SARVAM_SPEAKER` and `SARVAM_MODEL` override them (`providerConfig.ts`). A Sarvam key is required to offer Hinglish in Settings: without it the server hides the choice, ignores attempts to save it, and reads a saved Hinglish choice as English (`hinglishVoiceAvailable` checks only `SARVAM_API_KEY`). `CARTESIA_VOICE_ID_HI` sets the lower level Cartesia voice for `hi-IN` but does not enable the option for students. A legacy `"hindi"` setting is no longer recognised and reads as English.
+
+- **Mixed script.** Narration is Hindi in Devanagari and English in Latin script (`packages/tutor-core/src/llm/hinglishNarration.ts`); the subtitle shows exactly what is spoken. The board stays in English: a `WRITE` row in Devanagari is dropped and its narration still plays (`isDevanagariWrite` in `commandPlacement.ts`).
+- **Digits as English words.** Sarvam reads "9" as a Hindi numeral, but the pen finds a board row by its English number words. The prompt asks for words, and `sarvamSpeechText` in `lib/tts/sarvamProtocol.ts` converts any digit left over before the text reaches Sarvam.
+- **Streaming.** The relay uses Sarvam's WebSocket (`wss://api.sarvam.ai/text-to-speech/ws`) and sends one sentence at a time, because Sarvam has no context ids. It pings every 25 s, since Sarvam closes an idle socket after a minute. Raw 24 kHz PCM is wrapped in the same WAV as Cartesia. HTTP is the fallback.
+- **No timings.** Sarvam returns no word alignment, so the pen keeps the estimated schedule. The WAV length feeds the speech-rate learner and the saved sentence duration for replay and export.
+- **Cost.** `SARVAM_USD_PER_1K_CHARS` sets the internal estimate.
+
+Gates: `verify-sarvam-tts`, `verify-sarvam-relay`, `verify-hinglish-lesson`, `verify-voice-language`, `verify-settings-persist`. Live probe: `scripts/live/probe-sarvam-voices.mjs`. Lecture lab: `--narration hinglish`.
+
 ## Boundaries
 
 - `lib/tts/providerConfig.ts` owns provider, credentials, voices, and model selection.
 - `ttsProvider.ts` adapts HTTP and WebSocket generation to the app's sentence protocol. `transcriptionProvider.ts` adapts microphone requests.
 - `server.ts` and `handleTtsRequest.ts` enforce the same authentication, grant budgets, cancellation, and usage recording around either provider. Successful generation records the actual provider and model. Failed generation does not record a completed TTS spend; the attempt still consumes the grant's character fuse.
-- `StreamingSpeechClient` and `HttpSpeechClient` share playback, lookahead, pause/stop, capture, and timing. Old ElevenLabs class imports are compatibility aliases. The browser requests language and latency preferences; it does not select credentials or a provider.
+- `StreamingSpeechClient` owns playback, lookahead, pause/stop, capture, and timing, with browser speech (`SpeechSynthesisTTSClient`) as its fallback. The old ElevenLabs module names are compatibility re-exports. The browser requests language and latency preferences; it does not select credentials or a provider.
 - `CartesiaContexts` keeps each concurrently generated sentence separate. It assembles 24 kHz signed 16-bit PCM into one WAV at completion. The browser already plays complete sentences, so this retains the existing lookahead policy. ElevenLabs continues to provide MP3.
 - Word timestamps map onto the submitted text's character offsets. Character positions inside a word are interpolated. If provider normalization prevents a reliable match, exact timings are omitted and the existing estimated handwriting schedule applies.
-- Live capture, uploads, private object keys, replay, and MP4 export accept both WAV and MP3. Existing MP3 objects remain readable. WAV needs more space: uploads allow 8 MiB per sentence, 96 MiB total audio and 128 MiB per request (about 35 minutes at 24 kHz mono). No concatenation of independent WAV headers is used.
+- Live capture, uploads, private object keys, replay, and MP4 export accept both WAV and MP3. Existing MP3 objects remain readable. WAV needs more space: uploads allow 8 MiB per sentence, 32 MiB total audio and 36 MiB per request (`lib/scene/turnUploadLimits.ts`, `lib/http/resourceLimits.ts`), about 11 minutes of 24 kHz mono WAV. No concatenation of independent WAV headers is used.
 
 `CARTESIA_USD_PER_1K_CHARS` controls the internal cost estimate (default $0.05). This is a configurable estimate, not an invoice: Cartesia charges credits and effective USD varies with the subscription. ElevenLabs retains its existing rate overrides. Both rates are visible in admin cost reporting.
 

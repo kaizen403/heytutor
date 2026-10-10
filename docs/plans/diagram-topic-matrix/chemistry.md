@@ -1,6 +1,8 @@
 # Chemistry topic-to-packet matrix
 
-**Current evidence: topic audit pending for all 132 rows.** The inherited chapter fractions and existing family probes have no authoritative mapping to these stable topic IDs. Nothing here certifies a present topic pass, a runtime coverage percentage or permission to implement.
+Planning snapshot, 2 October 2026; live state is in [topic-progress.csv](topic-progress.csv), where 13 Chemistry rows are now `accepted`.
+
+**Evidence at the snapshot: topic audit pending for all 132 rows.** The inherited chapter fractions and existing family probes have no authoritative mapping to these stable topic IDs. Nothing here certifies a present topic pass, a runtime coverage percentage or permission to implement.
 
 This is a documentation-only assignment matrix for the exact 132 taxonomy topics in Chemistry U1–U20. Every topic has one primary human work-packet owner. Labels and IDs come verbatim from `data/question-bank/syllabus-taxonomy.json`; framework IDs are not official scope evidence. DSA is excluded.
 

@@ -418,8 +418,9 @@ releaseLectureAudioContext(lectureB);
 {
   // The WebSocket stream and the HTTP fallback each held their own copy of the
   // voice settings, so a lesson could change character mid-sentence the moment
-  // the socket dropped. One constant now, and it has to be the one both files
-  // read: a literal reintroduced in either file is the drift this catches.
+  // the socket dropped. One constant now, read by the streaming client that
+  // owns both paths: a literal reintroduced in either speech file is the drift
+  // this catches.
   const sources = [
     readFileSync(resolve(import.meta.dirname, "../../src/tts/speechClient.ts"), "utf8"),
     readFileSync(resolve(import.meta.dirname, "../../src/tts/streamingSpeechClient.ts"), "utf8"),
@@ -428,11 +429,11 @@ releaseLectureAudioContext(lectureB);
     sources[1]!.includes("from \"./httpTtsPolicy\"") && !sources[1]!.includes("MAX_HTTP_PREFETCH = 6"),
     "HTTP prefetch must come from the shared policy, not a local storm of 6",
   );
+  assert(
+    sources[1]!.includes("TUTOR_VOICE_SETTINGS"),
+    "the streaming TTS client must read the shared voice settings",
+  );
   for (const source of sources) {
-    assert(
-      source.includes("TUTOR_VOICE_SETTINGS"),
-      "both TTS clients must read the shared voice settings",
-    );
     assert(
       !/stability:\s*[\d.]+/.test(source),
       "a TTS client redeclared the voice settings instead of sharing them",

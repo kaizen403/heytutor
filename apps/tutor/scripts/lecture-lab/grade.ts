@@ -41,6 +41,8 @@ export interface LectureGrade {
   question: string;
   passed: boolean;
   score: number;
+  /** Figure-only runs have no lesson and must not enter pedagogy aggregates. */
+  lessonGradingApplicable?: boolean;
   findings: Finding[];
   metrics: {
     steps: number;
@@ -243,12 +245,13 @@ export function gradeLecture(run: LectureRun): LectureGrade {
   // A row with no text is not a row. The broken `[WRITE]text,x,y` form used to
   // compile to dozens of empty writes, which looked like a full notebook.
   const inkedWrites = writes.filter((write) => write.text.trim().length > 0);
-  if (transportFailure) {
+  if (transportFailure || run.figureOnly) {
     // Nothing to grade. Every teaching check below would fire on an empty
     // lesson and bury the one fact that matters: the turn never happened.
     return {
       probeId: run.probeId,
       transportFailure,
+      lessonGradingApplicable: !run.figureOnly,
       topicId: run.topicId,
       unitId: run.unitId,
       question: run.question,

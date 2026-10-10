@@ -225,10 +225,3 @@ export function parseResistorTree(text: string): ResistorTree | null {
   const tree = read();
   return tree && at === text.length ? tree : null;
 }
-
-/** Exact equivalent resistance of a tree over the stated values, as p/q. */
-export function treeResistance(tree: ResistorTree, values: readonly number[]): number {
-  if (tree.kind === "leaf") return values[tree.index]!;
-  const parts = tree.children.map((child) => treeResistance(child, values));
-  return tree.kind === "series" ? parts.reduce((sum, value) => sum + value, 0) : 1 / parts.reduce((sum, value) => sum + 1 / value, 0);
-}

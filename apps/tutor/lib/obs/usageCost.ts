@@ -13,6 +13,7 @@ export interface UsageCounts {
 export type CostDetails = Record<string, number>;
 
 export type LlmRateLane =
+  | "gpt-6.1-sol"
   | "kimi-k3-fast"
   | "kimi-k3"
   | "deepseek-flash"
@@ -30,8 +31,13 @@ export interface LlmRate {
   cachedInputUsdPer1M: number;
 }
 
-/** Fireworks published serverless rates, plus TypeSafe's published Jev input rate. */
+/**
+ * Azure AI Foundry global standard rates for gpt-6.1-sol, Fireworks published
+ * serverless rates, and TypeSafe's published Jev input rate. Azure returns no
+ * cost, so spend is always tokens times these rates.
+ */
 export const LLM_RATE_DEFAULTS: Record<Exclude<LlmRateLane, "unknown">, LlmRate> = {
+  "gpt-6.1-sol": { inputUsdPer1M: 2, outputUsdPer1M: 10, cachedInputUsdPer1M: 0.1 },
   "kimi-k3-fast": { inputUsdPer1M: 4.5, outputUsdPer1M: 22.5, cachedInputUsdPer1M: 0.45 },
   "kimi-k3": { inputUsdPer1M: 3, outputUsdPer1M: 15, cachedInputUsdPer1M: 0.3 },
   "deepseek-flash": { inputUsdPer1M: 0.22, outputUsdPer1M: 0.66, cachedInputUsdPer1M: 0.22 },
@@ -61,6 +67,12 @@ export function resolveLlmRateLane(model?: string | null): LlmRateLane {
   if (id.includes("typesafe") || id.endsWith("/jev") || id === "jev" || id.startsWith("jev-")) {
     return "jev";
   }
+  // The configured deployment keeps its rates whatever LLM_PROVIDER says, so a
+  // rollback to Fireworks never reprices runs already recorded on Azure.
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT?.trim().toLowerCase();
+  if (/gpt-6[.\-p_]1-sol/.test(id) || (deployment && id === deployment)) {
+    return "gpt-6.1-sol";
+  }
   if (id.includes("kimi-k3-fast") || id.includes("kimi_k3_fast")) {
     return "kimi-k3-fast";
   }
@@ -78,6 +90,8 @@ export function resolveLlmRateLane(model?: string | null): LlmRateLane {
 
 function laneEnvPrefix(lane: LlmRateLane): string | null {
   switch (lane) {
+    case "gpt-6.1-sol":
+      return "AZURE_GPT_SOL";
     case "kimi-k3-fast":
       return "FIREWORKS_KIMI_FAST";
     case "kimi-k3":

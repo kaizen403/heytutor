@@ -1,0 +1,780 @@
+{
+  "topic_id": "chemistry|5|raoults-law-and-vapour-pressure",
+  "question": "Two volatile liquids A and B form an ideal solution. The vapour pressure of pure A is 200 torr and that of pure B is 100 torr. Plot the vapour pressure against mole fraction and find the total pressure when x_A = 0.5.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Raoult's law lines from the stated pure component vapour pressures"
+    },
+    "source": {
+      "question": "Two volatile liquids A and B form an ideal solution. The vapour pressure of pure A is 200 torr and that of pure B is 100 torr. Plot the vapour pressure against mole fraction and find the total pressure when x_A = 0.5.",
+      "synthesizedFamily": true,
+      "archetype": "chem_solutions",
+      "chemistryFamily": "chem_solutions"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "axes",
+        "kind": "axes",
+        "role": "vapour pressure against mole fraction axes"
+      },
+      {
+        "id": "p_a",
+        "kind": "polyline",
+        "role": "partial pressure of A"
+      },
+      {
+        "id": "p_b",
+        "kind": "polyline",
+        "role": "partial pressure of B"
+      },
+      {
+        "id": "p_total",
+        "kind": "polyline",
+        "role": "total vapour pressure"
+      },
+      {
+        "id": "pure_a",
+        "kind": "point",
+        "role": "pure A vapour pressure",
+        "label": "p°_A = 200"
+      },
+      {
+        "id": "pure_b",
+        "kind": "point",
+        "role": "pure B vapour pressure",
+        "label": "p°_B = 100"
+      },
+      {
+        "id": "x_one",
+        "kind": "point",
+        "role": "pure A on the axis",
+        "label": "x_A = 1"
+      },
+      {
+        "id": "pure_a_drop",
+        "kind": "segment",
+        "role": "drop at pure A",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "p_a_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_A",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_b_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_B",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_total_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_total",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "x_axis_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "x_A",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "y_axis_text",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p (torr)",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "scale_note",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "display scaled",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "mix_point",
+        "kind": "point",
+        "role": "stated composition on the total pressure line",
+        "label": "p_total = 150"
+      },
+      {
+        "id": "mix_foot",
+        "kind": "point",
+        "role": "stated composition on the axis",
+        "label": "x_A = 0.5"
+      },
+      {
+        "id": "mix_drop",
+        "kind": "segment",
+        "role": "drop at the stated composition",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "pa_value",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_A=100 torr",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "pb_value",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "p_B=50 torr",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ya_value",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "y_A=0.667",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_a_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "p_b_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "p_total_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "x_axis_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "y_axis_text_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "scale_note_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "pa_value_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "pb_value_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ya_value_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axes",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.05,
+          "xMax": 1.14,
+          "yMin": -0.03,
+          "yMax": 0.72
+        },
+        "outputs": [
+          "axes"
+        ]
+      },
+      {
+        "id": "make_p_a",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "(0.003)*(200*x)",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 17
+        },
+        "outputs": [
+          "p_a"
+        ]
+      },
+      {
+        "id": "make_p_b",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "(0.003)*(100*(1-x))",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 17
+        },
+        "outputs": [
+          "p_b"
+        ]
+      },
+      {
+        "id": "make_p_total",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "(0.003)*(100+(100)*x)",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 1,
+          "samples": 17
+        },
+        "outputs": [
+          "p_total"
+        ]
+      },
+      {
+        "id": "make_pure_a",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pure_a"
+        ]
+      },
+      {
+        "id": "make_pure_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pure_b"
+        ]
+      },
+      {
+        "id": "make_x_one",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "x_one"
+        ]
+      },
+      {
+        "id": "make_pure_a_drop",
+        "operator": "segment",
+        "inputs": {
+          "start": "pure_a",
+          "end": "x_one"
+        },
+        "outputs": [
+          "pure_a_drop"
+        ]
+      },
+      {
+        "id": "make_p_a_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.8,
+          "y": 0.43,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_a_text_p"
+        ]
+      },
+      {
+        "id": "make_p_a_text",
+        "operator": "label",
+        "inputs": {
+          "target": "p_a_text_p",
+          "text": "p_A"
+        },
+        "outputs": [
+          "p_a_text"
+        ]
+      },
+      {
+        "id": "make_p_b_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.2,
+          "y": 0.29,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_b_text_p"
+        ]
+      },
+      {
+        "id": "make_p_b_text",
+        "operator": "label",
+        "inputs": {
+          "target": "p_b_text_p",
+          "text": "p_B"
+        },
+        "outputs": [
+          "p_b_text"
+        ]
+      },
+      {
+        "id": "make_p_total_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.42,
+          "y": 0.476,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_total_text_p"
+        ]
+      },
+      {
+        "id": "make_p_total_text",
+        "operator": "label",
+        "inputs": {
+          "target": "p_total_text_p",
+          "text": "p_total"
+        },
+        "outputs": [
+          "p_total_text"
+        ]
+      },
+      {
+        "id": "make_x_axis_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.1,
+          "y": -0.075,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "x_axis_text_p"
+        ]
+      },
+      {
+        "id": "make_x_axis_text",
+        "operator": "label",
+        "inputs": {
+          "target": "x_axis_text_p",
+          "text": "x_A"
+        },
+        "outputs": [
+          "x_axis_text"
+        ]
+      },
+      {
+        "id": "make_y_axis_text_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.09,
+          "y": 0.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "y_axis_text_p"
+        ]
+      },
+      {
+        "id": "make_y_axis_text",
+        "operator": "label",
+        "inputs": {
+          "target": "y_axis_text_p",
+          "text": "p (torr)"
+        },
+        "outputs": [
+          "y_axis_text"
+        ]
+      },
+      {
+        "id": "make_scale_note_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.15,
+          "y": 0.68,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "scale_note_p"
+        ]
+      },
+      {
+        "id": "make_scale_note",
+        "operator": "label",
+        "inputs": {
+          "target": "scale_note_p",
+          "text": "display scaled"
+        },
+        "outputs": [
+          "scale_note"
+        ]
+      },
+      {
+        "id": "make_mix_point",
+        "operator": "point",
+        "inputs": {
+          "x": 0.5,
+          "y": 0.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mix_point"
+        ]
+      },
+      {
+        "id": "make_mix_foot",
+        "operator": "point",
+        "inputs": {
+          "x": 0.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mix_foot"
+        ]
+      },
+      {
+        "id": "make_mix_drop",
+        "operator": "segment",
+        "inputs": {
+          "start": "mix_point",
+          "end": "mix_foot"
+        },
+        "outputs": [
+          "mix_drop"
+        ]
+      },
+      {
+        "id": "make_pa_value_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.12,
+          "y": -0.22,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pa_value_p"
+        ]
+      },
+      {
+        "id": "make_pa_value",
+        "operator": "label",
+        "inputs": {
+          "target": "pa_value_p",
+          "text": "p_A=100 torr"
+        },
+        "outputs": [
+          "pa_value"
+        ]
+      },
+      {
+        "id": "make_pb_value_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.12,
+          "y": -0.42,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pb_value_p"
+        ]
+      },
+      {
+        "id": "make_pb_value",
+        "operator": "label",
+        "inputs": {
+          "target": "pb_value_p",
+          "text": "p_B=50 torr"
+        },
+        "outputs": [
+          "pb_value"
+        ]
+      },
+      {
+        "id": "make_ya_value_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.62,
+          "y": -0.22,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ya_value_p"
+        ]
+      },
+      {
+        "id": "make_ya_value",
+        "operator": "label",
+        "inputs": {
+          "target": "ya_value_p",
+          "text": "y_A=0.667"
+        },
+        "outputs": [
+          "ya_value"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "total_at_b",
+        "predicate": "function_value",
+        "entities": [
+          "p_total"
+        ],
+        "expected": {
+          "x": 0,
+          "y": 0.3
+        },
+        "severity": "warning"
+      },
+      {
+        "id": "total_at_a",
+        "predicate": "function_value",
+        "entities": [
+          "p_total"
+        ],
+        "expected": {
+          "x": 1,
+          "y": 0.6
+        },
+        "severity": "warning"
+      },
+      {
+        "id": "pa_at_a",
+        "predicate": "function_value",
+        "entities": [
+          "p_a"
+        ],
+        "expected": {
+          "x": 1,
+          "y": 0.6
+        },
+        "severity": "warning"
+      },
+      {
+        "id": "pb_at_b",
+        "predicate": "function_value",
+        "entities": [
+          "p_b"
+        ],
+        "expected": {
+          "x": 0,
+          "y": 0.3
+        },
+        "severity": "warning"
+      },
+      {
+        "id": "total_at_mix",
+        "predicate": "function_value",
+        "entities": [
+          "p_total"
+        ],
+        "expected": {
+          "x": 0.5,
+          "y": 0.45
+        },
+        "severity": "warning"
+      },
+      {
+        "id": "label_mix_point",
+        "predicate": "label_attached",
+        "entities": [
+          "mix_point"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_pure_a",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_a"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_pure_b",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_b"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_x_one",
+        "predicate": "label_attached",
+        "entities": [
+          "x_one"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_pure_a",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_a"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_pure_b",
+        "predicate": "label_attached",
+        "entities": [
+          "pure_b"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_x_one",
+        "predicate": "label_attached",
+        "entities": [
+          "x_one"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_mix_point",
+        "predicate": "label_attached",
+        "entities": [
+          "mix_point"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_mix_foot",
+        "predicate": "label_attached",
+        "entities": [
+          "mix_foot"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "Ideal solution of A and B: p_A = p°_A x_A and p_B = p°_B (1 minus x_A) are straight lines, and p_total = p_A + p_B runs from p°_B = 100 torr at pure B to p°_A = 200 torr at pure A. At x_A = 0.5: p_A = 100, p_B = 50, p_total = 150 torr; vapour mole fraction y_A = 0.667."
+      }
+    ],
+    "requiredEntityIds": [
+      "axes",
+      "p_a",
+      "p_b",
+      "p_total",
+      "pure_a",
+      "pure_b",
+      "x_one",
+      "pure_a_drop",
+      "p_a_text",
+      "p_b_text",
+      "p_total_text",
+      "x_axis_text",
+      "y_axis_text",
+      "scale_note",
+      "mix_point",
+      "mix_foot",
+      "mix_drop",
+      "pa_value",
+      "pb_value",
+      "ya_value"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "axes",
+          "p_a",
+          "p_b",
+          "p_total",
+          "pure_a",
+          "pure_b",
+          "x_one",
+          "pure_a_drop",
+          "p_a_text",
+          "p_b_text",
+          "p_total_text",
+          "x_axis_text",
+          "y_axis_text",
+          "scale_note",
+          "mix_point",
+          "mix_foot",
+          "mix_drop",
+          "pa_value",
+          "pb_value",
+          "ya_value"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Raoult's law lines from the stated pure component vapour pressures"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Raoult's law lines from the stated pure component vapour pressures"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

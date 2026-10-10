@@ -23,6 +23,12 @@
         "id": "fronts",
         "kind": "polyline",
         "role": "wavefront family"
+      },
+      {
+        "id": "fronts_label",
+        "kind": "label",
+        "role": "diagram label",
+        "label": "plane wavefronts"
       }
     ],
     "constructions": [
@@ -55,6 +61,17 @@
         "outputs": [
           "fronts"
         ]
+      },
+      {
+        "id": "make_fronts_label",
+        "operator": "label",
+        "inputs": {
+          "target": "origin",
+          "text": "plane wavefronts"
+        },
+        "outputs": [
+          "fronts_label"
+        ]
       }
     ],
     "relations": [],
@@ -72,14 +89,16 @@
     "annotations": [],
     "requiredEntityIds": [
       "origin",
-      "fronts"
+      "fronts",
+      "fronts_label"
     ],
     "revealGroups": [
       {
         "id": "setup",
         "entityIds": [
           "origin",
-          "fronts"
+          "fronts",
+          "fronts_label"
         ],
         "dependsOn": [],
         "narrationCue": "plane wavefront family"

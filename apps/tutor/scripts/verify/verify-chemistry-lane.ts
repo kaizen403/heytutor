@@ -67,7 +67,9 @@ assert(/H_2SO_4/.test(CHEMISTRY_LESSON_RUNTIME_ADDON) && /⇌/.test(CHEMISTRY_LE
 
 // 3. The LLM scene planner is skipped for a chemistry question.
 const handler = read("../../features/tutor-session/hooks/turn/useQuestionHandler.ts");
-const decision = slice(handler, "const chemistryLane =", "const planContext =", "exact-scene decision");
+assert(handler.includes("deriveProductionSceneGate({"), "live chemistry admission uses the shared production gate");
+const selection = read("../../features/tutor-session/lib/scene/productionSceneSelection.ts");
+const decision = slice(selection, "const chemistryLane =", "const planContext =", "exact-scene decision");
 assert(/isChemistrySceneFamily/.test(decision) && /isChemistryQuestion\(question\)/.test(decision), "the chemistry lane must be decided from the families and the question");
 assert(/shouldPlanExactScene = planningTurnPlan\.visualRequirement !== "none" && !chemistryLane/.test(decision), "a chemistry question must skip the LLM scene planner");
 

@@ -14,20 +14,20 @@ The product is an AI whiteboard tutor. It should teach like a human teacher:
 - The narration should teach concepts. It should not narrate UI actions like "I am drawing a circle."
 
 For diagram authority, representation tiers, and ownership rules see
-[universal-illustration-engine-v4.md](universal-illustration-engine-v4.md) and
+[diagram-accuracy-architecture.md](diagram-accuracy-architecture.md) and
 [../agent/architecture.md](../agent/architecture.md). This file is about speech ↔
 handwriting sync after the verified scene is committed.
 
-See [speech-providers.md](speech-providers.md) for provider selection, Cartesia/ElevenLabs adapters, timestamp mapping, and WAV/MP3 replay.
+See [speech-providers.md](speech-providers.md) for provider selection, Cartesia, Sarvam and ElevenLabs adapters, timestamp mapping, and WAV/MP3 replay.
 
 ## High-Level Flow
 
 The main live path is:
 
 1. User submits a question via `useQuestionHandler` in `apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts` (rendered from `TutorSessionPage`).
-2. The verified-scene pipeline commits diagram ink (TurnPlanV3 → ProblemIR/solver → SceneDocument → presentation). Teaching does not start until that commit.
-3. `streamLLMResponse()` in `packages/tutor-core/src/llm/llmAPI.ts` streams teaching text from Fireworks.
-4. `prepareVerifiedLessonSegments()` keeps narration and work-area `WRITE`/`PAUSE` only.
+2. The verified-scene pipeline commits diagram ink (TurnPlanV3 → ProblemIR/solver → fast family figure or SceneDocument → presentation). Teaching does not start until that commit.
+3. `streamLLMResponse()` in `packages/tutor-core/src/llm/llmAPI.ts` streams teaching text from the selected LLM provider (Fireworks Kimi K3 by default; Azure gpt-6.1-sol with `LLM_PROVIDER=azure`, see [../agent/llm-provider.md](../agent/llm-provider.md)).
+4. `prepareVerifiedLessonSegments()` keeps narration, work-area `WRITE`, `PAUSE` and `EMPHASIZE`, plus `FOCUS`, `POINT` and `ANNOTATE` only when they resolve to verified entities; it infers a `FOCUS` for a figure part the step names aloud and drops Devanagari `WRITE` rows (see [diagram-accuracy-architecture.md](diagram-accuracy-architecture.md)).
 5. Segments are queued through `enqueueSegment()` / `segmentChainRef` in `useTurnControl.ts`.
 6. `runSegment()` in `useSegmentRunner.ts` speaks the segment narration and runs allowed write commands concurrently.
 7. `createTTSClient()` returns `StreamingSpeechClient` in the browser (one context per segment, with Cartesia as the server default).
@@ -89,21 +89,21 @@ Important functions:
 - `getWriteCharScheduleMs(narration, command, timings)` maps `WRITE`/`LABEL` text to per-character offsets using TTS character timings.
 - `getEstimatedWriteCharScheduleMs(narration, command)` creates an immediate script-derived schedule when TTS timings are missing or late.
 - `getCommandSpeechWindow()` estimates a start/duration window for non-character-scheduled commands.
-- `mathToSpeech()` from `elevenLabsClient.ts` converts symbols to spoken form before matching.
+- `mathToSpeech()` from `packages/tutor-core/src/tts/speechNotation.ts` converts symbols to spoken form before matching.
 
 Important design rule:
 
-Live writing must not block on ElevenLabs alignment. Real timings may arrive after the relevant words are already spoken. The live path should use real timings only when already available; otherwise it should use the estimated script schedule. Persisted/replay paths can use exact timings.
+Live writing never blocks on provider alignment. A sentence generated ahead by the lookahead already has exact alignment in the client, and `useSegmentRunner.ts` uses it (`peekSegmentTimings`). The first sentence, Sarvam (no alignment) and browser speech use the estimated script schedule. Persisted/replay paths use exact timings when they were captured.
 
 Paired narration+draw segments must finish prior ink, then run speech and draw together (`Promise.all`). Do not let the segment speech chain race ahead of `drawChainRef` (that caused the marker to lag a sentence behind). Shape `startDelayMs` may wait up to ~6s for the spoken cue; do not clamp to a few hundred ms or ink appears before the words.
 
-### `packages/tutor-core/src/tts/elevenLabsWebSocketClient.ts`
+### `packages/tutor-core/src/tts/streamingSpeechClient.ts`
 
 Handles browser TTS streaming.
 
 Important behavior:
 
-- `/api/tts/ws` streams ElevenLabs audio chunks and alignment.
+- `/api/tts/ws` streams audio and alignment from the server-selected provider (`apps/tutor/lib/tts/wsRelay.ts`): Cartesia by default, Sarvam for Hinglish (audio only, no alignment), ElevenLabs when `TTS_PROVIDER=elevenlabs`. `elevenLabsWebSocketClient.ts` is a re-export alias.
 - `onStart` fires around first audio chunk/playback start, not necessarily exactly when every audio sample becomes audible.
 - `getPlaybackPositionMs()` returns the AudioContext playback position for the current segment when known.
 - `ctx.currentTime` freezes when `pause()` suspends the AudioContext, so it is pause-aware.
@@ -131,12 +131,12 @@ Key functions/sections:
 
 ### Finished-lecture playback bar
 
-`hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx`, pure rules in `lib/replay/lecturePlayer.ts`.
+`hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx`, pure rules in `apps/tutor/lib/replay/lecturePlayer.ts`.
 
 - **Gate:** `canPlayFinishedLecture` — idle board, no rewind or in-place replay, and every spoken segment has recorded audio. Admin Watch also requires the job to have completed.
-- **One clock:** `lib/replay/lecturePlayerAudio.ts` stitches every segment MP3 into one 24 kHz WAV blob, each cue exactly `[startMs, endMs)`. A single `<audio>` element is the clock: pause, speed (pitch kept) and seek are the element's own.
+- **One clock:** `apps/tutor/lib/replay/lecturePlayerAudio.ts` stitches every segment recording into one 24 kHz WAV blob, each cue exactly `[startMs, endMs)`. A single `<audio>` element is the clock: pause, speed (pitch kept) and seek are the element's own.
 - **Board as a function of time:** a separate overlay board takes a `VirtualWhiteboardClock` as its time source; every frame sets it to the smoothed `audio.currentTime` and pumps. Ink, delays and pen tours (`useCommandExecution({ nowMs })`) all read it, so voice and ink cannot drift. `drawLectureTimeline` is the same engine the MP4 export runs.
-- **Seek:** freeze the current frame, redraw the page the target sits on instantly (`durationScale: 0`; each `FRAME` advances one frame), start the engine at the target cue and step the clock to the target in 32 ms steps (the whiteboard credits a new tween at most 50 ms on its first frame), then move the audio and drop the freeze. Seeks during a seek collapse to the latest.
+- **Seek:** freeze the current frame, redraw the page the target sits on instantly (`durationScale: 0`; each `FRAME` advances one frame), start the engine at the target cue and step the clock to the target one display frame (about 16.7 ms) at a time (`SEEK_STEP_MS`; the whiteboard credits a new tween at most 50 ms on its first frame), then move the audio and drop the freeze. Seeks during a seek collapse to the latest.
 - **DSA code panel:** drawn from lecture time by `codeLessonFrameSpec` on a canvas over the player board, not typed by a controller.
 
 Debug logs to inspect:
@@ -152,7 +152,7 @@ If `write schedule ready` appears after the relevant narration has already spoke
 
 If `write char start` has high positive `lag_ms`, the whiteboard started late relative to the schedule.
 
-If `schedule_source` is often `estimated`, ElevenLabs timings are not available early enough for live sync. This is acceptable if visual sync feels right; exact timings still help replay/persistence.
+If `schedule_source` is often `estimated`, provider timings are not available early enough for live sync. This is acceptable if visual sync feels right; exact timings still help replay/persistence.
 
 ### `packages/whiteboard/src/Whiteboard.tsx`
 
@@ -219,7 +219,7 @@ Fix direction:
 
 ### Browser voice fallback is being used
 
-Exact ElevenLabs timings may not be available until speech ends. Live sync must use estimated scheduling in that case. Do not wait for `SpeechSynthesis` `onTimings`; it emits at `onend`.
+Browser speech reports no timings until it ends. Live sync must use estimated scheduling in that case. Do not wait for `SpeechSynthesis` `onTimings`; it emits at `onend`.
 
 ## Quality Gates
 
@@ -306,10 +306,10 @@ The rules now in force, each with an offline gate:
 
 The most important recent findings:
 
-1. Waiting for near-complete ElevenLabs timing alignment before drawing causes
+1. Waiting for near-complete provider timing alignment before drawing causes
    speech-first, writing-late.
-2. Treating TTS `onStart` as "the voice is audible" causes the opposite: a 1.5×
-   wall clock races through the row while audio is still being scheduled, then
+2. Treating TTS `onStart` as "the voice is audible" causes the opposite: a
+   sped-up wall clock (1.5×, the default speed then; 1.25× now) races through the row while audio is still being scheduled, then
    refuses to adopt the real playback position because it looks behind the raced
    max. The voice is the conductor: `getPlaybackPositionMs() > 0` is audibility,
    and an advancing playback position always wins over a wall fallback.
@@ -320,8 +320,8 @@ The most important recent findings:
 
 The current live design should therefore be:
 
-- **Estimated schedule first for live drawing.**
-- **Real TTS timings opportunistically when already available.**
+- **Never block live drawing on timings.** Use exact timings when the
+  lookahead already has them, otherwise the estimated schedule.
 - **Do not ink until playback is audible**, then follow that clock.
 - **Persist real timings for replay.**
 - **Prompt commands immediately after spoken cue phrases.**

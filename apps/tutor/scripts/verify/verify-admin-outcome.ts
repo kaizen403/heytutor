@@ -59,6 +59,7 @@ function assert(condition: unknown, message: string): asserts condition {
   assert(
     empty !== null &&
       empty.representationTier === null &&
+      empty.figureSource === null &&
       empty.degradationReason === null &&
       empty.issueCodes.length === 0 &&
       empty.candidateCount === null &&
@@ -69,7 +70,9 @@ function assert(condition: unknown, message: string): asserts condition {
   const healthy = extractArtifactSummary({
     schemaVersion: "scene-artifacts/v3",
     representationTier: "exact_verified",
+    figureSource: "planner",
     diagramResultStatus: "ready",
+    diagramStrategy: "strict",
     degradation: {
       attemptedTier: "exact_verified",
       reason: "missing_capability",
@@ -80,7 +83,9 @@ function assert(condition: unknown, message: string): asserts condition {
   assert(
     healthy !== null &&
       healthy.representationTier === "exact_verified" &&
+      healthy.figureSource === "planner" &&
       healthy.diagramResultStatus === "ready" &&
+      healthy.diagramStrategy === "strict" &&
       healthy.degradationReason === "missing_capability" &&
       healthy.candidateCount === 3,
     "a well-formed artifact reads through",

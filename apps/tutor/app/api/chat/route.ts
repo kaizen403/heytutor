@@ -28,14 +28,37 @@ import {
   requireLessonGrant,
 } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
+import {
+  lectureLabPlannerDeadlineCapMs,
+  shouldSuppressLectureLabTrace,
+  shouldUseLectureLabStandardModel,
+} from "@/lib/billing/flags";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { markGrantInUse, type TurnGrant } from "@/lib/billing/grant";
 import type { SpendActor } from "@/lib/billing/actor";
 import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type PaidUsageReservation } from "@/lib/billing/paidUsage";
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
-import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
+import {
+  resolveCheapFireworksModel,
+  DEFAULT_FIREWORKS_MODEL,
+  resolveFireworksModel,
+} from "@/lib/llm/fireworksModels";
+import {
+  completionTokenCap,
+  providerChatBody,
+  readProviderPerf,
+  resolveLlmEndpoint,
+  type LlmEndpoint,
+} from "@/lib/llm/llmProvider";
 import { setTimeout as sleepFor } from "node:timers/promises";
+import { resolveDiagramStrategyAssignment } from "@/lib/scene/diagramStrategy.server";
+import {
+  buildLiveDiagramPickerBody,
+  injectLiveDiagramExamples,
+  parseLiveDiagramExampleIds,
+  resolveLiveDiagramExamples,
+} from "@/lib/scene/diagramExampleLibrary.server";
 import {
   fetchPlannerCompletion,
   resolvePlannerMaxTokens,
@@ -51,10 +74,10 @@ import {
   resolveTeachingReasoningEffort,
   teachingAttemptModel,
   teachingAttemptMayHaveGenerated,
+  type TeachingModelRoute,
   type TeachingUpstreamFailure,
 } from "@/lib/llm/teachingTransport";
 
-const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const PUBLIC_CHAT_ERROR = "The tutor is temporarily unavailable. Please try again.";
 
 // Hard reasoning-token caps per tier. kimi-k2p6's `reasoning_effort` levels are
@@ -208,6 +231,25 @@ function finalizeMockPlannerTrace(
   );
 }
 
+function finalizeMockDiagramExamplePickerTrace(
+  turnTrace: TurnTrace | null,
+  traceId: string,
+): Response {
+  const content = JSON.stringify({ ids: [] });
+  endLlmGeneration(turnTrace, {
+    output: content,
+    usageDetails: { input: 0, output: 0, total: 0 },
+    metadata: { mock: true, planner: true, diagram_example_picker: true },
+    mock: true,
+    updateTrace: false,
+  });
+  flushInBackground();
+  return Response.json(
+    { choices: [{ message: { content } }] },
+    { headers: { "x-heytutor-trace-id": traceId } },
+  );
+}
+
 function finalizeMockCodeLessonTrace(
   turnTrace: TurnTrace | null,
   question: string,
@@ -295,7 +337,8 @@ function injectStreamOptions(
   bodyText: string,
   serverModel: string,
   reasoningEffort: ReasoningEffort,
-  codeLesson = false,
+  codeLesson: boolean,
+  llm: LlmEndpoint,
 ): string {
   try {
     const parsed = serverChatBody(JSON.parse(bodyText));
@@ -327,7 +370,8 @@ function injectStreamOptions(
       parsed.max_tokens = contentBudget + reasoningBudget;
     }
 
-    return JSON.stringify(parsed);
+    // Written in Fireworks terms; Azure translates thinking and max_tokens.
+    return JSON.stringify(providerChatBody(parsed, llm));
   } catch {
     return bodyText;
   }
@@ -415,8 +459,9 @@ function createTracingTransformStream(
         latestUsage = payload.usage;
       }
 
-      if (payload.perf_metrics) {
-        latestPerfMetrics = payload.perf_metrics;
+      const perfMetrics = readProviderPerf(payload);
+      if (perfMetrics) {
+        latestPerfMetrics = perfMetrics;
       }
     } catch {
       // ignore malformed SSE lines
@@ -481,6 +526,7 @@ function createTracingTransformStream(
             content_chars: accumulatedOutput.length,
             usage_status: usage.known ? "known" : "unknown",
             cached_input_tokens: usage.cachedInput ?? 0,
+            ...(usage.reasoning !== undefined ? { reasoning_tokens: usage.reasoning } : {}),
           },
           model: spend?.model,
           mock,
@@ -535,6 +581,7 @@ function createTracingTransformStream(
 
 interface PlannerRequestArgs {
   rawBody: string;
+  llm: LlmEndpoint;
   apiKey: string;
   traceId: string;
   turnTrace: TurnTrace | null;
@@ -543,9 +590,14 @@ interface PlannerRequestArgs {
   turnPlanV3: boolean;
   problemIRV1: boolean;
   codeLessonV1: boolean;
+  diagramExamplePicker: boolean;
+  diagramExampleIds: string[];
+  question: string;
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
   fastMode: boolean;
+  evaluationModelOverride?: string;
+  problemIRModelOverride?: string;
   deadlineMs: number;
   signal: AbortSignal;
   actor: SpendActor;
@@ -554,6 +606,7 @@ interface PlannerRequestArgs {
 
 async function handlePlannerRequest({
   rawBody,
+  llm,
   apiKey,
   traceId,
   turnTrace,
@@ -562,21 +615,28 @@ async function handlePlannerRequest({
   turnPlanV3,
   problemIRV1,
   codeLessonV1,
+  diagramExamplePicker,
+  diagramExampleIds,
+  question,
   plannerPhase,
   plannerLane,
   fastMode,
+  evaluationModelOverride,
+  problemIRModelOverride,
   deadlineMs,
   signal,
   actor,
   grant,
 }: PlannerRequestArgs): Promise<Response> {
-  const plannerModels = resolvePlannerModels({
+  const plannerModels = diagramExamplePicker ? [resolveCheapFireworksModel()] : resolvePlannerModels({
     semanticSceneV2,
     turnPlanV3,
     problemIRV1,
     plannerPhase,
     plannerLane,
     fastMode,
+    evaluationModelOverride,
+    problemIRModelOverride,
   });
 
   let reservation: PaidUsageReservation | null = null;
@@ -587,9 +647,17 @@ async function handlePlannerRequest({
   );
   const boundedSignal = mergePlannerSignals(signal, deadlineController.signal);
   try {
-    const parsed = serverChatBody(JSON.parse(rawBody), "planner");
+    const preparedBody = diagramExamplePicker
+      ? buildLiveDiagramPickerBody(rawBody, question)
+      : semanticSceneV2 && diagramExampleIds.length > 0
+        ? injectLiveDiagramExamples(rawBody, resolveLiveDiagramExamples(question, diagramExampleIds))
+        : rawBody;
+    const parsed = serverChatBody(JSON.parse(preparedBody), "planner");
     delete parsed.reasoning_effort;
-    if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
+    if (diagramExamplePicker) {
+      parsed.thinking = { type: "disabled" };
+      parsed.max_tokens = 60;
+    } else if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
       // Complex scenes routinely exceed 1,400 output tokens; truncating JSON
       // makes an otherwise usable scene indistinguishable from no scene.
@@ -609,16 +677,17 @@ async function handlePlannerRequest({
     }
     parsed.stream = false;
     parsed.response_format = { type: "json_object" };
+    const body = providerChatBody(parsed, llm);
 
-    const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(parsed.messages, Number(parsed.max_tokens), plannerModels, plannerModels.length * 2) });
+    const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(body.messages, completionTokenCap(body), plannerModels, plannerModels.length * 2) });
     if (reserved instanceof Response) return reserved;
     reservation = reserved;
     const upstreamStartedAt = Date.now();
     let finalAttemptStartedAt = upstreamStartedAt;
     const transport = await fetchPlannerCompletion({
-      url: FIREWORKS_CHAT_URL,
+      url: llm.url,
       apiKey,
-      body: parsed,
+      body,
       fetchImpl: (input, init) => {
         finalAttemptStartedAt = Date.now();
         return fetch(input, init);
@@ -626,7 +695,8 @@ async function handlePlannerRequest({
       models: plannerModels,
       signal: boundedSignal,
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
-        tutorDebug("planner", message ? "Fireworks fetch failed" : "transient Fireworks response", {
+        tutorDebug("planner", message ? "provider fetch failed" : "transient provider response", {
+          provider: llm.provider,
           attempt,
           delay_ms: delayMs,
           message,
@@ -645,7 +715,8 @@ async function handlePlannerRequest({
       responseHeadersAt: Date.now(),
     });
 
-    tutorDebug("planner", "fireworks response", {
+    tutorDebug("planner", "provider response", {
+      provider: llm.provider,
       status: response.status,
       ...timing,
       model: transport.model,
@@ -664,6 +735,7 @@ async function handlePlannerRequest({
           planner_model: transport.model,
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
+          diagram_example_picker: diagramExamplePicker || undefined,
         },
         model: transport.model,
         updateTrace: false,
@@ -672,7 +744,11 @@ async function handlePlannerRequest({
       flushInBackground();
       return Response.json({ error: PUBLIC_CHAT_ERROR }, {
         status: 502,
-        headers: { "content-type": "application/json", "x-heytutor-trace-id": traceId },
+        headers: {
+          "content-type": "application/json",
+          "x-heytutor-trace-id": traceId,
+          "x-heytutor-planner-model": transport.model,
+        },
       });
     }
 
@@ -692,12 +768,13 @@ async function handlePlannerRequest({
         output: content,
         usageDetails: usageDetailsFromParsed(usage),
         metadata: {
-          ...providerPerfMetadata(parsedResponse.perf_metrics, {
+          ...providerPerfMetadata(readProviderPerf(parsedResponse), {
             headers: response.headers,
             completionTokens: usage.known ? usage.output : undefined,
           }),
           ...timing,
-          temperature: parsed.temperature,
+          temperature: body.temperature,
+          llm_provider: llm.provider,
           planner: true,
           scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
           turn_planner_version: turnPlanV3 ? 3 : undefined,
@@ -708,8 +785,10 @@ async function handlePlannerRequest({
           planner_model: transport.model,
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
+          diagram_example_picker: diagramExamplePicker || undefined,
           usage_status: usage.known ? "known" : "unknown",
           cached_input_tokens: usage.cachedInput ?? 0,
+          ...(usage.reasoning !== undefined ? { reasoning_tokens: usage.reasoning } : {}),
         },
         model: transport.model,
         updateTrace: false,
@@ -740,6 +819,7 @@ async function handlePlannerRequest({
         "x-heytutor-trace-id": traceId,
         "x-heytutor-planner-model": transport.model,
         "x-heytutor-planner-lane": plannerLane,
+        "x-heytutor-upstream-attempts": String(transport.attemptCount),
       },
     });
   } catch (error: unknown) {
@@ -796,7 +876,15 @@ export async function POST(request: Request): Promise<Response> {
   // What each dispatched upstream attempt may cost, priced for the model it called.
   const attemptCosts: number[] = [];
   const attemptedCost = () => attemptCosts.reduce((total, cost) => total + cost, 0);
-  const requestSignal = AbortSignal.any([request.signal, AbortSignal.timeout(120_000)]);
+  const extendedEvaluationScenePlanner =
+    request.headers.get("x-planner") === "1" &&
+    lectureLabPlannerDeadlineCapMs(request) === 120_000;
+  // The extra five seconds is transport headroom around the evaluation-only
+  // 120 s scene budget. Live requests retain their existing outer deadline.
+  const requestSignal = AbortSignal.any([
+    request.signal,
+    AbortSignal.timeout(extendedEvaluationScenePlanner ? 125_000 : 120_000),
+  ]);
   try {
   let rawBody: string;
   try {
@@ -811,15 +899,25 @@ export async function POST(request: Request): Promise<Response> {
   const traceId = incomingTraceId ?? genTraceId();
   const attach = Boolean(incomingTraceId);
   const kind = resolveChatGenerationKind(request.headers);
+  const diagramExamplePicker = request.headers.get("x-diagram-example-picker") === "1";
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
-  const apiKey = process.env.FIREWORKS_API_KEY;
+  const llm = resolveLlmEndpoint();
+  const apiKey = llm.apiKey;
+  const evaluationModelOverride = shouldUseLectureLabStandardModel(request)
+    ? llm.deployment ?? DEFAULT_FIREWORKS_MODEL
+    : undefined;
   const mock = !apiKey;
   // A startup retry after a stalled Fast router runs on the standard deployment.
-  const teachingRoute = kind === "teaching"
-    ? resolveTeachingModelRoute(process.env, { fastMode, startupRetry: readTeachingStartupRetry(request.headers) })
+  const teachingRoute: TeachingModelRoute | null = kind === "teaching"
+    ? evaluationModelOverride
+      ? { model: evaluationModelOverride, alternate: null, fallbackReason: null }
+      : resolveTeachingModelRoute(process.env, { fastMode, startupRetry: readTeachingStartupRetry(request.headers) })
     : null;
-  const serverModel = teachingRoute ? teachingRoute.model : resolveFireworksModel({ fastMode });
-  const turnTrace = startTurnTrace({
+  const serverModel = teachingRoute
+    ? teachingRoute.model
+    : evaluationModelOverride ?? resolveFireworksModel({ fastMode });
+  const diagramStrategyAssignment = resolveDiagramStrategyAssignment(actor);
+  const turnTrace = shouldSuppressLectureLabTrace(request) ? null : startTurnTrace({
     userId: actor.userId,
     sessionId,
     input: resolveTurnTraceInput({ kind, attach, question, userInput }),
@@ -828,6 +926,7 @@ export async function POST(request: Request): Promise<Response> {
     mock,
     model: serverModel,
     generationName: chatGenerationName(kind),
+    tags: [`diagram-strategy-assigned:${diagramStrategyAssignment}`],
   });
 
   tutorDebug("chat", "POST /api/chat", {
@@ -835,6 +934,7 @@ export async function POST(request: Request): Promise<Response> {
     session_id: sessionId ?? null,
     mock,
     generation: chatGenerationName(kind),
+    diagram_strategy_assigned: diagramStrategyAssignment,
     attach,
     question_preview: (question ?? userInput).slice(0, 120),
     question_chars: (question ?? userInput).length,
@@ -843,6 +943,9 @@ export async function POST(request: Request): Promise<Response> {
   if (mock) {
     tutorDebug("chat", "using mock response (no FIREWORKS_API_KEY)");
     if (request.headers.get("x-planner") === "1") {
+      if (diagramExamplePicker) {
+        return finalizeMockDiagramExamplePickerTrace(turnTrace, traceId);
+      }
       if (request.headers.get("x-code-lesson-version") === "1") {
         return finalizeMockCodeLessonTrace(turnTrace, userInput, traceId);
       }
@@ -865,16 +968,22 @@ export async function POST(request: Request): Promise<Response> {
     const turnPlanV3 = request.headers.get("x-turn-planner-version") === "3";
     const problemIRV1 = request.headers.get("x-problem-ir-version") === "1";
     const codeLessonV1 = request.headers.get("x-code-lesson-version") === "1";
+    const semanticSceneV2 = !turnPlanV3 && !problemIRV1 && !codeLessonV1 &&
+      request.headers.get("x-scene-planner-version") === "2";
     return handlePlannerRequest({
       rawBody,
+      llm,
       apiKey,
       traceId,
       turnTrace,
       requestStartedAt,
-      semanticSceneV2: !turnPlanV3 && !problemIRV1 && !codeLessonV1 && request.headers.get("x-scene-planner-version") === "2",
+      semanticSceneV2,
       turnPlanV3,
       problemIRV1,
       codeLessonV1,
+      diagramExamplePicker,
+      diagramExampleIds: parseLiveDiagramExampleIds(new URL(request.url).searchParams.get("diagramExampleIds")),
+      question: question ?? "",
       plannerPhase: request.headers.get("x-scene-planner-phase") === "repair" ? "repair" : "plan",
       plannerLane: (
         turnPlanV3
@@ -882,8 +991,12 @@ export async function POST(request: Request): Promise<Response> {
           : request.headers.get("x-scene-planner-lane")
       ) === "alternate" ? "alternate" : "primary",
       fastMode,
+      evaluationModelOverride,
+      problemIRModelOverride: problemIRV1 && shouldUseLectureLabStandardModel(request)
+        ? resolveFireworksModel({ fastMode: false })
+        : undefined,
       deadlineMs: Math.min(
-        60_000,
+        semanticSceneV2 ? lectureLabPlannerDeadlineCapMs(request) : 60_000,
         Math.max(
           1_000,
           Number.parseInt(request.headers.get("x-planner-deadline-ms") ?? "60000", 10) || 60_000,
@@ -901,6 +1014,7 @@ export async function POST(request: Request): Promise<Response> {
   // header only tags the generation so the pair can be told apart.
   const teachingHedge = isTeachingHedge(request.headers);
   const teachingMetadata: Record<string, unknown> = teachingHedge ? { teaching_hedge: true } : {};
+  teachingMetadata.llm_provider = llm.provider;
   const route = teachingRoute ?? { model: serverModel, alternate: null, fallbackReason: null };
   const markModelFallback = (reason: string) => {
     teachingMetadata.teaching_model_fallback = true;
@@ -920,10 +1034,10 @@ export async function POST(request: Request): Promise<Response> {
   });
   const TEACHING_UPSTREAM_ATTEMPTS = 3;
   // Same body for every deployment; only `model` differs.
-  const bodyFor = (model: string) => injectStreamOptions(rawBody, model, reasoningEffort, isCodeLessonTurn);
+  const bodyFor = (model: string) => injectStreamOptions(rawBody, model, reasoningEffort, isCodeLessonTurn, llm);
   const providerBody = JSON.parse(bodyFor(route.model)) as Record<string, unknown>;
   const attemptCostFor = (model: string) =>
-    maximumLlmCost(providerBody.messages, Number(providerBody.max_tokens), [model]);
+    maximumLlmCost(providerBody.messages, completionTokenCap(providerBody), [model]);
   let reservedUsd = 0;
   for (let attempt = 0; attempt < TEACHING_UPSTREAM_ATTEMPTS; attempt++) {
     reservedUsd += attemptCostFor(teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS));
@@ -932,7 +1046,8 @@ export async function POST(request: Request): Promise<Response> {
   if (reserved instanceof Response) return reserved;
   reservation = reserved;
 
-  tutorDebug("chat", "forwarding to Fireworks", {
+  tutorDebug("chat", "forwarding to provider", {
+    provider: llm.provider,
     model: route.model,
     alternate_model: route.alternate,
     model_fallback: route.fallbackReason,
@@ -974,7 +1089,7 @@ export async function POST(request: Request): Promise<Response> {
       let failure: TeachingUpstreamFailure | null;
       try {
         const attemptResponse = await fetchTeachingCompletion({
-          url: FIREWORKS_CHAT_URL,
+          url: llm.url,
           signal: requestSignal,
           init: {
             method: "POST",
@@ -995,7 +1110,7 @@ export async function POST(request: Request): Promise<Response> {
         }
         await attemptResponse.body?.cancel().catch(() => undefined);
         lastFetchError = new Error(`upstream status ${attemptResponse.status}`);
-        tutorDebug("chat", "Fireworks upstream error before content", {
+        tutorDebug("chat", "provider error before content", {
           attempt: attempt + 1,
           model,
           status: attemptResponse.status,
@@ -1003,7 +1118,7 @@ export async function POST(request: Request): Promise<Response> {
       } catch (error: unknown) {
         failure = "upstream_connect_failure";
         lastFetchError = error;
-        tutorDebug("chat", "Fireworks fetch failed", {
+        tutorDebug("chat", "provider fetch failed", {
           attempt: attempt + 1,
           model,
           message: error instanceof Error ? error.message : String(error),
@@ -1033,7 +1148,7 @@ export async function POST(request: Request): Promise<Response> {
       attemptCount,
       responseHeadersAt: Date.now(),
     };
-    tutorDebug("chat", "Fireworks response headers", {
+    tutorDebug("chat", "provider response headers", {
       status: response.status,
       ...chatTimingMetadata(timing),
     });
@@ -1101,6 +1216,8 @@ export async function POST(request: Request): Promise<Response> {
         "content-type": response.headers.get("content-type") ?? "text/event-stream",
         "cache-control": "no-cache",
         "x-heytutor-trace-id": traceId,
+        "x-heytutor-model": calledModel,
+        "x-heytutor-upstream-attempts": String(attemptCount),
       },
     });
   } catch (error: unknown) {
