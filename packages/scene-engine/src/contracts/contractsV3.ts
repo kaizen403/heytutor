@@ -1699,11 +1699,12 @@ function reconcilePrescribedTrigGiven(
   if (!isRecord(given) || typeof given.value !== "number" || !Number.isFinite(given.value) ||
     typeof given.id !== "string" || unitScale(given.unit)?.signature !== "") return given;
   const sourceParts = typeof given.sourceText === "string"
-    ? given.sourceText.split(/=|≈/).map((part) => part.trim()) : [];
+    ? given.sourceText.split(/[=≈≃≅]/).map((part) => part.trim()) : [];
   if (sourceParts.some((part) => /^\s*(?:sin|cos|tan)\s*\(?\s*\d+(?:\.\d+)?\s*(?:rad|radians?)\s*\)?\s*$/i.test(part))) {
     return given;
   }
-  const aliases = new Set([given.id, given.symbol].filter((name): name is string => typeof name === "string"));
+  const sourceAlias = sourceAssignmentAlias(given.sourceText);
+  const aliases = new Set([given.id, given.symbol, sourceAlias].filter((name): name is string => typeof name === "string"));
   const wholeSourceChain = sourceParts.length >= 2 && sourceParts.every((part) =>
     wholeDegreeTrigIdentity(part) !== null || aliases.has(part) || constantEqualityMember(part) !== null);
   const sourceIdentities = wholeSourceChain
@@ -1726,7 +1727,7 @@ function reconcilePrescribedTrigGiven(
     ...given,
     value,
     sign: numericSign(value),
-    sourceText: `${identity.name} ${identity.angle}° = ${value}`,
+    sourceText: `${sourceAlias ? `${sourceAlias} = ` : ""}${identity.name} ${identity.angle}° = ${value}`,
   };
 }
 
@@ -2053,6 +2054,14 @@ function collectNumericBindings(
   return bindings;
 }
 
+/** The same plain source LHS is preserved by reconciliation and bound by arithmetic. */
+function sourceAssignmentAlias(sourceText: unknown): string | null {
+  if (typeof sourceText !== "string") return null;
+  const leftHandSide = sourceText.split(/[=≈≃≅]/, 1)[0]?.trim();
+  return leftHandSide && /^[A-Za-zΑ-Ωα-ω][A-Za-z0-9Α-Ωα-ω_{}\\]*$/u.test(leftHandSide)
+    ? leftHandSide : null;
+}
+
 function addNumericBinding(
   bindings: Map<string, number>,
   value: unknown,
@@ -2076,12 +2085,8 @@ function addNumericBinding(
     if (typeof key !== "string" || key.trim() === "") continue;
     bind(key);
   }
-  if (typeof value.sourceText === "string") {
-    const leftHandSide = value.sourceText.split(/[=≈≃≅]/, 1)[0]?.trim();
-    if (leftHandSide && /^[A-Za-zΑ-Ωα-ω][A-Za-z0-9Α-Ωα-ω_{}\\]*$/u.test(leftHandSide)) {
-      bind(leftHandSide);
-    }
-  }
+  const sourceAlias = sourceAssignmentAlias(value.sourceText);
+  if (sourceAlias) bind(sourceAlias);
 }
 
 /**

@@ -1035,6 +1035,36 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
     refreshedSource.givens[0]?.sourceText?.includes("0.8") === true &&
       !refreshedSource.givens[0].sourceText.includes("0.6") &&
       validateTurnPlanV3(refreshedSource, staleSourceQuestion).valid, refreshedSource);
+  // The source's assignment name is also a numeric binding, even when it
+  // differs from both the quantity id and its trig symbol.
+  for (const givenValue of [0.6, 0.8]) {
+    const question = "Take cos 37° = 0.8.";
+    const input = {
+      ...plan([given("ratio", givenValue, undefined, { symbol: "cos37°", sourceText: "k = 0.6" })],
+        [derived("component", 18, "N", "component = 30*k = 18")]),
+      question,
+    };
+    const raw = validateTurnPlanV3(input, question);
+    check(`source assignment alias with scalar ${givenValue}: stale extraction is rejected`,
+      raw.issues.some((issue) => issue.code === "given_trig_stipulation_conflict"), raw);
+    const result = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`source assignment alias with scalar ${givenValue}: name and value survive correction`,
+      result.givens[0]?.sourceText?.startsWith("k = ") === true &&
+        result.givens[0].sourceText.endsWith("= 0.8") && result.givens[0].value === 0.8, result);
+    check(`source assignment alias with scalar ${givenValue}: dependent arithmetic computes 24`,
+      result.derived[0]?.value === 24, result);
+    check(`source assignment alias with scalar ${givenValue}: corrected plan validates`,
+      validateTurnPlanV3(result, question).valid, validateTurnPlanV3(result, question).issues);
+  }
+  const correctSourceAlias = {
+    ...plan([given("ratio", 0.8, undefined, { symbol: "cos37°", sourceText: "k = 0.8" })],
+      [derived("component", 24, "N", "component = 30*k = 24")]),
+    question: "Take cos 37° = 0.8.",
+  };
+  check("a correct third-name source alias is preserved",
+    reconcileTurnPlanV3ExplicitArithmetic(correctSourceAlias).plan === correctSourceAlias &&
+      validateTurnPlanV3(correctSourceAlias, correctSourceAlias.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(correctSourceAlias));
   const noPrescription = plan([...pull, given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
     [derived("component", 18, "N", "component = F*cosT = 18")]);
   check("an alias without a question prescription is preserved",
