@@ -1,5 +1,5 @@
 import type { BillingFailure } from "@/lib/billing/billingClient";
-import { InputBar } from "@/features/tutor-session/components/InputBar";
+import { InputBar, type InputBarProps } from "@/features/tutor-session/components/InputBar";
 import { MarkedDoubtBar } from "@/features/tutor-session/components/MarkedDoubtBar";
 import { PausedLectureBar } from "@/features/tutor-session/components/PausedLectureBar";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
@@ -12,7 +12,7 @@ interface SessionInputChromeProps {
   phase: TutorPhase;
   isPaused: boolean;
   inputSubmitMode: "ask" | "doubt" | "follow-up";
-  onSubmit: (question: string) => void;
+  onSubmit: InputBarProps["onSubmit"];
   onAskDoubt: (question: string) => void;
   onPauseToggle: (source?: "control" | "doubt-composer") => void;
   onCancel: () => void;
@@ -32,9 +32,16 @@ interface SessionInputChromeProps {
   onFamiliarityChange?: (familiarity: SubjectFamiliarity) => void;
   /** Icon-only controls so the composer fits a phone. */
   compact?: boolean;
-  /** A mid-lecture doubt was answered; the original lesson can continue. */
+  /** A stopped lesson on this board can continue. */
   pausedLessonOffer?: boolean;
+  /** Why it stopped, for the bar's words. */
+  pausedLessonReason?: "stop" | "doubt" | null;
   onContinueLecture?: () => void;
+  /**
+   * Text to place in the composer without sending it (Teach it again on an old
+   * unsaved board, decision 13). A new `nonce` places it again.
+   */
+  prefill?: { text: string; nonce: number } | null;
   billingNotice?: BillingFailure | null;
   onUpgrade?: () => void;
   onBillingFailure?: (failure: BillingFailure) => void;
@@ -63,7 +70,9 @@ export function SessionInputChrome({
   onFamiliarityChange,
   compact = false,
   pausedLessonOffer = false,
+  pausedLessonReason = null,
   onContinueLecture,
+  prefill = null,
   billingNotice = null,
   onUpgrade,
   onBillingFailure,
@@ -80,6 +89,7 @@ export function SessionInputChrome({
     >
       <PausedLectureBar
         visible={pausedLessonOffer && phase === "idle"}
+        reason={pausedLessonReason ?? "doubt"}
         onContinue={() => onContinueLecture?.()}
       />
       {/* What the board understood, directly above where the doubt is typed —
@@ -121,6 +131,7 @@ export function SessionInputChrome({
             billingNotice={billingNotice}
             onUpgrade={onUpgrade}
             onBillingFailure={onBillingFailure}
+            prefill={prefill}
           />
         </div>
       </div>

@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import {
   isStoredCommandTrustedGeometry,
   lessonNarrationText,
-  parseStoredSegmentCommands,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import {
@@ -15,7 +14,7 @@ import {
   type TutorVoicePreferences,
 } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { buildLocalStoredTurn, releaseReplayAudioBytes } from "@/lib/replay/replayTurns";
+import { buildLocalStoredTurn, enrichStoredSegmentsWithReplayAudio, releaseReplayAudioBytes } from "@/lib/replay/replayTurns";
 import { boardPath, draftBoardPath, isUntouchedHomeBoard } from "@/features/tutor-session/lib/board/boardRoute";
 import {
   sortBoards,
@@ -29,6 +28,7 @@ import {
   updateBoard,
   fetchBoardDetail,
   fetchBoards,
+  storedTurnStatus,
   type RecordedSegmentPayload,
   type SceneVisualStatus,
   type StoredTurn,
@@ -38,12 +38,17 @@ import {
   storedTurnContinuesBoard,
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
-import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
+import { overlayLiveTurnEvent, liveTurnSave, type LiveTurnMirrorEvent, type LiveTurnSnapshot } from "../lib/turn/liveTurnSave";
+import { IDLE_SAVE, type SaveStatus } from "../lib/turn/saveStatus";
+
+/** How long reopening a board waits for its own unsent saves before reading it. */
+const RESTORE_SAVE_DRAIN_MS = 8_000;
 
 type ExecuteCommandOptions = {
   durationScale?: number;
@@ -450,13 +455,94 @@ export function useBoardSession({
     [registerReplayBlobUrl, storedTurnsRef, speedRef],
   );
 
+  /**
+   * The live save's local copy of a stopped or finished turn, so replay, notes,
+   * downloads and the next doubt see it at once. Only onto the board that turn
+   * belongs to, and only while that board is open: a lesson stopped by a board
+   * switch must not land among the next board's turns. Replaced in place by
+   * the server's answer (with the clips still played from memory).
+   */
+  const mirrorLiveTurn = useCallback(
+    (event: LiveTurnMirrorEvent) => {
+      if (event.boardId !== activeSessionIdRef.current) return;
+      const existing = storedTurnsRef.current.find((turn) => turn.id === event.turnId);
+      let turn: StoredTurn;
+      if (event.source === "local") {
+        const local = persistTurnForReplay(event.turn.question, event.turn.rawResponse, event.rows, {
+          sceneDocument: event.turn.sceneDocument,
+          sceneEngineVersion: event.turn.sceneEngineVersion,
+          validationReport: event.turn.validationReport,
+          visualStatus: event.turn.visualStatus,
+          sceneArtifacts: event.turn.sceneArtifacts,
+        });
+        turn = {
+          ...event.turn,
+          id: event.turnId,
+          orderIndex: existing?.orderIndex ?? local.orderIndex,
+          segments: local.segments,
+        };
+      } else {
+        turn = {
+          ...event.turn,
+          segments: enrichStoredSegmentsWithReplayAudio(event.turn.segments, event.rows, registerReplayBlobUrl),
+        };
+      }
+      storedTurnsRef.current = overlayLiveTurnEvent(storedTurnsRef.current, event, turn);
+      setStoredTurnsCount(storedTurnsRef.current.length);
+      if (!existing) {
+        setBoards((prev) =>
+          prev.map((board) => (board.id === event.boardId ? { ...board, preview: event.preview.slice(0, 60) } : board)),
+        );
+      }
+    },
+    [persistTurnForReplay, registerReplayBlobUrl, storedTurnsRef],
+  );
+  const mirrorLiveTurnRef = useRef(mirrorLiveTurn);
+  useLayoutEffect(() => {
+    mirrorLiveTurnRef.current = mirrorLiveTurn;
+  }, [mirrorLiveTurn]);
+  useEffect(
+    () =>
+      liveTurnSave().attach(cancelRef, {
+        openBoardId: () => activeSessionIdRef.current,
+        mirror: (event) => mirrorLiveTurnRef.current(event),
+      }),
+    [cancelRef],
+  );
+
+  // What the header chip and the failure banner show for the open board.
+  const subscribeLiveSave = useCallback((listener: () => void) => liveTurnSave().subscribe(listener), []);
+  const saveStatus: SaveStatus = useSyncExternalStore(
+    subscribeLiveSave,
+    () => liveTurnSave().statusFor(sessionId),
+    () => IDLE_SAVE,
+  );
+  /** A live or stopped turn on this board has a finished step (downloads enable on it). */
+  const hasLiveTurn: boolean = useSyncExternalStore(
+    subscribeLiveSave,
+    () => liveTurnSave().hasLiveTurn(cancelRef, sessionId),
+    () => false,
+  );
+  /** Send this board's failed save again, without teaching again. */
+  const retrySave = useCallback(() => {
+    liveTurnSave().retry(activeSessionIdRef.current);
+  }, []);
+  /**
+   * The live or just stopped turn on the open board: finished steps only, clips
+   * in memory, under its saved turn id. Null once it completed.
+   */
+  const getLiveTurn = useCallback(
+    (): LiveTurnSnapshot | null => liveTurnSave().liveTurnFor(cancelRef, activeSessionIdRef.current),
+    [cancelRef],
+  );
+
   const executeCommandRef = useRef(executeCommand);
   useEffect(() => {
     executeCommandRef.current = executeCommand;
   }, [executeCommand]);
 
   const restoreBoardFromApi = useCallback(
-    async (boardId: string, generation: number, draft: boolean) => {
+    async (boardId: string, generation: number, draft: boolean, read?: { turns: readonly StoredTurn[]; current: () => boolean; completed: boolean }) => {
       if (generation !== restoreGenerationRef.current || boardId !== activeSessionIdRef.current) return;
       let finishInk: () => void = () => {};
       const ink = { cancelled: false, done: new Promise<void>((resolve) => { finishInk = resolve; }) };
@@ -464,12 +550,17 @@ export function useBoardSession({
       const isStale = () =>
         ink.cancelled ||
         generation !== restoreGenerationRef.current ||
-        boardId !== activeSessionIdRef.current;
+        boardId !== activeSessionIdRef.current ||
+        read?.current() === false;
 
       try {
         // An unsaved home board has nothing to fetch and must not be written:
         // it starts empty, and only a question puts it in the database.
-        let detail = draft ? null : await fetchBoardDetail(boardId);
+        // A lesson stopped here a moment ago may still be on its way to the
+        // server: read the board after it lands (or after a short wait).
+        if (!draft && !read) await liveTurnSave().drained(boardId, RESTORE_SAVE_DRAIN_MS);
+        if (isStale()) return;
+        let detail = read ? { turns: [...read.turns] } : draft ? null : await fetchBoardDetail(boardId);
         if (isStale()) return;
 
         if (!detail && !draft) {
@@ -484,7 +575,14 @@ export function useBoardSession({
           return;
         }
 
-        const turns = detail?.turns ?? [];
+        // The server copy, with this tab's own ended turns laid over it where
+        // their save failed or has not landed yet: the board, replay, notes
+        // and Continue keep what the student saw, and the save goes on.
+        storedTurnsRef.current = detail?.turns ?? [];
+        if (!draft) {
+          for (const local of liveTurnSave().reopen(boardId)) mirrorLiveTurnRef.current(local);
+        }
+        const turns = storedTurnsRef.current;
 
         storedTurnsRef.current = turns;
         setStoredTurnsCount(turns.length);
@@ -530,9 +628,10 @@ export function useBoardSession({
         // The overlay is "loading the board", and it only leaves when this
         // flag flips. Ink after this is the finished page, drawn with no
         // stroke delays, so it should not keep the spinner up.
-        if (!isStale()) setBoardLoaded(true);
+        if (!isStale() && !read) setBoardLoaded(true);
 
         if (turns.length === 0 || skipInkRestoreRef?.current) {
+          if (read && turns.length === 0) read.completed = true;
           return;
         }
 
@@ -541,6 +640,8 @@ export function useBoardSession({
         // doubt answered on the lesson's page is part of that page: same notes
         // page, same question, same figure and code panel.
         let restoredInk = false;
+        let restoredCodePlanKey: string | null = null;
+        let restoredCodeComplete = false;
         const inkStale = () => isStale() || ink.cancelled;
         for (const turn of turns) {
           if (inkStale()) return;
@@ -562,6 +663,8 @@ export function useBoardSession({
           // it first also brings the code panel back for the restored board.
           const codeLesson = continuesPage ? null : storedCodeLessonPlan(turn.sceneArtifacts);
           if (!continuesPage) {
+            restoredCodePlanKey = codeLesson ? JSON.stringify(codeLesson) : null;
+            restoredCodeComplete = false;
             const controller = codeLessonControllerRef?.current;
             if (codeLesson) {
               controller?.commit(codeLesson);
@@ -586,7 +689,7 @@ export function useBoardSession({
           for (const segment of turn.segments) {
             if (inkStale()) return;
 
-            const commands = parseStoredSegmentCommands(segment.command);
+            const commands = storedCodeLessonSegmentCommands(turn, segment);
             const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
             for (const command of commands) {
               if (inkStale() || cancelRef.current) {
@@ -608,20 +711,40 @@ export function useBoardSession({
             }
           }
 
-          // The lesson already finished when it was recorded: restored panels
-          // open in "complete" mode so type-along is immediately available.
-          if (codeLesson) {
-            codeLessonControllerRef?.current?.markLessonComplete();
+          if (codeLesson && storedTurnStatus(turn) === "complete") {
+            restoredCodeComplete = true;
+          }
+          // Continuations retain the opening plan, but only that page/plan's
+          // final resume may establish completion. Missing plans inherit it;
+          // invalid or changed plans break the completion lineage.
+          if (continuesPage && restoredCodePlanKey) {
+            const activePlan = codeLessonControllerRef?.current?.getActivePlan();
+            const parsed = parseStoredCodeLesson(turn.sceneArtifacts);
+            if (!activePlan || activePlan.question.trim() !== storedTurnPageQuestion(turn).trim() ||
+              parsed.status === "invalid" ||
+              (parsed.status === "valid" && JSON.stringify(parsed.plan) !== restoredCodePlanKey)) {
+              restoredCodePlanKey = null;
+              restoredCodeComplete = false;
+            } else if (turn.kind === "resume") {
+              restoredCodeComplete = storedTurnStatus(turn) === "complete";
+            }
           }
         }
 
+        if (inkStale()) return;
+        const controller = codeLessonControllerRef?.current;
+        if (restoredCodeComplete && controller?.getActivePlan() &&
+          JSON.stringify(controller.getActivePlan()) === restoredCodePlanKey) {
+          controller.markLessonComplete();
+        }
         if (isStale()) return;
+        if (read) read.completed = true;
       } catch {
         // Network-level fetch failures must still clear the loading overlay.
       } finally {
         if (restoreInkRef.current === ink) restoreInkRef.current = null;
         finishInk();
-        if (!isStale()) {
+        if (!isStale() || (read && generation === restoreGenerationRef.current && boardId === activeSessionIdRef.current)) {
           setBoardLoaded(true);
         }
       }
@@ -661,6 +784,19 @@ export function useBoardSession({
     await ink.done;
     if (generation === restoreGenerationRef.current) setBoardLoaded(true);
   }, []);
+
+  /** Replay one authenticated read through the same hydration path before Continue. */
+  const refreshBoardFromTurns = useCallback(async (boardId: string, turns: readonly StoredTurn[], current: () => boolean): Promise<boolean> => {
+    if (!boardId || boardId !== activeSessionIdRef.current || !current()) return false;
+    await settleBoardRestore();
+    if (boardId !== activeSessionIdRef.current || !current()) return false;
+    const generation = restoreGenerationRef.current;
+    const read = { turns, current, completed: false };
+    cancelRef.current = false;
+    setBoardLoaded(false);
+    await restoreBoardFromApi(boardId, generation, false, read);
+    return read.completed && generation === restoreGenerationRef.current && boardId === activeSessionIdRef.current && current();
+  }, [cancelRef, restoreBoardFromApi, settleBoardRestore]);
 
   const restoreBoardFromApiRef = useRef(restoreBoardFromApi);
   useEffect(() => {
@@ -725,5 +861,10 @@ export function useBoardSession({
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
     settleBoardRestore,
+    refreshBoardFromTurns,
+    saveStatus,
+    retrySave,
+    getLiveTurn,
+    hasLiveTurn,
   };
 }

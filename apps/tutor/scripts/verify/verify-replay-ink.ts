@@ -80,7 +80,8 @@ const execution = readFileSync(new URL("../../features/tutor-session/hooks/useCo
 const board = readFileSync(new URL("../../../../packages/whiteboard/src/Whiteboard.tsx", import.meta.url), "utf8");
 const replay = readFileSync(new URL("../../features/tutor-session/hooks/useReplay.ts", import.meta.url), "utf8");
 assert.match(execution, /captureCommandInk\(rawCommand, wb\.getInkSettings\(\)\)/, "live execution records ink before persistence");
-assert.match(execution, /wb\.writeText\([^\n]+inkSettings\)/, "replay supplies recorded ink to handwriting");
+assert.match(execution, /wb\.writeText\([^\n]+inkSettings, options\.onInkStarted\)/,
+  "replay supplies recorded ink to handwriting before the optional shown-ink observer");
 assert.match(execution, /wb\.drawShape\(path, duration, \{\s*inkSettings/, "replay supplies recorded ink to figures");
 assert.match(execution, /wb\.drawAnnotation\(kind, path, duration, \{[^}]*inkSettings/s, "replay supplies recorded ink to annotations");
 assert.match(board, /styleForCommand\(inkSettings\)/, "handwriting uses recorded ink, including fallback text");

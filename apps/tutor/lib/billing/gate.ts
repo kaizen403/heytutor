@@ -128,7 +128,9 @@ async function beginTurnLocked(
     if (followOn) {
       return { grant: followOn, remainingPct: null, planId: BILLING_PLANS.pro, nextResetAt: null, diagramStrategy: "current" };
     }
-    if (input.kind !== "lesson") return billingResponse("concurrent_limit", 0);
+    // A follow-on whose parent is no longer in memory (a server restart, or a
+    // stopped lesson resumed days later) takes a slot the way a lesson does.
+    // The slot cap still applies, so it cannot slip past five running lessons.
     const minted = createLessonGrant({
       userId: actor.userId,
       traceId: input.traceId,

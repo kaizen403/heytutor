@@ -22,7 +22,7 @@
     "dev": "tsup src/index.ts src/pen-spinner.ts src/marker-ink.ts --format esm --dts --watch --external react --external react-dom --external konva --external react-konva --external @heytutor/drawing --external @heytutor/design-tokens",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "verify": "tsx scripts/verify-draw-transactions.ts && tsx scripts/verify-command-ownership.ts && tsx scripts/verify-owned-cancellation.ts && tsx scripts/verify-cancelled-destructive-successor.ts && tsx scripts/verify-transaction-boundaries.ts && tsx scripts/verify-beat-savepoints.ts && tsx scripts/verify-pen-motion.ts && tsx scripts/verify-pen-choreography.ts && tsx scripts/verify-pen-idle.ts && tsx scripts/verify-pen-stunts.ts && tsx scripts/verify-whiteboard-export.ts && tsx scripts/verify-instrument-rule.ts && tsx scripts/verify-ink-kind.ts",
+    "verify": "tsx scripts/verify-draw-transactions.ts && tsx scripts/verify-command-ownership.ts && tsx scripts/verify-owned-cancellation.ts && tsx scripts/verify-cancelled-destructive-successor.ts && tsx scripts/verify-transaction-boundaries.ts && tsx scripts/verify-beat-savepoints.ts && tsx scripts/verify-pen-motion.ts && tsx scripts/verify-pen-choreography.ts && tsx scripts/verify-pen-idle.ts && tsx scripts/verify-pen-stunts.ts && tsx scripts/verify-whiteboard-export.ts && tsx scripts/verify-instrument-rule.ts && tsx scripts/verify-ink-kind.ts && tsx scripts/verify-ink-start-observation.ts",
     "preview": "tsx scripts/preview-instruments.ts",
     "preview:idle": "tsx scripts/preview-pen-idle.ts",
     "clean": "rm -rf dist"

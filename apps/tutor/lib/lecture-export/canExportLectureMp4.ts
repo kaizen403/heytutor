@@ -63,9 +63,9 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
 
 /**
  * Bump when an already-cached file would be wrong for the same page.
- * `audio2` drops silent downloads from before in-tab clips were readable.
+ * `video5` drops files that revealed an interrupted TYPE beyond its shown prefix.
  */
-export const LECTURE_PAGE_CACHE_REVISION = "audio2";
+export const LECTURE_PAGE_CACHE_REVISION = "video5";
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to
@@ -80,12 +80,17 @@ export function lecturePageCacheKey(
   return fileType === "mp4" ? base : `${base}.${fileType}`;
 }
 
+/**
+ * Only the student's Cancel (or leaving the board) stops a download. A lesson
+ * starting, stopping or being replayed does not: the export draws on its own
+ * hidden board from a snapshot taken at the click.
+ */
 export function shouldCancelLectureExport(state: {
   cancelled: boolean;
-  phase: TutorPhase;
-  isReplaying: boolean;
+  phase?: TutorPhase;
+  isReplaying?: boolean;
 }): boolean {
-  return state.cancelled || state.phase !== "idle" || state.isReplaying;
+  return state.cancelled;
 }
 
 export function lectureDownloadFilename(

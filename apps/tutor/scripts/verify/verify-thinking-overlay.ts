@@ -126,7 +126,8 @@ assert(
   "finishing the teaching stream must not drop the overlay before the voice starts",
 );
 
-const HANDLER_ANCHOR = "const handleQuestion = useCallback(";
+// The question body; `handleQuestion` is the save-on-every-exit wrapper after it.
+const HANDLER_ANCHOR = "const teachQuestion = useCallback(";
 const handlerAt = handler.indexOf(HANDLER_ANCHOR);
 assert(handlerAt >= 0, `this gate reads handleQuestion from "${HANDLER_ANCHOR}"`);
 const handlerBody = handler.slice(handlerAt);

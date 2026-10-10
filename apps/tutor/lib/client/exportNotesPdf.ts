@@ -91,6 +91,12 @@ export function renderNotesPdf(images: readonly string[]): jsPDF | null {
   return doc;
 }
 
+/** The notes as a PDF file, or null when no page has an image. */
+export function notesPdfBlob(images: readonly string[]): Blob | null {
+  const doc = renderNotesPdf(images);
+  return doc ? doc.output("blob") : null;
+}
+
 export async function exportNotesPdf({ title, sections }: ExportNotesParams): Promise<void> {
   const doc = renderNotesPdf(notesPdfSlideImages(sections));
   if (!doc) {

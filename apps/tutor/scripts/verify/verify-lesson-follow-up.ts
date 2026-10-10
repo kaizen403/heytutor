@@ -7,7 +7,10 @@ import {
   PAUSED_LECTURE_CONTINUE_LABEL,
   PAUSED_LECTURE_TITLE,
   QUESTION_FIELD_SELECTOR,
+  STOPPED_LESSON_BODY,
+  STOPPED_LESSON_TITLE,
   lessonFollowUpMode,
+  pausedLessonCopy,
 } from "../../features/tutor-session/lib/turn/lessonFollowUp";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -27,7 +30,21 @@ assert(
     PAUSED_LECTURE_BODY.includes("ask another doubt"),
   "after a doubt the student chooses to continue or ask again",
 );
-assert(PAUSED_LECTURE_CONTINUE_LABEL === "Continue lecture", "continue is the primary action");
+assert(PAUSED_LECTURE_CONTINUE_LABEL === "Continue lesson", "continue is the primary action, one term for both offers");
+// A plain Stop (or a reload after one) asked no doubt: its bar must not say one was answered.
+assert(STOPPED_LESSON_TITLE === "Lesson stopped", "a stopped lesson says so");
+assert(STOPPED_LESSON_BODY === "Pick up where you left off, or ask a doubt about it.", "a stopped lesson offers both paths");
+{
+  const stop = pausedLessonCopy("stop");
+  const doubt = pausedLessonCopy("doubt");
+  assert(stop.title === STOPPED_LESSON_TITLE && stop.body === STOPPED_LESSON_BODY, "Stop shows the stopped copy");
+  assert(!/doubt is answered/i.test(`${stop.title} ${stop.body}`), "the stopped copy never claims a doubt was answered");
+  assert(stop.continueLabel === "Continue lesson" && doubt.continueLabel === "Continue lesson", "both offers say Continue lesson");
+  assert(doubt.title === PAUSED_LECTURE_TITLE && doubt.body === PAUSED_LECTURE_BODY, "after a doubt the copy is unchanged");
+  for (const copy of [stop, doubt]) {
+    assert(!/[—–]| - /.test(Object.values(copy).join(" ")), "paused lesson copy carries no dash punctuation");
+  }
+}
 assert(PAUSED_LECTURE_ANOTHER_DOUBT_LABEL === "Ask another doubt", "another doubt stays available");
 assert(!/[—–]| - /.test(`${PAUSED_LECTURE_TITLE} ${PAUSED_LECTURE_BODY}`), "paused lecture copy carries no dash punctuation");
 assert(QUESTION_FIELD_SELECTOR === "[data-question-field]", "Ask another doubt focuses the same composer");
@@ -37,8 +54,9 @@ const chrome = readFileSync(resolve(root, "features/tutor-session/components/Ses
 assert(chrome.includes("PausedLectureBar"), "the composer shows the paused lecture offer");
 assert(chrome.includes("onContinueLecture"), "Continue lecture is wired through the composer");
 const bar = readFileSync(resolve(root, "features/tutor-session/components/PausedLectureBar.tsx"), "utf8");
-assert(bar.includes("PAUSED_LECTURE_CONTINUE_LABEL"), "the bar offers Continue lecture");
-assert(bar.includes("PAUSED_LECTURE_ANOTHER_DOUBT_LABEL"), "the bar offers Ask another doubt");
+assert(bar.includes("pausedLessonCopy(reason)") && bar.includes("{copy.continueLabel}"), "the bar offers Continue lesson in the words for its reason");
+assert(bar.includes("{copy.askLabel}"), "the bar offers a doubt");
+assert(chrome.includes("reason={pausedLessonReason"), "the composer passes why the lesson stopped to the bar");
 assert(bar.includes("focusQuestionField"), "Ask another doubt lands in the composer");
 const shell = readFileSync(resolve(root, "features/tutor-session/TutorSessionShell.tsx"), "utf8");
 assert(shell.includes("pausedLessonOffer"), "the session surfaces the paused lecture offer");

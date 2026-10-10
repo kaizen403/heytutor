@@ -41,6 +41,8 @@ const react = {
   // Captured, not run: the race scenario starts only the board restore effect.
   useEffect: (fn: () => unknown) => { effects.push(fn); },
   useLayoutEffect: () => {},
+  // The live save status: read once, no subscription in this harness.
+  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
   useState: (value: unknown) => [typeof value === "function" ? (value as () => unknown)() : value, () => {}],
 };
 // The loaded hooks are untyped CommonJS; this script only calls their members.

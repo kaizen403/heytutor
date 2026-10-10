@@ -1,3 +1,4 @@
+import { parseStoredSegmentCommands } from "@heytutor/drawing";
 import { speechAudioMimeType } from "@heytutor/tutor-core";
 import type {
   RecordedSegmentPayload,
@@ -35,7 +36,15 @@ export function enrichStoredSegmentsWithReplayAudio(
   registerBlobUrl: (url: string) => void,
 ): StoredSegment[] {
   return segments.map((segment) => {
-    const captured = recorded.find((entry) => entry.orderIndex === segment.orderIndex);
+    // Canonical figure insertion may shift every rendered row. A submitted
+    // index is a recording identity; the canonical display index is not.
+    const captured = segment.audioRef === undefined
+      ? recorded.find((entry) => entry.orderIndex === segment.orderIndex &&
+        entry.narration === segment.narration && entry.spokenText === segment.spokenText &&
+        JSON.stringify(parseStoredSegmentCommands(entry.command)) === JSON.stringify(parseStoredSegmentCommands(segment.command)))
+      : Number.isSafeInteger(segment.audioRef) && segment.audioRef !== null && segment.audioRef >= 0
+        ? recorded.find((entry) => entry.orderIndex === segment.audioRef)
+        : undefined;
     if (!captured?.audioBytes?.length) {
       return segment;
     }
@@ -51,6 +60,7 @@ export function enrichStoredSegmentsWithReplayAudio(
 
 export function buildLocalStoredTurn(
   payload: {
+    turnId?: string;
     question: string;
     rawResponse: string;
     speedMultiplier: number;
@@ -65,8 +75,9 @@ export function buildLocalStoredTurn(
   orderIndex: number,
   registerBlobUrl: (url: string) => void,
 ): StoredTurn {
+  const turnId = payload.turnId ?? `local-${crypto.randomUUID()}`;
   return {
-    id: `local-${crypto.randomUUID()}`,
+    id: turnId,
     orderIndex,
     question: payload.question,
     rawResponse: payload.rawResponse,
@@ -87,7 +98,7 @@ export function buildLocalStoredTurn(
       }
 
       return {
-        id: `local-seg-${segment.orderIndex}`,
+        id: `${turnId}:seg:${segment.orderIndex}`,
         orderIndex: segment.orderIndex,
         narration: segment.narration,
         spokenText: segment.spokenText,

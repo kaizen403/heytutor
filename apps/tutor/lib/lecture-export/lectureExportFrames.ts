@@ -1,6 +1,3 @@
-const LECTURE_EXPORT_SAMPLE_WIDTH = 48;
-const LECTURE_EXPORT_SAMPLE_HEIGHT = 28;
-
 /** Group consecutive still frames into one encoded sample; keep moving ink as its own samples. */
 export function planLectureEncodeSpans(changed: readonly boolean[]): { start: number; count: number }[] {
   if (changed.length === 0) {
@@ -38,18 +35,24 @@ export function sampleLectureFrame(
   source: HTMLCanvasElement,
   dest: HTMLCanvasElement,
 ): Uint8ClampedArray {
-  if (dest.width !== LECTURE_EXPORT_SAMPLE_WIDTH) {
-    dest.width = LECTURE_EXPORT_SAMPLE_WIDTH;
+  const width = source.width;
+  const height = source.height;
+  if (dest.width !== width) {
+    dest.width = width;
   }
-  if (dest.height !== LECTURE_EXPORT_SAMPLE_HEIGHT) {
-    dest.height = LECTURE_EXPORT_SAMPLE_HEIGHT;
+  if (dest.height !== height) {
+    dest.height = height;
   }
   const ctx = dest.getContext("2d", { willReadFrequently: true });
   if (!ctx) {
     throw new Error("Lecture export could not sample a frame.");
   }
-  ctx.drawImage(source, 0, 0, LECTURE_EXPORT_SAMPLE_WIDTH, LECTURE_EXPORT_SAMPLE_HEIGHT);
-  return ctx.getImageData(0, 0, LECTURE_EXPORT_SAMPLE_WIDTH, LECTURE_EXPORT_SAMPLE_HEIGHT).data.slice();
+  // Coarse spatial sampling can erase a thin WRITE entirely. Compare every
+  // raster pixel, including additions, erasures and the visible pen. Each
+  // getImageData returns an owned snapshot, so retain its buffer without a
+  // second full-frame copy.
+  ctx.drawImage(source, 0, 0, width, height);
+  return ctx.getImageData(0, 0, width, height).data;
 }
 
 export function lectureExportCacheKey(turn: {

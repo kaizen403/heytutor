@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
   lessonNarrationText,
   IncrementalTagParser,
@@ -57,15 +57,11 @@ import {
 } from "@heytutor/scene-engine";
 import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
-import { enrichStoredSegmentsWithReplayAudio } from "@/lib/replay/replayTurns";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
-  saveTurn,
+  fetchBoardDetail,
   requestBoardTitle,
   updateBoard,
-  withBoardEpochSegment,
-  type RecordedSegmentPayload,
-  type StoredTurn,
 } from "@/lib/boards/boardsClient";
 import { DSA_DIAGRAM_ZONE, MAX_LLM_CONTINUATIONS, STREAM_SEGMENTS_LIVE } from "../../constants";
 import {
@@ -77,18 +73,11 @@ import {
 import {
   doubtPageRecord,
   doubtSegment,
-  doubtTurnScene,
   inheritedTeachingContext,
   lessonPageRecord,
-  partialTurnRawResponse,
-  partialTurnScene,
-  partialTurnSegments,
   planDoubtPage,
-  reindexRecordedSegments,
   resumePageRecord,
   revealedCodeText,
-  textOnlyTurnScene,
-  type PersistedTurnScene,
 } from "../../lib/turn/doubtTurn";
 import {
   codeLessonResumeNote,
@@ -103,6 +92,8 @@ import {
 } from "../../lib/code-lesson/dsaFrames";
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
+import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
+import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
@@ -119,6 +110,7 @@ import {
   buildResumeTeachingPrompt,
   buildTurnTeachingPrompt,
   resumeLessonUserPrompt,
+  resumeInkRetryUserPrompt,
 } from "../../lib/turn/turnTeachingPrompt";
 import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
@@ -167,6 +159,8 @@ import {
 } from "../../lib/turn/segmentPlanning";
 import type { TutorPhase } from "../../types";
 import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
+import { lessonAdmission } from "../../lib/turn/lessonOwnership";
+import { currentPausedLesson } from "../../lib/turn/pausedLessonRestore";
 import type { HandleQuestionOptions, TurnControlApi, UseTurnLifecycleParams } from "./types";
 
 type PendingQuestionFlushState = {
@@ -225,6 +219,9 @@ const QUEUED_ASK_TTL_MS = 60_000;
  * decisions.
  */
 export const TEACHING_HEDGE_ENABLED = process.env.NEXT_PUBLIC_TEACHING_HEDGE === "1";
+
+/** Where a turn leaves its save handle once billed, for `handleQuestion`'s finally. */
+type LiveTurnSaveExit = { handle: LiveTurnHandle | null };
 
 export function useQuestionHandler(
   params: UseTurnLifecycleParams,
@@ -287,15 +284,12 @@ export function useQuestionHandler(
     setIsPaused,
     setIsReplaying,
     setLastError,
-    setStoredTurnsCount,
     setBoards,
     setPhase,
     setNarrationText,
     setCurrentSegmentText,
     ensureTTSClient,
     beginBoardEpoch,
-    persistTurnForReplay,
-    registerReplayBlobUrl,
     revokeUnreferencedReplayBlobUrls,
     onComplete,
     onError,
@@ -318,73 +312,6 @@ export function useQuestionHandler(
   } = turnControl;
 
   /**
-   * Put one turn on the board's saved turns: locally at once, so replay, notes
-   * and the next doubt see it, then on the server. Returns the raw persisted
-   * turn, before local replay URLs can mask missing server audio.
-   */
-  const saveTurnToBoard = useCallback(
-    (input: {
-      boardId: string;
-      question: string;
-      /** What the board list shows for this board: the page's question. */
-      preview: string;
-      rawResponse: string;
-      segments: RecordedSegmentPayload[];
-      scene: PersistedTurnScene;
-      traceId: string | null;
-    }): Promise<StoredTurn | null> => {
-      const localTurn = persistTurnForReplay(
-        input.question,
-        input.rawResponse,
-        input.segments,
-        input.scene,
-      );
-      storedTurnsRef.current = [...storedTurnsRef.current, localTurn];
-      setStoredTurnsCount(storedTurnsRef.current.length);
-      setBoards((prev) =>
-        prev.map((b) =>
-          b.id === input.boardId ? { ...b, preview: input.preview.slice(0, 60) } : b,
-        ),
-      );
-
-      return saveTurn(input.boardId, {
-        question: input.question,
-        rawResponse: input.rawResponse,
-        speedMultiplier: speedRef.current,
-        traceId: input.traceId,
-        ...input.scene,
-        segments: input.segments,
-      }).then((savedTurn) => {
-        if (!savedTurn) return null;
-        const turnForReplay: StoredTurn = {
-          ...savedTurn,
-          segments: enrichStoredSegmentsWithReplayAudio(
-            savedTurn.segments,
-            input.segments,
-            registerReplayBlobUrl,
-          ),
-        };
-        storedTurnsRef.current = storedTurnsRef.current.map((turn) =>
-          turn.id === localTurn.id ? turnForReplay : turn,
-        );
-        setStoredTurnsCount(storedTurnsRef.current.length);
-        // Fill the next home cards after the question exists in saved history.
-        // The endpoint deduplicates tabs and enforces its model-call budget.
-        void fetch("/api/home-suggestions", { method: "POST", cache: "no-store" }).catch(() => undefined);
-        return savedTurn;
-      }).catch(() => null);
-    },
-    [
-      persistTurnForReplay,
-      registerReplayBlobUrl,
-      setBoards,
-      setStoredTurnsCount,
-      speedRef,
-      storedTurnsRef,
-    ],
-  );
-
-  /**
    * The options a question was queued with while the board loaded, keyed to
    * that question: a doubt queued there must still run as a doubt, and a
    * question queued later (an auto-submit) must not inherit them.
@@ -400,8 +327,12 @@ export function useQuestionHandler(
    */
   const queuedAskRef = useRef<{ question: string; startedAt: number; boardId: string | null } | null>(null);
 
-  const handleQuestion = useCallback(
-    async (rawQuestion: string, options?: HandleQuestionOptions) => {
+  /**
+   * One question, from the Ask click to the end of the turn. `handleQuestion`
+   * wraps it so every exit of a billed turn saves (see there).
+   */
+  const teachQuestion = useCallback(
+    async (rawQuestion: string, options: HandleQuestionOptions | undefined, saveExit: LiveTurnSaveExit) => {
       // The turn's telemetry clock starts here, at the Ask click, not after
       // the commit, billing and epoch awaits below.
       const askStartedAt = performance.now();
@@ -459,15 +390,9 @@ export function useQuestionHandler(
       });
 
       // Read before anything below resets the turn buffers: which page the
-      // doubt answers on, and whether the turn it stopped left ink nobody saved.
+      // doubt answers on. The turn it stopped was saved by its Stop (see
+      // `liveTurnSave`), not here, so a doubt refused by billing loses nothing.
       const pageRecord = boardPageRef.current;
-      // What of the stopped turn a save can keep. Saved as text only, its
-      // figure's ink and every pointing at it go: the server refuses them, and
-      // a refused save put the doubt onto the page before.
-      const partialScene = doubt && pageRecord ? partialTurnScene(pageRecord) : null;
-      const partialSegments = partialScene
-        ? partialTurnSegments(recordedSegmentsRef.current, partialScene)
-        : [];
       const doubtPage = doubt
         ? planDoubtPage({
             record: pageRecord,
@@ -486,24 +411,6 @@ export function useQuestionHandler(
             storedTurns: storedTurnsRef.current,
           })
         : null;
-      // The student saw this part of the stopped turn, and the doubt is about
-      // it. Saved ahead of the doubt, replay and a reload put the doubt on the
-      // page it was asked on rather than on the page before.
-      const partialTurnSave =
-        doubt && doubtPage?.savePartialTurn && pageRecord && partialScene && sessionId
-          ? {
-              boardId: sessionId,
-              question: pageRecord.turn.question,
-              preview: pageRecord.lessonQuestion,
-              rawResponse: partialTurnRawResponse(partialSegments),
-              segments: pageRecord.turn.continuesBoard
-                ? reindexRecordedSegments(partialSegments)
-                : withBoardEpochSegment(partialSegments),
-              scene: partialScene,
-              traceId: currentTraceIdRef.current,
-            }
-          : null;
-
       const turnGeneration = turnGenerationRef.current + 1;
       turnGenerationRef.current = turnGeneration;
       onSpeechStartupStatus?.(null);
@@ -530,9 +437,12 @@ export function useQuestionHandler(
       // The home board becomes real here: this question writes its row and
       // takes over the URL. Kicked off now, awaited before the board epoch, so
       // the thinking overlay is not waiting on a round trip.
-      const boardCommitted = commitDraftBoard
+      // A network failure here must not escape as an unhandled rejection: the
+      // billing call just below fails on the same network and tells the student.
+      const boardCommitted = (commitDraftBoard
         ? commitDraftBoard()
-        : Promise.resolve(false);
+        : Promise.resolve(false)
+      ).catch(() => false);
 
       const boardIdForName = sessionId;
       if (boardIdForName) {
@@ -571,7 +481,11 @@ export function useQuestionHandler(
       collectedSegmentsRef.current = [];
       recordedSegmentsRef.current = [];
       rawResponseRef.current = "";
-      const previousTraceId = doubt || resume ? currentTraceIdRef.current ?? undefined : undefined;
+      // Billing lineage only. After a reload nothing is in memory, so a resume
+      // names the trace of the turn that stopped; it saves under its own.
+      const previousTraceId = resume
+        ? resume.parentTraceId ?? currentTraceIdRef.current ?? undefined
+        : doubt ? currentTraceIdRef.current ?? undefined : undefined;
       currentTraceIdRef.current = crypto.randomUUID();
       segmentChainRef.current = Promise.resolve();
       drawChainRef.current = Promise.resolve();
@@ -641,11 +555,22 @@ export function useQuestionHandler(
         finishLectureUi(turnGeneration);
         return;
       }
-      // Awaited before the doubt itself is saved, so the server keeps the two
-      // in order; if it fails, the doubt opens a page of its own instead.
-      const partialTurnSaved = partialTurnSave
-        ? saveTurnToBoard(partialTurnSave).then(Boolean)
+      // Billed: from here every exit saves this turn (`handleQuestion`'s
+      // finally, or Stop). The id is minted now; rows go out as they are taught.
+      const liveSave = sessionId
+        ? liveTurnSave().begin({
+            owner: cancelRef,
+            generation: turnGeneration,
+            boardId: sessionId,
+            traceId: currentTraceIdRef.current,
+            kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+            question: doubt ? doubt.title : question,
+            preview: doubt ? doubt.lessonQuestion : resume ? resume.lessonQuestion : question,
+            speedMultiplier: speedRef.current,
+            continuesBoard: doubt ? (doubtPage?.continuesBoard ?? false) : Boolean(resume),
+          })
         : null;
+      saveExit.handle = liveSave;
       // Read after the billing checks, which are synchronous: the gates keep
       // nothing between the begin-turn await and its refusal branch.
       const beginTurnMs = performance.now() - beginTurnStartedAt;
@@ -683,13 +608,18 @@ export function useQuestionHandler(
           ? resumePageRecord({
               boardId: sessionId,
               lessonQuestion: resume.lessonQuestion,
-              figureDrawn: resume.figureDrawn || Boolean(activeVerifiedDiagramRef.current),
+              // Ink, not a plan: a figure Stop caught before its first beat is
+              // drawn by this turn and marks the page when it commits.
+              figureDrawn: resume.figureDrawn,
               turnPlan: resume.turnPlan,
               solverProjection: resume.solverProjection,
               scene: resume.scene,
             })
         : lessonPageRecord(sessionId, question);
       boardPageRef.current = page;
+      liveSave?.setPage(page);
+      // What a Continue after a reload cannot rebuild from the saved turns.
+      if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));
 
       const isCurrentTurn = () =>
         canContinueTurnAfterAsync({
@@ -788,6 +718,8 @@ export function useQuestionHandler(
       let sceneV2Report: ValidationReport | null = null;
       let sceneV2RenderScene: RenderScene | null = null;
       let sceneV2IntroSegments: TutorSegment[] | null = null;
+      /** The intro is the rest of a figure a Stop cut off: drawn, never saved. */
+      let resumeIntroRemainder = false;
       let sceneVisualStatus: "validated" | "text_only" | "retry_required" = "text_only";
       let sceneV2Repaired = false;
       let sceneArtifacts: (SceneArtifactsV3 & { diagramStrategy?: DiagramStrategy }) | null = null;
@@ -1579,8 +1511,14 @@ export function useQuestionHandler(
       } else if (resume) {
         // Keep the figure the lesson already committed. If the intro never
         // landed, rebuild it from the paused scene so the rest of the lecture
-        // still has something to point at.
-        activeDiagram = activeVerifiedDiagramRef.current;
+        // still has something to point at. A figure a plain Stop caught before
+        // its first beat was planned, not drawn: it is drawn whole now.
+        activeDiagram = resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;
+        if (activeDiagram && !resume.codeLesson && resume.remainingIntro?.length) {
+          // Stop cut the figure off: Continue draws its missing beats first.
+          sceneV2IntroSegments = [...resume.remainingIntro];
+          resumeIntroRemainder = true;
+        }
         if (!activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
@@ -1648,6 +1586,7 @@ export function useQuestionHandler(
         // and saves the lesson's part with this scene if it stops it.
         page.turnPlan = turnPlan;
         page.solverProjection = problemAuthority?.projection ?? null;
+        liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection));
         page.turn.scene = {
           sceneDocument: sceneV2Document,
           sceneEngineVersion: SCENE_ENGINE_VERSION,
@@ -1778,6 +1717,7 @@ export function useQuestionHandler(
           ? buildResumeTeachingPrompt({
               ...pagePromptInput,
               lessonQuestion: resume.lessonQuestion,
+              reason: resume.reason,
               lessonBoardRows: resume.lessonBoardRows,
               interruptedStep: resume.interruptedStep,
               codeLessonBoard: Boolean(codeLesson),
@@ -1975,7 +1915,7 @@ export function useQuestionHandler(
           if (!codeLesson) {
             if (figureIntroEnqueued || !STREAM_SEGMENTS_LIVE) return;
             figureIntroEnqueued = true;
-            enqueueVerifiedIntro(introSegments, turnGeneration);
+            enqueueVerifiedIntro(introSegments, turnGeneration, { remainder: resumeIntroRemainder });
           }
         };
         const segmentNeedsFigure = (segment: TutorSegment): boolean =>
@@ -2159,7 +2099,7 @@ export function useQuestionHandler(
                 ? turnContinuationPrompt
                 : turnSystemPrompt,
               userPrompt: resumeInkRetry
-                ? `${resumeLessonUserPrompt()}\n\nYour previous continuation contained no usable [WRITE] step. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short [WRITE:text,x,y] tag immediately after the words that explain it. Do not repeat the doubt or any already written row. Return [STEP] blocks, not narration alone.`
+                ? resumeInkRetryUserPrompt(resume?.reason)
                 : isContinuation
                 ? [
                     "continue",
@@ -2178,6 +2118,7 @@ export function useQuestionHandler(
                       conductor && codeLesson
                         ? codeLessonResumeNote(conductor.status(), codeLesson)
                         : null,
+                      resume.reason,
                     )
                 : question,
               conversationHistory: compactConversationHistory(
@@ -2423,7 +2364,7 @@ export function useQuestionHandler(
         flushBufferedSegment();
         throwIfTurnCancelled();
         if (resumeInkGate && !resumeInkGate.hasInk()) {
-          const message = "The lecture could not resume with board writing. Please try Continue lecture again.";
+          const message = "The lesson could not resume with board writing. Please try Continue lesson again.";
           tel.mark("resume-without-ink", { attempts: resumeInkAttempts + 1 });
           turnCancelled = true;
           if (resume) offerPausedLessonResume(resume);
@@ -2501,43 +2442,29 @@ export function useQuestionHandler(
             },
           ]);
 
-          const currentId = sessionId;
-          if (currentId && rawResponseRef.current) {
-            // The stopped turn's part goes first. If the server refused it, the
-            // page this doubt continues does not exist there, so the doubt opens
-            // its own page rather than landing on the page before.
-            const continues =
-              page.turn.continuesBoard && (partialTurnSaved ? await partialTurnSaved : true);
-            // A lesson opens its page with the runtime CLEAR. A doubt is saved
-            // under its own title onto the page it answered on, with no CLEAR,
-            // so replay and a reload keep that page and its figure under it.
-            const segmentsForSave = continues
-              ? reindexRecordedSegments(recordedSegmentsRef.current)
-              : withBoardEpochSegment(recordedSegmentsRef.current);
-            const savePromise = saveTurnToBoard({
-              boardId: currentId,
-              question: doubt ? doubt.title : question,
-              preview: page.lessonQuestion,
-              rawResponse: rawResponseRef.current,
-              segments: segmentsForSave,
-              scene: doubt
-                ? doubtTurnScene(page.lessonQuestion, continues, diagramStrategyDecision.strategy)
-                : (page.turn.scene ?? textOnlyTurnScene(diagramStrategyDecision.strategy)),
-              traceId: currentTraceIdRef.current,
+          if (liveSave && rawResponseRef.current) {
+            // The rows are on the server already; this states the turn
+            // complete with its whole response. A lesson opened its page with
+            // the runtime CLEAR; a doubt continues its lesson's page under its
+            // own title unless that page never reached the server.
+            const completed = liveSave.complete({ rawResponse: rawResponseRef.current });
+            void completed.then((result) => {
+              // Fill the next home cards once the question is in saved history.
+              // The endpoint deduplicates tabs and enforces its model-call budget.
+              if (result.ok) void fetch("/api/home-suggestions", { method: "POST", cache: "no-store" }).catch(() => undefined);
             });
-            page.turn.saved = true;
 
             if (onComplete) {
-              const saved = await savePromise;
+              const saved = await completed;
               if (!isCurrentTurn() || turnCancelled || cancelRef.current) {
                 return;
               }
-              if (saved) {
+              if (saved.ok) {
                 if (
                   !recordingAudioCaptureComplete(recordedSegmentsRef.current) ||
-                  !recordingAudioPersistenceComplete(segmentsForSave, saved.segments)
+                  !recordingAudioPersistenceComplete(liveSave.submittedRows(), saved.turn.segments)
                 ) {
-                  // Preserve the partial board for diagnosis; no second POST.
+                  // Preserve the partial board for diagnosis; no second save.
                   // Only automatic recordings have an onComplete callback.
                   emitError({
                     message: "lecture recording saved, but narration audio was not fully persisted; replay may be silent",
@@ -2548,7 +2475,7 @@ export function useQuestionHandler(
                 }
               } else {
                 emitError({
-                  message: "could not save the lecture recording",
+                  message: `could not save the lecture recording (${saved.reason})`,
                   question,
                 });
               }
@@ -2678,7 +2605,6 @@ export function useQuestionHandler(
       boardPageRef,
       boardShowsStoppedReplayRef,
       setLiveTurnKind,
-      saveTurnToBoard,
       commitDraftBoard,
       boards,
       narrationText,
@@ -2737,7 +2663,71 @@ export function useQuestionHandler(
       setPhase,
       setNarrationText,
       setCurrentSegmentText,
+      speedRef,
     ],
+  );
+
+  /**
+   * Ask a question. Every exit of a billed turn saves it, in this one
+   * `finally`: completion, Stop, a board switch, a 402 or any error, a planning
+   * failure (kept as a stopped turn with its question, so the board can offer
+   * it again) and an exception nobody caught. Closing is idempotent, so a turn
+   * Stop already closed, or one that completed, is left as it is.
+   */
+  const admissionBoardRef = useRef(sessionId);
+  useLayoutEffect(() => { admissionBoardRef.current = sessionId; }, [sessionId]);
+  const handleQuestion = useCallback(
+    async (rawQuestion: string, options?: HandleQuestionOptions) => {
+      // Audio unlock stays in the user gesture; title/billing wait for admission.
+      ensureTTSClient().unlockAudio?.();
+      if (!boardLoaded || !isWhiteboardReadyToDraw(whiteboardRef.current)) {
+        options?.onAdmission?.(false);
+        return teachQuestion(rawQuestion, options, { handle: null });
+      }
+      if (!sessionId || phaseRef.current !== "idle" || turnActiveRef.current || pendingSegmentCountRef.current > 0) {
+        options?.onAdmission?.(false); return;
+      }
+      const generation = turnGenerationRef.current;
+      const saveExit: LiveTurnSaveExit = { handle: null };
+      let admittedOptions = options;
+      const admissionCurrent = () => admissionBoardRef.current === sessionId && turnGenerationRef.current === generation && phaseRef.current === "idle" && !turnActiveRef.current;
+      const receipt = lessonAdmission().start(cancelRef, sessionId, {
+        current: admissionCurrent,
+        validate: async (signal) => {
+          // Commit a home draft under the held claim, then require an owned read.
+          // A stale draft prop or unavailable GET never stands for empty history.
+          if (isDraft && commitDraftBoard) {
+            try { await commitDraftBoard(); } catch { return false; }
+          }
+          if (signal.aborted || !admissionCurrent()) return false;
+          const detail = await fetchBoardDetail(sessionId, { signal }).catch(() => null);
+          if (signal.aborted || !admissionCurrent()) return false;
+          if (!detail) {
+            if (admissionBoardRef.current === sessionId && turnGenerationRef.current === generation) {
+              emitError({ message: "The lesson could not start. Check your connection and try again.", question: rawQuestion });
+            }
+            return false;
+          }
+          const saved = detail.turns;
+          liveTurnSave().observeBoard(sessionId, saved);
+          if (!options?.resume) return true;
+          const fresh = currentPausedLesson(options.resume, liveTurnSave().resumeTurns(sessionId, saved));
+          if (!fresh) return false;
+          admittedOptions = { ...options, resume: fresh };
+          return true;
+        },
+        run: async () => {
+          try {
+            return await teachQuestion(rawQuestion, admittedOptions, saveExit);
+          } finally {
+            saveExit.handle?.close();
+          }
+        },
+      });
+      void receipt.admitted.then((admitted) => options?.onAdmission?.(admitted));
+      return receipt.finished;
+    },
+    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, pendingSegmentCountRef, whiteboardRef, emitError],
   );
 
   useEffect(() => {

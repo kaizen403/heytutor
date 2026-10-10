@@ -2,9 +2,9 @@ import { sourceCheckedStoredTurn } from "@/lib/scene/storedSceneSource";
 import type { DrawCommand } from "@heytutor/drawing";
 import {
   isStoredCommandTrustedGeometry,
-  parseStoredSegmentCommands,
 } from "@heytutor/drawing";
 import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
+import { storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 
 export interface ReplayCue {
   id: string;
@@ -49,7 +49,7 @@ export function buildReplayTimeline(turns: StoredTurn[]): ReplayTimeline {
     const checked = sourceCheckedStoredTurn(turn);
     checked.segments.forEach((segment, segmentIndex) => {
       const narration = segment.narration.trim();
-      const commands = parseStoredSegmentCommands(segment.command);
+      const commands = storedCodeLessonSegmentCommands(checked, segment);
       if (commands.length === 0 && !narration) {
         return;
       }

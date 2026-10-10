@@ -19,10 +19,6 @@ import {
   speakingLectureSegments,
   turnHasExportableAudio,
 } from "../../lib/lecture-export/canExportLectureMp4";
-import {
-  lectureExportCancelPressAction,
-  lectureExportCancelRevealedOnEnter,
-} from "../../lib/lecture-export/lectureExportCancel";
 import { pickLectureExportProfile } from "../../lib/lecture-export/lectureExportProfile";
 import {
   lectureExportCacheKey,
@@ -37,6 +33,7 @@ import {
 } from "../../lib/lecture-export/lectureAudioUrl";
 import {
   buildLectureAudioTrack,
+  type PcmTrack,
   concatPcm,
   fitPcmToDuration,
   mixCueAudio,
@@ -192,38 +189,23 @@ assert.equal(
 );
 assert.equal(
   shouldCancelLectureExport({ cancelled: false, phase: "thinking", isReplaying: false }),
-  true,
-  "a new question cancels export",
+  false,
+  "a lesson going live must not cancel a download: downloads work at any point",
+);
+assert.equal(
+  shouldCancelLectureExport({ cancelled: false, phase: "speaking", isReplaying: false }),
+  false,
+  "a live lesson must not cancel a download",
 );
 assert.equal(
   shouldCancelLectureExport({ cancelled: false, phase: "idle", isReplaying: true }),
-  true,
-  "student replay cancels export",
+  false,
+  "replay draws on the main board, so it must not cancel the export board's download",
 );
 assert.equal(
   shouldCancelLectureExport({ cancelled: true, phase: "idle", isReplaying: false }),
   true,
   "an explicit cancel stops export",
-);
-assert.equal(
-  lectureExportCancelRevealedOnEnter("mouse"),
-  true,
-  "hovering the download control must show Cancel",
-);
-assert.equal(
-  lectureExportCancelRevealedOnEnter("touch"),
-  false,
-  "a touch must not cancel until the control is tapped again",
-);
-assert.equal(
-  lectureExportCancelPressAction(false),
-  "reveal",
-  "the first tap while exporting reveals Cancel",
-);
-assert.equal(
-  lectureExportCancelPressAction(true),
-  "cancel",
-  "the second tap, or a click after hover, cancels the download",
 );
 
 assert.deepEqual(
@@ -394,6 +376,64 @@ const built = await buildLectureAudioTrack({
 });
 assert.equal(built.channels[0]?.length, 350, "CLEAR + spoken + missing-audio silence");
 assert.equal(built.missingAudioCues, 1, "only speaking cues without audio count as missing");
+assert.equal(built.spokenCues, 2, "two cues speak");
+assert.equal(built.voicedCues, 1, "one spoken cue kept its voice");
+
+{
+  // A clip request that never answers must not pin the download on "Preparing".
+  const startedAt = Date.now();
+  const stalled = await buildLectureAudioTrack({
+    cues: [{ ...cue, audioUrl: "https://media.example/stalled.mp3", durationMs: 200 }],
+    sampleRate: 1000,
+    fetchBytes: () => new Promise<Uint8Array | null>(() => undefined),
+    decodeBytes: async () => ({ channels: [new Float32Array([0.5])], sampleRate: 1000 }),
+    fetchTimeoutMs: 40,
+  });
+  assert.ok(Date.now() - startedAt < 2_000, "a stalled clip fetch ends at its time limit");
+  assert.equal(stalled.missingAudioCues, 1, "a stalled clip becomes a missing cue");
+  assert.equal(stalled.channels[0]?.length, 200, "a stalled clip is silence for the cue's duration");
+
+  const hungDecode = await buildLectureAudioTrack({
+    cues: [{ ...cue, audioUrl: "blob:hello", durationMs: 100 }],
+    sampleRate: 1000,
+    fetchBytes: async () => new Uint8Array([1]),
+    decodeBytes: () => new Promise<PcmTrack | null>(() => undefined),
+    decodeTimeoutMs: 40,
+  });
+  assert.equal(hungDecode.missingAudioCues, 1, "a decode that never finishes becomes silence");
+  assert.equal(hungDecode.voicedCues, 0);
+
+  let decodedEmpty = false;
+  const empty = await buildLectureAudioTrack({
+    cues: [{ ...cue, audioUrl: "blob:hello", durationMs: 100 }],
+    sampleRate: 1000,
+    fetchBytes: async () => new Uint8Array(0),
+    decodeBytes: async () => {
+      decodedEmpty = true;
+      return null;
+    },
+  });
+  assert.equal(decodedEmpty, false, "zero length bytes are silence, never handed to the decoder");
+  assert.equal(empty.missingAudioCues, 1);
+
+  let fetched = 0;
+  const held = await buildLectureAudioTrack({
+    cues: [{ ...cue, audioUrl: null, durationMs: 100 }],
+    sampleRate: 1000,
+    fetchBytes: async () => {
+      fetched += 1;
+      return null;
+    },
+    decodeBytes: async (data) => ({
+      channels: [new Float32Array(data.byteLength).fill(0.25)],
+      sampleRate: 1000,
+    }),
+    cueBytes: () => new Uint8Array([9, 9, 9]),
+  });
+  assert.equal(fetched, 0, "a live clip held in memory is read without a fetch");
+  assert.equal(held.missingAudioCues, 0, "a live step with its clip in memory keeps its voice");
+  assert.ok(Math.abs((held.channels[0]?.[0] ?? 0) - 0.25) < 1e-6, "the held clip is the audio in the track");
+}
 
 let now = 0;
 const advances: Array<() => void> = [];

@@ -6,7 +6,7 @@ import { Brand } from "@/components/brand/Brand";
 import { LANDING_PROMPT } from "@/lib/site";
 import { useIsMobile } from "@/lib/client/useMediaQuery";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
-import { InputBar } from "@/features/tutor-session/components/InputBar";
+import { InputBar, type InputBarProps } from "@/features/tutor-session/components/InputBar";
 import { LandingDoodles } from "@/features/tutor-session/components/LandingDoodles";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 
@@ -21,7 +21,7 @@ export interface CanvasLandingSuggestion {
 
 export interface CanvasLandingProps {
   suggestions: CanvasLandingSuggestion[];
-  onSubmit: (question: string) => void;
+  onSubmit: InputBarProps["onSubmit"];
   onOpenSettings?: () => void;
   /** How well the student knows this topic; chosen per question in the bar. */
   familiarity?: SubjectFamiliarity;

@@ -232,6 +232,16 @@ markGrantInUse(bound.grant, -1, "bound-doubt");
 assert(!(await beginTurnForActor(staffActor, { traceId: "sixth-after-doubt", kind: "lesson" }) instanceof Response),
   "the last child stream releases its parent's slot");
 
+// A server restart forgets every grant. A stopped lesson resumed after it, or
+// a doubt on a reopened board, must still start for staff.
+resetTurnGrantsForTests();
+const resumeAfterRestart = await beginTurnForActor(staffActor, {
+  traceId: "resume-after-restart", kind: "resume", parentTraceId: "lesson-before-restart",
+});
+assert(!(resumeAfterRestart instanceof Response), "a staff resume whose parent died with the server still starts");
+const doubtAfterRestart = await beginTurnForActor(staffActor, { traceId: "doubt-after-restart", kind: "doubt" });
+assert(!(doubtAfterRestart instanceof Response), "a staff doubt on a reopened board still starts");
+
 resetTurnGrantsForTests();
 const firstCompletedChat = await beginTurnForActor(staffActor, { traceId: "recording-before-audio", kind: "lesson" });
 assert(!(firstCompletedChat instanceof Response), "recording begins before its chat stream");

@@ -26,5 +26,9 @@ export function useTurnLifecycle(params: UseTurnLifecycleParams) {
     handleAskDoubt: turnControl.handleAskDoubt,
     flushPausedLesson: turnControl.flushPausedLesson,
     pausedLessonOffer: turnControl.pausedLessonOffer,
+    /** "stop" or "doubt": which words the paused lesson bar shows. */
+    pausedLessonReason: turnControl.pausedLessonReason,
+    /** Offer the stopped lesson a restored board's saved turns leave (never continues). */
+    restorePausedLesson: turnControl.restorePausedLesson,
   };
 }

@@ -101,6 +101,13 @@ export function turnTelemetryEventTier(name: string): 0 | 1 | 2 {
  */
 export const MAX_TELEMETRY_BODY_BYTES = 60_000;
 
+/**
+ * A page going away also sends the lesson's keepalive close (at most
+ * `KEEPALIVE_CLOSE_MAX_BYTES`, 12 KB) first, from the same 64 KiB budget, so
+ * telemetry's one page away body stays under this.
+ */
+export const MAX_PAGE_AWAY_TELEMETRY_BYTES = 48_000;
+
 /** A tab flicking hidden and back must not fill the buffer with markers. */
 const MAX_LIFECYCLE_CHECKPOINT_MARKS = 3;
 
@@ -205,8 +212,9 @@ function payloadBodies(payload: TurnTelemetryPayload): string[] {
 function fitOneBody(
   base: TurnTelemetryPayload,
   candidates: TurnTelemetryEvent[],
+  maxBytes: number = MAX_PAGE_AWAY_TELEMETRY_BYTES,
 ): { sent: TurnTelemetryEvent[]; kept: TurnTelemetryEvent[] } {
-  let budget = MAX_TELEMETRY_BODY_BYTES - byteLength(JSON.stringify(base));
+  let budget = maxBytes - byteLength(JSON.stringify(base));
   const ranked = candidates
     .map((event, index) => ({ event, index, tier: turnTelemetryEventTier(event.name) }))
     .sort((a, b) => b.tier - a.tier || a.index - b.index);
@@ -348,6 +356,7 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
         const fitted = fitOneBody(
           { traceId, sessionId, events: [], traceMetadata: pendingMetadata },
           pendingEvents,
+          MAX_PAGE_AWAY_TELEMETRY_BYTES,
         );
         events.unshift(...fitted.kept);
         pendingEvents = fitted.sent;
