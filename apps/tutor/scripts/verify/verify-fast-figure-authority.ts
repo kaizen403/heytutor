@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  reconcileTurnPlanV3ExplicitArithmetic,
   reconcileTurnPlanWithSolver,
   validateSceneQuantityAgreement,
   validateTurnPlanV3,
@@ -90,10 +91,16 @@ function stemCase(question: string, plan: Partial<TurnPlanV3>): FixtureCase {
 }
 
 function selectLikeLive(entry: FixtureCase, overrides: { problemIR?: null } = {}): LiveSelection {
+  // The planner reconciles explicit arithmetic before it validates
+  // (turnPlannerV3), so the band starts from that plan. A captured plan is
+  // main's reconcile output; the fixed reconcile reads "cos 30°" in degrees
+  // and refines a rounded 17.32 to 17.3205..., which validation alone would
+  // report against the unrefined value.
+  const reconciled = reconcileTurnPlanV3ExplicitArithmetic(entry.turnPlan).plan as TurnPlanV3;
   // A hand-built or re-stemmed plan must be a real plan, or a null figure
   // would only prove the plan was rejected.
-  assert.ok(validateTurnPlanV3(entry.turnPlan, entry.question).plan, `${entry.id}: plan must validate`);
-  let plan = entry.turnPlan;
+  assert.ok(validateTurnPlanV3(reconciled, entry.question).plan, `${entry.id}: plan must validate`);
+  let plan = reconciled;
   let audit: ReturnType<typeof verifyTurnPlanAgainstSolver> | null = null;
   if (entry.authority) {
     plan = reconcileTurnPlanWithSolver(plan, entry.authority.problemIR, entry.authority.solverResult);
@@ -294,8 +301,14 @@ check("river crossing, symbolic: not_applicable with symbolic zero givens keeps 
 
 check("Kirchhoff two loop: structure-routed circuit keeps today's selection", () => {
   const live = selectLikeLive(get("kirchhoff_two_loop"));
-  assert.equal(live.audit, "verified");
-  assert.ok(live.bindings > 0);
+  // The captured plan solved its own loop equations wrong (I = 1.8 A; they
+  // give 24/13 A) and repeats 1.8 A in its claims, while the captured solver
+  // formulation gives 36/13 A. Reconcile writes the solver's value into the
+  // quantity, so the claims now contradict it and the audit blocks the turn
+  // instead of teaching a current that disagrees with its own working.
+  assert.equal(live.audit, "contradiction");
+  // An input contradiction is reported before any result is bound.
+  assert.equal(live.bindings, 0);
   assert.deepEqual([...live.families], ["circuit_network"]);
   assert.equal(live.figure, null);
 });
