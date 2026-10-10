@@ -7,8 +7,51 @@ import {
   normalizeStrokeText,
   textToStrokePaths,
 } from "../src/handwriting/handwriting";
+import {
+  normalizeBoardText,
+  parseDrawCommandFromTag,
+  parseDrawingCommands,
+} from "../src/protocol/drawingProtocol";
+
+// Charge signs must be normalized before a chemical token decides which
+// digits are atom counts and which digits are the ion's charge.
+const ION_CASES = [
+  ["SO42−", "SO42-", "SO_4^(2-)"],
+  ["CO32−", "CO32-", "CO_3^(2-)"],
+  ["MnO4−", "MnO4-", "MnO_4^(-)"],
+  ["Cl−", "Cl-", "Cl^(-)"],
+  ["O2−", "O2-", "O^(2-)"],
+  ["I3−", "I3-", "I_3^(-)"],
+  ["[Fe(CN)6]3−", "[Fe(CN)6]3-", "[Fe(CN)_6]^(3-)"],
+  ["e−", "e-", "e^(-)"],
+  ["2e−", "2e-", "2e^(-)"],
+  ["Cu2+ + 2e− → Cu", "Cu2+ + 2e- → Cu", "Cu^(2+) + 2e^(-) → Cu"],
+] as const;
+
+for (const [unicode, ascii, expected] of ION_CASES) {
+  assert.equal(normalizeStrokeText(unicode), expected, `${unicode}: keep atom counts separate from charge`);
+  assert.equal(normalizeStrokeText(ascii), expected);
+  assert.equal(normalizeBoardText(unicode), expected, "protocol must not save a different atom count");
+  const fromTag = parseDrawCommandFromTag("WRITE", `${unicode},90,211`, 0, "");
+  const fromResponse = parseDrawingCommands(`[WRITE:${unicode},90,211]`).commands[0];
+  assert.equal(fromTag.text, expected);
+  assert.equal(fromResponse?.text, expected);
+  assert.deepEqual(fromTag.params, [90, 211]);
+  assert.deepEqual(fromResponse?.params, [90, 211]);
+}
+
 
 for (const size of [19, 32, 46]) {
+  for (const [unicode, ascii] of ION_CASES) {
+    const paths = await textToStrokePaths(unicode, 70, 230, size);
+    assert(paths.every(path => path.strokes.length > 0), `${unicode}: no ion/electron fallback glyph`);
+    assert.deepEqual(paths, await textToStrokePaths(ascii, 70, 230, size), `${unicode}: same scripted ink as ASCII charge`);
+    assert.equal(measureTextWidth(unicode, size), measureTextWidth(ascii, size));
+    assert.deepEqual(measureTextInkBounds(unicode, 70, 230, size), measureTextInkBounds(ascii, 70, 230, size));
+    assert.deepEqual(measureTextInkBounds(unicode, 70, 230, size), measureWrittenTextInkBounds(unicode, 70, 230, size));
+    assert.equal(countWrittenGlyphs(unicode), paths.length, "one scheduler slot per visible charge/count glyph");
+    assert.equal(countWrittenGlyphs(unicode), countWrittenGlyphs(ascii));
+  }
   for (const row of ["[x]", "[0, 1]", "[H_3O^+]", "[Fe(CN)_6]^(3−)", "x_[1]", "v̄ + [a⃗]"]) {
     const paths = await textToStrokePaths(row, 70, 230, size);
     assert(paths.every(path => path.strokes.length > 0), `${row}: every bracket must be handwritten`);

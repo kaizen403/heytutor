@@ -87,8 +87,7 @@ const SUBSCRIPT_MAP: Record<string, string> = {
  */
 export function normalizeStrokeText(text: string): string {
   // Do not use \b after the command name: LaTeX often continues with "_" / "^".
-  let source = scriptChemicalFormulas(text)
-    .replace(/\u2212/g, "-")
+  let source = scriptChemicalFormulas(text.replace(/\u2212/g, "-"))
     .replace(/\\int(?![A-Za-z])/g, "∫")
     .replace(/\\sum(?![A-Za-z])/g, "∑")
     .replace(/\\prod(?![A-Za-z])/g, "∏")
