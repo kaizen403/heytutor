@@ -615,7 +615,7 @@ const catalogue = buildDiagramExampleCatalogue([
 ]);
 assert.ok(catalogue.estimatedTokens < 6_000, "picker catalogue must stay below its prompt budget");
 assert.equal(catalogue.entries.length, 4, "near-duplicate descriptions must be merged");
-assert.ok(catalogue.text.includes("vector-right | vectors_fbd | force vector labelled F"));
+assert.ok(catalogue.text.includes("vector-right|vectors_fbd|force vector labelled F"));
 assert.ok(!catalogue.text.includes("This entire curated question"), "catalogue uses depicts, never curated questions");
 assert.ok(catalogue.entries.every((entry) => entry.depicts.split(/\s+/).length <= 20));
 assert.deepEqual(
