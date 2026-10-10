@@ -40,6 +40,8 @@ export function isTtsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 export const LECTURE_LAB_HEADER = "x-heytutor-lecture-lab";
+export const LECTURE_LAB_ZERO_RETENTION_HEADER = "x-heytutor-lecture-lab-zero-retention";
+export const LECTURE_LAB_STANDARD_MODEL_HEADER = "x-heytutor-lecture-lab-standard-model";
 
 /**
  * Lecture-lab spend bypass. The header value must match LECTURE_LAB_TOKEN
@@ -51,4 +53,37 @@ export function isLectureLabRequest(request: Request, env: NodeJS.ProcessEnv = p
   const presented = request.headers.get(LECTURE_LAB_HEADER)?.trim() ?? "";
   if (!expected || !presented) return false;
   return timingSafeEqualText(presented, expected);
+}
+
+/**
+ * Evaluation corpora can contain private student questions. Only a request
+ * already authenticated as lecture-lab traffic may opt out of retained
+ * observability; ordinary product requests cannot suppress their trace.
+ */
+export function shouldSuppressLectureLabTrace(
+  request: Request,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return request.headers.get(LECTURE_LAB_ZERO_RETENTION_HEADER) === "1" &&
+    isLectureLabRequest(request, env);
+}
+
+/** Only authenticated evaluation traffic may force every paid lane to standard K3. */
+export function shouldUseLectureLabStandardModel(
+  request: Request,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return request.headers.get(LECTURE_LAB_STANDARD_MODEL_HEADER) === "1" &&
+    isLectureLabRequest(request, env);
+}
+
+/** Live planners stay at 60 s; authenticated standard-K3 scene evals may use 120 s. */
+export function lectureLabPlannerDeadlineCapMs(
+  request: Request,
+  env: NodeJS.ProcessEnv = process.env,
+): 60_000 | 120_000 {
+  return request.headers.get("x-scene-planner-version") === "2" &&
+      shouldUseLectureLabStandardModel(request, env)
+    ? 120_000
+    : 60_000;
 }

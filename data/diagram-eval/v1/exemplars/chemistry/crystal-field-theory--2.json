@@ -1,0 +1,1630 @@
+{
+  "topic_id": "chemistry|12|crystal-field-theory",
+  "question": "[Co(NH3)6]3+ is diamagnetic. Draw the crystal field splitting and give the hybridisation.",
+  "figure_kind": "energy_diagram",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "crystal field splitting of [Co(NH3)6]3+"
+    },
+    "source": {
+      "question": "[Co(NH3)6]3+ is diamagnetic. Draw the crystal field splitting and give the hybridisation.",
+      "synthesizedFamily": true,
+      "archetype": "chem_cft",
+      "chemistryFamily": "chem_cft"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "energy_axis",
+        "kind": "vector",
+        "role": "energy axis"
+      },
+      {
+        "id": "energy_axis_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "E",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_free_0",
+        "kind": "segment",
+        "role": "free ion d level"
+      },
+      {
+        "id": "cft0_free_0_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_free_0_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_free_1",
+        "kind": "segment",
+        "role": "free ion d level"
+      },
+      {
+        "id": "cft0_free_1_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_free_2",
+        "kind": "segment",
+        "role": "free ion d level"
+      },
+      {
+        "id": "cft0_free_2_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_free_3",
+        "kind": "segment",
+        "role": "free ion d level"
+      },
+      {
+        "id": "cft0_free_3_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_free_4",
+        "kind": "segment",
+        "role": "free ion d level"
+      },
+      {
+        "id": "cft0_free_4_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_free_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "free ion",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_free_d",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "d^6",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_bary",
+        "kind": "segment",
+        "role": "barycentre link",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "cft0_l0_0",
+        "kind": "segment",
+        "role": "t2g energy level"
+      },
+      {
+        "id": "cft0_l0_0_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_l0_0_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_l0_1",
+        "kind": "segment",
+        "role": "t2g energy level"
+      },
+      {
+        "id": "cft0_l0_1_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_l0_1_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_l0_2",
+        "kind": "segment",
+        "role": "t2g energy level"
+      },
+      {
+        "id": "cft0_l0_2_e1",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_l0_2_e2",
+        "kind": "vector",
+        "role": "electron"
+      },
+      {
+        "id": "cft0_l0_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "t_2g",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_l1_0",
+        "kind": "segment",
+        "role": "eg energy level"
+      },
+      {
+        "id": "cft0_l1_1",
+        "kind": "segment",
+        "role": "eg energy level"
+      },
+      {
+        "id": "cft0_l1_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "e_g",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_dim",
+        "kind": "dimension",
+        "role": "crystal field splitting",
+        "label": "Δ_o"
+      },
+      {
+        "id": "cft0_t0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "[Co(NH3)6]^(3+)",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_t1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "low spin, d^6",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_t2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "CFSE = -2.4Δ_o",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_t3",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "0 unpaired",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_t4",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "μ = 0 BM",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "cft0_t5",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "d^2sp^3",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "energy_axis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "energy_axis_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_0_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_0_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_0_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_0_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_1_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_2_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_3_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_3_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_3_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_4_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_4_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_4_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_free_d_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_bary_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_bary_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_0_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_0_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_0_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_0_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_1_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_1_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_2_e1_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_2_e2_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l0_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l1_0_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l1_0_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l1_1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l1_1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_l1_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_dim_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_dim_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_t0_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_t1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_t2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_t3_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_t4_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cft0_t5_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_energy_axis_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -6.0285,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "energy_axis_t"
+        ]
+      },
+      {
+        "id": "make_energy_axis",
+        "operator": "vector",
+        "inputs": {
+          "start": "energy_axis_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 8.0185
+        },
+        "outputs": [
+          "energy_axis"
+        ]
+      },
+      {
+        "id": "make_energy_axis_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.29,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "energy_axis_name_p"
+        ]
+      },
+      {
+        "id": "make_energy_axis_name",
+        "operator": "label",
+        "inputs": {
+          "target": "energy_axis_name_p",
+          "text": "E"
+        },
+        "outputs": [
+          "energy_axis_name"
+        ]
+      },
+      {
+        "id": "make_cft0_free_0_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0.55,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_0_a"
+        ]
+      },
+      {
+        "id": "make_cft0_free_0_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.05,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_0_b"
+        ]
+      },
+      {
+        "id": "make_cft0_free_0",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_free_0_a",
+          "end": "cft0_free_0_b"
+        },
+        "outputs": [
+          "cft0_free_0"
+        ]
+      },
+      {
+        "id": "make_cft0_free_0_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0.66,
+          "y": -0.25,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_0_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_free_0_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_free_0_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_free_0_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_free_0_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0.94,
+          "y": 0.25,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_0_e2_t"
+        ]
+      },
+      {
+        "id": "make_cft0_free_0_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_free_0_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_free_0_e2"
+        ]
+      },
+      {
+        "id": "make_cft0_free_1_a",
+        "operator": "point",
+        "inputs": {
+          "x": 1.17,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_1_a"
+        ]
+      },
+      {
+        "id": "make_cft0_free_1_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1.67,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_1_b"
+        ]
+      },
+      {
+        "id": "make_cft0_free_1",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_free_1_a",
+          "end": "cft0_free_1_b"
+        },
+        "outputs": [
+          "cft0_free_1"
+        ]
+      },
+      {
+        "id": "make_cft0_free_1_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 1.42,
+          "y": -0.25,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_1_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_free_1_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_free_1_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_free_1_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_free_2_a",
+        "operator": "point",
+        "inputs": {
+          "x": 1.79,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_2_a"
+        ]
+      },
+      {
+        "id": "make_cft0_free_2_b",
+        "operator": "point",
+        "inputs": {
+          "x": 2.29,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_2_b"
+        ]
+      },
+      {
+        "id": "make_cft0_free_2",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_free_2_a",
+          "end": "cft0_free_2_b"
+        },
+        "outputs": [
+          "cft0_free_2"
+        ]
+      },
+      {
+        "id": "make_cft0_free_2_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 2.04,
+          "y": -0.25,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_2_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_free_2_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_free_2_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_free_2_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_free_3_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.41,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_3_a"
+        ]
+      },
+      {
+        "id": "make_cft0_free_3_b",
+        "operator": "point",
+        "inputs": {
+          "x": 2.91,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_3_b"
+        ]
+      },
+      {
+        "id": "make_cft0_free_3",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_free_3_a",
+          "end": "cft0_free_3_b"
+        },
+        "outputs": [
+          "cft0_free_3"
+        ]
+      },
+      {
+        "id": "make_cft0_free_3_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 2.66,
+          "y": -0.25,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_3_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_free_3_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_free_3_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_free_3_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_free_4_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.03,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_4_a"
+        ]
+      },
+      {
+        "id": "make_cft0_free_4_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.53,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_4_b"
+        ]
+      },
+      {
+        "id": "make_cft0_free_4",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_free_4_a",
+          "end": "cft0_free_4_b"
+        },
+        "outputs": [
+          "cft0_free_4"
+        ]
+      },
+      {
+        "id": "make_cft0_free_4_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 3.28,
+          "y": -0.25,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_4_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_free_4_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_free_4_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_free_4_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_free_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 2.04,
+          "y": -0.764,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_name_p"
+        ]
+      },
+      {
+        "id": "make_cft0_free_name",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_free_name_p",
+          "text": "free ion"
+        },
+        "outputs": [
+          "cft0_free_name"
+        ]
+      },
+      {
+        "id": "make_cft0_free_d_p",
+        "operator": "point",
+        "inputs": {
+          "x": 2.04,
+          "y": -1.3921,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_free_d_p"
+        ]
+      },
+      {
+        "id": "make_cft0_free_d",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_free_d_p",
+          "text": "d^6"
+        },
+        "outputs": [
+          "cft0_free_d"
+        ]
+      },
+      {
+        "id": "make_cft0_bary_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.65,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_bary_a"
+        ]
+      },
+      {
+        "id": "make_cft0_bary_b",
+        "operator": "point",
+        "inputs": {
+          "x": 6.62,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_bary_b"
+        ]
+      },
+      {
+        "id": "make_cft0_bary",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_bary_a",
+          "end": "cft0_bary_b"
+        },
+        "outputs": [
+          "cft0_bary"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_0_a",
+        "operator": "point",
+        "inputs": {
+          "x": 4.46,
+          "y": -0.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_0_a"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_0_b",
+        "operator": "point",
+        "inputs": {
+          "x": 5.06,
+          "y": -0.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_0_b"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_0",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_l0_0_a",
+          "end": "cft0_l0_0_b"
+        },
+        "outputs": [
+          "cft0_l0_0"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_0_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 4.62,
+          "y": -1.21,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_0_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_0_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_l0_0_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_l0_0_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_0_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": 4.9,
+          "y": -0.71,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_0_e2_t"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_0_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_l0_0_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_l0_0_e2"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_1_a",
+        "operator": "point",
+        "inputs": {
+          "x": 5.24,
+          "y": -0.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_1_a"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_1_b",
+        "operator": "point",
+        "inputs": {
+          "x": 5.84,
+          "y": -0.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_1_b"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_1",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_l0_1_a",
+          "end": "cft0_l0_1_b"
+        },
+        "outputs": [
+          "cft0_l0_1"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_1_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 5.4,
+          "y": -1.21,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_1_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_1_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_l0_1_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_l0_1_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_1_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": 5.68,
+          "y": -0.71,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_1_e2_t"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_1_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_l0_1_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_l0_1_e2"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_2_a",
+        "operator": "point",
+        "inputs": {
+          "x": 6.02,
+          "y": -0.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_2_a"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_2_b",
+        "operator": "point",
+        "inputs": {
+          "x": 6.62,
+          "y": -0.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_2_b"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_2",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_l0_2_a",
+          "end": "cft0_l0_2_b"
+        },
+        "outputs": [
+          "cft0_l0_2"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_2_e1_t",
+        "operator": "point",
+        "inputs": {
+          "x": 6.18,
+          "y": -1.21,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_2_e1_t"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_2_e1",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_l0_2_e1_t",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_l0_2_e1"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_2_e2_t",
+        "operator": "point",
+        "inputs": {
+          "x": 6.46,
+          "y": -0.71,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_2_e2_t"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_2_e2",
+        "operator": "vector",
+        "inputs": {
+          "start": "cft0_l0_2_e2_t",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "cft0_l0_2_e2"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.54,
+          "y": -1.724,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l0_name_p"
+        ]
+      },
+      {
+        "id": "make_cft0_l0_name",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_l0_name_p",
+          "text": "t_2g"
+        },
+        "outputs": [
+          "cft0_l0_name"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_0_a",
+        "operator": "point",
+        "inputs": {
+          "x": 4.85,
+          "y": 1.44,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l1_0_a"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_0_b",
+        "operator": "point",
+        "inputs": {
+          "x": 5.45,
+          "y": 1.44,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l1_0_b"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_0",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_l1_0_a",
+          "end": "cft0_l1_0_b"
+        },
+        "outputs": [
+          "cft0_l1_0"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_1_a",
+        "operator": "point",
+        "inputs": {
+          "x": 5.63,
+          "y": 1.44,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l1_1_a"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_1_b",
+        "operator": "point",
+        "inputs": {
+          "x": 6.23,
+          "y": 1.44,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l1_1_b"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_1",
+        "operator": "segment",
+        "inputs": {
+          "start": "cft0_l1_1_a",
+          "end": "cft0_l1_1_b"
+        },
+        "outputs": [
+          "cft0_l1_1"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 4.3508,
+          "y": 1.44,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_l1_name_p"
+        ]
+      },
+      {
+        "id": "make_cft0_l1_name",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_l1_name_p",
+          "text": "e_g"
+        },
+        "outputs": [
+          "cft0_l1_name"
+        ]
+      },
+      {
+        "id": "make_cft0_dim_a",
+        "operator": "point",
+        "inputs": {
+          "x": 7.07,
+          "y": -0.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_dim_a"
+        ]
+      },
+      {
+        "id": "make_cft0_dim_b",
+        "operator": "point",
+        "inputs": {
+          "x": 7.07,
+          "y": 1.44,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_dim_b"
+        ]
+      },
+      {
+        "id": "make_cft0_dim",
+        "operator": "dimension",
+        "inputs": {
+          "start": "cft0_dim_a",
+          "end": "cft0_dim_b"
+        },
+        "outputs": [
+          "cft0_dim"
+        ]
+      },
+      {
+        "id": "make_cft0_t0_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.54,
+          "y": -2.5881,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_t0_p"
+        ]
+      },
+      {
+        "id": "make_cft0_t0",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_t0_p",
+          "text": "[Co(NH3)6]^(3+)"
+        },
+        "outputs": [
+          "cft0_t0"
+        ]
+      },
+      {
+        "id": "make_cft0_t1_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.54,
+          "y": -3.2162,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_t1_p"
+        ]
+      },
+      {
+        "id": "make_cft0_t1",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_t1_p",
+          "text": "low spin, d^6"
+        },
+        "outputs": [
+          "cft0_t1"
+        ]
+      },
+      {
+        "id": "make_cft0_t2_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.54,
+          "y": -3.8443,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_t2_p"
+        ]
+      },
+      {
+        "id": "make_cft0_t2",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_t2_p",
+          "text": "CFSE = -2.4Δ_o"
+        },
+        "outputs": [
+          "cft0_t2"
+        ]
+      },
+      {
+        "id": "make_cft0_t3_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.54,
+          "y": -4.4724,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_t3_p"
+        ]
+      },
+      {
+        "id": "make_cft0_t3",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_t3_p",
+          "text": "0 unpaired"
+        },
+        "outputs": [
+          "cft0_t3"
+        ]
+      },
+      {
+        "id": "make_cft0_t4_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.54,
+          "y": -5.1004,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_t4_p"
+        ]
+      },
+      {
+        "id": "make_cft0_t4",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_t4_p",
+          "text": "μ = 0 BM"
+        },
+        "outputs": [
+          "cft0_t4"
+        ]
+      },
+      {
+        "id": "make_cft0_t5_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.54,
+          "y": -5.7285,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cft0_t5_p"
+        ]
+      },
+      {
+        "id": "make_cft0_t5",
+        "operator": "label",
+        "inputs": {
+          "target": "cft0_t5_p",
+          "text": "d^2sp^3"
+        },
+        "outputs": [
+          "cft0_t5"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_cft0_dim",
+        "predicate": "label_attached",
+        "entities": [
+          "cft0_dim"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "[Co(NH3)6]3+: Co3+ d6, strong field NH3, low spin t2g^6 eg^0, CFSE -2.4Δo + 2P, 0 unpaired, diamagnetic, d2sp3 (inner orbital)"
+      }
+    ],
+    "requiredEntityIds": [
+      "energy_axis",
+      "energy_axis_name",
+      "cft0_free_0",
+      "cft0_free_0_e1",
+      "cft0_free_0_e2",
+      "cft0_free_1",
+      "cft0_free_1_e1",
+      "cft0_free_2",
+      "cft0_free_2_e1",
+      "cft0_free_3",
+      "cft0_free_3_e1",
+      "cft0_free_4",
+      "cft0_free_4_e1",
+      "cft0_free_name",
+      "cft0_free_d",
+      "cft0_bary",
+      "cft0_l0_0",
+      "cft0_l0_0_e1",
+      "cft0_l0_0_e2",
+      "cft0_l0_1",
+      "cft0_l0_1_e1",
+      "cft0_l0_1_e2",
+      "cft0_l0_2",
+      "cft0_l0_2_e1",
+      "cft0_l0_2_e2",
+      "cft0_l0_name",
+      "cft0_l1_0",
+      "cft0_l1_1",
+      "cft0_l1_name",
+      "cft0_dim",
+      "cft0_t0",
+      "cft0_t1",
+      "cft0_t2",
+      "cft0_t3",
+      "cft0_t4",
+      "cft0_t5"
+    ],
+    "revealGroups": [
+      {
+        "id": "cft_0",
+        "entityIds": [
+          "cft0_free_0",
+          "cft0_free_0_e1",
+          "cft0_free_0_e2",
+          "cft0_free_1",
+          "cft0_free_1_e1",
+          "cft0_free_2",
+          "cft0_free_2_e1",
+          "cft0_free_3",
+          "cft0_free_3_e1",
+          "cft0_free_4",
+          "cft0_free_4_e1",
+          "cft0_free_name",
+          "cft0_free_d",
+          "cft0_bary",
+          "cft0_l0_0",
+          "cft0_l0_0_e1",
+          "cft0_l0_0_e2",
+          "cft0_l0_1",
+          "cft0_l0_1_e1",
+          "cft0_l0_1_e2",
+          "cft0_l0_2",
+          "cft0_l0_2_e1",
+          "cft0_l0_2_e2",
+          "cft0_l0_name",
+          "cft0_l1_0",
+          "cft0_l1_1",
+          "cft0_l1_name",
+          "cft0_dim",
+          "cft0_t0",
+          "cft0_t1",
+          "cft0_t2",
+          "cft0_t3",
+          "cft0_t4",
+          "cft0_t5",
+          "energy_axis",
+          "energy_axis_name"
+        ],
+        "dependsOn": [],
+        "narrationCue": "[Co(NH3)6]3+: octahedral, 0 unpaired"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_cft_0",
+        "action": "reveal",
+        "targetId": "cft_0",
+        "dependsOn": [],
+        "narrationIntent": "[Co(NH3)6]3+: octahedral, 0 unpaired"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

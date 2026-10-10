@@ -1,0 +1,168 @@
+{
+  "topic_id": "maths|12|vector-addition",
+  "question": "Add the vectors 4i + j and i + 3j.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "verified free-vector arithmetic"
+    },
+    "source": {
+      "question": "Add the vectors 4i + j and i + 3j."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "a",
+        "kind": "point",
+        "role": "vector endpoint"
+      },
+      {
+        "id": "b",
+        "kind": "point",
+        "role": "vector endpoint"
+      },
+      {
+        "id": "c",
+        "kind": "point",
+        "role": "vector endpoint"
+      },
+      {
+        "id": "u",
+        "kind": "vector",
+        "role": "free vector",
+        "label": "u"
+      },
+      {
+        "id": "v",
+        "kind": "vector",
+        "role": "free vector",
+        "label": "v"
+      },
+      {
+        "id": "result",
+        "kind": "vector",
+        "role": "free vector",
+        "label": "result"
+      },
+      {
+        "id": "result_origin_anchor",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "a_point",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0
+        },
+        "outputs": [
+          "a"
+        ]
+      },
+      {
+        "id": "b_point",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 1
+        },
+        "outputs": [
+          "b"
+        ]
+      },
+      {
+        "id": "c_point",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 3
+        },
+        "outputs": [
+          "c"
+        ]
+      },
+      {
+        "id": "u_vector",
+        "operator": "vector",
+        "inputs": {
+          "start": "a",
+          "end": "b"
+        },
+        "outputs": [
+          "u"
+        ]
+      },
+      {
+        "id": "v_vector",
+        "operator": "vector",
+        "inputs": {
+          "start": "a",
+          "end": "c"
+        },
+        "outputs": [
+          "v"
+        ]
+      },
+      {
+        "id": "construct_result_origin_anchor",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "result_origin_anchor"
+        ]
+      },
+      {
+        "id": "sum_vector",
+        "operator": "vector_sum",
+        "inputs": {
+          "vectors": [
+            "u",
+            "v"
+          ],
+          "origin": "result_origin_anchor"
+        },
+        "outputs": [
+          "result"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "a",
+      "b",
+      "c",
+      "u",
+      "v",
+      "result"
+    ],
+    "revealGroups": [
+      {
+        "id": "vectors",
+        "entityIds": [
+          "a",
+          "b",
+          "c",
+          "u",
+          "v",
+          "result"
+        ],
+        "dependsOn": [],
+        "narrationCue": "free vector arithmetic"
+      }
+    ],
+    "teachingTimeline": []
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

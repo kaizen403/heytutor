@@ -1,6 +1,7 @@
 import type {
   BoundedAggregate,
   DegradationReasonCount,
+  FigureSourceCount,
   OutcomeCounts,
   OverviewPayload,
   TierCounts,
@@ -39,6 +40,16 @@ function degradationEntries(reasons: DegradationReasonCount[]): BarListEntry[] {
   }));
 }
 
+function figureSourceEntries(sources: FigureSourceCount[]): BarListEntry[] {
+  return sources.map((row) => ({
+    label: row.source === "unrecorded"
+      ? "Unrecorded (legacy)"
+      : row.source.replaceAll("_", " "),
+    count: row.count,
+    tone: row.source === "unrecorded" ? "muted" : undefined,
+  }));
+}
+
 function boundedNote(aggregate: BoundedAggregate): string | undefined {
   return aggregate.truncated ? `newest ${aggregate.scanned} turns of more` : undefined;
 }
@@ -62,6 +73,11 @@ export function OverviewBreakdown({ payload }: { payload: OverviewPayload }) {
           title="Committed tiers · 7 days"
           entries={tierEntries(payload.tiers7d)}
           note={boundedNote(payload.tiers7d)}
+        />
+        <BarList
+          title="Figure source · 7 days"
+          entries={figureSourceEntries(payload.figureSources7d.sources)}
+          note={boundedNote(payload.figureSources7d)}
         />
         <BarList
           title="Degradation reasons · 7 days"

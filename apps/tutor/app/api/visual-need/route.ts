@@ -39,7 +39,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const input = body as { question: string; conversationContext?: string };
   if (!process.env.AI_GATEWAY_API_KEY?.trim())
-    return Response.json({ decision: null, source: "unavailable" });
+    return Response.json({ decision: null, source: "unavailable", unavailableReason: "missing_key" });
   const reservation = await reservePaidUsage({
     actor: gated.actor,
     grant: gated.grant,
@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<Response> {
   if (reservation instanceof Response) return reservation;
   if (request.signal.aborted) {
     await reservation.cancelBeforeDispatch();
-    return Response.json({ decision: null, source: "unavailable" });
+    return Response.json({ decision: null, source: "unavailable", unavailableReason: "aborted" });
   }
   try {
     const result = await assessVisualNeed({
@@ -80,6 +80,9 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({
       decision: result.decision,
       source: result.assessment.status === "assessed" ? "jev" : "unavailable",
+      unavailableReason: result.assessment.status === "unavailable" ? result.assessment.reason : null,
+      usage: result.assessment.status === "assessed" ? result.assessment.usage : null,
+      provenance: result.assessment.status === "assessed" ? result.assessment.provenance : null,
     });
   } finally {
     await reservation.finish();
