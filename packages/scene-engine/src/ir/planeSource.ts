@@ -185,6 +185,10 @@ type ResolvedPlane =
  */
 export function validatePlaneSourceBinding(document: SceneDocument, context: PlaneSourceContext): SceneIssue[] {
   if (document.visualDecision.mode !== "scene") return [];
+  // Engine-synthesized figures (archetypes, family scenes) draw from exact
+  // programs with their own display scale and source binding; a uniformly
+  // scaled plane there keeps the source equation as its label by design.
+  if (document.source.synthesizedFamily === true) return [];
   const planes = document.constructions.flatMap((construction, index) =>
     construction.operator === "plane" && construction.outputs.length === 1 ? [{ construction, index, id: construction.outputs[0]! }] : []);
   if (planes.length === 0) return [];
