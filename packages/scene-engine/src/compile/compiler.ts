@@ -241,7 +241,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric)) {
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
-      const outputs = evaluateConstruction(operator, inputs, geometry, quantities);
+      const outputs = evaluateConstruction(operator, inputs, geometry, quantities, document);
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
         if (override) outputs[0] = { kind: "point", point: override };
@@ -1277,6 +1277,7 @@ function evaluateConstruction(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  document: SceneDocument,
 ): Geometry[] {
   const point = (names: string[]): Point => resolvePoint(first(inputs, names), geometry);
   const number = (names: string[]): number => resolveNumber(first(inputs, names), quantities);
@@ -1334,7 +1335,7 @@ function evaluateConstruction(
     case "metre_bridge":
     case "potentiometer":
     case "incline_friction":
-    case "cyclotron": return evaluateChapterInstrumentConstruction(operator, inputs, constructionContext);
+    case "cyclotron": return evaluateChapterInstrumentConstruction(operator, inputs, constructionContext, document);
     case "hydrostatic_profile":
     case "hydrostatic_state":
     case "buoyancy": return evaluateFluidConstruction(operator, inputs, constructionContext);
