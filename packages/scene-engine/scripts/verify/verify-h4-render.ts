@@ -45,6 +45,9 @@ const cases: Array<[string, () => void]> = [
     for (const [first, second] of [[-1, 1.5], [0.5, 3], [1, 1], [[500, 100], 1.5]]) {
       const changed = structuredClone(document); Object.assign(changed.annotations[0]!, { first, second }); reject(changed);
     }
+    const wrongUnit = structuredClone(document); wrongUnit.annotations[0]!.first = { value: 0.5, unit: "s" }; reject(wrongUnit);
+    const referenced = structuredClone(document); referenced.quantities = [{ id: "first", value: 0.5, unit: "1" }]; referenced.annotations[0]!.first = "first"; assert(compile(referenced).some(p => p.entityId === "slope"));
+    const wrongReference = structuredClone(referenced); wrongReference.quantities[0]!.unit = "s"; reject(wrongReference);
     const wrongTarget = structuredClone(document); wrongTarget.annotations[0]!.curve = "invented"; reject(wrongTarget);
     const defaultChord = structuredClone(document); delete defaultChord.annotations[0]!.curve; delete defaultChord.annotations[0]!.first; delete defaultChord.annotations[0]!.second;
     assert(extent(compile(defaultChord).filter(p => p.entityId === "slope")).width > 100);
@@ -91,6 +94,8 @@ const cases: Array<[string, () => void]> = [
   ["26 an own badge does not reroute its connector", () => {
     const primitives = compile(scene([["wire", "connect", "connector", { start: [0, 0], end: [6, 0] }], ["current", "sign_badge", "vector", { target: "wire", sense: "positive", at: 0.5 }]]));
     assert.equal(primitives.find(p => p.entityId === "wire")?.points.length, 2, "wire routes around its own badge");
+    const foreign = compile(scene([["wire", "connect", "connector", { start: [0, 0], end: [6, 0] }], ["crossing", "segment", "segment", { start: [3, -2], end: [3, 2] }], ["foreign", "sign_badge", "vector", { target: "crossing", sense: "positive", at: 0.5 }]]));
+    assert.equal(foreign.find(p => p.entityId === "wire")?.points.length, 4, "foreign marks must remain routing obstacles");
   }],
   ["27 long diagonal and circle labels stay near their ink", () => {
     const named = compile(scene([["bisector", "line", "line", { start: [0, 0], end: [6, 4] }], ["name", "label", "label", { target: "bisector", text: "b" }, "b"]]));

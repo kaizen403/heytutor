@@ -147,7 +147,7 @@ function scalarUnits(value: unknown, document: SceneDocument, seen = new Set<str
   if (seen.has(value)) return invalid("units", "quantity unit provenance must be acyclic");
   seen.add(value); return scalarUnits(quantity, document, seen, depth + 1);
 }
-function validateUnits(construction: SceneConstruction, document: SceneDocument, byOutput: Map<string, SceneConstruction>, geometry: unknown): void {
+export function validateCurveParameterUnits(construction: SceneConstruction, document: SceneDocument, byOutput: Map<string, SceneConstruction>, geometry: unknown): void {
   const producer = typeof construction.inputs.curve === "string" ? byOutput.get(construction.inputs.curve) : undefined;
   if (!producer) return;
   const inputs = producer.inputs;
@@ -253,7 +253,7 @@ export function validateCalculusConstruction(construction: SceneConstruction, in
   if (outputIds.length !== 1 || typeof outputIds[0] !== "string" || !outputIds[0].trim()) add("outputs", "calculus construction requires exactly one output");
   const context = analyticReplayContext(document, constructionByOutput);
   try {
-    validateUnits(construction, document, constructionByOutput, context.geometry(construction.inputs.curve));
+    validateCurveParameterUnits(construction, document, constructionByOutput, context.geometry(construction.inputs.curve));
     const result = evaluateCalculusConstruction(construction.operator, construction.inputs, context)[0]!;
     const expectedKind = result.kind === "point" ? "point" : result.directed ? "vector" : "line";
     if (document.entities.find((entity) => entity.id === outputIds[0])?.kind !== expectedKind) add("output_kind", `calculus output must use entity kind ${expectedKind}`);
@@ -273,7 +273,7 @@ export function validateAnalyticLineConstruction(construction: SceneConstruction
     const normalized = { ...construction, inputs };
     const context = analyticReplayContext(document, constructionByOutput);
     const geometry = context.geometry(inputs.curve);
-    validateUnits(normalized, document, constructionByOutput, geometry);
+    validateCurveParameterUnits(normalized, document, constructionByOutput, geometry);
     const curve = curveReference(inputs.curve, context);
     const at = parameter(inputs.at, "at", curve, context);
     if (!(at > curve.parameterMin && at < curve.parameterMax)) invalid("at", "analytic line parameter must be strictly inside the curve domain");

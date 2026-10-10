@@ -84,7 +84,7 @@ import { evaluateCircleConstruction } from "./circleGeometry";
 import { evaluateAffineConstruction } from "./affineGeometry";
 import { evaluateVectorConstruction, type VectorDefinition } from "./vectorGeometry";
 import { evaluateKinematicsConstruction, kinematicsPointResidual, type KinematicTrajectoryDefinition, type KinematicStateDefinition } from "./kinematicsGeometry";
-import { calculusAnchorResidual, evaluateCalculusConstruction, type CalculusAnchorDefinition, type CalculusDerivativeDefinition } from "./calculusGeometry";
+import { calculusAnchorResidual, evaluateCalculusConstruction, validateCurveParameterUnits, type CalculusAnchorDefinition, type CalculusDerivativeDefinition } from "./calculusGeometry";
 import { evaluateAcConstruction, type AcImpedanceDefinition, type AcPhasorDefinition } from "./acGeometry";
 import { evaluateWavesConstruction, type WaveDefinition, type WaveSampleDefinition } from "./wavesGeometry";
 import { evaluateGeometricOpticsConstruction, type OpticalImageDefinition, type OpticalFocusDefinition } from "./geometricOpticsGeometry";
@@ -474,6 +474,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       const value = geometry.get(curveId);
       const curve = value && "sampledCurve" in value ? value.sampledCurve : undefined;
       if (!curve) throw new Error("slope_triangle parameters require an analytically evaluated curve");
+      validateCurveParameterUnits({ id: annotation.id, operator: "curve_secant", inputs: { curve: curveId, first: annotation.first, second: annotation.second }, outputs: [] }, document, new Map(document.constructions.flatMap((construction) => construction.outputs.map((id) => [id, construction] as const))), value);
       const first = resolveNumber(annotation.first, quantities);
       const second = resolveNumber(annotation.second, quantities);
       if (first === second || first < curve.parameterMin || first > curve.parameterMax || second < curve.parameterMin || second > curve.parameterMax) throw new Error("slope_triangle parameters must be distinct and inside the curve domain");
@@ -4613,7 +4614,7 @@ function routedConnectorPoints(
   const normal = { x: -direction.y, y: direction.x };
   const clearance = Math.max(0.05, span * 0.015);
   const blockers = [...geometry.entries()].flatMap(([entityId, value]) => {
-    if (entityId === ignoredEntityId || (value.kind === "compound" && value.attachedTo === ignoredEntityId)) return [];
+    if (entityId === ignoredEntityId || (ignoredEntityId !== undefined && value.kind === "compound" && value.attachedTo === ignoredEntityId)) return [];
     if (value.kind === "point") return [];
     return pointsOf(value).some((point) => {
       const along = (point.x - start.x) * direction.x + (point.y - start.y) * direction.y;
