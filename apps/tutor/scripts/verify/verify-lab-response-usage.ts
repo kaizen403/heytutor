@@ -3,13 +3,14 @@ import { fetchVisualNeedAssessment } from "../../features/tutor-session/lib/scen
 import { budgetedVisualNeedFetch, visualNeedRequestWorstCaseUsd, summarizeVisualNeedCalls, type VisualNeedCallAccounting } from "../lecture-lab/labVisualNeed";
 import { labProviderConfig } from "../../lib/llm/labProviderConfig";
 import { resolveLlmRates } from "../../lib/obs/usageCost";
-import { LabSpendCap, parseOptions, restoredLabCharge, selectResumeProbes, plannerRequestWorstCaseUsd, directProviderRequestModel, reserveLabRequest, runBudgetedLabRows } from "../lecture-lab/run";
+import { LabSpendCap, parseOptions, restoredLabCharge, selectResumeProbes, plannerRequestWorstCaseUsd, directProviderRequestModel, reserveLabRequest, runBudgetedLabRows, labResponseUsagePricing } from "../lecture-lab/run";
 import { PlannerUsageTracker } from "../lecture-lab/diagramEval";
 import { assertLabSpendMode, assertLabUsageCheckpoint } from "../lecture-lab/labSpend";
 import { pickDiagramExamples } from "../lecture-lab/diagramExamplePicker";
 import { buildDiagramExampleCatalogue } from "../lecture-lab/diagramExamples";
 
 async function main(): Promise<void> {
+  verifyResumePricing();
   assert.equal(parseOptions(["--max-usd", "10"]).spendMode, "conservative");
   assert.equal(parseOptions(["--max-usd", "10", "--spend-mode", "response_usage"]).spendMode, "response_usage");
   assert.throws(() => parseOptions(["--max-usd", "10", "--spend-mode", "invalid"]), /spend-mode/);
@@ -151,6 +152,33 @@ async function main(): Promise<void> {
   }
   await verifyPortRegressions();
   console.log("Lab response-usage checks passed (zero network/model calls).");
+}
+
+function verifyResumePricing(): void {
+  const names = ["JEV_INPUT_USD_PER_1M", "JEV_OUTPUT_USD_PER_1M", "JEV_CACHED_INPUT_USD_PER_1M"] as const;
+  const original = new Map(names.map((name) => [name, process.env[name]]));
+  try {
+    const provider = { provider: "azure", deployment: "gpt-6-1-sol" };
+    const probes = [{ id: "resume-pricing", question: "Find the force." }];
+    const executionConfig = { spendMode: "response_usage", ...labResponseUsagePricing(provider.deployment) };
+    const saved = [{ probeId: probes[0]!.id, question: probes[0]!.question, arm: "strict", providerConfig: provider, executionConfig }];
+    assert.deepEqual(selectResumeProbes(probes, saved, "strict", provider, executionConfig), []);
+    for (const name of names) {
+      process.env[name] = String(Number(process.env[name] ?? "0") + 1);
+      const changed = { spendMode: "response_usage", ...labResponseUsagePricing(provider.deployment) };
+      assert.deepEqual(changed.pricing, executionConfig.pricing, "visual-selector rate changes leave Azure prices unchanged");
+      assert.throws(() => selectResumeProbes(probes, saved, "strict", provider, changed), /incompatible saved row/,
+        `${name} changes must reject resumed rows priced with the previous visual-selector rates`);
+      const previous = original.get(name);
+      if (previous === undefined) delete process.env[name]; else process.env[name] = previous;
+    }
+    assert.deepEqual(selectResumeProbes(probes, saved, "strict", provider,
+      { spendMode: "response_usage", ...labResponseUsagePricing(provider.deployment) }), [], "identical rates remain resumable");
+  } finally {
+    for (const [name, value] of original) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  }
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

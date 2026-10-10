@@ -393,6 +393,13 @@ export function restoredDiagramPng(diagram: { svg?: string | null; png?: string 
   return path && available(path) ? path : null;
 }
 
+export function labResponseUsagePricing(deployment: string) {
+  return {
+    pricing: resolveLlmRates(deployment),
+    visualNeedPricing: resolveLlmRates(LAB_VISUAL_NEED_POLICY.model),
+  };
+}
+
 export function selectResumeProbes<T extends { id: string; question: string }>(
   probes: readonly T[],
   saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string }; executionConfig?: Record<string, unknown> }[],
@@ -753,7 +760,7 @@ async function main(): Promise<void> {
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
-      pricing: resolveLlmRates(providerConfig.deployment),
+      ...labResponseUsagePricing(providerConfig.deployment),
       plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
     } : {}),
   };
