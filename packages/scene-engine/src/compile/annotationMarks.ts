@@ -163,7 +163,7 @@ export function labelAnchorForPath(
   const end = points.at(-1);
   if (!start) return { x: 0, y: 0 };
   if (!end || points.length === 1) return start;
-  if (infinite) return start;
+  if (infinite) return pointAlongPolyline(points, 0.5);
   return pointAlongPolyline(points, directed ? 0.82 : 0.5);
 }
 
@@ -372,17 +372,23 @@ export function endpointMark(
 export function senseArrows(start: MarkPoint, end: MarkPoint, count: CongruenceCount = 2): MarkPoint[][] {
   const span = Math.hypot(end.x - start.x, end.y - start.y);
   if (span < EPSILON) return [];
+  const ux = (end.x - start.x) / span;
+  const uy = (end.y - start.y) / span;
+  // This helper operates in screen pixels. Keep a visible head instead of
+  // passing a short shaft through a badge helper that scales it down again.
+  const shaft = Math.min(34, span * 0.16);
+  const head = Math.min(10, shaft * 0.35);
   const ats = count === 1 ? [0.55] : count === 2 ? [0.34, 0.68] : [0.28, 0.52, 0.76];
   return ats.flatMap((at) => {
-    const origin = {
-      x: start.x + (end.x - start.x) * (at - 0.08),
-      y: start.y + (end.y - start.y) * (at - 0.08),
-    };
     const tip = {
       x: start.x + (end.x - start.x) * at,
       y: start.y + (end.y - start.y) * at,
     };
-    return signBadgeGeometry({ start: origin, end: tip }, "positive", 1).paths;
+    return [
+      [{ x: tip.x - ux * shaft, y: tip.y - uy * shaft }, tip],
+      [tip, { x: tip.x - ux * head - uy * head * 0.5, y: tip.y - uy * head + ux * head * 0.5 }],
+      [tip, { x: tip.x - ux * head + uy * head * 0.5, y: tip.y - uy * head - ux * head * 0.5 }],
+    ];
   });
 }
 

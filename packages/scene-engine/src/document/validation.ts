@@ -4530,6 +4530,12 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   validateOpticalInstrumentProofContract(document, issues);
   document.annotations.forEach((annotation, index) => {
     annotation.targetIds.forEach((id, ref) => requireEntity(id, `annotations[${index}].targetIds[${ref}]`));
+    if (annotation.curve !== undefined || annotation.first !== undefined || annotation.second !== undefined) {
+      const curveId = annotation.curve ?? annotation.targetIds[0];
+      if (annotation.kind !== "slope_triangle" || typeof curveId !== "string" || !annotation.targetIds.includes(curveId) || annotation.first === undefined || annotation.second === undefined) {
+        issues.push({ code: "invalid_slope_triangle_parameters", message: "Analytic slope_triangle requires a targeted curve and both first/second parameters", severity: "fatal", path: `annotations[${index}]`, entityIds: [annotation.id] });
+      } else requireEntity(curveId, `annotations[${index}].curve`);
+    }
     if (!(SCENE_ANNOTATION_KINDS as readonly string[]).includes(annotation.kind)) {
       issues.push({
         code: "unknown_annotation_kind",

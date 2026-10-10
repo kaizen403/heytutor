@@ -104,6 +104,10 @@ export interface SceneAnnotation {
   quantityId?: string;
   placementIntent?: string;
   style?: SceneAnnotationStyle;
+  /** Analytic parameter anchors for slope_triangle; never render coordinates. */
+  curve?: string;
+  first?: unknown;
+  second?: unknown;
 }
 
 export interface SceneRevealGroup {

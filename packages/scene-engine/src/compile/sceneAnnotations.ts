@@ -47,6 +47,7 @@ export function appendCompiledAnnotations(
   entityToGroup: Map<string, string>,
   issues: SceneIssue[],
   anchorPrimitives: RenderPrimitive[] = [],
+  slopeAnchors: ReadonlyMap<string, readonly [RenderPoint, RenderPoint]> = new Map(),
 ): void {
   for (const annotation of document.annotations) {
     if (TEXT_KINDS.has(annotation.kind)) continue;
@@ -95,7 +96,7 @@ export function appendCompiledAnnotations(
       ? [...new Set(targets.map((target) => target.entityId))].map((id) => targets.filter((target) => target.entityId === id))
       : [targets];
     const extra = targetSets.flatMap((targetSet) => {
-      const marks = geometryFor(annotation, targetSet);
+      const marks = geometryFor(annotation, targetSet, slopeAnchors.get(annotation.id));
       // One arc is the existing verified arc, so count=1 needs no extra ink.
       const existingArc = annotation.kind === "equal_arc" && (annotation.style?.count ?? 1) === 1 && targetSet.some((target) => target.kind === "arc");
       if (marks.length === 0 && !existingArc) {
@@ -143,7 +144,7 @@ function groupFor(annotation: SceneAnnotation, entityToGroup: Map<string, string
   return undefined;
 }
 
-function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
+function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], slopeAnchors?: readonly [RenderPoint, RenderPoint]): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
   const count = congruenceCount(annotation.style?.count ?? 1);
   const ink = targets;
   const points = ink.flatMap((primitive) => primitive.points);
@@ -371,17 +372,12 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
     case "slope_triangle": {
       const poly = ink.find((primitive) => primitive.points.length >= 2);
       if (!poly) return [];
-      for (let index = 0; index < poly.points.length - 1; index += 1) {
-        const start = poly.points[index]!;
-        const end = poly.points[index + 1]!;
-        if (Math.abs(end.x - start.x) < 2 || Math.abs(end.y - start.y) < 2) continue;
-        return [{
-          kind: "polygon",
-          points: slopeTriangle(start, end),
-          provenance: { annotation: "slope_triangle", strokeRole: "construction" },
-        }];
-      }
-      return [];
+      const [start, end] = slopeAnchors ?? [poly.points[0]!, poly.points.at(-1)!];
+      if (Math.abs(end.x - start.x) < 2 || Math.abs(end.y - start.y) < 2) return [];
+      return [{
+        kind: "polygon", points: slopeTriangle(start, end),
+        provenance: { annotation: "slope_triangle", strokeRole: "construction" },
+      }];
     }
     default:
       return [];

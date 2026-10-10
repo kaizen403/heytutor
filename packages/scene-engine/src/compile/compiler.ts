@@ -128,6 +128,7 @@ type SampledCurve = {
   derivative?: (parameter: number) => Point;
 };
 type DerivedGeometryMetadata = {
+  rectangleAxes?: { width: [Point, Point]; height: [Point, Point]; axis?: "width" | "height" };
   combinatoricsGraph?: CombinatoricsGraphDefinition;
   combinatoricsNode?: CombinatoricsNodeDefinition;
   combinatoricsEdge?: CombinatoricsEdgeDefinition;
@@ -196,7 +197,7 @@ type Geometry =
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number; xLabel?: string; yLabel?: string }
   | { kind: "dimension"; a: Point; b: Point }
-  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
+  | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; attachedTo?: string; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
   | MatrixArrayGeometry;
 
 const EPSILON = 1e-6;
@@ -248,7 +249,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (!isExecutableSceneConstructionOperator(operator)) {
         throw new Error(`unsupported operator ${operator}`);
       }
-      if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric)) {
+      if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric) && !metricWaveDimension(inputs, geometry)) {
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
       const outputs = evaluateConstruction(operator, inputs, geometry, quantities, document);
@@ -465,7 +466,27 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       ? toPrimitives(id, "point", value, entityToGroup.get(id) ?? document.revealGroups[0]?.id ?? "scene", transformPlan.transformFor(id), transformPlan.viewportFor(id), false)
       : [],
   );
-  appendCompiledAnnotations(document, primitives, entityToGroup, issues, annotationAnchors);
+  const slopeAnchors = new Map<string, readonly [RenderPoint, RenderPoint]>();
+  for (const annotation of document.annotations) {
+    if (annotation.kind !== "slope_triangle" || annotation.first === undefined || annotation.second === undefined) continue;
+    try {
+      const curveId = annotation.curve ?? annotation.targetIds[0]!;
+      const value = geometry.get(curveId);
+      const curve = value && "sampledCurve" in value ? value.sampledCurve : undefined;
+      if (!curve) throw new Error("slope_triangle parameters require an analytically evaluated curve");
+      const first = resolveNumber(annotation.first, quantities);
+      const second = resolveNumber(annotation.second, quantities);
+      if (first === second || first < curve.parameterMin || first > curve.parameterMax || second < curve.parameterMin || second > curve.parameterMax) throw new Error("slope_triangle parameters must be distinct and inside the curve domain");
+      const a = curve.evaluate(first);
+      const b = curve.evaluate(second);
+      if (!finitePoint(a) || !finitePoint(b)) throw new Error("slope_triangle anchors must be finite");
+      const transform = transformPlan.transformFor(curveId);
+      slopeAnchors.set(annotation.id, [transform(a), transform(b)]);
+    } catch (error) {
+      issues.push({ code: "invalid_slope_triangle_parameters", message: errorMessage(error), severity: "fatal", entityIds: [annotation.id, ...annotation.targetIds] });
+    }
+  }
+  appendCompiledAnnotations(document, primitives, entityToGroup, issues, annotationAnchors, slopeAnchors);
   const annotationLabels = new Map(
     primitives
       .filter((primitive) => primitive.kind === "label" && typeof primitive.provenance?.annotationId === "string")
@@ -552,13 +573,18 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
     const transform = transformPlan.transformFor(entity.id);
+    const labelConstruction = entity.kind === "label" ? document.constructions.find((construction) => construction.operator === "label" && construction.outputs.includes(entity.id)) : undefined;
+    const labelTargetId = labelConstruction ? first(labelConstruction.inputs, ["target", "at", "point"]) : undefined;
+    const labelTarget = typeof labelTargetId === "string" ? geometry.get(labelTargetId) : undefined;
     labelOwners.push({
       labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
-      anchor: screenLabelAnchor(entity.id, target, primitives, transform),
+      anchor: labelTarget && typeof labelTargetId === "string"
+        ? screenLabelAnchor(labelTargetId, labelTarget, primitives, transformPlan.transformFor(labelTargetId))
+        : screenLabelAnchor(entity.id, target, primitives, transform),
       text: useCombinedText ? combinedText : entity.label,
       viewBounds: transformPlan.viewportFor(entity.id),
-      useOwnerBounds: target.kind === "point" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
+      useOwnerBounds: target.kind === "point" || target.kind === "path" || target.kind === "circle" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
       incidentTangents: target.kind === "point" && entity.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
       tetherPx: target.kind === "point" && entity.kind === "point" ? pointLabelTether(entity.label) : undefined,
       allowLeader: entity.kind === "point" ? !isPointIdentifierText(entity.label) : true,
@@ -679,7 +705,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         text,
         preferredSlot: placementSlot(annotation.placementIntent),
         viewBounds: transformPlan.viewportFor(targetId),
-        useOwnerBounds: target.kind === "point" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
+        useOwnerBounds: target.kind === "point" || target.kind === "path" || target.kind === "circle" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
         incidentTangents: target.kind === "point" && targetEntity?.kind === "point"
           ? screenIncidentTangents(target.point, geometry, transformPlan.transformFor(targetId))
           : undefined,
@@ -1465,7 +1491,7 @@ function evaluateConstruction(
     case "point": return [{ kind: "point", point: { x: number(["x"]), y: number(["y"]) } }];
     case "label": return [{
       kind: "point",
-      point: centerOf(resolveGeometry(first(inputs, ["target", "at", "point"]), geometry)),
+      point: labelAnchor(resolveGeometry(first(inputs, ["target", "at", "point"]), geometry)),
     }];
     case "segment": return [{
       kind: "path",
@@ -1508,7 +1534,12 @@ function evaluateConstruction(
     case "arc": return [{ kind: "arc", center: point(["center"]), radius: positive(number(["radius", "r"]), "radius"), startAngle: angle(number(["startAngle", "start_angle"]), inputs), endAngle: angle(number(["endAngle", "end_angle"]), inputs) }];
     case "rectangle": {
       const center = point(["center"]); const width = positive(number(["width"]), "width"); const height = positive(number(["height"]), "height");
-      return [{ kind: "path", closed: true, points: [{ x: center.x - width / 2, y: center.y - height / 2 }, { x: center.x + width / 2, y: center.y - height / 2 }, { x: center.x + width / 2, y: center.y + height / 2 }, { x: center.x - width / 2, y: center.y + height / 2 }] }];
+      if (inputs.axis !== undefined && inputs.axis !== "width" && inputs.axis !== "height") throw new Error("Rectangle direction axis must explicitly be width or height");
+      return [{ kind: "path", closed: true, rectangleAxes: {
+        width: [{ x: center.x - width / 2, y: center.y }, { x: center.x + width / 2, y: center.y }],
+        height: [{ x: center.x, y: center.y - height / 2 }, { x: center.x, y: center.y + height / 2 }],
+        axis: inputs.axis,
+      }, points: [{ x: center.x - width / 2, y: center.y - height / 2 }, { x: center.x + width / 2, y: center.y - height / 2 }, { x: center.x + width / 2, y: center.y + height / 2 }, { x: center.x - width / 2, y: center.y + height / 2 }] }];
     }
     case "polygon":
     case "polyline": return [{ kind: "path", closed: operator === "polygon", points: resolvePointArray(first(inputs, ["points", "vertices"]), geometry) }];
@@ -1650,8 +1681,8 @@ function evaluateConstruction(
     }
     case "right_angle_mark": {
       const vertex = point(["vertex"]);
-      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
-      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
+      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry, true);
+      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry, true);
       const u = normalize({ x: a.x - vertex.x, y: a.y - vertex.y });
       const v = normalize({ x: b.x - vertex.x, y: b.y - vertex.y });
       // A square corner asserts perpendicularity. Normalize first so the
@@ -1693,7 +1724,7 @@ function evaluateConstruction(
       if (at < 0 || at > 1) throw new Error("sign_badge at must be between 0 and 1");
       const sense = String(first(inputs, ["sense", "kind"]) ?? "positive");
       const badge = signBadgeGeometry({ start, end }, sense, at);
-      return [{ kind: "compound", paths: badge.paths, terminals: [start, end] }];
+      return [{ kind: "compound", paths: badge.paths, terminals: [start, end], attachedTo: typeof first(inputs, ["target", "axis", "path"]) === "string" ? String(first(inputs, ["target", "axis", "path"])) : undefined }];
     }
     case "reflect_direction": {
       const origin = point(["origin", "point"]); const incomingInput = first(inputs, ["incoming", "direction"]); assertPathMeetsOrigin(incomingInput, origin, geometry, "incoming"); const normalInput = first(inputs, ["normal"]); assertPathMeetsOrigin(normalInput, origin, geometry, "normal"); const incoming = resolveVector(incomingInput, geometry); const normal = normalize(resolveVector(normalInput, geometry)); const dot = incoming.x * normal.x + incoming.y * normal.y; const reflected = { x: incoming.x - 2 * dot * normal.x, y: incoming.y - 2 * dot * normal.y };
@@ -2136,10 +2167,12 @@ function createTransform(values: Geometry[], viewport: { x: number; y: number; w
   const innerWidth = viewport.width - 2 * padding;
   const innerHeight = viewport.height - 2 * padding;
   if (!(innerWidth > 0) || !(innerHeight > 0)) return null;
-  const width = Math.max(spanX, 1);
-  const height = Math.max(spanY, 1);
-  const uniformScale = Math.min(innerWidth / width, innerHeight / height);
-  if (shouldSplitPlotAxes(values, spanX, spanY, uniformScale)) {
+  // A missing dimension does not constrain scale; every positive extent does.
+  // Center using the actual ink span so subunit figures cannot inherit a
+  // phantom unit of empty space below or beside them.
+  const uniformScale = Math.min(spanX > 0 ? innerWidth / spanX : Infinity, spanY > 0 ? innerHeight / spanY : Infinity);
+  const scale = Number.isFinite(uniformScale) ? uniformScale : Math.min(innerWidth, innerHeight);
+  if (shouldSplitPlotAxes(values, spanX, spanY, scale)) {
     const scaleX = innerWidth / Math.max(spanX, EPSILON);
     const scaleY = innerHeight / Math.max(spanY, EPSILON);
     const offsetX = viewport.x + padding;
@@ -2149,13 +2182,13 @@ function createTransform(values: Geometry[], viewport: { x: number; y: number; w
       y: round(offsetY + innerHeight - (point.y - minY) * scaleY),
     });
   }
-  const usedWidth = width * uniformScale;
-  const usedHeight = height * uniformScale;
+  const usedWidth = spanX * scale;
+  const usedHeight = spanY * scale;
   const offsetX = viewport.x + (viewport.width - usedWidth) / 2;
   const offsetY = viewport.y + (viewport.height - usedHeight) / 2;
   return (point) => ({
-    x: round(offsetX + (point.x - minX) * uniformScale),
-    y: round(offsetY + usedHeight - (point.y - minY) * uniformScale),
+    x: round(offsetX + (point.x - minX) * scale),
+    y: round(offsetY + usedHeight - (point.y - minY) * scale),
   });
 }
 
@@ -2264,7 +2297,11 @@ function pushDegenerateProjectedGeometryIssues(
     if (points.length < 3) return;
     const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x));
     const height = Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y));
-    if (Math.min(width, height) >= MIN_PLANAR_SCREEN_PX) return;
+    // A native planar rectangle can be a thin plate with two distinct edges.
+    // Keep a four-pixel separation guard; projected regions retain the wider
+    // guard because an edge-on projection cannot certify a surface silhouette.
+    const minimum = value.kind === "path" && value.rectangleAxes ? 4 : MIN_PLANAR_SCREEN_PX;
+    if (Math.min(width, height) >= minimum) return;
     issues.push({
       code: "degenerate_projected_geometry",
       message: `${id} is a 2D region that collapsed to a line on the canvas`,
@@ -4337,6 +4374,22 @@ function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => Object.keys(metadata).some((key) => INDEPENDENT_DISPLAY_KEYS.has(key)) ||
     ("displayScale" in metadata && "unit" in metadata && "magnitude" in metadata));
 }
+
+/** Only typed samples of the same unscaled, same-length-unit wave are metric.
+ * Generic descendants and independently scaled or mixed-unit plots retain
+ * the existing ban on interpreting display coordinates as physical distance. */
+function metricWaveDimension(inputs: Record<string, unknown>, geometry: Map<string, Geometry>): boolean {
+  const start = first(inputs, ["start", "from", "a"]);
+  const end = first(inputs, ["end", "to", "b"]);
+  if (typeof start !== "string" || typeof end !== "string") return false;
+  const a = geometry.get(start);
+  const b = geometry.get(end);
+  if (a?.kind !== "point" || b?.kind !== "point" || !a.waveSample || !b.waveSample || a.waveSample.waveId !== b.waveSample.waveId) return false;
+  const owner = geometry.get(a.waveSample.waveId);
+  if (owner?.kind !== "path" || !owner.waveDefinition) return false;
+  const model = owner.waveDefinition;
+  return model.xScale === 1 && model.yScale === 1 && model.sourceUnits.position === model.sourceUnits.amplitude;
+}
 function hasPageNormalGlyph(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => metadata.pageNormal === "out" || metadata.pageNormal === "in");
 }
@@ -4381,7 +4434,7 @@ function assertPlanarGeometry(value: Geometry | undefined): void {
 }
 function resolvePoint(value: unknown, geometry: Map<string, Geometry>): Point { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asPoint(resolved); } if (Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item))) return { x: value[0] as number, y: value[1] as number }; if (isRecord(value) && typeof value.x === "number" && typeof value.y === "number") return { x: value.x, y: value.y }; throw new Error(`invalid point reference ${String(value)}`); }
 function resolvePointArray(value: unknown, geometry: Map<string, Geometry>): Point[] { if (!Array.isArray(value) || value.length < 2) throw new Error("points must contain at least two points"); return value.map((item) => resolvePoint(item, geometry)); }
-function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>): Point {
+function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>, allowSupportingLine = false): Point {
   if (typeof value !== "string") return resolvePoint(value, geometry);
   const resolved = geometry.get(value);
   assertPlanarGeometry(resolved);
@@ -4396,6 +4449,12 @@ function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<strin
   const lastPoint = points.at(-1)!;
   if (distance(firstPoint, vertex) < EPSILON && distance(lastPoint, vertex) >= EPSILON) return lastPoint;
   if (distance(lastPoint, vertex) < EPSILON && distance(firstPoint, vertex) >= EPSILON) return firstPoint;
+  // A right-angle square has no ambiguous acute/obtuse side. An infinite
+  // supporting line may pass through the vertex between its display anchors,
+  // but its exact incidence still has to hold. Finite arms keep endpoint rules.
+  if (allowSupportingLine && resolved?.kind === "path" && resolved.infinite && points.length === 2 && pointLineResidual(vertex, [firstPoint, lastPoint]) < EPSILON) {
+    return distance(lastPoint, vertex) >= distance(firstPoint, vertex) ? lastPoint : firstPoint;
+  }
   throw new Error("angle arm path must meet the angle vertex at exactly one endpoint");
 }
 function resolveLine(value: unknown, geometry: Map<string, Geometry>): [Point, Point] { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asLine(resolved); } if (Array.isArray(value) && value.length === 2) return [resolvePoint(value[0], geometry), resolvePoint(value[1], geometry)]; throw new Error(`invalid line reference ${String(value)}`); }
@@ -4428,7 +4487,7 @@ function linePoints(inputs: Record<string, unknown>, geometry: Map<string, Geome
 function distinctPathPoints(a:Point,b:Point,operator:string):[Point,Point]{if(distance(a,b)<EPSILON)throw new Error(`${operator} endpoints must be distinct`);return[a,b];}
 function assertPathMeetsOrigin(value:unknown,origin:Point,geometry:Map<string,Geometry>,name:string):void{if(typeof value!=="string")return;const resolved=geometry.get(value);if(resolved?.kind!=="path")throw new Error(`${name} must reference constructed path geometry`);const endpoints=[resolved.points[0],resolved.points.at(-1)].filter((point):point is Point=>Boolean(point));if(!endpoints.some((point)=>distance(point,origin)<EPSILON))throw new Error(`${name} geometry must meet the transform origin`);}
 function asPoint(value: Geometry | undefined): Point { if (!value) throw new Error("missing geometry"); if (value.kind === "point") return value.point; throw new Error("expected point geometry"); }
-function asLine(value: Geometry | undefined): [Point, Point] { if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
+function asLine(value: Geometry | undefined): [Point, Point] { if (value?.kind === "path" && value.rectangleAxes) { const axis = value.rectangleAxes.axis; if (!axis) throw new Error("Rectangle direction proofs require an explicit width or height axis"); return value.rectangleAxes[axis]; } if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
 function acuteAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
   const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
   const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
@@ -4554,7 +4613,7 @@ function routedConnectorPoints(
   const normal = { x: -direction.y, y: direction.x };
   const clearance = Math.max(0.05, span * 0.015);
   const blockers = [...geometry.entries()].flatMap(([entityId, value]) => {
-    if (entityId === ignoredEntityId) return [];
+    if (entityId === ignoredEntityId || (value.kind === "compound" && value.attachedTo === ignoredEntityId)) return [];
     if (value.kind === "point") return [];
     return pointsOf(value).some((point) => {
       const along = (point.x - start.x) * direction.x + (point.y - start.y) * direction.y;
@@ -4626,14 +4685,7 @@ function screenLabelAnchor(entityId: string, value: Geometry, primitives: Render
       // Infinite lines are clipped independently of their construction span.
       // A label leader must attach to the visible stroke, not an off-board
       // endpoint retained solely for the mathematical line definition.
-      const anchor = transform(labelAnchor(value));
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const lengthSquared = dx * dx + dy * dy;
-      const t = lengthSquared > EPSILON
-        ? Math.max(0, Math.min(1, ((anchor.x - start.x) * dx + (anchor.y - start.y) * dy) / lengthSquared))
-        : 0;
-      return { x: start.x + t * dx, y: start.y + t * dy };
+      return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
     }
   }
   const dimension = value.kind === "dimension"
