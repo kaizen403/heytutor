@@ -194,7 +194,7 @@ type Geometry =
     } & DerivedGeometryMetadata)
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
-  | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
+  | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number; xLabel?: string; yLabel?: string }
   | { kind: "dimension"; a: Point; b: Point }
   | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
   | MatrixArrayGeometry;
@@ -391,7 +391,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
 
   const dimensionLanes = computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds);
-  const hasLabels = document.entities.some((entity) => Boolean(entity.label)) ||
+  const hasLabels = [...geometry.values()].some((value) => value.kind === "axes" && (value.xLabel || value.yLabel)) ||
+    document.entities.some((entity) => Boolean(entity.label)) ||
     document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
       Boolean(annotation.kind === "callout"
@@ -493,6 +494,22 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
 
   const labelOwners: LabelOwner[] = [];
+  for (const [id, value] of geometry) {
+    if (value.kind !== "axes" || !renderableIds.has(id) || constructionOnlyIds.has(id)) continue;
+    const transform = transformPlan.transformFor(id);
+    for (const [axis, text, point, slot] of [
+      ["x", value.xLabel, { x: value.xMax, y: 0 }, "south"],
+      ["y", value.yLabel, { x: 0, y: value.yMax }, "east"],
+    ] as const) {
+      if (!text) continue;
+      annotationLabelOwners.push({
+        labelId: `primitive_${id}_${axis}_label`, entityId: id,
+        anchor: transform(point), text, preferredSlot: slot,
+        viewBounds: transformPlan.viewportFor(id), useOwnerBounds: false,
+        allowLeader: false, tetherPx: pointLabelTether(text),
+      });
+    }
+  }
   const consumedAnnotationIds = new Set<string>();
   const summaryLabelIds = new Set<string>();
   for (const entity of document.entities) {
@@ -1495,7 +1512,11 @@ function evaluateConstruction(
     }
     case "polygon":
     case "polyline": return [{ kind: "path", closed: operator === "polygon", points: resolvePointArray(first(inputs, ["points", "vertices"]), geometry) }];
-    case "axes": return [{ kind: "axes", xMin: number(["xMin", "x_min"]), xMax: number(["xMax", "x_max"]), yMin: number(["yMin", "y_min"]), yMax: number(["yMax", "y_max"]) }];
+    case "axes": return [{
+      kind: "axes", xMin: number(["xMin", "x_min"]), xMax: number(["xMax", "x_max"]),
+      yMin: number(["yMin", "y_min"]), yMax: number(["yMax", "y_max"]),
+      xLabel: axisIdentifier(inputs.xLabel), yLabel: axisIdentifier(inputs.yLabel),
+    }];
     case "function_region": return [{ kind: "path", closed: true, points: functionRegionPoints(inputs, geometry, quantities) }];
     case "constraint_region": return [{ kind: "path", closed: true, points: constraintRegionPoints(inputs, quantities) }];
     case "implicit_curve": return [implicitCurveGeometry(inputs, quantities)];
@@ -4637,6 +4658,14 @@ function labelAnchor(value: Geometry): Point {
   if (value.kind === "circle") return { x: value.center.x + value.radius, y: value.center.y };
   if (value.kind === "axes") return { x: 0, y: 0 };
   return centerOf(value);
+}
+
+function axisIdentifier(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || value.length > 16 || !/^[A-Za-zΑ-ω][A-Za-zΑ-ω0-9₀-₉_]*(?:\([^()=\d]{1,8}\))?$/.test(value)) {
+    throw new Error("Axes names must be compact symbolic identifiers, optionally followed by units");
+  }
+  return value;
 }
 
 function isPointIdentifierText(text: string): boolean {
