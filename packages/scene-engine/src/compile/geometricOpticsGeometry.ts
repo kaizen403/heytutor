@@ -276,7 +276,7 @@ export function validateGeometricOpticsConstruction(construction: SceneConstruct
   try {
     checkSourceUnits(construction.operator, construction.inputs, document);
     physicalModel(construction.operator, construction.inputs, context);
-    const protectedOperators = new Set(["space_point", "space_project", "space_intersection", "space_closest_points", "space_segment", "space_line", "plane", "electric_field", "field_components", "conic_center", "conic_focus", "conic_vertex", "curve_anchor", "curve_derivative", "curve_secant", "kinematic_state", "kinematic_trajectory", "marked_angle", "angle_marker", "function_curve", "parametric_curve", "polar_curve"]);
+    const protectedOperators = new Set(["space_point", "space_project", "space_intersection", "space_closest_points", "space_segment", "space_vector", "space_cross", "space_angle_mark", "space_right_angle_mark", "space_line", "plane", "electric_field", "field_components", "conic_center", "conic_focus", "conic_vertex", "curve_anchor", "curve_derivative", "curve_secant", "kinematic_state", "kinematic_trajectory", "marked_angle", "angle_marker", "function_curve", "parametric_curve", "polar_curve"]);
     const provenance = (source: string, key: string, ancestors = new Set<string>(), depth = 0): void => {
       if (depth > 32 || ancestors.has(source)) invalid(key, "optical coordinate provenance is cyclic or overdeep");
       const producer = constructionByOutput.get(source);

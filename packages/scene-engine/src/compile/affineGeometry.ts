@@ -134,7 +134,7 @@ export function evaluateAffineConstruction(operator: string, inputs: Record<stri
 }
 
 const PATH_KINDS = new Set(["segment", "line", "ray", "vector", "polyline", "polygon", "rectangle"]);
-const PROTECTED_PRODUCERS = new Set(["space_frame", "space_point", "space_line", "plane", "space_project", "space_intersection", "space_closest_points", "space_segment", "solid_anchor", "electric_field", "field_components", "conic", "conic_anchor", "conic_directrix", "conic_asymptotes", "conic_tangent", "function_curve", "parametric_curve", "polar_curve", "implicit_curve", "mark_angle"]);
+const PROTECTED_PRODUCERS = new Set(["space_frame", "space_point", "space_line", "plane", "space_project", "space_intersection", "space_closest_points", "space_segment", "space_vector", "space_cross", "space_angle_mark", "space_right_angle_mark", "solid_anchor", "electric_field", "field_components", "conic", "conic_anchor", "conic_directrix", "conic_asymptotes", "conic_tangent", "function_curve", "parametric_curve", "polar_curve", "implicit_curve", "mark_angle"]);
 const LENGTH_UNITS: Readonly<Record<string, string>> = {
   m: "m", meter: "m", meters: "m", metre: "m", metres: "m", cm: "cm", centimeter: "cm", centimeters: "cm", centimetre: "cm", centimetres: "cm",
   mm: "mm", millimeter: "mm", millimeters: "mm", millimetre: "mm", millimetres: "mm", km: "km", kilometer: "km", kilometers: "km", kilometre: "km", kilometres: "km",

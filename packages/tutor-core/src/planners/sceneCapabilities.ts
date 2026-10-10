@@ -129,6 +129,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "right_angle_mark", "angle_mark", "angle_bisector", "implicit_curve", "function_curve",
     "space_frame", "space_point", "space_line", "plane", "tick_mark",
     "space_project", "space_intersection", "space_closest_points", "space_segment",
+    "space_angle_mark", "space_right_angle_mark",
     "conic", "conic_anchor", "conic_directrix", "conic_asymptotes", "conic_tangent",
     "triangle_from_sides", "triangle_from_sas", "triangle_from_asa", "triangle_center",
     "circle_from_three_points", "circle_tangent_at", "circle_tangency_points", "circle_intersections",
@@ -136,7 +137,9 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "coordinate_distance", "section_point", "axis_translation", "line_relation", "line_intercepts", "line_equation", "line_intersection_angle", "line_concurrence", "point_line_distance",
     "matrix_array", "matrix_add", "matrix_scale", "matrix_product", "matrix_transpose",
   ],
-  vector_diagram: ["centre_of_mass", "com_motion", "point_mass_inertia", "simple_body_inertia", "axes_theorem", "rotational_motion", "rotational_state", "planar_torque", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "axes", "vector", "vector_components", "angle_mark", "label", "sign_badge", "tick_mark", "vector_sum", "vector_scale", "vector_projection", "velocity_triangle", "collinear_velocity_pair", "crossing_strategies", "parallel_guides", "relative_velocity", "uniform_circular_motion"],
+  vector_diagram: ["centre_of_mass", "com_motion", "point_mass_inertia", "simple_body_inertia", "axes_theorem", "rotational_motion", "rotational_state", "planar_torque", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "axes", "vector", "vector_components", "angle_mark", "label", "sign_badge", "tick_mark", "vector_sum", "vector_scale", "vector_projection", "velocity_triangle", "collinear_velocity_pair", "crossing_strategies", "parallel_guides", "relative_velocity", "uniform_circular_motion",
+    "space_frame", "space_point", "space_line", "plane", "space_project", "space_intersection", "space_segment",
+    "space_vector", "space_cross", "space_angle_mark", "space_right_angle_mark"],
 };
 
 const CHEMISTRY_PREDICATES = ["exists", "label_attached"] as const;
