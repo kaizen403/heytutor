@@ -4,7 +4,8 @@
  * 2. a nearly parallel but nonzero cross product is drawn, never zeroed;
  * 3. a genuinely small curve value keeps its value, only rounding at an
  *    irrational stated x (kπ/n) is certified zero;
- * 4. an accepted space right-angle mark proves its own angle.
+ * 4. an accepted space right-angle mark proves its own angle;
+ * 5. a translated figure keeps its verdict (tolerances follow local lengths).
  */
 import assert from "node:assert/strict";
 import { compileSceneDocument, validateSceneDocument, type SceneDocument } from "../../src/index";
@@ -93,4 +94,43 @@ const angle = (entities: string[], degrees: number) => [{ id: "angle", predicate
   assert(!compile(mark(0.2)).ok, "an 79 degree pair is still refused as a right angle");
 }
 
-console.log("PR #119 review findings: directed vector angles, nonzero near-parallel products, small-value labels and right-angle mark proofs verified");
+// 5. A figure keeps its verdict wherever it sits: tolerances follow the
+// figure's own lengths and float rounding, never the distance from the origin.
+{
+  const far = 1e6;
+  const fbase = base.filter((entity) => entity.id !== "O");
+  const rightMark = (x: number) => scene("Mark the right angle.",
+    [...fbase, { id: "V", kind: "point" }, { id: "A", kind: "point" }, { id: "B", kind: "point" }, { id: "r", kind: "right_angle_mark" }],
+    [origin, frame, sp("V", x, 0, 0), sp("A", x + 1, 0, 0), sp("B", x, 1, 0),
+      { id: "make_r", operator: "space_right_angle_mark", inputs: { frame: "frame", vertex: "V", a: "A", b: "B" }, outputs: ["r"] }],
+    angle(["r"], 90));
+  assert.deepEqual(compile(rightMark(0)).issues, [], "unit arms at the origin make a right angle");
+  assert.deepEqual(compile(rightMark(far)).issues, [], "the same unit arms translated to x = 1e6 still make a right angle");
+  const sameAsVertex = scene("Mark the angle.",
+    [...fbase, { id: "V", kind: "point" }, { id: "A", kind: "point" }, { id: "B", kind: "point" }, { id: "m", kind: "angle_mark" }],
+    [origin, frame, sp("V", far, 0, 0), sp("A", far, 0, 0), sp("B", far, 1, 0),
+      { id: "make_m", operator: "space_angle_mark", inputs: { frame: "frame", vertex: "V", a: "A", b: "B" }, outputs: ["m"] }]);
+  assert(!compile(sameAsVertex).ok, "a point arm on the vertex is still refused far from the origin");
+  // The plane x = at, drawn about its own foot (at, 0, 0); the vertex sits `off` from it.
+  const offPlane = (at: number, off: number) => scene("Mark the angle between the line and the plane.",
+    [...fbase, { id: "plane", kind: "polygon" }, { id: "V", kind: "point" }, { id: "Q", kind: "point" }, { id: "m", kind: "angle_mark" }],
+    [origin, frame, { id: "make_plane", operator: "plane", inputs: { frame: "frame", a: 1, b: 0, c: 0, d: at }, outputs: ["plane"] },
+      sp("V", at + off, 0, 0), sp("Q", at + off + 1, 1, 0),
+      { id: "make_m", operator: "space_angle_mark", inputs: { frame: "frame", vertex: "V", a: "plane", b: "Q" }, outputs: ["m"] }]);
+  // A plane drawn 1000 or more from the frame collapses on screen, so this
+  // case sits at 100, where the old rule let a vertex sit 1e-4 off the plane.
+  assert.deepEqual(compile(offPlane(0, 0)).issues, [], "a vertex on the plane marks the line-plane angle");
+  assert.deepEqual(compile(offPlane(100, 0)).issues, [], "a vertex on the plane x = 100 marks the same angle");
+  assert(!compile(offPlane(0, 5e-5)).ok, "a vertex 5e-5 off the plane is refused");
+  assert(!compile(offPlane(100, 5e-5)).ok, "a vertex 5e-5 off the plane x = 100 is refused too");
+  const crossFrom = (offset: number) => scene("Find a × b.",
+    [...fbase, { id: "P", kind: "point" }, { id: "Q", kind: "point" }, { id: "A", kind: "point" }, { id: "B", kind: "point" }, { id: "a", kind: "vector" }, { id: "b", kind: "vector" }, { id: "c", kind: "vector" }],
+    [origin, frame, sp("P", far, 0, 0), sp("Q", far, offset, 0), sp("A", far + 1, 0, 0), sp("B", far, offset, 1),
+      { id: "make_a", operator: "space_vector", inputs: { frame: "frame", start: "P", end: "A" }, outputs: ["a"] },
+      { id: "make_b", operator: "space_vector", inputs: { frame: "frame", start: "Q", end: "B" }, outputs: ["b"] },
+      { id: "make_c", operator: "space_cross", inputs: { frame: "frame", a: "a", b: "b" }, outputs: ["c"] }]);
+  assert(compile(crossFrom(0)).ok, "two vectors from one far point give a cross product");
+  assert(!compile(crossFrom(0.5)).ok, "vectors starting half a unit apart far from the origin need an origin");
+}
+
+console.log("PR #119 review findings: directed vector angles, nonzero near-parallel products, small-value labels, right-angle mark proofs and translation-invariant tolerances verified");
