@@ -1,8 +1,9 @@
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { evaluateMagneticHelix, magneticHelixPoint } from "../../src/compile/magneticHelixGeometry";
 import { validateSceneDocument } from "../../src/document/validation";
+import { validatePhysicsRegionClaims } from "../../src/compile/physicsRegionClaims";
 import { readFileSync } from "node:fs";
-import type { SceneDocument } from "../../src/types";
+import type { SceneDocument, SceneIssue } from "../../src/types";
 
 let checks = 0;
 const failures: string[] = [];
@@ -108,6 +109,34 @@ implicit.entities.at(-1)!.kind = "circle";
 implicit.constructions.at(-1)!.operator = "circle";
 implicit.constructions.at(-1)!.inputs = { center: "origin", radius: 1 };
 check(compile(implicit).report.issues.some(i => i.code === "helical_path_not_proven"), "typed helical trajectory is not proved by a circle");
+const unrelated = structuredClone(implicit);
+add(unrelated, "unrelatedHelix", "polyline", "magnetic_helix", { ...helix.constructions.at(-1)!.inputs }, "helical trajectory");
+check(compile(unrelated).report.issues.some(i => i.code === "helical_path_not_proven" && i.entityIds?.includes("trajectory")), "an unrelated valid helix cannot bless the planar trajectory");
+const hiddenIssues: SceneIssue[] = [];
+validatePhysicsRegionClaims(implicit, new Map<string, unknown>([["trajectory", { kind: "circle", center: { x: 0, y: 0 }, radius: 1 }], ["hiddenHelix", evaluateMagneticHelix(physical, context)[0]]]), Number, hiddenIssues);
+check(hiddenIssues.some(i => i.code === "helical_path_not_proven" && i.entityIds?.includes("trajectory")), "a hidden computed helix cannot bless the planar trajectory");
+const namedOrigin = structuredClone(helix); namedOrigin.entities.find(e => e.id === "start")!.label = "helix origin";
+check(compile(namedOrigin).ok, "a point may name the helix origin without claiming to draw a trajectory");
+const projection = structuredClone(implicit); delete projection.entities.at(-1)!.label;
+projection.annotations = [{ id: "projection_caption", kind: "callout", targetIds: ["trajectory"], text: "transverse projection" }];
+const projectionResult = compile(projection);
+check(projectionResult.ok, `a visibly labelled planar cross section is an honest projection: ${JSON.stringify(projectionResult.report.issues)}`);
+projection.annotations.push({ id: "fake_pitch", kind: "callout", targetIds: ["trajectory"], text: "pitch = 2 m" });
+check(compile(projection).report.issues.some(i => i.code === "helical_path_not_proven"), "a projection caption cannot certify a pitch claim");
+
+for (const angle of [0, Math.PI / 5, Math.PI / 2]) {
+  const rotated = structuredClone(slab), origin = { x: 1e6, y: -1e6 };
+  const transform = ([x, y]: readonly number[]) => [origin.x + x! * Math.cos(angle) - y! * Math.sin(angle), origin.y + x! * Math.sin(angle) + y! * Math.cos(angle)];
+  rotated.constructions.find(c => c.outputs.includes("centre"))!.inputs = { x: origin.x, y: origin.y };
+  const corners = [[-2, -0.5], [2, -0.5], [2, 0.5], [-2, 0.5]].map(transform);
+  const region = rotated.constructions.find(c => c.outputs.includes("slab"))!;
+  region.operator = "polygon"; region.inputs = { points: corners };
+  const field = rotated.constructions.find(c => c.outputs.includes("field"))!;
+  field.inputs = { start: transform([-3, 0]), end: transform([3, 0]) };
+  check(compile(rotated).report.issues.some(i => i.code === "field_in_zero_region"), `translated/rotated crossing at angle ${angle} is rejected`);
+  field.inputs = { start: transform([-3, 0.5]), end: transform([3, 0.5]) };
+  check(compile(rotated).ok, `translated/rotated boundary at angle ${angle} remains valid`);
+}
 
 // Retained planner documents are regression oracles, not runtime templates.
 const saved = JSON.parse(readFileSync(new URL("./fixtures/physics-safety-candidates.json", import.meta.url), "utf8")) as Record<string, SceneDocument>;

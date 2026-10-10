@@ -1,4 +1,6 @@
 import type { RenderPoint, SceneDocument, SceneIssue } from "../types";
+import type { MagneticHelixDefinition } from "./magneticHelixGeometry";
+import type { Vec3 } from "../math/space";
 
 function record(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function point(value: unknown): value is RenderPoint { return record(value) && typeof value.x === "number" && typeof value.y === "number"; }
@@ -38,6 +40,34 @@ function intersectsInterior(a: RenderPoint, b: RenderPoint, polygon: RenderPoint
   });
 }
 
+function helixRadius(value: unknown, helix: MagneticHelixDefinition): boolean {
+  if (!record(value) || !record(value.spaceSegment) || value.spaceSegment.frameId !== helix.frameId) return false;
+  const segment = value.spaceSegment;
+  if (!record(segment.a) || !record(segment.b)) return false;
+  const a = segment.a as unknown as Vec3, b = segment.b as unknown as Vec3;
+  const v = helix.perpendicularVelocity, axis = helix.axis, k = helix.displayScale / helix.angularFrequency;
+  const centre = { x: helix.origin.x + (v.y * axis.z - v.z * axis.y) * k, y: helix.origin.y + (v.z * axis.x - v.x * axis.z) * k, z: helix.origin.z + (v.x * axis.y - v.y * axis.x) * k };
+  const radius = helix.radius * helix.displayScale;
+  const tolerance = Math.max(radius * 1e-7, 64 * Number.EPSILON * Math.max(...[a, b, centre].flatMap(p => [Math.abs(p.x), Math.abs(p.y), Math.abs(p.z)])));
+  const offset = (p: Vec3): { axial: number; radial: number } => {
+    const x = p.x - centre.x, y = p.y - centre.y, z = p.z - centre.z;
+    const axial = x * axis.x + y * axis.y + z * axis.z;
+    return { axial, radial: Math.hypot(x - axial * axis.x, y - axial * axis.y, z - axial * axis.z) };
+  };
+  const first = offset(a), second = offset(b);
+  return Math.abs(first.axial - second.axial) <= tolerance &&
+    (first.radial <= tolerance && Math.abs(second.radial - radius) <= tolerance || second.radial <= tolerance && Math.abs(first.radial - radius) <= tolerance);
+}
+
+function planarRadius(value: unknown, circle: unknown): boolean {
+  const points = path(value);
+  if (!points || points.length !== 2 || !record(circle) || circle.kind !== "circle" || !point(circle.center) || typeof circle.radius !== "number") return false;
+  const centre = circle.center;
+  const distances = points.map(p => Math.hypot(p.x - centre.x, p.y - centre.y));
+  const tolerance = circle.radius * 1e-7;
+  return distances[0]! <= tolerance && Math.abs(distances[1]! - circle.radius) <= tolerance || distances[1]! <= tolerance && Math.abs(distances[0]! - circle.radius) <= tolerance;
+}
+
 /** Check explicit semantic claims against constructed geometry, never topics. */
 export function validatePhysicsRegionClaims(document: SceneDocument, geometry: ReadonlyMap<string, unknown>, number: (value: unknown) => number, issues: SceneIssue[]): void {
   const zeroRegions = new Set<string>();
@@ -65,11 +95,20 @@ export function validatePhysicsRegionClaims(document: SceneDocument, geometry: R
       }
     }
   }
-  // A radius/trajectory explicitly called helical cannot be certified by a
-  // planar circle plus narration. Only constructed world helix metadata proves
-  // axial advance. Unrelated circles and projections remain valid diagrams.
-  const helixClaims = document.entities.filter(entity => /\bheli(?:x|cal)\b/i.test(`${entity.role} ${entity.label ?? ""}`));
-  if (helixClaims.length && ![...geometry.values()].some(value => record(value) && record(value.magneticHelix))) {
-    issues.push({ code: "helical_path_not_proven", message: "A helical trajectory claim requires source-derived world helix geometry; a planar projection cannot prove pitch or axial advance", severity: "fatal", entityIds: helixClaims.map(entity => entity.id) });
+  // Ownership is local to the claim: an unrelated (even hidden) valid helix
+  // cannot bless a circle calling itself a trajectory. Points may name a helix
+  // origin without claiming to draw its path. A visible projection caption
+  // makes an honest cross section, but never certifies axial pitch.
+  const visibleTexts = (id: string): string[] => [document.entities.find(e => e.id === id)?.label ?? "", ...document.annotations.filter(a => a.targetIds.includes(id) && ["label", "callout"].includes(a.kind)).map(a => a.text ?? "")];
+  const projections = new Set(document.entities.filter(entity => visibleTexts(entity.id).some(text => /\b(?:transverse|planar|cross[- ]section)\b.*\bprojection\b|\btransverse (?:section|cross[- ]section)\b/i.test(text)) && !visibleTexts(entity.id).some(text => /\b(?:pitch|p)\s*[=≈~]/i.test(text))).map(entity => entity.id));
+  const helixes = [...geometry.values()].filter(value => record(value) && record(value.magneticHelix)).map(value => (value as { magneticHelix: MagneticHelixDefinition }).magneticHelix);
+  const helixClaims = document.entities.filter(entity => ["circle", "arc", "segment", "polyline", "vector", "line"].includes(entity.kind) && /\bheli(?:x|cal)\b/i.test(`${entity.role} ${entity.label ?? ""}`));
+  for (const entity of helixClaims) {
+    const value = geometry.get(entity.id);
+    if (record(value) && record(value.magneticHelix)) continue;
+    const isRadius = /\bradius\b/i.test(entity.role);
+    if (isRadius && (helixes.some(helix => helixRadius(value, helix)) || [...projections].some(id => planarRadius(value, geometry.get(id))))) continue;
+    if (projections.has(entity.id)) continue;
+    issues.push({ code: "helical_path_not_proven", message: "A helical trajectory needs its own source-derived world helix; a radius needs a verified relation to its axis. A visibly labelled planar projection proves no pitch or axial advance", severity: "fatal", entityIds: [entity.id] });
   }
 }
