@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|12|metre-bridge",
+  "topic_id": "physics|12|potentiometer",
   "question": "Draw the potentiometer circuit used to measure the emf ε of a cell. A driver cell E and a rheostat Rh send a steady current I along a uniform wire AB, with the positive terminal of E joined to A. The cell ε has its positive terminal joined to A and its negative terminal joined through a galvanometer G to a jockey J on the wire. G shows no deflection when AJ = ℓ.",
   "figure_kind": "circuit",
   "sceneDocument": {

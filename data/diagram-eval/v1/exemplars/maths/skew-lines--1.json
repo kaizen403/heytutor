@@ -1,5 +1,5 @@
 {
-  "topic_id": "maths|11|angle-between-intersecting-lines",
+  "topic_id": "maths|11|skew-lines",
   "question": "Line L₁ passes through A parallel to b, where b makes angles α, β, γ with the x, y and z axes. Line L₂ through C is skew to L₁. Show their common perpendicular PQ, the shortest distance between the lines, with P on L₁ and Q on L₂.",
   "figure_kind": "solid_3d",
   "sceneDocument": {

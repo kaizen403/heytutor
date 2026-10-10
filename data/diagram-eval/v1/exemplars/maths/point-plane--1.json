@@ -1,5 +1,5 @@
 {
-  "topic_id": "maths|11|angle-between-line-and-plane",
+  "topic_id": "maths|11|image-of-a-point-in-a-plane",
   "question": "Point P lies off the plane Π: r·n = d through A, and a line through P meets Π at Q. Show the normal n at A, the foot N of the perpendicular from P, the image P' of P in Π, and the angle θ between PQ and Π.",
   "figure_kind": "solid_3d",
   "sceneDocument": {

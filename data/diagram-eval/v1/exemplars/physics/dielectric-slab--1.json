@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|11|capacitor-with-conducting-slab",
+  "topic_id": "physics|11|parallel-plate-capacitor-with-dielectric",
   "question": "A parallel-plate capacitor of plate area A and plate separation d is charged so that its plates carry surface charge densities +σ and −σ, and is then disconnected from the battery. A dielectric slab of dielectric constant K and thickness t (t < d), covering the full plate area, is placed between the plates parallel to them, touching neither plate. Show the free and bound charges and the electric field in the air gaps and inside the slab, and find the new capacitance.",
   "figure_kind": "apparatus",
   "sceneDocument": {

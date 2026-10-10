@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|14|inductive-and-capacitive-reactance",
+  "topic_id": "physics|14|reactance-impedance-and-lcr",
   "question": "A series LCR circuit with R = 80 Ω, L = 0.10 H and C = 62.5 μF is driven by an AC source of V = 150 V rms and ω = 800 rad/s. Draw the circuit with a reference current direction and the phasor diagram of VR, VL and VC relative to the current. Find the impedance, the rms current and the phase angle, and state whether the current leads or lags the source voltage.",
   "figure_kind": "circuit",
   "sceneDocument": {

@@ -1,5 +1,5 @@
 {
-  "topic_id": "maths|7|applications-of-derivatives",
+  "topic_id": "maths|7|maxima-and-minima",
   "question": "For the curve y = ½(x³ − 9x² + 24x − 18), find the turning points A and B and say which is the maximum, state the interval on which y decreases, and find the tangent and the normal at the point P where x = 1.",
   "figure_kind": "function_plot",
   "sceneDocument": {

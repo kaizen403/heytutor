@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|11|charge-conservation-and-coulombs-law",
+  "topic_id": "physics|11|multiple-charges-and-superposition",
   "question": "Point charges qA = −1.5 μC and qB = +1.5 μC are fixed 0.80 m apart, A to the left of B. Point P lies on line AB extended, 0.50 m beyond B. Show the force each charge exerts on the other, the dipole moment, and the field of each charge at P, then find the net field at P. Use the standard Coulomb constant.",
   "figure_kind": "vectors_fbd",
   "sceneDocument": {

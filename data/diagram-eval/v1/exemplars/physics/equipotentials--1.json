@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|11|electric-field-lines",
+  "topic_id": "physics|11|equipotential-surfaces",
   "question": "A point charge +q is fixed at O. Sketch its electric field lines and two equipotential surfaces V₁ (inner) and V₂ (outer). Points A and B lie on V₁, and C lies on V₂ radially outward from B. Show the field at A, then compare the work done moving a test charge from A to B along V₁ with that from B to C.",
   "figure_kind": "field_lines",
   "sceneDocument": {

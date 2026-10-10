@@ -1,5 +1,5 @@
 {
-  "topic_id": "maths|10|circle-from-diameter-endpoints",
+  "topic_id": "maths|10|circle-general-form-radius-and-centre",
   "question": "The circle x² + y² + 2gx + 2fy = 0 passes through the origin O and has centre C(−g, −f) and radius r. AB is a diameter, with A(x₁, y₁) and B(x₂, y₂). The line y = mx meets the circle again at P. Show C as the midpoint of AB, the radius r, both points where the line meets the circle, the tangent at P, and a point Q on the circle with ∠AQB a right angle, so the circle is the locus of such points Q.",
   "figure_kind": "geometry",
   "sceneDocument": {

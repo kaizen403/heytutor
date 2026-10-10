@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|11|dipole-potential-energy-in-field",
+  "topic_id": "physics|11|torque-on-electric-dipole",
   "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts parallel to a uniform 45 kN/C field and is turned slowly about its centre through a quarter turn until it is perpendicular to the field. In the final position show the forces on the charges and the torque, then find the torque and the external work done.",
   "figure_kind": "vectors_fbd",
   "sceneDocument": {

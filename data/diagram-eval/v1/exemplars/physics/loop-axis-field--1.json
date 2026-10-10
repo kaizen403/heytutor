@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|11|field-on-axis-of-a-charged-ring",
+  "topic_id": "physics|13|biot-savart-law",
   "question": "A circular loop of radius R in the xy-plane, centred at O, carries a steady current I anticlockwise as seen from +z. Point P lies on its axis at distance d from O. Using the Biot–Savart law, show the fields dB at P from two diametrically opposite current elements, their cancelling transverse parts, and the resultant fields at P and at O.",
   "figure_kind": "field_lines",
   "sceneDocument": {

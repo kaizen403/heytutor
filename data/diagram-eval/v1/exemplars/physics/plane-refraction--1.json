@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|16|optical-fibre",
+  "topic_id": "physics|16|polarization-and-brewsters-law",
   "question": "Unpolarised light in air (n₁ = 1.00) falls on a flat glass surface (n₂ = 1.60) at the polarising (Brewster) angle. Draw the air-glass interface, the normal at the point of incidence O, and the incident, reflected and refracted rays; mark the angles of incidence i, reflection i′ and refraction r, and show that the reflected and refracted rays are perpendicular.",
   "figure_kind": "ray_optics",
   "sceneDocument": {

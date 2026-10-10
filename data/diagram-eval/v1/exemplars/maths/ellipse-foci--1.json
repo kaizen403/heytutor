@@ -1,5 +1,5 @@
 {
-  "topic_id": "maths|10|conic-sections-standard-forms",
+  "topic_id": "maths|10|eccentricity-foci-and-directrix",
   "question": "For the ellipse x^2/a^2 + y^2/b^2 = 1 with a > b and eccentricity e, mark the vertices A and A′, the foci S and S′, both directrices, the latus rectum LL′ through S, and the tangent at the point P(a cos θ, b sin θ).",
   "figure_kind": "geometry",
   "sceneDocument": {

@@ -1,5 +1,5 @@
 {
-  "topic_id": "physics|11|capacitors-and-combinations",
+  "topic_id": "physics|12|kirchhoffs-laws",
   "question": "Two ideal batteries drive a two-loop circuit. The left branch is a 17 V battery in series with R₁ = 1.5 Ω, the right branch is a 19 V battery in series with R₂ = 1 Ω, and the shared middle branch is R₃ = 2 Ω between junctions P and Q. Both batteries have their positive terminals toward P. Use Kirchhoff's laws to find the branch currents I₁, I₂ and I₃.",
   "figure_kind": "circuit",
   "sceneDocument": {
