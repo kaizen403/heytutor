@@ -616,6 +616,55 @@ const cn4ReportArg = process.argv.indexOf("--cn4-report");
 if (cn4ReportArg >= 0) writeFileSync(resolve(process.argv[cn4ReportArg + 1]!), JSON.stringify(cn4Report, null, 2) + "\n");
 console.log(JSON.stringify({ ...cn4Report, evidence: undefined }));
 // END PR136 CN4 DEFAULT REGRESSIONS.
+// BEGIN PR136 MIXED CN4 LIST REGRESSIONS — prior 155-group bodies unchanged.
+const mixedCn4Prior = { passed, failed: failures.length };
+const mixedCn4Evidence: Record<string, unknown>[] = [];
+for (const unsupported of ["[Ni(NO2)4]2-", "[Ni(CN)2(NH3)2]", "[Cu(py)4]2+"]) {
+  const supported = "[Ni(CN)4]2-";
+  for (const [first, second] of [[unsupported, supported], [supported, unsupported]]) {
+    check(`CN4-mixed-source-list-atomic-refusal-${first}-${second}`, () => {
+      const structureQuestion = `Draw the structure of ${first} and ${second}.`;
+      const cftQuestion = `Draw the crystal field splitting of ${first} and ${second}.`;
+      const coordinationDocument = api.buildCoordinationScene(structureQuestion, [], false);
+      const cftDocument = api.buildCrystalFieldScene(cftQuestion, [], false);
+      const structureSynthesis = synthesizeFamilyScene({ question: structureQuestion });
+      const cftSynthesis = synthesizeFamilyScene({ question: cftQuestion });
+      mixedCn4Evidence.push({ structureQuestion, cftQuestion,
+        coordinationCompiled: cn4CompileOutcome(coordinationDocument), cftCompiled: cn4CompileOutcome(cftDocument),
+        structureSynthesisFamily: structureSynthesis?.family ?? null, cftSynthesisFamily: cftSynthesis?.family ?? null });
+      assert.ok(api.isChemistryQuestion(structureQuestion), "honest figure refusal keeps chemistry teaching eligibility");
+      assert.equal(api.crystalFieldAnalysis(unsupported), null);
+      assert.equal(api.coordinationIsomers(unsupported), null);
+      assert.ok(api.crystalFieldAnalysis(supported));
+      assert.ok(api.coordinationIsomers(supported));
+      assert.equal(cftDocument, null, "no supported CFT subset may survive the requested list");
+      assert.equal(coordinationDocument, null, "no supported coordination subset may survive the requested list");
+      assert.equal(structureSynthesis, null);
+      assert.equal(cftSynthesis, null);
+    });
+  }
+}
+check("CN4-preserve-complete-supported-complex-list", () => {
+  const structureQuestion = "Draw the structure of [Ni(CN)4]2- and [Cu(NH3)4]2+.";
+  const cftQuestion = "Draw the crystal field splitting of [Ni(CN)4]2- and [Cu(NH3)4]2+.";
+  const coordinationDocument = api.buildCoordinationScene(structureQuestion, [], false);
+  const cftDocument = api.buildCrystalFieldScene(cftQuestion, [], false);
+  compiled("CN4-supported-complete-list-coordination", coordinationDocument);
+  compiled("CN4-supported-complete-list-CFT", cftDocument);
+  assert.equal(synthesizeFamilyScene({ question: structureQuestion })?.family, "chem_coordination");
+  assert.equal(synthesizeFamilyScene({ question: cftQuestion })?.family, "chem_cft");
+  mixedCn4Evidence.push({ structureQuestion, cftQuestion, expected: "both supported complexes retained",
+    coordinationCompiled: cn4CompileOutcome(coordinationDocument), cftCompiled: cn4CompileOutcome(cftDocument) });
+});
+const mixedCn4Report = { priorGroups: mixedCn4Prior.passed + mixedCn4Prior.failed,
+  priorPassed: mixedCn4Prior.passed, priorFailed: mixedCn4Prior.failed,
+  addedGroups: passed + failures.length - mixedCn4Prior.passed - mixedCn4Prior.failed,
+  addedPassed: passed - mixedCn4Prior.passed, addedFailed: failures.length - mixedCn4Prior.failed,
+  evidence: mixedCn4Evidence };
+const mixedCn4ReportArg = process.argv.indexOf("--cn4-mixed-report");
+if (mixedCn4ReportArg >= 0) writeFileSync(resolve(process.argv[mixedCn4ReportArg + 1]!), JSON.stringify(mixedCn4Report, null, 2) + "\n");
+console.log(JSON.stringify({ ...mixedCn4Report, evidence: undefined }));
+// END PR136 MIXED CN4 LIST REGRESSIONS.
 const report = { mode: "actual installed public source (offline)", candidateGroups: passed + failures.length, engineAssertions, passed, failed: failures.length, renders, writtenRenders, failures, printedConfigurationChecks,
   parentComparisons: { executed: parentComparisonsExecuted, skipped: parentComparisonsSkipped, rows: parentComparisonRows }, historicalOverlayComparisonsExecuted: 0,
   excludedF2Controls: { count: 5, status: "deferred, not executed or passed", names: ["composition-network-whole-source-refusal (F2 binding audit)", "composition-supported-CO2-whole-source (F2 admission)", "composition-bound-H3PO2-source-and-graph", "composition-bound-H3PO3-source-and-graph", "composition-bound-H3PO4-source-and-graph"] },

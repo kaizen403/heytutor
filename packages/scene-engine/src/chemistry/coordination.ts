@@ -643,7 +643,14 @@ function stemComplexes(question: string): StemComplex[] {
     const after = index >= 0 ? normalized.slice(index + token.length) : "";
     if (/\]\s*$/.test(before) || /^\s*\[/.test(after)) continue;
     const result = coordinationIsomers(token);
-    if (!result || seen.has(result.formula)) continue;
+    if (!result) {
+      const parsed = parseComplex(token);
+      // A complete CN4 source that our geometry policy cannot certify is
+      // still an obligation; dropping it would draw only a supported subset.
+      if (parsed?.coordinationNumber === 4 && fourCoordinateGeometry(parsed) === null) return [];
+      continue;
+    }
+    if (seen.has(result.formula)) continue;
     seen.add(result.formula);
     const prefixMatch = PREFIX.exec(before.slice(-8));
     const prefix = prefixMatch ? (prefixMatch[1]!.toLowerCase() as StemComplex["prefix"]) : null;
