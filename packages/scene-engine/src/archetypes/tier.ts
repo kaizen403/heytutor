@@ -62,6 +62,11 @@ export function tierForForeignDocument(document: SceneDocument, options: { schem
   if (options.schematic) {
     return { tier: "question_representation", nonMetric: true, reason: "schematic representation" };
   }
+  // Proofs of a normalized representative certify its shape, not physical
+  // measurements. A declaration can lower authority, never raise it.
+  if (document.source.nonMetric === true || document.source.representationTier === "qualitative_verified") {
+    return { tier: "qualitative_verified", nonMetric: true, reason: "declared nonmetric representative; proofs certify display geometry only" };
+  }
   const proofs = metricAssertions(document);
   if (proofs.length > 0) {
     return { tier: "exact_verified", nonMetric: false, reason: `metric proof ${[...new Set(proofs)].join("/")}` };
