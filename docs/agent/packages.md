@@ -4,6 +4,11 @@ All packages live in `packages/`, build with tsup, and are consumed through
 workspace dependencies. Public imports stay the package barrel (`@heytutor/scene-engine`,
 and so on). See [layout.md](layout.md) for where new files go.
 
+Every package exports its built `dist/`, not `src/`. `tutor-core` and the
+tutor app therefore see scene-engine changes only after a rebuild: run
+`pnpm --filter @heytutor/scene-engine build` before trusting their verify
+gates (`turbo run dev` rebuilds on change).
+
 ## `@heytutor/scene-engine`
 
 The only structural diagram authority.
@@ -21,13 +26,15 @@ The only structural diagram authority.
 | Label placement | `src/labels/labelEngine.ts` |
 | Capability manifest | `src/capability/capabilityManifest.ts` |
 | Family synthesis | `src/synthesize/familyScene.ts`, `src/synthesize/sceneDemand.ts` |
-| Archetypes | `src/archetypes/` (detect, slots, generators — reusable, not topic plugins) |
+| Archetypes | `src/archetypes/` (detect, slots, generators; reusable, not topic plugins). See [archetypes.md](archetypes.md) |
 | DSA traces → figures | `src/dsa/` (`algorithmCatalog`, simulators, `traceToScene`) |
+| Chemistry figures | `src/chemistry/` (`classify.ts` subject test, `router.ts` family order, one module per family). See [chemistry-lessons.md](chemistry-lessons.md) |
+| Coverage evaluation contract | `src/eval/coverageEvalV1.ts` (frozen `coverage-eval/v1` oracle) |
 | Golden corpus | `scripts/verify/verify-golden-corpus.ts` |
 | Capability corpora | `scripts/verify/verify-physics-evaluation-corpus.ts`, `scripts/verify/verify-math-evaluation-corpus.ts` |
 | Compile oracles | `scripts/probes/evaluationCompileProbes.ts`, `scripts/verify/verify-evaluation-compile.ts` |
 | Syllabus capability corpus | `scripts/verify/verify-syllabus-corpus.ts` (Tier A name-check over the local question bank + Tier A+ per-unit compile-and-prove) |
-| Bank family compile | `scripts/verify/verify-bank-family-compile.ts` (live `synthesizeFamilyScene` over classified Physics+Maths diagram-worthy rows; dated report under `data/question-bank/reports/coverage/`) |
+| Bank family compile | `scripts/verify/verify-bank-family-compile.ts` (live `synthesizeFamilyScene` over classified Physics+Maths diagram-worthy rows; writes the dated report under `data/question-bank/reports/coverage/` only with `--report`) |
 
 The package consumes coordinate-free semantic documents and emits validated
 screen-space render primitives. It contains reusable operators and assertions,
@@ -48,7 +55,6 @@ Generic whiteboard transport and animation utilities.
 | Board zones | `src/layout/boardZones.ts` |
 | Board typography | `src/layout/boardTypography.ts` |
 | Pen write-clock | `src/sync/writeAudioClock.ts`, `src/sync/scheduleFrame.ts` |
-| Stroke/cursor animation | `src/animation/strokeAnimation.ts`, `src/animation/cursorAnimation.ts` |
 
 This package no longer contains topic templates, a geometry compiler, domain
 plugins, or endpoint snapping.
@@ -66,7 +72,8 @@ Planning transport, teaching model, TTS, and audio synchronization.
 | Teaching prompt | `src/llm/systemPrompt.ts` |
 | LLM stream | `src/llm/llmAPI.ts` |
 | Audio sync | `src/sync/audioSync.ts` |
-| TTS | `src/tts/createTTSClient.ts`, `src/tts/elevenLabsClient.ts`, `src/tts/elevenLabsWebSocketClient.ts` |
+| TTS | `src/tts/createTTSClient.ts`, `src/tts/speechClient.ts` (HTTP), `src/tts/streamingSpeechClient.ts` (WebSocket). The `elevenLabs*` files are re-export aliases |
+| Spoken notation | `src/tts/speechNotation.ts` (`mathToSpeech`) |
 | Code-lesson plan / teach | `src/code/` (`codeLessonPlan`, `codeLessonPlanner`, `codeLessonTeaching`, gates) |
 
 The teaching prompt is domain-neutral and cannot author diagram ink.
@@ -76,8 +83,10 @@ the tutor app. See [layout.md](layout.md).
 ## `@heytutor/whiteboard`
 
 Konva rendering and imperative draw/write APIs. It renders trusted commands but
-does not decide diagram semantics. `src/` stays flat. Chrome that must not pull
-Konva imports `@heytutor/whiteboard/pen-spinner`.
+does not decide diagram semantics. `src/` stays flat. Two Konva-free subpath
+exports exist: `@heytutor/whiteboard/pen-spinner` (chrome spinner) and
+`@heytutor/whiteboard/marker-ink` (the student highlighter stroke, shared by the
+live board and its walkthrough).
 
 ## Verification
 

@@ -27,6 +27,12 @@
         "id": "tangent",
         "kind": "line",
         "role": "analytic calculus geometry"
+      },
+      {
+        "id": "tangent_label",
+        "kind": "label",
+        "role": "line label",
+        "label": "tangent"
       }
     ],
     "constructions": [
@@ -65,10 +71,28 @@
         "outputs": [
           "tangent"
         ]
+      },
+      {
+        "id": "label_tangent",
+        "operator": "label",
+        "inputs": {
+          "target": "anchor",
+          "text": "tangent"
+        },
+        "outputs": [
+          "tangent_label"
+        ]
       }
     ],
     "relations": [],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "tangent at x = 1"
+      }
+    ],
     "assertions": [
       {
         "id": "anchor-on-curve",
@@ -84,7 +108,8 @@
     "requiredEntityIds": [
       "curve",
       "anchor",
-      "tangent"
+      "tangent",
+      "tangent_label"
     ],
     "revealGroups": [
       {
@@ -92,7 +117,8 @@
         "entityIds": [
           "curve",
           "anchor",
-          "tangent"
+          "tangent",
+          "tangent_label"
         ],
         "dependsOn": [],
         "narrationCue": "show the curve and its tangent"

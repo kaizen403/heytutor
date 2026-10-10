@@ -13,7 +13,7 @@ It is a student product (age 13+) for 1:1 lessons on a live whiteboard. Not a te
 - [AI tutor](https://accelute.co/ai-tutor): tutoring model vs chat and photo solvers
 - [AI study](https://accelute.co/ai-study): study sessions, replay, and notes
 - [About Accelute](https://accelute.co/about): brand, product, contact
-- [Pricing](https://accelute.co/#pricing): Free, Plus, Pro, and Team
+- [Pricing](https://accelute.co/#pricing): Free and Plus, add credits any time, and a contact option for coaching centres
 - [Terms](https://accelute.co/terms)
 - [Privacy](https://accelute.co/privacy)
 

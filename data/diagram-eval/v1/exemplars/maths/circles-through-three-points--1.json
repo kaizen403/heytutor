@@ -32,6 +32,12 @@
         "id": "circle",
         "kind": "circle",
         "role": "verified circle geometry"
+      },
+      {
+        "id": "a_label",
+        "kind": "label",
+        "role": "point label",
+        "label": "A"
       }
     ],
     "constructions": [
@@ -79,16 +85,35 @@
         "outputs": [
           "circle"
         ]
+      },
+      {
+        "id": "label_a",
+        "operator": "label",
+        "inputs": {
+          "target": "a",
+          "text": "A"
+        },
+        "outputs": [
+          "a_label"
+        ]
       }
     ],
     "relations": [],
     "assertions": [],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "circumcircle through A, B, C"
+      }
+    ],
     "requiredEntityIds": [
       "a",
       "b",
       "c",
-      "circle"
+      "circle",
+      "a_label"
     ],
     "revealGroups": [
       {
@@ -97,7 +122,8 @@
           "a",
           "b",
           "c",
-          "circle"
+          "circle",
+          "a_label"
         ],
         "dependsOn": [],
         "narrationCue": "show circle geometry"

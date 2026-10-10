@@ -1,8 +1,10 @@
 # Topic progress and agent completion logs
 
-Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](../../agent/coverage-continuation-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+Status, 9 October 2026: per-topic chapter diagram work is paused. This matrix is the topic checklist. Do not assign packets or claim rows.
 
-## Execution policy of 4 October 2026
+Current ledger (`topic-progress.csv`, 896 rows): 13 `accepted` (Chemistry Atomic Structure 6/6 and Chemical Bonding 7/7), 36 `verification_pending`, 6 `auditing`, 234 `blocked`, 607 `planned`.
+
+## Execution policy of 4 October 2026 (historical, 4 to 9 October 2026)
 
 The owner resumed the nine topic queue under a revised policy. Practical
 **TOPIC-READY for a declared scope** is now the working milestone and is
@@ -10,12 +12,12 @@ tracked in [readiness.md](readiness.md). The full certification gate below no
 longer blocks that work, but it still governs `accepted` in the ledger: a READY
 topic is never written as `accepted`, the counters below stay as they are, and
 old evidence is preserved. READY and FULLY-CERTIFIED are reported as separate
-counts. Execution log: [claude-execution-20261004.md](work-logs/claude-execution-20261004.md).
+counts.
 
 ## Pause of 3 October 2026 (superseded for the nine topic queue)
 
-The programme is on hold for a local Claude handoff. **Accepted topics remain
-zero.** The [wind-down log](work-logs/wind-down-HEY83-20261003.md) records current
+The programme was put on hold for a local Claude handoff. Accepted topics were
+zero on that date; the 13 Chemistry rows were accepted later. The [wind-down log](work-logs/wind-down-HEY83-20261003.md) records current
 fixes, the single complete common Matrix student smoke, known gaps, paused
 assignments and original workspaces. Older slot/dispatch language below is
 historical; it does not authorize new work. The single local handoff branch
@@ -25,14 +27,12 @@ is increased from tests, workers finishing, or that one smoke.
 
 Tracking snapshot: **2026-10-02-topic-matrix-v1**. This ledger starts with **no newly accepted topic evidence**. Existing engine support is still unknown at topic level, not zero. Historical fractions such as Kinematics **6/14** remain a baseline inventory record; they are not automatically copied into accepted rows.
 
-## Mandatory completion workflow
+## Completion workflow
 
-1. The coordinator reads the [matrix](index.md), freezes the source/exam/evaluation version and assigns exact topic IDs, dependencies and disjoint files. Register the owner and version on those rows in [topic-progress.csv](topic-progress.csv).
-2. Each worker maintains a unique `work-logs/<packet>-<assignment-id>.md` using the [work-log template](work-logs/TEMPLATE.md). Record actual changed files, independent expectations, exact commands/results, artifacts and per-topic remaining variants. Write/update this log before reporting an assignment finished, including when blocked or only partially complete.
-3. The worker proposes `integration_pending`, `verification_pending` or `blocked`; finishing code or one gate does not authorize acceptance. Keep shared ledger/root-counter edits with the integration owner to prevent concurrent writers from losing each other's updates.
-4. The integration owner independently checks the full frozen topic contract and the root plan's shared/render/live/persistence/replay gates. Record the acceptance disposition in the worker log. Audit already-existing support the same way: new implementation is not required when existing code can supply all evidence.
-5. After review, update the exact ledger rows and recompute the unique accepted-topic counts for each chapter. Update both the chapter table below and the root queue's **Accepted topics (new audit)** column. A count changes only when the topic states/evidence change, not when a worker finishes or a new operator is named.
-6. Report the transition and remaining obligations, for example `6/14 -> 10/14`, or `14/14 accepted` after all fourteen full topic rows qualify. A compound topic with unverified required variants stays partial/pending. Apply the root >90% inventory threshold and lifecycle gates before declaring a chapter complete; accepted topic counts alone are not a release or merge authorization.
+Paused 9 October 2026. Per-topic packet work stopped, so no worker log or
+acceptance review is running. The 2 to 6 October packet logs that no ledger row
+cites were removed; the 12 logs that `topic-progress.csv` cites stay in
+`work-logs/`.
 
 ## Row contract
 
@@ -42,7 +42,7 @@ Tracking snapshot: **2026-10-02-topic-matrix-v1**. This ledger starts with **no 
 | --- | --- |
 | `topic_id`, `packet`, `catalog` | Exact stable assignment identity; preserve it when recording work. |
 | `state` | `planned`, `auditing`, `implementing`, `integration_pending`, `verification_pending`, `accepted` or `blocked`. Partial work stays in one of the non-accepted states. |
-| `owner` | Actual assigned worker or coordinator; initially blank because no implementation assignment has started. |
+| `owner` | Assigned worker or coordinator. 302 rows carry an owner from the 2 to 9 October packets; these are historical labels, not live assignments. |
 | `scope_version` | Actual frozen evaluation/source profile with exam/year and declared variants; initially blank. Counts in one acceptance report use one compatible frozen profile, not a mix of incompatible exams/versions. |
 | `evidence_ref` | Repository-relative work-log path containing real case, command and artifact evidence; required for accepted rows. |
 | `accepted_by`, `accepted_at` | Actual integration reviewer and ISO-8601 acceptance timestamp, not a planned reviewer or date. Required only after acceptance. |
@@ -156,12 +156,19 @@ Each catalog uses its own declared grain. These rows do not add chapters to the 
 | supplemental | Polymers | 0/1 — audit pending | 1 |
 | supplemental | Chemistry in Everyday Life | 0/1 — audit pending | 1 |
 
-## Work-log index
+## Logs cited by topic-progress.csv
 
-Accepted counts below are unchanged. Allocation is not acceptance.
+These 12 logs are the `evidence_ref` targets in the ledger, so they stay in
+`work-logs/`. The other packet logs were removed in October 2026 and remain in
+the repository history. Allocation is not acceptance.
 
 | Log | Owner | Scope version | Disposition | Accepted-count change |
 | --- | --- | --- | --- | --- |
+| [C-02-atomic-structure-20261004.md](work-logs/C-02-atomic-structure-20261004.md) | chemistry lane | 2026-10-02-topic-matrix-v1 | Evidence for the six accepted Atomic Structure rows. | Atomic Structure 6/6 accepted |
+| [C-03-chemical-bonding-20261003.md](work-logs/C-03-chemical-bonding-20261003.md) | chemistry lane | 2026-10-02-topic-matrix-v1 | Evidence for the seven accepted Chemical Bonding rows. | Chemical Bonding 7/7 accepted |
+| [C-04-chemical-thermodynamics-20261005.md](work-logs/C-04-chemical-thermodynamics-20261005.md) | chemistry lane | 2026-10-02-topic-matrix-v1 | Six thermodynamics rows are `verification_pending`. | none |
+| [parallel-qualifications-HEY88-20261003.md](work-logs/parallel-qualifications-HEY88-20261003.md) | see log | 2026-10-02-topic-matrix-v1 | Cited by four rows (three `auditing`, one `verification_pending`). | none |
+| [wind-down-HEY83-20261003.md](work-logs/wind-down-HEY83-20261003.md) | see log | 2026-10-02-topic-matrix-v1 | The 3 October pause and handoff record; cited by the nine topic-queue rows in [readiness.md](readiness.md). | none |
 | [integrator-ch06-ch10-s0.md](work-logs/integrator-ch06-ch10-s0.md) | integration owner | 2026-10-02-topic-matrix-v1 | S0 frozen for chapters 6–10. CH-07b/07c, CH-09a/09b/09c and CH-10c blocked on named unaccepted prerequisites. CH-06a, CH-07a and CH-08a assigned and not yet accepted. | none; chapters 6–10 remain 0 accepted |
 | [integrator-ch11-ch25-handoff.md](work-logs/integrator-ch11-ch25-handoff.md) | integration owner | 2026-10-02-topic-matrix-v1 | S0 profile extended to chapters 11–25. CH-14a is submitted and `verification_pending`. Slot 3 stays with CH-14a; the submission does not free it or authorize CH-15a. Slots 1 and 2 are free and unassigned. HEY-85 has no approved packet. CH-18 stays with HEY-84 and is blocked on S3. | none; chapters 11–25 remain 0 accepted |
 | [CH-08a-2026-10-03.md](work-logs/CH-08a-2026-10-03.md) | integration owner | 2026-10-02-topic-matrix-v1 | Seven dipole operators compile and the 983-check gate passed. Rows are `verification_pending`. Live reveal, saved-turn persistence, and saved-turn replay were not run. | none; Electrostatics remains 0/24 |
@@ -169,5 +176,3 @@ Accepted counts below are unchanged. Allocation is not acceptance.
 | [CH-07a-2026-10-03.md](work-logs/CH-07a-2026-10-03.md) | integration owner | 2026-10-02-topic-matrix-v1 | Five rigid-mass operators compile and the 186-check gate passed. Rows are `verification_pending`. Live reveal, saved-turn persistence, and saved-turn replay were not run. | none; Rotational Motion remains 0/17 |
 | [CH-14a-HEY-84.md](work-logs/CH-14a-HEY-84.md) | integration owner | 2026-10-02-topic-matrix-v1 | Five matrix operators compile and the 9,218-check gate passed. Rows are `verification_pending`. Live reveal, saved-turn persistence, and saved-turn replay were not run. Slot 3 stays with CH-14a. CH-15a is not authorized. | none; Matrices and Determinants remains 0/14 |
 | [C-05-solutions-20261006.md](work-logs/C-05-solutions-20261006.md) | chemistry lane | 2026-10-02-topic-matrix-v1 | Six solution rows compile and have saved reopened replays. Rows are `verification_pending`. Lecture audio was not tested. Henry's law is counted only on chemistry\|5. | none; Solutions remains 0/6 |
-
-Packet logs are added here only after the worker writes them. The template is not evidence.

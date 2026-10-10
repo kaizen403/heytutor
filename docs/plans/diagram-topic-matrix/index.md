@@ -1,18 +1,18 @@
 # Topic-to-agent delegation matrix
 
-Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](../../agent/coverage-continuation-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+Status, 9 October 2026: per-topic chapter diagram work is paused. This matrix is the topic checklist. Do not assign packets or claim rows.
 
-Version: **2026 syllabi / 2 October 2026**. This is a documentation-only dispatch plan. It starts no implementation work and certifies no new engine behaviour. The [root plan](../../../DIAGRAM_ENGINE_COVERAGE_PLAN.md#chapters-still-to-cover) retains its 34-chapter priority queue, historical record and DCP-01–DCP-12 backlog.
+Version: **2026 syllabi / 2 October 2026**. This is a documentation-only topic checklist. It starts no implementation work and certifies no new engine behaviour. `DIAGRAM_ENGINE_COVERAGE_PLAN.md` at the repository root keeps the historical 34-chapter priority queue and DCP-01 to DCP-12 backlog.
 
-## Coordinator: dispatch in this order
+## Coordinator dispatch (historical, paused 9 October 2026)
 
-For implementation progress and completion reports, use the [topic tracker and work-log contract](progress.md). The allocation tables below remain planning data; accepted counts are maintained separately.
+The steps below describe how packets were dispatched from 2 to 9 October 2026. They are kept as a record; do not use them to assign new work. Ledger state lives in the [topic tracker](progress.md). The allocation tables below remain planning data; accepted counts are maintained separately.
 
 The assignment CSVs' `current_evidence` fields record the initial planning snapshot. Live acceptance belongs to `topic-progress.csv`, the packet logs and the reconciled chapter counters; an old planning-snapshot warning must not overwrite later accepted evidence.
 
 1. Select the next chapter from the root priority queue and the exam scope. Read the chapter allocation below, then only that subject's Markdown/CSV. The detailed topic rows control the scope of a packet; broad root descriptions are summaries.
 2. Establish the accepted S0 evaluation/source-obligation contract and the packet's dependencies. Treat the curated Biology reference contract as a separate prerequisite owned by the Biology reviewer with the integration owner, not something inherited automatically from a chemistry graph.
-3. Assign the packet's exact topic IDs and source/variant limits using the root [assignment template](../../../DIAGRAM_ENGINE_COVERAGE_PLAN.md#copyable-agent-assignment). A packet is an ownership boundary, not a promise that every compound row fits one session. Sub-assign specific named models, organisms or variants when needed; the original primary owner retains the remaining obligations, and partial completion never closes its whole topic row.
+3. Assign the packet's exact topic IDs and source/variant limits using the root plan's assignment template. A packet is an ownership boundary, not a promise that every compound row fits one session. Sub-assign specific named models, organisms or variants when needed; the original primary owner retains the remaining obligations, and partial completion never closes its whole topic row.
 4. Audit candidate reuse before new implementation. The integration owner serializes shared compiler/IR/capability/planner changes; workers own disjoint modules and gates. Packet IDs are human planning identifiers, not runtime routers, chapter templates or question-ID dispatch keys.
 5. Accept only row-level evidence for the selected variants plus negative/holdout, live reveal, persistence and replay gates in the root contract. Report full checklist allocation separately from evaluated/passing topics and passing diagram-required questions. DSA and Main Paper 2/AAT remain outside this plan.
 
@@ -45,7 +45,7 @@ The nine supplemental Chemistry macro rows and the Advanced-extra children repre
 | `review` | A mixed/ambiguous source row whose exact exam boundary needs editorial resolution before denominator freeze. It is not an implementation pass. |
 | `not_applicable` | The subject is absent from this exam, such as Maths in NEET or Biology in JEE. |
 | `required` / `conditional` / `text_only` | Planning hypotheses for diagram need, not syllabus rules or a way to exclude failed visuals. Confirm independently against source questions before evaluation. |
-| `topic audit pending` | The only current evidence status in this matrix. Historical operator fractions do not identify topic-level passes; implemented topic coverage is unknown, not zero and not the allocation percentage. |
+| `topic audit pending` | The planning-snapshot evidence status in the subject CSVs. Historical operator fractions do not identify topic-level passes; implemented topic coverage is unknown, not zero and not the allocation percentage. Live state is in `topic-progress.csv`, where 13 rows are `accepted` (Chemistry Atomic Structure 6/6 and Chemical Bonding 7/7). |
 
 ### Separate allocation from future acceptance
 
@@ -54,7 +54,7 @@ The nine supplemental Chemistry macro rows and the Advanced-extra children repre
 - **Accepted topic completion** later counts a row only when all frozen obligations for that topic have evidence. A single draw, a successful family smoke test or a candidate module name cannot close a compound row. Preserve the full chapter denominator and report exam-specific scope exclusions separately.
 - **Question-level visual coverage** later uses the independently frozen diagram-required source cohort: verified exact/qualitative results and independently compiled honest representations are reported by tier; relevance, proofs, numeric authority, labels, live reveal and saved replay remain separate gates. Text-only/source-quality cases stay separately visible, not counted as diagram successes.
 
-For a chapter with N checklist rows, **at least 90%** needs `ceil(0.9 × N)` fully accepted rows; **above 90%** needs `floor(0.9 × N) + 1`. Tables expose both to avoid rounding 8/9 or 9/10 into a false threshold claim. These are future row-level targets after audit, not predictions from inherited fractions. No new accepted topic numerator is available, so no credible delta from today's engine coverage is calculated.
+For a chapter with N checklist rows, **at least 90%** needs `ceil(0.9 × N)` fully accepted rows; **above 90%** needs `floor(0.9 × N) + 1`. Tables expose both to avoid rounding 8/9 or 9/10 into a false threshold claim. These are future row-level targets after audit, not predictions from inherited fractions. The only accepted rows are the 13 Chemistry rows above, so no credible delta from today's engine coverage is calculated for the other chapters.
 
 ## Primary sources
 

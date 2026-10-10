@@ -17,6 +17,17 @@
         "id": "diagram",
         "kind": "polyline",
         "role": "statistical data plot"
+      },
+      {
+        "id": "axis_label_anchor",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "axis_label",
+        "kind": "label",
+        "role": "axis label",
+        "label": "density"
       }
     ],
     "constructions": [
@@ -46,19 +57,51 @@
         "outputs": [
           "diagram"
         ]
+      },
+      {
+        "id": "make_axis_label_anchor",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "axis_label_anchor"
+        ]
+      },
+      {
+        "id": "make_axis_label",
+        "operator": "label",
+        "inputs": {
+          "target": "axis_label_anchor",
+          "text": "density"
+        },
+        "outputs": [
+          "axis_label"
+        ]
       }
     ],
     "relations": [],
     "assertions": [],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "frequency density histogram"
+      }
+    ],
     "requiredEntityIds": [
-      "diagram"
+      "diagram",
+      "axis_label"
     ],
     "revealGroups": [
       {
         "id": "plot",
         "entityIds": [
-          "diagram"
+          "diagram",
+          "axis_label"
         ],
         "dependsOn": [],
         "narrationCue": "read the source distribution"

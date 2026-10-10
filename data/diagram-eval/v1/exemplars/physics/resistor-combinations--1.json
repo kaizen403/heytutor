@@ -1,0 +1,199 @@
+{
+  "topic_id": "physics|12|resistor-combinations",
+  "question": "Three resistors R1 = 10 ohm, R2 = 15 ohm, and R3 = 30 ohm are connected in parallel; conventional current flows through them from left to right.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "parallel resistor network with the stated values"
+    },
+    "source": {
+      "question": "Three resistors R1 = 10 ohm, R2 = 15 ohm, and R3 = 30 ohm are connected in parallel; conventional current flows through them from left to right.",
+      "synthesizedFamily": true,
+      "archetype": "resistor_network",
+      "slotSources": {
+        "resistors": "plan",
+        "resistorCount": "stem",
+        "topology": "stem"
+      },
+      "exactGrounding": null
+    },
+    "quantities": [
+      {
+        "id": "q_R1",
+        "symbol": "R1",
+        "value": 10,
+        "unit": "ohm"
+      },
+      {
+        "id": "q_R2",
+        "symbol": "R2",
+        "value": 15,
+        "unit": "ohm"
+      },
+      {
+        "id": "q_R3",
+        "symbol": "R3",
+        "value": 30,
+        "unit": "ohm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "n0",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "n1",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "R1",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R1=10Ω"
+      },
+      {
+        "id": "R2",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R2=15Ω"
+      },
+      {
+        "id": "R3",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R3=30Ω"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_n0",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "n0"
+        ]
+      },
+      {
+        "id": "make_n1",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "n1"
+        ]
+      },
+      {
+        "id": "make_R1",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "n0",
+          "end": "n1"
+        },
+        "outputs": [
+          "R1"
+        ]
+      },
+      {
+        "id": "make_R2",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "n0",
+          "end": "n1"
+        },
+        "outputs": [
+          "R2"
+        ]
+      },
+      {
+        "id": "make_R3",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "n0",
+          "end": "n1"
+        },
+        "outputs": [
+          "R3"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "same_pair",
+        "predicate": "sameTerminalPair",
+        "entities": [
+          "R1",
+          "R2",
+          "R3"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_R1",
+        "predicate": "label_attached",
+        "entities": [
+          "R1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "current_sense",
+        "kind": "sense",
+        "targetIds": [
+          "R1"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "n0",
+      "n1",
+      "R1",
+      "R2",
+      "R3"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "n0",
+          "n1",
+          "R1",
+          "R2",
+          "R3"
+        ],
+        "dependsOn": [],
+        "narrationCue": "parallel resistor network with the stated values"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "parallel resistor network with the stated values"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

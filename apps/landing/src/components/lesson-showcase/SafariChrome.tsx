@@ -3,7 +3,8 @@ import {
 } from 'lucide-react'
 import Logo from '../Logo'
 import metadata from '../hero-lesson/lessonMetadata.json'
-import type { SoundState } from '../hero-lesson/useHeroVideo'
+import { heroLessonLocaleLabel, type HeroLessonLocale } from '../hero-lesson/heroLessonLocale'
+import type { SoundState } from '../hero-lesson/useLessonSimulation'
 
 const LESSON_TITLE = metadata.title
 
@@ -39,9 +40,18 @@ const ToolIcon = ({ children }: { children: React.ReactNode }) => (
 
 /** Safari's unified toolbar and tab bar. Kept out of the lazy lesson chunk so
     the window frame paints with the page, before the live board arrives. */
-export default function SafariChrome({ sound, onToggle }: { sound: SoundState; onToggle: () => void }) {
+export default function SafariChrome({
+  sound,
+  onToggle,
+  locale = 'en-GB',
+}: {
+  sound: SoundState
+  onToggle: () => void
+  locale?: HeroLessonLocale
+}) {
   const muted = sound !== 'on'
   const showSpeaker = sound === 'off' || sound === 'on'
+  const language = heroLessonLocaleLabel(locale)
   return (
     <div className="select-none">
       {/* Scoped so this does not touch the shared stylesheet. Breathes the tab's
@@ -106,14 +116,17 @@ export default function SafariChrome({ sound, onToggle }: { sound: SoundState; o
           {/* The product's real brand mark, not a letter tile. */}
           <Logo className="h-[13px] w-[13px] shrink-0 text-[#F0F5F7]" />
           <span className="truncate">Accelute: {LESSON_TITLE}</span>
+          <span className="hidden shrink-0 rounded-[4px] bg-white/10 px-1.5 py-0.5 text-[9px] text-[#C9C9CE] sm:inline">
+            {language}
+          </span>
           {/* Safari puts the audio control on the tab itself. */}
           {showSpeaker && (
             <button
               type="button"
               data-sound-toggle
               onClick={onToggle}
-              aria-label={muted ? 'Play lesson voice' : 'Mute lesson voice'}
-              title={muted ? 'Play with sound' : 'Mute'}
+              aria-label={muted ? `Play lesson voice in ${language}` : 'Mute lesson voice'}
+              title={muted ? `Play in ${language}` : 'Mute'}
               className={`ml-auto flex h-8 w-8 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-[4px] transition-colors hover:bg-white/10 sm:h-6 sm:w-6 sm:rounded-[5px] ${
                 muted ? 'text-sky-400 lsn-audio-hint' : 'text-[#C9C9CE]'
               }`}

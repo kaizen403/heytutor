@@ -84,6 +84,7 @@ interface Script {
   plannerStartedAt?: number;
   /** Speculation scenarios force the flag on; it defaults off in the app. */
   speculationEnabled?: boolean;
+  selectionOrder?: "current" | "planner_first";
 }
 
 function harness(script: Script) {
@@ -121,6 +122,7 @@ function harness(script: Script) {
     problemAuthority: authorityPromise,
     speculationAllowed: script.speculationAllowed ?? true,
     speculationEnabled: script.speculationEnabled ?? true,
+    selectionOrder: script.selectionOrder,
     plannerStartedAt: script.plannerStartedAt ?? 0,
     deadlineMs: 60_000,
     now: () => nowMs,
@@ -266,6 +268,27 @@ assert.deepEqual(
 );
 
 async function main(): Promise<void> {
+  await scenario("planner-first skips the fast family and lets a valid planner scene win", async () => {
+    let fastCalls = 0;
+    const h = harness({
+      authority: "none",
+      speculationEnabled: false,
+      selectionOrder: "planner_first",
+      fast: () => {
+        fastCalls += 1;
+        return { figure: "family" };
+      },
+    });
+    await flush();
+    assert.equal(fastCalls, 0, "planner-first must not run the fast selector");
+    assert.equal(h.planCalls.length, 1, "planner-first must start the planner");
+    h.planCalls[0]!.reply.resolve(h.result("planner", h.planCalls[0]!));
+    const result = await h.outcome;
+    assert.equal(result.fast, null);
+    assert.equal(result.scene?.tag, "planner");
+    assert.equal(result.figureSource, "planner");
+  });
+
   await scenario("flag off (the default): origin/main's sequence, no speculative call, no prediction", async () => {
     let fastCalls = 0;
     const h = harness({

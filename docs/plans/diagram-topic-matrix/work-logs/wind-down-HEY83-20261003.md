@@ -114,7 +114,8 @@ private outputs/import realpaths must be proved before a runtime begins.
 
 ## Files for the next owner
 
-Start with [the preservation index](../../../agent/coverage-handoff-20261003/README.md).
+Start with the preservation index in the local handoff archive
+(`docs/agent/coverage-handoff-20261003/`, never published to the repository).
 It indexes copied patches/oracles/contracts and original raw runtime/PDF/render
 evidence. Worker/owner wind-down inventories remain distinct from feature
 readiness claims. Any late inventory is supplemental evidence, not authorization

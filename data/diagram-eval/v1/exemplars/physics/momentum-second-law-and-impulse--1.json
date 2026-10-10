@@ -1,0 +1,571 @@
+{
+  "topic_id": "physics|3|momentum-second-law-and-impulse",
+  "question": "A crate is released on a smooth 25 degree incline. Show its weight, normal reaction, and the components used to determine its acceleration.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "block on a 25° incline with its forces"
+    },
+    "source": {
+      "question": "A crate is released on a smooth 25 degree incline. Show its weight, normal reaction, and the components used to determine its acceleration.",
+      "synthesizedFamily": true,
+      "archetype": "incline_body",
+      "slotSources": {
+        "theta": "plan",
+        "rolling": "stem"
+      },
+      "exactGrounding": "plan"
+    },
+    "quantities": [
+      {
+        "id": "theta",
+        "symbol": "theta",
+        "value": 25,
+        "unit": "degree"
+      }
+    ],
+    "entities": [
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "incline foot",
+        "label": "B"
+      },
+      {
+        "id": "T",
+        "kind": "point",
+        "role": "incline top"
+      },
+      {
+        "id": "F",
+        "kind": "point",
+        "role": "incline base corner"
+      },
+      {
+        "id": "incline",
+        "kind": "segment",
+        "role": "inclined plane"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "ground"
+      },
+      {
+        "id": "rise",
+        "kind": "segment",
+        "role": "vertical side"
+      },
+      {
+        "id": "right_angle",
+        "kind": "right_angle_mark",
+        "role": "right angle mark"
+      },
+      {
+        "id": "angle",
+        "kind": "angle_mark",
+        "role": "angle mark",
+        "label": "θ=25°"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "contact point",
+        "label": "P"
+      },
+      {
+        "id": "body_c0",
+        "kind": "point",
+        "role": "body block corner"
+      },
+      {
+        "id": "body_c1",
+        "kind": "point",
+        "role": "body block corner"
+      },
+      {
+        "id": "body_c2",
+        "kind": "point",
+        "role": "body block corner"
+      },
+      {
+        "id": "body_c3",
+        "kind": "point",
+        "role": "body block corner"
+      },
+      {
+        "id": "body",
+        "kind": "polygon",
+        "role": "body block",
+        "label": "m"
+      },
+      {
+        "id": "weight",
+        "kind": "vector",
+        "role": "weight",
+        "label": "mg"
+      },
+      {
+        "id": "normal_dir",
+        "kind": "vector",
+        "role": "surface normal helper"
+      },
+      {
+        "id": "normal",
+        "kind": "vector",
+        "role": "normal reaction",
+        "label": "N"
+      },
+      {
+        "id": "weight_along",
+        "kind": "vector",
+        "role": "weight component along the incline",
+        "label": "mg sinθ"
+      },
+      {
+        "id": "weight_perp",
+        "kind": "vector",
+        "role": "weight component into the incline",
+        "label": "mg cosθ"
+      },
+      {
+        "id": "G",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_T",
+        "operator": "point",
+        "inputs": {
+          "x": 4.0784,
+          "y": 1.9018,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "make_F",
+        "operator": "point",
+        "inputs": {
+          "x": 4.0784,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "make_incline",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "T"
+        },
+        "outputs": [
+          "incline"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "F"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_rise",
+        "operator": "segment",
+        "inputs": {
+          "start": "F",
+          "end": "T"
+        },
+        "outputs": [
+          "rise"
+        ]
+      },
+      {
+        "id": "make_right_angle",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "F",
+          "a": "ground",
+          "b": "rise"
+        },
+        "outputs": [
+          "right_angle"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "incline",
+          "b": "ground"
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": 1.9576,
+          "y": 0.9129,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_G",
+        "operator": "point",
+        "inputs": {
+          "x": 1.8097,
+          "y": 1.2301,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "make_body_c0",
+        "operator": "point",
+        "inputs": {
+          "x": 1.4138,
+          "y": 0.6593,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "body_c0"
+        ]
+      },
+      {
+        "id": "make_body_c1",
+        "operator": "point",
+        "inputs": {
+          "x": 2.5014,
+          "y": 1.1664,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "body_c1"
+        ]
+      },
+      {
+        "id": "make_body_c2",
+        "operator": "point",
+        "inputs": {
+          "x": 2.2056,
+          "y": 1.8008,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "body_c2"
+        ]
+      },
+      {
+        "id": "make_body_c3",
+        "operator": "point",
+        "inputs": {
+          "x": 1.118,
+          "y": 1.2937,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "body_c3"
+        ]
+      },
+      {
+        "id": "make_body",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            "body_c0",
+            "body_c1",
+            "body_c2",
+            "body_c3"
+          ]
+        },
+        "outputs": [
+          "body"
+        ]
+      },
+      {
+        "id": "make_weight",
+        "operator": "vector",
+        "inputs": {
+          "start": "G",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.4
+        },
+        "outputs": [
+          "weight"
+        ]
+      },
+      {
+        "id": "make_normal_dir",
+        "operator": "normal_at",
+        "inputs": {
+          "point": "C",
+          "surface": "incline"
+        },
+        "outputs": [
+          "normal_dir"
+        ]
+      },
+      {
+        "id": "make_normal",
+        "operator": "vector",
+        "inputs": {
+          "start": "C",
+          "direction": "normal_dir",
+          "length": 1.35
+        },
+        "outputs": [
+          "normal"
+        ]
+      },
+      {
+        "id": "make_weight_along_weight_perp",
+        "operator": "vector_components",
+        "inputs": {
+          "origin": "G",
+          "vector": "weight",
+          "basis": "incline"
+        },
+        "outputs": [
+          "weight_along",
+          "weight_perp"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "incline_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "incline",
+          "ground"
+        ],
+        "expected": {
+          "value": 25,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "normal_perp",
+        "predicate": "perpendicular",
+        "entities": [
+          "normal",
+          "incline"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "contact_on",
+        "predicate": "on",
+        "entities": [
+          "C",
+          "incline"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_weight",
+        "predicate": "label_attached",
+        "entities": [
+          "weight"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_normal",
+        "predicate": "label_attached",
+        "entities": [
+          "normal"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_B",
+        "predicate": "label_attached",
+        "entities": [
+          "B"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_C",
+        "predicate": "label_attached",
+        "entities": [
+          "C"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "incline_hatch",
+        "kind": "hatch",
+        "targetIds": [
+          "incline"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "B",
+      "T",
+      "F",
+      "incline",
+      "ground",
+      "rise",
+      "right_angle",
+      "angle",
+      "C",
+      "body_c0",
+      "body_c1",
+      "body_c2",
+      "body_c3",
+      "body",
+      "weight",
+      "normal_dir",
+      "normal",
+      "weight_along",
+      "weight_perp"
+    ],
+    "revealGroups": [
+      {
+        "id": "surface",
+        "entityIds": [
+          "B",
+          "T",
+          "F",
+          "incline",
+          "ground",
+          "rise",
+          "right_angle",
+          "angle",
+          "C"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the incline at the stated angle"
+      },
+      {
+        "id": "body_group",
+        "entityIds": [
+          "C",
+          "body",
+          "body_c0",
+          "body_c1",
+          "body_c2",
+          "body_c3"
+        ],
+        "dependsOn": [
+          "surface"
+        ],
+        "narrationCue": "the body resting on the plane"
+      },
+      {
+        "id": "forces",
+        "entityIds": [
+          "weight",
+          "normal",
+          "weight_along",
+          "weight_perp"
+        ],
+        "dependsOn": [
+          "body_group"
+        ],
+        "narrationCue": "every force on the body"
+      },
+      {
+        "id": "detail",
+        "entityIds": [
+          "normal_dir"
+        ],
+        "dependsOn": [
+          "forces"
+        ],
+        "narrationCue": "remaining detail"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_surface",
+        "action": "reveal",
+        "targetId": "surface",
+        "dependsOn": [],
+        "narrationIntent": "the incline at the stated angle"
+      },
+      {
+        "id": "reveal_body_group",
+        "action": "reveal",
+        "targetId": "body_group",
+        "dependsOn": [
+          "reveal_surface"
+        ],
+        "narrationIntent": "the body resting on the plane"
+      },
+      {
+        "id": "reveal_forces",
+        "action": "reveal",
+        "targetId": "forces",
+        "dependsOn": [
+          "reveal_body_group"
+        ],
+        "narrationIntent": "every force on the body"
+      },
+      {
+        "id": "reveal_detail",
+        "action": "reveal",
+        "targetId": "detail",
+        "dependsOn": [
+          "reveal_forces"
+        ],
+        "narrationIntent": "remaining detail"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

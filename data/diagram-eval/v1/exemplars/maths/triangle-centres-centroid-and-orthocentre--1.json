@@ -37,6 +37,12 @@
         "id": "center",
         "kind": "point",
         "role": "centroid of triangle"
+      },
+      {
+        "id": "center_label",
+        "kind": "label",
+        "role": "point label",
+        "label": "G"
       }
     ],
     "constructions": [
@@ -67,17 +73,36 @@
         "outputs": [
           "center"
         ]
+      },
+      {
+        "id": "label_center",
+        "operator": "label",
+        "inputs": {
+          "target": "center",
+          "text": "G"
+        },
+        "outputs": [
+          "center_label"
+        ]
       }
     ],
     "relations": [],
     "assertions": [],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "triangle centroid G"
+      }
+    ],
     "requiredEntityIds": [
       "A",
       "B",
       "C",
       "outline",
-      "center"
+      "center",
+      "center_label"
     ],
     "revealGroups": [
       {
@@ -87,7 +112,8 @@
           "B",
           "C",
           "outline",
-          "center"
+          "center",
+          "center_label"
         ],
         "dependsOn": [],
         "narrationCue": "show triangle"

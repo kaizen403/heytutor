@@ -1,0 +1,740 @@
+{
+  "topic_id": "chemistry|8|half-life",
+  "question": "The half life of a first order reaction is 20 min. What fraction of the reactant remains after 60 min?",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "first order decay: [A]/[A]_0 falls exponentially, halving every half life"
+    },
+    "source": {
+      "question": "The half life of a first order reaction is 20 min. What fraction of the reactant remains after 60 min?",
+      "synthesizedFamily": true,
+      "archetype": "chem_kinetics",
+      "chemistryFamily": "chem_kinetics"
+    },
+    "quantities": [
+      {
+        "id": "k",
+        "symbol": "k",
+        "value": 0.034657,
+        "unit": "1/min"
+      },
+      {
+        "id": "t_half",
+        "symbol": "t_1/2",
+        "value": 20,
+        "unit": "min"
+      }
+    ],
+    "entities": [
+      {
+        "id": "p_axes",
+        "kind": "axes",
+        "role": "axes"
+      },
+      {
+        "id": "p_xl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "t (min)",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_yl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "[A]/[A]_0",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "curve",
+        "kind": "polyline",
+        "role": "[A]/[A]_0 against t"
+      },
+      {
+        "id": "one",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "1",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "m1",
+        "kind": "point",
+        "role": "half life",
+        "label": "t_1/2 = 20 min",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "m1_dx",
+        "kind": "segment",
+        "role": "drop to the time axis",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "m1_dy",
+        "kind": "segment",
+        "role": "drop to the concentration axis",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "m1_tick",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "1/2",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "m2",
+        "kind": "point",
+        "role": "marked instant",
+        "label": "2t_1/2 = 40 min",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "m2_dx",
+        "kind": "segment",
+        "role": "drop to the time axis",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "m2_dy",
+        "kind": "segment",
+        "role": "drop to the concentration axis",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "m2_tick",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "1/4",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "m3",
+        "kind": "point",
+        "role": "marked instant",
+        "label": "t = 60 min",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "m3_dx",
+        "kind": "segment",
+        "role": "drop to the time axis",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "m3_dy",
+        "kind": "segment",
+        "role": "drop to the concentration axis",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "m3_tick",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "1/8",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_xl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "p_yl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "one_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m1_dx_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m1_dy_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m1_tick_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m2_dx_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m2_dy_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m2_tick_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m3_dx_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m3_dy_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "m3_tick_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_p_axes",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.45,
+          "xMax": 10.6,
+          "yMin": -0.45,
+          "yMax": 6.6
+        },
+        "outputs": [
+          "p_axes"
+        ]
+      },
+      {
+        "id": "make_p_xl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 10.6,
+          "y": -0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_xl_p"
+        ]
+      },
+      {
+        "id": "make_p_xl",
+        "operator": "label",
+        "inputs": {
+          "target": "p_xl_p",
+          "text": "t (min)"
+        },
+        "outputs": [
+          "p_xl"
+        ]
+      },
+      {
+        "id": "make_p_yl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.05,
+          "y": 7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_yl_p"
+        ]
+      },
+      {
+        "id": "make_p_yl",
+        "operator": "label",
+        "inputs": {
+          "target": "p_yl_p",
+          "text": "[A]/[A]_0"
+        },
+        "outputs": [
+          "p_yl"
+        ]
+      },
+      {
+        "id": "make_curve",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "6*exp(-0.23567*x)",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 10,
+          "samples": 97
+        },
+        "outputs": [
+          "curve"
+        ]
+      },
+      {
+        "id": "make_one_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.35,
+          "y": 6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "one_p"
+        ]
+      },
+      {
+        "id": "make_one",
+        "operator": "label",
+        "inputs": {
+          "target": "one_p",
+          "text": "1"
+        },
+        "outputs": [
+          "one"
+        ]
+      },
+      {
+        "id": "make_m1",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9412,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m1"
+        ]
+      },
+      {
+        "id": "make_m1_dx_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9412,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m1_dx_a"
+        ]
+      },
+      {
+        "id": "make_m1_dx",
+        "operator": "segment",
+        "inputs": {
+          "start": "m1_dx_a",
+          "end": "m1"
+        },
+        "outputs": [
+          "m1_dx"
+        ]
+      },
+      {
+        "id": "make_m1_dy_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m1_dy_a"
+        ]
+      },
+      {
+        "id": "make_m1_dy",
+        "operator": "segment",
+        "inputs": {
+          "start": "m1_dy_a",
+          "end": "m1"
+        },
+        "outputs": [
+          "m1_dy"
+        ]
+      },
+      {
+        "id": "make_m1_tick_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.35,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m1_tick_p"
+        ]
+      },
+      {
+        "id": "make_m1_tick",
+        "operator": "label",
+        "inputs": {
+          "target": "m1_tick_p",
+          "text": "1/2"
+        },
+        "outputs": [
+          "m1_tick"
+        ]
+      },
+      {
+        "id": "make_m2",
+        "operator": "point",
+        "inputs": {
+          "x": 5.8824,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m2"
+        ]
+      },
+      {
+        "id": "make_m2_dx_a",
+        "operator": "point",
+        "inputs": {
+          "x": 5.8824,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m2_dx_a"
+        ]
+      },
+      {
+        "id": "make_m2_dx",
+        "operator": "segment",
+        "inputs": {
+          "start": "m2_dx_a",
+          "end": "m2"
+        },
+        "outputs": [
+          "m2_dx"
+        ]
+      },
+      {
+        "id": "make_m2_dy_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m2_dy_a"
+        ]
+      },
+      {
+        "id": "make_m2_dy",
+        "operator": "segment",
+        "inputs": {
+          "start": "m2_dy_a",
+          "end": "m2"
+        },
+        "outputs": [
+          "m2_dy"
+        ]
+      },
+      {
+        "id": "make_m2_tick_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.35,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m2_tick_p"
+        ]
+      },
+      {
+        "id": "make_m2_tick",
+        "operator": "label",
+        "inputs": {
+          "target": "m2_tick_p",
+          "text": "1/4"
+        },
+        "outputs": [
+          "m2_tick"
+        ]
+      },
+      {
+        "id": "make_m3",
+        "operator": "point",
+        "inputs": {
+          "x": 8.8235,
+          "y": 0.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m3"
+        ]
+      },
+      {
+        "id": "make_m3_dx_a",
+        "operator": "point",
+        "inputs": {
+          "x": 8.8235,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m3_dx_a"
+        ]
+      },
+      {
+        "id": "make_m3_dx",
+        "operator": "segment",
+        "inputs": {
+          "start": "m3_dx_a",
+          "end": "m3"
+        },
+        "outputs": [
+          "m3_dx"
+        ]
+      },
+      {
+        "id": "make_m3_dy_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m3_dy_a"
+        ]
+      },
+      {
+        "id": "make_m3_dy",
+        "operator": "segment",
+        "inputs": {
+          "start": "m3_dy_a",
+          "end": "m3"
+        },
+        "outputs": [
+          "m3_dy"
+        ]
+      },
+      {
+        "id": "make_m3_tick_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.35,
+          "y": 0.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "m3_tick_p"
+        ]
+      },
+      {
+        "id": "make_m3_tick",
+        "operator": "label",
+        "inputs": {
+          "target": "m3_tick_p",
+          "text": "1/8"
+        },
+        "outputs": [
+          "m3_tick"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "m1_on_curve",
+        "predicate": "function_value",
+        "entities": [
+          "curve"
+        ],
+        "expected": {
+          "x": 2.941176,
+          "y": 3.000001
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "label_m1",
+        "predicate": "label_attached",
+        "entities": [
+          "m1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "m2_on_curve",
+        "predicate": "function_value",
+        "entities": [
+          "curve"
+        ],
+        "expected": {
+          "x": 5.882353,
+          "y": 1.5
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "label_m2",
+        "predicate": "label_attached",
+        "entities": [
+          "m2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "m3_on_curve",
+        "predicate": "function_value",
+        "entities": [
+          "curve"
+        ],
+        "expected": {
+          "x": 8.823529,
+          "y": 0.75
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "label_m3",
+        "predicate": "label_attached",
+        "entities": [
+          "m3"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_m1",
+        "predicate": "label_attached",
+        "entities": [
+          "m1"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_m2",
+        "predicate": "label_attached",
+        "entities": [
+          "m2"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      },
+      {
+        "id": "assert_label_m3",
+        "predicate": "label_attached",
+        "entities": [
+          "m3"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "First order, t_1/2 = 20 min (k = 0.0347 per min). After 60 min, [A]/[A]_0 = 1/8 (12.5 % left)."
+      }
+    ],
+    "requiredEntityIds": [
+      "p_axes",
+      "p_xl",
+      "p_yl",
+      "curve",
+      "one",
+      "m1",
+      "m1_dx",
+      "m1_dy",
+      "m1_tick",
+      "m2",
+      "m2_dx",
+      "m2_dy",
+      "m2_tick",
+      "m3",
+      "m3_dx",
+      "m3_dy",
+      "m3_tick"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "p_axes",
+          "p_xl",
+          "p_yl",
+          "curve",
+          "one",
+          "m1",
+          "m1_dx",
+          "m1_dy",
+          "m1_tick",
+          "m2",
+          "m2_dx",
+          "m2_dy",
+          "m2_tick",
+          "m3",
+          "m3_dx",
+          "m3_dy",
+          "m3_tick"
+        ],
+        "dependsOn": [],
+        "narrationCue": "first order decay: [A]/[A]_0 falls exponentially, halving every half life"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "first order decay: [A]/[A]_0 falls exponentially, halving every half life"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}
