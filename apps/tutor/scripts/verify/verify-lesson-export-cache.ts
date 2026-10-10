@@ -80,6 +80,13 @@ async function main() {
       "completed current tail permits complete filename/cache despite earlier cut",
     );
     const key = profile.lecturePageCacheKey(source.turns, "mp4");
+    const obsoleteKey = key.replace(/@video\d+$/, "@video4");
+    cache.rememberLectureExport(obsoleteKey, {
+      blob: new Blob(["old video with full queued TYPE revealed"], { type: "video/mp4" }),
+      mimeType: "video/mp4", extension: "mp4", noVoice: true, missingAudioCues: 1,
+    });
+    assert.equal(await cache.getCachedLectureExport(key), null,
+      "a cached pre-prefix TYPE video cannot bypass current recorded-reveal semantics");
     const blob = new Blob(["same encoded video bytes"], { type: "video/mp4" });
     cache.rememberLectureExport(key, {
       blob,
