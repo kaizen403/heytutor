@@ -129,7 +129,11 @@ export function validateMagneticHelixLabels(construction: SceneConstruction, doc
     if (typeof text !== "string") return;
     const named = /\b(r(?:adius)?|p(?:itch)?)\s*(=|≈|~)\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)\s*(m|cm|mm)\b/gi;
     const matches = [...text.matchAll(named)];
-    if (/[=≈~]\s*[+-]?(?:\d|\.\d)/.test(text) && matches.length === 0) fail("numeric helix labels require radius or pitch with a length unit");
+    // Every standalone number must belong to a parsed source measurement.
+    // Symbol indices and descriptions such as 3D are names, not values.
+    const unclaimed = matches.reduce((remaining, match) => remaining.replace(match[0], " "), text);
+    const number = /(?<![\p{L}\p{N}_'′^.])[+\-−]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+\-−]?\d+)?(?=\s|$|(?:m|cm|mm)\b|[,;:)])/iu;
+    if (number.test(unclaimed)) fail("numeric helix labels require radius or pitch with a length unit");
     for (const match of matches) {
       const expected = match[1]!.toLowerCase().startsWith("r") ? definition.radius : definition.pitch;
       const actual = Number(match[3]) * ({ m: 1, cm: 0.01, mm: 0.001 }[match[4]!.toLowerCase()] ?? 1);

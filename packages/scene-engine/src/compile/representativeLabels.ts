@@ -37,7 +37,7 @@ export const PHYSICAL_VALUE_LABEL_OPERATORS: ReadonlySet<string> = new Set([
   "velocity_triangle", "collinear_velocity_pair", "crossing_strategies", "parallel_guides",
   "kirchhoff_network",
   "line_charge_field", "gauss_flux", "wire_field", "loop_field", "flux_sinusoid", "sinusoid_state",
-  "electric_field", "field_components",
+  "electric_field", "field_components", "wave_sample",
   "coulomb_pair", "point_charge_field", "field_lines", "dipole_field", "dipole_torque", "equipotential", "dipole_energy",
 ]);
 
@@ -47,7 +47,7 @@ export const PHYSICAL_VALUE_LABEL_OPERATORS: ReadonlySet<string> = new Set([
  */
 const VALUE_BY_DEFAULT_OPERATORS: ReadonlySet<string> = new Set([
   "gaussian_image", "optical_focus",
-  "electric_field", "field_components",
+  "electric_field", "field_components", "wave_sample",
   "coulomb_pair", "point_charge_field", "field_lines", "dipole_field", "dipole_torque", "equipotential", "dipole_energy",
 ]);
 
@@ -98,7 +98,7 @@ export function validateRepresentativeValueLabels(construction: SceneConstructio
     const targets = (Array.isArray(annotation.targetIds) ? annotation.targetIds : []).filter((id) => outputs.has(id));
     if (targets.length === 0) continue;
     if (annotation.quantityId !== undefined) refuse(`annotation ${annotation.id} binds quantity ${annotation.quantityId} to normalized ink`, targets);
-    else if (typeof annotation.text === "string" && statesPhysicalValue(annotation.text)) refuse(`annotation "${annotation.text}" states a computed value`, targets);
+    else if (annotation.kind !== "narration" && typeof annotation.text === "string" && statesPhysicalValue(annotation.text)) refuse(`annotation "${annotation.text}" states a computed value`, targets);
   }
   for (const other of document.constructions) {
     if (other.operator !== "label" || !isRecord(other.inputs)) continue;

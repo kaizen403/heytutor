@@ -40,4 +40,6 @@ const symbolic = inferSceneCapabilities("Explain simple harmonic motion energy."
 assert(symbolic.constructionOperators.includes("axes") && symbolic.constructionOperators.includes("function_curve"), "symbol-only plans get axes with function_curve");
 const arc = inferSceneCapabilities("Find the magnetic field at the centre of a circular arc of wire carrying current I.");
 if (arc.families.includes("point_field")) assert(arc.constructionOperators.includes("arc"), "point_field offers arc");
+const helix = promptFor("Draw the helical path of a charged particle in a uniform magnetic field and mark its radius.");
+assert(helix.caps.constructionOperators.includes("magnetic_helix") && helix.caps.constructionOperators.includes("space_segment"), "a native helix radius can reach the planner");
 console.log("physics prompt classes: field contracts, uncompacted contracts with examples, physics representatives and offer gaps verified");
