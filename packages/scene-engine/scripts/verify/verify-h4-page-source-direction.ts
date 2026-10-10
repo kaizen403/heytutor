@@ -1,3 +1,4 @@
+import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import assert from "node:assert/strict";
 import type { RenderPrimitive, SceneDocument } from "../../src/types";
 import { compileSceneDocument } from "../../src/compile/compiler";
@@ -65,5 +66,17 @@ falsePlanarProof.assertions.push({ id: "bad", predicate: "perpendicular", entiti
 check(!compileSceneDocument(falsePlanarProof).ok, "page-normal glyph cannot certify an in-plane direction proof");
 const stalePageLabel = vectorScene([0, 0, -1]); stalePageLabel.entities[1]!.label = "I=999";
 check(!compileSceneDocument(stalePageLabel).ok, "a source direction glyph cannot certify an invented current magnitude");
+
+for (const [z, count] of [[-1, 3], [1, 2]] as const) {
+  const normalized = validateSceneDocument(pruneDeadSceneEntities({ ...vectorScene([0, 0, z]) }));
+  const result = normalized.document ? compileSceneDocument(normalized.document) : null;
+  check(result?.ok && result.renderScene?.primitives.filter((p) => p.entityId === "v" && p.kind !== "label").length === count, "normalized production path retains typed dot/cross glyph and vector identity");
+}
+for (const direction of [[1, 0, 1], [0, 0, 0], [0, 0, -2], [0, 0, -1, 4]]) {
+  const normalized = validateSceneDocument(pruneDeadSceneEntities({ ...vectorScene(direction) }));
+  check(!normalized.document || !compileSceneDocument(normalized.document).ok, "normalized production path refuses mixed/zero/noncanonical 3D directions without flattening them");
+}
+const zeroZ = validateSceneDocument(pruneDeadSceneEntities({ ...vectorScene([1, 2, 0]) }));
+check(zeroZ.document && compileSceneDocument(zeroZ.document).ok, "only a truly planar z=0 vector can normalize to 2D");
 console.log(`H4 page/source direction: ${checks - failures.length}/${checks} passed`);
 assert.equal(failures.length, 0, failures.join("\n"));

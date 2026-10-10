@@ -1920,17 +1920,15 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
       operator === "vector" &&
       isRecord(inputs) &&
       Array.isArray(inputs.direction) &&
-      inputs.direction.length >= 3 &&
-      inputs.direction.slice(0, 3).every((value) =>
+      inputs.direction.length === 3 &&
+      inputs.direction.every((value) =>
         typeof value === "number" && Number.isFinite(value))
     ) {
       const [x, y, z] = inputs.direction as number[];
-      if (Math.hypot(x!, y!) > 1e-9) {
-        inputs = { ...inputs, direction: [x, y] };
-      } else if (Math.abs(z!) > 1e-9 && typeof inputs.start === "string") {
-        operator = "label";
-        inputs = { target: inputs.start, text: z! < 0 ? "×" : "•" };
-      }
+      // Keep actual 3D input for the compiler's typed page-normal contract.
+      // Dropping z or replacing the vector by text would erase source sense,
+      // magnitude metadata and the compiler's mixed-world refusal boundary.
+      if (z === 0 && Math.hypot(x!, y!) > 0) inputs = { ...inputs, direction: [x, y] };
     }
 
     constructions.push({
