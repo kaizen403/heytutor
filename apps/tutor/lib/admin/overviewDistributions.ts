@@ -7,6 +7,7 @@ import {
 } from "./outcome";
 import type {
   DegradationReasonCount,
+  DiagramStrategyCount,
   FigureSourceCount,
   OutcomeCounts,
   TierCounts,
@@ -26,6 +27,7 @@ export interface OverviewDistributions {
   outcomes7d: OutcomeCounts;
   tiers7d: TierCounts & { scanned: number; truncated: boolean };
   figureSources7d: { sources: FigureSourceCount[]; scanned: number; truncated: boolean };
+  diagramStrategies7d: { strategies: DiagramStrategyCount[]; scanned: number; truncated: boolean };
   degradation7d: { reasons: DegradationReasonCount[]; scanned: number; truncated: boolean };
   sceneEngineVersions30d: Array<{ version: string; count: number }>;
 }
@@ -70,6 +72,7 @@ export async function fetchOverviewDistributions(windows: {
   };
   const reasonCounts = new Map<DegradationReason | "unrecorded", number>();
   const figureSourceCounts = new Map<FigureSourceCount["source"], number>();
+  const diagramStrategyCounts = new Map<DiagramStrategyCount["strategy"], number>();
   for (const row of scannedRows) {
     const summary = extractArtifactSummary(row.sceneArtifacts);
     if (summary?.representationTier === "exact_verified") tiers.exactVerified += 1;
@@ -80,6 +83,8 @@ export async function fetchOverviewDistributions(windows: {
     }
     const figureSource = summary?.figureSource ?? "unrecorded";
     figureSourceCounts.set(figureSource, (figureSourceCounts.get(figureSource) ?? 0) + 1);
+    const diagramStrategy = summary?.diagramStrategy ?? "unrecorded";
+    diagramStrategyCounts.set(diagramStrategy, (diagramStrategyCounts.get(diagramStrategy) ?? 0) + 1);
     // Degradation artifacts ride text-only/retry-required turns; legacy and
     // status-less rows have none, and counting them as a reason would invent
     // one. They land in "unrecorded" so the failure total still adds up.
@@ -94,6 +99,9 @@ export async function fetchOverviewDistributions(windows: {
   const sources: FigureSourceCount[] = [...figureSourceCounts.entries()]
     .map(([source, count]) => ({ source, count }))
     .sort((a, b) => b.count - a.count || a.source.localeCompare(b.source));
+  const strategies: DiagramStrategyCount[] = [...diagramStrategyCounts.entries()]
+    .map(([strategy, count]) => ({ strategy, count }))
+    .sort((a, b) => b.count - a.count || a.strategy.localeCompare(b.strategy));
 
   const sceneEngineVersions30d = engineRows
     .map((row) => ({ version: row.sceneEngineVersion ?? "unknown", count: row._count._all }))
@@ -104,6 +112,7 @@ export async function fetchOverviewDistributions(windows: {
     outcomes7d,
     tiers7d: { ...tiers, scanned: scannedRows.length, truncated },
     figureSources7d: { sources, scanned: scannedRows.length, truncated },
+    diagramStrategies7d: { strategies, scanned: scannedRows.length, truncated },
     degradation7d: { reasons, scanned: scannedRows.length, truncated },
     sceneEngineVersions30d,
   };

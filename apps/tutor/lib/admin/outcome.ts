@@ -3,6 +3,7 @@ import type {
   FigureSource,
 } from "@heytutor/scene-engine";
 import { FIGURE_SOURCES } from "@heytutor/scene-engine";
+import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
 /**
  * How a persisted turn ended up on the canvas, folded to what an admin needs
@@ -66,6 +67,7 @@ export interface ArtifactSummary {
   issueCodes: string[];
   candidateCount: number | null;
   diagramResultStatus: DiagramGenerationStatus | null;
+  diagramStrategy: DiagramStrategy | null;
 }
 
 function isFigureSource(value: unknown): value is FigureSource {
@@ -127,6 +129,9 @@ export function extractArtifactSummary(raw: unknown): ArtifactSummary | null {
     candidateCount: null,
     diagramResultStatus: isDiagramResultStatus(raw.diagramResultStatus)
       ? raw.diagramResultStatus
+      : null,
+    diagramStrategy: raw.diagramStrategy === "current" || raw.diagramStrategy === "strict"
+      ? raw.diagramStrategy
       : null,
   };
   if (isRecord(raw.degradation)) {

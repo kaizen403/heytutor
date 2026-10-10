@@ -34,6 +34,7 @@ import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
+import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
 export interface SubmittedTurnSegment {
   orderIndex: number;
@@ -71,6 +72,7 @@ export interface SubmittedTurnSceneMetadata {
 export type PersistedSceneArtifacts = SceneArtifactsV3 & {
   codeLesson?: CodeLessonPlan;
   boardContinuation?: BoardContinuation;
+  diagramStrategy?: DiagramStrategy;
 };
 
 export interface CanonicalTurnSceneMetadata {
@@ -127,16 +129,18 @@ export async function canonicalizeTurnSceneMetadata(
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
     const degradation = validatedDegradation(metadata.sceneArtifacts);
     const figureSource = validatedFigureSource(metadata.sceneArtifacts);
+    const diagramStrategy = validatedDiagramStrategy(metadata.sceneArtifacts);
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
-    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation
+    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
           degradation,
           figureSource,
+          diagramStrategy,
         )
       : null;
     return {
@@ -334,7 +338,7 @@ export async function canonicalizeTurnSceneMetadata(
     }
   }
   const candidateId = "server-revalidated-scene";
-  const canonicalArtifacts: SceneArtifactsV3 = {
+  const canonicalArtifacts: PersistedSceneArtifacts = {
     schemaVersion: SCENE_ARTIFACTS_V3_VERSION,
     turnPlan: turnPlan ?? null,
     problemIR: solver.problemIR,
@@ -343,6 +347,7 @@ export async function canonicalizeTurnSceneMetadata(
     representationTier: tier,
     nonMetric,
     figureSource: validatedFigureSource(metadata.sceneArtifacts),
+    diagramStrategy: validatedDiagramStrategy(metadata.sceneArtifacts),
     candidates: [{
       candidateId,
       strategy: "server_revalidation",
@@ -506,7 +511,8 @@ function minimalFailureArtifacts(
   status: "retry_required" | "text_only",
   degradation?: SceneArtifactsV3["degradation"],
   figureSource?: FigureSource,
-): SceneArtifactsV3 {
+  diagramStrategy?: DiagramStrategy,
+): PersistedSceneArtifacts {
   return {
     schemaVersion: SCENE_ARTIFACTS_V3_VERSION,
     turnPlan,
@@ -514,6 +520,7 @@ function minimalFailureArtifacts(
     solverResult: null,
     solverAuthority: null,
     figureSource,
+    diagramStrategy,
     candidates: [],
     selectedCandidateId: null,
     selectionReason: "partial and unverified scene data was removed before persistence",
@@ -522,6 +529,13 @@ function minimalFailureArtifacts(
     visualReview: null,
     diagramResultStatus: status,
   };
+}
+
+function validatedDiagramStrategy(artifacts: unknown): DiagramStrategy | undefined {
+  if (!isRecord(artifacts)) return undefined;
+  return artifacts.diagramStrategy === "current" || artifacts.diagramStrategy === "strict"
+    ? artifacts.diagramStrategy
+    : undefined;
 }
 
 function validatedFigureSource(artifacts: unknown): FigureSource | undefined {

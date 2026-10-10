@@ -72,7 +72,7 @@ temp/
 # Lecture lab run artifacts (transcripts + graded runs)
 .lecture-lab/
 
-# Private student reference anchors and their figures
+# Private diagram references (may contain real student questions/figures)
 data/diagram-eval/v1/anchors.jsonl
 data/diagram-eval/v1/anchor-images/
 

@@ -33,6 +33,7 @@ import {
 } from "@/lib/boards/boardContinuation";
 
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
+import type { DiagramStrategy } from "../scene/diagramStrategy";
 
 /** A lesson opens a page; a doubt answers on it; a resume continues after that. */
 export type PageTurnKind = "lesson" | "doubt" | "resume";
@@ -77,13 +78,13 @@ export interface BoardPageRecord {
   };
 }
 
-export function textOnlyTurnScene(): PersistedTurnScene {
+export function textOnlyTurnScene(diagramStrategy?: DiagramStrategy): PersistedTurnScene {
   return {
     sceneDocument: null,
     sceneEngineVersion: null,
     validationReport: null,
     visualStatus: "text_only",
-    sceneArtifacts: null,
+    sceneArtifacts: diagramStrategy ? { diagramStrategy } : null,
   };
 }
 
@@ -105,10 +106,16 @@ export function lessonPageRecord(boardId: string, question: string): BoardPageRe
  * against a scene, so a saved doubt keeps its rows and boxes and drops its
  * pointing. The marker is what keeps it on the lesson's page.
  */
-export function doubtTurnScene(lessonQuestion: string, continuesBoard: boolean): PersistedTurnScene {
+export function doubtTurnScene(
+  lessonQuestion: string,
+  continuesBoard: boolean,
+  diagramStrategy?: DiagramStrategy,
+): PersistedTurnScene {
   return {
-    ...textOnlyTurnScene(),
-    sceneArtifacts: continuesBoard ? boardContinuationArtifacts(lessonQuestion) : null,
+    ...textOnlyTurnScene(diagramStrategy),
+    sceneArtifacts: continuesBoard
+      ? { ...boardContinuationArtifacts(lessonQuestion), ...(diagramStrategy ? { diagramStrategy } : {}) }
+      : diagramStrategy ? { diagramStrategy } : null,
   };
 }
 
@@ -312,6 +319,7 @@ function planOnlyArtifacts(artifacts: unknown): unknown | null {
     ...(source.schemaVersion ? { schemaVersion: source.schemaVersion } : {}),
     turnPlan: source.turnPlan ?? null,
     ...(source.codeLesson ? { codeLesson: source.codeLesson } : {}),
+    ...(source.diagramStrategy ? { diagramStrategy: source.diagramStrategy } : {}),
   };
 }
 

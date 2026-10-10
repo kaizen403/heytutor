@@ -49,8 +49,8 @@ function writeJsonl(path: string, rows: readonly unknown[]): void {
   writeFileSync(path, rows.length > 0 ? `${rows.map((row) => JSON.stringify(row)).join("\n")}\n` : "");
 }
 
-export function cropDiagramZone(source: string, destination: string): void {
-  execFileSync(process.execPath, [fileURLToPath(new URL("./crop-diagram.mjs", import.meta.url)), source, destination], { stdio: "pipe" });
+export function cropDiagramZone(source: string, destination: string, width = 700): void {
+  execFileSync(process.execPath, [fileURLToPath(new URL("./crop-diagram.mjs", import.meta.url)), source, destination, String(width)], { stdio: "pipe" });
 }
 
 export function prepareJudgingRound(roundArgument: string): {

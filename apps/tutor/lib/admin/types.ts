@@ -57,6 +57,11 @@ export interface FigureSourceCount {
   count: number;
 }
 
+export interface DiagramStrategyCount {
+  strategy: "current" | "strict" | "unrecorded";
+  count: number;
+}
+
 export interface OverviewTopUser {
   userId: string;
   label: string;
@@ -131,6 +136,7 @@ export interface OverviewPayload {
   outcomes7d: OutcomeCounts;
   tiers7d: TierCounts & BoundedAggregate;
   figureSources7d: { sources: FigureSourceCount[] } & BoundedAggregate;
+  diagramStrategies7d: { strategies: DiagramStrategyCount[] } & BoundedAggregate;
   degradation7d: { reasons: DegradationReasonCount[] } & BoundedAggregate;
   sceneEngineVersions30d: Array<{ version: string; count: number }>;
   topUsers7d: OverviewTopUser[];
