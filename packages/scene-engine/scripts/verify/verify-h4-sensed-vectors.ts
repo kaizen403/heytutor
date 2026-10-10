@@ -51,5 +51,14 @@ const physical = structuredClone(derivative); physical.constructions[0]!.operato
 check(!compileSceneDocument(physical).ok, "physical wave derivative cannot become an ordinary free vector");
 const dimensional = structuredClone(derivative); dimensional.quantities.push({ id: "at", value: 1, unit: "m" }); dimensional.constructions[1]!.inputs.at = "at";
 check(!compileSceneDocument(dimensional).ok, "physical parameter units cannot be discarded by free-vector composition");
+
+const coefficient = structuredClone(derivative); coefficient.quantities.push({ id: "coef", value: 2, unit: "T" }); coefficient.constructions[0]!.inputs.coefficients = ["coef"];
+check(!compileSceneDocument(coefficient).ok, "ignored dimensional coefficient declarations cannot become a unitless vector");
+const binding = structuredClone(derivative); binding.constructions[0]!.inputs.expression = "coef*x^2"; binding.quantities.push({ id: "coef", value: 2, unit: "N" });
+check(!compileSceneDocument(binding).ok, "quantity identifiers in analytic expressions are unsupported and refuse");
+const declaredOutput = structuredClone(derivative); declaredOutput.constructions[0]!.inputs.units = { amplitude: "T" };
+check(!compileSceneDocument(declaredOutput).ok, "ignored physical curve units cannot become a unitless vector");
+const aliasDomain = structuredClone(derivative); aliasDomain.quantities.push({ id: "lo", value: -2, unit: "m" }, { id: "hi", value: 2, unit: "m" }); aliasDomain.constructions[0]!.inputs = { expression: "x^2", x_min: "lo", x_max: "hi", samples: 33 };
+check(!compileSceneDocument(aliasDomain).ok, "domain aliases keep their source units at composition boundary");
 console.log(`H4 sensed vectors: ${checks - failures.length}/${checks} passed`);
 assert.equal(failures.length, 0, failures.join("\n"));

@@ -348,7 +348,11 @@ export function validateVectorConstruction(construction: SceneConstruction, inde
       knownUnits.add("unit");
       const curve = typeof producer.inputs.curve === "string" ? constructionByOutput.get(producer.inputs.curve) : undefined;
       if (!curve || !["function_curve", "parametric_curve", "polar_curve"].includes(curve.operator)) invalid("vector", "physical analytic derivatives cannot be reinterpreted as free vectors");
-      for (const value of [producer.inputs.at, producer.inputs.parameterScale, ...["xMin", "xMax", "tMin", "tMax", "thetaMin", "thetaMax"].map((key) => curve.inputs[key])]) {
+      const allowed = curve.operator === "function_curve" ? ["expression", "variable", "xMin", "xMax", "x_min", "x_max", "samples"]
+        : curve.operator === "parametric_curve" ? ["parameter", "xExpression", "yExpression", "tMin", "tMax", "parameterMin", "parameterMax", "samples"]
+        : ["parameter", "radiusExpression", "thetaMin", "thetaMax", "parameterMin", "parameterMax", "samples"];
+      keys(curve.inputs, allowed, "vector");
+      for (const value of [producer.inputs.at, producer.inputs.parameterScale, ...["xMin", "xMax", "x_min", "x_max", "tMin", "tMax", "thetaMin", "thetaMax", "parameterMin", "parameterMax", "samples"].map((key) => curve.inputs[key])]) {
         for (const unit of scalarUnits(value, document)) if (!DIMENSIONLESS_UNITS.has(unit) && !["rad", "radian", "radians"].includes(unit)) invalid("units", "ordinary analytic derivative composition requires dimensionless mathematical parameters");
       }
     } else invalid("vector", "physical, 3D, ray, and region constructions cannot be reinterpreted as free vectors");
