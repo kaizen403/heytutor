@@ -226,6 +226,13 @@ await section("4 directed multi path keeps arrow semantics", async () => {
   check(strokes.length === 1, `one traced field line compiles to one stroke (${strokes.length})`);
   check(strokes[0]!.kind === "vector", `a field line keeps its direction as a vector primitive (${strokes[0]!.kind})`);
   check(strokes[0]!.points.length > 2, "the field line keeps its curved samples");
+  const { primitiveToSvg } = await import("../lib/renderSceneSvg");
+  const svg = primitiveToSvg(strokes[0]!, "arrowhead", "#111", "#222");
+  const svgPoints = strokes[0]!.points.map(point => `${point.x},${point.y}`).join(" ");
+  check(svg.includes(`<polyline points="${svgPoints}"`), "SVG field lines keep every curved sample in order");
+  check(svg.includes('marker-end="url(#arrowhead)"'), "SVG field lines have a head on their final segment");
+  const straightSvg = primitiveToSvg({ ...strokes[0]!, points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }, "arrowhead", "#111", "#222");
+  check(straightSvg.startsWith('<line x1="1" y1="2" x2="3" y2="4"'), "two-point SVG arrows retain their straight-line rendering");
   // Guard: an undirected curve from the same family stays plain ink.
   const level = await compiledPrimitives(scene("equipotential", {
     source: "dipole", charges: [{ position: { x: 1, y: 0 }, charge: 1 }, { position: { x: -1, y: 0 }, charge: -1 }],
