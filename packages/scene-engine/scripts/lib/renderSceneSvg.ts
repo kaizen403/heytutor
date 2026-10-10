@@ -79,6 +79,9 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
       const start = points[0];
       const end = points.at(-1);
       if (!start || !end) return "";
+      if (points.length > 2) {
+        return `<polyline points="${poly(points)}" ${stroke} marker-end="url(#${marker})"/>${inlineLabel}`;
+      }
       return `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" ${stroke} marker-end="url(#${marker})"/>${inlineLabel}`;
     }
     case "circle":
