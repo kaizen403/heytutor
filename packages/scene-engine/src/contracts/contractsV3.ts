@@ -2625,11 +2625,14 @@ export function validateTurnPlanSceneProofs(
     ...plan.lawIds,
     ...plan.qualitativeClaims.flatMap((claim) => [claim.id, claim.claim]),
   ].join(" ").toLowerCase();
+  const expectedClaims = plan.qualitativeClaims.flatMap((claim) =>
+    typeof claim.expected === "string" ? [claim.expected.toLowerCase()] : []);
   issues.push(...validateSemanticVectorGeometry(document, plan));
   issues.push(...validateClaimedClosedRouteMembers(document, plan));
   issues.push(...validatePoweredCircuitClosure(
     document,
     [plan.question, evidenceText, ...plan.assumptions].join(" ").toLowerCase(),
+    expectedClaims.some(expectedClaimDemandsCurrent),
   ));
   const resistorIds = document.constructions.flatMap((construction) =>
     construction.operator === "symbol" &&
@@ -2642,11 +2645,12 @@ export function validateTurnPlanSceneProofs(
   if (resistorIds.length < 2) return issues;
   // The question states the concept as authoritatively as the plan's laws do:
   // "Explain resistors connected in parallel" asks for the parallel proof.
-  const conceptText = `${plan.question.toLowerCase()} ${evidenceText}`;
+  const conceptText = `${plan.question.toLowerCase()} ${evidenceText}`.replace(/[_-]+/g, " ");
+  const mixedConcept = /\b(?:series\s+(?:and\s+)?parallel|parallel\s+(?:and\s+)?series)\b/.test(conceptText);
   const needsSeries =
-    /\bseries[-_\s]+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?in\s+series\b/.test(conceptText);
+    mixedConcept || /\bseries\s+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?(?:only\s+)?in\s+(?:only\s+)?series\b/.test(conceptText);
   const needsParallel =
-    /\bparallel[-_\s]+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?in\s+parallel\b/.test(conceptText);
+    mixedConcept || /\bparallel\s+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?(?:only\s+)?in\s+(?:only\s+)?parallel\b/.test(conceptText);
   if (!needsSeries && !needsParallel) return issues;
 
   const resistorSet = new Set(resistorIds);
@@ -2664,18 +2668,18 @@ export function validateTurnPlanSceneProofs(
 
   const prove = (concept: "series" | "parallel", predicate: "path" | "sameTerminalPair") => {
     const group = groupFor(concept);
-    const groupMembers = group?.entityIds.filter((id) => resistorSet.has(id)) ?? [];
-    const mixedTopology = conceptsRequested > 1 && !group;
+    const groupMembers = conceptsRequested === 1 && concept === "parallel"
+      ? resistorIds
+      : group?.entityIds.filter((id) => resistorSet.has(id)) ?? [];
+    const mixedTopology = conceptsRequested > 1 && (!group || document.revealGroups.length === 1);
     const pairsOf = (ids: string[]) => ids.flatMap((first, index) =>
       ids.slice(index + 1).map((second) => [first, second]));
-    // A parallel claim needs one pair of elements on a shared node pair, not
-    // every element on one pair: a mixed series-parallel network proves the
-    // parallel concept with its branch pair while its series element stays put.
+    // A mixed series/parallel network can prove each concept with its subset.
+    // A dedicated view must prove every member; a branch pair cannot hide an
+    // extra series element in a view asking only for parallel resistors.
     const candidateSets = mixedTopology
       ? [resistorIds, ...pairsOf(resistorIds)]
-      : concept === "parallel"
-        ? [groupMembers, ...pairsOf(groupMembers)]
-        : [groupMembers];
+      : [groupMembers];
     const proof = candidateSets.find((members) => {
       if (members.length < 2) return false;
       const proofIssues: SceneIssue[] = [];
@@ -3640,11 +3644,21 @@ const CIRCUIT_APPARATUS_OPERATORS = new Set(["kirchhoff_network", "metre_bridge"
 const LOAD_OR_METER =
   /\b(?:resistors?|resistance|lamps?|bulbs?|loads?|appliances?|heaters?|motors?|rheostats?|capacitors?|inductors?|coils?|diodes?|(?:am|volt|galvano|multi)?meters?|galvanometers?)\b/i;
 
+/** A string-valued expectation can deny flow without requiring a closed path. */
+function expectedClaimDemandsCurrent(text: string): boolean {
+  const zeroPredicate = /\bcurrents?(?:\s+(?:in|through|along)\s+(?:(?!(?:is|are|equals?|remains?|flows?|and|but)\b)[\p{L}_][\p{L}\p{N}_-]*\s+){1,12})?\s*(?:is|are|equals?|remains?|=)\s*(?:zero\b|0(?:\.0+)?(?![\w.]))/gu;
+  const positiveText = text
+    .replace(/\b(?:no|zero)\s+currents?\b|\bcurrents?\s+(?:cannot|can['’]t|does\s+not|will\s+not)\s+flow\b/g, "")
+    .replace(zeroPredicate, "");
+  return /\bcurrents?\b/.test(positiveText);
+}
+
 function validatePoweredCircuitClosure(
   document: SceneDocument,
   evidenceText: string,
+  expectedCurrent = false,
 ): SceneIssue[] {
-  if (/\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
+  if (!expectedCurrent && /\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
     return [];
   }
   const entityById = new Map(document.entities.map((entity) => [entity.id, entity]));
@@ -3672,7 +3686,7 @@ function validatePoweredCircuitClosure(
     document.constructions.some((construction) => CIRCUIT_APPARATUS_OPERATORS.has(construction.operator)) ||
     document.entities.some((entity) => !sourceIds.has(entity.id) && LOAD_OR_METER.test(
       `${entity.id} ${entity.role ?? ""} ${entity.label ?? ""}`.replace(/[_-]+/g, " ")));
-  const claimsCurrent = /\bcurrents?\b|\bohm['’]?s?\b|\bkirchhoff/.test(evidenceText);
+  const claimsCurrent = expectedCurrent || /\bcurrents?\b|\bohm['’]?s?\b|\bkirchhoff/.test(evidenceText);
   if (!drawsLoadOrMeter && !claimsCurrent) return [];
   const issues: SceneIssue[] = [];
   for (const source of sources) {
