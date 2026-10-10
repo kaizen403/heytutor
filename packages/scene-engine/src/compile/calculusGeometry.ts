@@ -1,4 +1,4 @@
-import { parseMathExpression } from "../math/expression";
+import { parseMathExpression, parseParameterizedMathExpression } from "../math/expression";
 import { evaluateKinematicsConstruction } from "./kinematicsGeometry";
 import { evaluateWavesConstruction } from "./wavesGeometry";
 import { evaluateElasticityConstruction } from "./elasticityGeometry";
@@ -132,7 +132,7 @@ function validationNumber(value: unknown, document: SceneDocument, seen = new Se
 }
 function parameterizedExpression(value: unknown, name: "t" | "theta") {
   if (typeof value !== "string" || /\bx\b/.test(value)) return invalid("curve", `${name} expression must use its declared parameter`);
-  return parseMathExpression(value.replace(new RegExp(`\\b${name}\\b`, "g"), "x"));
+  return parseParameterizedMathExpression(value, name);
 }
 const UNIT_ALIASES: Readonly<Record<string, string>> = { "1": "1", dimensionless: "1", unit: "1", units: "1", rad: "rad", radian: "rad", radians: "rad", s: "s", sec: "s", second: "s", seconds: "s", ms: "ms", millisecond: "ms", milliseconds: "ms", m: "m", meter: "m", meters: "m", metre: "m", metres: "m", cm: "cm", centimeter: "cm", centimeters: "cm", centimetre: "cm", centimetres: "cm", mm: "mm", millimeter: "mm", millimeters: "mm", millimetre: "mm", millimetres: "mm", km: "km", um: "um", "µm": "um", "μm": "um", nm: "nm", ft: "ft", in: "in" };
 function normalizedUnit(value: string): string { return value.trim().replace(/[A-Za-z]{4,}/g, (word) => word.toLowerCase()); }

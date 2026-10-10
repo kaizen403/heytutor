@@ -299,7 +299,7 @@ function indexedSource(question: string): MatrixSource | null {
       if (variable === columnVariable) return "y";
       return fail("Indexed source expression has an unbound variable");
     });
-    return parseMathExpression2D(normalized);
+    return parseMathExpression2D(normalized, { juxtaposition: false });
   };
   const numerator = expression(dividend!);
   const denominator = expression(divisor!);

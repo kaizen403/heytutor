@@ -16,7 +16,7 @@ import { grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTab
 
 function evaluate(expression: string, x: number): number | null {
   try {
-    const value = parseMathExpression(expression).evaluate(x);
+    const value = parseMathExpression(expression, { juxtaposition: false }).evaluate(x);
     return Number.isFinite(value) ? value : null;
   } catch {
     return null;

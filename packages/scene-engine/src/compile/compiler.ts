@@ -30,7 +30,7 @@ import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
-import { parseMathExpression, parseMathExpression2D } from "../math/expression";
+import { parseMathExpression, parseMathExpression2D, parseParameterizedMathExpression } from "../math/expression";
 import {
   isometricProject,
   planeFromCartesian,
@@ -3999,10 +3999,7 @@ function sampleCurve(evaluate: (parameter: number) => Point, min: number, max: n
 }
 
 function parseParameterizedExpression(source: string, parameter: "t" | "theta") {
-  if (new RegExp(`\\bx\\b`).test(source)) {
-    throw new Error(`${parameter} expression cannot also reference x`);
-  }
-  return parseMathExpression(source.replace(new RegExp(`\\b${parameter}\\b`, "g"), "x"));
+  return parseParameterizedMathExpression(source, parameter);
 }
 function functionRegionPoints(
   inputs: Record<string, unknown>,

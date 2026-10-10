@@ -800,7 +800,9 @@ function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
     const expression = normalizeExpression(rawExpression);
     if (!expression || facts.some((fact) => fact.expression === expression)) continue;
     try {
-      parseMathExpression(expression);
+      // The stem was stripped of whitespace above, so `4 (2)` and `4(2)` look
+      // alike; source facts keep the explicit-multiplication grammar.
+      parseMathExpression(expression, { juxtaposition: false });
       facts.push({ expression, sourceText: `y=${rawExpression.trim()}` });
     } catch {
       // Unsupported expressions stay available as literal source facts instead

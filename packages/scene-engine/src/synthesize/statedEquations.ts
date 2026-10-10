@@ -13,6 +13,10 @@
  */
 import { parseMathExpression2D } from "../math/expression";
 
+// Stated equations are repaired from OCR text (`x2` is a square, `)2` an
+// exponent), so the reader keeps its explicit-multiplication grammar here.
+const STEM_GRAMMAR = { juxtaposition: false } as const;
+
 export type StatedCurveKind =
   | "line"
   | "circle"
@@ -217,7 +221,7 @@ function classifyStatedCurve(expression: string): StatedCurve | null {
 function statedCoefficients(expression: string): [number, number, number, number, number, number] | null {
   let evaluate: (x: number, y: number) => number;
   try {
-    const parsed = parseMathExpression2D(expression);
+    const parsed = parseMathExpression2D(expression, STEM_GRAMMAR);
     evaluate = (x, y) => parsed.evaluate(x, y);
     parsed.assertContinuousOn(-8, 8, -8, 8);
   } catch {

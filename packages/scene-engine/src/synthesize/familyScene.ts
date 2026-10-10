@@ -76,6 +76,11 @@ import {
   type ValidationReport,
 } from "../types";
 
+// Question stems are normalized here with their whitespace removed, so the
+// reader can no longer tell `x^2 - 4 (2)` (a mark count) from `x^2-4(2)`.
+// Stem expressions keep the explicit-multiplication grammar.
+const STEM_GRAMMAR = { juxtaposition: false } as const;
+
 export const SYNTHESIZED_REPRESENTATION_TIERS = [
   "exact_verified",
   "qualitative_verified",
@@ -1788,7 +1793,7 @@ function extractProseRegionCurves(
     if (!left || !right) continue;
     if (!/[xy]/.test(left) && !/[xy]/.test(right)) continue;
     const expression = `(${left})-(${right})`;
-    try { parseMathExpression2D(expression); } catch { continue; }
+    try { parseMathExpression2D(expression, STEM_GRAMMAR); } catch { continue; }
     push(expression);
   }
   if (curves.length < 2 || curves.length > REGION_MAX_PROSE_CURVES) return null;
@@ -1807,7 +1812,7 @@ function regionPredicate(
   const parsed: Array<{ evaluate: (x: number, y: number) => number; sign: number }> = [];
   for (const constraint of constraints) {
     try {
-      const expression = parseMathExpression2D(constraint.expression);
+      const expression = parseMathExpression2D(constraint.expression, STEM_GRAMMAR);
       parsed.push({
         evaluate: (x, y) => expression.evaluate(x, y),
         sign: constraint.relation === "le" ? -1 : 1,
@@ -1988,7 +1993,7 @@ function parseRegionInequality(
   if (!/[xy]/.test(left) && !/[xy]/.test(right)) return null;
   const expression = `(${left})-(${right})`;
   try {
-    parseMathExpression2D(expression);
+    parseMathExpression2D(expression, STEM_GRAMMAR);
   } catch {
     return "unreadable";
   }
@@ -2024,8 +2029,8 @@ function shrinkRegionDomain(
   domain: [number, number],
 ): [number, number] | null {
   try {
-    const u = parseMathExpression(upper);
-    const l = parseMathExpression(lower);
+    const u = parseMathExpression(upper, STEM_GRAMMAR);
+    const l = parseMathExpression(lower, STEM_GRAMMAR);
     const samples = Array.from({ length: 65 }, (_, index) => domain[0] + (domain[1] - domain[0]) * index / 64);
     const good = samples.filter((x) => u.evaluate(x) + 1e-9 >= l.evaluate(x));
     if (good.length < 8) return null;
@@ -2045,8 +2050,8 @@ function orderRegionCurves(
   const [first, second] = expressions;
   if (!first || !second) return null;
   try {
-    const a = parseMathExpression(first);
-    const b = parseMathExpression(second);
+    const a = parseMathExpression(first, STEM_GRAMMAR);
+    const b = parseMathExpression(second, STEM_GRAMMAR);
     const samples = [0.25, 0.5, 0.75].map((t) => domain[0] + t * (domain[1] - domain[0]));
     const aAbove = samples.filter((x) => a.evaluate(x) + 1e-9 >= b.evaluate(x)).length;
     if (aAbove >= 2) return { upper: first, lower: second };
@@ -4747,7 +4752,7 @@ function normalizeParametricExpression(value: string): string {
 }
 
 function evaluateInT(expression: string, t: number): number {
-  return parseMathExpression(expression.replace(/\bt\b/g, "x")).evaluate(t);
+  return parseMathExpression(expression.replace(/\bt\b/g, "x"), STEM_GRAMMAR).evaluate(t);
 }
 
 function extractExplicitFunctions(question: string): string[] {
@@ -4791,7 +4796,7 @@ function extractExplicitFunctions(question: string): string[] {
 
 function isConstantPlotExpression(expression: string): boolean {
   try {
-    const parsed = parseMathExpression(expression);
+    const parsed = parseMathExpression(expression, STEM_GRAMMAR);
     return Math.abs(parsed.evaluate(0.5) - parsed.evaluate(1.5)) < 1e-9;
   } catch {
     return true;
@@ -4818,7 +4823,7 @@ function repairExamExpression(raw: string): string {
 
 function isUsablePlotExpression(expression: string): boolean {
   try {
-    parseMathExpression(expression).evaluate(0.5);
+    parseMathExpression(expression, STEM_GRAMMAR).evaluate(0.5);
     return true;
   } catch {
     return false;

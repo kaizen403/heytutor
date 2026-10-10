@@ -20,13 +20,16 @@ type ExpressionNode =
   | { kind: "binary"; operator: BinaryOperator; left: ExpressionNode; right: ExpressionNode }
   | { kind: "function"; name: FunctionName; argument: ExpressionNode };
 
+// `end` is the offset just past the token, so the parser can tell `3x` (one
+// written term) from `3 x`. `plain` marks a number with no exponent part and
+// no trailing point: only such a number may multiply by juxtaposition.
 type Token =
-  | { kind: "number"; value: number; position: number }
-  | { kind: "identifier"; value: string; position: number }
-  | { kind: "operator"; value: BinaryOperator; position: number }
-  | { kind: "leftParen"; position: number }
-  | { kind: "rightParen"; position: number }
-  | { kind: "end"; position: number };
+  | { kind: "number"; value: number; position: number; end: number; plain: boolean }
+  | { kind: "identifier"; value: string; position: number; end: number }
+  | { kind: "operator"; value: BinaryOperator; position: number; end: number }
+  | { kind: "leftParen"; position: number; end: number }
+  | { kind: "rightParen"; position: number; end: number }
+  | { kind: "end"; position: number; end: number };
 
 const FUNCTIONS = {
   sin: Math.sin,
@@ -55,8 +58,63 @@ export interface ParsedMathExpression2D {
   assertContinuousOn(xMin: number, xMax: number, yMin: number, yMax: number): void;
 }
 
+/**
+ * Grammar options for the reader.
+ *
+ * `juxtaposition` (default on) reads a product written without `*` only where
+ * there is one possible reading: a plain number or a closing parenthesis
+ * directly followed, with no space, by a variable, `pi`, a function name or an
+ * opening parenthesis (`3x`, `2pi`, `2(x+1)`, `3sin(x)`, `(x+1)(x-1)`,
+ * `(x+1)x`). Power binds tighter, so `3x^2` is `3*(x^2)`. Everything else
+ * still fails closed: `)2` (a flattened exponent as often as a product), a
+ * variable or constant before `(` (`x(x+1)` reads as function notation), `2e`
+ * (scientific notation and the elementary charge), `2e3x` and `2.x`, letter
+ * runs such as `sinx`, `sin2x` and `xy` (one identifier, never split), and a
+ * juxtaposed factor straight after `/` or after an exponent (`1/2x`, `2^3x`,
+ * `e^2x`), where readers disagree about what binds first.
+ *
+ * Pass `{ juxtaposition: false }` for text that was normalized upstream (for
+ * example with whitespace removed from a question stem), where the reader can
+ * no longer tell `4 (2)` from `4(2)`.
+ */
+export interface MathExpressionGrammar {
+  readonly juxtaposition?: boolean;
+}
+
+interface ReaderGrammar {
+  /** Identifiers the source may use, mapped to the evaluation slot they read. */
+  readonly variables: ReadonlyMap<string, VariableName>;
+  readonly juxtaposition: boolean;
+  /** An identifier this source must not use, with the error it raises. */
+  readonly forbidden?: { readonly name: string; readonly message: string };
+}
+
+const ONE_VARIABLE: ReadonlyMap<string, VariableName> = new Map([["x", "x"]]);
+const TWO_VARIABLES: ReadonlyMap<string, VariableName> = new Map([["x", "x"], ["y", "y"]]);
+
 /** Parse the intentionally small, side-effect-free language used by function_curve. */
-export function parseMathExpression(source: string): ParsedMathExpression {
+export function parseMathExpression(source: string, grammar: MathExpressionGrammar = {}): ParsedMathExpression {
+  return parseOneVariable(source, { variables: ONE_VARIABLE, juxtaposition: grammar.juxtaposition ?? true });
+}
+
+/**
+ * Parse a parametric or polar coordinate expression in its own parameter (`t`
+ * or `theta`), read on the token stream rather than by text substitution, so
+ * `2t` is the product 2*t and a stray `x` (even `2x`) is rejected.
+ */
+export function parseParameterizedMathExpression(
+  source: string,
+  parameter: "t" | "theta",
+  grammar: MathExpressionGrammar = {},
+): ParsedMathExpression {
+  return parseOneVariable(source, {
+    variables: new Map([[parameter, "x"]]),
+    juxtaposition: grammar.juxtaposition ?? true,
+    forbidden: { name: "x", message: `${parameter} expression cannot also reference x` },
+  });
+}
+
+function parseOneVariable(source: string, grammar: ReaderGrammar): ParsedMathExpression {
   if (typeof source !== "string" || source.trim().length === 0) {
     throw new Error("expression must be a non-empty string");
   }
@@ -64,7 +122,7 @@ export function parseMathExpression(source: string): ParsedMathExpression {
     throw new Error(`expression exceeds ${MAX_EXPRESSION_LENGTH} characters`);
   }
   const normalized = normalizePlainMathSource(source).trim();
-  const root = new Parser(tokenize(normalized), new Set(["x"])).parse();
+  const root = new Parser(tokenize(normalized), grammar).parse();
   return {
     source: normalized,
     evaluate(x: number): number {
@@ -92,7 +150,7 @@ export function parseMathExpression(source: string): ParsedMathExpression {
 }
 
 /** Parse the same bounded language for an implicit relation F(x, y) = 0. */
-export function parseMathExpression2D(source: string): ParsedMathExpression2D {
+export function parseMathExpression2D(source: string, grammar: MathExpressionGrammar = {}): ParsedMathExpression2D {
   if (typeof source !== "string" || source.trim().length === 0) {
     throw new Error("expression must be a non-empty string");
   }
@@ -100,7 +158,10 @@ export function parseMathExpression2D(source: string): ParsedMathExpression2D {
     throw new Error(`expression exceeds ${MAX_EXPRESSION_LENGTH} characters`);
   }
   const normalized = normalizePlainMathSource(source).trim();
-  const root = new Parser(tokenize(normalized), new Set(["x", "y"])).parse();
+  const root = new Parser(
+    tokenize(normalized),
+    { variables: TWO_VARIABLES, juxtaposition: grammar.juxtaposition ?? true },
+  ).parse();
   return {
     source: normalized,
     evaluate(x: number, y: number): number {
@@ -129,8 +190,13 @@ export function parseMathExpression2D(source: string): ParsedMathExpression2D {
   };
 }
 
+/**
+ * Evaluate with the explicit grammar. Its callers read numbers out of model
+ * prose and physics chains, where `2 e` or `6V` next to a number is a unit,
+ * so juxtaposition stays off here.
+ */
 export function evaluateMathExpression(source: string, x: number): number {
-  return parseMathExpression(source).evaluate(x);
+  return parseMathExpression(source, { juxtaposition: false }).evaluate(x);
 }
 
 const SUPERSCRIPT_POWERS: Readonly<Record<string, string>> = {
@@ -167,30 +233,31 @@ function tokenize(source: string): Token[] {
       if (!Number.isFinite(value) || Math.abs(value) > MAX_ABSOLUTE_VALUE) {
         throw new Error(`numeric literal at position ${start} is outside the supported range`);
       }
-      push({ kind: "number", value, position: start });
-      index += match[0].length;
+      const end = start + match[0].length;
+      push({ kind: "number", value, position: start, end, plain: !/[eE]/.test(match[0]) && !match[0].endsWith(".") });
+      index = end;
       continue;
     }
     if (/[A-Za-z_]/.test(character)) {
       const start = index;
       const match = source.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/)!;
-      push({ kind: "identifier", value: match[0], position: start });
+      push({ kind: "identifier", value: match[0], position: start, end: start + match[0].length });
       index += match[0].length;
       continue;
     }
     if (character === "(" || character === ")") {
-      push({ kind: character === "(" ? "leftParen" : "rightParen", position: index });
+      push({ kind: character === "(" ? "leftParen" : "rightParen", position: index, end: index + 1 });
       index += 1;
       continue;
     }
     if (["+", "-", "*", "/", "^"].includes(character)) {
-      push({ kind: "operator", value: character as BinaryOperator, position: index });
+      push({ kind: "operator", value: character as BinaryOperator, position: index, end: index + 1 });
       index += 1;
       continue;
     }
     throw new Error(`unsupported character '${character}' at position ${index}`);
   }
-  tokens.push({ kind: "end", position: source.length });
+  tokens.push({ kind: "end", position: source.length, end: source.length });
   return tokens;
 }
 
@@ -199,7 +266,7 @@ class Parser {
 
   constructor(
     private readonly tokens: Token[],
-    private readonly variables: ReadonlySet<VariableName>,
+    private readonly grammar: ReaderGrammar,
   ) {}
 
   parse(): ExpressionNode {
@@ -224,11 +291,22 @@ class Parser {
   private parseMultiplicative(depth: number): ExpressionNode {
     this.checkDepth(depth);
     let node = this.parseUnary(depth + 1);
-    while (this.isOperator("*") || this.isOperator("/")) {
-      const operator = (this.consume() as Extract<Token, { kind: "operator" }>).value;
-      node = { kind: "binary", operator, left: node, right: this.parseUnary(depth + 1) };
+    // `a/b*c` and `a/b c` agree only when no juxtaposed factor follows the
+    // divisor: `1/2x` is x/2 to a parser and 1/(2x) to many readers.
+    let afterDivision = false;
+    for (;;) {
+      if (this.isOperator("*") || this.isOperator("/")) {
+        const operator = (this.consume() as Extract<Token, { kind: "operator" }>).value;
+        node = { kind: "binary", operator, left: node, right: this.parseUnary(depth + 1) };
+        afterDivision = operator === "/";
+        continue;
+      }
+      if (!this.juxtaposedFactorFollows()) return node;
+      if (afterDivision) {
+        throw new Error(`implicit multiplication after a division at position ${this.peek().position} is ambiguous; write * and parentheses explicitly`);
+      }
+      node = { kind: "binary", operator: "*", left: node, right: this.parsePower(depth + 1) };
     }
-    return node;
   }
 
   private parseUnary(depth: number): ExpressionNode {
@@ -245,7 +323,33 @@ class Parser {
     const left = this.parsePrimary(depth + 1);
     if (!this.isOperator("^")) return left;
     this.consume();
-    return { kind: "binary", operator: "^", left, right: this.parseUnary(depth + 1) };
+    const right = this.parseUnary(depth + 1);
+    // `2^3x` and `e^2x` are (2^3)x to a parser and 2^(3x) to many readers.
+    if (this.juxtaposedFactorFollows()) {
+      throw new Error(`implicit multiplication after an exponent at position ${this.peek().position} is ambiguous; write * and parentheses explicitly`);
+    }
+    return { kind: "binary", operator: "^", left, right };
+  }
+
+  /**
+   * True when the next token starts a factor written directly against the
+   * previous one with only one possible reading. The previous token must be a
+   * plain number or `)`, nothing may separate them, and the next token must be
+   * `(` or an identifier. The identifier itself is checked by parsePrimary, so
+   * `2xy` or `2t` in a one-variable source still fails as an unknown name.
+   */
+  private juxtaposedFactorFollows(): boolean {
+    if (!this.grammar.juxtaposition || this.index === 0) return false;
+    const left = this.tokens[this.index - 1]!;
+    const right = this.peek();
+    if (left.end !== right.position) return false;
+    if (!((left.kind === "number" && left.plain) || left.kind === "rightParen")) return false;
+    if (right.kind === "leftParen") return true;
+    if (right.kind !== "identifier") return false;
+    if (right.value === "e") {
+      throw new Error(`'e' written against the previous factor at position ${right.position} is ambiguous with scientific notation (2e3) and the elementary charge; write * explicitly or use exp(...)`);
+    }
+    return true;
   }
 
   private parsePrimary(depth: number): ExpressionNode {
@@ -259,9 +363,9 @@ class Parser {
       return value;
     }
     if (token.kind === "identifier") {
-      if ((token.value === "x" || token.value === "y") && this.variables.has(token.value)) {
-        return { kind: "variable", name: token.value };
-      }
+      const variable = this.grammar.variables.get(token.value);
+      if (variable !== undefined) return { kind: "variable", name: variable };
+      if (this.grammar.forbidden?.name === token.value) throw new Error(this.grammar.forbidden.message);
       if (token.value === "pi") return { kind: "number", value: Math.PI };
       if (token.value === "e") return { kind: "number", value: Math.E };
       if (!Object.prototype.hasOwnProperty.call(FUNCTIONS, token.value)) {
