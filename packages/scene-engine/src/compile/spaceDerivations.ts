@@ -161,6 +161,18 @@ function lineReach(geometry: Record<string, unknown>, line: SpaceLineDefinition,
     backward: Math.max(0, (along - Math.min(...parameters)) * length),
   };
 }
+/**
+ * A cross product operand: a world segment or vector, or the certified zero
+ * marker of an earlier space_cross, which is the zero vector at its origin.
+ */
+function crossOperand(geometry: Record<string, unknown>, key: string, frameId: string): { start: Vec3; vector: Vec3; length: number } {
+  if (geometry.kind === "point" && isRecord(geometry.spaceCross) && geometry.spaceCross.zero === true) {
+    sameFrame(geometry.spaceCross.frameId, frameId, key);
+    return { start: finiteVector(geometry.space, key), vector: { x: 0, y: 0, z: 0 }, length: 0 };
+  }
+  const segment = segmentInput(geometry, key, frameId);
+  return { start: segment.a, vector: sub(segment.b, segment.a), length: segment.length };
+}
 function segmentInput(geometry: Record<string, unknown>, key: string, frameId: string): SpaceSegmentDefinition {
   let segment: SpaceSegmentDefinition;
   try { segment = segmentDefinition(geometry); } catch { return invalid(key, `${key} must reference a world space_segment or space_vector`); }
@@ -398,18 +410,18 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
   }
   if (operator === "space_cross") {
     inputKeys(inputs, ["frame", "a", "b", "origin", "scale"]);
-    const first = segmentInput(reference(inputs.a, "a", context), "a", frameId);
-    const second = segmentInput(reference(inputs.b, "b", context), "b", frameId);
+    const first = crossOperand(reference(inputs.a, "a", context), "a", frameId);
+    const second = crossOperand(reference(inputs.b, "b", context), "b", frameId);
     const scale = inputs.scale === undefined ? 1 : numberInput(inputs.scale, "scale", context);
     if (!(scale > 0)) invalid("scale", "space_cross scale must be a positive finite number");
     let origin: Vec3;
     if (inputs.origin === undefined) {
       const span = Math.max(first.length, second.length);
-      if (vec3Length(sub(first.a, second.a)) > localTolerance(span, first.a, second.a)) invalid("origin", "a and b do not start at one world point; supply origin");
-      origin = first.a;
+      if (vec3Length(sub(first.start, second.start)) > localTolerance(span, first.start, second.start)) invalid("origin", "a and b do not start at one world point; supply origin");
+      origin = first.start;
     } else origin = spacePoint(inputs.origin, "origin", frameId, context);
-    const a = sub(first.b, first.a);
-    const b = sub(second.b, second.a);
+    const a = first.vector;
+    const b = second.vector;
     const raw = cross(a, b);
     // Only an exactly zero product is certified zero. A product within the
     // rounding of a·b's magnitudes cannot be told from zero, so it is refused
