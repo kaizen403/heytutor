@@ -210,6 +210,9 @@ classified as unknown or non-maths stay current, recorded in
 Picked IDs must also survive the lab's full-sample exemplar exclusions. The
 picker is pinned to the configured lab origin's `/api/chat`, even if a public
 API origin is set, so it cannot bypass authentication or hard-cap accounting.
+The CLI normalizes HTTP(S) origins once for both transport and accounting,
+including trailing slashes and default ports; credentials, paths, queries and
+fragments are rejected without echoing their contents.
 Picker proxy usage is included in planner accounting, not charged again in its picker
 record. Resume identity binds this profile; omitting the flag preserves the
 existing evaluation behaviour. This option does not set any live environment

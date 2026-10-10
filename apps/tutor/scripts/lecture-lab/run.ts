@@ -274,6 +274,16 @@ export function parseOptions(argv: string[]): Options {
   if (productionStrictSubjects && (productionStrictSubjects !== "maths" || evalFiles.length === 0 || arm !== "planner_examples_strict")) {
     throw new Error("--production-strict-subjects maths requires a strict maths evaluation");
   }
+  let parsedOrigin: URL;
+  try {
+    parsedOrigin = new URL(flags.get("origin") ?? "http://127.0.0.1:3000");
+  } catch {
+    throw new Error("--origin must be an HTTP(S) origin without credentials, a path, query or fragment");
+  }
+  if (!["http:", "https:"].includes(parsedOrigin.protocol) || parsedOrigin.username || parsedOrigin.password ||
+      parsedOrigin.pathname !== "/" || parsedOrigin.search || parsedOrigin.hash) {
+    throw new Error("--origin must be an HTTP(S) origin without credentials, a path, query or fragment");
+  }
   return {
     difficulty: flags.get("difficulty") ?? "hard",
     units: list("units")?.map((entry) => Number.parseInt(entry, 10)) ?? null,
@@ -282,7 +292,7 @@ export function parseOptions(argv: string[]): Options {
     limit: number("limit", null),
     concurrency: number("concurrency", 3) ?? 3,
     out: flags.get("out") ?? `.lecture-lab/run-${Date.now()}`,
-    origin: flags.get("origin") ?? "http://127.0.0.1:3000",
+    origin: parsedOrigin.origin,
     familiarity: (flags.get("familiarity") as SubjectFamiliarity) ?? "normal",
     narrationLanguage: flags.get("narration") === "hinglish" ? "hinglish" : "english",
     only: list("only"),

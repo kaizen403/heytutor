@@ -20,13 +20,15 @@ if (process.env.HEYTUTOR_VERIFY_FOREIGN_ORIGIN_CHILD === '1') {
     } });
   assert.equal(dispatchedUrl, 'http://127.0.0.1:3000/api/chat',
     'an absolute public API origin must not bypass the configured lab chat accounting boundary');
+  for (const rawOrigin of ['http://127.0.0.1:3000', 'http://127.0.0.1:3000/', 'HTTP://LOCALHOST:80/']) {
+  const origin = parseOptions(['--max-usd', '2', '--origin', rawOrigin]).origin;
   for (const maxUsd of [0.5, 2]) {
     const cap = new LabSpendCap(maxUsd);
     let upstreamCalls = 0;
-    const result = await pickProductionLabExamples([], { origin: 'http://127.0.0.1:3000', question, plan,
+    const result = await pickProductionLabExamples([], { origin, question, plan,
       traceId: 'synthetic-capped-picker', fetchImpl: async (input, init) => {
         // The runner accounts exactly this URL and trace header, not a foreign origin.
-        const metered = String(input) === 'http://127.0.0.1:3000/api/chat' &&
+        const metered = String(input) === `${origin}/api/chat` &&
           new Headers(init?.headers).get('x-heytutor-trace-id') === 'synthetic-capped-picker';
         if (metered && !cap.reserveCall(1)) throw new Error('mock cap denied before dispatch');
         upstreamCalls += 1;
@@ -40,6 +42,7 @@ if (process.env.HEYTUTOR_VERIFY_FOREIGN_ORIGIN_CHILD === '1') {
     assert.equal(result.record.estimatedCostUsd, 0, 'proxy usage belongs to planner accounting, not a second picker charge');
     assert.equal(result.record.status, maxUsd < 1 ? 'failed' : 'none');
   }
+  }
   return;
 }
 // Public origins are captured at module load; use a fresh mocked process.
@@ -48,6 +51,15 @@ execFileSync(process.execPath, ['--import', 'tsx', resolve(process.cwd(), 'scrip
   stdio: 'pipe',
 });
 const args = ['--eval', 'sample.jsonl', '--arm', 'planner_examples_strict', '--production-strict-subjects', 'maths', '--max-usd', '30'];
+assert.equal(parseOptions([...args, '--origin', 'http://127.0.0.1:3000/']).origin, 'http://127.0.0.1:3000',
+  'transport and spend accounting must share one canonical origin, including trailing slashes');
+assert.equal(parseOptions([...args, '--origin', 'HTTP://LOCALHOST:80/']).origin, 'http://localhost');
+for (const origin of ['invalid', 'file:///tmp/', 'https://example.invalid/path', 'https://example.invalid/?query=1',
+  'https://example.invalid/#fragment', 'https://user:private@example.invalid/']) {
+  assert.throws(() => parseOptions([...args, '--origin', origin]), error =>
+    error instanceof Error && error.message.startsWith('--origin must be an HTTP(S) origin') &&
+      !error.message.includes('private'), 'invalid origins are rejected without echoing credentials');
+}
 assert.deepEqual(parseOptions(args).productionStrictSubjects, ['maths']);
 assert.equal(parseOptions(['--eval', 'sample.jsonl', '--max-usd', '30']).productionStrictSubjects, null);
 assert.throws(() => parseOptions([...args, '--production-strict-subjects', 'physics']), /maths/);
