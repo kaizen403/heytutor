@@ -16,6 +16,7 @@ export * from "./tts/audioContext";
 export * from "./planners/scenePlannerV2";
 export * from "./planners/scenePlannerV2Prompt";
 export * from "./planners/turnPlannerV3";
+export * from "./planners/diagramSubject";
 export * from "./text/questionText";
 export * from "./planners/sceneCapabilities";
 export * from "./planners/opticsPlanAudit";
