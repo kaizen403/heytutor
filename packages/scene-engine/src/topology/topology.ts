@@ -99,6 +99,13 @@ export function validateTopologyInvariants(document: SceneDocument, issues: Scen
 
 function closesPoweredComponentLoop(document: SceneDocument, path: string[]): boolean {
   if (path.length < 2) return false;
+  const sourceEntityIds = topologySourceIds(document);
+  return path.some((id) => sourceEntityIds.has(id)) &&
+    path.some((id) => !sourceEntityIds.has(id));
+}
+
+/** Entities that drive a circuit: a source, supply, battery, cell or generator by role, label or symbol. */
+function topologySourceIds(document: SceneDocument): Set<string> {
   const sourceEntityIds = new Set(document.entities.flatMap((entity) => {
     const semantic = normalizeTopologySemantic(`${entity.kind} ${entity.role} ${entity.label ?? ""}`);
     return /\b(?:source|supply|battery|cell|generator)\b/i.test(semantic)
@@ -115,8 +122,17 @@ function closesPoweredComponentLoop(document: SceneDocument, path: string[]): bo
     const output = construction.outputs[0];
     if (output) sourceEntityIds.add(output);
   }
-  return path.some((id) => sourceEntityIds.has(id)) &&
-    path.some((id) => !sourceEntityIds.has(id));
+  return sourceEntityIds;
+}
+
+/**
+ * A loop with a source and an element it drives has its port: the source's
+ * own terminals, as in a capacitor charged directly by a battery. Sources
+ * alone closed on each other drive nothing and stay a bare ring.
+ */
+function drivesOwnLoop(elementIds: Iterable<string>, sourceIds: ReadonlySet<string>): boolean {
+  const ids = [...elementIds];
+  return ids.some((id) => sourceIds.has(id)) && ids.some((id) => !sourceIds.has(id));
 }
 
 function normalizeTopologySemantic(value: string): string {
@@ -228,7 +244,7 @@ export function evaluateTopologyAssertion(
         const isolatedLoop = ends[0] !== ends[1] && ends.every((end) => {
           const node = electricalNodeConnections(graph, nodeOf, end, new Set());
           return node.freeTerminals === 0 && node.elements < 3;
-        });
+        }) && !drivesOwnLoop(elementsAt(graph, nodeOf, ends), topologySourceIds(document));
         if (isolatedLoop) {
           const nodes = ends.map((end) => describeElectricalNode(graph, nodeOf, end));
           issues.push({
@@ -280,7 +296,7 @@ export function evaluateTopologyAssertion(
         return false;
       }
       const same = directSame || contractedSame;
-      const isolatedLoop = same ? isolatedLoopNodes(graph, edgeIds) : [];
+      const isolatedLoop = same ? isolatedLoopNodes(graph, edgeIds, topologySourceIds(document)) : [];
       const parallel = same && isolatedLoop.length === 0;
       const passed = assertion.expected === false ? !parallel : parallel;
       if (!passed) {
@@ -476,12 +492,14 @@ function electricalNodeConnections(
  * open node is the network's exit terminal, as in a series resistor feeding a
  * parallel pair. When neither does, the members close one series loop with no
  * port (an isolated LC circuit is the textbook case), which `path` proves.
- * Returns the shared nodes of such an isolated loop, else nothing.
+ * A member source is itself the port: a battery directly across a capacitor
+ * shares its terminal pair. Returns the shared nodes of an isolated loop,
+ * else nothing.
  */
-function isolatedLoopNodes(graph: TopologyGraph, memberIds: readonly string[]): string[] {
+function isolatedLoopNodes(graph: TopologyGraph, memberIds: readonly string[], sourceIds: ReadonlySet<string>): string[] {
   const nodeOf = electricalNodeRoots(graph);
   const first = graph.edgeById.get(memberIds[0] ?? "");
-  if (!first) return [];
+  if (!first || drivesOwnLoop(memberIds, sourceIds)) return [];
   const members = new Set(memberIds);
   const shared = [...new Set([nodeOf(first.a), nodeOf(first.b)])];
   const isolated = shared.every((root) => {
@@ -489,6 +507,16 @@ function isolatedLoopNodes(graph: TopologyGraph, memberIds: readonly string[]): 
     return members.size + node.elements + node.freeTerminals < 3;
   });
   return isolated ? shared.map((root) => describeElectricalNode(graph, nodeOf, root)) : [];
+}
+
+/** Symbol elements that leave any of the given electrical nodes. */
+function elementsAt(graph: TopologyGraph, nodeOf: (node: string) => string, roots: readonly string[]): Set<string> {
+  return new Set(graph.edges.filter((edge) => {
+    if (edge.kind !== "symbol") return false;
+    const a = nodeOf(edge.a);
+    const b = nodeOf(edge.b);
+    return a !== b && (roots.includes(a) || roots.includes(b));
+  }).map((edge) => edge.id));
 }
 
 function describeElectricalNode(graph: TopologyGraph, nodeOf: (node: string) => string, root: string): string {
@@ -510,7 +538,7 @@ export function parallelElementStatus(
     terminalPairsMatch(edgeIds.map((id) => edgeTerminals(contracted, id)));
   return {
     sharedTerminalPair,
-    isolatedLoop: sharedTerminalPair ? isolatedLoopNodes(graph, edgeIds) : [],
+    isolatedLoop: sharedTerminalPair ? isolatedLoopNodes(graph, edgeIds, topologySourceIds(document)) : [],
   };
 }
 

@@ -10,7 +10,8 @@
  *    connection (another element, a source or a terminal lead), and the open
  *    far node of a fed pair is the network's exit terminal. A bare two element
  *    ring has no port at all: it is one series loop, and an isolated LC loop
- *    proves `path`, never parallel.
+ *    proves `path`, never parallel. A member source is its own port: a
+ *    battery directly across a capacitor shares its terminal pair.
  * 2. opposite_direction on page-normal glyphs. F = I L x B on opposite sides
  *    of a loop in an in-plane field points out of and into the page; two
  *    glyphs are opposite exactly when one is out and the other in.
@@ -178,6 +179,26 @@ function synthPlan(question: string, lawIds: string[], claims: Array<[string, st
     [{ id: "r1", symbol: "resistor", start: "a", end: "b" }, { id: "r2", symbol: "resistor", start: "a", end: "b" }, { id: "e", symbol: "battery", start: "a", end: "b" }],
     [], [{ id: "pair", predicate: "sameTerminalPair", entities: ["r1", "r2"] }]), synthPlan("Two resistors across a cell.", ["parallel resistance"]));
   check(passes(sourced), `1b a source across the pair is the third connection (got ${codes(sourced.fatal)})`);
+
+  // A source that is itself a member drives the loop: a capacitor charged
+  // directly by a battery shares its terminal pair, and the battery is the
+  // port. Two sources closed on each other still have no port.
+  const chargeQuestion = "A capacitor is charged by a battery connected across it.";
+  const chargeParts: Part[] = [{ id: "e", symbol: "battery", start: "a", end: "b" }, { id: "c", symbol: "capacitor", start: "a", end: "b" }];
+  const charging = run(circuit(chargeQuestion, { a: [0, 0], b: [3, 0] }, chargeParts, [],
+    [{ id: "pair", predicate: "sameTerminalPair", entities: ["e", "c"] }]), synthPlan(chargeQuestion, []));
+  check(passes(charging), `1b a battery directly across a capacitor shares its terminal pair (got ${codes(charging.fatal)})`);
+  const chargingPaths = run(circuit(chargeQuestion, { a: [0, 0], b: [3, 0] }, chargeParts, [],
+    [{ id: "paths", predicate: "pathCount", entities: ["a", "b"], expected: 2 }]), synthPlan(chargeQuestion, []));
+  check(passes(chargingPaths), `1b the battery's terminals join by two paths, the battery and the capacitor (got ${codes(chargingPaths.fatal)})`);
+  const cellsQuestion = "Two cells.";
+  const cellParts: Part[] = [{ id: "e1", symbol: "cell", start: "a", end: "b" }, { id: "e2", symbol: "cell", start: "a", end: "b" }];
+  const cellRing = run(circuit(cellsQuestion, { a: [0, 0], b: [3, 0] }, cellParts, [],
+    [{ id: "pair", predicate: "sameTerminalPair", entities: ["e1", "e2"] }]), synthPlan(cellsQuestion, []));
+  check(cellRing.fatal.some((issue) => issue.code === "assertion_failed" && /series loop/i.test(issue.message)), `1b negative: two cells closed on each other have no port (got ${codes(cellRing.fatal)})`);
+  const cellPaths = run(circuit(cellsQuestion, { a: [0, 0], b: [3, 0] }, cellParts, [],
+    [{ id: "paths", predicate: "pathCount", entities: ["a", "b"], expected: 2 }]), synthPlan(cellsQuestion, []));
+  check(cellPaths.fatal.some((issue) => issue.code === "assertion_failed" && /series loop/i.test(issue.message)), `1b negative: two cells closed on each other are not two branches (got ${codes(cellPaths.fatal)})`);
 
   // Engine-built banks of two with no source would be the same bare ring:
   // they draw their port as terminal leads and keep their own proof.
