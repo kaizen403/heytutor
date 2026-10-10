@@ -37,6 +37,19 @@ function world(value: unknown): Vec3 {
   if (!record(value) || typeof value.x !== "number" || typeof value.y !== "number" || typeof value.z !== "number") fail("center requires verified world coordinates");
   return { x: finite(value.x), y: finite(value.y), z: finite(value.z) };
 }
+/** A translated source displacement must survive at its own local scale. */
+function displaced(origin: Vec3, delta: Vec3): Vec3 {
+  const end = { x: finite(origin.x + delta.x), y: finite(origin.y + delta.y), z: finite(origin.z + delta.z) };
+  const length = Math.hypot(delta.x, delta.y, delta.z);
+  if (length > 0) {
+    const actual = { x: end.x - origin.x, y: end.y - origin.y, z: end.z - origin.z };
+    const error = Math.hypot(actual.x - delta.x, actual.y - delta.y, actual.z - delta.z);
+    if (!(Math.hypot(actual.x, actual.y, actual.z) > 0) || error > (1e-6 + 16 * Number.EPSILON) * length) {
+      fail("source displacement is lost or materially distorted by translated floating-point coordinates");
+    }
+  }
+  return end;
+}
 function scalar(value: unknown, unit: string, dimension: "charge" | "length" | "other", context: Context, document: SceneDocument): number {
   const number = context.number(electricSourceScalar(value, unit, dimension, document));
   if (!Number.isFinite(number)) fail("source scalar must be finite");
@@ -77,14 +90,14 @@ export function evaluateChargedRing(inputs: Record<string, unknown>, context: Co
   };
   const ringPoints = Array.from({ length: 97 }, (_, index) => {
     const angle = (index === 96 ? 0 : index * 2 * Math.PI / 96);
-    return project({ x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle), z: center.z });
+    return project(displaced(center, { x: radius * Math.cos(angle), y: radius * Math.sin(angle), z: 0 }));
   });
-  const at = { x: center.x, y: center.y, z: finite(center.z + axialDistance) };
+  const at = displaced(center, { x: 0, y: 0, z: axialDistance });
   const fieldMetadata = { ...definition, displayLength };
   const field: ChargedRingGeometry = zero
     ? { kind: "point", point: project(at), space: at, spaceFrameId: inputs.frame, chargedRing: fieldMetadata }
     : (() => {
-      const end = { ...at, z: finite(at.z + Math.sign(axialField) * displayLength) };
+      const end = displaced(at, { x: 0, y: 0, z: Math.sign(axialField) * displayLength });
       if (end.z === at.z) fail("nonzero field arrow is unresolved at this world coordinate");
       const points = [project(at), project(end)];
       if (!(Math.hypot(points[1]!.x - points[0]!.x, points[1]!.y - points[0]!.y) > 1e-9)) fail("field arrow collapses under projection");

@@ -60,4 +60,13 @@ const symbolic = scene(); symbolic.source = { nonMetric: true, representationTie
 const symbolicResult = compileSceneDocument(symbolic); check(symbolicResult.ok && symbolicResult.renderScene?.primitives.some((p) => p.entityId === "E" && p.text === "E1"), "source-only symbolic ring field identity follows numeric validation");
 const symbolicFalse = structuredClone(symbolic); symbolicFalse.entities[5]!.label = "E=999 N/C"; check(!compileSceneDocument(symbolicFalse).ok, "symbolic ring mode cannot bypass wrong numeric field ink");
 const tinyZero = scene(1e-20, 1); tinyZero.entities[5]!.label = "E≈0 N/C"; check(!compileSceneDocument(tinyZero).ok, "nonzero field cannot be certified as rounded zero");
+
+const farCenter = scene(); farCenter.constructions[2]!.inputs = { frame: "frame", x: 1e8, y: -1e8, z: 1e8 };
+check(compileSceneDocument(farCenter).ok, "normal local ring and axial offsets remain valid after a large translation");
+const lostOffset = scene(1, 1e-10); lostOffset.constructions[2]!.inputs.z = 8e8;
+check(!compileSceneDocument(lostOffset).ok, "nonzero axial source offset lost under translation refuses");
+const distortedOffset = scene(1, 1e-7); distortedOffset.constructions[2]!.inputs.z = 8e8;
+check(!compileSceneDocument(distortedOffset).ok, "materially distorted axial source offset refuses");
+const lostRadius = scene(); lostRadius.constructions[2]!.inputs.x = 1e9; lostRadius.constructions[3]!.inputs.radius = 1e-10;
+check(!compileSceneDocument(lostRadius).ok, "ring radius lost under translation refuses");
 console.log(`H4 charged ring: ${checks - failures.length}/${checks} passed`); assert.equal(failures.length, 0, failures.join("\n"));
