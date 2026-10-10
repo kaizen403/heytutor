@@ -3672,7 +3672,9 @@ function expectedClaimDemandsCurrent(text: string): boolean {
       // A member phrase ending in "branch is zero" does not declare a
       // current called branch. An equation, or a visibly symbolic identifier
       // before a verb binding, distinguishes the explicit name from that noun.
-      if (scope && binding !== "=" && !/^(?:[\p{L}_]|.*[\p{N}_].*|.*\p{Lu}.*)$/u.test(name!)) {
+      const symbolicName = /^(?:[\p{L}_]|[\p{L}_]\p{N}+|.*_.*)$/u.test(name!) &&
+        !/\b(?:the|a|an|each|every|both|either|neither)\s*$/u.test(scope ?? "");
+      if (scope && binding !== "=" && !symbolicName) {
         // Ambiguous lowercase member nouns remain nouns for an explicitly
         // unrelated voltage binding. A later numeric binding with ampere,
         // unknown, or absent units cannot safely hide a current contradiction.
