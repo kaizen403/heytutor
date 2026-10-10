@@ -6,8 +6,8 @@ branch made from `origin/main`. One file per subject: `physics.jsonl`,
 
 ```json
 {
-  "id": "physics|5|newtons-second-law|q1",
-  "topic_id": "physics|5|newtons-second-law",
+  "id": "physics|3|momentum-second-law-and-impulse|q1",
+  "topic_id": "physics|3|momentum-second-law-and-impulse",
   "subject": "physics",
   "difficulty": "easy",
   "ask_style": "exam_stem",
