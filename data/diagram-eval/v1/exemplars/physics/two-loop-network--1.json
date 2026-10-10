@@ -1,0 +1,478 @@
+{
+  "topic_id": "physics|11|capacitors-and-combinations",
+  "question": "Two ideal batteries drive a two-loop circuit. The left branch is a 17 V battery in series with R₁ = 1.5 Ω, the right branch is a 19 V battery in series with R₂ = 1 Ω, and the shared middle branch is R₃ = 2 Ω between junctions P and Q. Both batteries have their positive terminals toward P. Use Kirchhoff's laws to find the branch currents I₁, I₂ and I₃.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "two loops share R₃"
+    },
+    "source": {
+      "question": "Two ideal batteries drive a two-loop circuit. The left branch is a 17 V battery in series with R₁ = 1.5 Ω, the right branch is a 19 V battery in series with R₂ = 1 Ω, and the shared middle branch is R₃ = 2 Ω between junctions P and Q. Both batteries have their positive terminals toward P. Use Kirchhoff's laws to find the branch currents I₁, I₂ and I₃.",
+      "archetype": "two_loop_network"
+    },
+    "quantities": [
+      {
+        "id": "E1q",
+        "symbol": "E1",
+        "value": 17,
+        "unit": "V"
+      },
+      {
+        "id": "E2q",
+        "symbol": "E2",
+        "value": 19,
+        "unit": "V"
+      },
+      {
+        "id": "R1q",
+        "symbol": "R1",
+        "value": 1.5,
+        "unit": "ohm"
+      },
+      {
+        "id": "R2q",
+        "symbol": "R2",
+        "value": 1,
+        "unit": "ohm"
+      },
+      {
+        "id": "R3q",
+        "symbol": "R3",
+        "value": 2,
+        "unit": "ohm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "E1",
+        "kind": "component",
+        "role": "source battery",
+        "label": "E₁ = 17 V"
+      },
+      {
+        "id": "R1",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R₁ = 1.5 Ω"
+      },
+      {
+        "id": "R3",
+        "kind": "component",
+        "role": "shared resistor",
+        "label": "R₃ = 2 Ω"
+      },
+      {
+        "id": "R2",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R₂ = 1 Ω"
+      },
+      {
+        "id": "E2",
+        "kind": "component",
+        "role": "source battery",
+        "label": "E₂ = 19 V"
+      },
+      {
+        "id": "i1",
+        "kind": "sign_badge",
+        "role": "branch current",
+        "label": "I₁"
+      },
+      {
+        "id": "i2",
+        "kind": "sign_badge",
+        "role": "branch current",
+        "label": "I₂"
+      },
+      {
+        "id": "i3",
+        "kind": "sign_badge",
+        "role": "branch current",
+        "label": "I₃"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "junction",
+        "label": "P"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "junction",
+        "label": "Q"
+      },
+      {
+        "id": "a",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "b",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "c",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "d",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "m",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "w1",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w2",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w3",
+        "kind": "connector",
+        "role": "wire"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "ka",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "a"
+        ]
+      },
+      {
+        "id": "kb",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "b"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 3,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "km",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 1,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "m"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 0,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "kc",
+        "operator": "point",
+        "inputs": {
+          "x": 8,
+          "y": 3,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "c"
+        ]
+      },
+      {
+        "id": "kd",
+        "operator": "point",
+        "inputs": {
+          "x": 8,
+          "y": 0,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "d"
+        ]
+      },
+      {
+        "id": "kE1",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "battery",
+          "start": "a",
+          "end": "b"
+        },
+        "outputs": [
+          "E1"
+        ]
+      },
+      {
+        "id": "kR1",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "a",
+          "end": "P"
+        },
+        "outputs": [
+          "R1"
+        ]
+      },
+      {
+        "id": "kR3",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "P",
+          "end": "m"
+        },
+        "outputs": [
+          "R3"
+        ]
+      },
+      {
+        "id": "kR2",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "c",
+          "end": "P"
+        },
+        "outputs": [
+          "R2"
+        ]
+      },
+      {
+        "id": "kE2",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "battery",
+          "start": "c",
+          "end": "d"
+        },
+        "outputs": [
+          "E2"
+        ]
+      },
+      {
+        "id": "kw1",
+        "operator": "connect",
+        "inputs": {
+          "start": "Q",
+          "end": "b"
+        },
+        "outputs": [
+          "w1"
+        ]
+      },
+      {
+        "id": "kw2",
+        "operator": "connect",
+        "inputs": {
+          "start": "Q",
+          "end": "d"
+        },
+        "outputs": [
+          "w2"
+        ]
+      },
+      {
+        "id": "kw3",
+        "operator": "connect",
+        "inputs": {
+          "start": "m",
+          "end": "Q"
+        },
+        "outputs": [
+          "w3"
+        ]
+      },
+      {
+        "id": "ki1",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R1",
+          "sense": "positive",
+          "at": 0
+        },
+        "outputs": [
+          "i1"
+        ]
+      },
+      {
+        "id": "ki2",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R2",
+          "sense": "positive",
+          "at": 0
+        },
+        "outputs": [
+          "i2"
+        ]
+      },
+      {
+        "id": "ki3",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R3",
+          "sense": "positive",
+          "at": 0.82
+        },
+        "outputs": [
+          "i3"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "loop1",
+        "predicate": "path",
+        "entities": [
+          "E1",
+          "R1",
+          "R3",
+          "w3",
+          "w1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "loop2",
+        "predicate": "path",
+        "entities": [
+          "E2",
+          "R2",
+          "R3",
+          "w3",
+          "w2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "branches",
+        "predicate": "pathCount",
+        "entities": [
+          "P",
+          "Q"
+        ],
+        "expected": 3,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "pol1",
+        "kind": "polarity",
+        "targetIds": [
+          "a",
+          "b"
+        ],
+        "text": "+−"
+      },
+      {
+        "id": "pol2",
+        "kind": "polarity",
+        "targetIds": [
+          "c",
+          "d"
+        ],
+        "text": "+−"
+      }
+    ],
+    "requiredEntityIds": [
+      "E1",
+      "R1",
+      "R3",
+      "R2",
+      "E2",
+      "i1",
+      "i2",
+      "i3",
+      "P",
+      "Q",
+      "a",
+      "b",
+      "c",
+      "d",
+      "w1",
+      "w2",
+      "w3"
+    ],
+    "revealGroups": [
+      {
+        "id": "net",
+        "entityIds": [
+          "E1",
+          "R1",
+          "R3",
+          "R2",
+          "E2",
+          "i1",
+          "i2",
+          "i3",
+          "P",
+          "Q",
+          "a",
+          "b",
+          "c",
+          "d",
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "dependsOn": [],
+        "narrationCue": "two loops share R₃"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show",
+        "action": "reveal",
+        "targetId": "net",
+        "dependsOn": [],
+        "narrationIntent": "two loops share R₃"
+      }
+    ]
+  }
+}

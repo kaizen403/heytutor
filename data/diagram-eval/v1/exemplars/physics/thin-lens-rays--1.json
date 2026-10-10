@@ -1,0 +1,453 @@
+{
+ "topic_id": "physics|16|lens-and-mirror-combination",
+ "question": "An upright object of height h stands on the principal axis of a thin convex lens of focal length f, at a distance u lying between F1 and 2F1. Draw a ray diagram with two principal rays, locate the image at distance v with height h′, and state its nature and the magnification m = h′/h.",
+ "figure_kind": "ray_optics",
+ "sceneDocument": {
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+   "mode": "scene",
+   "reason": "symbolic convex-lens ray diagram"
+  },
+  "source": {
+   "question": "An upright object of height h stands on the principal axis of a thin convex lens of focal length f, at a distance u lying between F1 and 2F1. Draw a ray diagram with two principal rays, locate the image at distance v with height h′, and state its nature and the magnification m = h′/h.",
+   "archetype": "thin_lens"
+  },
+  "quantities": [],
+  "entities": [
+   {
+    "id": "O",
+    "kind": "point",
+    "role": "optical centre",
+    "label": "O"
+   },
+   {
+    "id": "axis",
+    "kind": "line",
+    "role": "principal axis"
+   },
+   {
+    "id": "lens",
+    "kind": "polygon",
+    "role": "thin convex lens"
+   },
+   {
+    "id": "F2",
+    "kind": "point",
+    "role": "second focus",
+    "label": "F2"
+   },
+   {
+    "id": "F1",
+    "kind": "point",
+    "role": "first focus",
+    "label": "F1"
+   },
+   {
+    "id": "C1",
+    "kind": "point",
+    "role": "point at 2F1",
+    "label": "2F1"
+   },
+   {
+    "id": "C2",
+    "kind": "point",
+    "role": "point at 2F2",
+    "label": "2F2"
+   },
+   {
+    "id": "ot",
+    "kind": "point",
+    "role": "object tip"
+   },
+   {
+    "id": "ob",
+    "kind": "point",
+    "role": "object foot"
+   },
+   {
+    "id": "obj",
+    "kind": "vector",
+    "role": "upright object",
+    "label": "h"
+   },
+   {
+    "id": "lp",
+    "kind": "line",
+    "role": "lens plane"
+   },
+   {
+    "id": "P1",
+    "kind": "point",
+    "role": "lens hit point"
+   },
+   {
+    "id": "r1i",
+    "kind": "segment",
+    "role": "ray parallel to axis"
+   },
+   {
+    "id": "r1o",
+    "kind": "ray",
+    "role": "refracted ray through F2"
+   },
+   {
+    "id": "r2",
+    "kind": "ray",
+    "role": "undeviated ray through O"
+   },
+   {
+    "id": "it",
+    "kind": "point",
+    "role": "image tip"
+   },
+   {
+    "id": "ib",
+    "kind": "point",
+    "role": "image foot"
+   },
+   {
+    "id": "img",
+    "kind": "vector",
+    "role": "real inverted image",
+    "label": "h′"
+   },
+   {
+    "id": "du",
+    "kind": "dimension",
+    "role": "object distance",
+    "label": "u"
+   }
+  ],
+  "constructions": [
+   {
+    "id": "mO",
+    "operator": "point",
+    "inputs": {
+     "x": 0,
+     "y": 0,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "O"
+    ]
+   },
+   {
+    "id": "mAxis",
+    "operator": "line",
+    "inputs": {
+     "start": "O",
+     "direction": [
+      1,
+      0
+     ]
+    },
+    "outputs": [
+     "axis"
+    ]
+   },
+   {
+    "id": "mLens",
+    "operator": "lens_section",
+    "inputs": {
+     "center": "O",
+     "axis": "axis",
+     "radius1": 14,
+     "radius2": -14,
+     "halfHeight": 2.8
+    },
+    "outputs": [
+     "lens"
+    ]
+   },
+   {
+    "id": "mF2",
+    "operator": "point",
+    "inputs": {
+     "x": 2,
+     "y": 0,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "F2"
+    ]
+   },
+   {
+    "id": "mF1",
+    "operator": "rotate",
+    "inputs": {
+     "point": "F2",
+     "center": "O",
+     "angle": 180,
+     "angleUnit": "degrees"
+    },
+    "outputs": [
+     "F1"
+    ]
+   },
+   {
+    "id": "mC1",
+    "operator": "rotate",
+    "inputs": {
+     "point": "O",
+     "center": "F1",
+     "angle": 180,
+     "angleUnit": "degrees"
+    },
+    "outputs": [
+     "C1"
+    ]
+   },
+   {
+    "id": "mC2",
+    "operator": "rotate",
+    "inputs": {
+     "point": "O",
+     "center": "F2",
+     "angle": 180,
+     "angleUnit": "degrees"
+    },
+    "outputs": [
+     "C2"
+    ]
+   },
+   {
+    "id": "mOt",
+    "operator": "point",
+    "inputs": {
+     "x": -3,
+     "y": 1.2,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "ot"
+    ]
+   },
+   {
+    "id": "mOb",
+    "operator": "project",
+    "inputs": {
+     "point": "ot",
+     "line": "axis"
+    },
+    "outputs": [
+     "ob"
+    ]
+   },
+   {
+    "id": "mObj",
+    "operator": "vector",
+    "inputs": {
+     "start": "ob",
+     "end": "ot"
+    },
+    "outputs": [
+     "obj"
+    ]
+   },
+   {
+    "id": "mLp",
+    "operator": "perpendicular_through",
+    "inputs": {
+     "through": "O",
+     "line": "axis"
+    },
+    "outputs": [
+     "lp"
+    ]
+   },
+   {
+    "id": "mP1",
+    "operator": "project",
+    "inputs": {
+     "point": "ot",
+     "line": "lp"
+    },
+    "outputs": [
+     "P1"
+    ]
+   },
+   {
+    "id": "mR1i",
+    "operator": "segment",
+    "inputs": {
+     "start": "ot",
+     "end": "P1"
+    },
+    "outputs": [
+     "r1i"
+    ]
+   },
+   {
+    "id": "mR1o",
+    "operator": "ray",
+    "inputs": {
+     "start": "P1",
+     "end": "F2",
+     "approximation": "paraxial"
+    },
+    "outputs": [
+     "r1o"
+    ]
+   },
+   {
+    "id": "mR2",
+    "operator": "ray",
+    "inputs": {
+     "start": "ot",
+     "end": "O"
+    },
+    "outputs": [
+     "r2"
+    ]
+   },
+   {
+    "id": "mIt",
+    "operator": "intersection",
+    "inputs": {
+     "first": "r1o",
+     "second": "r2"
+    },
+    "outputs": [
+     "it"
+    ]
+   },
+   {
+    "id": "mIb",
+    "operator": "project",
+    "inputs": {
+     "point": "it",
+     "line": "axis"
+    },
+    "outputs": [
+     "ib"
+    ]
+   },
+   {
+    "id": "mImg",
+    "operator": "vector",
+    "inputs": {
+     "start": "ib",
+     "end": "it"
+    },
+    "outputs": [
+     "img"
+    ]
+   },
+   {
+    "id": "mDu",
+    "operator": "dimension",
+    "inputs": {
+     "start": "ob",
+     "end": "O"
+    },
+    "outputs": [
+     "du"
+    ]
+   }
+  ],
+  "relations": [],
+  "assertions": [
+   {
+    "id": "objPlace",
+    "predicate": "between",
+    "entities": [
+     "ob",
+     "F1",
+     "C1"
+    ],
+    "expected": true,
+    "severity": "fatal"
+   },
+   {
+    "id": "meet",
+    "predicate": "converges",
+    "entities": [
+     "r1o",
+     "r2",
+     "it"
+    ],
+    "expected": true,
+    "severity": "fatal"
+   },
+   {
+    "id": "inverted",
+    "predicate": "opposite_direction",
+    "entities": [
+     "obj",
+     "img"
+    ],
+    "expected": true,
+    "severity": "fatal"
+   },
+   {
+    "id": "imgPlace",
+    "predicate": "ordered_along",
+    "entities": [
+     "F2",
+     "C2",
+     "ib"
+    ],
+    "expected": {
+     "axis": "x",
+     "direction": "increasing"
+    },
+    "severity": "fatal"
+   }
+  ],
+  "annotations": [],
+  "requiredEntityIds": [
+   "O",
+   "axis",
+   "lens",
+   "F2",
+   "F1",
+   "C1",
+   "C2",
+   "ot",
+   "ob",
+   "obj",
+   "r1i",
+   "r1o",
+   "r2",
+   "it",
+   "ib",
+   "img",
+   "du"
+  ],
+  "revealGroups": [
+   {
+    "id": "setup",
+    "entityIds": [
+     "O",
+     "axis",
+     "lens",
+     "F2",
+     "F1",
+     "C1",
+     "C2",
+     "ot",
+     "ob",
+     "obj",
+     "r1i",
+     "r1o",
+     "r2",
+     "it",
+     "ib",
+     "img",
+     "du"
+    ],
+    "dependsOn": [],
+    "narrationCue": "lens, rays, image"
+   }
+  ],
+  "teachingTimeline": [
+   {
+    "id": "reveal_setup",
+    "action": "reveal",
+    "targetId": "setup",
+    "dependsOn": [],
+    "narrationIntent": "lens, rays, image"
+   }
+  ]
+ }
+}

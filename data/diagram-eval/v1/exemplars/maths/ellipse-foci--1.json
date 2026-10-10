@@ -1,0 +1,368 @@
+{
+  "topic_id": "maths|10|conic-sections-standard-forms",
+  "question": "For the ellipse x^2/a^2 + y^2/b^2 = 1 with a > b and eccentricity e, mark the vertices A and A′, the foci S and S′, both directrices, the latus rectum LL′ through S, and the tangent at the point P(a cos θ, b sin θ).",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "symbolic ellipse; foci, directrices, latus rectum and tangent derived from it"
+    },
+    "source": {
+      "question": "For the ellipse x^2/a^2 + y^2/b^2 = 1 with a > b and eccentricity e, mark the vertices A and A′, the foci S and S′, both directrices, the latus rectum LL′ through S, and the tangent at the point P(a cos θ, b sin θ).",
+      "archetype": "conic"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ell",
+        "kind": "polyline",
+        "role": "ellipse",
+        "label": "x²/a²+y²/b²=1"
+      },
+      {
+        "id": "S",
+        "kind": "point",
+        "role": "focus",
+        "label": "S"
+      },
+      {
+        "id": "S2",
+        "kind": "point",
+        "role": "focus",
+        "label": "S′"
+      },
+      {
+        "id": "dR",
+        "kind": "line",
+        "role": "directrix",
+        "label": "x = a/e"
+      },
+      {
+        "id": "dL",
+        "kind": "line",
+        "role": "directrix",
+        "label": "x = −a/e"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "vertex",
+        "label": "A"
+      },
+      {
+        "id": "A2",
+        "kind": "point",
+        "role": "vertex",
+        "label": "A′"
+      },
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "latus rectum end",
+        "label": "L"
+      },
+      {
+        "id": "L2",
+        "kind": "point",
+        "role": "latus rectum end",
+        "label": "L′"
+      },
+      {
+        "id": "LR",
+        "kind": "segment",
+        "role": "latus rectum"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "parametric point",
+        "label": "P(θ)"
+      },
+      {
+        "id": "tan",
+        "kind": "line",
+        "role": "tangent at P"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "centre",
+        "label": "O"
+      },
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "mk_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "mk_ell",
+        "operator": "conic",
+        "inputs": {
+          "kind": "ellipse",
+          "center": "O",
+          "a": 6,
+          "b": 4.8
+        },
+        "outputs": [
+          "ell"
+        ]
+      },
+      {
+        "id": "mk_A",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "ell",
+          "feature": "vertex",
+          "side": 1
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "mk_A2",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "ell",
+          "feature": "vertex",
+          "side": -1
+        },
+        "outputs": [
+          "A2"
+        ]
+      },
+      {
+        "id": "mk_S",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "ell",
+          "feature": "focus",
+          "side": 1
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "mk_S2",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "ell",
+          "feature": "focus",
+          "side": -1
+        },
+        "outputs": [
+          "S2"
+        ]
+      },
+      {
+        "id": "mk_dR",
+        "operator": "conic_directrix",
+        "inputs": {
+          "conic": "ell",
+          "side": 1,
+          "span": 10
+        },
+        "outputs": [
+          "dR"
+        ]
+      },
+      {
+        "id": "mk_dL",
+        "operator": "conic_directrix",
+        "inputs": {
+          "conic": "ell",
+          "side": -1,
+          "span": 10
+        },
+        "outputs": [
+          "dL"
+        ]
+      },
+      {
+        "id": "mk_L",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "ell",
+          "feature": "latus_rectum_endpoint",
+          "side": 1,
+          "transverseSide": 1
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "mk_L2",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "ell",
+          "feature": "latus_rectum_endpoint",
+          "side": 1,
+          "transverseSide": -1
+        },
+        "outputs": [
+          "L2"
+        ]
+      },
+      {
+        "id": "mk_LR",
+        "operator": "segment",
+        "inputs": {
+          "start": "L",
+          "end": "L2"
+        },
+        "outputs": [
+          "LR"
+        ]
+      },
+      {
+        "id": "mk_P",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "ell",
+          "feature": "curve_point",
+          "at": 2.45
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "mk_tan",
+        "operator": "conic_tangent",
+        "inputs": {
+          "conic": "ell",
+          "at": 2.45,
+          "span": 8
+        },
+        "outputs": [
+          "tan"
+        ]
+      },
+      {
+        "id": "mk_ax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -11.5,
+          "xMax": 11.5,
+          "yMin": -5.1,
+          "yMax": 6
+        },
+        "outputs": [
+          "ax"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "P_on_ell",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "ell"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "P_on_tan",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "tan"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "S_on_LR",
+        "predicate": "on",
+        "entities": [
+          "S",
+          "LR"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "LR_par_dR",
+        "predicate": "parallel",
+        "entities": [
+          "LR",
+          "dR"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "S_inside",
+        "predicate": "between",
+        "entities": [
+          "S",
+          "O",
+          "A"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "ell",
+      "S",
+      "S2",
+      "dR",
+      "dL",
+      "A",
+      "A2",
+      "L",
+      "L2",
+      "LR",
+      "P",
+      "tan",
+      "O",
+      "ax"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ell",
+          "S",
+          "S2",
+          "dR",
+          "dL",
+          "A",
+          "A2",
+          "L",
+          "L2",
+          "LR",
+          "P",
+          "tan",
+          "O",
+          "ax"
+        ],
+        "dependsOn": [],
+        "narrationCue": "ellipse, foci, directrices, latus rectum, tangent at P"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}

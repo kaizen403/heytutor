@@ -1,0 +1,446 @@
+{
+  "topic_id": "maths|10|angle-bisectors",
+  "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "symbolic two-line figure"
+    },
+    "source": {
+      "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+      "family": "coordinate_figure"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "x-intercept of L1",
+        "label": "(a, 0)"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "y-intercept of L1",
+        "label": "(0, b)"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "y-intercept of L2",
+        "label": "(0, c)"
+      },
+      {
+        "id": "L1",
+        "kind": "line",
+        "role": "first line, intercept form"
+      },
+      {
+        "id": "t1",
+        "kind": "label",
+        "role": "equation of L1",
+        "label": "x/a + y/b = 1"
+      },
+      {
+        "id": "L2",
+        "kind": "line",
+        "role": "second line, slope m"
+      },
+      {
+        "id": "t2",
+        "kind": "label",
+        "role": "equation of L2",
+        "label": "y = mx + c"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "where L1 meets L2",
+        "label": "P"
+      },
+      {
+        "id": "th",
+        "kind": "angle_mark",
+        "role": "angle between the lines",
+        "label": "θ"
+      },
+      {
+        "id": "b1",
+        "kind": "line",
+        "role": "bisector of angle θ"
+      },
+      {
+        "id": "b2",
+        "kind": "line",
+        "role": "bisector of 180°−θ"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "point on a bisector",
+        "label": "Q"
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "foot on L1"
+      },
+      {
+        "id": "N",
+        "kind": "point",
+        "role": "foot on L2"
+      },
+      {
+        "id": "QM",
+        "kind": "segment",
+        "role": "distance from Q to L1"
+      },
+      {
+        "id": "QN",
+        "kind": "segment",
+        "role": "distance from Q to L2"
+      },
+      {
+        "id": "rM",
+        "kind": "right_angle_mark",
+        "role": "right angle at M"
+      },
+      {
+        "id": "rN",
+        "kind": "right_angle_mark",
+        "role": "right angle at N"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.8,
+          "xMax": 7,
+          "yMin": -0.8,
+          "yMax": 8
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 7.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3.405,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "kL1",
+        "operator": "line",
+        "inputs": {
+          "start": "B",
+          "end": "A"
+        },
+        "outputs": [
+          "L1"
+        ]
+      },
+      {
+        "id": "kt1",
+        "operator": "label",
+        "inputs": {
+          "target": "L1",
+          "text": "x/a + y/b = 1"
+        },
+        "outputs": [
+          "t1"
+        ]
+      },
+      {
+        "id": "kL2",
+        "operator": "line",
+        "inputs": {
+          "start": "C",
+          "direction": [
+            24,
+            -7
+          ]
+        },
+        "outputs": [
+          "L2"
+        ]
+      },
+      {
+        "id": "kt2",
+        "operator": "label",
+        "inputs": {
+          "target": "L2",
+          "text": "y = mx + c"
+        },
+        "outputs": [
+          "t2"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "intersection",
+        "inputs": {
+          "first": "L1",
+          "second": "L2"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kb2",
+        "operator": "angle_bisector",
+        "inputs": {
+          "vertex": "P",
+          "a": "A",
+          "b": "C"
+        },
+        "outputs": [
+          "b2"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "point",
+        "inputs": {
+          "x": 3.67,
+          "y": 4.97,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "kM",
+        "operator": "project",
+        "inputs": {
+          "point": "Q",
+          "line": "L1"
+        },
+        "outputs": [
+          "M"
+        ]
+      },
+      {
+        "id": "kN",
+        "operator": "project",
+        "inputs": {
+          "point": "Q",
+          "line": "L2"
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "kth",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "P",
+          "a": "A",
+          "b": "N",
+          "radius": 1.4
+        },
+        "outputs": [
+          "th"
+        ]
+      },
+      {
+        "id": "kb1",
+        "operator": "angle_bisector",
+        "inputs": {
+          "vertex": "P",
+          "a": "A",
+          "b": "N"
+        },
+        "outputs": [
+          "b1"
+        ]
+      },
+      {
+        "id": "kQM",
+        "operator": "segment",
+        "inputs": {
+          "start": "Q",
+          "end": "M"
+        },
+        "outputs": [
+          "QM"
+        ]
+      },
+      {
+        "id": "kQN",
+        "operator": "segment",
+        "inputs": {
+          "start": "Q",
+          "end": "N"
+        },
+        "outputs": [
+          "QN"
+        ]
+      },
+      {
+        "id": "krM",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "M",
+          "a": "Q",
+          "b": "B",
+          "size": 0.35
+        },
+        "outputs": [
+          "rM"
+        ]
+      },
+      {
+        "id": "krN",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "N",
+          "a": "Q",
+          "b": "P",
+          "size": 0.35
+        },
+        "outputs": [
+          "rN"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "halves",
+        "predicate": "equal_angle",
+        "entities": [
+          "L1",
+          "b1",
+          "b1",
+          "L2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "perp",
+        "predicate": "perpendicular",
+        "entities": [
+          "b1",
+          "b2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onb2",
+        "predicate": "on",
+        "entities": [
+          "Q",
+          "b2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "equal",
+        "predicate": "equal_length",
+        "entities": [
+          "QM",
+          "QN"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "ax",
+      "A",
+      "B",
+      "C",
+      "L1",
+      "t1",
+      "L2",
+      "t2",
+      "P",
+      "th",
+      "b1",
+      "b2",
+      "Q",
+      "M",
+      "N",
+      "QM",
+      "QN",
+      "rM",
+      "rN"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ax",
+          "A",
+          "B",
+          "C",
+          "L1",
+          "t1",
+          "L2",
+          "t2",
+          "P",
+          "th",
+          "b1",
+          "b2",
+          "Q",
+          "M",
+          "N",
+          "QM",
+          "QN",
+          "rM",
+          "rN"
+        ],
+        "dependsOn": [],
+        "narrationCue": "lines, intercepts, θ, both bisectors, equal perpendiculars from Q"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}
