@@ -28,8 +28,8 @@ function check(name: string, fn: () => void): void {
   try { fn(); passed++; console.log(`PASS ${name}`); }
   catch (e) { failures.push(name); console.error(`FAIL ${name}: ${e instanceof Error ? e.message : String(e)}`); }
 }
-function near(actual: number | undefined, expected: number): void {
-  assert.ok(actual !== undefined && Number.isFinite(actual));
+function near(actual: unknown, expected: number): void {
+  assert.ok(typeof actual === "number" && Number.isFinite(actual));
   assert.ok(Math.abs(actual - expected) <= Math.max(Math.abs(expected) * 1e-10, 1e-14), `${actual} != ${expected}`);
 }
 function scalar(text: string): number {
