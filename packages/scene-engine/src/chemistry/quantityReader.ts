@@ -104,9 +104,9 @@ export function readChemistryArrheniusEquation(question: string): ChemRead<Chemi
   const readings: ChemistryArrheniusEquation[] = [];
   for (const {pattern, group} of patterns) for (const match of question.slice(0, end).matchAll(pattern)) {
     const start = match.index!; const stop = start + match[0].length;
-    if (/\w/.test(question[start-1] ?? "") || /[/^×*+−-]\s*$/.test(question.slice(0,start))
-      || /[\w⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉⁺⁻]/.test(question[stop] ?? "")
-      || /^[/^×*+−-]|^\.(?=[\w.])/.test(question.slice(stop).trimStart())) return fail("malformed", {start,end:stop});
+    if (/(?:\p{L}|\p{N}|\p{M}|_)$/u.test(question.slice(0,start)) || /(?:\p{Sm}|[/^*·∙·-])\s*$/u.test(question.slice(0,start))
+      || /^(?:\p{L}|\p{N}|\p{M}|[_⁺⁻])/u.test(question.slice(stop))
+      || /^(?:\p{Sm}|[/^*·∙·-])|^\.(?=\p{L}|\p{N}|\p{M}|[_.])/u.test(question.slice(stop).trimStart())) return fail("malformed", {start,end:stop});
     if (group === 3) {
       const intercept = match.indices![2]!;
       if (!scalarValue(question,{start:intercept[0],end:intercept[1]}).ok) return fail("malformed",{start:intercept[0],end:intercept[1]});
