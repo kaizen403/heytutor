@@ -8,7 +8,7 @@ import {
   type ValidationReport,
   type ValidationResult,
 } from "../types";
-import { parseMathExpression, parseMathExpression2D } from "../math/expression";
+import { parseMathExpression, parseMathExpression2D, parseParameterizedMathExpression } from "../math/expression";
 import {
   isExecutableSceneConstructionOperator,
   SUPPORTED_SCENE_COMPONENT_SYMBOLS,
@@ -1758,6 +1758,10 @@ function normalizeAssertionsAfterPruning(
  */
 function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Record<string, unknown> {
   if (!Array.isArray(raw.constructions)) return raw;
+  // In a 3D frame a [dx,dy,dz] direction is a world direction, never a page
+  // glyph; keep it so validation refuses it instead of drawing a stray dot.
+  const hasWorldFrame = raw.constructions.some((construction) =>
+    isRecord(construction) && construction.operator === "space_frame");
 
   const declaredCoordinateSpaces = raw.constructions.flatMap((construction) => {
     if (
@@ -1916,6 +1920,7 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
     }
     if (
       operator === "vector" &&
+      !hasWorldFrame &&
       isRecord(inputs) &&
       Array.isArray(inputs.direction) &&
       inputs.direction.length >= 3 &&
@@ -4412,6 +4417,20 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
         issues,
       );
     }
+    if (
+      construction.operator === "vector" &&
+      isRecord(construction.inputs) &&
+      Array.isArray(construction.inputs.direction) &&
+      construction.inputs.direction.length >= 3 &&
+      document.constructions.some((candidate) => candidate.operator === "space_frame")
+    ) {
+      issues.push({
+        code: "vector_world_direction_needs_space_vector",
+        message: "In a 3D frame a [dx,dy,dz] direction is a world direction; draw it with space_vector between space points, not a planar vector or page glyph",
+        severity: "fatal",
+        path: `constructions[${index}].inputs.direction`,
+      });
+    }
     if (SPACE_OPERATORS.has(construction.operator) && isRecord(construction.inputs)) {
       validateSpaceConstruction(
         construction,
@@ -6368,8 +6387,9 @@ function validateCurveSamples(
 }
 
 function parseParameterizedExpression(source: string, parameter: "t" | "theta") {
-  if (/\bx\b/.test(source)) throw new Error(`${parameter} expression cannot also reference x`);
-  return parseMathExpression(source.replace(new RegExp(`\\b${parameter}\\b`, "g"), "x"));
+  // Same token-stream reader as the compiler, so 2t is a product and a stray
+  // x (even 2x) is refused here rather than only at compile time.
+  return parseParameterizedMathExpression(source, parameter);
 }
 
 function validateFunctionCurveInputs(

@@ -204,7 +204,10 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
     ? `\nCOMPONENT BYPASS REMOVAL (mandatory): inspect ${bypassedMembers.join(", ")}. Keep each component symbol as the only edge between its two terminals and delete every ordinary segment/connect with the same terminal pair. Rebuild adjacent route members around the component's endpoints; do not redraw a wire through or behind the symbol.`
     : "";
   const orderedRouteGuidance = buildOrderedRouteRepairGuidance(errors, options.conversationContext);
-  const pageNormalGuidance = errors.some((error) =>
+  // A 3D frame draws z as an axis: a page-normal glyph there is the wrong fix.
+  const hasWorldFrame = Array.isArray(candidate.constructions) && candidate.constructions.some((construction) =>
+    isPlainObject(construction) && construction.operator === "space_frame");
+  const pageNormalGuidance = !hasWorldFrame && errors.some((error) =>
     error.code === "physical_page_normal_rendered_in_plane" ||
     error.code === "physical_page_normal_direction_not_proven")
     ? "\nPAGE-NORMAL REBUILD (mandatory): retain the named field/vector entity and construct it with a point-id start plus direction [0,0,-1] for into-page or [0,0,1] for out-of-page. Give that construction exactly one output matching the entity ID. Do not substitute a 2D arrow or prose label."

@@ -3430,20 +3430,27 @@ function validatePageNormalDirections(
     source: string;
   }> = [];
   const claimedAliases = new Set<string>();
+  // In a 3D frame, z is a drawn axis and "plane" is a drawn object, so only
+  // page or screen wording names the page normal there. A sign right after a
+  // lone variable, a number or a bracket is arithmetic (x + y + z = 1, 3i + k),
+  // not a signed axis direction.
+  const worldFrame = document.constructions.some((construction) => construction.operator === "space_frame");
+  const surface = worldFrame ? "(?:page|screen)" : "(?:page|screen|plane)";
+  const arithmetic = String.raw`(?<!(?:^|[^A-Za-z])[A-Za-z]\s*|[0-9.)\]]\s*)`;
+  const axis = (sign: string): RegExp | null => worldFrame
+    ? null
+    : new RegExp(String.raw`(?:^|\W)${arithmetic}${sign}\s*(?:z|k)(?:\W|$)`, "i");
+  const into = new RegExp(String.raw`\binto\s+(?:the\s+)?${surface}\b`, "i");
+  const outOf = new RegExp(String.raw`\bout\s+of\s+(?:the\s+)?${surface}\b`, "i");
   const directionFrom = (text: string): "into" | "out" | null => {
-    if (/\binto\s+(?:the\s+)?(?:page|screen|plane)\b|(?:^|\W)-\s*(?:z|k)(?:\W|$)/i.test(text)) {
-      return "into";
-    }
-    if (/\bout\s+of\s+(?:the\s+)?(?:page|screen|plane)\b|(?:^|\W)\+\s*(?:z|k)(?:\W|$)/i.test(text)) {
-      return "out";
-    }
+    if (into.test(text) || axis("-")?.test(text)) return "into";
+    if (outOf.test(text) || axis(String.raw`\+`)?.test(text)) return "out";
     return null;
   };
+  const anyDirection = new RegExp([into.source, outOf.source, ...(worldFrame ? [] : [axis("[+-]")!.source])].join("|"), "i");
   const addRequirement = (aliases: string[], source: string, requireLocalAlias = false) => {
     const direction = directionFrom(source);
-    const directionMatch = source.match(
-      /\b(?:into\s+(?:the\s+)?(?:page|screen|plane)|out\s+of\s+(?:the\s+)?(?:page|screen|plane))\b|(?:^|\W)[+-]\s*(?:z|k)(?:\W|$)/i,
-    );
+    const directionMatch = source.match(anyDirection);
     const localTokens = new Set(normalizeSemanticTokens(directionMatch
       ? source.slice(Math.max(0, (directionMatch.index ?? 0) - 56),
           Math.min(source.length, (directionMatch.index ?? 0) + directionMatch[0].length + 16))

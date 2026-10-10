@@ -58,6 +58,9 @@ function pointInput(inputs: Record<string, unknown>, key: string, context: Conic
     return invalid(key, `${key} must reference a constructed point or finite inline point`);
   }
 }
+/** Dimensionless default drawn range for hyperbola and parabola parameters. */
+const DEFAULT_PARAMETER_HALF_RANGE = 1.5;
+
 function readDefinition(inputs: Record<string, unknown>, context: ConicEvaluationContext): ConicDefinition {
   const kind = inputs.kind;
   if (kind !== "ellipse" && kind !== "hyperbola" && kind !== "parabola") invalid("kind", "conic kind must be ellipse, hyperbola, or parabola");
@@ -70,8 +73,12 @@ function readDefinition(inputs: Record<string, unknown>, context: ConicEvaluatio
     if (a < b) invalid("a", "ellipse a is the semimajor axis and must be at least b");
     return { kind, origin, rotationRad, a, b, parameterMin: 0, parameterMax: TWO_PI };
   }
-  const parameterMin = numberInput(inputs, "tMin", context);
-  const parameterMax = numberInput(inputs, "tMax", context);
+  // tMin and tMax only choose how much of the curve is drawn; every anchor,
+  // focus and directrix is derived from a, b, p. So both may be omitted
+  // together for a default window, but one bound alone stays an error.
+  const rangeOmitted = inputs.tMin === undefined && inputs.tMax === undefined;
+  const parameterMin = rangeOmitted ? -DEFAULT_PARAMETER_HALF_RANGE : numberInput(inputs, "tMin", context);
+  const parameterMax = rangeOmitted ? DEFAULT_PARAMETER_HALF_RANGE : numberInput(inputs, "tMax", context);
   if (!(parameterMin < parameterMax) || !Number.isFinite(parameterMax - parameterMin)) invalid("domain", "conic requires a finite tMin < tMax interval");
   if (kind === "hyperbola") {
     // Beyond this range cancellation makes x²/a²-y²/b²=1 numerically unverifiable.
@@ -245,7 +252,8 @@ export function evaluateConicConstruction(operator: string, inputs: Record<strin
 export function validateConicConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
   const { operator, inputs } = construction;
   const add = (key: string, message: string, actual?: unknown): void => {
-    issues.push({ code: `invalid_${operator}_${key}`, message, severity: "fatal", path: `constructions[${index}].${key === "outputs" || key === "output_kind" ? "outputs" : `inputs.${key}`}`, actual });
+    const field = key === "reference" ? "conic" : key;
+    issues.push({ code: `invalid_${operator}_${key}`, message, severity: "fatal", path: `constructions[${index}].${key === "outputs" || key === "output_kind" ? "outputs" : `inputs.${field}`}`, actual });
   };
   const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
   if (outputs.length !== 1 || typeof outputs[0] !== "string") add("outputs", `${operator} must produce exactly one entity`, construction.outputs);
@@ -300,7 +308,13 @@ export function validateConicConstruction(construction: SceneConstruction, index
     geometry(value) {
       const producer = typeof value === "string" ? constructionByOutput.get(value) : undefined;
       if (producer?.operator !== "conic") return undefined;
-      return { kind: "compound", conic: readDefinition(producer.inputs, structuralContext) };
+      try { return { kind: "compound", conic: readDefinition(producer.inputs, structuralContext) }; }
+      catch (error) {
+        if (!(error instanceof ConicInputError)) throw error;
+        // The conic reports its own field. Pointing this consumer at that field
+        // sent repairs to the wrong construction (tMin added to asymptotes).
+        return invalid("reference", `conic ${String(value)} is invalid (${error.key}); fix that conic construction, not this ${operator}`);
+      }
     },
   };
   try { evaluateConicConstruction(operator, inputs, structuralContext); }
