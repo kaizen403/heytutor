@@ -133,6 +133,22 @@ for (const [question, expected] of [
   assert(title === expected, `sentence casing: "${question}" became "${title}", wanted "${expected}"`);
 }
 
+// Stripping a question prefix must not leave an ordinary all-caps title shouting.
+for (const question of ["WHAT IS THERMODYNAMICS?", "THERMODYNAMICS", "EXPLAIN THERMODYNAMICS"]) {
+  const title = deriveBoardTitleFromQuestion(question);
+  assert(title === "Thermodynamics", `single-word sentence casing: "${question}" became "${title}"`);
+}
+assert(
+  finalizeBoardTitle("Explain thermodynamics", "THERMODYNAMICS") === "Thermodynamics",
+  "a one-word LLM title should be sentence cased too",
+);
+
+// Single-word acronyms, formulas and symbols keep their written case.
+for (const written of ["CO", "NO", "DNA", "SHM", "AC", "IUPAC", "H2O", "Na+", "Ca", "M", "M+"]) {
+  const title = deriveBoardTitleFromQuestion(`WHAT IS ${written}?`);
+  assert(title === written, `single-word notation: "${written}" became "${title}"`);
+}
+
 // A sentence still ends after a number; only a decimal point is protected.
 const afterNumber = deriveBoardTitleFromQuestion("A sample has pH 5. Explain its acidity.");
 assert(afterNumber === "Sample has pH 5", `a period after a number must end the sentence: ${afterNumber}`);

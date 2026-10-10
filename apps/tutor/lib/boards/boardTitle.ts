@@ -140,8 +140,12 @@ function formatBoardTitle(raw: string): string {
   }
 
   const words = title.split(/\s+/);
-  // An all caps question is shouting, not a row of acronyms.
-  const shouting = !/[a-z]/.test(title) && words.filter((word) => /[A-Z]{2,}/.test(word)).length >= 2;
+  // Sentence case a clearly word-like all-caps title even after a prefix leaves
+  // one word. Short uppercase tokens can be notation (CO), so keep their case.
+  const shouting = !/[a-z]/.test(title) && (
+    words.filter((word) => /[A-Z]{2,}/.test(word)).length >= 2 ||
+    (words.length === 1 && title.replace(/[^A-Z]/g, "").length > 3)
+  );
   const kept = (word: string) =>
     shouting
       ? /\d/.test(word) || SYLLABUS_ACRONYMS.has(word.replace(/[^A-Za-z]/g, ""))
