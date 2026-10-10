@@ -114,6 +114,13 @@ fill in production keys **before** the first start. Required:
 - `DATABASE_URL` (hosted Postgres)
 - `S3_BUCKET` / `AWS_REGION`
 - `FIREWORKS_API_KEY`, `ELEVENLABS_API_KEY`
+- LLM provider: `LLM_PROVIDER=azure` plus `AZURE_OPENAI_ENDPOINT`,
+  `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_DEPLOYMENT=gpt-6-1-sol` sends every
+  model call to Azure AI Foundry (Microsoft for Startups credits). Keep
+  `FIREWORKS_API_KEY` set: an incomplete Azure env logs one error and falls
+  back to Fireworks, and rollback is `LLM_PROVIDER=fireworks` then
+  `sudo systemctl restart heytutor`. See
+  [docs/agent/llm-provider.md](../agent/llm-provider.md).
 - `AUTH_SECRET`
 - Google OAuth: follow [google-oauth.md](google-oauth.md), then set
   `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`. Login is on in production even

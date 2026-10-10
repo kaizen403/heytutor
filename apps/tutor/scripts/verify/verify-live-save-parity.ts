@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { inferSceneCapabilities } from "@heytutor/tutor-core";
 import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
+import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { liveSceneSaveFailure } from "../../lib/scene/sceneSaveAdmission";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 
@@ -68,6 +69,9 @@ async function main(): Promise<void> {
     const selected = selectVerifiedRepresentation({ question: c.question, turnPlan, families: capabilities.families, problemIR: null });
     assert.equal(selected.sceneDocument.visualDecision.mode, "scene", `${c.id}: the selector draws a figure (${selected.reason})`);
     const liveFailure = liveSceneSaveFailure({ document: selected.sceneDocument, question: c.question, turnPlan, tier: selected.tier });
+    const decision = selectProductionScene({ question: c.question, turnPlan, problemIR: null, sceneCapabilities: capabilities });
+    assert.deepEqual(decision.attemptedRepresentation, selected, `${c.id}: extraction preserves the production selector result`);
+    assert.equal(decision.saveFailure, liveFailure, `${c.id}: the decision runs the shared save guard`);
     const saved = await canonicalizeTurnSceneMetadata({
       question: c.question,
       sceneDocument: selected.sceneDocument,
@@ -79,7 +83,8 @@ async function main(): Promise<void> {
     assert.equal(liveFailure !== null, !saved.ok, `${c.id}: live ${liveFailure ?? "accepts"} vs save ${saved.ok ? "accepts" : (saved as { error: string }).error}`);
     if (!saved.ok) assert.equal(liveFailure, (saved as { error: string }).error, `${c.id}: live and save give the same reason`);
     assert.equal(liveFailure !== null, c.declined, `${c.id}: expected ${c.declined ? "a decline" : "a drawn, saved figure"}; live said ${liveFailure ?? "accept"}`);
-    checks += 3;
+    assert.equal(decision.representation !== null, saved.ok, `${c.id}: the selected production output saves in both directions`);
+    checks += 6;
   }
   // Engine-derived values are recomputed, never trusted from the document: a
   // submitted figure whose stem-read height or derived range was edited is
@@ -94,23 +99,29 @@ async function main(): Promise<void> {
     const document = structuredClone(cliff.sceneDocument);
     mutate(document);
     const liveFailure = liveSceneSaveFailure({ document, question: CLIFF, turnPlan: cliffPlan, tier: cliff.tier });
+    const decision = selectProductionScene({ question: CLIFF, turnPlan: cliffPlan, problemIR: null,
+      fastRepresentation: { ...cliff, sceneDocument: document } });
+    assert.equal(decision.representation, null, `forgery "${name}": shared selection refuses before drawing`);
+    assert.equal(decision.saveFailure, liveFailure);
     const saved = await canonicalizeTurnSceneMetadata({
       question: CLIFF, sceneDocument: document, visualStatus: "validated",
       sceneArtifacts: { schemaVersion: "scene-artifacts/v3", representationTier: cliff.tier, nonMetric: cliff.nonMetric, diagramResultStatus: "ready", turnPlan: cliffPlan },
       segments: [],
     } as unknown as SubmittedTurnSceneMetadata);
     assert(liveFailure !== null && !saved.ok, `forgery "${name}": live ${liveFailure ?? "accepted"}, save ${saved.ok ? "accepted" : "refused"}`);
-    checks += 1;
+    checks += 3;
   }
 
   // The live hook must actually consult the check before it commits a figure.
   const hook = readFileSync(join(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
-  const call = hook.indexOf("liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier })");
-  // The drawable test also refuses a figure the solver authority blocked; what
-  // matters here is that the save check is part of it, before the commit.
-  const gate = hook.search(/const selectedIsDrawable = (?:!solverAuthorityBlocked && )?selectedHasInk && !saveFailure &&/);
-  const commit = hook.indexOf("sceneV2Document = selectedIsDrawable ? selected.sceneDocument : null;");
-  assert(call > 0 && gate > call && commit > gate, "useQuestionHandler runs liveSceneSaveFailure before deciding the figure is drawable");
+  const selection = readFileSync(join(__dirname, "../../features/tutor-session/lib/scene/productionSceneSelection.ts"), "utf8");
+  const call = selection.indexOf("liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier })");
+  const gate = selection.indexOf("const selectedIsDrawable =");
+  const commit = selection.indexOf("representation: selectedIsDrawable ? selected : null");
+  assert(call > 0 && gate > call && commit > gate, "shared production selection runs save admission before returning drawable geometry");
+  assert(hook.includes("selectProductionScene({") && hook.includes("sceneV2Document = selected?.sceneDocument ?? null;"), "the live hook commits only the shared selection result");
+  const lab = readFileSync(join(__dirname, "../lecture-lab/lecturePipeline.ts"), "utf8");
+  assert(lab.includes("selectProductionScene({") && lab.includes("const sceneDocument = selected?.sceneDocument ?? null;"), "the lab commits only the same shared selection result");
   const persistence = readFileSync(join(__dirname, "../../lib/scene/turnScenePersistence.ts"), "utf8");
   assert(persistence.includes("sceneSaveAdmissionFailure({ document, question, turnPlan, tier })"), "the save runs the shared check");
   checks += 2;

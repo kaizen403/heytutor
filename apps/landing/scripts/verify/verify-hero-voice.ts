@@ -1,45 +1,46 @@
-/** Verify speech came from native playback of this actual tutor turn. */
+/** Verify the landing uses the tutor's native UK and Hinglish providers. */
 import assert from 'node:assert/strict'
 import { readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
+
 const root = resolve(import.meta.dirname, '../..')
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8')
-const capture = JSON.parse(read('src/components/hero-lesson/lessonCapture.json'))
-assert.equal(capture.kind, 'native-tutor-session')
-assert.equal(capture.audioProvenance.source, 'observed-native-playback')
-const spoken = capture.turn.segments.filter((segment: { narration: string }) => segment.narration.trim())
-assert.equal(capture.audioProvenance.persistedTurnAudioAvailable, spoken.every((segment: { hasAudio: boolean }) => segment.hasAudio), 'native playback capture must not imply that saved cloud audio was verified')
-assert.equal(capture.audio.length, spoken.length, 'retain every original narrated clip')
-let previousEnd = 0
-for (const audio of capture.audio) {
-  assert.match(audio.sha256, /^[a-f0-9]{64}$/, 'retain a fingerprint of the actually played bytes')
-  assert.equal(audio.playbackRate, capture.turn.speedMultiplier, 'retain the actual app playback rate')
-  assert.ok(audio.startSeconds >= previousEnd - 0.005, 'native speech clips must not overlap')
-  assert.ok(audio.endSeconds > audio.startSeconds)
-  const audibleDuration = (audio.mediaEnd - audio.mediaStart) / audio.playbackRate
-  assert.ok(Math.abs(audibleDuration - (audio.endSeconds - audio.startSeconds)) < 0.2, 'audio placement must match observed native playback')
-  previousEnd = audio.endSeconds
+
+for (const [slug, locale, provider] of [
+  ['en-gb', 'en-GB', 'cartesia'],
+  ['hi-in', 'hi-IN', 'sarvam'],
+] as const) {
+  const audio = resolve(root, `public/hero/lesson-${slug}.mp3`)
+  const timing = JSON.parse(read(`public/hero/lesson-timings-${slug}.json`))
+  assert.ok(statSync(audio).size > 1_000_000, `${locale} contains the complete lesson`)
+  assert.equal(timing.locale, locale)
+  assert.equal(timing.voice.provider, provider)
+  assert.equal(timing.voice.voiceKey, locale)
+  assert.equal(timing.starts.length, 21)
+  assert.equal(timing.segments.length, timing.starts.length)
+  assert.equal(timing.starts[0], 0)
+  for (let index = 1; index < timing.starts.length; index++) {
+    assert.ok(timing.starts[index] > timing.starts[index - 1], `${locale} segment starts are monotonic`)
+  }
+  const duration = Number(execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', audio,
+  ], { encoding: 'utf8' }).trim())
+  assert.ok(Math.abs(duration - timing.total) < 0.05, `${locale} audio and clock have the same duration`)
+  assert.ok(timing.segments.every((segment: { totalDuration: number }) => segment.totalDuration > 0))
+  const alignedCharacters = timing.segments.reduce(
+    (total: number, segment: { charStartTimes: number[] }) => total + segment.charStartTimes.length,
+    0,
+  )
+  if (locale === 'en-GB') assert.ok(alignedCharacters > 2_000, 'UK ink gets native character alignment')
+  else assert.equal(alignedCharacters, 0, 'Sarvam correctly uses duration-only timing')
 }
-assert.ok(capture.duration >= previousEnd, 'keep the whole final sentence')
-const mp3 = resolve(root, 'public/hero/lesson.mp3')
-assert.ok(statSync(mp3).size > 200_000)
-const duration = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', mp3], { encoding: 'utf8' }))
-assert.ok(Math.abs(duration - capture.duration) < 0.1, 'audio-only download is extracted from the same recording')
-const beforeSpeech = execFileSync('ffmpeg', ['-v', 'error', '-i', mp3, '-t', String(capture.audio[0].startSeconds - 0.05), '-f', 'f32le', '-ac', '1', '-ar', '8000', 'pipe:1'])
-for (let offset = 0; offset + 4 <= beforeSpeech.length; offset += 4) {
-  assert.ok(Math.abs(beforeSpeech.readFloatLE(offset)) < 0.0001, 'speech must not precede its observed native start')
-}
-const recorder = read('scripts/record-hero-lesson.mjs')
-assert.match(recorder, /Page.startScreencast/)
-assert.match(recorder, /__savePlayedAudio/)
-assert.doesNotMatch(recorder, /lessonAsset|record\.html|reviewLandingLesson|runLecture|generateLandingVoice/, 'record the real app rather than rebuild a lecture')
-const encoder = read('scripts/encode-hero-video.mjs')
-assert.doesNotMatch(encoder, /requestTts|generateLandingVoice|lessonAsset/)
-assert.match(read('src/components/hero-lesson/useHeroVideo.ts'), /video\.play/)
-const videoHook = read('src/components/hero-lesson/useHeroVideo.ts')
-assert.doesNotMatch(videoHook, /rootMargin:\s*['"]30%/, 'a padded intersection root keeps the lesson playing after the box has left')
-assert.match(videoHook, /lessonWindowOnScreen/, 'playback must follow the window rect, not a keep-alive margin')
-assert.match(videoHook, /video\.pause\(\)/, 'leaving the viewport must pause the picture')
-assert.match(videoHook, /video\.muted = true/, 'leaving the viewport must cut audio, not only pause the element')
-console.log(`verify-hero-voice: ${spoken.length} original clips from the actual tutor; native playback rate and complete speech preserved`)
+
+const generator = read('../tutor/scripts/lecture-lab/generateLandingVoice.ts')
+assert.match(generator, /ttsConfig\(locale\)/)
+assert.match(generator, /\['en-GB', 'hi-IN'\]/)
+const hook = read('src/components/hero-lesson/useLessonSimulation.ts')
+assert.match(hook, /heroLessonAssets\(locale\)/)
+assert.match(hook, /runHeroLessonLoop[\s\S]*timedSegments/)
+
+console.log('verify-hero-voice: complete native UK and Hinglish tracks share the live ink clock')

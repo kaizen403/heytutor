@@ -2,7 +2,7 @@
 
 Two streams. One boundary. Diagram is compiled before speech.
 
-Open [`architecture.excalidraw`](architecture.excalidraw) in Excalidraw (File → Open). Or paste the mermaid below: Insert → Mermaid.
+The mermaid below is current. The older drawing in [`architecture.excalidraw`](architecture.excalidraw) predates Cartesia, S3 and the EC2 tutor, so trust the mermaid where they differ.
 
 ```mermaid
 flowchart TB
@@ -20,8 +20,8 @@ flowchart TB
     landing --> ec2
     ec2 --- pg[(hosted PG)]
     ec2 --- s3[(S3)]
-    ec2 --- fw[Fireworks]
-    ec2 --- el[ElevenLabs]
+    ec2 --- llm[Fireworks / Azure]
+    ec2 --- tts[Cartesia / Sarvam]
     ec2 --- lf[Langfuse]
   end
   session --> ec2
@@ -29,7 +29,9 @@ flowchart TB
   subgraph turn
     Q[question] --> Plan[TurnPlanV3]
     Plan --> IR["ProblemIR + solver"]
-    IR --> Scene[SceneDoc v2]
+    IR --> Fast{fast family figure}
+    Fast -->|found| Prove
+    Fast -->|none| Scene[SceneDoc v2 planner]
     Scene --> Prove[validate · proof · compile]
     Prove --> Tier{tier}
     Tier -->|exact| Commit[[COMMIT]]
@@ -54,7 +56,7 @@ flowchart TB
   Pen --> Board
   Board --> Save[saveTurn]
   Save --> Trust[server revalidate]
-  Trust --> Store[(PG + R2)]
+  Trust --> Store[(PG + S3)]
   Store --> Replay[replay]
 ```
 
@@ -72,10 +74,10 @@ One atomic commit. Invalid or partial candidates never render. Required visual t
 
 1. `question` → `TurnPlanV3`
 2. `ProblemIR/v1` + deterministic solver — reconcile before speech
-3. `SceneDocument/v2` → validate / proof / compile / labels
+3. fast deterministic family figure, else `SceneDocument/v2` planner → validate / proof / compile / labels
 4. pick one tier → `COMMIT`
 5. reveal RIGHT ∥ speak+WRITE LEFT — estimated TTS schedule first
-6. `saveTurn` → server recompile + exact command match → PG + R2 → replay
+6. `saveTurn` → server recompile + exact command match → PG + S3 → replay
 
 Done when narration starts only after a validated commit, and persisted commands match the server presentation.
 
@@ -98,12 +100,11 @@ Done when narration starts only after a validated commit, and persisted commands
 
 ## Next
 
-- [session-handoff.md](docs/agent/session-handoff.md) — compact seed; live-test Physics, then Maths
-- [diagram-engine-priority.md](docs/plans/diagram-engine-priority.md) — ranked issues and next proceedings
 - [architecture.md](docs/agent/architecture.md) — turn + persist rules
 - [layout.md](docs/agent/layout.md) — where new files go
 - [packages.md](docs/agent/packages.md) — package maps
 - [backend.md](docs/agent/backend.md) — API, `lib/`, deploy env
 - [tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md) — voice ↔ WRITE
-- [universal-illustration-engine-v4.md](docs/architecture/universal-illustration-engine-v4.md) — tiers + operators
+- [speech-providers.md](docs/architecture/speech-providers.md): Cartesia, Sarvam, ElevenLabs
+- [diagram-accuracy-architecture.md](docs/architecture/diagram-accuracy-architecture.md): tiers, operators, adding coverage
 - [geometry-debug.md](docs/agent/geometry-debug.md) — Langfuse trace order

@@ -1,0 +1,1107 @@
+{
+  "topic_id": "chemistry|9|atomic-and-ionic-radii",
+  "question": "How does the atomic radius change down group 1 (alkali metals)?",
+  "figure_kind": "chart_table",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "covalent radius (pm) down group 1, plotted from the periodic table"
+    },
+    "source": {
+      "question": "How does the atomic radius change down group 1 (alkali metals)?",
+      "synthesizedFamily": true,
+      "archetype": "chem_periodic",
+      "chemistryFamily": "chem_periodic"
+    },
+    "quantities": [
+      {
+        "id": "q_Li0",
+        "symbol": "radius(Li)",
+        "value": 128,
+        "unit": "pm"
+      },
+      {
+        "id": "q_Na1",
+        "symbol": "radius(Na)",
+        "value": 166,
+        "unit": "pm"
+      },
+      {
+        "id": "q_K2",
+        "symbol": "radius(K)",
+        "value": 203,
+        "unit": "pm"
+      },
+      {
+        "id": "q_Rb3",
+        "symbol": "radius(Rb)",
+        "value": 220,
+        "unit": "pm"
+      },
+      {
+        "id": "q_Cs4",
+        "symbol": "radius(Cs)",
+        "value": 244,
+        "unit": "pm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "axes",
+        "kind": "axes",
+        "role": "covalent radius (pm) against element"
+      },
+      {
+        "id": "tick_0",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_0_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "0",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_5000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_5000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "50",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_10000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_10000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "100",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_15000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_15000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "150",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_20000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_20000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "200",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_25000",
+        "kind": "segment",
+        "role": "axis tick"
+      },
+      {
+        "id": "tick_25000_v",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "250",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "y_title",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "r (pm)",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "x_title",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "down group 1",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "p_Li0",
+        "kind": "point",
+        "role": "Li data point"
+      },
+      {
+        "id": "p_Na1",
+        "kind": "point",
+        "role": "Na data point"
+      },
+      {
+        "id": "p_K2",
+        "kind": "point",
+        "role": "K data point"
+      },
+      {
+        "id": "p_Rb3",
+        "kind": "point",
+        "role": "Rb data point"
+      },
+      {
+        "id": "p_Cs4",
+        "kind": "point",
+        "role": "Cs data point"
+      },
+      {
+        "id": "trend",
+        "kind": "polyline",
+        "role": "covalent radius (pm) trend line"
+      },
+      {
+        "id": "lbl_Li0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Li",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Na1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Na",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_K2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "K",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Rb3",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Rb",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lbl_Cs4",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Cs",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "tick_0_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_0_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_0_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_5000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_5000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_5000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_10000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_10000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_10000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_15000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_15000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_15000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_20000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_20000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_20000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_25000_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_25000_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "tick_25000_v_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "y_title_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "x_title_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Li0_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Na1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_K2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Rb3_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lbl_Cs4_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axes",
+        "operator": "axes",
+        "inputs": {
+          "xMin": 0,
+          "xMax": 6.5,
+          "yMin": 0,
+          "yMax": 4.45
+        },
+        "outputs": [
+          "axes"
+        ]
+      },
+      {
+        "id": "make_tick_0_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_0_a"
+        ]
+      },
+      {
+        "id": "make_tick_0_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_0_b"
+        ]
+      },
+      {
+        "id": "make_tick_0",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_0_a",
+          "end": "tick_0_b"
+        },
+        "outputs": [
+          "tick_0"
+        ]
+      },
+      {
+        "id": "make_tick_0_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_0_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_0_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_0_v_p",
+          "text": "0"
+        },
+        "outputs": [
+          "tick_0_v"
+        ]
+      },
+      {
+        "id": "make_tick_5000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 0.78,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_5000_a"
+        ]
+      },
+      {
+        "id": "make_tick_5000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 0.78,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_5000_b"
+        ]
+      },
+      {
+        "id": "make_tick_5000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_5000_a",
+          "end": "tick_5000_b"
+        },
+        "outputs": [
+          "tick_5000"
+        ]
+      },
+      {
+        "id": "make_tick_5000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 0.78,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_5000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_5000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_5000_v_p",
+          "text": "50"
+        },
+        "outputs": [
+          "tick_5000_v"
+        ]
+      },
+      {
+        "id": "make_tick_10000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 1.56,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_10000_a"
+        ]
+      },
+      {
+        "id": "make_tick_10000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 1.56,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_10000_b"
+        ]
+      },
+      {
+        "id": "make_tick_10000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_10000_a",
+          "end": "tick_10000_b"
+        },
+        "outputs": [
+          "tick_10000"
+        ]
+      },
+      {
+        "id": "make_tick_10000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 1.56,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_10000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_10000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_10000_v_p",
+          "text": "100"
+        },
+        "outputs": [
+          "tick_10000_v"
+        ]
+      },
+      {
+        "id": "make_tick_15000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 2.34,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_15000_a"
+        ]
+      },
+      {
+        "id": "make_tick_15000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 2.34,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_15000_b"
+        ]
+      },
+      {
+        "id": "make_tick_15000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_15000_a",
+          "end": "tick_15000_b"
+        },
+        "outputs": [
+          "tick_15000"
+        ]
+      },
+      {
+        "id": "make_tick_15000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 2.34,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_15000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_15000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_15000_v_p",
+          "text": "150"
+        },
+        "outputs": [
+          "tick_15000_v"
+        ]
+      },
+      {
+        "id": "make_tick_20000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 3.12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_20000_a"
+        ]
+      },
+      {
+        "id": "make_tick_20000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 3.12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_20000_b"
+        ]
+      },
+      {
+        "id": "make_tick_20000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_20000_a",
+          "end": "tick_20000_b"
+        },
+        "outputs": [
+          "tick_20000"
+        ]
+      },
+      {
+        "id": "make_tick_20000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 3.12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_20000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_20000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_20000_v_p",
+          "text": "200"
+        },
+        "outputs": [
+          "tick_20000_v"
+        ]
+      },
+      {
+        "id": "make_tick_25000_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.08,
+          "y": 3.9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_25000_a"
+        ]
+      },
+      {
+        "id": "make_tick_25000_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.08,
+          "y": 3.9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_25000_b"
+        ]
+      },
+      {
+        "id": "make_tick_25000",
+        "operator": "segment",
+        "inputs": {
+          "start": "tick_25000_a",
+          "end": "tick_25000_b"
+        },
+        "outputs": [
+          "tick_25000"
+        ]
+      },
+      {
+        "id": "make_tick_25000_v_p",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5,
+          "y": 3.9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "tick_25000_v_p"
+        ]
+      },
+      {
+        "id": "make_tick_25000_v",
+        "operator": "label",
+        "inputs": {
+          "target": "tick_25000_v_p",
+          "text": "250"
+        },
+        "outputs": [
+          "tick_25000_v"
+        ]
+      },
+      {
+        "id": "make_y_title_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.15,
+          "y": 4.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "y_title_p"
+        ]
+      },
+      {
+        "id": "make_y_title",
+        "operator": "label",
+        "inputs": {
+          "target": "y_title_p",
+          "text": "r (pm)"
+        },
+        "outputs": [
+          "y_title"
+        ]
+      },
+      {
+        "id": "make_x_title_p",
+        "operator": "point",
+        "inputs": {
+          "x": 6.4,
+          "y": -0.42,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "x_title_p"
+        ]
+      },
+      {
+        "id": "make_x_title",
+        "operator": "label",
+        "inputs": {
+          "target": "x_title_p",
+          "text": "down group 1"
+        },
+        "outputs": [
+          "x_title"
+        ]
+      },
+      {
+        "id": "make_p_Li0",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 1.9968,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Li0"
+        ]
+      },
+      {
+        "id": "make_p_Na1",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 2.5896,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Na1"
+        ]
+      },
+      {
+        "id": "make_p_K2",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 3.1668,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_K2"
+        ]
+      },
+      {
+        "id": "make_p_Rb3",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 3.432,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Rb3"
+        ]
+      },
+      {
+        "id": "make_p_Cs4",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 3.8064,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p_Cs4"
+        ]
+      },
+      {
+        "id": "make_trend",
+        "operator": "polyline",
+        "inputs": {
+          "points": [
+            "p_Li0",
+            "p_Na1",
+            "p_K2",
+            "p_Rb3",
+            "p_Cs4"
+          ]
+        },
+        "outputs": [
+          "trend"
+        ]
+      },
+      {
+        "id": "make_lbl_Li0_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.7075,
+          "y": 1.8234,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Li0_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Li0",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Li0_p",
+          "text": "Li"
+        },
+        "outputs": [
+          "lbl_Li0"
+        ]
+      },
+      {
+        "id": "make_lbl_Na1_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.8283,
+          "y": 2.8831,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Na1_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Na1",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Na1_p",
+          "text": "Na"
+        },
+        "outputs": [
+          "lbl_Na1"
+        ]
+      },
+      {
+        "id": "make_lbl_K2_p",
+        "operator": "point",
+        "inputs": {
+          "x": 2.868,
+          "y": 3.4801,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_K2_p"
+        ]
+      },
+      {
+        "id": "make_lbl_K2",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_K2_p",
+          "text": "K"
+        },
+        "outputs": [
+          "lbl_K2"
+        ]
+      },
+      {
+        "id": "make_lbl_Rb3_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8964,
+          "y": 3.7558,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Rb3_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Rb3",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Rb3_p",
+          "text": "Rb"
+        },
+        "outputs": [
+          "lbl_Rb3"
+        ]
+      },
+      {
+        "id": "make_lbl_Cs4_p",
+        "operator": "point",
+        "inputs": {
+          "x": 5.3184,
+          "y": 3.9256,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lbl_Cs4_p"
+        ]
+      },
+      {
+        "id": "make_lbl_Cs4",
+        "operator": "label",
+        "inputs": {
+          "target": "lbl_Cs4_p",
+          "text": "Cs"
+        },
+        "outputs": [
+          "lbl_Cs4"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_y_title",
+        "predicate": "label_attached",
+        "entities": [
+          "y_title"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_x_title",
+        "predicate": "label_attached",
+        "entities": [
+          "x_title"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Li0",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Li0"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Na1",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Na1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_K2",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_K2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Rb3",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Rb3"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_lbl_Cs4",
+        "predicate": "label_attached",
+        "entities": [
+          "lbl_Cs4"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "covalent radius (pm) down group 1: Li (128) < Na (166) < K (203) < Rb (220) < Cs (244)"
+      }
+    ],
+    "requiredEntityIds": [
+      "axes",
+      "tick_0",
+      "tick_0_v",
+      "tick_5000",
+      "tick_5000_v",
+      "tick_10000",
+      "tick_10000_v",
+      "tick_15000",
+      "tick_15000_v",
+      "tick_20000",
+      "tick_20000_v",
+      "tick_25000",
+      "tick_25000_v",
+      "y_title",
+      "x_title",
+      "p_Li0",
+      "p_Na1",
+      "p_K2",
+      "p_Rb3",
+      "p_Cs4",
+      "trend",
+      "lbl_Li0",
+      "lbl_Na1",
+      "lbl_K2",
+      "lbl_Rb3",
+      "lbl_Cs4"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "axes",
+          "tick_0",
+          "tick_0_v",
+          "tick_5000",
+          "tick_5000_v",
+          "tick_10000",
+          "tick_10000_v",
+          "tick_15000",
+          "tick_15000_v",
+          "tick_20000",
+          "tick_20000_v",
+          "tick_25000",
+          "tick_25000_v",
+          "y_title",
+          "x_title",
+          "p_Li0",
+          "p_Na1",
+          "p_K2",
+          "p_Rb3",
+          "p_Cs4",
+          "trend",
+          "lbl_Li0",
+          "lbl_Na1",
+          "lbl_K2",
+          "lbl_Rb3",
+          "lbl_Cs4"
+        ],
+        "dependsOn": [],
+        "narrationCue": "covalent radius (pm) down group 1, plotted from the periodic table"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "covalent radius (pm) down group 1, plotted from the periodic table"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

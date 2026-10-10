@@ -6,6 +6,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   CFT_PROBES,
   buildCrystalFieldScene,
@@ -155,7 +156,7 @@ function loadBankRows(path: string | undefined): BankRow[] {
     const rows = JSON.parse(readFileSync(path, "utf8")) as BankRow[];
     return rows.filter((row) => row.figs.some((fig) => fig === "crystal_field" || fig === "coord_isomer") && CFT_WORDS.test(row.text));
   }
-  const root = "/Users/kaizen/heytutor/data/question-bank/build";
+  const root = fileURLToPath(new URL("../../../../data/question-bank/build", import.meta.url));
   const syllabusPath = `${root}/question-syllabus.jsonl`;
   const questionsPath = `${root}/questions.all.jsonl`;
   if (!existsSync(syllabusPath) || !existsSync(questionsPath)) {

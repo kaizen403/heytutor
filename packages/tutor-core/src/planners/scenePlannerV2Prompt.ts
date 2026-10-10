@@ -23,6 +23,62 @@ export interface ScenePlannerPromptContext {
   constructionOperators?: readonly string[];
   proofPredicates?: readonly string[];
   planningGuidance?: readonly string[];
+  workedExamples?: readonly ScenePlannerWorkedExample[];
+}
+
+export interface ScenePlannerWorkedExample {
+  id: string;
+  sourceKind: "curated" | "synthesized";
+  question: string | null;
+  depicts: string;
+  document: Record<string, unknown>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Removes engine metadata and literal point coordinates from few-shot prompts. */
+export function compactSceneExampleDocument(document: Record<string, unknown>): Record<string, unknown> {
+  const compactEntities = Array.isArray(document.entities)
+    ? document.entities.flatMap((entity) => {
+        if (!isRecord(entity)) return [];
+        const compact = Object.fromEntries(
+          ["id", "kind", "role", "label"].flatMap((key) => entity[key] === undefined ? [] : [[key, entity[key]]]),
+        );
+        return [compact];
+      })
+    : [];
+  const compactConstructions = Array.isArray(document.constructions)
+    ? document.constructions.flatMap((construction) => {
+        if (!isRecord(construction)) return [];
+        const inputs = isRecord(construction.inputs) ? { ...construction.inputs } : {};
+        if (construction.operator === "point") {
+          delete inputs.x;
+          delete inputs.y;
+        }
+        if (Array.isArray(inputs.origin) && inputs.origin.every((value) => typeof value === "number")) {
+          delete inputs.origin;
+        }
+        return [{
+          id: construction.id,
+          operator: construction.operator,
+          inputs,
+          outputs: construction.outputs,
+        }];
+      })
+    : [];
+  const compact: Record<string, unknown> = {
+    schemaVersion: document.schemaVersion,
+    visualDecision: document.visualDecision,
+    quantities: document.quantities,
+    entities: compactEntities,
+    constructions: compactConstructions,
+  };
+  for (const key of ["relations", "assertions", "annotations", "requiredEntityIds", "revealGroups"] as const) {
+    if (Array.isArray(document[key]) && document[key].length > 0) compact[key] = document[key];
+  }
+  return compact;
 }
 
 export function buildSceneDocumentPlannerPrompt(
@@ -48,6 +104,13 @@ export function buildSceneDocumentPlannerPrompt(
   const capabilityGuidance = context.planningGuidance?.length
     ? `\nSELECTED VISUAL INVARIANTS\n${context.planningGuidance.map((item) => `- ${item}`).join("\n")}\n`
     : "";
+  const workedExamples = context.workedExamples?.length
+    ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
+      `EXAMPLE ${index + 1} (${example.id})\n${example.sourceKind === "curated" && example.question
+        ? `QUESTION\n${example.question}`
+        : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
+    ).join("\n")}\n`
+    : "";
 
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
 
@@ -61,6 +124,7 @@ AVAILABLE PROOF PREDICATES
 ${proofPredicates.join(", ")}
 ${capabilityGuidance}
 ${conversation}
+${workedExamples}
 QUESTION
 ${question}
 
@@ -210,7 +274,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - buoyancy: {density,gravity,displacedVolume}. Full shape: {density,gravity,displacedVolume,densityUnit:"kg/m^3"|"g/cm^3"|"kg/L",gravityUnit:"m/s^2"|"cm/s^2",volumeUnit:"m^3"|"L"|"cm^3",origin?:[x,y],displayLength?:positive,displayScale?:positive}. Output one upward force vector F=rho*g*V or a point for explicitly zero displaced volume. Supply exactly one display length or scale; density/gravity positive and volume nonnegative. No inferred submerged volume, density, or gravity.
 - probability_tree: {nodes:[{id,outcome,parent?,probability?},...], origin?:point_id, levelGap?:2, leafGap?:1}. One root omits parent/probability; every other node names its parent and explicitly supplied conditional probability in [0,1]. Outgoing siblings must sum to 1. No inferred complements or independence. Caps: 31 nodes, 12 leaves, depth 5. Outputs [N points in input order,N-1 polylines for nonroot nodes in input order,L labels in DFS leaf order]. Labels are engine-derived source outcomes, conditional probabilities, and joint leaf products; omit entity.label unless it matches the computed value. Never guess node coordinates or joint probabilities.
 - electric_field: {charges:[{position:point_id,charge},...], at:point_id, mode:"schematic"|"si", k, displayLength, lengthUnit?,chargeUnit?}. Compute the Coulomb superposition at an explicitly supplied observation point. Schematic requires k=1 and gives normalized direction without SI claims. SI requires explicit positive k in N*m^2/C^2 and common declared position/charge units; the engine converts to SI. Output one vector, or a point marker for a certified zero field. displayLength is a positive display length, never field magnitude. Labels are engine-derived; omit entity.label. Singular or unverifiable cancellation cases fail closed. Never invent charges or assume a generic dipole.
-- Dipole packet, k explicit, displayLength is arrow length only: coulomb_pair outputs two force vectors; point_charge_field, dipole_field, dipole_torque, and dipole_energy output one vector; field_lines outputs one polyline; equipotential outputs a circle when source is point_charge and a polyline when source is dipole. dipole_field mode is finite or ideal, and ideal requires separation large enough for the far-field check. Reject coincident charges, zero distance, a test charge, nonuniform torque, and a numeric field-line density. Rings, Gauss surfaces, and capacitors are not these operators.
+- Dipole packet, k explicit, displayLength is arrow length only: coulomb_pair outputs two force vectors; point_charge_field, dipole_field, dipole_torque, and dipole_energy output one vector (dipole_torque draws a page-normal ⊙/⊗ glyph, a point at zero); field_lines outputs one polyline; equipotential outputs a circle when source is point_charge and a polyline when source is dipole. dipole_field mode is finite or ideal, and ideal requires separation large enough for the far-field check. Reject coincident charges, zero distance, a test charge, nonuniform torque, and a numeric field-line density. Rings, Gauss surfaces, and capacitors are not these operators.
 - field_components: {field:electric_field_id}. Output two vector entities [x_component,y_component] from the same computed field and display scale; zero components are point markers. Engine-derived labels retain physical values and units. Do not compute components from the drawn arrow's length or attach guessed numerical labels.
 - line_charge_field: {start,end,at,chargeDensity,mode,k}. Output one vector, or a point for certified zero density. start, end, and at are point ids; displayLength is a positive display length. mode is "schematic"|"si". Analytic uniform finite line; stay off the segment; near-axis fails unless exactly axial. SI needs k in N*m^2/C^2 plus lengthUnit and densityUnit; schematic uses k=1 and omits units. Draw the line on the same endpoints; never invent density.
 - gauss_flux: {center,radius,enclosedCharge,epsilon0,mode}. Outputs [surface circle,flux label anchor]. model is "spherical"; center is a point id; optional fluxAt is [x,y]. mode is "schematic"|"si". Flux is Qenc/eps0; the circle is a cross-section and the charge must be proved inside. SI needs eps0 in F/m plus chargeUnit and lengthUnit; schematic uses eps0=1 and omits units. Never invent enclosed charge.

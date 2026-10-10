@@ -1,0 +1,191 @@
+{
+  "topic_id": "physics|2|motion-in-a-straight-line",
+  "question": "Sketch the velocity-time graph for a body that starts from rest, accelerates uniformly, and then moves with constant velocity.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "velocity-time graph for piecewise constant acceleration"
+    },
+    "source": {
+      "question": "Sketch the velocity-time graph for a body that starts from rest, accelerates uniformly, and then moves with constant velocity.",
+      "synthesizedFamily": true
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "axes",
+        "kind": "axes",
+        "role": "v-t axes",
+        "label": "v-t"
+      },
+      {
+        "id": "rest",
+        "kind": "point",
+        "role": "start",
+        "label": "0"
+      },
+      {
+        "id": "peak",
+        "kind": "point",
+        "role": "end of boost"
+      },
+      {
+        "id": "end",
+        "kind": "point",
+        "role": "end of cruise"
+      },
+      {
+        "id": "graph",
+        "kind": "polyline",
+        "role": "v(t)"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axes",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.5,
+          "xMax": 4.5,
+          "yMin": -0.5,
+          "yMax": 3
+        },
+        "outputs": [
+          "axes"
+        ]
+      },
+      {
+        "id": "make_rest",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "rest"
+        ]
+      },
+      {
+        "id": "make_peak",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "peak"
+        ]
+      },
+      {
+        "id": "make_end",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "end"
+        ]
+      },
+      {
+        "id": "make_graph",
+        "operator": "polyline",
+        "inputs": {
+          "points": [
+            "rest",
+            "peak",
+            "end"
+          ]
+        },
+        "outputs": [
+          "graph"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "axes_exist",
+        "predicate": "exists",
+        "entities": [
+          "axes"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "graph_exists",
+        "predicate": "exists",
+        "entities": [
+          "graph"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "assert_label_rest",
+        "predicate": "label_attached",
+        "entities": [
+          "rest"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "reason": "student-facing points must stay labeled"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "peak_drop",
+        "kind": "drop",
+        "targetIds": [
+          "peak",
+          "axes"
+        ]
+      },
+      {
+        "id": "boost_slope",
+        "kind": "slope_triangle",
+        "targetIds": [
+          "graph"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "axes",
+      "rest",
+      "peak",
+      "end",
+      "graph"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "axes",
+          "rest",
+          "peak",
+          "end",
+          "graph"
+        ],
+        "dependsOn": [],
+        "narrationCue": "velocity-time graph for piecewise constant acceleration"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "velocity-time graph for piecewise constant acceleration"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

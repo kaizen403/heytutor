@@ -197,7 +197,7 @@ function givenFromPlan(raw: unknown, index: number, question: string): QuestionG
   if (!questionStatesValue(question, raw.value)) {
     return null;
   }
-  const board = `${symbol} = ${formatNumber(raw.value)}${unit ? ` ${unit}` : ""}`;
+  const board = `${symbol} = ${boardNumber(raw.value, raw.sourceText, [raw.label, symbol, raw.id])}${unit ? ` ${unit}` : ""}`;
   return {
     symbol,
     board,
@@ -326,6 +326,91 @@ function displayUnit(value: unknown): string {
 function formatNumber(value: number): string {
   if (Number.isInteger(value)) return String(value);
   return Number(value.toPrecision(8)).toString();
+}
+
+/** Keep a plus the question wrote. An unsigned 1 is not the oxidation state +1. */
+function boardNumber(value: number, sourceText: unknown, names: unknown[]): string {
+  const plain = formatNumber(value);
+  if (typeof sourceText !== "string" || !(value > 0)) return plain;
+  const numbers = [...sourceText.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)];
+  // The given's own number decides when the text writes it ("atomic number 20"
+  // is not the "+2" beside it).
+  const equal = numbers.filter((match) => Number(match[0]) === value);
+  const own = equal.length > 1 ? nearestGivenNumber(sourceText, equal, names) : equal[0];
+  // Otherwise a unit rescaling ("+2 mC" is 0.002 C) counts only when the text
+  // holds one number, so the plus cannot come from another quantity.
+  const scaled = !own && numbers.length === 1 &&
+    VALUE_SCALES.some((scale) => Number(formatNumber(value * scale)) === Number(numbers[0]![0]))
+    ? numbers[0]
+    : undefined;
+  const match = own ?? scaled;
+  return match && writtenWithPlus(sourceText, match.index ?? 0) ? `+${plain}` : plain;
+}
+
+/** Repeated values belong to the quantity named beside them, not the first match. */
+function nearestGivenNumber(
+  text: string,
+  numbers: RegExpMatchArray[],
+  names: unknown[],
+): RegExpMatchArray | undefined {
+  // Qualified symbols such as valence(Na), ox_Na and f_1 name their base
+  // quantity. A multi-letter abbreviation may prefix a source word (ox ->
+  // oxidation); a one-letter symbol must match a whole source token.
+  const stems = names.flatMap((name) => typeof name === "string"
+    ? [name.split(/[_^(]/)[0]!.replace(/([a-z])([A-Z])/g, "$1 $2").trim().toLowerCase()]
+    : []).filter(Boolean);
+  const words = [...text.matchAll(/[\p{L}][\p{L}\p{N}]*/gu)];
+  const anchors = stems.map((stem) => stem.includes(" ")
+    ? [...text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(stem).replace(/\s+/g, "\\s+")}(?![\\p{L}\\p{N}])`, "giu"))]
+    : words.filter((word) => word[0].toLowerCase() === stem || stem.length >= 2 && word[0].toLowerCase().startsWith(stem)),
+  ).find((matches) => matches.length > 0) ?? [];
+  if (anchors.length === 0) {
+    // With no identifying words, keep a sign only when every equal occurrence
+    // agrees. An ambiguous source cannot donate another quantity's plus.
+    const signed = numbers.map((number) => writtenWithPlus(text, number.index ?? 0));
+    return signed.every((sign) => sign === signed[0]) ? numbers[0] : undefined;
+  }
+  const distance = (number: RegExpMatchArray): number => Math.min(...anchors.map((anchor) => {
+    const left = Math.min((number.index ?? 0) + number[0].length, (anchor.index ?? 0) + anchor[0].length);
+    const right = Math.max(number.index ?? 0, anchor.index ?? 0);
+    // Another clause names another given: do not cross "and" or punctuation
+    // to take a numerically closer value from that clause.
+    const between = text.slice(left, right);
+    const clauses = (between.match(/[,;]|\band\b/gi) ?? []).length;
+    return clauses * (text.length + 1) + Math.max(0, right - left);
+  }));
+  const ranked = numbers.map((number) => ({ number, distance: distance(number) }));
+  const nearest = Math.min(...ranked.map((entry) => entry.distance));
+  const matches = ranked.filter((entry) => entry.distance === nearest);
+  return matches.length === 1 ? matches[0]!.number : undefined;
+}
+
+/**
+ * Is the number at `start` written with a plus sign ("+1", "state +1.0",
+ * "= +2")? A plus after a term ("5 + 2", "5 +2", "x +2", "(a) + 1") is
+ * addition, whatever the spacing; after a word ("is +2") it is a sign.
+ */
+function writtenWithPlus(text: string, start: number): boolean {
+  let sign = start - 1;
+  while (sign >= 0 && /\s/.test(text[sign]!)) sign--;
+  if (text[sign] !== "+") return false;
+  let end = sign - 1;
+  while (end >= 0 && /\s/.test(text[end]!)) end--;
+  if (end < 0 || "=([{,:;".includes(text[end]!)) return true;
+  let begin = end;
+  while (begin > 0 && /[A-Za-z]/.test(text[begin - 1]!)) begin--;
+  const word = text.slice(begin, end + 1);
+  // A one-letter "a" is an article in a prose noun phrase ("a +2 C
+  // charge"), but stays a variable in bare or equation-context addition.
+  const beforeWord = text.slice(0, begin).trimEnd();
+  const afterNumber = text.slice(start).replace(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/, "");
+  const article = /^a$/i.test(word) && /\s/.test(text[end + 1] ?? "") &&
+    (!beforeWord || /[.!?,:;]$|(?:^|\s)[A-Za-z]{2,}$/.test(beforeWord)) &&
+    /^\s+(?:[A-Za-z][^\s]*\s+)*[A-Za-z]{2,}\b/.test(afterNumber);
+  if (article) return true;
+  // A word of two or more letters is prose ("state", "is"); a lone letter,
+  // number or closing bracket is a term being added to.
+  return /^[A-Za-z]{2,}$/.test(word) && !/[\w)\]}]/.test(text[begin - 1] ?? "");
 }
 
 function speakNumber(value: number): string {

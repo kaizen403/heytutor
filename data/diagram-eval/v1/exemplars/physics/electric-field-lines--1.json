@@ -1,0 +1,465 @@
+{
+  "topic_id": "physics|11|electric-field-lines",
+  "question": "Two oppositely charged conducting plates form a parallel-plate capacitor. Indicate the uniform electric-field direction between them.",
+  "figure_kind": "field_lines",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "two parallel plates with the uniform field between them"
+    },
+    "source": {
+      "question": "Two oppositely charged conducting plates form a parallel-plate capacitor. Indicate the uniform electric-field direction between them.",
+      "synthesizedFamily": true,
+      "archetype": "parallel_plates",
+      "slotSources": {},
+      "exactGrounding": null
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "p1_a",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
+        "id": "p1_b",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
+        "id": "p2_a",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
+        "id": "p2_b",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
+        "id": "plate1",
+        "kind": "segment",
+        "role": "positive plate",
+        "label": "+Q"
+      },
+      {
+        "id": "plate2",
+        "kind": "segment",
+        "role": "negative plate",
+        "label": "−Q"
+      },
+      {
+        "id": "e0_a",
+        "kind": "point",
+        "role": "field line start"
+      },
+      {
+        "id": "E0",
+        "kind": "vector",
+        "role": "electric field between the plates"
+      },
+      {
+        "id": "e1_a",
+        "kind": "point",
+        "role": "field line start"
+      },
+      {
+        "id": "E1",
+        "kind": "vector",
+        "role": "electric field between the plates"
+      },
+      {
+        "id": "e2_a",
+        "kind": "point",
+        "role": "field line start"
+      },
+      {
+        "id": "E2",
+        "kind": "vector",
+        "role": "electric field between the plates"
+      },
+      {
+        "id": "e3_a",
+        "kind": "point",
+        "role": "field line start"
+      },
+      {
+        "id": "E3",
+        "kind": "vector",
+        "role": "electric field between the plates"
+      },
+      {
+        "id": "e4_a",
+        "kind": "point",
+        "role": "field line start"
+      },
+      {
+        "id": "E4",
+        "kind": "vector",
+        "role": "electric field between the plates",
+        "label": "E"
+      },
+      {
+        "id": "dim_a",
+        "kind": "point",
+        "role": "separation start"
+      },
+      {
+        "id": "dim_b",
+        "kind": "point",
+        "role": "separation end"
+      },
+      {
+        "id": "separation",
+        "kind": "dimension",
+        "role": "plate separation",
+        "label": "d"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_p1_a",
+        "operator": "point",
+        "inputs": {
+          "x": -3,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p1_a"
+        ]
+      },
+      {
+        "id": "make_p1_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p1_b"
+        ]
+      },
+      {
+        "id": "make_p2_a",
+        "operator": "point",
+        "inputs": {
+          "x": -3,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p2_a"
+        ]
+      },
+      {
+        "id": "make_p2_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p2_b"
+        ]
+      },
+      {
+        "id": "make_plate1",
+        "operator": "segment",
+        "inputs": {
+          "start": "p1_a",
+          "end": "p1_b"
+        },
+        "outputs": [
+          "plate1"
+        ]
+      },
+      {
+        "id": "make_plate2",
+        "operator": "segment",
+        "inputs": {
+          "start": "p2_a",
+          "end": "p2_b"
+        },
+        "outputs": [
+          "plate2"
+        ]
+      },
+      {
+        "id": "make_e0_a",
+        "operator": "point",
+        "inputs": {
+          "x": -2.4,
+          "y": 0.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "e0_a"
+        ]
+      },
+      {
+        "id": "make_E0",
+        "operator": "vector",
+        "inputs": {
+          "start": "e0_a",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "E0"
+        ]
+      },
+      {
+        "id": "make_e1_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1.2,
+          "y": 0.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "e1_a"
+        ]
+      },
+      {
+        "id": "make_E1",
+        "operator": "vector",
+        "inputs": {
+          "start": "e1_a",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "E1"
+        ]
+      },
+      {
+        "id": "make_e2_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "e2_a"
+        ]
+      },
+      {
+        "id": "make_E2",
+        "operator": "vector",
+        "inputs": {
+          "start": "e2_a",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "E2"
+        ]
+      },
+      {
+        "id": "make_e3_a",
+        "operator": "point",
+        "inputs": {
+          "x": 1.2,
+          "y": 0.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "e3_a"
+        ]
+      },
+      {
+        "id": "make_E3",
+        "operator": "vector",
+        "inputs": {
+          "start": "e3_a",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "E3"
+        ]
+      },
+      {
+        "id": "make_e4_a",
+        "operator": "point",
+        "inputs": {
+          "x": 2.4,
+          "y": 0.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "e4_a"
+        ]
+      },
+      {
+        "id": "make_E4",
+        "operator": "vector",
+        "inputs": {
+          "start": "e4_a",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "E4"
+        ]
+      },
+      {
+        "id": "make_dim_a",
+        "operator": "point",
+        "inputs": {
+          "x": 3.5,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_a"
+        ]
+      },
+      {
+        "id": "make_dim_b",
+        "operator": "point",
+        "inputs": {
+          "x": 3.5,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "dim_b"
+        ]
+      },
+      {
+        "id": "make_separation",
+        "operator": "dimension",
+        "inputs": {
+          "start": "dim_a",
+          "end": "dim_b"
+        },
+        "outputs": [
+          "separation"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "plates_parallel",
+        "predicate": "parallel",
+        "entities": [
+          "plate1",
+          "plate2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "field_perp",
+        "predicate": "perpendicular",
+        "entities": [
+          "E0",
+          "plate1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_plate1",
+        "predicate": "label_attached",
+        "entities": [
+          "plate1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_plate2",
+        "predicate": "label_attached",
+        "entities": [
+          "plate2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "p1_a",
+      "p1_b",
+      "p2_a",
+      "p2_b",
+      "plate1",
+      "plate2",
+      "e0_a",
+      "E0",
+      "e1_a",
+      "E1",
+      "e2_a",
+      "E2",
+      "e3_a",
+      "E3",
+      "e4_a",
+      "E4",
+      "dim_a",
+      "dim_b",
+      "separation"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "p1_a",
+          "p1_b",
+          "p2_a",
+          "p2_b",
+          "plate1",
+          "plate2",
+          "e0_a",
+          "E0",
+          "e1_a",
+          "E1",
+          "e2_a",
+          "E2",
+          "e3_a",
+          "E3",
+          "e4_a",
+          "E4",
+          "dim_a",
+          "dim_b",
+          "separation"
+        ],
+        "dependsOn": [],
+        "narrationCue": "two parallel plates with the uniform field between them"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "two parallel plates with the uniform field between them"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}
