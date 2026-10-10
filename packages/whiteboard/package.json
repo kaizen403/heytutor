@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "verify": "tsx scripts/verify-draw-transactions.ts && tsx scripts/verify-command-ownership.ts && tsx scripts/verify-owned-cancellation.ts && tsx scripts/verify-cancelled-destructive-successor.ts && tsx scripts/verify-transaction-boundaries.ts && tsx scripts/verify-beat-savepoints.ts && tsx scripts/verify-pen-motion.ts && tsx scripts/verify-pen-choreography.ts && tsx scripts/verify-pen-idle.ts && tsx scripts/verify-pen-stunts.ts && tsx scripts/verify-whiteboard-export.ts && tsx scripts/verify-instrument-rule.ts && tsx scripts/verify-ink-kind.ts && tsx scripts/verify-ink-start-observation.ts && tsx scripts/verify-handwriting-notation-render.ts",
+    "verify:h4-parallel-glyph": "tsx scripts/verify-h4-parallel-glyph.ts",
     "preview": "tsx scripts/preview-instruments.ts",
     "preview:idle": "tsx scripts/preview-pen-idle.ts",
     "clean": "rm -rf dist"

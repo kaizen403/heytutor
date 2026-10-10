@@ -46,7 +46,7 @@ const MATH_GLYPH_UNITS: Record<string, number> = {
   "∞": 620, "√": 520, "∫": 380, "∮": 400, "∑": 560, "∏": 560,
   "∂": 440, "∇": 460, "∴": 420, "∵": 420, "°": 300, "′": 200, "″": 320,
   "∈": 460, "∉": 460, "⊂": 460, "⊆": 460, "⊃": 460, "⊇": 460,
-  "∪": 460, "∩": 460, "∅": 460, "∠": 480, "⊥": 460, "∥": 320,
+  "∪": 460, "∩": 460, "∅": 460, "∠": 480, "⊥": 460, "∥": 400,
   "∀": 460, "∃": 440, "⋅": 240, "↛": 560,
 };
 
@@ -1106,8 +1106,10 @@ function syntheticMathChar(
       push(`M ${P(90, -40)} L ${P(u - 90, -40)}`);
       break;
     case "∥":
-      push(`M ${P(120, -640)} L ${P(120, -20)}`);
-      push(`M ${P(u - 120, -640)} L ${P(u - 120, -20)}`);
+      // Script glyphs keep the minimum nib width. Closely spaced stems merge
+      // into one bar at B_∥ size, especially with the wider marker preference.
+      push(`M ${P(40, -640)} L ${P(40, -20)}`);
+      push(`M ${P(u - 40, -640)} L ${P(u - 40, -20)}`);
       break;
     case "∀":
       push(`M ${P(60, -680)} L ${P(cx, 20)} L ${P(u - 60, -680)}`);
