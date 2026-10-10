@@ -46,8 +46,10 @@ The lab now also applies production's source-program gate, matrix-source
 validation, solver block and save-admission guard; its old duplicated path did
 not. Chemistry remains production-exempt from model scene planning in every
 arm. Historical results are not rewritten. Execution identity records
-`production-scene-selection/v1`, so old divergent-admission rounds cannot be
-silently resumed with this policy.
+`production-scene-selection/v2`, so old divergent-admission or pre-readable-label
+rounds cannot be silently resumed with this policy. Scene-mode candidates for a
+requested figure must carry readable label or dimension text before ranking;
+valid text-only declines remain a separate outcome.
 
 `pnpm --filter @heytutor/tutor verify:production-selection` checks the shared
 decision and the original six live/save figures plus both edited forgeries.

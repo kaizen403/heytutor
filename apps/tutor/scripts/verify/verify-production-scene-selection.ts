@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { inferSceneCapabilities } from "@heytutor/tutor-core";
+import { inferSceneCapabilities, revalidateScenePlanWithRepairResult, type ScenePlanWithRepairResult } from "@heytutor/tutor-core";
 import { type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import {
   deriveSceneGate,
   selectProductionScene,
   validateProductionSceneCandidate,
+  type ValidatedSceneCandidate,
 } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
 const planFor = (question: string, visualRequirement: TurnPlanV3["visualRequirement"]): TurnPlanV3 => ({
@@ -114,4 +115,56 @@ for (const consumer of ["features/tutor-session/hooks/turn/useQuestionHandler.ts
 const runner = readFileSync(resolve(process.cwd(), "scripts/lecture-lab/run.ts"), "utf8");
 assert(runner.includes("figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION"),
   "resume identity must distinguish old divergent lab admission from shared production selection");
-console.log("production scene selection: visual need, source admission, purity, solver, source policy and both consumers pass");
+async function verifyLabelledSiblingSelection(): Promise<void> {
+  const unlabelled: SceneDocument = {
+    ...candidate,
+    entities: candidate.entities.map((entity) => {
+      const copy = { ...entity };
+      delete copy.label;
+      return copy;
+    }),
+  };
+  const responses = [unlabelled, candidate].map((document, index) => ({
+    document: document as unknown as Record<string, unknown>, rawContent: JSON.stringify(document),
+    phase: "plan" as const, lane: index === 0 ? "primary" as const : "alternate" as const, elapsedMs: 1,
+  }));
+  const validations = responses.map((response) => validateProductionSceneCandidate({
+    candidate: response.document, question: segmentQuestion, turnPlan: segmentPlan,
+  }));
+  const search: ScenePlanWithRepairResult<ValidatedSceneCandidate> = {
+    response: responses[0]!, validation: validations[0]!, repaired: false,
+    candidates: responses.map((response, index) => ({
+      candidateId: response.lane, response, validation: validations[index]!, score: 0, selected: index === 0,
+    })),
+  };
+  const reranked = await revalidateScenePlanWithRepairResult(search, (document) =>
+    validateProductionSceneCandidate({ candidate: document, question: segmentQuestion, turnPlan: segmentPlan }));
+  const admittedSibling = selectProductionScene({
+    question: segmentQuestion, turnPlan: segmentPlan, problemIR: null,
+    candidateValidation: reranked.validation,
+    policy: { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "text_only"] },
+  });
+  assert(admittedSibling.representation, "a labelled sibling must survive ranking and final admission instead of leaving the board empty");
+  assert.equal(reranked.response.lane, "alternate", "an unlabelled primary cannot beat its drawable labelled sibling");
+  assert.equal(admittedSibling.representation.figureSource, "planner");
+  assert(admittedSibling.representation.renderScene.primitives.some((primitive) =>
+    primitive.kind === "label" && primitive.text === "AB"));
+  assert.equal(validations[0]!.valid, false);
+  assert(validations[0]!.errors.some((issue) => issue.code === "scene_without_readable_label" && issue.severity === "fatal"),
+    "missing readable ink is a repairable candidate error, not a planner decline");
+  const optional = validateProductionSceneCandidate({ candidate: responses[0]!.document, question: segmentQuestion,
+    turnPlan: planFor(segmentQuestion, "optional") });
+  assert.equal(optional.valid, false, "optional scene candidates face the same eventual readable-ink admission rule");
+  const none = validateProductionSceneCandidate({ candidate: responses[0]!.document, question: segmentQuestion,
+    turnPlan: planFor(segmentQuestion, "none") });
+  assert.equal(none.valid, true, "the no-figure requirement does not invent a label obligation");
+  const decline = validateProductionSceneCandidate({ candidate: {
+    ...candidate, visualDecision: { mode: "text_only", reason: "No faithful figure is available." },
+    entities: [], constructions: [], assertions: [], requiredEntityIds: [], revealGroups: [], teachingTimeline: [],
+  }, question: segmentQuestion, turnPlan: segmentPlan });
+  assert.equal(decline.valid, true, "an explicit valid text-only decline remains distinct from an unlabelled scene");
+}
+
+void verifyLabelledSiblingSelection().then(() => {
+  console.log("production scene selection: visual need, source admission, purity, solver, source policy, labelled sibling ranking and both consumers pass");
+});
