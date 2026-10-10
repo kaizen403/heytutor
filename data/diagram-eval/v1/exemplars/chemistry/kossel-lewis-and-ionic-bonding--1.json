@@ -1,0 +1,633 @@
+{
+  "topic_id": "chemistry|3|kossel-lewis-and-ionic-bonding",
+  "question": "Draw the Lewis structure of CO2 and find the number of sigma and pi bonds.",
+  "figure_kind": "molecule",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Lewis structure of CO_2"
+    },
+    "source": {
+      "question": "Draw the Lewis structure of CO2 and find the number of sigma and pi bonds.",
+      "synthesizedFamily": true,
+      "archetype": "chem_lewis",
+      "chemistryFamily": "chem_lewis"
+    },
+    "quantities": [
+      {
+        "id": "sigma_bonds",
+        "symbol": "σ",
+        "value": 2,
+        "unit": ""
+      },
+      {
+        "id": "pi_bonds",
+        "symbol": "π",
+        "value": 2,
+        "unit": ""
+      },
+      {
+        "id": "lone_pairs",
+        "symbol": "n_lp",
+        "value": 4,
+        "unit": ""
+      }
+    ],
+    "entities": [
+      {
+        "id": "s1_C1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "C",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "s1_O1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "O",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "s1_O2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "O",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "s1_b_C1_O1_1",
+        "kind": "segment",
+        "role": "double bond"
+      },
+      {
+        "id": "s1_b_C1_O1_2",
+        "kind": "segment",
+        "role": "double bond stroke"
+      },
+      {
+        "id": "s1_b_C1_O2_1",
+        "kind": "segment",
+        "role": "double bond"
+      },
+      {
+        "id": "s1_b_C1_O2_2",
+        "kind": "segment",
+        "role": "double bond stroke"
+      },
+      {
+        "id": "s1_lp_O1_1_1",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_lp_O1_1_2",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_lp_O1_2_1",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_lp_O1_2_2",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_lp_O2_1_1",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_lp_O2_1_2",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_lp_O2_2_1",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_lp_O2_2_2",
+        "kind": "point",
+        "role": "lone pair electron",
+        "provenance": {
+          "pointStyle": "filled"
+        }
+      },
+      {
+        "id": "s1_name",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "CO_2",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "s1_C1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_O1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_O2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O1_1_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O1_1_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O1_2_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O1_2_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O2_1_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O2_1_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O2_2_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_b_C1_O2_2_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1_name_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_s1_C1_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.122,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_C1_p"
+        ]
+      },
+      {
+        "id": "make_s1_C1",
+        "operator": "label",
+        "inputs": {
+          "target": "s1_C1_p",
+          "text": "C"
+        },
+        "outputs": [
+          "s1_C1"
+        ]
+      },
+      {
+        "id": "make_s1_O1_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.122,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_O1_p"
+        ]
+      },
+      {
+        "id": "make_s1_O1",
+        "operator": "label",
+        "inputs": {
+          "target": "s1_O1_p",
+          "text": "O"
+        },
+        "outputs": [
+          "s1_O1"
+        ]
+      },
+      {
+        "id": "make_s1_O2_p",
+        "operator": "point",
+        "inputs": {
+          "x": 2.122,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_O2_p"
+        ]
+      },
+      {
+        "id": "make_s1_O2",
+        "operator": "label",
+        "inputs": {
+          "target": "s1_O2_p",
+          "text": "O"
+        },
+        "outputs": [
+          "s1_O2"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O1_1_s",
+        "operator": "point",
+        "inputs": {
+          "x": 1.0528,
+          "y": 0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O1_1_s"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O1_1_e",
+        "operator": "point",
+        "inputs": {
+          "x": 0.1911,
+          "y": 0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O1_1_e"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O1_1",
+        "operator": "segment",
+        "inputs": {
+          "start": "s1_b_C1_O1_1_s",
+          "end": "s1_b_C1_O1_1_e"
+        },
+        "outputs": [
+          "s1_b_C1_O1_1"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O1_2_s",
+        "operator": "point",
+        "inputs": {
+          "x": 1.0528,
+          "y": -0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O1_2_s"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O1_2_e",
+        "operator": "point",
+        "inputs": {
+          "x": 0.1911,
+          "y": -0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O1_2_e"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O1_2",
+        "operator": "segment",
+        "inputs": {
+          "start": "s1_b_C1_O1_2_s",
+          "end": "s1_b_C1_O1_2_e"
+        },
+        "outputs": [
+          "s1_b_C1_O1_2"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O2_1_s",
+        "operator": "point",
+        "inputs": {
+          "x": 1.1911,
+          "y": -0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O2_1_s"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O2_1_e",
+        "operator": "point",
+        "inputs": {
+          "x": 2.0528,
+          "y": -0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O2_1_e"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O2_1",
+        "operator": "segment",
+        "inputs": {
+          "start": "s1_b_C1_O2_1_s",
+          "end": "s1_b_C1_O2_1_e"
+        },
+        "outputs": [
+          "s1_b_C1_O2_1"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O2_2_s",
+        "operator": "point",
+        "inputs": {
+          "x": 1.1911,
+          "y": 0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O2_2_s"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O2_2_e",
+        "operator": "point",
+        "inputs": {
+          "x": 2.0528,
+          "y": 0.0102,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_b_C1_O2_2_e"
+        ]
+      },
+      {
+        "id": "make_s1_b_C1_O2_2",
+        "operator": "segment",
+        "inputs": {
+          "start": "s1_b_C1_O2_2_s",
+          "end": "s1_b_C1_O2_2_e"
+        },
+        "outputs": [
+          "s1_b_C1_O2_2"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O1_1_1",
+        "operator": "point",
+        "inputs": {
+          "x": 0.0916,
+          "y": 0.081,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O1_1_1"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O1_1_2",
+        "operator": "point",
+        "inputs": {
+          "x": 0.0669,
+          "y": 0.0668,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O1_1_2"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O1_2_1",
+        "operator": "point",
+        "inputs": {
+          "x": 0.0669,
+          "y": -0.0668,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O1_2_1"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O1_2_2",
+        "operator": "point",
+        "inputs": {
+          "x": 0.0916,
+          "y": -0.081,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O1_2_2"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O2_1_1",
+        "operator": "point",
+        "inputs": {
+          "x": 2.1523,
+          "y": -0.081,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O2_1_1"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O2_1_2",
+        "operator": "point",
+        "inputs": {
+          "x": 2.177,
+          "y": -0.0668,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O2_1_2"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O2_2_1",
+        "operator": "point",
+        "inputs": {
+          "x": 2.177,
+          "y": 0.0668,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O2_2_1"
+        ]
+      },
+      {
+        "id": "make_s1_lp_O2_2_2",
+        "operator": "point",
+        "inputs": {
+          "x": 2.1523,
+          "y": 0.081,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_lp_O2_2_2"
+        ]
+      },
+      {
+        "id": "make_s1_name_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.122,
+          "y": -0.1908,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1_name_p"
+        ]
+      },
+      {
+        "id": "make_s1_name",
+        "operator": "label",
+        "inputs": {
+          "target": "s1_name_p",
+          "text": "CO_2"
+        },
+        "outputs": [
+          "s1_name"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_s1_C1",
+        "predicate": "label_attached",
+        "entities": [
+          "s1_C1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_s1_name",
+        "predicate": "label_attached",
+        "entities": [
+          "s1_name"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "CO_2: σ = 2, π = 2, lone pairs = 4"
+      }
+    ],
+    "requiredEntityIds": [
+      "s1_C1",
+      "s1_O1",
+      "s1_O2",
+      "s1_b_C1_O1_1",
+      "s1_b_C1_O1_2",
+      "s1_b_C1_O2_1",
+      "s1_b_C1_O2_2",
+      "s1_lp_O1_1_1",
+      "s1_lp_O1_1_2",
+      "s1_lp_O1_2_1",
+      "s1_lp_O1_2_2",
+      "s1_lp_O2_1_1",
+      "s1_lp_O2_1_2",
+      "s1_lp_O2_2_1",
+      "s1_lp_O2_2_2",
+      "s1_name"
+    ],
+    "revealGroups": [
+      {
+        "id": "species_1",
+        "entityIds": [
+          "s1_C1",
+          "s1_O1",
+          "s1_O2",
+          "s1_b_C1_O1_1",
+          "s1_b_C1_O1_2",
+          "s1_b_C1_O2_1",
+          "s1_b_C1_O2_2",
+          "s1_lp_O1_1_1",
+          "s1_lp_O1_1_2",
+          "s1_lp_O1_2_1",
+          "s1_lp_O1_2_2",
+          "s1_lp_O2_1_1",
+          "s1_lp_O2_1_2",
+          "s1_lp_O2_2_1",
+          "s1_lp_O2_2_2",
+          "s1_name"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Lewis structure of CO_2: σ = 2, π = 2, lone pairs = 4"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_species_1",
+        "action": "reveal",
+        "targetId": "species_1",
+        "dependsOn": [],
+        "narrationIntent": "Lewis structure of CO_2: σ = 2, π = 2, lone pairs = 4"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

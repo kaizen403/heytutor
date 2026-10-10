@@ -1,0 +1,80 @@
+{
+  "topic_id": "maths|12|area-and-volume-via-vectors",
+  "question": "A cube has edge 6 cm. Find its volume.",
+  "figure_kind": "solid_3d",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "mensuration operator probe"
+    },
+    "source": {
+      "question": "A cube has edge 6 cm. Find its volume."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "solid",
+        "kind": "polyline",
+        "label": "solid",
+        "role": "polyline"
+      },
+      {
+        "id": "center",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "origin",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "center"
+        ]
+      },
+      {
+        "id": "make_solid",
+        "operator": "solid_projection",
+        "inputs": {
+          "center": "center",
+          "kind": "polyhedron",
+          "base": {
+            "kind": "regular_polygon",
+            "sides": 4,
+            "side": 6
+          },
+          "height": 6,
+          "topScale": 1
+        },
+        "outputs": [
+          "solid"
+        ]
+      }
+    ],
+    "relations": [],
+    "annotations": [],
+    "assertions": [],
+    "requiredEntityIds": [
+      "solid"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "solid"
+        ],
+        "dependsOn": [],
+        "narrationCue": "introduce the solid"
+      }
+    ],
+    "teachingTimeline": []
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

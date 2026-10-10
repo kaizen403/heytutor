@@ -43,19 +43,3 @@ export {
   type SimulatedWriteWaitResult,
 } from "./sync/writeAudioClock";
 export { scheduleFrame, cancelFrame } from "./sync/scheduleFrame";
-export {
-  animateStroke,
-  animateRoughStroke,
-  type CancellableAnimation,
-  type StrokeAnimationOptions,
-  type RoughAnimationOptions,
-} from "./animation/strokeAnimation";
-export {
-  getPathLength,
-  getPointAtLength,
-  animateBezierArc,
-  animateAlongPath,
-  type Point,
-  type BezierAnimationOptions,
-  type PathFollowOptions,
-} from "./animation/cursorAnimation";

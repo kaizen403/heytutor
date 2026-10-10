@@ -1,0 +1,122 @@
+{
+  "topic_id": "maths|13|central-tendency-and-dispersion",
+  "question": "The classes 0-10, 10-20 and 20-40 have frequencies 4, 7 and 6. Represent the distribution by a density histogram.",
+  "figure_kind": "chart_table",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "deterministic source-data statistical geometry"
+    },
+    "source": {
+      "question": "The classes 0-10, 10-20 and 20-40 have frequencies 4, 7 and 6. Represent the distribution by a density histogram."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "diagram",
+        "kind": "polyline",
+        "role": "statistical data plot"
+      },
+      {
+        "id": "axis_label_anchor",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "axis_label",
+        "kind": "label",
+        "role": "axis label",
+        "label": "density"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_diagram",
+        "operator": "histogram",
+        "inputs": {
+          "bins": [
+            {
+              "lower": 0,
+              "upper": 10,
+              "frequency": 4
+            },
+            {
+              "lower": 10,
+              "upper": 20,
+              "frequency": 7
+            },
+            {
+              "lower": 20,
+              "upper": 40,
+              "frequency": 6
+            }
+          ],
+          "heightMode": "density"
+        },
+        "outputs": [
+          "diagram"
+        ]
+      },
+      {
+        "id": "make_axis_label_anchor",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "axis_label_anchor"
+        ]
+      },
+      {
+        "id": "make_axis_label",
+        "operator": "label",
+        "inputs": {
+          "target": "axis_label_anchor",
+          "text": "density"
+        },
+        "outputs": [
+          "axis_label"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "frequency density histogram"
+      }
+    ],
+    "requiredEntityIds": [
+      "diagram",
+      "axis_label"
+    ],
+    "revealGroups": [
+      {
+        "id": "plot",
+        "entityIds": [
+          "diagram",
+          "axis_label"
+        ],
+        "dependsOn": [],
+        "narrationCue": "read the source distribution"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show_plot",
+        "action": "reveal",
+        "targetId": "plot",
+        "dependsOn": [],
+        "narrationIntent": "represent the supplied frequencies"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

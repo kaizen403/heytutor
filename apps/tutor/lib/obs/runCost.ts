@@ -10,6 +10,7 @@ import {
   type LlmRateLane,
   type TtsRateLane,
 } from "./usageCost";
+import { resolveLlmEndpoint, type LlmProviderName } from "../llm/llmProvider";
 
 export interface CostObservation {
   id?: string | null;
@@ -434,6 +435,8 @@ export function parseCostObservation(value: unknown, sessionId?: string): CostOb
 }
 
 export function snapshotPricing(): {
+  /** Which provider serves the LLM lanes right now (`LLM_PROVIDER`). */
+  llmProvider: LlmProviderName;
   llm: Array<{
     lane: LlmRateLane;
     inputUsdPer1M: number;
@@ -443,6 +446,7 @@ export function snapshotPricing(): {
   tts: Array<{ lane: TtsRateLane; usdPer1kChars: number }>;
 } {
   const models: Array<[LlmRateLane, string]> = [
+    ["gpt-6.1-sol", "gpt-6.1-sol"],
     ["kimi-k3-fast", "accounts/fireworks/routers/kimi-k3-fast"],
     ["kimi-k3", "accounts/fireworks/models/kimi-k3"],
     ["deepseek-flash", "accounts/fireworks/models/deepseek-v4p1-flash"],
@@ -450,6 +454,7 @@ export function snapshotPricing(): {
     ["jev", "typesafe-ai/jev"],
   ];
   return {
+    llmProvider: resolveLlmEndpoint().provider,
     llm: models.map(([, model]) => {
       const rates = resolveLlmRates(model);
       return {

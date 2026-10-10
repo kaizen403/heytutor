@@ -5,9 +5,9 @@
  * The before/after gate for "the pen follows the voice" (10 Sep 2026): run the
  * same questions on two builds, then `node sync-analyser.mjs <runs...> --md out.md`
  * and `python3 ab-table.py` for the lesson by metric table. Needs the dev server
- * up (Postgres too), playwright-core somewhere on disk (the npx cache is used
- * below; pass --playwright <dir> to point elsewhere) and a Chrome for Testing
- * binary (--chromium <path>). Uses real TTS credits.
+ * up (Postgres too), playwright-core somewhere on disk (--playwright <dir> or
+ * PLAYWRIGHT_CORE_DIR) and a Chrome for Testing binary (--chromium <path> or
+ * CHROME_FOR_TESTING). Uses real TTS credits.
  *
  *   node lesson-probe.mjs --q "question" --out ./run-01 [--timeout 240000] [--shot 1500]
  */
@@ -23,16 +23,19 @@ const out = args.out ?? "./probe-run";
 const timeoutMs = Number(args.timeout ?? 240_000);
 const shotEveryMs = Number(args.shot ?? 1500);
 const base = args.base ?? "http://localhost:3000";
+const PLAYWRIGHT_DIR = args.playwright ?? process.env.PLAYWRIGHT_CORE_DIR;
+const CHROME = args.chromium ?? process.env.CHROME_FOR_TESTING;
+if (!PLAYWRIGHT_DIR || !CHROME) {
+  console.error(
+    "lesson-probe: pass --playwright <playwright-core dir> and --chromium <Chrome for Testing binary>, " +
+      "or set PLAYWRIGHT_CORE_DIR and CHROME_FOR_TESTING",
+  );
+  process.exit(2);
+}
 mkdirSync(join(out, "shots"), { recursive: true });
 
 const require_ = createRequire(import.meta.url);
-const PLAYWRIGHT_DIR =
-  args.playwright ?? process.env.PLAYWRIGHT_CORE_DIR ?? "/Users/kaizen/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core";
 const { chromium } = require_(PLAYWRIGHT_DIR);
-const CHROME =
-  args.chromium ??
-  process.env.CHROME_FOR_TESTING ??
-  "/Users/kaizen/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 
 const browser = await chromium.launch({
   executablePath: CHROME,
