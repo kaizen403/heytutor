@@ -38,6 +38,7 @@ export function correctedEmptyCauseForStoredRun(value: unknown): DiagramEmptyCau
     ? plan.visualRequirement as "required" | "optional" | "none"
     : "required";
   const candidateErrorCodes = strings(diagram.candidateErrorCodes);
+  const plannerDeclined = diagram.plannerDeclined === true;
   const deadlineRemainingMs = typeof stages.deadlineRemainingMs === "number"
     ? stages.deadlineRemainingMs
     : Math.max(0, SCENE_PLANNER_DEADLINE_MS - number(timings.planMs));
@@ -53,6 +54,7 @@ export function correctedEmptyCauseForStoredRun(value: unknown): DiagramEmptyCau
     candidateErrorCodes,
   });
   diagram.candidateErrorCodes = supplementedCodes;
+  diagram.plannerDeclined = plannerDeclined;
   return classifyDiagramEmptyCause({
     committed: diagram.committed === true,
     visualRequirement,
@@ -63,6 +65,7 @@ export function correctedEmptyCauseForStoredRun(value: unknown): DiagramEmptyCau
     candidateCount,
     candidateErrorCodes: supplementedCodes,
     fallbackSuppressed: Object.keys(record(diagram.suppressedFallback)).length > 0,
+    plannerDeclined,
   });
 }
 
