@@ -11,7 +11,7 @@ export const MAX_BOARD_PREVIEW_CHARS = 2000;
 export const BOARD_PAGE_SIZE = 100;
 
 export class StorageQuotaError extends Error {
-  constructor(message: string, public readonly status: 403 | 404 | 409 | 413 | 429 = 413) {
+  constructor(message: string, public readonly status: 400 | 403 | 404 | 409 | 413 | 429 = 413) {
     super(message);
     this.name = "StorageQuotaError";
   }

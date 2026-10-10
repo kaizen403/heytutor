@@ -78,6 +78,7 @@ const MAX_CONFLICT_RESENDS = 3;
  * dropped.
  */
 export const CUT_ROW_GRACE_MS = 5_000;
+export const LIVE_SAVE_HEARTBEAT_MS = 30_000;
 /**
  * A checkpoint that has not answered by then is aborted and retried, so a hung
  * connection never holds up Stop, completion or Try again. Clips add time at
@@ -114,7 +115,7 @@ export interface LiveTurnBeginInput {
 }
 
 /** What a mirror receives: the turn as this tab knows it, for `storedTurnsRef`. */
-export type LiveTurnMirrorEvent =
+export type LiveTurnMirrorEvent = (
   | {
       source: "local";
       boardId: string;
@@ -132,7 +133,7 @@ export type LiveTurnMirrorEvent =
       turn: StoredTurn;
       /** The submitted rows, so local clips can stand in for server URLs. */
       rows: RecordedSegmentPayload[];
-    };
+    }) & { orderBeforeTurnId?: string; orderAfterTurnId?: string };
 
 export interface LiveTurnOwnerHooks {
   /** The board the owner shows now. A turn is mirrored only onto its own open board. */
@@ -162,6 +163,16 @@ interface RecordedEntry {
   intro: boolean;
 }
 
+export interface PreparedLiveSegment {
+  markShown(): void;
+  complete(row: RecordedSegmentPayload): boolean;
+  interrupt(): boolean;
+}
+
+interface PendingLiveSegment {
+  row: RecordedSegmentPayload; intro: boolean; shown: boolean; settled: boolean;
+}
+
 interface LiveTurn {
   readonly turnId: string;
   readonly owner: object;
@@ -179,6 +190,7 @@ interface LiveTurn {
   /** Entries of `recorded` already moved to `frozen` or dropped. */
   taken: number;
   cutRow: RecordedSegmentPayload | null;
+  pendingSegment: PendingLiveSegment | null;
   /** Index of the cut row in `frozen`, or -1. */
   cutFrozenIndex: number;
   /** Decided at the first request; null until then. */
@@ -188,6 +200,12 @@ interface LiveTurn {
   /** Per submitted index: the server holds this row's clip (or it has none). */
   audioAcked: boolean[];
   ackedCount: number;
+  ackedSeq: number;
+  observedHistoryIds: Set<string>;
+  historyAfterId?: string;
+  historyBeforeId?: string;
+  heartbeatTimer: unknown;
+  heartbeatDirty: boolean;
   ackedStatus: TurnStatus | null;
   seq: number;
   status: TurnStatus;
@@ -195,6 +213,9 @@ interface LiveTurn {
   textOnly: boolean;
   resumeState: Record<string, unknown> | null | undefined;
   resumeDirty: boolean;
+  resumeRevision: number;
+  ackedResumeRevision: number;
+  keepaliveResumeRevision: number;
   inflight: Promise<void> | null;
   /** Submitted rows covered by the last keepalive close, or -1. */
   keepaliveCovered: number;
@@ -289,6 +310,18 @@ export function saveFailureMessage(failure: Pick<SaveFailure, "reason">): string
 // Registry
 // ---------------------------------------------------------------------------
 
+/** The same overlay is used by live mirroring and server-board reopen. */
+export function overlayLiveTurnEvent(stored: readonly StoredTurn[], event: LiveTurnMirrorEvent, turn: StoredTurn): StoredTurn[] {
+  const existingIndex = stored.findIndex((held) => held.id === turn.id);
+  if (event.source === "local" && existingIndex >= 0 && stored[existingIndex]!.status === "complete") return [...stored];
+  const result = stored.filter((held) => held.id !== turn.id);
+  const before = event.orderBeforeTurnId ? result.findIndex((held) => held.id === event.orderBeforeTurnId) : -1;
+  const after = event.orderAfterTurnId ? result.findIndex((held) => held.id === event.orderAfterTurnId) : -1;
+  const at = existingIndex >= 0 ? Math.min(existingIndex, result.length) : before >= 0 ? before : after >= 0 ? after + 1 : result.length;
+  result.splice(at, 0, turn);
+  return result.map((held, orderIndex) => ({ ...held, orderIndex }));
+}
+
 export class LiveTurnSaveRegistry {
   private readonly env: LiveTurnSaveEnv;
   private readonly turns: LiveTurn[] = [];
@@ -296,6 +329,7 @@ export class LiveTurnSaveRegistry {
   private readonly listeners = new Set<() => void>();
   private readonly statusCache = new Map<string, { key: string; status: SaveStatus }>();
   private order = 0;
+  private readonly observedBoards = new Map<string, string[]>();
 
   constructor(env: LiveTurnSaveEnv) {
     this.env = env;
@@ -321,11 +355,17 @@ export class LiveTurnSaveRegistry {
       recorded: [],
       taken: 0,
       cutRow: null,
+      pendingSegment: null,
       cutFrozenIndex: -1,
       opensPage: null,
       frozen: [],
       audioAcked: [],
       ackedCount: 0,
+      ackedSeq: 0,
+      observedHistoryIds: new Set(this.observedBoards.get(input.boardId) ?? []),
+      historyAfterId: this.observedBoards.get(input.boardId)?.at(-1),
+      heartbeatTimer: null,
+      heartbeatDirty: false,
       ackedStatus: null,
       seq: 0,
       status: "live",
@@ -333,6 +373,9 @@ export class LiveTurnSaveRegistry {
       textOnly: false,
       resumeState: undefined,
       resumeDirty: false,
+      resumeRevision: 0,
+      ackedResumeRevision: 0,
+      keepaliveResumeRevision: -1,
       inflight: null,
       keepaliveCovered: -1,
       retryTimer: null,
@@ -362,6 +405,53 @@ export class LiveTurnSaveRegistry {
       complete: (completion) => this.completeTurn(turn, completion.rawResponse),
       submittedRows: () => this.previewRows(turn, { includeCut: true }),
     };
+  }
+
+  /** Prepared after wrapping/placement; prefetch alone never counts as shown. */
+  prepareSegment(owner: object, generation: number, row: RecordedSegmentPayload, options: { intro: boolean }): PreparedLiveSegment | null {
+    const turn = this.find(owner, generation);
+    if (!turn || turn.status !== "live" || turn.final) return null;
+    this.capturePending(turn);
+    const pending: PendingLiveSegment = { row, intro: options.intro, shown: false, settled: false };
+    turn.pendingSegment = pending;
+    const settle = (complete: RecordedSegmentPayload | null): boolean => {
+      if (pending.settled || turn.pendingSegment !== pending) return false;
+      pending.settled = true;
+      turn.pendingSegment = null;
+      if (complete && turn.status === "live" && !turn.final) {
+        turn.recorded.push({ row: complete, intro: pending.intro });
+      } else if (pending.shown && !pending.intro && !turn.final && turn.status !== "complete") {
+        turn.recorded.push({ row: { ...pending.row, audioBytes: null, durationMs: null, timings: null }, intro: false });
+      } else return false;
+      this.endCutGrace(turn);
+      this.mirrorLocal(turn);
+      this.emit();
+      this.pump(turn);
+      return complete !== null && turn.status === "live";
+    };
+    return {
+      markShown: () => { if (!pending.settled && turn.pendingSegment === pending && turn.status === "live") { pending.shown = true; this.emit(); } },
+      complete: (completed) => settle(completed),
+      interrupt: () => { const owned = !pending.settled; settle(null); return owned; },
+    };
+  }
+
+  /** Synchronous before any Stop halt/freeze; the old runner may never unwind. */
+  captureShown(owner: object): void {
+    for (const turn of this.turns) if (turn.owner === owner) this.capturePending(turn);
+  }
+
+  private capturePending(turn: LiveTurn): void {
+    const pending = turn.pendingSegment;
+    if (!pending || pending.settled) return;
+    pending.settled = true;
+    turn.pendingSegment = null;
+    if (pending.shown && !pending.intro && !turn.final && turn.status !== "complete") {
+      turn.recorded.push({ row: { ...pending.row, audioBytes: null, durationMs: null, timings: null }, intro: false });
+      this.endCutGrace(turn);
+      this.mirrorLocal(turn);
+      this.emit();
+    }
   }
 
   /** A finished segment of the owner's turn `generation`. */
@@ -421,8 +511,11 @@ export class LiveTurnSaveRegistry {
   setResumeState(owner: object, generation: number, state: Record<string, unknown> | null): void {
     const turn = this.find(owner, generation);
     if (!turn || turn.final) return;
-    turn.resumeState = state;
+    turn.resumeState = state === null ? null : JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    turn.resumeRevision += 1;
     turn.resumeDirty = true;
+    this.mirrorLocal(turn);
+    this.emit();
     this.pump(turn);
   }
 
@@ -451,21 +544,26 @@ export class LiveTurnSaveRegistry {
   pageHideClose(): void {
     for (const turn of [...this.turns]) {
       if (turn.final) continue;
+      this.capturePending(turn);
+      this.stopHeartbeat(turn);
       if (turn.status === "live") turn.status = "stopped";
       if (turn.opensPage === null) turn.opensPage = this.decideOpensPage(turn);
       this.freeze(turn);
       if (this.abandonIfEmpty(turn)) continue;
       const statusSent = turn.ackedStatus === turn.status ||
         (turn.ackedStatus === "stopped" && turn.status === "complete");
-      if (turn.frozen.length <= turn.ackedCount && statusSent && !turn.inflight) continue;
+      if (turn.frozen.length <= turn.ackedCount && statusSent && !turn.inflight && !turn.resumeDirty) continue;
       // Another shell of this tab already sent this close.
-      if (turn.keepaliveCovered === turn.frozen.length) continue;
+      if (turn.keepaliveCovered === turn.frozen.length && turn.keepaliveResumeRevision === turn.resumeRevision) continue;
       turn.keepaliveCovered = turn.frozen.length;
+      turn.keepaliveResumeRevision = turn.resumeRevision;
+      const resumeRevision = turn.resumeRevision;
       const seq = Math.max(turn.seq, 0) + 1;
       turn.seq = seq;
       const scene = this.sceneFor(turn);
       void this.env.transport.close(turn.boardId, turn.turnId, {
         seq,
+        ...(turn.ackedStatus === null ? this.orderingAnchors(turn) : {}),
         status: "stopped",
         traceId: turn.traceId,
         baseCount: turn.ackedCount,
@@ -477,7 +575,7 @@ export class LiveTurnSaveRegistry {
         speedMultiplier: turn.speedMultiplier,
         sceneArtifacts: turn.ackedStatus === null ? scene.sceneArtifacts : undefined,
         ...(turn.resumeDirty ? { resumeState: turn.resumeState ?? null } : {}),
-      }).then((result) => this.onCloseResult(turn, result), () => undefined);
+      }).then((result) => this.onCloseResult(turn, result, resumeRevision), () => undefined);
     }
     this.emit();
   }
@@ -559,7 +657,7 @@ export class LiveTurnSaveRegistry {
   liveTurnFor(owner: object, boardId: string | null | undefined): LiveTurnSnapshot | null {
     const turn = this.latestFor(owner, boardId);
     if (!turn || turn.status === "complete") return null;
-    const rows = this.previewRows(turn, { includeCut: false });
+    const rows = this.previewRows(turn, { includeCut: turn.status === "stopped" });
     if (!rows.some((row) => !isEpochRow(row))) return null;
     const scene = this.sceneFor(turn);
     const kept = scene.visualStatus === "validated" ? rows : partialTurnSegments(rows, scene);
@@ -748,7 +846,9 @@ export class LiveTurnSaveRegistry {
       visualStatus: scene.visualStatus,
       sceneArtifacts: scene.sceneArtifacts,
       status: turn.status,
+      persistedStatus: turn.status,
       kind: turn.kind,
+      ...(turn.resumeState !== undefined ? { resumeState: turn.resumeState } : {}),
     };
   }
 
@@ -775,10 +875,10 @@ export class LiveTurnSaveRegistry {
 
   private hasUnsent(turn: LiveTurn): boolean {
     if (turn.final) return false;
-    if (turn.inflight) return true;
+    if (turn.inflight || (turn.pendingSegment?.shown && !turn.pendingSegment.intro)) return true;
     const rows = this.previewRows(turn, { includeCut: true });
     if (this.notWorthCreating(turn, rows)) return false;
-    if (rows.length > turn.ackedCount) return true;
+    if (rows.length > turn.ackedCount || turn.resumeDirty || turn.heartbeatDirty) return true;
     if (turn.status !== "live" && turn.ackedStatus !== turn.status) return true;
     return turn.audioAcked.some((acked) => !acked);
   }
@@ -814,7 +914,7 @@ export class LiveTurnSaveRegistry {
     if (this.notWorthCreating(turn, turn.frozen)) return false;
     if (turn.frozen.length > turn.ackedCount) return true;
     if (turn.status !== "live" && turn.ackedStatus !== turn.status) return true;
-    if (turn.resumeDirty) return true;
+    if (turn.resumeDirty || turn.heartbeatDirty) return true;
     return turn.audioAcked.some((acked, index) => !acked && index < turn.ackedCount);
   }
 
@@ -824,6 +924,8 @@ export class LiveTurnSaveRegistry {
    */
   private closeTurn(turn: LiveTurn, options: { stopped: boolean }): void {
     if (turn.status !== "live") return;
+    this.capturePending(turn);
+    this.stopHeartbeat(turn);
     turn.status = "stopped";
     if (!options.stopped && this.abandonIfEmpty(turn)) return;
     if (this.notWorthCreating(turn, this.previewRows(turn, { includeCut: true }))) {
@@ -858,6 +960,7 @@ export class LiveTurnSaveRegistry {
       if (turn.completeResult) return Promise.resolve(turn.completeResult);
       return new Promise((resolve) => turn.completeWaiters.push(resolve));
     }
+    this.stopHeartbeat(turn);
     turn.status = "complete";
     turn.rawResponse = rawResponse;
     const result = new Promise<SaveTurnResult>((resolve) => turn.completeWaiters.push(resolve));
@@ -889,6 +992,7 @@ export class LiveTurnSaveRegistry {
   }
 
   private send(turn: LiveTurn): void {
+    turn.heartbeatDirty = false;
     const base = turn.ackedCount;
     const seq = turn.seq + 1;
     turn.seq = seq;
@@ -900,9 +1004,10 @@ export class LiveTurnSaveRegistry {
       if (!turn.audioAcked[index] && row.audioBytes && row.audioBytes.length > 0) late.push(index);
     });
     const resumeDirty = turn.resumeDirty;
-    turn.resumeDirty = false;
+    const resumeRevision = turn.resumeRevision;
     const input: TurnCheckpointInput = {
       seq,
+      ...(turn.ackedStatus === null ? this.orderingAnchors(turn) : {}),
       status,
       kind: turn.kind,
       baseCount: base,
@@ -945,23 +1050,26 @@ export class LiveTurnSaveRegistry {
     });
     turn.inflight = request.then((result) => {
       turn.inflight = null;
-      if (!result.ok && resumeDirty) turn.resumeDirty = true;
-      this.onResult(turn, { base, sentCount, status, late, textOnly }, result);
+      this.onResult(turn, { base, sentCount, status, late, textOnly, resumeRevision: resumeDirty ? resumeRevision : null }, result);
     });
     this.emit();
   }
 
   private onResult(
     turn: LiveTurn,
-    sent: { base: number; sentCount: number; status: TurnStatus; late: number[]; textOnly: boolean },
+    sent: { base: number; sentCount: number; status: TurnStatus; late: number[]; textOnly: boolean; resumeRevision: number | null },
     result: TurnCheckpointResult,
   ): void {
     if (result.ok) {
+      if (result.serverSeq < turn.ackedSeq) { this.pump(turn); return; }
+      turn.ackedSeq = result.serverSeq;
       turn.seq = Math.max(turn.seq, result.serverSeq);
       turn.attempt = 0;
       turn.conflicts = 0;
       turn.lastAckAt = this.env.now();
       if (!result.stale) {
+        if (sent.resumeRevision !== null) turn.ackedResumeRevision = Math.max(turn.ackedResumeRevision, sent.resumeRevision);
+        turn.resumeDirty = turn.resumeRevision > turn.ackedResumeRevision;
         for (let index = sent.base; index < sent.sentCount; index += 1) turn.audioAcked[index] = true;
         for (const index of sent.late) turn.audioAcked[index] = true;
       }
@@ -975,11 +1083,13 @@ export class LiveTurnSaveRegistry {
         turn.ackedCount = Math.min(Math.max(serverCount, 0), turn.frozen.length);
         turn.ackedStatus = result.turn.status ?? (result.stale ? turn.ackedStatus ?? sent.status : sent.status);
       }
+      if (turn.final) this.stopHeartbeat(turn);
+      else this.startHeartbeat(turn);
       const page = turn.page;
       if (page && page.boardId === turn.boardId) page.turn.saved = true;
       if (turn.final) this.settleComplete(turn, { ok: true, turn: result.turn });
       // The local mirror is replaced only by an answer that covers everything.
-      if (turn.status !== "live" && sent.status === turn.status && sent.sentCount === this.previewRows(turn, { includeCut: true }).length) {
+      if (turn.status !== "live" && sent.status === turn.status && sent.sentCount === this.previewRows(turn, { includeCut: true }).length && !turn.resumeDirty && (turn.resumeState === undefined || JSON.stringify(result.turn.resumeState) === JSON.stringify(turn.resumeState))) {
         this.mirrorServer(turn, result.turn);
       }
       this.releaseQueue(turn);
@@ -1038,8 +1148,13 @@ export class LiveTurnSaveRegistry {
     this.emit();
   }
 
-  private onCloseResult(turn: LiveTurn, result: TurnCheckpointResult): void {
-    if (!result.ok) return;
+  private onCloseResult(turn: LiveTurn, result: TurnCheckpointResult, resumeRevision: number): void {
+    if (!result.ok || result.serverSeq < turn.ackedSeq) return;
+    turn.ackedSeq = result.serverSeq;
+    if (!result.stale && resumeRevision === turn.resumeRevision && JSON.stringify(result.turn.resumeState) === JSON.stringify(turn.resumeState)) {
+      turn.ackedResumeRevision = Math.max(turn.ackedResumeRevision, resumeRevision);
+      turn.resumeDirty = false;
+    }
     turn.seq = Math.max(turn.seq, result.serverSeq);
     turn.lastAckAt = this.env.now();
     if (result.final) {
@@ -1060,6 +1175,47 @@ export class LiveTurnSaveRegistry {
     this.pump(turn);
   }
 
+  private startHeartbeat(turn: LiveTurn): void {
+    if (turn.status !== "live" || turn.ackedStatus === null || turn.heartbeatTimer !== null || turn.final) return;
+    turn.heartbeatTimer = this.env.setTimer(() => {
+      turn.heartbeatTimer = null;
+      if (turn.status !== "live" || turn.final) return;
+      turn.heartbeatDirty = true;
+      this.pump(turn);
+      this.startHeartbeat(turn);
+    }, LIVE_SAVE_HEARTBEAT_MS);
+  }
+  private stopHeartbeat(turn: LiveTurn): void {
+    if (turn.heartbeatTimer !== null) this.env.clearTimer(turn.heartbeatTimer);
+    turn.heartbeatTimer = null; turn.heartbeatDirty = false;
+  }
+
+  turnIdFor(owner: object, generation: number): string | undefined { return this.find(owner, generation)?.turnId; }
+
+  /** Authenticated chronological history observed while this browser holds the claim. */
+  observeBoard(boardId: string, saved: readonly StoredTurn[]): void {
+    const ids = [...saved].sort((a, b) => a.orderIndex - b.orderIndex).map((turn) => turn.id);
+    for (const local of this.turns) {
+      if (local.boardId !== boardId || local.abandoned || local.ackedStatus !== null || local.historyBeforeId) continue;
+      // An earlier unsaved local turn precedes history first observed by a later claim.
+      local.historyBeforeId = ids.find((id) => id !== local.turnId && !local.observedHistoryIds.has(id));
+    }
+    this.observedBoards.set(boardId, ids);
+  }
+
+  /** Latest local ended rows/metadata supplement a fresh authenticated read. */
+  resumeTurns(boardId: string, saved: readonly StoredTurn[]): StoredTurn[] {
+    let turns = [...saved];
+    for (const local of this.turns.filter((turn) => turn.boardId === boardId && turn.status !== "live" && !turn.abandoned && this.hasUnsent(turn))) {
+      // A fresh final server snapshot outranks a delayed local Stop.
+      if (turns.some((saved) => saved.id === local.turnId && saved.status === "complete")) continue;
+      const event = this.localEvent(local);
+      const snapshot: StoredTurn = { ...event.turn, segments: event.rows.map((row, orderIndex) => ({ ...row, id: `${local.turnId}:context:${orderIndex}`, audioUrl: null })) };
+      turns = overlayLiveTurnEvent(turns, event, snapshot);
+    }
+    return turns;
+  }
+
   private releaseQueue(turn: LiveTurn): void {
     for (const other of [...this.turns]) {
       if (other !== turn && other.boardId === turn.boardId && other.order > turn.order && other.ackedStatus === null) {
@@ -1068,11 +1224,20 @@ export class LiveTurnSaveRegistry {
     }
   }
 
+  private orderingAnchors(turn: LiveTurn): { orderBeforeTurnId?: string; orderAfterTurnId?: string } {
+    const known = this.turns.filter((held) => held !== turn && held.boardId === turn.boardId && held.ackedSeq > 0 && !held.abandoned);
+    return {
+      orderAfterTurnId: turn.historyAfterId ?? known.filter((held) => held.order < turn.order).at(-1)?.turnId,
+      orderBeforeTurnId: turn.historyBeforeId ?? known.find((held) => held.order > turn.order)?.turnId,
+    };
+  }
+
   private localEvent(turn: LiveTurn): LiveTurnMirrorEvent {
     const scene = this.sceneFor(turn);
     const rows = this.previewRows(turn, { includeCut: true });
     return {
       source: "local",
+      ...this.orderingAnchors(turn),
       boardId: turn.boardId,
       turnId: turn.turnId,
       preview: turn.preview,
@@ -1098,6 +1263,7 @@ export class LiveTurnSaveRegistry {
     try {
       hooks.mirror({
         source: "server",
+        ...this.orderingAnchors(turn),
         boardId: turn.boardId,
         turnId: turn.turnId,
         preview: turn.preview,

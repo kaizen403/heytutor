@@ -38,6 +38,8 @@ export interface StoredTurn {
    * The board GET already reports a live turn idle for over 120 s as stopped.
    */
   status?: TurnStatus;
+  /** Raw persisted value, distinct from the idle reader projection. */
+  persistedStatus?: TurnStatus;
   /** lesson, doubt or resume. Absent means lesson. */
   kind?: TurnKind;
   /** Last checkpoint time, ms since epoch. */
@@ -405,6 +407,9 @@ export interface TurnCheckpointInput {
   lateAudio?: Array<{ orderIndex: number; audioBytes: Uint8Array }>;
   /** Omit to keep the stored state; null clears it. At most 128 KB of JSON. */
   resumeState?: Record<string, unknown> | null;
+  /** First creation only: acknowledged same-board chronology anchors. */
+  orderBeforeTurnId?: string;
+  orderAfterTurnId?: string;
   signal?: AbortSignal;
 }
 
@@ -471,6 +476,8 @@ export async function checkpointTurn(
   const formData = new FormData();
   formData.append("metadata", JSON.stringify({
     seq: input.seq,
+    orderBeforeTurnId: input.orderBeforeTurnId,
+    orderAfterTurnId: input.orderAfterTurnId,
     status: input.status,
     kind: input.kind ?? "lesson",
     baseCount: input.baseCount,
@@ -525,6 +532,9 @@ export interface TurnCloseInput {
   /** On create only: the plan and the page continuation marker. The turn is saved as text. */
   sceneArtifacts?: unknown | null;
   resumeState?: Record<string, unknown> | null;
+  /** First creation only: acknowledged same-board chronology anchors. */
+  orderBeforeTurnId?: string;
+  orderAfterTurnId?: string;
 }
 
 /** Keepalive bodies share a 64 KiB budget with telemetry; the close stays well under it. */
@@ -538,6 +548,8 @@ export const KEEPALIVE_CLOSE_MAX_BYTES = 12_000;
 export function buildTurnCloseBody(input: TurnCloseInput, maxBytes = KEEPALIVE_CLOSE_MAX_BYTES): string {
   const base = {
     seq: input.seq,
+    orderBeforeTurnId: input.orderBeforeTurnId,
+    orderAfterTurnId: input.orderAfterTurnId,
     status: input.status ?? "stopped",
     traceId: input.traceId ?? undefined,
     kind: input.kind,
@@ -548,8 +560,10 @@ export function buildTurnCloseBody(input: TurnCloseInput, maxBytes = KEEPALIVE_C
   const rows = input.segments && input.segments.length > 0 ? checkpointRows(input.baseCount, input.segments) : undefined;
   const candidates = [
     { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows,
-      sceneArtifacts: input.sceneArtifacts ?? undefined, resumeState: input.resumeState ?? undefined },
+      sceneArtifacts: input.sceneArtifacts ?? undefined, resumeState: input.resumeState },
+    { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows, resumeState: input.resumeState },
     { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows },
+    { ...base, baseCount: input.baseCount, question, preview, resumeState: input.resumeState },
     { ...base, baseCount: input.baseCount, question, preview },
     { seq: input.seq, status: base.status, traceId: base.traceId, baseCount: input.baseCount, question: question?.slice(0, 300) },
   ];

@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import vm from "node:vm";
 import ts from "typescript";
+import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
 import * as drawing from "@heytutor/drawing";
 import * as requestBody from "../../lib/http/requestBody";
 import * as keys from "../../lib/object-store/keys";
@@ -39,9 +40,9 @@ class StorageQuotaError extends Error {
 }
 
 const boards = [
-  { id: "board-a", userId: "alice" },
-  { id: "board-b", userId: "alice" },
-  { id: "board-c", userId: "bob" },
+  { id: "board-a", userId: "alice", createdAt: new Date() },
+  { id: "board-b", userId: "alice", createdAt: new Date() },
+  { id: "board-c", userId: "bob", createdAt: new Date() },
 ];
 let turns: Row[] = [];
 let segments: Row[] = [];
@@ -62,7 +63,7 @@ function withSegments(turn: Row | undefined, include: unknown) {
   if (include) copy.segments = segments.filter((s) => s.turnId === turn.id).sort((a, b) => a.orderIndex - b.orderIndex);
   return copy;
 }
-const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => row[key] === value);
+const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => typeof value === "object" && value !== null ? ("gte" in value ? row[key] >= value.gte : value.in.includes(row[key])) : row[key] === value);
 
 function makeClient(): Row {
   return {
@@ -72,6 +73,7 @@ function makeClient(): Row {
       update: async () => ({}),
     },
     turn: {
+      findMany: async ({ where, orderBy, skip = 0, take = 100 }: Row) => turns.filter((t) => matches(t, where)).sort((a, b) => orderBy.orderIndex === "desc" ? b.orderIndex - a.orderIndex : a.orderIndex - b.orderIndex).slice(skip, skip + take).map((t) => ({ ...t })),
       findFirst: async ({ where, include }: Row) => withSegments(turns.find((t) => matches(t, where)), include),
       count: async ({ where }: Row) => turns.filter((t) => t.boardId === where.boardId).length,
       create: async ({ data }: Row) => {
@@ -88,11 +90,12 @@ function makeClient(): Row {
       update: async ({ where, data }: Row) => {
         const turn = turns.find((t) => t.id === where.id);
         if (!turn) throw new Error("missing turn");
+        if (typeof data.orderIndex === "number" && turns.some((t) => t.id !== turn.id && t.boardId === turn.boardId && t.orderIndex === data.orderIndex)) throw new KnownRequestError("unique update", "P2002");
         for (const [key, value] of Object.entries(data)) {
           if (value && typeof value === "object" && "increment" in (value as Row)) turn[key] = turn[key] + (value as Row).increment;
           else turn[key] = clean(value);
         }
-        turn.updatedAt = new Date(clock);
+        turn.updatedAt = data.updatedAt ?? new Date(clock);
         return { ...turn };
       },
     },
@@ -103,7 +106,7 @@ function makeClient(): Row {
         segments.push(...inserted);
         return inserted;
       },
-      findMany: async ({ where }: Row) => segments.filter((s) => s.turnId === where.turnId).sort((a, b) => a.orderIndex - b.orderIndex),
+      findMany: async ({ where }: Row) => segments.filter((s) => matches(s, where)).sort((a, b) => a.orderIndex - b.orderIndex),
     },
     ownedTrace: {
       findUnique: async ({ where }: Row) => ownedTraces.get(where.traceId) ?? null,
@@ -161,7 +164,7 @@ const canonicalize = async (meta: Row) => {
 };
 
 function load(relativePath: string, dependencies: Record<string, unknown>): Row {
-  const code = ts.transpileModule(readFileSync(resolve(root, relativePath), "utf8"), {
+  const code = ts.transpileModule(readFileSync(relativePath === "lib/boards/turnCheckpoint.ts" && process.env.CHECKPOINT_TEST_SOURCE ? process.env.CHECKPOINT_TEST_SOURCE : resolve(root, relativePath), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports: Row = {};
@@ -171,7 +174,7 @@ function load(relativePath: string, dependencies: Record<string, unknown>): Row 
       if (!(name in dependencies)) throw new Error(`Missing stub: ${name}`);
       return dependencies[name];
     },
-    FormData, Blob, File, Request, Response, Headers, Uint8Array, TextEncoder, TextDecoder, crypto, AbortSignal,
+    FormData, Blob, File, Request, Response, Headers, URL, Uint8Array, TextEncoder, TextDecoder, crypto, AbortSignal,
     console, setTimeout, process: { env }, fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
   }, { filename: relativePath });
   return compiledModule.exports;
@@ -220,12 +223,27 @@ const client = load("lib/boards/boardsClient.ts", {
   "@/lib/boards/boardTitle": { finalizeBoardTitle: () => "title" },
   "@/lib/boards/turnStatus": turnStatus,
 });
+const boardRoute = load("app/api/boards/[boardId]/route.ts", {
+  "next/server": { NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } },
+  "@/lib/auth": { getUserId: async () => userId, ensureUser: async () => {} },
+  "@/lib/db/prisma": { prisma },
+  "@/lib/http/requestBody": requestBody,
+  "@/lib/boards/storageQuota": { withUserStorageLock: (_id: string, run: (tx: Row) => Promise<unknown>) => prisma.$transaction(run) },
+  "@/lib/object-store/keys": keys,
+  "@/lib/boards/turnStatus": turnStatus,
+});
+async function freshOrder(boardId = "board-a"): Promise<string[]> {
+  const response = await boardRoute.GET(new Request(`https://example.test/api/boards/${boardId}`), { params: Promise.resolve({ boardId }) });
+  assert.equal(response.status, 200);
+  return (await response.json()).turns.map((turn: Row) => turn.id);
+}
+
 const handleTurnCheckpoint = checkpoint.handleTurnCheckpoint as (r: Request, p: Row) => Promise<Response>;
 const handleTurnClose = checkpoint.handleTurnClose as (r: Request, p: Row) => Promise<Response>;
 
 const MP3 = (tag: number) => new Uint8Array([73, 68, 51, 4, 0, 0, tag, tag, tag, tag, tag, tag]);
 const CLEAR = { type: "CLEAR", params: [], charPosition: 0, narrationBefore: "" };
-const write = (text: string) => ({ type: "WRITE", params: [90, 145, 28], text, charPosition: 0, narrationBefore: "" });
+const write = (text: string) => ({ type: "WRITE" as const, params: [90, 145, 28], text, charPosition: 0, narrationBefore: "" });
 const row = (orderIndex: number, text: string, command: unknown = write(text)) =>
   ({ orderIndex, narration: text, spokenText: text, command, durationMs: 900 });
 
@@ -254,7 +272,73 @@ const stored = (turnId: string) => turns.find((t) => t.id === turnId)!;
 const rowsOf = (turnId: string) => segments.filter((s) => s.turnId === turnId).sort((a, b) => a.orderIndex - b.orderIndex);
 const audioKeyOf = (url: string | null) => url ? decodeURIComponent(url.split("key=")[1] ?? "") : null;
 
+async function failedEarlierCreationKeepsDurableOrder() {
+  const a = crypto.randomUUID(), b = crypto.randomUUID();
+  assert.equal((await put(a, { seq: 1, baseCount: 0, status: "stopped", question: "REFUSE", appendSegments: [row(0, "a")] })).status, 400);
+  assert.equal((await put(b, { seq: 1, baseCount: 0, status: "stopped", appendSegments: [row(0, "b")] })).status, 200);
+  stored(b).status = "live"; stored(b).updatedAt = new Date(clock - 121_000);
+  const oldTimestamp = stored(b).updatedAt.getTime();
+  assert.equal((await put(a, { seq: 2, baseCount: 0, status: "stopped", orderBeforeTurnId: b, appendSegments: [row(0, "a")] })).status, 200);
+  assert.deepEqual(await freshOrder(), [a, b], "actual GET retains chronology after later first save succeeded");
+  assert.equal(stored(b).updatedAt.getTime(), oldTimestamp, "order-only shift preserves liveness timestamp");
+  assert.equal(turnStatus.effectiveTurnStatus(stored(b).status, stored(b).updatedAt, clock), "stopped");
+  assert.equal((await put(a, { seq: 3, baseCount: 1, status: "stopped", orderAfterTurnId: b, appendSegments: [] })).status, 200);
+  assert.deepEqual(await freshOrder(), [a, b], "existing-turn update cannot reorder even with a new hint");
+  const other = crypto.randomUUID();
+  assert.equal((await put(other, { seq: 1, baseCount: 0, status: "stopped", appendSegments: [row(0, "other")] }, {}, "board-b")).status, 200);
+  for (const hint of [{ orderBeforeTurnId: other }, { orderBeforeTurnId: crypto.randomUUID() }, { orderAfterTurnId: b, orderBeforeTurnId: a }]) {
+    const rejected = await put(crypto.randomUUID(), { seq: 1, baseCount: 0, status: "stopped", appendSegments: [row(0, "invalid")], ...hint });
+    assert.equal(rejected.status, 400, "foreign, absent and contradictory anchors reject before mutation");
+    assert.deepEqual(await freshOrder(), [a, b]);
+  }
+  const self = crypto.randomUUID();
+  assert.equal((await put(self, { seq: 1, baseCount: 0, status: "stopped", orderBeforeTurnId: self, appendSegments: [row(0, "self")] })).status, 400);
+  const c = crypto.randomUUID(), d = crypto.randomUUID();
+  await Promise.all([put(c, { seq: 1, baseCount: 0, status: "stopped", orderBeforeTurnId: b, appendSegments: [row(0, "c")] }), put(d, { seq: 1, baseCount: 0, status: "stopped", orderBeforeTurnId: b, appendSegments: [row(0, "d")] })]);
+  assert.deepEqual(await freshOrder(), [a, c, d, b], "locked concurrent insertion preserves unique ordered indexes");
+  turns = []; segments = [];
+}
+
+async function registryHistoryReceiptsDriveDurableInsertion() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const p = crypto.randomUUID(), a = crypto.randomUUID(), x = crypto.randomUUID(), b = crypto.randomUUID();
+  const originalFetch = globalThis.fetch;
+  let firstA = true; const attempted: Row[] = [];
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const match = /\/api\/boards\/([^/]+)\/turns\/([^/?]+)/.exec(request.url)!;
+    if (match[2] === a && firstA) { firstA = false; return new Response(JSON.stringify({error:"forbidden"}),{status:403}); }
+    if (init?.body instanceof FormData) attempted.push(JSON.parse(String(init.body.get("metadata"))));
+    return request.method === "PUT" ? handleTurnCheckpoint(request, {boardId:match[1],turnId:match[2]}) : handleTurnClose(request,{boardId:match[1],turnId:match[2]});
+  };
+  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
+  const saved = async () => (await (await boardRoute.GET(new Request("http://local/api/boards/board-a"), {params:Promise.resolve({boardId:"board-a"})})).json()).turns;
+  try {
+    await put(p, {seq:1,baseCount:0,status:"stopped",appendSegments:[row(0,"P")]});
+    const ids = [a,b]; let index=0;
+    const registry = new LiveTurnSaveRegistry({transport:{checkpoint:client.checkpointTurn,close:client.closeTurnKeepalive},mintId:()=>ids[index++]!,now:()=>clock,isOnline:()=>true,setTimer:()=>0,clearTimer:()=>{}});
+    const owner = {};
+    const recorded = (text:string) => ({orderIndex:0,narration:text,spokenText:text,command:write(text),audioBytes:null,durationMs:null,timings:null});
+    const begin = (generation:number, question:string) => registry.begin({owner,generation,boardId:"board-a",traceId:null,kind:"lesson",question,preview:question,speedMultiplier:1,continuesBoard:false});
+    registry.observeBoard("board-a", await saved());
+    const first = begin(1,"A"); registry.recordRow(owner,1,recorded("A"),{intro:false}); await settle(); first.close();
+    assert.equal(registry.statusFor("board-a").kind,"failed");
+    // Another participating tab owns its separate claim and saves X before this tab starts B.
+    await put(x,{seq:1,baseCount:0,status:"complete",rawResponse:"X",appendSegments:[row(0,"X")]});
+    registry.observeBoard("board-a", await saved());
+    const later = begin(2,"B");registry.recordRow(owner,2,recorded("B"),{intro:false});await settle();later.close();await settle();
+    assert.deepEqual(await freshOrder(),[p,x,b],"B is not blocked behind A's failed save");
+    registry.retry("board-a"); await settle();
+    assert.equal(attempted.find(meta=>meta.question==="A")?.orderBeforeTurnId,x,"registry learned X as A's first acknowledged successor");
+    assert.equal(attempted.find(meta=>meta.question==="B")?.orderAfterTurnId,x,"B's own claim observed X as predecessor");
+    assert.deepEqual(await freshOrder(),[p,a,x,b],"actual registry receipts through checkpoint and fresh GET preserve interleaved chronological history");
+  } finally { globalThis.fetch = originalFetch; }
+}
+
 async function main() {
+  await failedEarlierCreationKeepsDurableOrder();
+  await registryHistoryReceiptsDriveDurableInsertion();
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   // --- 1. the first checkpoint creates the turn ------------------------------
   const lesson = crypto.randomUUID();
   const first = await put(lesson, {

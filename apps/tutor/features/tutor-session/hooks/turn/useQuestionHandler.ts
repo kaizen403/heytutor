@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
   lessonNarrationText,
   IncrementalTagParser,
@@ -59,6 +59,7 @@ import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
+  fetchBoardDetail,
   requestBoardTitle,
   updateBoard,
 } from "@/lib/boards/boardsClient";
@@ -158,6 +159,8 @@ import {
 } from "../../lib/turn/segmentPlanning";
 import type { TutorPhase } from "../../types";
 import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
+import { lessonAdmission } from "../../lib/turn/lessonOwnership";
+import { currentPausedLesson } from "../../lib/turn/pausedLessonRestore";
 import type { HandleQuestionOptions, TurnControlApi, UseTurnLifecycleParams } from "./types";
 
 type PendingQuestionFlushState = {
@@ -2671,16 +2674,52 @@ export function useQuestionHandler(
    * it again) and an exception nobody caught. Closing is idempotent, so a turn
    * Stop already closed, or one that completed, is left as it is.
    */
+  const admissionBoardRef = useRef(sessionId);
+  useLayoutEffect(() => { admissionBoardRef.current = sessionId; }, [sessionId]);
   const handleQuestion = useCallback(
     async (rawQuestion: string, options?: HandleQuestionOptions) => {
-      const saveExit: LiveTurnSaveExit = { handle: null };
-      try {
-        return await teachQuestion(rawQuestion, options, saveExit);
-      } finally {
-        saveExit.handle?.close();
+      // Audio unlock stays in the user gesture; title/billing wait for admission.
+      ensureTTSClient().unlockAudio?.();
+      if (!boardLoaded || !isWhiteboardReadyToDraw(whiteboardRef.current)) {
+        options?.onAdmission?.(false);
+        return teachQuestion(rawQuestion, options, { handle: null });
       }
+      if (!sessionId || phaseRef.current !== "idle" || turnActiveRef.current || pendingSegmentCountRef.current > 0) {
+        options?.onAdmission?.(false); return;
+      }
+      const generation = turnGenerationRef.current;
+      const saveExit: LiveTurnSaveExit = { handle: null };
+      let admittedOptions = options;
+      const receipt = lessonAdmission().start(cancelRef, sessionId, {
+        current: () => admissionBoardRef.current === sessionId && turnGenerationRef.current === generation && phaseRef.current === "idle" && !turnActiveRef.current,
+        validate: async () => {
+          // Commit a home draft under the held claim, then require an owned read.
+          // A stale draft prop or unavailable GET never stands for empty history.
+          if (isDraft && commitDraftBoard) {
+            try { await commitDraftBoard(); } catch { return false; }
+          }
+          const detail = await fetchBoardDetail(sessionId).catch(() => null);
+          if (!detail) return false;
+          const saved = detail.turns;
+          liveTurnSave().observeBoard(sessionId, saved);
+          if (!options?.resume) return true;
+          const fresh = currentPausedLesson(options.resume, liveTurnSave().resumeTurns(sessionId, saved));
+          if (!fresh) return false;
+          admittedOptions = { ...options, resume: fresh };
+          return true;
+        },
+        run: async () => {
+          try {
+            return await teachQuestion(rawQuestion, admittedOptions, saveExit);
+          } finally {
+            saveExit.handle?.close();
+          }
+        },
+      });
+      void receipt.admitted.then((admitted) => options?.onAdmission?.(admitted));
+      return receipt.finished;
     },
-    [teachQuestion],
+    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, pendingSegmentCountRef, whiteboardRef],
   );
 
   useEffect(() => {

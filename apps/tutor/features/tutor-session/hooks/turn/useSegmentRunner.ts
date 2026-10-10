@@ -266,7 +266,11 @@ export function useSegmentRunner({
       };
       let actualDrawMs = 0;
       /** Ink or voice of this segment reached the student (a Stop after this cuts it). */
-      let segmentShown = false;
+      const preparedSave = liveTurnSave().prepareSegment(cancelRef, turnGeneration, {
+        orderIndex: index, narration: segment.narration, spokenText: mathToSpeech(narration),
+        command: serializeSegmentCommands(segmentCommands), audioBytes: null, durationMs: null, timings: null,
+      }, { intro: onRecorded !== undefined || segment.verifiedDiagramIntro === true });
+      const markShown = () => { if (!isCancelled()) preparedSave?.markShown(); };
       let timingTelemetryCount = 0;
       let lastTimingTelemetryChars = -1;
       // Agent B (timings live): the initial-timing wait. Each waiter re-reads
@@ -394,7 +398,6 @@ export function useSegmentRunner({
         const drawName = `draw-${index}`;
         const drawSpan = tel?.span(drawName, segmentName);
         const drawStart = performance.now();
-        segmentShown = true;
         const diagramDrawOptions = {
           introLayoutCheckpoint,
           trustedDiagramGeometry: segment.verifiedDiagramIntro === true,
@@ -499,6 +502,7 @@ export function useSegmentRunner({
             commandOptions: (command) => ({
               ...diagramDrawOptions,
               textPlacementReserved: reservedTextCommands.has(command),
+              onInkStarted: markShown,
             }),
             segmentIndex: index,
             spokenChars,
@@ -587,7 +591,7 @@ export function useSegmentRunner({
 
       const markVoiceStarted = () => {
         if (isCancelled() || !turnActiveRef.current) return;
-        segmentShown = true;
+        markShown();
         // Once per turn; the browser voice and the provider both land here
         // only after their start was accepted.
         // The provider resets its signal per segment and records its own
@@ -1040,10 +1044,11 @@ export function useSegmentRunner({
             })(),
             timings: capturedTimings,
           };
+          if (preparedSave && !preparedSave.complete(recordedRow)) return;
           recordedSegmentsRef.current.push(recordedRow);
           // Saved as it is taught. A figure intro's rows wait for the figure
           // to commit (the intro passes `onRecorded`); see `liveTurnSave`.
-          liveTurnSave().recordRow(cancelRef, turnGeneration, recordedRow, { intro: onRecorded !== undefined });
+          if (!preparedSave) liveTurnSave().recordRow(cancelRef, turnGeneration, recordedRow, { intro: onRecorded !== undefined });
           if (segment.narration.trim()) {
             narrationSinceEpochRef.current +=
               (narrationSinceEpochRef.current ? " " : "") + segment.narration.trim();
@@ -1051,19 +1056,10 @@ export function useSegmentRunner({
           // Publish ownership in the same synchronous completion as the row
           // and narration, before Stop or another turn can take shared refs.
           onRecorded?.(recordedRow);
-        } else if (!segmentCompleted && segmentShown && isCancelled() && onRecorded === undefined) {
-          // Stop cut this segment off mid way (decision 12). Its ink and words
-          // were on the board, so the stopped lesson keeps them, without audio.
-          // A figure intro's beat is not kept: its figure commits or goes whole.
-          liveTurnSave().recordCutRow(cancelRef, turnGeneration, {
-            orderIndex: index,
-            narration: segment.narration,
-            spokenText: mathToSpeech(narration),
-            command: serializeSegmentCommands(segmentCommands),
-            audioBytes: null,
-            durationMs: null,
-            timings: null,
-          });
+        } else {
+          // Accepted shown work survives failures as well as cancellation.
+          // A synchronously captured Stop/pagehide token is already settled.
+          preparedSave?.interrupt();
         }
         tutorDebug("segment", "runSegment end", { index, ...segmentMetadata });
         segmentSpan?.end(segmentMetadata);

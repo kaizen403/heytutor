@@ -47,7 +47,8 @@ export function useLecturePageHalt(haltSession: () => void): void {
         event.returnValue = "";
         return;
       }
-      halt();
+      // A cancelled navigation must leave runtime and ownership intact.
+      // Actual pagehide is the only unload event that closes and halts.
     };
     window.addEventListener("pagehide", onPageHide, { capture: true });
     window.addEventListener("beforeunload", onBeforeUnload);

@@ -24,8 +24,9 @@ A new kind of file with no row in "Where new files go" gets its row first.
 - Do not rename protocol types (`TurnPlanV3`, `SceneDocument/v2`,
   `code-lesson/v1`) to drop the version.
 - Do not add a sibling at the `features/tutor-session/lib/` root. New helpers
-  go in `scene/`, `board/`, `turn/`, `notes/`, `input/`, `replay/`, or
-  `code-lesson/`. `sessionCapabilities.ts` is the only file at that root.
+  go in `scene/`, `board/`, `turn/`, `notes/`, `input/`, `replay/`,
+  `code-lesson/`, or `download/` (download state and reducer).
+  `sessionCapabilities.ts` is the only file at that root.
 
 ## Later, only if a second consumer appears
 
@@ -75,7 +76,9 @@ A new kind of file with no row in "Where new files go" gets its row first.
   owns the code; wire it into that package’s `verify` script. Live/manual
   probes go in `scripts/live/` or `scripts/measure/` and stay out of
   `pnpm verify` unless they are meant to gate. Whole-lecture offline runs go
-  in `apps/tutor/scripts/lecture-lab/`.
+  in `apps/tutor/scripts/lecture-lab/`. Existing mounted whiteboard gates use
+  `packages/whiteboard/scripts/verify-*.ts` beside `scripts/testing/`; keep
+  that established flat location when extending the renderer gates.
 - Architecture note → `docs/architecture/` (current) or `docs/plans/` (open
   work). Agent maps stay in `docs/agent/`. Runbooks stay in `docs/ops/`.
   Product-facing checklists stay in `docs/product/`.
@@ -141,8 +144,9 @@ apps/tutor/
     dither/                    session-home pixel field (not the marketing site)
   features/tutor-session/      session page, hooks, presentation, chrome
     components/  hooks/  hooks/turn/
+    components/download/        Download menu, status and progress chrome
     lib/
-      scene/  board/  turn/  notes/  input/  replay/  code-lesson/
+      scene/  board/  turn/  notes/  input/  replay/  code-lesson/  download/
       sessionCapabilities.ts
   features/account/            account screens
   features/app-shell/          signed-in shell

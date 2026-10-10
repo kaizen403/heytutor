@@ -51,6 +51,7 @@ export function enrichStoredSegmentsWithReplayAudio(
 
 export function buildLocalStoredTurn(
   payload: {
+    turnId?: string;
     question: string;
     rawResponse: string;
     speedMultiplier: number;
@@ -65,8 +66,9 @@ export function buildLocalStoredTurn(
   orderIndex: number,
   registerBlobUrl: (url: string) => void,
 ): StoredTurn {
+  const turnId = payload.turnId ?? `local-${crypto.randomUUID()}`;
   return {
-    id: `local-${crypto.randomUUID()}`,
+    id: turnId,
     orderIndex,
     question: payload.question,
     rawResponse: payload.rawResponse,
@@ -87,7 +89,7 @@ export function buildLocalStoredTurn(
       }
 
       return {
-        id: `local-seg-${segment.orderIndex}`,
+        id: `${turnId}:seg:${segment.orderIndex}`,
         orderIndex: segment.orderIndex,
         narration: segment.narration,
         spokenText: segment.spokenText,

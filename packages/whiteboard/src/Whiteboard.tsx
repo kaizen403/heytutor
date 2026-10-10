@@ -237,6 +237,7 @@ export interface WhiteboardHandle {
     fontSize?: number,
     shouldCancel?: () => boolean,
     inkSettings?: DrawCommandInkSettings,
+    onInkStarted?: () => void,
   ) => Promise<void>;
   getInkSettings: () => DrawCommandInkSettings;
   clearBoard: (duration?: number) => Promise<void>;
@@ -1894,7 +1895,14 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         fontSize: number = BOARD_TYPE_SCALE.label,
         shouldCancel?: () => boolean,
         inkSettings?: DrawCommandInkSettings,
+        onInkStarted?: () => void,
       ): Promise<void> => {
+        let inkObserved = false;
+        const markInk = () => {
+          if (inkObserved) return;
+          inkObserved = true;
+          onInkStarted?.();
+        };
         const ownership = drawTransactionsRef.current.capture();
         const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
         const ownNode = (node: Konva.Node, nodes: Set<Konva.Node>): boolean => trackNode(node, nodes, ownership);
@@ -2022,6 +2030,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 tagBoardInk(textNode, inkKind);
                 drawLayer.add(textNode);
                 ownNode(textNode, completedNodesRef.current);
+                if (charPath.char.trim()) markInk();
                 continue;
               }
               for (const stroke of charPath.strokes) {
@@ -2031,6 +2040,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 tagBoardInk(pathNode, inkKind);
                 drawLayer.add(pathNode);
                 ownNode(pathNode, completedNodesRef.current);
+                markInk();
               }
             }
             const last = charInfos.at(-1)?.charPath;
@@ -2205,6 +2215,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                       )
                     : handwritingProgress(progress, charDuration, fadeVariation);
                   textNode.opacity(eased * inkStyle.opacity);
+                  if (eased > 0 && inkStyle.opacity > 0 && charPath.char.trim()) markInk();
                   moveNib(charPath.x + charPath.width * eased, charPath.y, "write");
                   animLayer.batchDraw();
                 },
@@ -2222,6 +2233,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               textNode.moveTo(drawLayer);
               untrackNode(textNode, animNodesRef.current);
               ownNode(textNode, completedNodesRef.current);
+              if (charPath.char.trim()) markInk();
               animLayer.batchDraw();
               drawLayer.batchDraw();
               continue;
@@ -2358,11 +2370,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 const node = strokeNodes[si]!;
                 if (si < segment.stroke) {
                   node.pathNode.dashOffset(0);
+                  markInk();
                 } else if (si === segment.stroke && segment.kind === "ink") {
                   // Sampled distance rescaled onto Konva's own curve length,
                   // or the tail of every stroke stays unpainted.
                   const inked = (placed.distance / pacedLength) * node.totalLength;
                   node.pathNode.dashOffset(node.totalLength - inked);
+                  if (inked > 0) markInk();
                 } else {
                   node.pathNode.dashOffset(node.totalLength);
                 }
@@ -2431,6 +2445,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           await animateOver(duration, (progress) => {
             textNode.opacity(progress * inkStyle.opacity);
+            if (progress > 0 && inkStyle.opacity > 0 && text.trim()) markInk();
             moveNib(x + textNode.getTextWidth() * progress, y, "write");
             animLayer.batchDraw();
           }, isCancelled);
@@ -2445,6 +2460,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           textNode.moveTo(drawLayer);
           untrackNode(textNode, animNodesRef.current);
           ownNode(textNode, completedNodesRef.current);
+          if (text.trim()) markInk();
           animLayer.batchDraw();
           drawLayer.batchDraw();
         }

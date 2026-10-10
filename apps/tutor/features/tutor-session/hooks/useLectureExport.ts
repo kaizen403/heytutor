@@ -346,7 +346,7 @@ export function useLectureExport({
         if (cached) {
           if (!current()) return;
           downloadBlob(cached.blob, lessonDownloadFilename(name, cached.extension, false));
-          dispatch({ type: "done", generation, note: null });
+          dispatch({ type: "done", generation, note: videoNote(cached, false) });
           return;
         }
 
@@ -398,6 +398,8 @@ export function useLectureExport({
             blob: result.blob,
             mimeType: result.mimeType,
             extension: result.extension,
+            noVoice: result.noVoice,
+            missingAudioCues: result.missingAudioCues,
           });
         }
         downloadBlob(result.blob, lessonDownloadFilename(name, result.extension, partial));

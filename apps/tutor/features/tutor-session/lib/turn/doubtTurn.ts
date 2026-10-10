@@ -164,6 +164,8 @@ export interface PausedLessonRequest {
    * under a trace of its own (one turn per trace).
    */
   parentTraceId?: string | null;
+  /** Exact saved chain identity for a fresh continuation admission. */
+  parentTurnId?: string;
   lessonQuestion: string;
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
@@ -271,6 +273,8 @@ export function pausedLessonFromLive(input: {
   /** Defaults to "doubt": the doubt that stopped the lesson is answered first. */
   reason?: PausedLessonReason;
   parentTraceId?: string | null;
+  /** Exact saved chain identity for a fresh continuation admission. */
+  parentTurnId?: string;
   remainingIntro?: readonly TutorSegment[];
 }): PausedLessonRequest | null {
   const reason = input.reason ?? "doubt";

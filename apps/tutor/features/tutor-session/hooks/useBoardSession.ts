@@ -45,7 +45,7 @@ import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
-import { liveTurnSave, type LiveTurnMirrorEvent, type LiveTurnSnapshot } from "../lib/turn/liveTurnSave";
+import { overlayLiveTurnEvent, liveTurnSave, type LiveTurnMirrorEvent, type LiveTurnSnapshot } from "../lib/turn/liveTurnSave";
 import { IDLE_SAVE, type SaveStatus } from "../lib/turn/saveStatus";
 
 /** How long reopening a board waits for its own unsent saves before reading it. */
@@ -488,9 +488,7 @@ export function useBoardSession({
           segments: enrichStoredSegmentsWithReplayAudio(event.turn.segments, event.rows, registerReplayBlobUrl),
         };
       }
-      storedTurnsRef.current = existing
-        ? storedTurnsRef.current.map((stored) => (stored.id === event.turnId ? turn : stored))
-        : [...storedTurnsRef.current, turn];
+      storedTurnsRef.current = overlayLiveTurnEvent(storedTurnsRef.current, event, turn);
       setStoredTurnsCount(storedTurnsRef.current.length);
       if (!existing) {
         setBoards((prev) =>

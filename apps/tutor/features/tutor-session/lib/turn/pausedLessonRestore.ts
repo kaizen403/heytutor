@@ -19,6 +19,8 @@ import {
   parseStoredSegmentCommands,
 } from "@heytutor/drawing";
 import { validateTurnPlanV3 } from "@heytutor/scene-engine";
+import { LIVE_TURN_IDLE_MS } from "@/lib/boards/turnStatus";
+import type { LessonOwnerState } from "./lessonOwnership";
 import {
   storedTurnKind,
   storedTurnStatus,
@@ -114,6 +116,7 @@ export function pausedLessonFromStoredTurns(
      * lost its keepalive close, so nothing will ever stop it sooner.
      */
     isLiveHere?: (turnId: string) => boolean;
+    ownerState?: LessonOwnerState;
   },
 ): PausedLessonRequest | null {
   if (!options.boardId || turns.length === 0) return null;
@@ -129,8 +132,13 @@ export function pausedLessonFromStoredTurns(
   const last = chain.at(-1);
   if (!last) return null;
   const lastStatus = storedTurnStatus(last, options.now);
-  const orphaned = lastStatus === "live" && options.isLiveHere !== undefined && !options.isLiveHere(last.id);
-  if (lastStatus !== "stopped" && !orphaned) return null;
+  if (options.ownerState === "active" || options.ownerState === "unknown" || options.isLiveHere?.(last.id)) return null;
+  // Only fresh authenticated raw status distinguishes Stop from idle projection.
+  if (last.persistedStatus === undefined) return null;
+  const rawLive = last.persistedStatus === "live";
+  if (rawLive && (options.ownerState !== "inactive" || last.updatedAt === undefined ||
+    (options.now ?? Date.now()) - last.updatedAt <= LIVE_TURN_IDLE_MS)) return null;
+  if (lastStatus !== "stopped") return null;
   if (!chain.some((turn) => turn.segments.some(segmentTaught))) return null;
 
   // The plan lives on the turn that opened the lesson; a resume that had to
@@ -153,11 +161,14 @@ export function pausedLessonFromStoredTurns(
   const turnPlan = rawPlan ? validateTurnPlanV3(rawPlan, planSource.question).plan : null;
 
   let solverProjection: unknown = null;
+  let hasResumeState = false;
   for (const turn of [...chain].reverse()) {
+    if (turn.resumeState === undefined) continue;
+    hasResumeState = true;
     solverProjection = resumeStateSolverProjection(turn.resumeState);
-    if (solverProjection !== null) break;
+    break;
   }
-  if (solverProjection === null && source) {
+  if (!hasResumeState && source) {
     solverProjection = resumeStateSolverProjection(source.resumeState);
   }
 
@@ -178,6 +189,7 @@ export function pausedLessonFromStoredTurns(
     // Doubts answered after the stopped turn, on its page.
     reason: page.indexOf(last) < page.length - 1 ? "doubt" : "stop",
     parentTraceId: last.traceId ?? null,
+    parentTurnId: last.id,
     lessonQuestion,
     turnPlan,
     solverProjection,
@@ -187,4 +199,13 @@ export function pausedLessonFromStoredTurns(
     lessonBoardRows: chain.flatMap(writtenRows),
     ...(lastNarration ? { interruptedStep: lastNarration } : {}),
   };
+}
+
+/** A stale offer never starts a completed or different same-text page. */
+export function currentPausedLesson(request: PausedLessonRequest, turns: readonly StoredTurn[]): PausedLessonRequest | null {
+  const fresh = pausedLessonFromStoredTurns(turns, { boardId: request.boardId, ownerState: "inactive" });
+  if (!fresh) return null;
+  if (request.parentTurnId ? request.parentTurnId !== fresh.parentTurnId :
+    !request.parentTraceId || request.parentTraceId !== fresh.parentTraceId) return null;
+  return { ...fresh, ...(request.remainingIntro ? { remainingIntro: request.remainingIntro } : {}) };
 }

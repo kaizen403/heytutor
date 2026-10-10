@@ -134,7 +134,7 @@ function stored(input: {
     visualStatus: input.scene?.visualStatus ?? "text_only",
     sceneArtifacts: input.scene?.sceneArtifacts ?? null,
     segments: input.segments,
-    ...(input.status ? { status: input.status } : {}),
+    ...(input.status ? { status: input.status, persistedStatus: input.status } : {}),
     ...(input.kind ? { kind: input.kind } : {}),
     ...(input.resumeState !== undefined ? { resumeState: input.resumeState } : {}),
     ...(input.updatedAt !== undefined ? { updatedAt: input.updatedAt } : {}),
@@ -251,13 +251,15 @@ const resumeOf = (status: StoredTurn["status"], rows: string[], narration = "So 
   const live = (updatedAt: number) => ({ ...validatedLesson("live"), updatedAt });
   assert.equal(pausedLessonFromStoredTurns([live(now - 5_000)], { boardId: BOARD, now }), null,
     "a turn still being taught elsewhere is not offered");
-  assert(pausedLessonFromStoredTurns([live(now - 121_000)], { boardId: BOARD, now }),
+  assert(pausedLessonFromStoredTurns([live(now - 121_000)], { boardId: BOARD, now, ownerState: "inactive" }),
     "a live turn idle past two minutes reads as stopped and is offered");
   // A crashed tab or a lost keepalive close leaves a fresh turn reading live.
   // No tab on this page teaches it, so it is stopped at once.
   const orphan = live(now - 5_000);
-  assert(pausedLessonFromStoredTurns([orphan], { boardId: BOARD, now, isLiveHere: () => false }),
-    "a live turn no tab here teaches is offered at once, not after two minutes");
+  assert.equal(pausedLessonFromStoredTurns([orphan], { boardId: BOARD, now, ownerState: "inactive", isLiveHere: () => false }), null,
+    "fresh raw live state remains conservative even with an inactive observed claim");
+  assert.equal(pausedLessonFromStoredTurns([{ ...validatedLesson(), persistedStatus: undefined }], { boardId: BOARD, ownerState: "inactive" }), null, "missing raw status cannot prove explicit Stop");
+  assert.equal(pausedLessonFromStoredTurns([lesson, { ...ownState, resumeState: null }], { boardId: BOARD })?.solverProjection, null, "explicit solver-state clear does not fall back to an older projection");
   assert.equal(pausedLessonFromStoredTurns([orphan], { boardId: BOARD, now, isLiveHere: (id) => id === orphan.id }), null,
     "a turn this tab still teaches is not offered");
   const legacy = { ...validatedLesson(), status: undefined };
@@ -404,15 +406,19 @@ function loadTurnControl(log: Log, speaking: { current: string }, runSegment: (.
           closeOwner: () => log.push(`close figureDrawn=${String(pageRef.current?.figureDrawn)}`),
           figureCommitted: () => log.push("figureCommitted"),
           dropIntroRows: (_owner: unknown, generation: number) => log.push(`dropIntroRows ${generation}`),
+          captureShown() {},
+          turnIdFor() { return "local-stopped-id"; },
+          resumeTurns(_board: string, turns: unknown) { return turns; },
           recordRow() {},
           setResumeState() {},
           isLiveHere: (turnId: string) => liveHereIds.has(turnId),
         }),
       };
     }
+    if (specifier === "../../lib/turn/lessonOwnership") return { lessonAdmission: () => ({ probe: async () => "inactive", cancel() {}, hasAttempt: () => false }) };
     return requireApp(specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier);
   };
-  new Function("require", "module", "exports", compiled)(localRequire, hookModule, hookModule.exports);
+  new Function("require", "module", "exports", "setTimeout", "clearTimeout", compiled)(localRequire, hookModule, hookModule.exports, () => 1, () => {});
   return hookModule.exports.useTurnControl as typeof import("../../features/tutor-session/hooks/turn/useTurnControl").useTurnControl;
 }
 const pageRef: { current: BoardPageRecord | null } = { current: null };
@@ -425,7 +431,7 @@ function mount(options: { runSegment?: (...args: unknown[]) => Promise<void> } =
   const speaking = { current: "" };
   const useTurnControl = loadTurnControl(log, speaking, options.runSegment ?? (async () => {}));
   const ref = <T,>(current: T) => ({ current });
-  const asked: Array<{ question: string; options: { resume?: PausedLessonRequest; doubt?: unknown } | undefined }> = [];
+  const asked: Array<{ question: string; options: { resume?: PausedLessonRequest; doubt?: unknown; onAdmission?: (admitted: boolean) => void } | undefined }> = [];
   const wb = {
     beginDrawTransaction: () => { log.push("begin"); return "tx"; },
     createDrawSavepoint: () => `sp-${(savepoints += 1) - 1}`,
@@ -457,8 +463,9 @@ function mount(options: { runSegment?: (...args: unknown[]) => Promise<void> } =
     boardPageRef: pageRef,
     boardShowsStoppedReplayRef: ref(false),
   };
-  const handleQuestionRef = ref(async (question: string, opts?: { resume?: PausedLessonRequest; doubt?: unknown }) => {
+  const handleQuestionRef = ref(async (question: string, opts?: { resume?: PausedLessonRequest; doubt?: unknown; onAdmission?: (admitted: boolean) => void }) => {
     asked.push({ question, options: opts });
+    opts?.onAdmission?.(true);
   });
   // eslint-disable-next-line react-hooks/rules-of-hooks -- a VM with inert render hooks, not a React render
   const control = useTurnControl(params as never, handleQuestionRef as never);
@@ -471,6 +478,26 @@ function mount(options: { runSegment?: (...args: unknown[]) => Promise<void> } =
 }
 
 async function main() {
+  // Actual Continue hook owns one synchronous pending receipt, including repeated clicks.
+  {
+    pageRef.current = lessonRecord(true);
+    const shell = mount(); shell.idle();
+    const request = pausedLessonFromStoredTurns([validatedLesson()], { boardId: BOARD })!;
+    shell.control.offerPausedLessonResume(request);
+    shell.handleQuestionRef.current = async (question, options) => { shell.asked.push({ question, options }); };
+    shell.control.flushPausedLesson(); shell.control.flushPausedLesson();
+    assert.equal(shell.asked.length, 1, "two clicks before acquisition share exactly one pending Continue");
+    shell.asked[0]!.options!.onAdmission!(true);
+    shell.control.flushPausedLesson();
+    assert.equal(shell.asked.length, 1, "successful receipt consumes snapshot and cannot leave duplicate offer");
+    const denied = mount(); denied.idle(); denied.control.offerPausedLessonResume(request);
+    denied.handleQuestionRef.current = async (question, options) => { denied.asked.push({ question, options }); };
+    denied.control.flushPausedLesson(); denied.asked[0]!.options!.onAdmission!(false);
+    denied.control.flushPausedLesson();
+    assert.equal(denied.asked.length, 2, "denied acquisition keeps the same offer available for a later click");
+    assert.equal(denied.asked[1]!.options!.resume, request);
+  }
+
   // 5a. A plain Stop of a lesson offers Continue, with reason "stop".
   {
     pageRef.current = lessonRecord(false);
@@ -621,10 +648,11 @@ async function main() {
     pageRef.current = null;
     const shell = mount();
     shell.idle();
-    const offered = shell.control.restorePausedLesson([validatedLesson(), doubtOn(LESSON)]);
+    const offered = await shell.control.restorePausedLesson([validatedLesson(), doubtOn(LESSON)]);
     assert.equal(offered?.reason, "doubt");
     assert.equal(shell.asked.length, 0, "restore only offers: never auto continue (decision 3)");
-    assert.equal(shell.control.restorePausedLesson([validatedLesson("complete")]), offered, "derived once per opened board");
+    assert.equal(await shell.control.restorePausedLesson([validatedLesson("complete")]), null, "fresh completion clears the previous offer");
+    await shell.control.restorePausedLesson([validatedLesson(), doubtOn(LESSON)]);
     shell.control.flushPausedLesson();
     assert.equal(shell.asked.at(-1)?.options?.resume?.lessonQuestion, LESSON, "Continue resumes the restored lesson");
 
@@ -635,7 +663,7 @@ async function main() {
     switched.params.recordedSegmentsRef.current = [{ narration: "Newton's second law along the slope." }];
     switched.control.stopTurn();
     switched.idle();
-    assert.equal(switched.control.restorePausedLesson([validatedLesson("complete")]), null,
+    assert.equal(await switched.control.restorePausedLesson([validatedLesson("complete")]), null,
       "a lesson the saved turns show finished is not offered from a stale snapshot");
     switched.control.flushPausedLesson();
     assert.equal(switched.asked.length, 0, "and Continue has nothing to resume");
@@ -643,27 +671,28 @@ async function main() {
     again.params.recordedSegmentsRef.current = [{ narration: "x" }];
     again.control.stopTurn();
     again.idle();
-    const derived = again.control.restorePausedLesson([validatedLesson()]);
+    const derived = await again.control.restorePausedLesson([validatedLesson()]);
     assert.equal(derived?.interruptedStep, CUT_STEP, "the saved turns' snapshot replaces the tab's");
 
     const busy = mount();
-    assert.equal(busy.control.restorePausedLesson([validatedLesson()]), null, "a turn owns the board: not yet");
+    assert.equal(await busy.control.restorePausedLesson([validatedLesson()]), null, "a turn owns the board: not yet");
     busy.idle();
-    assert(busy.control.restorePausedLesson([validatedLesson()]), "and offered once it is idle");
+    assert(await busy.control.restorePausedLesson([validatedLesson()]), "and offered once it is idle");
 
     // Reopened before the two minute cutoff: the saved turn still reads live.
     const fresh = { ...validatedLesson("live"), updatedAt: Date.now() };
     const reopened = mount();
     reopened.idle();
-    assert.equal(reopened.control.restorePausedLesson([fresh])?.lessonQuestion, LESSON,
-      "a live turn no tab here owns offers Continue on a quick reopen");
+    assert.equal(await reopened.control.restorePausedLesson([fresh]), null,
+      "fresh raw live state suppresses an orphan offer during idle window");
     // This tab is still teaching it: not yet, and the null is not kept.
     liveHereIds.add(fresh.id);
     const teaching = mount();
     teaching.idle();
-    assert.equal(teaching.control.restorePausedLesson([fresh]), null, "a turn this tab teaches is not offered");
+    assert.equal(await teaching.control.restorePausedLesson([fresh]), null, "a turn this tab teaches is not offered");
     liveHereIds.delete(fresh.id);
-    assert(teaching.control.restorePausedLesson([fresh]), "once it ends here the board is derived again");
+    assert.equal(await teaching.control.restorePausedLesson([fresh]), null, "fresh state still owns its idle window after local release");
+    assert(await teaching.control.restorePausedLesson([{ ...fresh, updatedAt: Date.now() - 121_000 }]), "old raw live state with confirmed inactive ownership may be offered");
   }
 
   // ---------------------------------------------------------------------------

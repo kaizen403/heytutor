@@ -42,6 +42,8 @@ import { boardContinuationOf } from "../../lib/boards/boardContinuation";
 import { MAX_PAGE_AWAY_TELEMETRY_BYTES, MAX_TELEMETRY_BODY_BYTES } from "../../lib/obs/turnTelemetry";
 import {
   CHECKPOINT_TIMEOUT_MS,
+  LIVE_SAVE_HEARTBEAT_MS,
+  overlayLiveTurnEvent,
   checkpointTimeoutMs,
   CUT_ROW_GRACE_MS,
   LiveTurnSaveRegistry,
@@ -569,7 +571,7 @@ async function cutRowAndLiveTurn() {
   assert.equal(cut.input.segments[0]!.audioBytes, null, "without audio");
   assert.equal(cut.input.status, "stopped");
   const stoppedLive = h.registry.liveTurnFor(owner, "board-1");
-  assert(stoppedLive && stoppedLive.segments.every((s) => s.narration !== "cut short"), "a cut segment is not a finished step");
+  assert(stoppedLive && stoppedLive.segments.some((s) => s.narration === "cut short" && s.audioBytes === null), "stopped export retains the silent cut so it matches saved restore");
   assert(mirrored.at(-1)!.rows.some((r) => r.narration === "cut short"), "the board's own copy shows it");
   await h.ack(cut);
   assert.equal(h.server.get(handle.turnId)!.rows[2]!.audio, false, "the server holds the cut row without a clip");
@@ -771,7 +773,154 @@ async function drainAndStatus() {
   assert.equal(await timedOut, false, "gives up after the wait");
 }
 
+async function resumeRevisionSurvivesStaleAck() {
+  const h = harness();
+  begin(h, { generation: 1 });
+  h.registry.recordRow(owner, 1, row("first"), { intro: false });
+  await h.ack(h.calls[0]!);
+  h.registry.setResumeState(owner, 1, { solver: "revision-one" });
+  const first = h.calls[1]!;
+  h.registry.setResumeState(owner, 1, { solver: "revision-two" });
+  h.registry.closeOwner(owner);
+  await h.ack(first);
+  const events = h.registry.reopen("board-1");
+  assert.equal(events.length, 1, "dirty metadata is preserved on board reopen");
+  assert.deepEqual(events[0]!.turn.resumeState, { solver: "revision-two" }, "stale ACK cannot replace latest local solver state");
+  const followup = h.calls[2]!;
+  assert.deepEqual(followup.input.resumeState, { solver: "revision-two" });
+  await h.ack(followup);
+  h.registry.setResumeState(owner, 1, null);
+  await h.fail(h.calls[3]!, FORBIDDEN);
+  assert(h.registry.hasUnsentData(), "dirty-only explicit clear remains unsent after failure");
+  assert.equal(h.registry.reopen("board-1")[0]!.turn.resumeState, null, "explicit clear survives local restore");
+  h.registry.pageHideClose();
+  const firstClose = h.calls.filter((c) => c.method === "PATCH").at(-1)!;
+  assert.equal(JSON.parse(buildTurnCloseBody(firstClose.input)).resumeState, null, "close carries explicit clear");
+  h.registry.setResumeState(owner, 1, { solver: "revision-three" });
+  h.registry.pageHideClose();
+  const closes = h.calls.filter((c) => c.method === "PATCH");
+  assert.equal(closes.length, 2, "new metadata revision sends another close with unchanged row count");
+  assert.deepEqual(closes[1]!.input.resumeState, { solver: "revision-three" });
+}
+
+function closePrioritizesSolverState() {
+  const body = JSON.parse(buildTurnCloseBody({
+    seq: 1, baseCount: 0, question: LESSON, kind: "lesson", segments: [row("shown first step", false)],
+    sceneArtifacts: { oversized: "x".repeat(20_000) }, resumeState: { solver: "small state" },
+  }));
+  assert.equal(body.appendSegments.length, 1, "shown row fits without oversized scene");
+  assert.deepEqual(body.resumeState, { solver: "small state" }, "small solver state takes precedence over optional scene artifacts");
+  assert.equal(body.sceneArtifacts, undefined);
+  const crowded = JSON.parse(buildTurnCloseBody({ seq: 1, baseCount: 0, question: LESSON, segments: [row("s".repeat(2_000), false)], resumeState: { solver: "x".repeat(9_000) } }));
+  assert.equal(crowded.appendSegments.length, 1, "shown cut tail takes precedence if tail and state do not fit together");
+}
+
+async function newerCloseAckOwnsMirror() {
+  const h = harness(); const mirrors: LiveTurnMirrorEvent[] = [];
+  h.registry.attach(owner, { openBoardId: () => "board-1", mirror: (event) => mirrors.push(event) });
+  begin(h, { generation: 1 });
+  h.registry.setResumeState(owner, 1, { solver: "old" });
+  h.registry.recordRow(owner, 1, row("shown", false), { intro: false });
+  const put = h.calls[0]!;
+  h.registry.closeOwner(owner);
+  h.registry.setResumeState(owner, 1, { solver: "new" });
+  h.registry.pageHideClose();
+  const close = h.calls.find((c) => c.method === "PATCH")!;
+  const snapshot = { id: put.turnId, orderIndex: 0, question: LESSON, rawResponse: "shown", speedMultiplier: 1, traceId: null,
+    sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only" as const,
+    sceneArtifacts: null, segments: [], status: "stopped" as const };
+  close.resolve({ ok: true, turn: { ...snapshot, resumeState: { solver: "new" } }, serverSeq: close.input.seq, serverCount: 2, stale: false, final: false });
+  await h.settle();
+  put.resolve({ ok: true, turn: { ...snapshot, resumeState: { solver: "old" } }, serverSeq: put.input.seq, serverCount: 2, stale: false, final: false });
+  await h.settle();
+  assert.deepEqual(mirrors.at(-1)!.turn.resumeState, { solver: "new" }, "older delivered response cannot replace newer acknowledged solver state");
+  assert.equal(h.registry.hasUnsentData(), false, "older response does not regress acknowledged stopped state");
+}
+
+async function synchronousShownCutSurvivesRuntimeLoss() {
+  const h = harness(); begin(h, { generation: 1, kind: "resume", continuesBoard: true });
+  const token = h.registry.prepareSegment(owner, 1, row("prepared shown WRITE", false), { intro: false })!;
+  token.markShown();
+  assert(h.registry.hasUnsentData(), "shown pending work counts before beforeunload");
+  h.registry.pageHideClose(); // deliberately never run the runner finally
+  const close = h.calls.find((c) => c.method === "PATCH")!;
+  const body = JSON.parse(buildTurnCloseBody(close.input));
+  assert.equal(body.appendSegments.length, 1, "hard reload captures the first shown row synchronously");
+  assert.equal(body.appendSegments[0].narration, "prepared shown WRITE");
+  assert.equal(close.input.segments![0]!.audioBytes, null);
+  assert.equal(close.input.segments![0]!.durationMs, null);
+  assert.equal(close.input.segments![0]!.timings, null);
+  assert.equal(h.registry.liveTurnFor(owner, "board-1")!.segments.length, 1, "stopped export includes shown cut");
+  await h.advance(CUT_ROW_GRACE_MS + 1);
+  begin(h, { generation: 2 });
+  assert.equal(token.complete(row("late voice", true)), false, "late completion cannot duplicate captured cut or restore audio");
+  assert.equal(token.interrupt(), false);
+  assert.equal(h.registry.reopen("board-1")[0]!.rows.length, 1);
+
+  const prefetch = harness(); begin(prefetch, { generation: 1, kind: "resume", continuesBoard: true });
+  prefetch.registry.prepareSegment(owner, 1, row("prefetched", false), { intro: false });
+  prefetch.registry.pageHideClose();
+  assert.equal(prefetch.calls.length, 0, "unheard undrawn preparation does not create a cut");
+  const intro = harness(); begin(intro, { generation: 1, kind: "resume", continuesBoard: true });
+  intro.registry.prepareSegment(owner, 1, row("uncommitted intro", false), { intro: true })!.markShown();
+  intro.registry.pageHideClose();
+  assert.equal(intro.calls.length, 0, "verified intro stays atomic, never a partial teaching cut");
+
+  const failed = harness(); begin(failed, { generation: 1 });
+  const shown = failed.registry.prepareSegment(owner, 1, row("voice before draw failure", false), { intro: false })!;
+  shown.markShown(); shown.interrupt(); // failure without cancel, then another segment
+  failed.registry.recordRow(owner, 1, row("later step", false), { intro: false });
+  failed.registry.closeOwner(owner);
+  assert.deepEqual(failed.registry.reopen("board-1")[0]!.rows.filter((r) => !isClear(r)).map((r) => r.narration), ["voice before draw failure", "later step"]);
+}
+
+async function chronologicalOverlayAndFreshFinal() {
+  const h = harness(); begin(h, { generation: 1, kind: "resume", continuesBoard: true });
+  h.registry.recordRow(owner, 1, row("A cut", false), { intro: false });
+  h.registry.closeOwner(owner);
+  const local = h.registry.reopen("board-1")[0]!;
+  const a: StoredTurn = { ...local.turn, segments: [], orderIndex: 0 };
+  const x = { ...a, id: "unknown-server-history", orderIndex: 1 };
+  const b = { ...a, id: "later-acked", orderIndex: 2 };
+  const event = { ...local, orderBeforeTurnId: b.id };
+  assert.deepEqual(overlayLiveTurnEvent([a, x, b], event, a).map((t) => t.id), [a.id, x.id, b.id], "same-ID replacement preserves fetched chronological position");
+  assert.deepEqual(overlayLiveTurnEvent([b], event, a).map((t) => t.id), [a.id, b.id], "missing earlier failed turn inserts before acknowledged successor");
+  const complete = { ...a, status: "complete" as const, persistedStatus: "complete" as const };
+  assert.equal(overlayLiveTurnEvent([complete, x], local, a)[0]!.status, "complete", "actual mirror overlay keeps fresh final authority over local stopped rows");
+  assert.equal(h.registry.resumeTurns("board-1", [complete])[0]!.status, "complete", "fresh server completion wins over unsent local stopped snapshot");
+  assert.equal(h.registry.resumeTurns("board-1", [])[0]!.persistedStatus, "stopped", "local synchronous Stop is positive raw-status evidence before ACK");
+}
+
+async function pausedHeartbeatUsesAcknowledgedTurn() {
+  const h = harness(); begin(h, { generation: 1 });
+  await h.advance(LIVE_SAVE_HEARTBEAT_MS * 5);
+  assert.equal(h.calls.length, 0, "heartbeat cannot manufacture first empty turn");
+  h.registry.recordRow(owner, 1, row("heard row", false), { intro: false });
+  await h.ack(h.calls[0]!);
+  for (let i = 0; i < 5; i += 1) {
+    const count: number = h.calls.length;
+    await h.advance(LIVE_SAVE_HEARTBEAT_MS);
+    assert.equal(h.calls.length, count + 1, "paused active owner refreshes persisted timestamp beyond idle cutoff");
+    const heartbeat = h.calls.at(-1)!;
+    assert.equal(heartbeat.turnId, h.calls[0]!.turnId);
+    assert.equal(heartbeat.input.segments?.length, 0);
+    assert.equal(heartbeat.input.status, "live");
+    await h.ack(heartbeat);
+  }
+  h.registry.closeOwner(owner);
+  await h.ack(h.calls.at(-1)!);
+  const count: number = h.calls.length;
+  await h.advance(LIVE_SAVE_HEARTBEAT_MS * 6);
+  assert.equal(h.calls.length, count, "stopped owner no longer heartbeats");
+}
+
 async function main() {
+  await chronologicalOverlayAndFreshFinal();
+  await pausedHeartbeatUsesAcknowledgedTurn();
+  await synchronousShownCutSurvivesRuntimeLoss();
+  await newerCloseAckOwnsMirror();
+  await resumeRevisionSurvivesStaleAck();
+  closePrioritizesSolverState();
   await oneInFlightAndCoalescing();
   await introRowsWaitForTheFigure();
   await closeIsIdempotentAndKeepsEmptyTurns();

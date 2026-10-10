@@ -62,7 +62,7 @@ const check = (condition: unknown, message: string) => {
   inOrder(wrapper, "handleQuestion closes the save in one finally",
     "const saveExit: LiveTurnSaveExit = { handle: null };",
     "try {",
-    "return await teachQuestion(rawQuestion, options, saveExit);",
+    "return await teachQuestion(rawQuestion, admittedOptions, saveExit);",
     "} finally {",
     "saveExit.handle?.close();",
   );
@@ -127,16 +127,16 @@ const check = (condition: unknown, message: string) => {
   const source = read(file);
   const record = between(source, file, "if (segmentCompleted && !isCancelled()) {", 'tutorDebug("segment", "runSegment end"');
   inOrder(record, "each finished segment is saved as it is recorded",
+    "preparedSave.complete(recordedRow)",
     "recordedSegmentsRef.current.push(recordedRow);",
     "liveTurnSave().recordRow(cancelRef, turnGeneration, recordedRow, { intro: onRecorded !== undefined });",
   );
-  inOrder(record, "the segment Stop cut off is kept without audio",
-    "} else if (!segmentCompleted && segmentShown && isCancelled() && onRecorded === undefined) {",
-    "liveTurnSave().recordCutRow(cancelRef, turnGeneration, {",
-    "audioBytes: null,",
-  );
-  check(/segmentShown = true;/.test(between(source, file, "const runDraw = async (", "const markVoiceStarted")),
-    "a segment counts as shown once its ink starts");
+  check(record.includes("preparedSave?.interrupt();"), "failed or cancelled shown work settles its prepared token");
+  const prepare = between(source, file, "const preparedSave = liveTurnSave().prepareSegment", "let timingTelemetryCount");
+  check(prepare.includes("audioBytes: null, durationMs: null, timings: null") && prepare.includes("segment.verifiedDiagramIntro === true"), "prepared cuts are silent and verified intro remains atomic");
+  check(prepare.includes("preparedSave?.markShown()"), "only actual observations mark the prepared token");
+  check(source.includes("onInkStarted: markShown") && between(source, file, "const markVoiceStarted = () =>", "const speakOptions").includes("markShown();"), "ink and accepted voice observations both establish shown work");
+
 }
 
 // --- page lifecycle ----------------------------------------------------------------
@@ -149,7 +149,8 @@ const check = (condition: unknown, message: string) => {
     "registered in the capture phase, ahead of the telemetry listener a turn adds later");
   const unload = between(source, file, "const onBeforeUnload = (event: BeforeUnloadEvent) => {", 'window.addEventListener("pagehide"');
   inOrder(unload, "beforeunload prompts only with unsent lesson data",
-    "if (liveTurnSave().hasUnsentData()) {", "event.preventDefault();", "return;", "halt();");
+    "if (liveTurnSave().hasUnsentData()) {", "event.preventDefault();", "return;");
+  check(!unload.includes("halt();"), "cancelled beforeunload never halts even without dirty rows");
 
   const telemetry = read("lib/obs/turnTelemetry.ts");
   const lifecycle = between(telemetry, "turnTelemetry.ts", "if (lifecycle) {", "await send(pendingEvents, pendingMetadata, lifecycle);");

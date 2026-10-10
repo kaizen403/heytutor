@@ -105,6 +105,8 @@ interface CheckpointInput {
   rawResponse?: string;
   speedMultiplier?: number;
   traceId?: string;
+  orderBeforeTurnId?: string;
+  orderAfterTurnId?: string;
   /** "stored": re-canonicalize under the turn's stored scene (keepalive close). */
   scene: CheckpointScene | "stored";
   appendSegments: CheckpointRow[];
@@ -237,6 +239,9 @@ function parseCommon(raw: Record<string, unknown>, mode: "put" | "patch"): Parse
     return { ok: false, error: mode === "patch" ? "status must be live or stopped" : "status must be live, stopped or complete" };
   }
   if (raw.kind !== undefined && !isTurnKind(raw.kind)) return { ok: false, error: "kind must be lesson, doubt or resume" };
+  for (const name of ["orderBeforeTurnId", "orderAfterTurnId"] as const) {
+    if (raw[name] !== undefined && (typeof raw[name] !== "string" || !UUID.test(raw[name]))) return { ok: false, error: "invalid ordering anchor" };
+  }
   const rowsPresent = Array.isArray(raw.appendSegments) && raw.appendSegments.length > 0;
   const baseCount = raw.baseCount === undefined && mode === "patch" && !rowsPresent ? 0 : raw.baseCount;
   if (!Number.isSafeInteger(baseCount) || (baseCount as number) < 0 || (baseCount as number) > MAX_TURN_SEGMENTS) {
@@ -274,6 +279,8 @@ function parseCommon(raw: Record<string, unknown>, mode: "put" | "patch"): Parse
       rawResponse: raw.rawResponse as string | undefined,
       speedMultiplier: raw.speedMultiplier as number | undefined,
       traceId: raw.traceId as string | undefined,
+      orderBeforeTurnId: raw.orderBeforeTurnId as string | undefined,
+      orderAfterTurnId: raw.orderAfterTurnId as string | undefined,
       appendSegments: rows.value,
       resumeState,
     },
@@ -708,7 +715,24 @@ async function applyCheckpoint(
                 return { kind: "trace_saved", turn: saved };
               }
             }
-            const orderIndex = await tx.turn.count({ where: { boardId } });
+            const count = await tx.turn.count({ where: { boardId } });
+            let orderIndex = count;
+            const anchors = [input.orderAfterTurnId, input.orderBeforeTurnId];
+            if (anchors.some((id) => id === turnId)) throw new StorageQuotaError("invalid ordering anchor", 400);
+            const after = input.orderAfterTurnId ? await tx.turn.findFirst({ where: { id: input.orderAfterTurnId, boardId, userId } }) : null;
+            const beforeAnchor = input.orderBeforeTurnId ? await tx.turn.findFirst({ where: { id: input.orderBeforeTurnId, boardId, userId } }) : null;
+            if ((input.orderAfterTurnId && !after) || (input.orderBeforeTurnId && !beforeAnchor) ||
+              (after && beforeAnchor && after.orderIndex >= beforeAnchor.orderIndex)) {
+              throw new StorageQuotaError("invalid ordering anchor", 400);
+            }
+            if (beforeAnchor) orderIndex = beforeAnchor.orderIndex;
+            else if (after) orderIndex = after.orderIndex + 1;
+            if (orderIndex < count) {
+              // Unique (boardId, orderIndex): move the bounded tail descending
+              // while holding the existing authenticated board/user locks.
+              const tail = await tx.turn.findMany({ where: { boardId, orderIndex: { gte: orderIndex } }, orderBy: { orderIndex: "desc" } });
+              for (const later of tail) await tx.turn.update({ where: { id: later.id }, data: { orderIndex: later.orderIndex + 1, updatedAt: later.updatedAt } });
+            }
             turn = await tx.turn.create({
               data: {
                 id: turnId,

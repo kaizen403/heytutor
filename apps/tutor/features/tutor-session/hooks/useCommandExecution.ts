@@ -208,6 +208,7 @@ export function useCommandExecution({
     async function executeCommand(
       rawCommand: DrawCommand,
       options: {
+        onInkStarted?: () => void;
         introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
         speechDurationMs?: number;
@@ -342,7 +343,7 @@ export function useCommandExecution({
         duration: number,
         schedule?: WriteSchedule,
         fontSize?: number,
-      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings);
+      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings, options.onInkStarted);
       const drawAnnotation: WhiteboardHandle["drawAnnotation"] = (
         kind,
         path,
@@ -1606,6 +1607,7 @@ export function useCommandExecution({
     async (
       command: DrawCommand,
       options: {
+        onInkStarted?: () => void;
         introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
         speechDurationMs?: number;

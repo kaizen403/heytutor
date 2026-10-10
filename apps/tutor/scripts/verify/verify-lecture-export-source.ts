@@ -104,6 +104,27 @@ const firstFirstCommand = (t: StoredTurn): DrawCommand["type"] | undefined =>
 
 async function main(): Promise<void> {
   {
+    const a = turn("stopped-A", 0, "earlier", [segment(0, "saved row")], { status: "stopped" });
+    const x = turn("unknown-X", 1, "later", [segment(0, "X completed")], { status: "complete" });
+    const live: LiveExportTurn = { ...a, segments: [liveSegment(0, "shown cut", null)], status: "stopped" };
+    const source = buildLectureExportSource({ storedTurns: [a, x], liveTurn: live });
+    assert.deepEqual(source.turns.map(t => t.id), [a.id, x.id], "stopped live overlay keeps chronological position among intervening server history");
+    assert.equal(source.partial, false, "current complete tail controls completion despite historical stopped cut");
+    assert.equal(source.turns[0]!.segments.filter(s => s.narration === "shown cut").length, 1);
+    const final = buildLectureExportSource({ storedTurns: [{ ...a, status: "complete" }, x], liveTurn: live });
+    assert.equal(final.liveTurnId, null, "fresh complete snapshot outranks retained stopped live copy");
+    assert.equal(final.turns[0]!.segments[0]!.narration, "saved row");
+    const legacy = buildLectureExportSource({ storedTurns: [
+      turn("clip-A", 0, "A", [segment(0, "one", { audioUrl: "blob:A" })]),
+      turn("clip-B", 1, "B", [segment(0, "two", { audioUrl: "blob:B" })]),
+    ] });
+    await captureLocalClips(legacy, async url => new Uint8Array([url === "blob:A" ? 1 : 2]));
+    const bytes = lectureExportCueBytes(legacy);
+    assert.notEqual(legacy.turns[0]!.segments[0]!.id, legacy.turns[1]!.segments[0]!.id, "turn-scoped export identity handles legacy repeated local-seg ids");
+    assert.deepEqual(legacy.turns.map(t => bytes({ segment: t.segments[0]! })), [new Uint8Array([1]), new Uint8Array([2])], "both local WAV clips retain their own bytes");
+  }
+
+  {
     // A live question after two saved lessons: the whole board, oldest first,
     // the live tail last on its own page.
     const clip = new Uint8Array([1, 2, 3]);
@@ -269,13 +290,13 @@ async function main(): Promise<void> {
     await capturing;
     const bytesOf = lectureExportCueBytes(source);
     const cue = (id: string) => ({ segment: { id } }) as never;
-    assert.deepEqual(bytesOf(cue("seg-1")), new Uint8Array([7, 7]), "the stored clip is in the snapshot");
-    assert.deepEqual(bytesOf(cue("seg-2")), new Uint8Array([8]));
-    assert.equal(bytesOf(cue("seg-3")), null, "a server clip is still read by URL");
+    assert.deepEqual(bytesOf(cue(source.turns[0]!.segments[1]!.id)), new Uint8Array([7, 7]), "the stored clip is in the snapshot");
+    assert.deepEqual(bytesOf(cue(source.turns[0]!.segments[2]!.id)), new Uint8Array([8]));
+    assert.equal(bytesOf(cue(source.turns[0]!.segments[3]!.id)), null, "a server clip is still read by URL");
     // A clip that cannot be read is not fatal.
     const broken = buildLectureExportSource({ storedTurns: stored });
     await captureLocalClips(broken, () => Promise.reject(new Error("revoked")));
-    assert.equal(lectureExportCueBytes(broken)(cue("seg-2")), null, "an unreadable clip stays silent");
+    assert.equal(lectureExportCueBytes(broken)(cue(source.turns[0]!.segments[2]!.id)), null, "an unreadable clip stays silent");
   }
 
   {

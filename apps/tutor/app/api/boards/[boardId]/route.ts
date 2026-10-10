@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardStorageBytes, ensureStorageAccounting, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { boardAudioPrefix } from "@/lib/object-store/keys";
-import { effectiveTurnStatus, isTurnKind } from "@/lib/boards/turnStatus";
+import { effectiveTurnStatus, isTurnKind, isTurnStatus } from "@/lib/boards/turnStatus";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -84,6 +84,7 @@ export async function GET(request: Request, context: RouteContext) {
       sceneArtifacts: turn.sceneArtifacts,
       // A live turn whose tab stopped checkpointing reads as stopped.
       status: effectiveTurnStatus(turn.status, turn.updatedAt, now),
+      persistedStatus: isTurnStatus(turn.status) ? turn.status : "complete",
       kind: isTurnKind(turn.kind) ? turn.kind : "lesson",
       resumeState: turn.resumeState ?? null,
       createdAt: turn.createdAt.getTime(),

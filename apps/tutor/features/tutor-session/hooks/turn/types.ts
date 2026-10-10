@@ -19,6 +19,8 @@ import type { IntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoin
 
 /** A question opens a fresh page unless it carries a doubt or resumes this one. */
 export type HandleQuestionOptions = {
+  /** Exactly one receipt for the pending attempt, separate from lesson completion. */
+  onAdmission?: (admitted: boolean) => void;
   doubt?: DoubtTurnRequest;
   /** The rest of a lesson that stopped: by a doubt, by Stop, or before a reload. */
   resume?: PausedLessonRequest;
@@ -34,6 +36,8 @@ export type SpeechStartupStatus = {
 };
 
 export type ExecuteCommandOptions = {
+  /** Runtime observation only, after a WRITE actually reveals ink. */
+  onInkStarted?: () => void;
   /** Explicit metadata owner for atomic scene-intro commands. */
   introLayoutCheckpoint?: IntroLayoutCheckpoint;
   durationScale?: number;
@@ -306,7 +310,7 @@ export type TurnControlApi = {
    * opened board; a no-op while a turn or a replay owns the board, so call it
    * again when that ends. Returns what is offered.
    */
-  restorePausedLesson: (turns: readonly StoredTurn[]) => PausedLessonRequest | null;
+  restorePausedLesson: (turns: readonly StoredTurn[]) => Promise<PausedLessonRequest | null>;
   /**
    * `options.prompt` carries an already-composed, board-grounded doubt and
    * `options.title` what it is saved under.

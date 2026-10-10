@@ -135,22 +135,26 @@ export function buildLectureExportSource(input: {
   storedTurns: readonly StoredTurn[];
   liveTurn?: LiveExportTurn | null;
 }): LectureExportSource {
-  const live = input.liveTurn && input.liveTurn.segments.some(segmentHasContent)
+  const freshFinal = input.storedTurns.some((turn) => turn.id === input.liveTurn?.id && turn.status === "complete");
+  const live = !freshFinal && input.liveTurn && input.liveTurn.segments.some(segmentHasContent)
     ? input.liveTurn
     : null;
   const stored = [...input.storedTurns]
-    .filter((turn) => !live || turn.id !== live.id)
     .sort((a, b) => a.orderIndex - b.orderIndex)
-    .map((turn) => ({ ...turn, segments: [...turn.segments] }));
+    .map((turn) => ({ ...turn, segments: turn.segments.map((segment) => ({
+      ...segment, id: `stored:${turn.id}:${segment.id}`,
+    })) }));
   const audioBytes = new Map<string, Uint8Array>();
   const turns: StoredTurn[] = [...stored];
   if (live) {
-    turns.push(liveTurnAsStored(live, audioBytes));
+    const replacement = liveTurnAsStored(live, audioBytes);
+    const index = turns.findIndex((turn) => turn.id === live.id);
+    if (index >= 0) turns[index] = replacement;
+    else turns.push(replacement);
   }
   const last = turns[turns.length - 1];
   const partial =
-    (live !== null && live.status !== "complete") ||
-    (last !== undefined && storedTurnIsPartial(last));
+    last !== undefined && (last.id === live?.id ? live.status !== "complete" : storedTurnIsPartial(last));
   return { turns, audioBytes, partial, liveTurnId: live?.id ?? null };
 }
 

@@ -199,11 +199,68 @@ async function main() {
       (process.env as Record<string, string | undefined>).NODE_ENV = previousEnv;
     }
 
+    // --- real unique-index ordering, metadata and raw liveness -----------------
+    const prefix = (await get()).turns.map(entry => entry.id);
+    const p = randomUUID(), a = randomUUID(), x = randomUUID(), b = randomUUID();
+    const create = (id: string, text: string, extra: Record<string, unknown> = {}) => put(id, {
+      seq: 1, baseCount: 0, status: "stopped", appendSegments: [row(0, text)], ...extra,
+    });
+    assert.equal((await create(p, "P", { status: "complete", rawResponse: "P" })).status, 200);
+    // A was shown locally and failed before its first durable write; another tab saves X.
+    assert.equal((await create(x, "X", { status: "complete", rawResponse: "X" })).status, 200);
+    assert.equal((await create(b, "B", { status: "live", orderAfterTurnId: x })).status, 200);
+    await prisma.$executeRaw`UPDATE turns SET updated_at = now() - interval '3 minutes' WHERE id = ${b}::uuid`;
+    const oldB = (await turnRow(b)).updatedAt;
+    assert.equal((await create(a, "A", { orderAfterTurnId: p, orderBeforeTurnId: x,
+      resumeState: { v: 1, solverProjection: { q: 24 } } })).status, 200);
+    assert.deepEqual((await get()).turns.map(entry => entry.id), [...prefix, p, a, x, b],
+      "descending insert under real UNIQUE(board_id,order_index) preserves late earlier first save");
+    assert.equal((await turnRow(b)).updatedAt.getTime(), oldB.getTime(), "order-only shift preserves existing successor freshness");
+    const rawB = (await get()).turns.find(entry => entry.id === b)!;
+    assert.equal(rawB.persistedStatus, "live"); assert.equal(rawB.status, "stopped", "old raw live remains idle-derived stopped");
+    assert.deepEqual((await get()).turns.find(entry => entry.id === a)!.resumeState, { v: 1, solverProjection: { q: 24 } });
+    assert.equal((await put(a, { seq: 2, baseCount: 1, appendSegments: [], resumeState: null, orderAfterTurnId: b })).status, 200);
+    assert.equal((await get()).turns.find(entry => entry.id === a)!.resumeState, null, "metadata-only null clear survives real JSON persistence");
+    assert.deepEqual((await get()).turns.map(entry => entry.id), [...prefix, p, a, x, b], "existing-turn retries never reorder");
+    const foreignBoard = randomUUID(), foreignAnchor = randomUUID();
+    await prisma.board.create({ data: { id: foreignBoard, userId } });
+    await prisma.turn.create({ data: { id: foreignAnchor, boardId: foreignBoard, userId, orderIndex: 0,
+      question: "foreign board", rawResponse: "", status: "complete" } });
+    const beforeInvalid = (await get()).turns.map(entry => entry.id);
+    for (const anchors of [{ orderBeforeTurnId: foreignAnchor }, { orderBeforeTurnId: randomUUID() },
+      { orderBeforeTurnId: p, orderAfterTurnId: b }]) {
+      const rejected = await create(randomUUID(), "invalid", anchors);
+      assert.equal(rejected.status, 400, JSON.stringify(rejected.body));
+      assert.deepEqual((await get()).turns.map(entry => entry.id), beforeInvalid, "invalid anchors mutate no durable order");
+    }
+    const self = randomUUID(); assert.equal((await create(self, "self", { orderBeforeTurnId: self })).status, 400);
+    currentUser = randomUUID();
+    try { assert.equal((await create(randomUUID(), "foreign auth", { orderBeforeTurnId: b })).status, 404); }
+    finally { currentUser = userId; }
+    assert.deepEqual((await get()).turns.map(entry => entry.id), beforeInvalid);
+    const c = randomUUID(), d = randomUUID();
+    const concurrent = await Promise.all([create(c, "C", { orderBeforeTurnId: b }), create(d, "D", { orderBeforeTurnId: b })]);
+    assert(concurrent.every(result => result.status === 200), JSON.stringify(concurrent));
+    const order = (await get()).turns.map(entry => entry.id);
+    assert.deepEqual(order.slice(0, prefix.length + 3), [...prefix, p, a, x]);
+    assert.deepEqual(new Set(order.slice(-3, -1)), new Set([c, d])); assert.equal(order.at(-1), b);
+    const unique = await prisma.turn.findMany({ where: { boardId }, orderBy: { orderIndex: "asc" }, select: { orderIndex: true } });
+    assert.equal(new Set(unique.map(entry => entry.orderIndex)).size, unique.length, "simultaneous inserts keep real unique indexes distinct");
+    assert.equal((await turnRow(b)).updatedAt.getTime(), oldB.getTime());
+    const deleteForeign = await boardRoute.DELETE(new Request(`https://example.test/api/boards/${foreignBoard}`, { method: "DELETE" }),
+      { params: Promise.resolve({ boardId: foreignBoard }) });
+    assert.equal(deleteForeign.status, 200, "extra owned fixture board is deleted through the authenticated consumer");
+
     // --- board delete refunds every charged byte ------------------------------
     const deletedBoard = await boardRoute.DELETE(new Request(`https://example.test/api/boards/${boardId}`, { method: "DELETE" }),
       { params: Promise.resolve({ boardId }) });
     assert.equal(deletedBoard.status, 200);
-    await runObjectDeletionBatch({ now: later });
+    // Invalid insert attempts and both deleted boards leave separate durable receipts.
+    // Drain bounded default-size waves; none may be silently forgiven.
+    for (let wave = 0; wave < 4 && await prisma.objectDeletionJob.count({ where: { userId } }) > 0; wave++) {
+      await runObjectDeletionBatch({ now: later });
+    }
+    assert.equal(await prisma.objectDeletionJob.count({ where: { userId } }), 0, "all private test cleanup receipts settled");
     account = await balance();
     assert.equal(account.reservedBytes, 0n, "deleting the board refunds every checkpoint's bytes");
     assert.equal(account.pendingTurns, 0);
