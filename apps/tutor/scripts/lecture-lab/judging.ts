@@ -31,6 +31,16 @@ export interface JudgeSummary {
   needsHuman: number;
 }
 
+/** A retained subset is evidence, not the verdict total for an enlarged round. */
+export function currentJudgeSummary<T extends { judge?: unknown; judgingStatus?: { unreviewedRows: number } }>(summary: T): T["judge"] | undefined {
+  return summary.judgingStatus && summary.judgingStatus.unreviewedRows > 0
+    ? undefined : summary.judge;
+}
+
+export function priorSubsetJudgeSummary(summary: { judge?: unknown; priorSubsetJudgeSummary?: unknown }, unreviewedRows: number): unknown {
+  return unreviewedRows > 0 ? summary.judge ?? summary.priorSubsetJudgeSummary : undefined;
+}
+
 export function normalizeDiagramLabel(value: string): string {
   return value
     .normalize("NFKC")

@@ -51,6 +51,7 @@ export async function pickLiveDiagramExampleIds(input: {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }): Promise<LiveDiagramExamplePickerResult> {
+  if (input.plan.visualRequirement === "none") return { ids: [], status: "none", elapsedMs: 0 };
   const startedAt = Date.now();
   const timeout = AbortSignal.timeout(input.timeoutMs ?? LIVE_DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS);
   const signal = input.signal && typeof AbortSignal.any === "function"

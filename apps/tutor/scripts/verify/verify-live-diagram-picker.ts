@@ -40,6 +40,15 @@ const picked = await pickLiveDiagramExampleIds({
 assert.deepEqual(picked.ids, ["synthesized:projectile"]);
 assert.equal(picked.status, "picked");
 
+let noFigureRequests = 0;
+const noFigure = await pickLiveDiagramExampleIds({
+  question: "Explain a definition without a figure.",
+  plan: { ...plan, visualRequirement: "none" },
+  fetchImpl: async () => { noFigureRequests += 1; return Response.json({}); },
+});
+assert.equal(noFigureRequests, 0, "a final no-figure turn must not dispatch a paid picker request");
+assert.deepEqual(noFigure.ids, []);
+
 const failed = await pickLiveDiagramExampleIds({
   question: plan.question,
   plan,
@@ -72,6 +81,8 @@ assert.equal(
 const routeSource = readFileSync(resolve(process.cwd(), "app/api/chat/route.ts"), "utf8");
 assert.match(routeSource, /diagramExamplePicker \? \[resolveCheapFireworksModel\(\)\]/);
 const handlerSource = readFileSync(resolve(process.cwd(), "features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+assert(handlerSource.indexOf("startDiagramExamplePicker(turnPlan)") > handlerSource.indexOf("const evaluatedVisualNeed ="),
+  "picker admission must wait for the merged live visual decision, including rescue of preliminary none");
 assert(handlerSource.indexOf("const pickerWaitMs =") < handlerSource.indexOf("const planning = await runScenePlanningOverlap"));
 assert.match(handlerSource, /preferPlanner: diagramStrategyDecision\.strategy === "strict"/);
 assert.match(routeSource, /reservePaidUsage\(\{ actor, grant, kind: "planner"/);

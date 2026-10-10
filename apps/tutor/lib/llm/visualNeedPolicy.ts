@@ -3,6 +3,7 @@ import type { AssessOptions, TutorAssessment } from "./evaluation/types";
 import { evaluationUsesZeroDataRetention } from "./notesChatPolicy";
 
 export type VisualNeedDecision = "required" | "optional" | "none";
+export const VISUAL_NEED_SERVER_TIMEOUT_MS = 2_400;
 
 function boundedQuestion(question: string): string {
   if (question.length <= 4_000) return question;
@@ -39,7 +40,7 @@ export async function assessVisualNeed(input: {
     {
       ...input.options,
       signal: input.signal,
-      deadlineMs: input.options?.deadlineMs ?? 2_400,
+      deadlineMs: input.options?.deadlineMs ?? VISUAL_NEED_SERVER_TIMEOUT_MS,
       circuit: true,
       zeroDataRetention: evaluationUsesZeroDataRetention(),
     },

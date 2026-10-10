@@ -6,6 +6,7 @@ const AUTH_PUBLIC_PATHS = [
   "/favicon.ico",
   "/favicon.svg",
   "/site.webmanifest",
+  "/preview-v3.mp4",
 ] as const;
 
 export function isAuthPublicPath(pathname: string): boolean {

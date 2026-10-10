@@ -4,7 +4,8 @@ import {
   parseDiagramEvalJsonl,
   type DiagramEvalRow,
 } from "../lecture-lab/diagramEval";
-import { parseOptions, selectResumeProbes, assertLabOutputReusable, plannerRequestWorstCaseUsd } from "../lecture-lab/run";
+import { parseOptions, selectResumeProbes, assertLabOutputReusable, plannerRequestWorstCaseUsd, restoredDiagramPng } from "../lecture-lab/run";
+import { currentJudgeSummary, priorSubsetJudgeSummary } from "../lecture-lab/judging";
 
 /** Pure, synthetic regression fixtures: importing run.ts does not run its CLI. */
 const failures: string[] = [];
@@ -91,6 +92,24 @@ check("reservation honors the server output ceiling, not the smaller client cap"
   const request = { body: JSON.stringify({ messages: [], max_tokens: 4000 }) };
   const cost = plannerRequestWorstCaseUsd(request, "gpt-6-1-sol", 8096);
   assert(cost >= 8096 * 10 / 1_000_000);
+});
+
+check("a recovered PNG restores the path from the saved SVG", () => {
+  assert.equal(restoredDiagramPng({ svg: "frames/synthetic.svg", png: null }, (path) => path === "frames/synthetic.png"), "frames/synthetic.png");
+  assert.equal(restoredDiagramPng({ svg: "frames/synthetic.svg", png: "frames/synthetic.png" }, () => false), null);
+});
+
+check("partial resumed judging cannot be reported as completed totals", () => {
+  const summary = { judge: { counts: {} }, judgingStatus: { unreviewedRows: 1 } };
+  assert.equal(currentJudgeSummary(summary), undefined);
+  assert.equal(currentJudgeSummary({ ...summary, judgingStatus: { unreviewedRows: 0 } }), summary.judge);
+});
+
+check("repeated resume preserves the previously reviewed subset totals", () => {
+  const prior = { counts: { right: 1 } };
+  assert.equal(priorSubsetJudgeSummary({ priorSubsetJudgeSummary: prior }, 1), prior);
+  assert.equal(priorSubsetJudgeSummary({ judge: prior }, 1), prior);
+  assert.equal(priorSubsetJudgeSummary({ priorSubsetJudgeSummary: prior }, 0), undefined);
 });
 
 if (failures.length > 0) {

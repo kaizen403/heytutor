@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
 import {
   buildFigureCheckSummary,
   parseFigureCheckAnswer,
@@ -7,6 +11,7 @@ import {
   assertFigureCheckInputUnchanged,
   VisionSpendCap,
   figureCheckRuntime,
+  prepareFigureCheckInput,
   type FigureCheckResult,
 } from "../lecture-lab/figureRelevanceCheck";
 const offlineRuntime = figureCheckRuntime(true, { provider: "azure", deployment: "gpt-6-1-sol", model: ["gpt-6-1-sol"] });
@@ -17,6 +22,25 @@ const priorInput = { id: "row", question: "q", imageSha256: "abc" };
 assertFigureCheckInputUnchanged(priorInput, { ...priorInput, referenceVerdict: "partial" });
 assert.throws(() => assertFigureCheckInputUnchanged(priorInput, { ...priorInput, imageSha256: "def" }), /changed/);
 assert.throws(() => assertFigureCheckInputUnchanged(priorInput, { ...priorInput, question: "different" }), /changed/);
+const cropFixture = mkdtempSync(join(tmpdir(), "heytutor-retained-crop-"));
+try {
+  const source = join(cropFixture, "original.png");
+  const retained = join(cropFixture, "legacy-sips.png");
+  writeFileSync(source, "synthetic original bytes");
+  writeFileSync(retained, "synthetic different-encoder bytes");
+  const input = { id: "legacy", question: "q", source: "synthetic", subject: "maths",
+    imagePath: source, referenceVerdict: "partial" as const };
+  const prior = { ...input, imagePath: retained, imageSha256: createHash("sha256").update("synthetic different-encoder bytes").digest("hex") };
+  const resumed = prepareFigureCheckInput(input, cropFixture, prior);
+  assert.equal(resumed.imagePath, retained, "completed legacy predictions reuse their actual input, never a new encoder's PNG");
+  assert.equal(resumed.imageSha256, prior.imageSha256);
+  assert.equal(resumed.cropProvenance, "legacy_retained");
+  assert.equal(resumed.sourceImageSha256, undefined, "legacy source identity cannot be invented retroactively");
+  assert.throws(() => prepareFigureCheckInput({ ...input, question: "changed" }, cropFixture, prior), /changed/);
+  assert.throws(() => prepareFigureCheckInput(input, cropFixture, { ...prior, sourceImageSha256: "changed" }), /source image changed/);
+  writeFileSync(retained, "tampered");
+  assert.throws(() => prepareFigureCheckInput(input, cropFixture, prior), /saved figure-check image changed/);
+} finally { rmSync(cropFixture, { recursive: true, force: true }); }
 assert.equal(resolveAnchorFigurePath("../data/diagram-eval/v1/anchor-images/card.png", "/repo"), "/repo/data/diagram-eval/v1/anchor-images/card.png");
 assert.equal(resolveAnchorFigurePath("/private/card.png", "/repo"), "/private/card.png");
 

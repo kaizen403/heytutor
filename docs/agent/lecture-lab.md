@@ -13,7 +13,7 @@ without a browser and writes down what happened.
 `lecturePipeline.ts` reproduces the non-DSA path of
 `useQuestionHandler`: `planTurnV3` -> `planAndSolveProblemV1` ->
 `planSceneDocumentWithRepair` -> `finalizeScenePlanAfterAuthority` ->
-`selectVerifiedRepresentation` -> `buildVerifiedDiagramPresentation` -> the
+`selectProductionScene` -> `buildVerifiedDiagramPresentation` -> the
 teaching stream with continuations. The teaching prompt is not rebuilt here: it
 comes from `features/tutor-session/lib/turn/turnTeachingPrompt.ts`, which the live
 hook calls too, so the lesson graded is the lesson taught. What is dropped is
@@ -21,6 +21,81 @@ presentation only: Konva, TTS, persistence, cancellation.
 
 FOCUS ids are resolved with `resolveVerifiedDiagramFocusTargets`, the same
 function the board uses, so "the marker never moved" is a fact and not a guess.
+
+## Shared production figure decision
+
+Import `selectProductionScene` from
+`apps/tutor/features/tutor-session/lib/scene/productionSceneSelection.ts`.
+The live hook and lab call it for the final figure/text-only decision. The same
+module exports `deriveSceneGate` for pre-request admission and
+`validateProductionSceneCandidate` for the asynchronous planner/revalidation
+callback. It preserves production's normalize/prune, quantity/source/proof,
+compile, readable-ink, source-policy, exact-obligation and save-admission order.
+No validator implementation, planner prompt or archetype slot rule is changed.
+
+Inputs are the question, full turn plan, ProblemIR, capabilities and optional
+visual-need decision (`null` means unavailable; omit only for an already-merged
+plan). Raw candidates or shared callback validations, a fast representation,
+solver contradiction, source policy and retry policy are explicit inputs.
+`representation` is null for text-only; `reason` explains the decision, while
+`selectionReason` retains the live artifact reason for backward compatibility.
+`attemptedRepresentation` is diagnostics only and must never be drawn/saved.
+The function performs no network, cache, persistence or environment reads.
+
+The lab now also applies production's source-program gate, matrix-source
+validation, solver block and save-admission guard; its old duplicated path did
+not. Chemistry remains production-exempt from model scene planning in every
+arm. Historical results are not rewritten. Execution identity records
+`production-scene-selection/v1`, so old divergent-admission rounds cannot be
+silently resumed with this policy.
+
+`pnpm --filter @heytutor/tutor verify:production-selection` checks the shared
+decision and the original six live/save figures plus both edited forgeries.
+
+## Live visual-need parity (Part 14c)
+
+Every new non-DSA lab turn calls the live `/api/visual-need` client beside the
+turn planner, with the same 3,000 ms client and 2,400 ms server limits. Numeric
+authority starts from the unmerged selected plan; Jev is merged by the shared
+production gate before picker/scene admission. Records retain the selected
+planner vote, typed Jev answer or unavailable reason, merged requirement,
+policy/model provenance and separate Jev accounting. Unavailable is null, never
+an explicit `none`. Live behaviour and default-off strict flags do not change.
+
+The Jev-only audit uses no figure/teaching calls:
+
+```bash
+pnpm exec tsx scripts/lecture-lab/visual-need-audit.ts --eval sample.jsonl --round current=.lecture-lab/current --round planner_examples_strict=.lecture-lab/strict --max-usd 1 --yes --out .lecture-lab/visual-need-audit
+```
+
+The audit owns one stable lab trace (not a separate idle lesson slot per row)
+and spaces dispatches by at least 650 ms, below the unchanged production IP
+limit. Waiting occurs before the client's 3 s timer. A local HTTP denial stops
+the audit and leaves that row and remaining rows untested; it is not a Jev answer.
+Unresolved local denials persist through budget-blocked resumes. Legacy saved
+HTTP-denial assessments stay pending until retried; their original call charges
+remain in the ledger even after successful recovery. A key
+limited to Gateway free credits can list Jev but receive an upstream 403;
+Azure credits do not supply Vercel AI Gateway paid-model entitlement.
+
+It freezes identity-checked answers and writes an action-changed sample. Rerun
+that sample with `run.ts --visual-need-replay <audit>/visual-need.jsonl` and
+`--example-exclusions <original-full-sample.jsonl>` on both arms. Replay cannot
+silently fall back to paid Jev calls; missing/changed questions, model, rubric,
+policy or deadlines fail closed. Execution identity binds the frozen bytes and
+full retrieval exclusions, so historical planner-only rounds cannot be resumed
+under the new policy. Audit resumes retain unknown in-flight reservations.
+
+Jev requests reserve before dispatch just like Azure, including concurrent
+calls. Unknown dispatched usage consumes the full reservation; proved
+missing-key/open-circuit non-dispatches cost zero. Summaries separately name
+Vercel AI Gateway / `typesafe-ai/jev` and the Azure figure deployment. Historical
+final planner requirements are only proxies for the old merge comparison: old
+rows did not retain their initial raw vote. Missing historical rows remain
+untested, not `none`. A stronger optional-to-required vote is reported but alone
+does not prove changed figure admission. Changed reruns also inherit the new
+shared production admission guards, so their outcomes cannot be attributed
+solely to Jev. No lab result establishes production timing.
 
 ## Commands
 
@@ -93,11 +168,52 @@ and a positive `--max-usd` on every run. All planner, ProblemIR, teaching, and
 example-picker calls use the configured deployment. Azure fallback to Fireworks
 is rejected before dispatch. Preflight and measured usage price `gpt-6-1-sol`
 at US$2 input, US$0.10 cached input, and US$10 output per million tokens.
-Unknown usage is charged conservatively with Azure reasoning headroom included.
+By default (`--spend-mode conservative`), unknown usage is charged conservatively
+with Azure reasoning headroom included.
 Every summary and row records provider and deployment; every completed planner
 call retains its actual model and measured usage. `--model standard` remains a
 compatibility alias for the configured provider. The offline picker has a 15 s
 bound so Azure reasoning can finish.
+
+For provider-metric reconciled experiments, opt into `--spend-mode response_usage
+--max-usd 10`. This is a cap on the known response-usage subtotal, priced at the
+configured rates, not proof of a hard cap on the provider bill when usage is
+missing. Planner JSON, final teaching SSE usage chunks and every direct picker
+attempt settle measured tokens, including cached input and output reasoning.
+The existing lab visual-need meter follows the selected mode too. Known service
+usage is priced by its existing token/reported-cost evidence; missing-key and
+circuit-open answers prove zero dispatch. Other missing usage stays unresolved.
+Response-mode visual-need admission waits for occupied headroom, while the
+conservative default and frozen replay behavior stay unchanged.
+
+Earlier proxy retries without usage remain unresolved; unused retry slots never
+become measured spend. Missing or incomplete usage is unknown, not measured zero.
+Dispatch still reserves the full concurrent in-flight ceilings (including proxy
+retry limits); callers wait for existing responses to settle when they need
+headroom. No dispatch occurs when known settled cost plus those ceilings would
+exceed the allowance. A cap can stop with a small unused balance because the
+next call needs its full ceiling. Unresolved historical calls release dispatch
+headroom while their estimated exposure remains visible, so they can put the
+actual bill above the known-usage cap. Reconcile Azure ProcessedPromptTokens and
+GeneratedTokens before and after each controlled phase, stop to investigate
+unresolved usage, and give separate rounds only the remaining aggregate budget.
+
+In this mode, `chargedUsd` and `knownUsageUsd` are the measured subtotal;
+`reservedUsd`/`inFlightCalls` are temporary dispatch headroom.
+`unresolvedCalls[]` identifies trace, lane, model, attempt count, reason and
+`allowanceUsd`; `unresolvedAllowanceUsd` is their total estimated exposure, not
+paid cost. Per proxy `modelCalls[]` records `measuredCostUsd: null` when unknown,
+plus unresolved attempts/allowance. Picker rows record `knownUsageUsd`,
+`unresolvedUsageCalls` and `unresolvedAllowanceUsd`. Thus the known subtotal plus
+unresolved allowances describes the accounting range, subject to the request
+ceiling estimates; provider metrics remain the independent evidence. Checkpoints
+and row execution identities carry the mode, response pricing and server caps. Legacy checkpoints are conservative
+and cross-mode resume is rejected. In-flight calls from an interrupted
+response-usage checkpoint become explicit unresolved checkpoint evidence on
+resume, never measured charges; its `attempts` counts interrupted requests whose
+upstream attempt counts are unknown. `--resume-extra-usd` cannot add an unmetered
+allowance to this mode. The offline gate uses zero network/model calls and is included in the retained
+lab checks: `pnpm --filter @heytutor/tutor verify:lab`.
 
 The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`.
 Synthesized entries are keyed by `depicts`: plain family/archetype language,

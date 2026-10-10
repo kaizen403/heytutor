@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createFallbackTurnPlanV3 } from "@heytutor/tutor-core";
 import {
   compileSceneDocument,
   synthesizeFamilyScene,
@@ -10,6 +13,7 @@ import {
   type RepresentationSelectionInput,
 } from "../../features/tutor-session/lib/scene/representationFallback";
 import { evaluationSuppressesSelectedSource } from "../lecture-lab/diagramEval";
+import { runLecture } from "../lecture-lab/lecturePipeline";
 
 // Synthetic fixture using the existing solid_projection operators; no student
 // questions, model calls, planner prompts or engine contracts are modified.
@@ -53,3 +57,26 @@ assert.equal(strictSelection.sceneDocument.source.question, question);
 assert(!evaluationSuppressesSelectedSource("planner_examples_strict", strictSelection.figureSource));
 
 console.log("strict planner selection: admissible qualitative composite survives; default source preference is unchanged");
+
+async function verifyDsaExemption(): Promise<void> {
+  const dsaQuestion = "Explain binary search.";
+  const nativeFetch = globalThis.fetch;
+  const plan = { ...createFallbackTurnPlanV3(dsaQuestion), visualRequirement: "required" as const };
+  globalThis.fetch = async () => Response.json({ choices: [{ message: { content: JSON.stringify(plan) } }] });
+  try {
+    const options = { origin: "http://synthetic", cookie: "", figureOnly: true, scenePlannerDeadlineMs: 1000,
+      visualNeedReplay: { decision: "required" as const, source: "jev" as const, unavailableReason: null,
+        usage: null, provenance: null } };
+    const current = await runLecture(dsaQuestion, { ...options, arm: "current" });
+    const strict = await runLecture(dsaQuestion, { ...options, arm: "planner_examples_strict" });
+    assert.equal(strict.isDsa, true);
+    assert.equal(strict.examplePicker, undefined, "DSA exemption must prevent the strict lab picker even with an empty library");
+    assert.equal(strict.diagram.figureSource, current.diagram.figureSource, "DSA strict assignment keeps current source admission");
+    assert.deepEqual(strict.diagram.labels, current.diagram.labels);
+    const pipeline = readFileSync(resolve(process.cwd(), "scripts/lecture-lab/lecturePipeline.ts"), "utf8");
+    assert.equal((pipeline.match(/dsa: dsaClassification\.isDsa/g) ?? []).length, 2,
+      "picker and final selection must both pass the real DSA classification to the shared production policy");
+  } finally { globalThis.fetch = nativeFetch; }
+  console.log("strict lab DSA exemption: no example picker and current source admission pass (mocked, zero model calls)");
+}
+void verifyDsaExemption().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -76,7 +76,7 @@ export interface RepresentationSelectionInput {
   problemIR?: ProblemStructureView | null;
   /** Provenance for an accepted `exact` candidate; planner is the live default. */
   exactFigureSource?: Extract<FigureSource, "planner" | "verified_recovery">;
-  /** Strict experiments retain admissible planner ink before forbidden fallbacks. */
+  /** An explicit strict policy may retain admissible planner ink before source fallbacks. Default is unchanged. */
   preferPlanner?: boolean;
 }
 
