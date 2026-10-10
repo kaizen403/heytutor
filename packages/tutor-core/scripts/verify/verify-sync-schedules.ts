@@ -1,4 +1,4 @@
-import type { DrawCommand } from "@heytutor/drawing";
+import { textToStrokePaths, type DrawCommand } from "@heytutor/drawing";
 import {
   ESTIMATED_FIRST_CUE_MAX_FRACTION,
   SpeechRateEstimator,
@@ -160,7 +160,8 @@ for (const testCase of cases) {
       schedule.matchedCharFraction >= MIN_MATCHED_CHAR_FRACTION,
       `${testCase.name}: ${source} schedule located ${(schedule.matchedCharFraction * 100).toFixed(0)}% of the row's characters, need ${MIN_MATCHED_CHAR_FRACTION * 100}%`,
     );
-    assert(schedule.offsetsMs.length === testCase.text.replace(/\s/g, "").length, `${testCase.name}: wrong char count`);
+    const glyphs = await textToStrokePaths(testCase.text, 0, 0, 32);
+    assert(schedule.offsetsMs.length === glyphs.length, `${testCase.name}: cue count must match visible glyphs`);
     assert(
       schedule.charDurationsMs.length === schedule.offsetsMs.length,
       `${testCase.name}: char duration count mismatch`,
