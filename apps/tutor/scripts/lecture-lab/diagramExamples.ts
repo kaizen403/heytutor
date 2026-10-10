@@ -32,6 +32,8 @@ export interface DiagramExampleCatalogue {
   text: string;
   /** Conservative approximation used to keep the cheap-model prompt bounded. */
   estimatedTokens: number;
+  /** Distinct candidates omitted by the prompt budget, not semantic deduplication. */
+  omittedEntries: number;
 }
 
 const STOP_WORDS = new Set([
@@ -140,8 +142,9 @@ function firstWords(value: string, count: number): string {
 /** Compact semantic index sent to the cheap picker; source questions never enter it. */
 export function buildDiagramExampleCatalogue(
   exemplars: readonly DiagramExemplar[],
+  context: { question?: string; plan?: TurnPlanV3 | null } = {},
 ): DiagramExampleCatalogue {
-  const entries: DiagramExampleCatalogueEntry[] = [];
+  const candidates: Array<DiagramExampleCatalogueEntry & { curated: boolean }> = [];
   const ordered = [...exemplars].sort((left, right) =>
     Number(right.sourceKind === "curated") - Number(left.sourceKind === "curated") ||
     left.id.localeCompare(right.id));
@@ -153,21 +156,39 @@ export function buildDiagramExampleCatalogue(
       // Sixteen leaves room for long stable ids while remaining below the
       // brief's twenty-word ceiling and approximate 6k-token catalogue cap.
       depicts: firstWords(exemplar.depicts, 16),
+      curated: exemplar.sourceKind === "curated",
     };
-    const duplicate = entries.some((entry) =>
+    const duplicate = candidates.some((entry) =>
       entry.figureKind === candidate.figureKind &&
       diagramQuestionsNearDuplicate(entry.depicts, candidate.depicts));
-    if (!duplicate) entries.push(candidate);
+    if (!duplicate) candidates.push(candidate);
+  }
+  const line = (entry: DiagramExampleCatalogueEntry) => `${entry.id}|${entry.figureKind}|${entry.depicts}`;
+  const characters = (entries: readonly DiagramExampleCatalogueEntry[]) => entries.map(line).join("\n").length;
+  const fits = (length: number) => Math.ceil(length / 4) < MAX_CATALOGUE_TOKENS;
+  if (!fits(characters(candidates))) {
+    // This only shortlists examples for the semantic picker, never selects or
+    // authors geometry. Source questions and evaluation labels are not used.
+    const query = new Set(diagramQuestionTokens(`${context.question ?? ""} ${diagramPlanRetrievalText(context.plan)}`));
+    const relevance = new Map(candidates.map(entry => [entry,
+      diagramQuestionTokens(entry.depicts).filter(token => query.has(token)).length]));
+    candidates.sort((left, right) => (relevance.get(right) ?? 0) - (relevance.get(left) ?? 0) ||
+      Number(right.curated) - Number(left.curated) || left.id.localeCompare(right.id));
+  }
+  const entries: DiagramExampleCatalogueEntry[] = [];
+  let usedCharacters = 0;
+  for (const { id, figureKind, depicts } of candidates) {
+    const entry = { id, figureKind, depicts };
+    const nextCharacters = usedCharacters + Number(entries.length > 0) + line(entry).length;
+    // Skip an oversized line and keep packing; growth must never disable the
+    // entire live picker or increase its existing prompt/deadline limits.
+    if (!fits(nextCharacters)) continue;
+    entries.push(entry);
+    usedCharacters = nextCharacters;
   }
   entries.sort((left, right) => left.id.localeCompare(right.id));
-  const text = entries
-    .map((entry) => `${entry.id} | ${entry.figureKind} | ${entry.depicts}`)
-    .join("\n");
-  const estimatedTokens = Math.ceil(text.length / 4);
-  if (estimatedTokens >= MAX_CATALOGUE_TOKENS) {
-    throw new Error(`diagram example catalogue is ${estimatedTokens} estimated tokens; expected under ${MAX_CATALOGUE_TOKENS}`);
-  }
-  return { entries, text, estimatedTokens };
+  const text = entries.map(line).join("\n");
+  return { entries, text, estimatedTokens: Math.ceil(text.length / 4), omittedEntries: candidates.length - entries.length };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
