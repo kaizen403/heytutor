@@ -68,6 +68,11 @@ export function statesPhysicalValue(text: string): boolean {
   return false;
 }
 
+// Sample height is chosen along with its representative phase, including zero.
+function statesRepresentativeValue(operator: string, text: string): boolean {
+  return statesPhysicalValue(text) || operator === "wave_sample" && [...text.matchAll(NUMBER)].length > 0;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -92,18 +97,18 @@ export function validateRepresentativeValueLabels(construction: SceneConstructio
     });
   };
   for (const entity of document.entities) {
-    if (outputs.has(entity.id) && typeof entity.label === "string" && statesPhysicalValue(entity.label)) refuse(`label "${entity.label}" states a computed value`, [entity.id]);
+    if (outputs.has(entity.id) && typeof entity.label === "string" && statesRepresentativeValue(construction.operator, entity.label)) refuse(`label "${entity.label}" states a computed value`, [entity.id]);
   }
   for (const annotation of document.annotations) {
     const targets = (Array.isArray(annotation.targetIds) ? annotation.targetIds : []).filter((id) => outputs.has(id));
     if (targets.length === 0) continue;
     if (annotation.quantityId !== undefined) refuse(`annotation ${annotation.id} binds quantity ${annotation.quantityId} to normalized ink`, targets);
-    else if (annotation.kind !== "narration" && typeof annotation.text === "string" && statesPhysicalValue(annotation.text)) refuse(`annotation "${annotation.text}" states a computed value`, targets);
+    else if (annotation.kind !== "narration" && typeof annotation.text === "string" && statesRepresentativeValue(construction.operator, annotation.text)) refuse(`annotation "${annotation.text}" states a computed value`, targets);
   }
   for (const other of document.constructions) {
     if (other.operator !== "label" || !isRecord(other.inputs)) continue;
     const target = other.inputs.target ?? other.inputs.at ?? other.inputs.point;
-    if (typeof target === "string" && outputs.has(target) && typeof other.inputs.text === "string" && statesPhysicalValue(other.inputs.text)) {
+    if (typeof target === "string" && outputs.has(target) && typeof other.inputs.text === "string" && statesRepresentativeValue(construction.operator, other.inputs.text)) {
       refuse(`label construction "${other.inputs.text}" states a computed value`, [target]);
     }
   }
@@ -116,9 +121,9 @@ export function validateRepresentativeValueLabels(construction: SceneConstructio
  */
 export function representativeOutputLabels(operator: string, labels: readonly (string | null)[]): { labels: (string | null)[]; leaked?: string } {
   const next = labels.map((label) => {
-    if (typeof label !== "string" || !VALUE_BY_DEFAULT_OPERATORS.has(operator) || !statesPhysicalValue(label)) return label;
+    if (typeof label !== "string" || !VALUE_BY_DEFAULT_OPERATORS.has(operator) || !statesRepresentativeValue(operator, label)) return label;
     return label.split("=")[0]!.trim();
   });
-  const leaked = next.find((label): label is string => typeof label === "string" && statesPhysicalValue(label));
+  const leaked = next.find((label): label is string => typeof label === "string" && statesRepresentativeValue(operator, label));
   return leaked === undefined ? { labels: next } : { labels: next, leaked };
 }
