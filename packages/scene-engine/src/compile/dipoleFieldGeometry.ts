@@ -57,6 +57,8 @@ export interface DipoleFieldMetadata {
   samples?: Array<{ point: RenderPoint; potential: number; tangentDot: number }>;
   lines?: Array<{ startedAtChargeId: string | null; endedAtChargeId: string | null }>;
   exclusionRadius?: number;
+  /** Set by dipole_torque: tau = p x E is normal to the xy page. */
+  pageNormal?: "out" | "in" | null;
 }
 
 export type DipoleGeometry =
@@ -539,7 +541,31 @@ function dipoleTorque(inputs: Record<string, unknown>, context: DipoleFieldEvalu
   metadata.netForce = { x: 0, y: 0 };
   metadata.uniform = true;
   metadata.alignment = alignmentOf(p, E);
-  return [arrow(at, p, displayLength, metadata)];
+  metadata.magnitude = Math.abs(tau);
+  metadata.pageNormal = tau > 0 ? "out" : tau < 0 ? "in" : null;
+  if (tau === 0) return [{ kind: "point", point: copy(at), dipoleField: metadata }];
+  return [{ kind: "multi_path", paths: pageNormalGlyph(at, displayLength, tau > 0 ? 1 : -1), dipoleField: metadata }];
+}
+/**
+ * The torque on a planar dipole points out of or into the page, so it is drawn
+ * as the shared page-normal glyph: a ring with a dot (out) or a cross (in).
+ * displayLength is the ring diameter.
+ */
+function pageNormalGlyph(origin: RenderPoint, displayLength: number, sign: 1 | -1): Array<{ points: RenderPoint[]; directed: false }> {
+  const radius = displayLength / 2;
+  const move = (x: number, y: number): RenderPoint => {
+    const result = finitePoint({ x: origin.x + x, y: origin.y + y }, "displayLength");
+    if (Math.hypot((result.x - origin.x) - x, (result.y - origin.y) - y) > radius * 1e-8) invalid("displayLength", "page-normal glyph placement is unresolved at numeric precision");
+    return result;
+  };
+  const ring = (ringRadius: number, samples: number): RenderPoint[] =>
+    Array.from({ length: samples + 1 }, (_, index) => index === samples ? move(ringRadius, 0)
+      : move(ringRadius * Math.cos(2 * Math.PI * index / samples), ringRadius * Math.sin(2 * Math.PI * index / samples)));
+  const strokes = [ring(radius, 64), ...(sign > 0 ? [ring(radius / 20, 16)] : [
+    [move(-radius / 2, -radius / 2), move(radius / 2, radius / 2)],
+    [move(-radius / 2, radius / 2), move(radius / 2, -radius / 2)],
+  ])];
+  return strokes.map((points) => ({ points, directed: false as const }));
 }
 function dipoleEnergy(inputs: Record<string, unknown>, context: DipoleFieldEvaluationContext): DipoleGeometry[] {
   if (!("zeroConvention" in inputs)) invalid("zeroConvention", "dipole energy requires declared zeroConvention \"perpendicular\"");
