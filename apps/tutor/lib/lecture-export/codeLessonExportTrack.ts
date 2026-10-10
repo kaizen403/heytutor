@@ -46,7 +46,9 @@ export function buildCodeLessonExportTrack(
       const located = blockId ? codeLessonBlockById(plan, blockId) : null;
       if (!located) continue;
       const code = located.block.code;
-      const charAppearMs = codeTypingCharOffsetsMs(code, cue.durationMs).map((offset) =>
+      const shownChars = command.shownChars === undefined ? code.length
+        : Number.isSafeInteger(command.shownChars) ? Math.min(code.length, Math.max(0, command.shownChars)) : 0;
+      const charAppearMs = codeTypingCharOffsetsMs(code, cue.durationMs).slice(0, shownChars).map((offset) =>
         cue.startMs + offset,
       );
       blocks.push({
@@ -145,10 +147,10 @@ export function codeLessonFrameSpec(
   const parts: string[] = [];
   let typing = false;
   for (const block of section.blocks) {
-    const timing = blocks.find(
+    const timings = blocks.filter(
       (candidate) => candidate.blockId === block.id && candidate.sectionIndex === sectionIndex,
     );
-    const revealed = timing ? revealedCharsAt(timing, timeMs) : 0;
+    const revealed = Math.max(0, ...timings.map((timing) => revealedCharsAt(timing, timeMs)));
     if (revealed <= 0) break;
     parts.push(block.code.slice(0, revealed));
     if (revealed < block.code.length) {

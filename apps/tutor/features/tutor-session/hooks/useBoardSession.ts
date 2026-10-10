@@ -4,7 +4,6 @@ import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import {
   isStoredCommandTrustedGeometry,
   lessonNarrationText,
-  parseStoredSegmentCommands,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import {
@@ -39,7 +38,7 @@ import {
   storedTurnContinuesBoard,
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
-import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
@@ -684,7 +683,7 @@ export function useBoardSession({
           for (const segment of turn.segments) {
             if (inkStale()) return;
 
-            const commands = parseStoredSegmentCommands(segment.command);
+            const commands = storedCodeLessonSegmentCommands(turn, segment);
             const trustedDiagramGeometry = isStoredCommandTrustedGeometry(segment.command);
             for (const command of commands) {
               if (inkStale() || cancelRef.current) {

@@ -1,12 +1,10 @@
 import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
-import { parseStoredSegmentCommands } from "@heytutor/drawing";
 import { revealedSectionText } from "@/features/tutor-session/lib/code-lesson/codeLessonController";
 import { DSA_CODE_PANEL_RECT } from "@/features/tutor-session/constants";
-import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
+import { parseStoredCodeLesson, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import { storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
 import type { NotesPdfSection } from "@/features/tutor-session/lib/notes/notesPdf";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { storedTurnStatus } from "@/lib/boards/boardsClient";
 import {
   codePanelContentHeight,
   renderCodePanelFrame,
@@ -59,18 +57,16 @@ export type CodeLessonNotesReveal = {
 
 /** A completed turn proves its recorded TYPE rows, even without media timing.
  * In an unfinished turn, an untimed row can be either complete or a shown cut;
- * only the live reveal receipt can safely supply that ambiguous block's prefix.
+ * only an explicit persisted or live reveal receipt proves that block's prefix.
  */
 function recordedCodeReveal(turn: StoredTurn, plan: CodeLessonPlan): Record<string, number> {
   const revealed: Record<string, number> = {};
-  const completed = storedTurnStatus({ status: turn.persistedStatus ?? turn.status, updatedAt: turn.updatedAt }) === "complete";
   for (const segment of turn.segments) {
-    if (!completed && (segment.durationMs == null || segment.durationMs <= 0)) continue;
-    for (const command of parseStoredSegmentCommands(segment.command)) {
+    for (const command of storedCodeLessonSegmentCommands(turn, segment)) {
       if (command.type !== "TYPE") continue;
       const id = command.semanticRef?.entityId ?? "";
       const located = codeLessonBlockById(plan, id);
-      if (located) revealed[id] = located.block.code.length;
+      if (located) revealed[id] = Math.max(revealed[id] ?? 0, Math.min(command.shownChars ?? located.block.code.length, located.block.code.length));
     }
   }
   return revealed;

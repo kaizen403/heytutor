@@ -42,6 +42,7 @@ const TTS_LOOKAHEAD_SEGMENTS = 2;
 export function useSegmentRunner({
   sessionId,
   activeVerifiedDiagramRef,
+  codeLessonControllerRef,
   cancellableDelay,
   ensureTTSClient,
   executeCommandWithCancel,
@@ -266,10 +267,14 @@ export function useSegmentRunner({
       };
       let actualDrawMs = 0;
       /** Ink or voice of this segment reached the student (a Stop after this cuts it). */
+      const codeController = codeLessonControllerRef?.current;
+      const codePlan = codeController?.getActivePlan();
       const preparedSave = liveTurnSave().prepareSegment(cancelRef, turnGeneration, {
         orderIndex: index, narration: segment.narration, spokenText: mathToSpeech(narration),
         command: serializeSegmentCommands(segmentCommands), audioBytes: null, durationMs: null, timings: null,
-      }, { intro: onRecorded !== undefined || segment.verifiedDiagramIntro === true });
+      }, { intro: onRecorded !== undefined || segment.verifiedDiagramIntro === true,
+        getTypeShownChars: (id) => codeController?.getActivePlan() === codePlan ? codeController?.getState().revealedChars[id] ?? 0 : 0,
+      });
       const markShown = () => { if (!isCancelled()) preparedSave?.markShown(); };
       let timingTelemetryCount = 0;
       let lastTimingTelemetryChars = -1;
@@ -1068,6 +1073,7 @@ export function useSegmentRunner({
     [
       sessionId,
       activeVerifiedDiagramRef,
+      codeLessonControllerRef,
       cancellableDelay,
       ensureTTSClient,
       executeCommandWithCancel,

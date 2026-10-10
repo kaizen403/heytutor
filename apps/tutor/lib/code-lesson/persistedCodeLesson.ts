@@ -3,6 +3,8 @@ import {
   validateCodeLessonPlan,
   type CodeLessonPlan,
 } from "@heytutor/tutor-core";
+import { parseStoredSegmentCommands, type DrawCommand } from "@heytutor/drawing";
+import { storedTurnStatus, type StoredSegment, type StoredTurn } from "@/lib/boards/boardsClient";
 
 /**
  * A persisted turn carries its CodeLessonPlan inside the sceneArtifacts JSON
@@ -54,6 +56,20 @@ export function parseStoredCodeLesson(
 export function storedCodeLessonPlan(sceneArtifacts: unknown): CodeLessonPlan | null {
   const parsed = parseStoredCodeLesson(sceneArtifacts);
   return parsed.status === "valid" ? parsed.plan : null;
+}
+
+/** Legacy unfinished untimed TYPE rows cannot prove the full queued source. */
+export function storedCodeLessonSegmentCommands(
+  turn: Pick<StoredTurn, "status" | "persistedStatus" | "updatedAt">,
+  segment: Pick<StoredSegment, "command" | "durationMs">,
+): DrawCommand[] {
+  const completed = storedTurnStatus({ status: turn.persistedStatus ?? turn.status, updatedAt: turn.updatedAt }) === "complete" ||
+    (segment.durationMs != null && segment.durationMs > 0);
+  return parseStoredSegmentCommands(segment.command).map((command) => {
+    if (command.type !== "TYPE") return command;
+    if (command.shownChars === undefined) return completed ? command : { ...command, shownChars: 0 };
+    return { ...command, shownChars: Number.isSafeInteger(command.shownChars) ? Math.max(0, command.shownChars) : 0 };
+  });
 }
 
 function normalize(value: string): string {

@@ -38,7 +38,7 @@ import {
   type TurnKind,
   type TurnStatus,
 } from "@/lib/boards/boardsClient";
-import type { DrawCommand } from "@heytutor/drawing";
+import { parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
 import {
   doubtTurnScene,
   partialTurnScene,
@@ -171,6 +171,7 @@ export interface PreparedLiveSegment {
 
 interface PendingLiveSegment {
   row: RecordedSegmentPayload; intro: boolean; shown: boolean; settled: boolean;
+  getTypeShownChars?: (blockId: string) => number;
 }
 
 interface LiveTurn {
@@ -415,11 +416,11 @@ export class LiveTurnSaveRegistry {
   }
 
   /** Prepared after wrapping/placement; prefetch alone never counts as shown. */
-  prepareSegment(owner: object, generation: number, row: RecordedSegmentPayload, options: { intro: boolean }): PreparedLiveSegment | null {
+  prepareSegment(owner: object, generation: number, row: RecordedSegmentPayload, options: { intro: boolean; getTypeShownChars?: (blockId: string) => number }): PreparedLiveSegment | null {
     const turn = this.find(owner, generation);
     if (!turn || turn.status !== "live" || turn.final) return null;
     this.capturePending(turn);
-    const pending: PendingLiveSegment = { row, intro: options.intro, shown: false, settled: false };
+    const pending: PendingLiveSegment = { row, intro: options.intro, shown: false, settled: false, getTypeShownChars: options.getTypeShownChars };
     turn.pendingSegment = pending;
     const settle = (complete: RecordedSegmentPayload | null): boolean => {
       if (pending.settled || turn.pendingSegment !== pending) return false;
@@ -428,7 +429,7 @@ export class LiveTurnSaveRegistry {
       if (complete && turn.status === "live" && !turn.final) {
         turn.recorded.push({ row: complete, intro: pending.intro });
       } else if (pending.shown && !pending.intro && !turn.final && turn.status !== "complete") {
-        turn.recorded.push({ row: { ...pending.row, audioBytes: null, durationMs: null, timings: null }, intro: false });
+        turn.recorded.push({ row: this.shownCutRow(pending), intro: false });
       } else return false;
       this.endCutGrace(turn);
       this.mirrorLocal(turn);
@@ -454,11 +455,22 @@ export class LiveTurnSaveRegistry {
     pending.settled = true;
     turn.pendingSegment = null;
     if (pending.shown && !pending.intro && !turn.final && turn.status !== "complete") {
-      turn.recorded.push({ row: { ...pending.row, audioBytes: null, durationMs: null, timings: null }, intro: false });
+      turn.recorded.push({ row: this.shownCutRow(pending), intro: false });
       this.endCutGrace(turn);
       this.mirrorLocal(turn);
       this.emit();
     }
+  }
+
+  private shownCutRow(pending: PendingLiveSegment): RecordedSegmentPayload {
+    const commands = parseStoredSegmentCommands(pending.row.command).map((command) => {
+      if (command.type !== "TYPE") return command;
+      let count = 0;
+      try { count = pending.getTypeShownChars?.(command.semanticRef?.entityId ?? "") ?? 0; } catch { /* No receipt cannot prove typed source. */ }
+      return { ...command, shownChars: Number.isSafeInteger(count) ? Math.max(0, Math.min(command.text?.length ?? 0, count)) : 0 };
+    });
+    const command = commands.some((entry) => entry.type === "TYPE") ? serializeSegmentCommands(commands) : pending.row.command;
+    return { ...pending.row, command, audioBytes: null, durationMs: null, timings: null };
   }
 
   /** A finished segment of the owner's turn `generation`. */

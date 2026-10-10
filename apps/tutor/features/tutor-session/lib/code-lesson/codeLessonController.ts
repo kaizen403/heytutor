@@ -40,6 +40,8 @@ export interface CodeLessonState {
 }
 
 export interface TypeBlockOptions {
+  /** Recorded interrupted typing is bounded to its shown prefix. */
+  shownChars?: number;
   /** Spoken window for this block. Typing stays readable even if speech is short. */
   durationMs?: number;
   shouldCancel?: () => boolean;
@@ -85,7 +87,7 @@ function sleep(ms: number): Promise<void> {
  * Shared with MP4 export so a recording paces exactly like the live panel.
  */
 export function codeTypingCharOffsetsMs(code: string, windowMs: number): number[] {
-  const weights = [...code].map((char) => (/\s/.test(char) ? WHITESPACE_CHAR_WEIGHT : 1));
+  const weights = code.split("").map((char) => (/\s/.test(char) ? WHITESPACE_CHAR_WEIGHT : 1));
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
   if (totalWeight <= 0) return code.split("").map(() => 0);
 
@@ -203,7 +205,7 @@ export class CodeLessonController {
     if (!plan) return [];
     return plan.sections.flatMap((section) =>
       section.blocks
-        .filter((block) => (this.state.revealedChars[block.id] ?? 0) <= 0)
+        .filter((block) => (this.state.revealedChars[block.id] ?? 0) < block.code.length)
         .map((block) => block.id),
     );
   }
@@ -287,7 +289,7 @@ export class CodeLessonController {
     this.setState({ spokenLine: null });
   }
 
-  revealBlockInstant(blockId: string): void {
+  revealBlockInstant(blockId: string, shownChars?: number): void {
     const plan = this.state.plan;
     if (!plan) return;
     const located = codeLessonBlockById(plan, blockId);
@@ -297,7 +299,7 @@ export class CodeLessonController {
       activeSectionIndex: plan.sections.indexOf(located.section),
       revealedChars: {
         ...this.state.revealedChars,
-        [blockId]: located.block.code.length,
+        [blockId]: Math.max(this.state.revealedChars[blockId] ?? 0, shownCodeChars(shownChars, located.block.code.length)),
       },
     });
   }
@@ -318,12 +320,14 @@ export class CodeLessonController {
 
     const { section, block } = located;
     const code = block.code;
+    const target = shownCodeChars(options.shownChars, code.length);
+    const alreadyShown = Math.min(this.state.revealedChars[blockId] ?? 0, code.length);
     const sectionIndex = plan.sections.indexOf(section);
     this.revealPanel();
     this.setState({
       activeSectionIndex: sectionIndex,
       typingBlockId: blockId,
-      revealedChars: { ...this.state.revealedChars, [blockId]: 0 },
+      revealedChars: { ...this.state.revealedChars, [blockId]: alreadyShown },
       spokenLine: null,
     });
 
@@ -346,14 +350,15 @@ export class CodeLessonController {
     };
     const startedAt = clock();
 
-    let revealed = 0;
-    while (revealed < code.length) {
+    let revealed = alreadyShown;
+    const priorOffsetMs = revealed > 0 ? charOffsetsMs[revealed - 1] ?? 0 : 0;
+    while (revealed < target) {
       if (isStale()) break;
-      const elapsedMs = clock() - startedAt;
+      const elapsedMs = clock() - startedAt + priorOffsetMs;
       // Catch up in one tick if the frame budget slipped, so typing stays on
       // pace without ever jumping straight to the end of the block.
       let next = revealed;
-      while (next < code.length && (charOffsetsMs[next] ?? 0) <= elapsedMs) {
+      while (next < target && (charOffsetsMs[next] ?? 0) <= elapsedMs) {
         next += 1;
       }
       if (next === revealed) {
@@ -368,15 +373,18 @@ export class CodeLessonController {
     }
 
     if (generation === this.generation) {
-      // A block left half-typed is not a teachable artifact: type-along,
-      // notes, and export all read whole blocks. Completing here only matters
-      // when the turn was cancelled, since normal pacing finishes in-window.
+      // Cancellation keeps the last shown prefix. Continue still owes the
+      // remaining characters; no silent catch-up may finish an unseen block.
       this.setState({
-        revealedChars: { ...this.state.revealedChars, [blockId]: code.length },
         typingBlockId: null,
       });
     }
   }
+}
+
+function shownCodeChars(count: number | undefined, length: number): number {
+  if (count === undefined) return length;
+  return Number.isSafeInteger(count) ? Math.min(length, Math.max(0, count)) : 0;
 }
 
 /** Lines of the blocks before `blockId` in its section, as the section doc counts them. */

@@ -5,6 +5,9 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import ts from "typescript";
 import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
+import { parseStoredSegmentCommands } from "@heytutor/drawing";
+import { CodeLessonController } from "../../features/tutor-session/lib/code-lesson/codeLessonController";
 import type { DrawCommand, TutorSegment } from "@heytutor/drawing";
 import type { ExecuteCommandOptions } from "../../features/tutor-session/hooks/turn/types";
 const app = path.resolve(import.meta.dirname, "../..");
@@ -19,7 +22,7 @@ const defer = <T>() => {
 const tick = async () => {
   for (let i = 0; i < 25; i++) await Promise.resolve();
 };
-function fixture() {
+function fixture(controller?: CodeLessonController) {
   const ref = <T>(current: T) => ({ current });
   const cancelRef = ref(false);
   let prefetch = 0;
@@ -80,6 +83,7 @@ function fixture() {
   let failDraw = false;
   const params = {
     sessionId: "board",
+    codeLessonControllerRef: ref(controller),
     cancelRef,
     turnGenerationRef: ref(1),
     turnActiveRef: ref(true),
@@ -245,6 +249,37 @@ async function main() {
     if (shown && !intro) {
       assert.equal(snapshot[0]!.rows[0]!.narration, "The first explanation.");
       assert.equal(snapshot[0]!.rows[0]!.audioBytes, null);
+    }
+  }
+  // Actual producer samples the committed code controller only at the shown cut.
+  const plan = getMockCodeLessonPlan("Explain binary search on a sorted array.");
+  const block = plan.sections[0]!.blocks[0]!;
+  for (const mode of ["silent", "voice", "failure", "stale-plan", "prefetch"] as const) {
+    const controller = new CodeLessonController(); controller.commit(plan);
+    const h = fixture(controller);
+    const segment: TutorSegment = { narration: mode === "voice" ? "Explain this function." : "", command: {
+      type: "TYPE", text: block.code, params: [], charPosition: 0, narrationBefore: "", semanticRef: { entityId: block.id },
+    } };
+    const job = h.runner.runSegment(segment, 0, [segment], 1);
+    if (mode === "voice") { await tick(); assert(h.speechOptions); h.speechOptions.onStart!(); }
+    const options = await h.executed.promise;
+    if (mode !== "prefetch") {
+      controller.revealBlockInstant(block.id, 6);
+      if (mode !== "voice") options.onInkStarted!();
+    }
+    if (mode === "stale-plan") { controller.commit(structuredClone(plan)); controller.revealBlockInstant(block.id); }
+    if (mode === "failure") h.fail();
+    else { h.registry.captureShown(h.params.cancelRef); h.registry.pageHideClose(); h.params.cancelRef.current = true; }
+    h.draw.resolve(); h.speech.resolve();
+    if (mode === "failure") { await assert.rejects(job, /executor failed/); h.registry.closeOwner(h.params.cancelRef); }
+    else await job;
+    const snapshot = h.registry.reopen("board");
+    if (mode === "prefetch") assert.equal(snapshot.length, 0, "prepared TYPE without actual ink or voice does not create a row");
+    else {
+      assert.equal(snapshot[0]!.rows.length, 1, "late finally and pagehide cannot duplicate a captured TYPE");
+      const saved = parseStoredSegmentCommands(snapshot[0]!.rows[0]!.command)[0]!;
+      assert.equal(saved.shownChars, mode === "stale-plan" ? 0 : 6, `${mode}: actual runner persists only its own plan's shown prefix`);
+      assert.equal(snapshot[0]!.rows[0]!.durationMs, null);
     }
   }
   const failure = fixture();

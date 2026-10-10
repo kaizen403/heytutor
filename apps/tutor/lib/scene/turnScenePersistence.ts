@@ -702,6 +702,8 @@ function canonicalTypeCommand(
 
   const located = codeLessonBlockById(codeLesson, blockId);
   if (!located) return null;
+  const shownChars = command.shownChars;
+  if (shownChars !== undefined && (typeof shownChars !== "number" || !Number.isSafeInteger(shownChars))) return null;
   return {
     type: "TYPE",
     params: [],
@@ -709,6 +711,7 @@ function canonicalTypeCommand(
     charPosition: charPosition as number,
     narrationBefore,
     semanticRef: { entityId: blockId },
+    ...(shownChars === undefined ? {} : { shownChars: Math.max(0, Math.min(located.block.code.length, shownChars as number)) }),
   };
 }
 

@@ -36,7 +36,7 @@ export type SpeechStartupStatus = {
 };
 
 export type ExecuteCommandOptions = {
-  /** Runtime observation only, after a WRITE actually reveals ink. */
+  /** Runtime observation only, after WRITE ink or TYPE characters actually appear. */
   onInkStarted?: () => void;
   /** Explicit metadata owner for atomic scene-intro commands. */
   introLayoutCheckpoint?: IntroLayoutCheckpoint;
@@ -231,6 +231,7 @@ export type UseSegmentRunnerParams = Pick<
   UseTurnLifecycleParams,
   | "sessionId"
   | "activeVerifiedDiagramRef"
+  | "codeLessonControllerRef"
   | "cancellableDelay"
   | "ensureTTSClient"
   | "executeCommandWithCancel"
