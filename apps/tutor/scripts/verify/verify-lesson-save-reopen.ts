@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { mock } from "node:test";
+import { Prisma } from "@prisma/client";
 import {
   FIGURE_SOURCES, LocalDeterministicSolverProvider, SCENE_ENGINE_VERSION, compileSceneDocument,
   validateProblemIR, validateSolverResult, validateTurnPlanV3, verifyTurnPlanAgainstSolver,
@@ -16,6 +17,9 @@ import { inferSceneCapabilities } from "@heytutor/tutor-core";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
+import { currentPausedLesson, pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
+import { resumeTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
+import { pageTurnsEndingAt, storedTurnContinuesBoard } from "../../lib/boards/boardContinuation";
 import type { RecordedSegmentPayload, StoredTurn } from "../../lib/boards/boardsClient";
 import { MAX_TURN_AUDIO_BYTES, MAX_TURN_SEGMENTS } from "../../lib/scene/turnUploadLimits";
 
@@ -39,6 +43,8 @@ const segments: Data[] = [];
 const traces = new Map<string, Data>();
 const cleanup = new Map<string, Data>();
 const matches = (row: Data, where: Data) => Object.entries(where).every(([key, value]) => row[key] === value);
+const cleanJsonNulls = (data: Data): Data => Object.fromEntries(Object.entries(data)
+  .map(([key, value]) => [key, value === Prisma.DbNull ? null : value]));
 const findTurn = (where: Data) => {
   const turn = turns.find((row) => matches(row, where));
   return turn ? { ...turn, segments: segments.filter((row) => row.turnId === turn.id) } : null;
@@ -53,22 +59,44 @@ const tx = {
   turn: {
     findFirst: async ({ where }: { where: Data }) => findTurn(where),
     findMany: async ({ where, skip = 0, take }: { where: Data; skip?: number; take?: number }) =>
-      turns.filter((row) => matches(row, where)).slice(skip, take === undefined ? undefined : skip + take),
+      turns.filter((row) => matches(row, where)).sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex))
+        .slice(skip, take === undefined ? undefined : skip + take),
     count: async ({ where }: { where: Data }) => turns.filter((row) => matches(row, where)).length,
     create: async ({ data }: { data: Data }) => {
-      const turn = { ...data, createdAt: date };
+      const turn = { status: "complete", kind: "lesson", checkpointSeq: 0, submittedSegments: null,
+        resumeState: null, ...cleanJsonNulls(data), createdAt: date, updatedAt: new Date() };
       turns.push(turn);
       return turn;
+    },
+    update: async ({ where, data }: { where: Data; data: Data }) => {
+      const turn = turns.find((row) => matches(row, where));
+      assert(turn, "external DB fixture cannot update a missing turn");
+      for (const [key, value] of Object.entries(cleanJsonNulls(data))) {
+        if (value && typeof value === "object" && "increment" in value) {
+          assert.equal(typeof turn[key], "bigint");
+          assert.equal(typeof value.increment, "bigint");
+          turn[key] = (turn[key] as bigint) + (value.increment as bigint);
+        } else turn[key] = value;
+      }
+      turn.updatedAt = new Date();
+      return { ...turn };
     },
   },
   segment: {
     createManyAndReturn: async ({ data }: { data: Data[] }) => {
-      const rows = data.map((row) => ({ ...row, id: crypto.randomUUID() }));
+      const rows = data.map((row) => ({ ...row, command: row.command ?? null, id: crypto.randomUUID() }));
       segments.push(...rows);
       return rows;
     },
-    findMany: async ({ where }: { where: { turnId: { in: string[] } } }) =>
-      segments.filter((row) => where.turnId.in.includes(String(row.turnId))),
+    deleteMany: async ({ where }: { where: Data }) => {
+      for (let index = segments.length - 1; index >= 0; index--) {
+        if (matches(segments[index]!, where)) segments.splice(index, 1);
+      }
+      return {};
+    },
+    findMany: async ({ where }: { where: { turnId: string | { in: string[] } } }) =>
+      segments.filter((row) => typeof where.turnId === "string" ? row.turnId === where.turnId :
+        where.turnId.in.includes(String(row.turnId))).sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex)),
   },
   ownedTrace: {
     findUnique: async ({ where }: { where: { traceId: string } }) => traces.get(where.traceId) ?? null,
@@ -101,13 +129,17 @@ mock.module(modulePath("lib/auth.ts"), {
 });
 mock.module(modulePath("lib/db/prisma.ts"), { namedExports: { prisma } });
 mock.module(modulePath("lib/object-store/s3.ts"), {
-  namedExports: { uploadAudio: async () => { uploads++; return "/api/media?key=save-reopen-fixture"; } },
+  namedExports: { uploadAudio: async (key: string) => {
+    uploads++;
+    return `/api/media?key=save-reopen-fixture&object=${encodeURIComponent(key)}`;
+  } },
 });
 
 const originalEnv = process.env.NODE_ENV;
 Object.assign(process.env, { NODE_ENV: "production" });
 const post = load(modulePath("app/api/boards/[boardId]/turns/route.ts")) as typeof import("../../app/api/boards/[boardId]/turns/route");
 const get = load(modulePath("app/api/boards/[boardId]/route.ts")) as typeof import("../../app/api/boards/[boardId]/route");
+const checkpoint = load(modulePath("app/api/boards/[boardId]/turns/[turnId]/route.ts")) as typeof import("../../app/api/boards/[boardId]/turns/[turnId]/route");
 const client = load(modulePath("lib/boards/boardsClient.ts")) as typeof import("../../lib/boards/boardsClient");
 const context = { params: Promise.resolve({ boardId }) };
 const originalFetch = globalThis.fetch;
@@ -127,12 +159,20 @@ console.warn = captureServerLog;
 globalThis.fetch = async (input, init) => {
   const request = input instanceof Request ? input : new Request(new URL(String(input), "https://save.test"), init);
   const url = new URL(request.url);
-  assert(url.pathname === `/api/boards/${boardId}/turns` || url.pathname === `/api/boards/${boardId}`,
+  const turnId = url.pathname.startsWith(`/api/boards/${boardId}/turns/`) ? url.pathname.split("/").at(-1) : null;
+  assert(url.pathname === `/api/boards/${boardId}/turns` || url.pathname === `/api/boards/${boardId}` || turnId,
     "external network is prohibited in save/reopen verification");
   inHandler = true;
   try {
     if (request.method === "POST" && url.pathname.endsWith("/turns")) {
       const response = await post.POST(request, context);
+      responses.push({ status: response.status, body: await response.clone().text() });
+      return response;
+    }
+    if (turnId && (request.method === "PUT" || request.method === "PATCH")) {
+      const turnContext = { params: Promise.resolve({ boardId, turnId }) };
+      const response = request.method === "PUT" ? await checkpoint.PUT(request, turnContext) :
+        await checkpoint.PATCH(request, turnContext);
       responses.push({ status: response.status, body: await response.clone().text() });
       return response;
     }
@@ -348,7 +388,7 @@ async function saveAndReopen(subject: "maths" | "physics", solver?: SolvedIncomp
     `${subject}: server-verified figure ink must survive reopening`);
   assert(reopened.segments.some((segment) => parseStoredSegmentCommands(segment.command).some((command) => command.type === "WRITE")),
     `${subject}: narrated working must survive reopening alongside the figure`);
-  assert(reopened.segments.some((segment) => segment.audioUrl === "/api/media?key=save-reopen-fixture"),
+  assert(reopened.segments.some((segment) => segment.audioUrl?.startsWith("/api/media?key=save-reopen-fixture")),
     `${subject}: recording must survive the server intro canonicalization`);
   assert.equal(pendingTurns, 0, "successful saves settle their storage allowance");
   assert.equal(cleanup.size, 0, "successful saves settle their cleanup intent");
@@ -380,7 +420,8 @@ async function rejectForgery(kind: "wrong-source" | "failed-proof"): Promise<voi
   assertRejectionLog(kind, logStart, rejectionCode, 400, [payload.question, payload.rawResponse]);
 }
 
-function assertRejectionLog(name: string, logStart: number, code: string, status: number, privateText: string[] = []): void {
+function assertRejectionLog(name: string, logStart: number, code: string, status: number, privateText: string[] = [],
+  entryPoint = "legacy_post"): void {
   const emitted = serverLogs.slice(logStart);
   assert.equal(emitted.length, 1, `${name}: rejection must emit exactly one server event`);
   const event = emitted[0]!.find((value) => value && typeof value === "object") as Data | undefined;
@@ -388,7 +429,8 @@ function assertRejectionLog(name: string, logStart: number, code: string, status
   assert.equal(event.event, "turn_save_rejected");
   assert.equal(event.code, code, `${name}: logs identify the real rejection phase`);
   assert.equal(event.status, status, `${name}: logs identify the response status`);
-  assert(Object.keys(event).every((key) => ["event", "code", "status", "boardId", "traceId"].includes(key)),
+  assert.equal(event.entryPoint, entryPoint, `${name}: logs identify the actual save entry point`);
+  assert(Object.keys(event).every((key) => ["event", "code", "status", "entryPoint", "boardId", "traceId", "turnId"].includes(key)),
     `${name}: rejection log cannot include error/body/metadata fields`);
   const logText = JSON.stringify(emitted);
   for (const text of [...privateText, mathsQuestion, physicsQuestion, "PRIVATE_", "Now write the result."]) {
@@ -515,6 +557,229 @@ async function verifyHttpHardNegatives(): Promise<void> {
     }; } });
 }
 
+async function rejectCheckpointAtSceneBoundary(kind: "wrong-source" | "invalid-gesture"): Promise<void> {
+  const payload = lessonPayload("maths", undefined, { kind: "FOCUS", mode: "semantic-only" });
+  payload.rawResponse = "PRIVATE_CHECKPOINT_RESPONSE_MUST_NOT_BE_LOGGED";
+  if (kind === "wrong-source") {
+    payload.sceneDocument = structuredClone(payload.sceneDocument);
+    payload.sceneDocument.source.question = "PRIVATE_CHECKPOINT_SOURCE_MUST_NOT_BE_LOGGED";
+  } else {
+    payload.segments.at(-1)!.command = {
+      type: "FOCUS", params: [], semanticRef: { entityId: { privateText: "PRIVATE_CHECKPOINT_TARGET" } },
+      charPosition: 0, narrationBefore: "",
+    } as unknown as DrawCommand;
+  }
+  const before = (await client.fetchBoardDetail(boardId))!.turns.map((turn) => turn.id);
+  const beforeUploads = uploads;
+  const beforeBytes = reservedBytes;
+  const logStart = serverLogs.length;
+  const saved = await client.checkpointTurn(boardId, crypto.randomUUID(), {
+    seq: 1, status: "live", baseCount: 0, question: payload.question,
+    rawResponse: payload.rawResponse, traceId: payload.traceId, scene: payload, segments: payload.segments,
+  });
+  assert.equal(saved.ok, false, `${kind}: a rejected checkpoint cannot become a saved turn`);
+  const response = responses.at(-1)!;
+  assert.equal(response.status, 400, `${kind}: checkpoint must reject at the real scene boundary`);
+  const code = kind === "wrong-source" ? "scene_source_question_mismatch" : "scene_teaching_command_not_allowed";
+  assert.equal((JSON.parse(response.body) as { code?: string }).code, code,
+    `${kind}: checkpoint response must identify the same validator leaf as the one-shot save`);
+  assertRejectionLog(`checkpoint ${kind}`, logStart, code, 400, [payload.rawResponse], "checkpoint_put");
+  assert.deepEqual((await client.fetchBoardDetail(boardId))!.turns.map((turn) => turn.id), before);
+  assert.equal(uploads, beforeUploads, "a refused checkpoint cannot upload media");
+  assert.equal(reservedBytes, beforeBytes, "a refused checkpoint cannot reserve storage");
+  assert.equal(pendingTurns, 0, "a refused checkpoint cannot consume a turn allowance");
+}
+
+async function progressiveSaveReloadAndContinue(subject: "maths" | "physics"): Promise<void> {
+  const payload = lessonPayload(subject, undefined, { kind: "FOCUS", mode: "semantic-only" });
+  const turnId = crypto.randomUUID();
+  const firstCount = 1; // The runtime page reset checkpoints before the first figure beat.
+  const first = await client.checkpointTurn(boardId, turnId, {
+    seq: 1, status: "live", kind: "lesson", baseCount: 0,
+    question: payload.question, rawResponse: "The lesson has started.", traceId: payload.traceId,
+    scene: payload, segments: payload.segments.slice(0, firstCount), resumeState: null,
+  });
+  assert(first.ok, `${subject}: first in-progress checkpoint must save: ${JSON.stringify(responses.at(-1))}`);
+  assert.equal(first.serverCount, firstCount, "checkpoint acknowledgement counts submitted rows, not inserted figure beats");
+  assert.equal(first.serverSeq, 1);
+  assert.equal(first.turn.persistedStatus, "live");
+  assert.equal(first.turn.visualStatus, "validated");
+  const started = (await client.fetchBoardDetail(boardId))!;
+  const restoredStart = started.turns.find((turn) => turn.id === turnId)!;
+  assert(restoredStart, `${subject}: the first incomplete lecture is already reopenable`);
+  assert.equal(restoredStart.rawResponse, "The lesson has started.");
+  assert.equal(restoredStart.persistedStatus, "live");
+  assert(restoredStart.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)),
+    "the in-progress GET retains server-verified figure ink");
+  assert(restoredStart.segments.some((segment) => segment.audioRef === null &&
+    isStoredCommandTrustedGeometry(segment.command)), "server-filled figure beats are explicitly audio-less");
+  assert.equal(pausedLessonFromStoredTurns(started.turns, { boardId, ownerState: "active" }), null,
+    "a reload cannot offer Continue while another tab owns the live lesson");
+  assert.equal(pausedLessonFromStoredTurns(started.turns, { boardId, ownerState: "inactive" }), null,
+    "a fresh raw live checkpoint is not mistaken for an explicit Stop");
+
+  const appended = await client.checkpointTurn(boardId, turnId, {
+    seq: 2, status: "live", baseCount: first.serverCount!, rawResponse: payload.rawResponse,
+    traceId: payload.traceId, scene: payload, segments: payload.segments.slice(firstCount),
+  });
+  assert(appended.ok, `${subject}: semantic-only FOCUS must save while the lecture is still live`);
+  assert.equal(appended.serverCount, payload.segments.length);
+  assert.equal(appended.turn.persistedStatus, "live");
+  const focusBeforeStop = appended.turn.segments.flatMap((segment) => parseStoredSegmentCommands(segment.command))
+    .filter((command) => command.type === "FOCUS");
+  assert.equal(focusBeforeStop.length, 1, "an appended semantic-only focus survives the real progressive canonicalizer");
+  const semanticFocus = parseStoredSegmentCommands(payload.segments.at(-1)!.command)[0]!;
+  assert.equal(focusBeforeStop[0]!.text, semanticFocus.semanticRef!.entityId);
+  assert.equal(focusEmphasisOf(focusBeforeStop[0]!), "spotlight");
+
+  // pagehide sends its last words/ink but no audio. It names the saved figure
+  // only through the live semantic reference, as an ordinary lesson does.
+  const cutStep = "Notice this part before continuing.";
+  const closeRow: RecordedSegmentPayload = {
+    orderIndex: payload.segments.length, narration: cutStep, spokenText: cutStep,
+    command: serializeSegmentCommands([{ ...semanticFocus, type: "ANNOTATE" }]),
+    audioBytes: new Uint8Array([73, 68, 51, 11, 1, 2]), durationMs: 100, timings: null,
+  };
+  const closed = await client.closeTurnKeepalive(boardId, turnId, {
+    seq: 3, status: "stopped", baseCount: appended.serverCount!, traceId: payload.traceId,
+    segments: [closeRow], rawResponse: `${payload.rawResponse}\n${cutStep}`, resumeState: null,
+  });
+  assert(closed.ok, `${subject}: keepalive close must save semantic-only ANNOTATE under the held scene`);
+  assert.equal(closed.turn.persistedStatus, "stopped");
+  assert.equal(closed.serverCount, payload.segments.length + 1);
+
+  // Throw away the checkpoint response and derive Continue solely from a new
+  // authenticated board GET, exactly the reload admission boundary.
+  const reloaded = (await client.fetchBoardDetail(boardId))!;
+  const stopped = reloaded.turns.find((turn) => turn.id === turnId)!;
+  assert(stopped, `${subject}: stopped in-progress lesson must survive a reload`);
+  assert.equal(stopped.persistedStatus, "stopped");
+  assert.equal(stopped.kind, "lesson");
+  assert.deepEqual(stopped.sceneDocument, JSON.parse(JSON.stringify(payload.sceneDocument)));
+  assert.equal((stopped.sceneArtifacts as { diagramStrategy: string }).diagramStrategy,
+    subject === "maths" ? "strict" : "current");
+  const expectedTarget = semanticFocus.semanticRef!.entityId;
+  const gestures = stopped.segments.flatMap((segment) => parseStoredSegmentCommands(segment.command))
+    .filter((command) => command.type === "FOCUS" || command.type === "ANNOTATE");
+  assert.deepEqual(gestures.map((command) => [command.type, command.text, focusEmphasisOf(command), command.params]),
+    [["FOCUS", expectedTarget, "spotlight", []], ["ANNOTATE", expectedTarget, "spotlight", []]],
+    "both live-admitted semantic gestures retain their target/emphasis without becoming model-coordinate ink");
+  for (const [index, submitted] of payload.segments.entries()) {
+    if (!submitted.audioBytes) continue;
+    const replay = stopped.segments.find((segment) => segment.audioRef === index);
+    assert(replay?.audioUrl, `${subject}: submitted clip ${index} survives canonical figure-intro insertion`);
+    assert(new URL(`https://save.test${replay.audioUrl}`).searchParams.get("object")?.endsWith(`/${index}.mp3`),
+      "audioRef follows the submitted row, not its shifted canonical order");
+  }
+  const silentTail = stopped.segments.find((segment) => segment.audioRef === payload.segments.length);
+  assert(silentTail, "keepalive tail keeps its submitted audio identity");
+  assert.equal(silentTail.audioUrl, null, "keepalive never carries the supplied tail audio bytes");
+  const offered = pausedLessonFromStoredTurns(reloaded.turns, { boardId, ownerState: "inactive" });
+  assert(offered, `${subject}: reload must offer Continue for the saved stopped lesson`);
+  assert.equal(offered.parentTurnId, turnId);
+  assert.equal(offered.parentTraceId, payload.traceId);
+  assert.equal(offered.interruptedStep, cutStep);
+  assert.equal(offered.turnPlan?.question, payload.question);
+  assert.equal(offered.figureDrawn, true);
+  assert.deepEqual(offered.lessonBoardRows?.map((row) => row.text), [subject === "maths" ? "AB" : "I = 3 A"]);
+  const admitted = currentPausedLesson(offered, (await client.fetchBoardDetail(boardId))!.turns);
+  assert(admitted, "Continue rechecks the fresh saved chain instead of trusting the old offer");
+
+  const resumeId = crypto.randomUUID();
+  const resumeTrace = crypto.randomUUID();
+  traces.set(resumeTrace, { traceId: resumeTrace, userId: owner, expiresAt: new Date(Date.now() + 60_000), savedTurnId: null });
+  const resumeScene = resumeTurnScene(admitted.scene, admitted.lessonQuestion);
+  const resumeRow: RecordedSegmentPayload = {
+    orderIndex: 0, narration: "Continue from the saved step.", spokenText: "Continue from the saved step.",
+    command: serializeSegmentCommands([{ ...semanticFocus, type: "ANNOTATE" }]),
+    audioBytes: new Uint8Array([73, 68, 51, 12, 1, 2]), durationMs: 100, timings: null,
+  };
+  const continued = await client.checkpointTurn(boardId, resumeId, {
+    seq: 1, status: "live", kind: "resume", baseCount: 0, question: admitted.lessonQuestion,
+    rawResponse: "[STEP] Continue from the saved step.", traceId: resumeTrace,
+    scene: resumeScene, segments: [resumeRow], resumeState: null,
+  });
+  assert(continued.ok, `${subject}: Continue can progressively save a new turn on the existing page`);
+  assert.equal(continued.turn.segments.length, 1, "resume canonicalization cannot reinsert the original figure intro");
+  assert(storedTurnContinuesBoard(continued.turn), "the real saved resume retains its board continuation marker");
+  assert(!continued.turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)),
+    "the figure already on the page is not stored or drawn twice");
+  assert.equal(parseStoredSegmentCommands(continued.turn.segments[0]!.command)[0]?.text, expectedTarget);
+
+  const finishRow: RecordedSegmentPayload = {
+    orderIndex: 1, narration: "The lesson is complete.", spokenText: "The lesson is complete.",
+    command: { type: "WRITE", params: [40, 140], text: "Done", charPosition: 0, narrationBefore: "" },
+    audioBytes: new Uint8Array([73, 68, 51, 13, 1, 2]), durationMs: 100, timings: null,
+  };
+  const finished = await client.checkpointTurn(boardId, resumeId, {
+    seq: 2, status: "complete", kind: "resume", baseCount: continued.serverCount!,
+    rawResponse: "[STEP] Continue from the saved step.\n[STEP] The lesson is complete.", traceId: resumeTrace,
+    scene: resumeScene, segments: [finishRow],
+  });
+  assert(finished.ok, `${subject}: the resumed lecture must finish and save`);
+  assert.equal(finished.serverCount, null, "complete turns no longer expose appendable submitted rows");
+  const reopened = (await client.fetchBoardDetail(boardId))!;
+  const finalTurn = reopened.turns.find((turn) => turn.id === resumeId)!;
+  assert(finalTurn, `${subject}: final resumed turn must reopen`);
+  assert.equal(finalTurn.persistedStatus, "complete");
+  assert.equal(finalTurn.segments.length, 2);
+  assert(storedTurnContinuesBoard(finalTurn));
+  assert.deepEqual(pageTurnsEndingAt(reopened.turns).map((turn) => turn.id), [turnId, resumeId],
+    "reopened board rebuilds one page from the stopped lesson and its completed continuation");
+  assert.equal(pausedLessonFromStoredTurns(reopened.turns, { boardId, ownerState: "inactive" }), null,
+    "a completed continuation closes the stopped lesson after reload");
+  assert.equal(currentPausedLesson(offered, reopened.turns), null, "an old Continue offer cannot restart a completed chain");
+  const finalAgain = await client.checkpointTurn(boardId, resumeId, {
+    seq: 3, status: "live", baseCount: 2, traceId: resumeTrace, scene: resumeScene, segments: [finishRow],
+  });
+  assert(finalAgain.ok && finalAgain.final && finalAgain.stale, "a delayed live save cannot reopen a completed turn");
+  assert.deepEqual(finalAgain.turn.segments, finalTurn.segments, "final replay is read-only, including clip identities");
+  assert.equal(pendingTurns, 0, "all progressive create/growth reservations settle");
+  assert.equal(cleanup.size, 0, "successful progressive clips leave no recoverable deletion intent");
+}
+
+async function textOnlyCheckpointKeepsResumePlan(subject: "maths" | "physics"): Promise<void> {
+  const payload = lessonPayload(subject);
+  const turnId = crypto.randomUUID();
+  const scene = {
+    visualStatus: "text_only" as const,
+    sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: payload.sceneArtifacts.turnPlan,
+      diagramStrategy: subject === "maths" ? "strict" : "current" },
+  };
+  const textRows = client.withBoardEpochSegment([{
+    orderIndex: 0, narration: "Read the givens first.", spokenText: "Read the givens first.",
+    command: { type: "WRITE", params: [40, 100], text: "Given", charPosition: 0, narrationBefore: "" },
+    audioBytes: null, durationMs: 100, timings: null,
+  }]);
+  const started = await client.checkpointTurn(boardId, turnId, {
+    seq: 1, status: "live", baseCount: 0, question: payload.question, rawResponse: "Read the givens first.",
+    traceId: payload.traceId, scene, segments: textRows,
+  });
+  assert(started.ok, `${subject}: an in-progress text-only checkpoint may precede the figure`);
+  const closed = await client.closeTurnKeepalive(boardId, turnId, {
+    seq: 2, baseCount: started.serverCount!, traceId: payload.traceId,
+  });
+  assert(closed.ok, `${subject}: a status-only pagehide close preserves the saved text and plan`);
+  const reloaded = (await client.fetchBoardDetail(boardId))!;
+  const turn = reloaded.turns.find((saved) => saved.id === turnId)!;
+  assert.equal(turn.visualStatus, "text_only");
+  assert.equal(turn.persistedStatus, "stopped");
+  const offered = pausedLessonFromStoredTurns(reloaded.turns, { boardId, ownerState: "inactive" });
+  assert(offered, `${subject}: a stopped text-only checkpoint must offer Continue after reload`);
+  assert.equal(offered.parentTurnId, turnId);
+  assert.deepEqual(offered.turnPlan, payload.sceneArtifacts.turnPlan,
+    "minimal text-only scene artifacts must retain the validated plan #94 uses to continue");
+  assert.equal(offered.figureDrawn, false);
+  assert.deepEqual(offered.lessonBoardRows, [{ text: "Given" }]);
+  const completed = await client.checkpointTurn(boardId, turnId, {
+    seq: 3, status: "complete", baseCount: started.serverCount!, traceId: payload.traceId,
+    rawResponse: "Read the givens first. The text-only lesson is complete.", scene, segments: [],
+  });
+  assert(completed.ok);
+  assert.equal(pausedLessonFromStoredTurns((await client.fetchBoardDetail(boardId))!.turns,
+    { boardId, ownerState: "inactive" }), null);
+}
+
 async function main(): Promise<void> {
   await saveAndReopen("maths");
   await saveAndReopen("physics");
@@ -535,7 +800,17 @@ async function main(): Promise<void> {
   assert.equal((await client.fetchBoardDetail(boardId))?.turns.length, 11);
   assert(uploads > 0, "positive saves must exercise real media-prefix admission before object storage");
   assert(reservedBytes > 0n, "positive saves must exercise real storage accounting");
+  await progressiveSaveReloadAndContinue("maths");
+  await progressiveSaveReloadAndContinue("physics");
+  await textOnlyCheckpointKeepsResumePlan("maths");
+  await textOnlyCheckpointKeepsResumePlan("physics");
   assert.equal(serverLogs.length, 0, "valid lessons must not emit save rejection logs");
+  const checkpointFailures: string[] = [];
+  for (const kind of ["wrong-source", "invalid-gesture"] as const) {
+    try { await rejectCheckpointAtSceneBoundary(kind); }
+    catch (error) { checkpointFailures.push(`${kind}: ${error instanceof Error ? error.message : String(error)}`); }
+  }
+  assert.deepEqual(checkpointFailures, [], "progressive saves must retain leaf-coded private rejection diagnostics");
   await rejectForgery("wrong-source");
   await rejectForgery("failed-proof");
   await verifyHttpHardNegatives();
@@ -545,7 +820,7 @@ async function main(): Promise<void> {
   userId = null;
   const unauthorized = await get.GET(new Request(`https://save.test/api/boards/${boardId}`), context);
   assert.equal(unauthorized.status, 401, "reopening never bypasses authentication");
-  console.log("lesson save/reopen: 11 strict maths/current physics positives including semantic gestures, distinct source/compile leaves, 25 HTTP hard negatives, private rejection logs and replay passed");
+  console.log("lesson save/reopen: 11 one-shot positives, strict maths/current physics progressive live/close/reload/Continue/final and text-only plan roundtrips, 2 checkpoint scene denials, distinct source/compile leaves, 25 HTTP hard negatives, private rejection logs and replay passed");
 }
 
 void main().catch((error) => { originalError(error); process.exitCode = 1; }).finally(() => {

@@ -29,6 +29,7 @@ import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
 import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
 import { speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
+import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import type { UseSegmentRunnerParams } from "./types";
 import { recordFirstAudible, recordTtsFirstByte } from "../../../../lib/obs/turnTelemetry";
 
@@ -41,6 +42,7 @@ const TTS_LOOKAHEAD_SEGMENTS = 2;
 export function useSegmentRunner({
   sessionId,
   activeVerifiedDiagramRef,
+  codeLessonControllerRef,
   cancellableDelay,
   ensureTTSClient,
   executeCommandWithCancel,
@@ -264,6 +266,16 @@ export function useSegmentRunner({
         startOwnedDraw?.();
       };
       let actualDrawMs = 0;
+      /** Ink or voice of this segment reached the student (a Stop after this cuts it). */
+      const codeController = codeLessonControllerRef?.current;
+      const codePlan = codeController?.getActivePlan();
+      const preparedSave = liveTurnSave().prepareSegment(cancelRef, turnGeneration, {
+        orderIndex: index, narration: segment.narration, spokenText: mathToSpeech(narration),
+        command: serializeSegmentCommands(segmentCommands), audioBytes: null, durationMs: null, timings: null,
+      }, { intro: onRecorded !== undefined || segment.verifiedDiagramIntro === true,
+        getTypeShownChars: (id) => codeController?.getActivePlan() === codePlan ? codeController?.getState().revealedChars[id] ?? 0 : 0,
+      });
+      const markShown = () => { if (!isCancelled()) preparedSave?.markShown(); };
       let timingTelemetryCount = 0;
       let lastTimingTelemetryChars = -1;
       // Agent B (timings live): the initial-timing wait. Each waiter re-reads
@@ -495,6 +507,7 @@ export function useSegmentRunner({
             commandOptions: (command) => ({
               ...diagramDrawOptions,
               textPlacementReserved: reservedTextCommands.has(command),
+              onInkStarted: markShown,
             }),
             segmentIndex: index,
             spokenChars,
@@ -583,6 +596,7 @@ export function useSegmentRunner({
 
       const markVoiceStarted = () => {
         if (isCancelled() || !turnActiveRef.current) return;
+        markShown();
         // Once per turn; the browser voice and the provider both land here
         // only after their start was accepted.
         // The provider resets its signal per segment and records its own
@@ -1035,7 +1049,11 @@ export function useSegmentRunner({
             })(),
             timings: capturedTimings,
           };
+          if (preparedSave && !preparedSave.complete(recordedRow)) return;
           recordedSegmentsRef.current.push(recordedRow);
+          // Saved as it is taught. A figure intro's rows wait for the figure
+          // to commit (the intro passes `onRecorded`); see `liveTurnSave`.
+          if (!preparedSave) liveTurnSave().recordRow(cancelRef, turnGeneration, recordedRow, { intro: onRecorded !== undefined });
           if (segment.narration.trim()) {
             narrationSinceEpochRef.current +=
               (narrationSinceEpochRef.current ? " " : "") + segment.narration.trim();
@@ -1043,6 +1061,10 @@ export function useSegmentRunner({
           // Publish ownership in the same synchronous completion as the row
           // and narration, before Stop or another turn can take shared refs.
           onRecorded?.(recordedRow);
+        } else {
+          // Accepted shown work survives failures as well as cancellation.
+          // A synchronously captured Stop/pagehide token is already settled.
+          preparedSave?.interrupt();
         }
         tutorDebug("segment", "runSegment end", { index, ...segmentMetadata });
         segmentSpan?.end(segmentMetadata);
@@ -1051,6 +1073,7 @@ export function useSegmentRunner({
     [
       sessionId,
       activeVerifiedDiagramRef,
+      codeLessonControllerRef,
       cancellableDelay,
       ensureTTSClient,
       executeCommandWithCancel,

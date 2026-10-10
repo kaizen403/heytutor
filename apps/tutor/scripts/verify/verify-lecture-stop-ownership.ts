@@ -28,6 +28,10 @@ const source = readFileSync(new URL("../../features/tutor-session/hooks/turn/use
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const exports: Record<string, unknown> = {};
 const fallbackClients: SpeechSynthesisTTSClient[] = [];
+const closedOwners: unknown[] = [];
+const capturedOwners: unknown[] = [];
+const cancelledOwners: unknown[] = [];
+const saveEvents: string[] = [];
 runInNewContext(js, {
   exports,
   window: browser,
@@ -41,6 +45,17 @@ runInNewContext(js, {
     if (id === "@/lib/replay/replayAudio") return { stopReplayAudio() {} };
     if (id === "../../lib/board/spotlight") return { clearSpotlight() {} };
     if (id === "@heytutor/tutor-core") return { tutorDebug() {} };
+    // The progressive save: Stop closes the stopped lesson's save at once.
+    if (id === "../../lib/turn/liveTurnSave") return {
+      liveTurnSave: () => ({
+        captureShown(owner: unknown) { capturedOwners.push(owner); saveEvents.push("capture"); },
+        closeOwner(owner: unknown) { closedOwners.push(owner); saveEvents.push("close"); },
+        figureCommitted() {}, dropIntroRows() {},
+      }),
+    };
+    if (id === "../../lib/turn/lessonOwnership") return {
+      lessonAdmission: () => ({ cancel(owner: unknown) { cancelledOwners.push(owner); }, hasAttempt: () => false }),
+    };
     if (id === "./useSegmentRunner") return {
       useSegmentRunner: () => {
         const fallback = new SpeechSynthesisTTSClient();
@@ -62,12 +77,13 @@ assert.equal(typeof useTurnControl, "function", "load the real turn hook");
 function mountShell(phase: "idle" | "speaking") {
   const tts = new SpeechSynthesisTTSClient();
   const ref = (current: unknown) => ({ current });
+  const cancelRef = ref(false);
   // This hook runs inside a VM with inert render hooks, not a React render.
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const control = useTurnControl({
     sessionId: "lecture", phase, isReplaying: false,
     ttsClientRef: ref(tts), stopTurnRef: ref(null),
-    cancelRef: ref(false), turnActiveRef: ref(phase !== "idle"), turnGenerationRef: ref(0),
+    cancelRef, turnActiveRef: ref(phase !== "idle"), turnGenerationRef: ref(0),
     pendingSegmentCountRef: ref(0), turnAbortRef: ref(null),
     whiteboardRef: ref(null), segmentChainRef: ref(Promise.resolve()), drawChainRef: ref(Promise.resolve()),
     replayAudioRef: ref(null), replayCueRef: ref(null), replayAudioPreloadRef: ref(new Map()),
@@ -76,7 +92,7 @@ function mountShell(phase: "idle" | "speaking") {
     clearCancelTimers() {}, setIsPaused() {}, setPhase() {}, setCurrentSegmentText() {},
     setInputInteracted() {}, setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {},
   }, ref(async () => {}));
-  return { tts, control, fallback: fallbackClients.at(-1)! };
+  return { tts, control, fallback: fallbackClients.at(-1)!, cancelRef };
 }
 
 async function main() {
@@ -90,18 +106,26 @@ async function main() {
   idle.control.stopTurn(); // The same idle Stop callback exposed by useTurnControl.
   assert.equal(cancellations, before, "idle shell Stop must not cancel another shell's browser voice");
   assert.equal(active, voice, "another shell's current utterance must survive Stop");
+  assert.equal(capturedOwners.at(-1), idle.cancelRef, "idle Stop only captures its own pending rows");
+  assert.equal(cancelledOwners.at(-1), idle.cancelRef, "idle Stop only cancels its own pending admission");
   voice.onend?.();
   await speaking;
 
   const ownSpeech = owner.fallback.speakSegment("This shell owns the current voice.");
   assert(active, "owner fallback must start again");
+  const closesBefore = closedOwners.length;
   owner.control.stopTurn();
   assert.equal(active, null, "stopping the owner must silence its own fallback");
+  assert.equal(closedOwners.length, closesBefore + 1, "Stop closes the stopped lesson's save, once");
+  assert.equal(closedOwners.at(-1), owner.cancelRef, "and only its own shell's turn");
+  assert.equal(capturedOwners.at(-1), owner.cancelRef, "owner Stop synchronously captures its own shown row");
+  assert.deepEqual(saveEvents.slice(-2), ["capture", "close"], "the shown row is captured before its save freezes");
+  assert.equal(cancelledOwners.at(-1), owner.cancelRef, "owner Stop releases only its own admission");
   await ownSpeech;
 
   const pageVoice = idle.fallback.speakSegment("Page is closing.");
   assert(active, "pagehide still has an active utterance to halt");
-  haltAllLectureAudio(); // Invoked by useLecturePageHalt on pagehide/beforeunload.
+  haltAllLectureAudio(); // Invoked by useLecturePageHalt on actual pagehide.
   assert.equal(active, null, "pagehide must retain window-global speech cancellation");
   idle.fallback.stop();
   await pageVoice;

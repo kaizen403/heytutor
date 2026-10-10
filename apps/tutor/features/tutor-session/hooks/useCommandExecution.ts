@@ -208,6 +208,7 @@ export function useCommandExecution({
     async function executeCommand(
       rawCommand: DrawCommand,
       options: {
+        onInkStarted?: () => void;
         introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
         speechDurationMs?: number;
@@ -342,7 +343,7 @@ export function useCommandExecution({
         duration: number,
         schedule?: WriteSchedule,
         fontSize?: number,
-      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings);
+      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings, options.onInkStarted);
       const drawAnnotation: WhiteboardHandle["drawAnnotation"] = (
         kind,
         path,
@@ -789,10 +790,10 @@ export function useCommandExecution({
             }
             forgetErasedTextRects(eraseRect);
           }
-          // Board restore and replay seeks (0) want the finished block,
-          // not a typing animation racing a clock that no longer exists.
+          // Restore and replay seeks apply the recorded prefix immediately,
+          // without racing a typing clock that no longer exists.
           if (durationScale <= 0.05) {
-            controller.revealBlockInstant(blockId);
+            controller.revealBlockInstant(blockId, command.shownChars);
             break;
           }
           // The block is typed at its natural pace on the sentence's audio
@@ -801,14 +802,28 @@ export function useCommandExecution({
           // the voice is explaining. Measured before this: each block was
           // typed in the first 22 to 29% of a 20 s sentence and nothing on
           // the board moved for the remaining 15 s.
-          const typed = await runTypedBlockBeat({
-            host: wb,
-            controller,
-            blockId,
-            clock: options.spokenClock ?? null,
-            isCancelled: commandCancelled,
-            delay: cancellableDelay,
+          let marked = false;
+          const beforeTyping = controller.getState().revealedChars[blockId] ?? 0;
+          const unsubscribe = controller.subscribe(() => {
+            if (!marked && !commandCancelled() && (controller.getState().revealedChars[blockId] ?? 0) > beforeTyping) {
+              marked = true;
+              options.onInkStarted?.();
+            }
           });
+          let typed;
+          try {
+            typed = await runTypedBlockBeat({
+              host: wb,
+              controller,
+              blockId,
+              shownChars: command.shownChars,
+              clock: options.spokenClock ?? null,
+              isCancelled: commandCancelled,
+              delay: cancellableDelay,
+            });
+          } finally {
+            unsubscribe();
+          }
           if (typed.cancelled) return;
           tutorDebug("draw", "typed block beat", {
             block_id: blockId,
@@ -1606,6 +1621,7 @@ export function useCommandExecution({
     async (
       command: DrawCommand,
       options: {
+        onInkStarted?: () => void;
         introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
         speechDurationMs?: number;

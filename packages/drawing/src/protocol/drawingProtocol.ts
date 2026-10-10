@@ -74,6 +74,8 @@ export interface DrawCommand {
   inkSettings?: DrawCommandInkSettings;
   /** Stable semantic ownership for compiled ink and later replay/debugging. */
   semanticRef?: DrawCommandSemanticRef;
+  /** TYPE only: UTF-16 code units actually shown before an interrupted recorded beat. */
+  shownChars?: number;
   /**
    * The word in the segment's sentence that names this mark, so the pen can
    * wait for it and draw the part while it is being said. Set by the verified

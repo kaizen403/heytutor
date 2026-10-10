@@ -8,7 +8,8 @@ import { readBoundedFormData, RequestBodyError } from "@/lib/http/requestBody";
 import { abandonTurnStorage, reserveTurnStorage, settleTurnStorage, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
-import { canonicalizeTurnSceneMetadata, type TurnSceneRejectionCode } from "@/lib/scene/turnScenePersistence";
+import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
+import { rejectTurnSave as rejectSave } from "@/lib/boards/turnSaveRejection";
 import {
   audioPrefixMatchesType,
   validateTurnUploadHeaders,
@@ -43,32 +44,6 @@ interface TurnMetadata {
   segments: TurnSegmentMeta[];
 }
 
-type SaveRejectionCode =
-  | TurnSceneRejectionCode
-  | "upload_headers_invalid" | "unauthorized" | "idempotency_key_invalid"
-  | "board_not_found" | "multipart_invalid" | "metadata_missing"
-  | "metadata_json_invalid" | "turn_fields_invalid" | "save_allowance_required"
-  | "save_allowance_used" | "upload_parts_invalid" | "turn_not_persistable"
-  | "scene_persistence_rejected" | "segment_fields_invalid"
-  | "audio_format_mismatch" | "storage_admission_rejected" | "storage_commit_rejected";
-
-function rejectSave(
-  code: SaveRejectionCode,
-  error: string,
-  status: number,
-  correlation: { boardId?: string; traceId?: string } = {},
-) {
-  // Never log the error/body: validator details can include submitted labels,
-  // multipart field names or other student text. Only opaque, bounded ids pass.
-  const safeId = (value: string | undefined) => value &&
-    /^(?:[0-9a-f]{16,32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(value)
-    ? value : undefined;
-  console.warn("[turn-save-rejected]", {
-    event: "turn_save_rejected", code, status,
-    boardId: safeId(correlation.boardId), traceId: safeId(correlation.traceId),
-  });
-  return NextResponse.json({ error, code }, { status });
-}
 
 function nullableJson(value: unknown): Prisma.InputJsonValue | Prisma.NullTypes.DbNull {
   return value == null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
@@ -99,6 +74,7 @@ function turnResponse(turn: Turn, insertedSegments: Segment[]) {
           command: segment.command,
           audioUrl: segment.audioUrl,
           audioFormat: segment.audioFormat,
+          audioRef: segment.audioRef,
           durationMs: segment.durationMs,
           timings: segment.timings,
         })),
@@ -323,6 +299,7 @@ export async function POST(request: Request, context: RouteContext) {
           command: segment.command === undefined ? undefined : (segment.command as Prisma.InputJsonValue),
           audioUrl: audioUrls.get(segment.orderIndex) ?? null,
           audioFormat: audioFormats.get(segment.orderIndex) ?? "audio/mpeg",
+          audioRef: segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex,
           durationMs: segment.durationMs ?? null,
           timings: segment.timings === undefined ? undefined : (segment.timings as Prisma.InputJsonValue),
         }));

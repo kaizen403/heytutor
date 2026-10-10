@@ -9,6 +9,7 @@ import {
   getCommandSpeechWindow,
   inkPaceContextForSegment,
   leadWriteScheduleToSpeech,
+  mathToSpeech,
   selectInkPace,
   type InkPace,
 } from "@heytutor/tutor-core";
@@ -107,6 +108,11 @@ async function drawExportCue(options: {
     : null;
   const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
   const durationMs = cue.durationMs;
+  // The cue (recorded audio, or its replay estimate) owns speech time.
+  // Notation expands when spoken; a fixed per-character rate can place
+  // estimated WRITE targets after that cue and exhaust the bounded tail.
+  const spokenLength = mathToSpeech(narration.trim()).length;
+  const estimatedSpeechMsPerChar = spokenLength > 0 ? durationMs / spokenLength : undefined;
   const trustedDiagramGeometry =
     cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command);
 
@@ -136,6 +142,7 @@ async function drawExportCue(options: {
           cue.segment.timings,
           durationMs,
           textCommandIndex,
+          estimatedSpeechMsPerChar,
         )
       : null;
 

@@ -683,7 +683,8 @@ function verifyHandlerPrivacy() {
     "startup-ask carries no question text");
   assert(/createTurnTelemetry\(\{ originPerf: askOrigin \}\)/.test(source), "telemetry is created with the Ask origin");
   const askLine = source.indexOf("const askStartedAt = performance.now();");
-  const handlerStart = source.indexOf("async (rawQuestion: string, options?: HandleQuestionOptions) => {");
+  // The question body is `teachQuestion`; `handleQuestion` only wraps it so every exit saves.
+  const handlerStart = source.indexOf("async (rawQuestion: string, options: HandleQuestionOptions | undefined, saveExit: LiveTurnSaveExit) => {");
   assert(handlerStart > 0 && askLine > handlerStart, "the Ask origin is taken inside the handler");
   assert(askLine < source.indexOf("normalizeTutorQuestion(rawQuestion)", handlerStart), "and before anything else");
   const watch = source.indexOf("tel.watchPageLifecycle(");
