@@ -7,24 +7,20 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity } from "./quantityReader";
 import type { SceneDocument } from "../types";
-import { ChemScene, chemStem, type ChemPlanQuantity } from "./sceneKit";
+import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
 const FAMILY = "chem_thermo" as const;
 const R_J = 8.314;
 
 function fit(text: string): string {
-  return text.length <= 16 ? text : text.slice(0, 16);
+  return text;
 }
 
-function numberAfter(stem: string, keyword: RegExp): number | null {
-  const found = keyword.exec(stem);
-  if (!found) return null;
-  const slice = stem.slice(found.index + found[0].length, found.index + found[0].length + 40);
-  const match = /^(?:[^0-9+-]{0,16})([+-]?\d+(?:\.\d+)?)/.exec(slice);
-  if (!match) return null;
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
+function temperatureKelvin(question: string): number | null {
+  const r = findChemistryQuantities({ question, dimension: "temperature", targetUnit: "K" });
+  return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
 }
 
 function veto(stem: string): boolean {
@@ -114,13 +110,13 @@ function buildSystems(question: string, stem: string): SceneDocument | null {
     if (matter) ids.push(c.arrow("matter_a", { x: -1.1, y: 0.4 }, { x: 0, y: 0.4 }, "matter crossing"));
   }
   if (intensive && extensive) {
-    const temperature = numberAfter(stem, /temperature(?:\s+is)?/);
-    const energy = numberAfter(stem, /internal energy(?:\s+is)?/);
+    const temperature = numberAfter(question, /temperature(?:\s+is)?/, "temperature", "K");
+    const energy = numberAfter(question, /internal energy(?:\s+is)?/, "energy", "J");
     const doubled = /doubl|twice/.test(stem);
     if (temperature !== null) ids.push(c.text("t_l", { x: 0, y: intensive && kinds === 0 ? 1.6 : -1.2 }, fit(`T=${temperature} K`), "intensive temperature"));
     if (energy !== null) {
       const shown = doubled ? energy * 2 : energy;
-      const unit = /kj/.test(stem.slice(stem.indexOf("internal energy"), stem.indexOf("internal energy") + 40)) ? "kJ" : "J";
+      const unit = "J";
       ids.push(c.text("u_l", { x: 0, y: kinds === 0 ? 0.6 : -2.1 }, fit(`U=${shown} ${unit}`), "extensive internal energy"));
     }
     ids.push(c.text("int_l", { x: 3.2, y: kinds === 0 ? 1.6 : -1.2 }, "intensive", "intensive quantity"));
@@ -132,8 +128,8 @@ function buildSystems(question: string, stem: string): SceneDocument | null {
     ids.push(c.text("w_path", { x: 0, y: -0.6 }, "w path", "path function"));
   }
   const model = /isothermal/.test(stem) ? "isothermal" : /isobaric/.test(stem) ? "isobaric" : /adiabatic/.test(stem) ? "adiabatic" : /isochoric/.test(stem) ? "isochoric" : null;
-  const startVolume = numberAfter(stem, /from\s+/);
-  const endVolume = numberAfter(stem, /to\s+/);
+  const startVolume = numberAfter(question, /from\s+/, "volume", "L");
+  const endVolume = numberAfter(question, /to\s+/, "volume", "L");
   if (model && startVolume !== null && endVolume !== null && startVolume !== endVolume) {
     ids.push(c.text("v1_l", { x: 0, y: -1.4 }, fit(`V=${startVolume} L`), "initial volume"));
     ids.push(c.text("v2_l", { x: 2.4, y: -1.4 }, fit(`V=${endVolume} L`), "final volume"));
@@ -148,31 +144,31 @@ function buildSystems(question: string, stem: string): SceneDocument | null {
 
 /** Constant-pressure chemistry work, w = −Pext ΔV. Expansion makes ΔV positive. */
 function pressureVolumeWorkJ(stem: string): number | null {
-  const compressed = /compress/.test(stem);
-  const expanded = /\bexpan/.test(stem);
+  const compressed = /compress/i.test(stem);
+  const expanded = /\bexpan/i.test(stem);
   if (compressed === expanded) return null;
-  const litres = numberAfter(stem, /by\s+/);
-  const pressure = numberAfter(stem, /(?:external pressure(?:\s+of)?|pext(?:\s*=)?)/);
+  const litres = numberAfter(stem, /by\s+/, "volume", "L");
+  const pressure = numberAfter(stem, /(?:external pressure(?:\s+of)?|pext(?:\s*=)?)/, "pressure", "kPa");
   if (litres === null || pressure === null || !(litres > 0) || !(pressure > 0)) return null;
   const litreWindow = stem.slice(Math.max(0, stem.search(/by\s+/) ), stem.search(/by\s+/) + 24);
   const pressureWindow = stem.slice(stem.search(/external pressure|pext/), stem.search(/external pressure|pext/) + 32);
-  if (!/l\b/.test(litreWindow) || !/kpa/.test(pressureWindow)) return null;
+  if (!litreWindow || !pressureWindow) return null;
   const magnitude = pressure * litres;
   return compressed ? magnitude : -magnitude;
 }
 
 function buildFirstLaw(question: string, stem: string): SceneDocument | null {
-  const q = /\bq\s*=/.test(stem) ? numberAfter(stem, /q\s*=/) : null;
-  const statedW = /\bw\s*=/.test(stem) && !/w\s*=\s*-/.test(stem) ? numberAfter(stem, /w\s*=/) : null;
-  const pv = pressureVolumeWorkJ(stem);
+  const q = /\bq\s*=/.test(stem) ? numberAfter(question, /q\s*=/, "energy", "J") : null;
+  const statedW = /\bw\s*=/.test(stem) && !/w\s*=\s*-/.test(stem) ? numberAfter(question, /w\s*=/, "energy", "J") : null;
+  const pv = pressureVolumeWorkJ(question);
   const isochoric = /isochoric|constant volume/.test(stem);
   const adiabatic = /adiabatic/.test(stem);
   if (isochoric && pv !== null) return null;
   if (adiabatic && q !== null && q !== 0) return null;
   const w = isochoric ? 0 : adiabatic && pv === null && statedW !== null ? statedW : pv ?? statedW;
   const heat = adiabatic ? 0 : q;
-  const duStated = numberAfter(stem, /(?:δ|∆|Δ)\s*u\s*=|internal energy(?:\s+change)?\s*(?:=|is)/);
-  const dpv = numberAfter(stem, /(?:δ|∆|Δ)\s*\(pv\)\s*=|delta\(pv\)\s*=/);
+  const duStated = numberAfter(question, /(?:δ|∆|Δ)\s*u\s*=|internal energy(?:\s+change)?\s*(?:=|is)/, "energy", "J");
+  const dpv = numberAfter(question, /(?:δ|∆|Δ)\s*\(pv\)\s*=|delta\(pv\)\s*=/, "energy", "J");
   const c = new ChemScene(question, "chemistry first law", FAMILY);
   const ids: string[] = [];
   if (w !== null && heat !== null) {
@@ -197,17 +193,15 @@ function buildFirstLaw(question: string, stem: string): SceneDocument | null {
   });
 }
 
-function amountMoles(stem: string): number | null {
-  const match = /(\d+(?:\.\d+)?)\s*mol\b/.exec(stem);
-  if (!match) return null;
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
+function amountMoles(question: string): number | null {
+  const r = findChemistryQuantities({ question, dimension: "amount", targetUnit: "mol" });
+  return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
 }
 
 function buildHeat(question: string, stem: string): SceneDocument | null {
   if (/melt|boiling|boils|vapor|vapour|latent heat|fusion/.test(stem)) return null;
   if (/phase change/.test(stem) && !/no phase change/.test(stem)) return null;
-  const moles = amountMoles(stem);
+  const moles = amountMoles(question);
   if (moles !== null && !(moles > 0)) return null;
   const ideal = /ideal gas/.test(stem);
   const asksR = /c_?p[^.]{0,40}c_?v|c_?v[^.]{0,24}=\s*r|difference[^.]{0,20}r\b/.test(stem);
@@ -216,7 +210,7 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
   const c = new ChemScene(question, "heat capacity", FAMILY);
   const ids: string[] = [];
   if (ideal && asksR) {
-    const cp = numberAfter(stem, /c_?p(?:,m)?(?:\s*(?:=|is))?/);
+    const cp = numberAfter(question, /c_?p(?:,m)?(?:\s*(?:=|is))?/, "molar_heat_capacity", "J/(mol K)");
     if (cp === null) return null;
     const cv = cp - R_J;
     ids.push(c.text("cp_l", { x: 0, y: 1.2 }, fit(`Cp=${cp}`), "molar heat capacity at constant pressure"));
@@ -224,10 +218,10 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
     ids.push(c.text("r_l", { x: 0, y: -0.8 }, "ideal gas R", "ideal-gas molar relation"));
   } else {
     const molar = /molar heat capacity|j\/\(mol/.test(stem);
-    const capacity = numberAfter(stem, /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/);
-    const t1 = numberAfter(stem, /from\s+/);
-    const t2 = numberAfter(stem, /to\s+/);
-    const delta = t1 !== null && t2 !== null ? t2 - t1 : numberAfter(stem, /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/);
+    const capacity = numberAfter(question, /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/, molar ? "molar_heat_capacity" : "heat_capacity", molar ? "J/(mol K)" : "J/K");
+    const t1 = numberAfter(question, /from\s+/, "temperature", "K");
+    const t2 = numberAfter(question, /to\s+/, "temperature", "K");
+    const delta = t1 !== null && t2 !== null ? t2 - t1 : numberAfter(question, /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/, "temperature_delta", "K");
     if (capacity === null || delta === null || !(capacity >= 0) || !(delta !== 0)) return null;
     const sampleC = molar ? (moles === null ? null : capacity * moles) : capacity;
     if (sampleC === null) return null;
@@ -249,25 +243,26 @@ interface HessStep {
   factor: number;
 }
 
-function hessSteps(stem: string): HessStep[] {
-  const parts = stem.split(/step\s*\d+/).slice(1);
+function hessSteps(question: string): HessStep[] | null {
+  const parts = [...question.matchAll(/\bstep\s*\d+\b/gi)];
   const steps: HessStep[] = [];
-  for (const part of parts) {
-    const match = /(?:δ|∆|Δ)\s*h\s*=\s*([+-]?\d+(?:\.\d+)?)/.exec(part);
-    if (!match) continue;
-    const factorMatch = /multipl\w*\s+by\s+(\d+(?:\.\d+)?)/.exec(part);
-    steps.push({
-      value: Number(match[1]),
-      reversed: /revers/.test(part),
-      factor: factorMatch ? Number(factorMatch[1]) : 1,
-    });
+  for (let i = 0; i < parts.length; i++) {
+    const start = parts[i]!.index! + parts[i]![0].length;
+    const end = parts[i+1]?.index ?? question.length;
+    const part = question.slice(start, end);
+    const input = { question, within: {start, end}, after: /(?:δ|∆|Δ)\s*h\s*=/, dimension: "energy" as const, targetUnit: "kJ" as const };
+    const energy = readChemistryQuantity(input);
+    if (!energy.ok) return null;
+    const factorRead = /multipl/i.test(part) ? readChemistryQuantity({question, within:{start,end},after:/multipl\w*\s+by/,dimension:"dimensionless"}) : null;
+    if (factorRead && !factorRead.ok) return null;
+    steps.push({value:energy.reading.value,reversed:/revers/i.test(part),factor:factorRead?.ok ? factorRead.reading.value : 1});
   }
   return steps;
 }
 
-function buildHess(question: string, stem: string): SceneDocument | null {
-  const steps = hessSteps(stem);
-  if (steps.length < 2 || steps.some((step) => !(step.factor > 0))) return null;
+function buildHess(question: string, _stem: string): SceneDocument | null {
+  const steps = hessSteps(question);
+  if (!steps || steps.length < 2 || steps.some((step) => !(step.factor > 0))) return null;
   const signed = steps.map((step) => step.value * step.factor * (step.reversed ? -1 : 1));
   const net = signed.reduce((sum, value) => sum + value, 0);
   const c = new ChemScene(question, "Hess sum of stated enthalpy steps", FAMILY);
@@ -288,16 +283,16 @@ function entropyValue(stem: string, which: "sys" | "surr"): number | null {
   const phrase = which === "sys"
     ? /(?:δ|∆|Δ)?\s*d?s_?sys\s*=|entropy of the system\s*(?:=|is)/
     : /(?:δ|∆|Δ)?\s*d?s_?surr\s*=|entropy of the surroundings\s*(?:=|is)/;
-  return numberAfter(stem, phrase);
+  return numberAfter(stem, phrase, "entropy", "J/K");
 }
 
 function buildEntropy(question: string, stem: string): SceneDocument | null {
-  const sys = entropyValue(stem, "sys");
-  const surr = entropyValue(stem, "surr");
+  const sys = entropyValue(question, "sys");
+  const surr = entropyValue(question, "surr");
   const reversible = /\breversible\b/.test(stem);
   const irreversible = /\birreversible\b/.test(stem);
-  const qrev = numberAfter(stem, /q_?rev\s*=/);
-  const temperature = numberAfter(stem, /\bat\s+/);
+  const qrev = numberAfter(question, /q_?rev\s*=/, "energy", "J");
+  const temperature = temperatureKelvin(question);
   const c = new ChemScene(question, "entropy of system, surroundings and universe", FAMILY);
   const ids: string[] = [];
   if (qrev !== null) {
@@ -324,11 +319,11 @@ function buildEntropy(question: string, stem: string): SceneDocument | null {
   });
 }
 
-function buildEquilibrium(question: string, stem: string): SceneDocument | null {
-  const temperature = numberAfter(stem, /\bat\s+/);
+function buildEquilibrium(question: string, _stem: string): SceneDocument | null {
+  const temperature = temperatureKelvin(question);
   if (temperature === null || !(temperature > 0)) return null;
-  const kGiven = numberAfter(stem, /(?:equilibrium constant|k)\s*(?:=|is)/);
-  const gGiven = numberAfter(stem, /(?:δ|∆|Δ)\s*g\s*(?:°|º)\s*=|standard gibbs[^.]{0,40}?=/);
+  const kGiven = numberAfter(question, /(?:equilibrium constant|\bk\b)\s*(?:=|is)/);
+  const gGiven = numberAfter(question, /(?:δ|∆|Δ)\s*g\s*(?:°|º)\s*=|standard gibbs[^.]{0,40}?=/, "molar_energy", "kJ/mol");
   if (kGiven !== null && !(kGiven > 0)) return null;
   if (kGiven === null && gGiven === null) return null;
   const gJ = gGiven === null ? null : gGiven * 1000;
@@ -337,7 +332,7 @@ function buildEquilibrium(question: string, stem: string): SceneDocument | null 
   if (k === null || gKj === null || !Number.isFinite(k) || !(k > 0)) return null;
   const c = new ChemScene(question, "standard Gibbs energy and the equilibrium constant", FAMILY);
   const ids = [
-    c.text("g_l", { x: 0, y: 1.2 }, fit(`dGo=${gKj.toFixed(3)} kJ`), "standard Gibbs energy"),
+    c.text("g_l", { x: 0, y: 1.2 }, fit(`dGo=${gKj.toFixed(3)} kJ/mol`), "standard Gibbs energy"),
     c.text("k_l", { x: 0, y: 0.2 }, fit(`K=${k.toFixed(2)}`), "thermodynamic equilibrium constant"),
     c.text("law_l", { x: 0, y: -0.8 }, "dGo=-RT lnK", "standard relation"),
     c.text("t_l", { x: 0, y: -1.8 }, fit(`T=${temperature} K`), "absolute temperature"),
@@ -351,10 +346,12 @@ function buildEquilibrium(question: string, stem: string): SceneDocument | null 
 /** The figure, or null when the stem is claimed but not grounded. */
 export function buildChemicalThermodynamicsScene(
   question: string,
-  _quantities: ChemPlanQuantity[],
+  quantities: ChemPlanQuantity[],
   _schematic: boolean,
 ): SceneDocument | null {
   const stem = chemStem(question);
+  if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", R_J)) return null;
   if (claimsSystems(stem)) return buildSystems(question, stem);
   if (claimsFirstLaw(stem)) return buildFirstLaw(question, stem);
   if (claimsHeat(stem)) return buildHeat(question, stem);

@@ -16,13 +16,15 @@
  * lattice (Schottky or Frenkel defects, amorphous solids, a physics block, a
  * cell "shown below" that we do not have) draws nothing.
  */
+import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, resolveChemistryGiven, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar } from "./quantityReader";
 import type { SceneDocument } from "../types";
-import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText } from "./formula";
 import { elementBySymbol } from "./elements";
 
 export const SOLID_FAMILY = "chem_unit_cell" as const;
 const AVOGADRO = 6.022e23;
+const AVOGADRO_CUE = /avogadro(?:'s)?\s*(?:constant|number)?/i;
 
 export type Lattice = "sc" | "bcc" | "fcc" | "hcp";
 
@@ -220,61 +222,8 @@ function drawVoidMark(c: ChemScene, id: string, at: Vec2, role: string, label?: 
 
 /* ----------------------------------------------------------- readers */
 
-const NUMBER = "(\\d+(?:\\.\\d+)?)(?:\\s*[x×*]\\s*10\\s*\\^?\\s*\\(?(-?\\d+)\\)?)?";
-const LENGTH_UNIT = "(pm|nm|å|angstroms?|a°|cm)(?![a-z])";
-
-function scientific(mantissa: string, exponent: string | undefined): number {
-  return Number(mantissa) * Math.pow(10, exponent === undefined ? 0 : Number(exponent));
-}
-
-function toPm(value: number, unit: string): number {
-  const u = unit.toLowerCase();
-  if (u === "pm") return value;
-  if (u === "nm") return value * 1000;
-  if (u === "cm") return value * 1e10;
-  return value * 100;
-}
-
-function readLengthPm(stem: string, cue: RegExp): number | null {
-  const pattern = new RegExp(`(?:${cue.source})[^.;:]{0,32}?${NUMBER}\\s*${LENGTH_UNIT}`, "i");
-  const match = pattern.exec(stem);
-  if (!match) return null;
-  return toPm(scientific(match[1]!, match[2]), match[3]!);
-}
-
 const EDGE_CUE = /edge(?:\s*length)?|cell edge|axial distance|lattice (?:parameter|constant)|side of (?:the )?(?:cube|cell|unit cell)|\ba\s*(?:=|is)/;
 const RADIUS_CUE = /(?:atomic|metallic|ionic|covalent)?\s*radius(?!\s*ratio)(?:\s+of\s+(?:the\s+)?(?:atom|metal|element|[a-z]+))?|\br\s*(?:=|is)/;
-
-function readMolarMass(stem: string): number | null {
-  const named = new RegExp(`(?:atomic|molar|molecular|formula|relative atomic)\\s*(?:mass|weight)(?:\\s+of\\s+(?:the\\s+)?[a-z]+)?[^.;:]{0,16}?${NUMBER}\\s*(?:g\\s*\\/?\\s*mol|g mol|amu|u(?![a-z]))`, "i");
-  const match = named.exec(stem);
-  if (match) return scientific(match[1]!, match[2]);
-  const symbol = new RegExp(`\\bm\\s*=\\s*${NUMBER}(?:\\s*(?:g\\s*\\/?\\s*mol|g mol|amu|u(?![a-z])))?`, "i").exec(stem);
-  return symbol ? scientific(symbol[1]!, symbol[2]) : null;
-}
-
-function readDensity(stem: string): number | null {
-  const match = new RegExp(`density[^.;:]{0,40}?${NUMBER}\\s*(?:g\\s*\\/?\\s*cm|g cm|kg)`, "i").exec(stem);
-  return match ? scientific(match[1]!, match[2]) : null;
-}
-
-function readAvogadro(stem: string): number | null {
-  const match = /avogadro[^.;]{0,40}?(\d(?:\.\d+)?)\s*[x×*]\s*10\s*\^?\s*\(?(\d+)\)?/i.exec(stem);
-  if (!match || Number(match[2]) !== 23) return null;
-  return Number(match[1]) * 1e23;
-}
-
-function planLengthPm(quantities: readonly ChemPlanQuantity[], aliases: readonly string[]): number | null {
-  const value = planQuantity(quantities, aliases);
-  if (value === null) return null;
-  const match = quantities.find((quantity) => planQuantity([quantity], aliases) !== null);
-  const unit = (match?.unit ?? "pm").toLowerCase();
-  if (/cm/.test(unit)) return value * 1e10;
-  if (/nm/.test(unit)) return value * 1000;
-  if (/å|angstrom|^a$/.test(unit)) return value * 100;
-  if (/^m$/.test(unit)) return value * 1e12;
-  return value;
-}
 
 /** Three significant figures, keeping a trailing zero (11.0, 6.23). */
 function fmt(value: number, digits = 3): string {
@@ -291,7 +240,7 @@ function fmtPm(value: number): string {
 function edgeLabel(edgePm: number | null): string {
   if (edgePm === null) return "a";
   const text = `a = ${fmtPm(edgePm)} pm`;
-  return text.length <= 16 ? text : "a";
+  return text;
 }
 
 /* ------------------------------------------------------ ionic templates */
@@ -381,15 +330,15 @@ const FRACTION_WORDS: Array<[RegExp, number | null]> = [
 ];
 
 function readFraction(before: string): number | null | "unknown" {
-  const tail = before.slice(-40);
-  const general = /(\d+)\s*\/\s*(\d+)(?:\s*(?:of|th))?\s*(?:of\s+)?(?:the\s+|its\s+)?(?:available\s+)?$/i.exec(tail);
-  if (general) return Number(general[1]) / Number(general[2]);
-  const percent = /(\d+(?:\.\d+)?)\s*%\s*(?:of\s+)?(?:the\s+|its\s+)?$/i.exec(tail);
-  if (percent) return Number(percent[1]) / 100;
-  for (const [pattern, value] of FRACTION_WORDS) if (pattern.test(tail)) return value;
-  // "m fraction of", "x of the": a letter stands for the fraction.
-  if (/\b[a-z]\s+(?:fraction\s+)?of\s+(?:the\s+|its\s+)?$/i.test(tail)) return "unknown";
-  if (/\bfraction\b/i.test(tail)) return "unknown";
+  const tail = before.slice(-60);
+  const numeric = new RegExp(`${CHEMISTRY_NUMBER_PATTERN}\\s*(%)?\\s*(?:of\\s+)?(?:the\\s+|its\\s+)?(?:available\\s+)?$`, "id").exec(tail);
+  if (numeric) {
+    const value = matchedChemistryScalar(tail, numeric);
+    const fraction = value === null ? null : numeric[4] ? value / 100 : value;
+    return fraction !== null && fraction > 0 && fraction <= 1 ? fraction : "unknown";
+  }
+  for (const [pattern, value] of FRACTION_WORDS) if (pattern.test(tail.toLowerCase())) return value;
+  if (/\bfraction\b|\b[a-z]\s+(?:fraction\s+)?of\s+(?:the\s+|its\s+)?$/i.test(tail) || /\d\s*\//.test(tail)) return "unknown";
   return null;
 }
 
@@ -438,7 +387,7 @@ function sitePhrases(sentence: string): SitePhrase[] {
   at(first(/\bhcp\b|hexagonal close/), "hcp", 6);
   for (const [kind, pattern] of [["oct", /octahedral (?:voids?|sites?|holes?|positions?)/g], ["tet_void", /tetrahedral (?:voids?|sites?|holes?|positions?)/g]] as const) {
     for (const match of lower.matchAll(pattern)) {
-      const fraction = readFraction(lower.slice(0, match.index));
+      const fraction = readFraction(sentence.slice(0, match.index));
       phrases.push({ index: match.index ?? 0, kind, count: fraction === "unknown" ? Number.NaN : (fraction ?? 1) });
     }
   }
@@ -451,7 +400,7 @@ function sitePhrases(sentence: string): SitePhrase[] {
  * from the previous sentence when the sentence names none first.
  */
 function readOccupancy(question: string): Occupant[] {
-  const text = normalizeChemistryText(question).replace(/\n/g, " ");
+  const text = question;
   const hcp = /\bhcp\b|hexagonal close/i.test(text);
   const sentences = text.split(/(?<=[.;:?])\s+/);
   const occupants: Occupant[] = [];
@@ -571,13 +520,17 @@ interface CellNumbers {
   avogadro: number;
 }
 
-function readNumbers(stem: string, quantities: readonly ChemPlanQuantity[]): CellNumbers {
+function readNumbers(question: string, quantities: readonly ChemPlanQuantity[]): CellNumbers {
+  const given = (after: RegExp, aliases: readonly string[], dimension: import("./quantityReader").ChemistryDimension, targetUnit: import("./quantityReader").ChemistryUnit): number | null => {
+    const r = resolveChemistryGiven({ question, quantities, after, aliases, dimension, targetUnit });
+    return r.ok ? r.reading.value : null;
+  };
   return {
-    edgePm: planLengthPm(quantities, ["a", "edge", "edge_length", "edgeLength", "cell_edge", "cellEdge", "lattice_parameter"]) ?? readLengthPm(stem, EDGE_CUE),
-    radiusPm: planLengthPm(quantities, ["r", "radius", "atomic_radius", "atomicRadius"]) ?? readLengthPm(stem, RADIUS_CUE),
-    molarMass: planQuantity(quantities, ["M", "molar_mass", "molarMass", "atomic_mass", "atomicMass"]) ?? readMolarMass(stem),
-    densityGiven: planQuantity(quantities, ["rho", "density", "ρ", "d"]) ?? readDensity(stem),
-    avogadro: readAvogadro(stem) ?? AVOGADRO,
+    edgePm: given(EDGE_CUE, ["a", "edge", "edge_length", "cellEdge", "lattice_parameter"], "length", "pm"),
+    radiusPm: given(RADIUS_CUE, ["r", "radius", "atomic_radius"], "length", "pm"),
+    molarMass: given(/(?:atomic|molar|molecular|formula|relative atomic)\s*(?:mass|weight)(?:\s+of\s+(?:the\s+)?[a-z]+)?|\bM\s*=/, ["M", "molar_mass", "atomic_mass"], "molar_mass", "g/mol"),
+    densityGiven: given(/density/, ["rho", "density", "ρ", "d"], "density", "g/cm^3"),
+    avogadro: given(AVOGADRO_CUE, ["NA", "avogadro"], "avogadro_constant", "mol^-1") ?? AVOGADRO,
   };
 }
 
@@ -780,9 +733,14 @@ function drawOccupancyCell(c: ChemScene, slot: Slot, occupants: Occupant[], remo
  */
 export function buildUnitCellScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   void schematic;
-  if (!isUnitCellStem(question)) return null;
+  if (!isUnitCellStem(question) || !chemistryPlanBindingsValid(question, quantities)) return null;
+  if (!chemistryQuantityCuesValid(question, [{after: EDGE_CUE, dimensions: ["length"]}, {after: RADIUS_CUE, dimensions: ["length"]}, {after: /molar mass|atomic mass|molecular mass/, dimensions: ["molar_mass"]}, {after: /density/, dimensions: ["density"]}])) return null;
   const stem = chemStem(question);
-  const numbers = readNumbers(stem, quantities);
+  const numbers = readNumbers(question, quantities);
+  if (AVOGADRO_CUE.test(question)) {
+    const avogadro = resolveChemistryGiven({question,quantities,after:AVOGADRO_CUE,aliases:["NA","avogadro"],dimension:"avogadro_constant",targetUnit:"mol^-1"});
+    if (!avogadro.ok || !(avogadro.reading.value > 0)) return null;
+  }
   const c = new ChemScene(question, "unit cell of the named lattice", SOLID_FAMILY);
   const captions: string[] = [];
   const slots: Slot[] = [];

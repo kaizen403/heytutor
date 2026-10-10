@@ -17,7 +17,9 @@
  */
 import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
-import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity } from "./sceneKit";
+import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
+
+import { chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit } from "./quantityReader";
 
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
@@ -212,79 +214,28 @@ export function solveKinetics(spec: KineticsSpec): KineticsSolution {
 /* ------------------------------------------------------------------------- */
 /* Stem reading                                                               */
 
-const NUMBER = String.raw`(\d+(?:\.\d+)?)(?:\s*(?:[x×*]\s*10\s*\^?\s*\(?\s*(-?\d+)\s*\)?|e(-?\d+)))?`;
-
+const NUMBER = CHEMISTRY_NUMBER_PATTERN;
+const SCALAR = CHEMISTRY_SCALAR_PATTERN;
 function numberFrom(match: RegExpExecArray, offset: number): number {
-  const mantissa = Number(match[offset]);
-  const exponent = match[offset + 1] !== undefined ? Number(match[offset + 1]) : match[offset + 2] !== undefined ? Number(match[offset + 2]) : 0;
-  return mantissa * Math.pow(10, exponent);
+  return matchedChemistryScalar(match.input, match, offset) ?? NaN;
 }
-
-/**
- * OCR turns "2 x 10^-6" into "2x10~°" and "5.5 x 10^-14" into "5.5 x 107!4".
- * A number whose power of ten did not parse cleanly, or whose exponent runs
- * into stray glyphs, is unreadable: better no figure than a wrong half life.
- */
-function damagedNumber(stem: string, match: RegExpExecArray, offset: number): boolean {
-  const mantissa = match[offset];
-  if (mantissa === undefined) return true;
-  const within = match[0].indexOf(mantissa);
-  if (within < 0) return true;
-  const start = match.index + within + mantissa.length;
-  const tail = stem.slice(start, start + 24);
-  const exponentParsed = match[offset + 1] !== undefined || match[offset + 2] !== undefined;
-  if (!exponentParsed) {
-    if (/^\s*[x×*]\s*10/.test(tail)) return true;
-    if (/^\s+10\s*[°~!^"]/.test(tail)) return true;
-    return false;
-  }
-  const exponentText = match[offset + 1] ?? match[offset + 2] ?? "";
-  const exponentAt = tail.indexOf(exponentText);
-  if (exponentAt < 0) return false;
-  const after = tail.slice(exponentAt + exponentText.length, exponentAt + exponentText.length + 2);
-  return /^[!~°"\d]/.test(after);
-}
-
-/** The stem before its answer options; numbers inside options are not givens. */
-function questionBody(stem: string): string {
-  const cut = /\boptions?\s*:|\b\d{8,}\b|\(a\)\s+[^()]{3,}\(b\)/.exec(stem);
-  return cut ? stem.slice(0, cut.index) : stem;
-}
-
-const TIME_UNIT = String.raw`(min(?:ute)?s?|sec(?:ond)?s?|s|h(?:ou)?rs?|days?|y(?:ea)?rs?)`;
-
-const SECONDS: Record<string, number> = { s: 1, min: 60, h: 3600, days: 86400, yr: 3.156e7 };
-
+function questionBody(question: string): string { return question.slice(0, chemistryQuestionSpan(question).end); }
+const TIME_UNIT = String.raw`(min(?:ute)?s?|sec(?:ond)?s?|s|h|h(?:ou)?rs?|hours?|days?|y(?:ea)?rs?)`;
 function canonicalTimeUnit(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const unit = raw.toLowerCase();
-  if (/^min/.test(unit)) return "min";
-  if (/^(?:s|sec)/.test(unit)) return "s";
-  if (/^h/.test(unit)) return "h";
-  if (/^d/.test(unit)) return "days";
-  if (/^y/.test(unit)) return "yr";
-  return null;
+  return raw ? chemistryUnitSymbol(raw, "time") : null;
 }
-
 function convertTime(value: number, from: string, to: string): number {
-  return (value * (SECONDS[from] ?? 1)) / (SECONDS[to] ?? 1);
+  const read = convertChemistryValue(value, from as ChemistryUnit, to as ChemistryUnit, "time");
+  return read.ok ? read.reading : NaN;
 }
-
 interface Reading { value: number; unit: string | null; index: number }
-
-/** The first number (with an optional time unit) after `phrase`. */
-function readAfter(stem: string, phrase: RegExp, strict = false): Reading | null {
-  const pattern = new RegExp(`${phrase.source}\\s*(=|is|was|of|:|are|be|equal to|equals)?\\s*(?:about|nearly|approximately)?\\s*${NUMBER}\\s*${TIME_UNIT}?\\b`, "i");
-  const match = pattern.exec(stem);
-  if (!match) return null;
-  const unit = canonicalTimeUnit(match[5]);
-  // "half life of reaction 1" must not read 1 as the half life.
-  if (strict && !unit && !match[1]) return null;
-  if (damagedNumber(stem, match, 2)) return null;
-  return { value: numberFrom(match, 2), unit, index: match.index };
+function readAfter(stem: string, phrase: RegExp, _strict = false): Reading | null {
+  const read = readChemistryQuantity({question: stem, after: phrase, dimension: "time"});
+  if (!read.ok) return null;
+  const unit = canonicalTimeUnit(read.reading.rawUnit ?? undefined)!;
+  const converted = convertChemistryReading(read.reading, unit as ChemistryUnit);
+  return converted.ok ? {value: converted.reading.value, unit, index: read.reading.source.span.start} : null;
 }
-
-const RATE_UNIT = /(s|sec|min|h|hr|hour|day|year)s?\s*(?:\^\s*\(?\s*-\s*1\s*\)?|-1\b|~!|⁻¹|\^-¹)/i;
 
 function readOrders(stem: string): ReactionOrder[] {
   const found: Array<{ order: ReactionOrder; index: number }> = [];
@@ -313,48 +264,38 @@ function readOrders(stem: string): ReactionOrder[] {
 }
 
 function readHalfLife(stem: string): Reading | null {
-  return readAfter(stem, /(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)\b(?:\s*\([^)]{0,12}\))?(?:\s*(?:of|for)\s+(?:the |a |an |this )?(?:[a-z0-9_[\]()+<=>-]+\s+){0,8}?)?/, true);
+  const base = String.raw`(?:half[ -]?life(?:\s*period)?|t\s*1\s*/\s*2|t½|t_?\(?1/2\)?|t_half)\b`;
+  return readAfter(stem, new RegExp(`${base}(?:[^.;]{0,100}?(?:is|=|:))?`, "id"), true);
 }
 
-function readRateConstant(stem: string): { value: number; unit: string | null } | null {
-  const pattern = new RegExp(String.raw`(?:rate constant|\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:for|of)?\s*(?:the |this |a )?(?:reaction|it)?\s*(?:=|is|:|equals|equal to)\s*${NUMBER}`, "i");
-  const match = pattern.exec(stem);
-  if (!match) return null;
-  if (damagedNumber(stem, match, 1)) return null;
-  const value = numberFrom(match, 1);
-  const tail = stem.slice(match.index + match[0].length, match.index + match[0].length + 24);
-  const unit = RATE_UNIT.exec(tail);
-  let timeUnit: string | null = null;
-  if (unit) timeUnit = canonicalTimeUnit(unit[1]);
-  else {
-    const per = /(?:per|\/)\s*(second|minute|hour|s|min|h)\b/i.exec(tail);
-    if (per) timeUnit = canonicalTimeUnit(per[1]);
-  }
-  // A second order constant carries a concentration unit too; keep the time part.
-  return { value, unit: timeUnit };
+const RATE_CUE = /(?:rate constant|\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:for|of)?\s*(?:the |this |a )?(?:reaction|it)?/;
+function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null {
+  const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
+  const read = readChemistryQuantity({question: stem, after: RATE_CUE, dimension});
+  if (!read.ok) return null;
+  const raw = read.reading.rawUnit ?? "";
+  const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
+  return {value: read.reading.value * convertTime(1, unit, "s"), unit};
 }
-
-function readInitialConcentration(stem: string): { value: number; unit: string | null } | null {
-  const pattern = new RegExp(String.raw`(?:initial concentration(?:\s+of\s+(?:the\s+)?[a-z\[\]0-9_]+)?|\[a\]\s*_?\s*0|\[a\]_0|\ba_?0\b|starting concentration)\s*(?:of\s+[a-z\[\]0-9]+\s*)?(?:is|=|:|was|of|being)?\s*${NUMBER}\s*(mol\s*(?:l\^?\(?-1\)?|\/\s*l|dm\^?\(?-3\)?|per litre|l-1|l~!)?|m\b)`, "i");
-  const match = pattern.exec(stem);
-  if (!match || damagedNumber(stem, match, 1)) return null;
-  return { value: numberFrom(match, 1), unit: "M" };
+function readInitialConcentration(stem: string): {value: number; unit: string} | null {
+  const read = readChemistryQuantity({question: stem, after: /(?:initial concentration(?:[^.;=]{0,60}?(?:is|=|:))?|\[a\]\s*_?\s*0|\ba_?0\b|starting concentration)/, dimension: "concentration"});
+  return read.ok ? {value: read.reading.value, unit: "M"} : null;
 }
 
 /** "50 % of A is decomposed in 120 min" and its relatives. */
 function readCompletionGiven(stem: string): { fraction: number; time: number; unit: string | null; span: [number, number] } | null {
   const unitTail = String.raw`\s*${NUMBER}\s*${TIME_UNIT}\b`;
   const patterns = [
-    new RegExp(String.raw`(\d+(?:\.\d+)?)\s*%\s*(?:of\s+(?:the\s+)?[a-z\[\]0-9_]+\s+)?(?:is|was|gets|has been|had been|are|were)?\s*(?:decomposed|completed?|consumed|converted|reacted|complete|over|finished|dissociated|used up)\s*(?:in|after|within|takes)${unitTail}`, "i"),
-    new RegExp(String.raw`(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\s*(?:reach\s*)?(\d+(?:\.\d+)?)\s*%\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z\[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)${unitTail}`, "i"),
-    new RegExp(String.raw`(?:takes|took|requires|required)${unitTail}\s*(?:for|to)\s*(?:reach|complete|attain|be)?\s*(\d+(?:\.\d+)?)\s*%`, "i"),
-    new RegExp(String.raw`(?:in|after|within)${unitTail}\s*,?\s*(?:the\s+)?(?:reaction\s+)?(?:is|was|becomes|gets)?\s*(\d+(?:\.\d+)?)\s*%\s*(?:complete|completed|over|decomposed|consumed)`, "i"),
+    new RegExp(String.raw`(${SCALAR})\s*%\s*(?:of\s+(?:the\s+)?[a-z\[\]0-9_]+\s+)?(?:is|was|gets|has been|had been|are|were)?\s*(?:decomposed|completed?|consumed|converted|reacted|complete|over|finished|dissociated|used up)\s*(?:in|after|within|takes)${unitTail}`, "id"),
+    new RegExp(String.raw`(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\s*(?:reach\s*)?(${SCALAR})\s*%\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z\[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)${unitTail}`, "id"),
+    new RegExp(String.raw`(?:takes|took|requires|required)${unitTail}\s*(?:for|to)\s*(?:reach|complete|attain|be)?\s*(${SCALAR})\s*%`, "id"),
+    new RegExp(String.raw`(?:in|after|within)${unitTail}\s*,?\s*(?:the\s+)?(?:reaction\s+)?(?:is|was|becomes|gets)?\s*(${SCALAR})\s*%\s*(?:complete|completed|over|decomposed|consumed)`, "id"),
   ];
   for (const [index, pattern] of patterns.entries()) {
     const match = pattern.exec(stem);
     if (!match) continue;
     const percentFirst = index === 0 || index === 1;
-    const percent = Number(percentFirst ? match[1] : match[5]);
+    const percent = matchedChemistryScalar(stem, match, percentFirst ? 1 : 5) ?? NaN;
     const time = percentFirst ? numberFrom(match, 2) : numberFrom(match, 1);
     const unit = canonicalTimeUnit(percentFirst ? match[5] : match[4]);
     if (!(percent > 0 && percent < 100) || !(time > 0)) continue;
@@ -364,13 +305,13 @@ function readCompletionGiven(stem: string): { fraction: number; time: number; un
 }
 
 const WORD_FRACTIONS: Array<[RegExp, number]> = [
-  [/\bone[ -]?fourth\b|\b1\s*\/\s*4\b|\bquarter\b/g, 1 / 4],
-  [/\bone[ -]?eighth\b|\b1\s*\/\s*8\b/g, 1 / 8],
-  [/\bone[ -]?tenth\b|\b1\s*\/\s*10\b/g, 1 / 10],
-  [/\bone[ -]?third\b|\b1\s*\/\s*3\b/g, 1 / 3],
-  [/\bone[ -]?sixteenth\b|\b1\s*\/\s*16\b/g, 1 / 16],
-  [/\bthree[ -]?fourths?\b|\b3\s*\/\s*4\b/g, 3 / 4],
-  [/\btwo[ -]?thirds?\b|\b2\s*\/\s*3\b/g, 2 / 3],
+  [/\bone[ -]?fourth\b|\bquarter\b/g, 1 / 4],
+  [/\bone[ -]?eighth\b/g, 1 / 8],
+  [/\bone[ -]?tenth\b/g, 1 / 10],
+  [/\bone[ -]?third\b/g, 1 / 3],
+  [/\bone[ -]?sixteenth\b/g, 1 / 16],
+  [/\bthree[ -]?fourths?\b/g, 3 / 4],
+  [/\btwo[ -]?thirds?\b/g, 2 / 3],
 ];
 
 /** Completions asked for (as fractions complete) and remaining fractions asked for, excluding the given completion. */
@@ -380,12 +321,12 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
   const push = (list: number[], fraction: number) => {
     if (fraction > 0 && fraction < 1 && Math.abs(fraction - 0.5) > 1e-9 && !list.some((f) => Math.abs(f - fraction) < 1e-9)) list.push(fraction);
   };
-  for (const match of stem.matchAll(/(\d+(?:\.\d+)?)\s*%/g)) {
+  for (const match of stem.matchAll(new RegExp(`(${SCALAR})\\s*%`, "gd"))) {
     const index = match.index ?? 0;
     if (givenSpan && index >= givenSpan[0] && index < givenSpan[1]) continue;
     const before = stem.slice(Math.max(0, index - 70), index);
     const after = stem.slice(index, index + 70);
-    const percent = Number(match[1]);
+    const percent = matchedChemistryScalar(stem, match) ?? NaN;
     if (!(percent > 0 && percent < 100)) continue;
     // A rise in temperature or a yield is not a completion.
     if (/\b(?:temperature|yield|error|efficiency|purity|dissociat)\w*\s*$/.test(before) || /^\d+(?:\.\d+)?\s*%\s*(?:rise|increase|error)/.test(after)) continue;
@@ -395,7 +336,13 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
     if (asksRemaining) push(remaining, percent / 100);
     else push(completion, percent / 100);
   }
-  for (const [pattern, fraction] of WORD_FRACTIONS) {
+  const literalFractions = [...stem.matchAll(new RegExp(`(${SCALAR})`, "gd"))].filter(m => m[1]!.includes("/"));
+  const fractions: Array<[RegExp, number]> = [...WORD_FRACTIONS];
+  for (const m of literalFractions) {
+    const fraction = matchedChemistryScalar(stem, m);
+    if (fraction !== null) fractions.push([new RegExp(m[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gd"), fraction]);
+  }
+  for (const [pattern, fraction] of fractions) {
     for (const match of stem.matchAll(pattern)) {
       const index = match.index ?? 0;
       const before = stem.slice(Math.max(0, index - 70), index);
@@ -412,7 +359,7 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
 /** Instants asked for ("after 60 min", "at t = 40 s"), in their own units. */
 function readTimesAsked(stem: string, givenSpan: [number, number] | null): Array<{ value: number; unit: string }> {
   const out: Array<{ value: number; unit: string }> = [];
-  const pattern = new RegExp(String.raw`(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*${NUMBER}\s*${TIME_UNIT}\b`, "gi");
+  const pattern = new RegExp(String.raw`(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*${NUMBER}\s*${TIME_UNIT}\b`, "gid");
   for (const match of stem.matchAll(pattern)) {
     const index = match.index ?? 0;
     if (givenSpan && index >= givenSpan[0] && index < givenSpan[1]) continue;
@@ -425,102 +372,50 @@ function readTimesAsked(stem: string, givenSpan: [number, number] | null): Array
 }
 
 function readConcentrationsAsked(stem: string): number[] {
-  const match = new RegExp(String.raw`from\s*${NUMBER}\s*(?:mol[^ ]*\s*)?to\s*${NUMBER}\s*(?:mol|m\b)`, "i").exec(stem);
+  const match = new RegExp(String.raw`from\s*(${SCALAR})\s*(?:M|mol\s*/\s*L)\s*to\s*(${SCALAR})\s*(?:M|mol\s*/\s*L)`, "id").exec(stem);
   if (!match) return [];
-  return [numberFrom(match, 1), numberFrom(match, 4)];
+  const first = matchedChemistryQuantity(stem, match, 1, "concentration");
+  const second = matchedChemistryQuantity(stem, match, 2, "concentration");
+  return first !== null && second !== null ? [first, second] : [];
 }
-
 function readTemperatures(stem: string): number[] {
-  const temps: Array<{ value: number; index: number }> = [];
-  for (const match of stem.matchAll(/(?:^|[^^\d.])(\d+(?:\.\d+)?)\s*k\b(?!\s*(?:=|\/|\[))/g)) {
-    const value = Number(match[1]);
-    if (value >= 100 && value <= 2000) temps.push({ value, index: match.index ?? 0 });
-  }
-  for (const match of stem.matchAll(/(\d+(?:\.\d+)?)\s*(?:°\s*c|deg(?:rees?)?\s*(?:c|celsius)|celsius)\b/g)) {
-    temps.push({ value: Number(match[1]) + 273, index: match.index ?? 0 });
-  }
-  temps.sort((a, b) => a.index - b.index);
-  return temps.map((entry) => entry.value);
+  const temps = findChemistryQuantities({question: stem, dimension: "temperature"});
+  return temps.ok ? temps.reading.filter(r => r.value > 0).map(r => r.value) : [];
 }
-
-function readArrhenius(stem: string, quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null {
-  const mentions = /\b(?:arrhenius|activation energy|e_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k|rate constant)/.test(stem)
-    && /\b(?:temperature|arrhenius|activation energy|ln\s*k|log\s*k|\d\s*k\b|°\s*c)/.test(stem);
-  if (!mentions) return null;
-  let Ea: number | null = planQuantity(quantities, ["Ea", "E_a", "activation_energy", "activationEnergy"]);
-  const eaRead = new RegExp(String.raw`(?:activation energy|\be_?a\b)(?:\s*(?:of|for)\s+(?:the |a |this )?(?:[a-z]+\s+){0,4}?)?(?:\(?e_?a\)?)?\s*(?:is|=|:|was|of|equal to|found to be)?\s*(?:about|nearly)?\s*${NUMBER}\s*(k?j|k?cal)\b`, "i").exec(stem);
-  if (Ea === null && eaRead && !damagedNumber(stem, eaRead, 1)) {
-    const value = numberFrom(eaRead, 1);
-    const unit = eaRead[4]!.toLowerCase();
-    Ea = unit === "kj" ? value * 1000 : unit === "kcal" ? value * 4184 : unit === "cal" ? value * 4.184 : value;
-  }
-  let A: number | null = planQuantity(quantities, ["A", "frequency_factor", "pre_exponential"]);
-  const aRead = new RegExp(String.raw`(?:frequency factor|pre[ -]?exponential factor)\s*(?:\(?a\)?)?\s*(?:is|=|:|of)?\s*${NUMBER}`, "i").exec(stem);
-  if (A === null && aRead) A = numberFrom(aRead, 1);
-
-  const statedNatural = new RegExp(String.raw`ln\s*k\s*=\s*(-?\d+(?:\.\d+)?)\s*-\s*${NUMBER}\s*(?:k\s*)?\/\s*t\b`, "i").exec(stem);
-  const statedLog = new RegExp(String.raw`log\s*k\s*=\s*(-?\d+(?:\.\d+)?)\s*-\s*${NUMBER}\s*(?:k\s*)?\/\s*t\b`, "i").exec(stem);
-  const statedExp = new RegExp(String.raw`e\s*\^?\s*\(?\s*-\s*${NUMBER}\s*(?:k\s*)?\/\s*t\s*\)?`, "i").exec(stem);
-  let statedSlope: ArrheniusSpec["statedSlope"] = null;
-  if (statedNatural) statedSlope = { natural: true, b: numberFrom(statedNatural, 2) };
-  else if (statedLog) statedSlope = { natural: false, b: numberFrom(statedLog, 2) };
-  else if (statedExp) statedSlope = { natural: true, b: numberFrom(statedExp, 1) };
-
-  let T1: number | null = planQuantity(quantities, ["T1", "T_1"]);
-  let T2: number | null = planQuantity(quantities, ["T2", "T_2"]);
+function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null {
+  const lower = chemStem(stem);
+  if (!/arrhenius|activation energy|e_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k|rate constant/.test(lower)) return null;
+  const Ea = numberAfter(stem, /activation energy|\be_?a\b/, "molar_energy", "J/mol");
+  const A = numberAfter(stem, /frequency factor|pre[ -]?exponential factor/, "rate_constant_first", "s^-1");
+  const natural = new RegExp(String.raw`ln\s*k\s*=\s*(${SCALAR})\s*-\s*${NUMBER}\s*(?:K\s*)?/\s*T\b`, "id").exec(stem);
+  const log = new RegExp(String.raw`log\s*k\s*=\s*(${SCALAR})\s*-\s*${NUMBER}\s*(?:K\s*)?/\s*T\b`, "id").exec(stem);
+  const exp = new RegExp(String.raw`e\s*\^?\s*\(?\s*-\s*${NUMBER}\s*(?:K\s*)?/\s*T\s*\)?`, "id").exec(stem);
+  const slope = natural ?? log ?? exp;
+  const b = slope ? numberFrom(slope, slope === exp ? 1 : 2) : null;
+  const statedSlope = b !== null && Number.isFinite(b) ? {natural: !log, b} : null;
   const temps = readTemperatures(stem);
-  const rise = /(?:rise|raised|increase[sd]?|increasing|rising|goes up|raising)\b[^.]{0,40}?\bby\s*(\d+(?:\.\d+)?)\s*(?:k\b|°\s*c|degrees?|deg)/.exec(stem)
-    ?? /(\d+(?:\.\d+)?)\s*(?:k|°\s*c|degrees?)\s*(?:rise|increase)\s+in\s+temperature/.exec(stem);
-  if (T1 === null || T2 === null) {
-    const pair = /(\d+(?:\.\d+)?)\s*(?:k|°\s*c)\s*(?:to|and|&)\s*(\d+(?:\.\d+)?)\s*(?:k|°\s*c)\b/.exec(stem);
-    if (pair) {
-      const celsius = /°\s*c/.test(pair[0]);
-      T1 = Number(pair[1]) + (celsius ? 273 : 0);
-      T2 = Number(pair[2]) + (celsius ? 273 : 0);
-    } else if (rise) {
-      const delta = Number(rise[1]);
-      const base = temps.find((value) => value !== delta) ?? null;
-      if (base !== null) { T1 = base; T2 = base + delta; }
-    } else if (temps.length >= 2) {
-      T1 = temps[0]!;
-      T2 = temps[1]!;
-    } else if (temps.length === 1) {
-      T1 = temps[0]!;
-    }
+  const T1 = temps[0] ?? null; let T2 = temps[1] ?? null;
+  const rise = readChemistryQuantity({question: stem, after: /(?:rise|raised|increase[sd]?|increasing|rising|raising)\b[^.;]{0,40}?\bby/, dimension: "temperature_delta"});
+  if (rise.ok && T1 !== null) T2 = T1 + rise.reading.value;
+  let ratio = numberAfter(stem, /(?:ratio|k_?2\s*\/\s*k_?1)/);
+  const near = /\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved|two|three|four|five|ten)\b/i.exec(stem);
+  if (near && /temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm/i.test(stem)) {
+    const word = near[1]!.toLowerCase();
+    ratio = /^doubl|twice|two/.test(word) ? 2 : /^tripl|three/.test(word) ? 3 : /^quadrupl|four/.test(word) ? 4 : word === "halved" ? .5 : word === "five" ? 5 : 10;
   }
-
-  let ratio: number | null = planQuantity(quantities, ["ratio", "k2_k1", "k2/k1"]);
   if (ratio === null) {
-    const near = /\b(?:rate constant|rate|k)\b[^.]{0,60}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved|(?:\d+(?:\.\d+)?|two|three|four|five|ten)\s*(?:-|\s)?(?:times|fold))/.exec(stem);
-    const sentence = near ? stem.slice(Math.max(0, stem.lastIndexOf(".", near.index)), stem.indexOf(".", near.index + near[0].length) === -1 ? undefined : stem.indexOf(".", near.index + near[0].length)) : "";
-    if (near && /\b(?:temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm)/.test(sentence)) {
-      const word = near[1]!;
-      if (/^doubl|^twice/.test(word)) ratio = 2;
-      else if (/^tripl/.test(word)) ratio = 3;
-      else if (/^quadrupl/.test(word)) ratio = 4;
-      else if (/^halved/.test(word)) ratio = 0.5;
-      else {
-        const named: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, ten: 10 };
-        const numeric = /^(\d+(?:\.\d+)?)/.exec(word);
-        ratio = numeric ? Number(numeric[1]) : named[word.split(/[\s-]/)[0]!] ?? null;
-      }
-    }
+    const times = new RegExp(String.raw`(?:rate constant|rate)\b[^.;]{0,80}?(${SCALAR})\s*(?:times|fold)`, "id").exec(stem);
+    ratio = matchedChemistryScalar(stem, times);
   }
-
-  let k1: number | null = planQuantity(quantities, ["k1", "k_1"]);
-  let k2: number | null = planQuantity(quantities, ["k2", "k_2"]);
-  if (k1 === null || k2 === null) {
-    const values: number[] = [];
-    const pattern = new RegExp(String.raw`(?:rate constant|\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)\s*${NUMBER}`, "gi");
-    for (const match of stem.matchAll(pattern)) {
-      if (damagedNumber(stem, match as RegExpExecArray, 1)) { values.length = 0; break; }
-      values.push(numberFrom(match as RegExpExecArray, 1));
-    }
-    if (values.length >= 2) { k1 = values[0]!; k2 = values[1]!; }
-    else if (values.length === 1 && k1 === null) k1 = values[0]!;
+  const constants: number[] = [];
+  const pattern = /(?:rate constant|\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
+  for (const match of stem.matchAll(pattern)) {
+    const read = readChemistryQuantity({question: stem, after: /^/, within: {start: match.index! + match[0].length, end: stem.length}, dimension: "rate_constant_first"});
+    if (read.ok) constants.push(read.reading.value);
   }
+  const k1 = constants[0] ?? null; const k2 = constants[1] ?? null;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
-  return { T1, T2, k1, k2, ratio, Ea, A, statedSlope };
+  return {T1, T2, k1, k2, ratio, Ea, A, statedSlope};
 }
 
 function readLinearPlot(stem: string, orders: ReactionOrder[]): LinearPlotKind | null {
@@ -541,7 +436,16 @@ const EQUILIBRIUM_PLOT = /(?:variation (?:of|in) (?:the )?concentrations?[^.]{0,
 
 /** Everything the stem (and the plan) says about the kinetics, or null when nothing is readable. */
 export function kineticsFromStem(question: string, quantities: readonly ChemPlanQuantity[] = []): KineticsSpec | null {
-  const stem = questionBody(chemStem(question));
+  if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", GAS_CONSTANT)) return null;
+  if (!chemistryQuantityCuesValid(question, [
+    {after: /half[ -]?life(?:\s+period)?(?:[^.;]{0,100}?(?:is|=|:))?/, dimensions: ["time"]},
+    {after: RATE_CUE, dimensions: ["rate_constant_first", "rate_constant_zero", "rate_constant_second"]},
+    {after: /activation energy|\be_?a\b/, dimensions: ["molar_energy"]},
+    {after: /initial concentration/, dimensions: ["concentration"]},
+  ])) return null;
+  const body = questionBody(question);
+  const stem = chemStem(body);
   const ordersNamed = readOrders(stem);
   const order: ReactionOrder | null = ordersNamed.length === 1 ? ordersNamed[0]! : null;
   const reversible = /<=>|\breversible\b|\bequilibrium\b/.test(stem);
@@ -549,39 +453,20 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   // Half life, in the stem's unit.
   let tHalf: number | null = null;
   let timeUnit: string | null = null;
-  const planHalf = planQuantity(quantities, ["t_half", "t12", "t1/2", "half_life", "halfLife", "t_1/2", "thalf"]);
-  const halfRead = readHalfLife(stem);
+  const halfRead = readHalfLife(body);
   if (halfRead) { tHalf = halfRead.value; timeUnit = halfRead.unit; }
-  if (planHalf !== null) {
-    tHalf = planHalf;
-    const planEntry = quantities.find((q) => ["t_half", "t12", "t1/2", "half_life", "halflife", "t_1/2", "thalf"].includes(q.id.toLowerCase().replace(/[^a-z0-9/]/g, "")));
-    timeUnit = canonicalTimeUnit(planEntry?.unit) ?? timeUnit;
-  }
-
-  // Rate constant, in 1 / its own unit.
-  let k: number | null = null;
-  let kUnit: string | null = null;
-  const planK = planQuantity(quantities, ["k", "rate_constant", "rateConstant"]);
-  const kRead = readRateConstant(stem);
+  let k: number | null = null; let kUnit: string | null = null;
+  const kRead = readRateConstant(body, order);
   if (kRead) { k = kRead.value; kUnit = kRead.unit; }
-  if (planK !== null) {
-    k = planK;
-    const planEntry = quantities.find((q) => ["k", "rateconstant", "rate_constant"].includes(q.id.toLowerCase().replace(/[^a-z0-9_]/g, "")));
-    const unitMatch = planEntry?.unit ? RATE_UNIT.exec(planEntry.unit) : null;
-    kUnit = unitMatch ? canonicalTimeUnit(unitMatch[1]) : kUnit;
-  }
+  const a0Read = readInitialConcentration(body);
+  const a0 = a0Read?.value ?? null; const concUnit = a0 !== null ? "M" : null;
 
-  const a0Read = readInitialConcentration(stem);
-  const planA0 = planQuantity(quantities, ["A0", "[A]0", "a_0", "initial_concentration", "c0"]);
-  const a0 = planA0 ?? a0Read?.value ?? null;
-  const concUnit = a0 !== null ? "M" : null;
-
-  const given = readCompletionGiven(stem);
-  const timesAskedRaw = readTimesAsked(stem, given?.span ?? null);
-  const asked = readFractionsAsked(stem, given?.span ?? null);
+  const given = readCompletionGiven(body);
+  const timesAskedRaw = readTimesAsked(body, given?.span ?? null);
+  const asked = readFractionsAsked(body, given?.span ?? null);
   const fractionsAsked = asked.completion;
   const remainingAsked = asked.remaining;
-  const concentrationsAsked = readConcentrationsAsked(stem);
+  const concentrationsAsked = readConcentrationsAsked(body);
 
   // One unit for the plot: the half life's, else k's, else the given completion's, else the asked instant's.
   const unit = timeUnit ?? kUnit ?? given?.unit ?? timesAskedRaw[0]?.unit ?? "min";
@@ -590,7 +475,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   const completion = given ? { fraction: given.fraction, time: convertTime(given.time, given.unit ?? unit, unit) } : null;
   const timesAsked = timesAskedRaw.map((entry) => convertTime(entry.value, entry.unit, unit));
 
-  const arrhenius = readArrhenius(stem, quantities);
+  const arrhenius = readArrhenius(body, quantities);
   const linear = readLinearPlot(stem, ordersNamed);
   const arrheniusPlot = /(?:ln|log)\s*k\b[^.]{0,20}(?:vs\.?|versus|against)\s*(?:1\s*\/\s*t|t\^?\(?-1\)?|reciprocal)|arrhenius plot|plot of (?:ln|log)\s*k\b/.test(stem);
 
@@ -604,8 +489,8 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   else if (order === 1 && (fractionsAsked.length > 0 || remainingAsked.length > 0)) plot = "concentration";
 
   let equilibriumK: number | null = null;
-  const kc = new RegExp(String.raw`(?:equilibrium constant|k_?c|k_?p|\bk\b)\s*(?:=|is|:|of)\s*${NUMBER}`, "i").exec(stem);
-  if (reversible && kc) equilibriumK = numberFrom(kc, 1);
+  const kc = new RegExp(String.raw`(?:equilibrium constant|k_?c|k_?p|\bk\b)\s*(?:=|is|:|of)\s*${NUMBER}`, "id").exec(stem);
+  if (reversible && kc) equilibriumK = numberAfter(body, /(?:equilibrium constant|k_?c|k_?p|\bk\b)/);
 
   if (order === null && ordersNamed.length === 0 && k === null && tHalf === null && !arrhenius && !linear && plot === null) return null;
   return {
@@ -655,14 +540,14 @@ function hasRateTemperatureNumbers(stem: string): boolean {
 export function isKineticsStem(question: string): boolean {
   const stem = chemStem(question);
   if (HARD_VETO.test(stem)) return false;
-  if (PROFILE_WORDS.test(stem) && !hasRateTemperatureNumbers(stem)) return false;
+  if (PROFILE_WORDS.test(stem) && !hasRateTemperatureNumbers(question)) return false;
   const orderWord = /\b(?:zero|zeroth|first|second|pseudo[ -]?first|1st|2nd|0th)[ -]?order\b/.test(stem);
   const plotCue = /\b(?:plot|graph|straight line|linear|slope|variation of|vs\.?|versus|against)\b/.test(stem);
   const halfLife = /half[ -]?li(?:fe|ves)\b|\bt\s*1\s*\/\s*2\b|t½|\bt_?\(?1\/2\)?/.test(stem);
   const rateConstant = /\brate constant\b/.test(stem);
   const rateLaw = /\brate law\b/.test(stem) && /\d/.test(stem);
   const arrhenius = /\barrhenius\b/.test(stem);
-  const activation = /\bactivation energy\b/.test(stem) && hasRateTemperatureNumbers(stem);
+  const activation = /\bactivation energy\b/.test(stem) && hasRateTemperatureNumbers(question);
   const lnk = /(?:ln|log)\s*k\b[^.]{0,20}(?:vs\.?|versus|against)\s*1\s*\/\s*t|plot of (?:ln|log)/.test(stem);
   const logRatio = /log\s*\(?\s*\[a\]\s*_?0\s*\/\s*\[a\]/.test(stem);
   const concTime = /concentration[^.]{0,30}(?:vs\.?|versus|against|with) time|attains? equilibrium/.test(stem);
@@ -683,7 +568,7 @@ function fitLabel(prefix: string, value: string): string {
   if (tight.length <= 16) return tight;
   const tighter = `${prefix}=${value.replace(/\s+/g, "")}`;
   if (tighter.length <= 16) return tighter;
-  return tighter.slice(0, 16);
+  return tighter;
 }
 
 /** "1/8" for a remaining fraction that is a unit fraction, else the percent left. */
@@ -1071,7 +956,7 @@ function buildArrhenius(question: string, spec: KineticsSpec, solution: Kinetics
   const derived = arr?.Ea === null && !arr?.statedSlope
     ? `so E_a = R ln(k_2/k_1)/(1/T_1 - 1/T_2) = ${fmt(Ea! / 1000, 3)} kJ/mol.`
     : arr?.T2 === null
-      ? `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol, so T_2 = ${fmt(T2!, 4)} K (${fmt(T2! - 273, 3)} °C).`
+      ? `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol, so T_2 = ${fmt(T2!, 4)} K (${fmt(T2! - 273.15, 3)} °C).`
       : `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol.`;
   return c.build({ caption: `ln k against 1/T is a straight line of slope -E_a/R; ${ratioText}, ${derived}` });
 }

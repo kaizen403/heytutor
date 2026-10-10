@@ -14,7 +14,7 @@ import { fmt } from "../archetypes/document";
 import type { SceneDocument } from "../types";
 import { buildChemicalThermodynamicsScene, claimsChemicalThermodynamics } from "./chemicalThermodynamics";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
-import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity } from "./sceneKit";
+import { ChemScene, chemStem, type ChemPlanQuantity } from "./sceneKit";
 
 export const THERMO_FAMILY = "chem_thermo" as const;
 
@@ -37,7 +37,8 @@ const PROFILE_EXPLICIT = /reaction\s+coordinate|energy\s+profile|potential\s+ene
 
 const DRAW_CUE = /\b(?:draw|sketch|plot|show|represent|illustrate|depict)\b|\bdiagram\b|\bprofile\b|\bgraph\b|\bcurve\b/;
 
-function classifyThermoStem(stem: string): ThermoKind | null {
+function classifyThermoStem(question: string): ThermoKind | null {
+  const stem = chemStem(question);
   if (FIGURE_ABSENT.test(stem)) return null;
   if (/ellingham|δg°?\s*(?:vs|versus|against)\s*t\b[^.]{0,60}?oxide|thermodynamic\s+principles?\s+of\s+metallurgy|thermodynamics\s+of\s+metallurgy/.test(stem)) {
     return "ellingham";
@@ -53,8 +54,8 @@ function classifyThermoStem(stem: string): ThermoKind | null {
   ) {
     return "maxwell";
   }
-  const hasDeltaH = readEnthalpyChange(stem) !== null;
-  const hasDeltaS = readEntropyChange(stem) !== null;
+  const hasDeltaH = readEnthalpyChange(question) !== null;
+  const hasDeltaS = readEntropyChange(question) !== null;
   if (
     (/haber/.test(stem) && /variation|graph|plot|\bvs\b|versus|represent/.test(stem)) ||
     (/variation\s+of\s+(?:thermodynamic\s+)?(?:properties|parameters|δg|δh|δs)/.test(stem) && /\b(?:with|against|vs|versus)\s+(?:temperature|t)\b/.test(stem) && !(hasDeltaH && hasDeltaS))
@@ -84,10 +85,12 @@ function classifyThermoStem(stem: string): ThermoKind | null {
 /** True when this family should draw for the stem. Include vetoes. */
 export function isThermoGraphStem(question: string): boolean {
   if (claimsChemicalThermodynamics(question)) return true;
-  return classifyThermoStem(chemStem(question)) !== null;
+  return classifyThermoStem(question) !== null;
 }
 
 /* --------------------------------------------------------- number reading */
+
+import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, type ChemistryDimension } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -95,52 +98,20 @@ interface Energy {
   unit: string;
 }
 
-const NUMBER = /([+-]?\s?\d+(?:\.\d+)?)/g;
-const ENERGY_UNIT = /^\s*(kj|kilo\s?joules?|kcal|kilo\s?calories?|j\b|joules?|ev)/;
-const NOT_ENERGY = /^\s*(?:°|k\b|s\b|sec|min|hour|%|mol\b|g\b|ml|l\b|atm|bar|times|x\b|×)/;
-
-function canonicalUnit(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const unit = raw.toLowerCase();
-  if (/^kj|^kilo\s?joule/.test(unit)) return "kJ";
-  if (/^kcal|^kilo\s?cal/.test(unit)) return "kcal";
-  if (/^ev/.test(unit)) return "eV";
-  if (/^j/.test(unit)) return "J";
+/** Physical energy units are always read from original question text. */
+function energyNear(question: string, phrase: RegExp, _window = 70): Energy | null {
+  for (const [dimension, targetUnit] of [["molar_energy", "kJ/mol"], ["energy", "kJ"]] as const) {
+    const after = new RegExp(`(?:${phrase.source})(?:\\s+(?:of|for)\\b[^=,;]{0,45}?(?:is|=|:))?`, "i");
+    const read = readChemistryQuantity({question, after, dimension, targetUnit});
+    if (read.ok) return {value: read.reading.value, unit: targetUnit};
+    if (read.code === "malformed" || read.code === "ambiguous") return null;
+  }
   return null;
 }
+function toKj(energy: Energy): number { return energy.value; }
 
-/**
- * First energy value after a phrase: the first number in the window that
- * carries an energy unit, else the first number not followed by a
- * temperature, time or amount unit. Signs are read as written.
- */
-function energyNear(stem: string, phrase: RegExp, window = 70): Energy | null {
-  const head = new RegExp(phrase.source, "i").exec(stem);
-  if (!head) return null;
-  const tail = stem.slice(head.index + head[0].length, head.index + head[0].length + window);
-  let fallback: Energy | null = null;
-  NUMBER.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = NUMBER.exec(tail)) !== null) {
-    const raw = match[1]!.replace(/\s/g, "");
-    const value = Number(raw);
-    if (!Number.isFinite(value)) continue;
-    const after = tail.slice(match.index + match[0].length);
-    const unit = canonicalUnit(ENERGY_UNIT.exec(after)?.[1]);
-    if (unit) return { value, unit };
-    if (fallback === null && !NOT_ENERGY.test(after) && !/^\s*[×x]\s*10/.test(after)) fallback = { value, unit: "" };
-  }
-  return fallback;
-}
-
-function toKj(energy: Energy): number {
-  if (energy.unit === "J") return energy.value / 1000;
-  if (energy.unit === "kcal") return energy.value * 4.184;
-  return energy.value;
-}
-
-const DELTA_H_SYMBOL = /(?:δ|∆)\s*(?:r|reaction)?\s*h(?:°|º)?\b|\b[ad]h(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|(?:enthalpy|heat)\s+(?:change\s+)?(?:of|for)\s+(?:the\s+)?reaction|enthalpy\s+change|heat\s+of\s+reaction|reaction\s+enthalpy/;
-const DELTA_S_SYMBOL = /(?:δ|∆)\s*(?:r|reaction)?\s*s(?:°|º)?\b|\b[ad]s(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|entropy\s+change|change\s+in\s+entropy|reaction\s+entropy/;
+const DELTA_H_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*h(?:°|º)?\b|\b[ad]h(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|(?:enthalpy|heat)\s+(?:change\s+)?(?:of|for)\s+(?:the\s+)?reaction|enthalpy\s+change|heat\s+of\s+reaction|reaction\s+enthalpy/;
+const DELTA_S_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*s(?:°|º)?\b|\b[ad]s(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|entropy\s+change|change\s+in\s+entropy|reaction\s+entropy/;
 
 function readEnthalpyChange(stem: string): Energy | null {
   const direct = energyNear(stem, DELTA_H_SYMBOL, 40);
@@ -152,15 +123,12 @@ function readEnthalpyChange(stem: string): Energy | null {
   return null;
 }
 
-function readEntropyChange(stem: string): { value: number; unit: "J" | "kJ" } | null {
-  const head = new RegExp(DELTA_S_SYMBOL.source, "i").exec(stem);
-  if (!head) return null;
-  const tail = stem.slice(head.index + head[0].length, head.index + head[0].length + 40);
-  const match = /([+-]?\s?\d+(?:\.\d+)?)\s*(kj|j)\b/i.exec(tail) ?? /([+-]?\s?\d+(?:\.\d+)?)/.exec(tail);
-  if (!match) return null;
-  const value = Number(match[1]!.replace(/\s/g, ""));
-  if (!Number.isFinite(value)) return null;
-  return { value, unit: match[2]?.toLowerCase() === "kj" ? "kJ" : "J" };
+function readEntropyChange(question: string): {value: number; unit: "J" | "kJ"; dimension: ChemistryDimension} | null {
+  for (const dimension of ["molar_entropy", "entropy"] as const) {
+    const read = readChemistryQuantity({question, after: DELTA_S_SYMBOL, dimension});
+    if (read.ok) return {value: read.reading.value, unit: "J", dimension};
+  }
+  return null;
 }
 
 function unitLabel(unit: string): string {
@@ -283,7 +251,7 @@ function readMechanismSteps(stem: string): ProfileStep[] | null {
   return signs.map((step) => ({ ea: step.slow ? 2.6 : 1.1, dH: step.sign > 0 ? plusMagnitude : -minusMagnitude, slow: step.slow }));
 }
 
-function readProfile(stem: string, question: string, quantities: ChemPlanQuantity[], schematic: boolean): ProfileSpec | null {
+function readProfile(stem: string, question: string, _quantities: ChemPlanQuantity[], schematic: boolean): ProfileSpec | null {
   const sides = reactionSides(question);
   const reactants = sides?.reactants ?? "R";
   const products = sides?.products ?? "P";
@@ -304,36 +272,26 @@ function readProfile(stem: string, question: string, quantities: ChemPlanQuantit
     };
   }
 
-  const planEa = planQuantity(quantities, ["Ea", "E_a", "activation_energy", "activationEnergy", "Ea_forward", "Ea_f", "Ea(f)"]);
-  const planEaBack = planQuantity(quantities, ["Ea_backward", "Ea_b", "Ea(b)", "Ea_reverse", "activation_energy_backward"]);
-  const planDh = planQuantity(quantities, ["dH", "delta_H", "deltaH", "enthalpy", "enthalpy_change", "ΔH"]);
-  const planUnit = quantities.find((quantity) => /^(?:ea|e_a|dh|delta_?h)$/i.test(quantity.id) && quantity.unit)?.unit;
-
-  const eaBackStem = energyNear(stem, /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:backward|reverse)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:b|back|backward|rev|reverse)\s*\)?|backward\s+activation\s+energy|reverse\s+activation\s+energy/);
+  const eaBackStem = energyNear(question, /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:backward|reverse)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:b|back|backward|rev|reverse)\s*\)?|backward\s+activation\s+energy|reverse\s+activation\s+energy/);
   const eaForwardStem =
-    energyNear(stem, /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:forward|uncatalys[ez]d)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:f|fwd|forward)\s*\)?|forward\s+activation\s+energy/) ??
-    (eaBackStem && /activation\s+energy[^.]{0,40}?backward/.test(stem) ? null : energyNear(stem, /activation\s+energy|energy\s+of\s+activation|\be_?a\b|energy\s+barrier/));
-  const threshold = energyNear(stem, /threshold\s+energy/);
-  const energyR = energyNear(stem, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/);
-  const energyP = energyNear(stem, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/);
-  const dHStem = readEnthalpyChange(stem);
+    energyNear(question, /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:forward|uncatalys[ez]d)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:f|fwd|forward)\s*\)?|forward\s+activation\s+energy/) ??
+    (eaBackStem && /activation\s+energy[^.]{0,40}?backward/.test(stem) ? null : energyNear(question, /activation\s+energy|energy\s+of\s+activation|\be_?a\b|energy\s+barrier/));
+  const threshold = energyNear(question, /threshold\s+energy/);
+  const energyR = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/);
+  const energyP = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/);
+  const dHStem = readEnthalpyChange(question);
 
-  let ea: number | null = planEa;
-  let eaBack: number | null = planEaBack;
-  let dH: number | null = planDh;
-  let unit = planUnit ? (canonicalUnit(planUnit) ?? "kJ") : "";
-  const take = (energy: Energy | null): number | null => {
-    if (!energy) return null;
-    if (!unit) unit = energy.unit || "kJ";
-    return unit === "kcal" && energy.unit === "kcal" ? energy.value : toKj(energy);
-  };
-  if (ea === null) ea = take(eaForwardStem);
-  if (eaBack === null) eaBack = take(eaBackStem);
-  if (dH === null) dH = take(dHStem);
-  if (ea === null && threshold && energyR) ea = take(threshold)! - take(energyR)!;
-  if (dH === null && energyR && energyP) dH = take(energyP)! - take(energyR)!;
+  const energies = [eaBackStem, eaForwardStem, threshold, energyR, energyP, dHStem].filter((e): e is Energy => e !== null);
+  const unit = energies[0]?.unit ?? "";
+  if (energies.some(e => e.unit !== unit)) return null;
+  let ea = eaForwardStem?.value ?? null;
+  const eaBack = eaBackStem?.value ?? null;
+  let dH = dHStem?.value ?? null;
+  if (ea === null && threshold && energyR) ea = threshold.value - energyR.value;
+  if (dH === null && energyR && energyP) dH = energyP.value - energyR.value;
   if (dH === null && ea !== null && eaBack !== null) dH = ea - eaBack;
   if (ea === null && dH !== null && eaBack !== null) ea = eaBack + dH;
+  if (/\bnumeric(?:al)?\b/.test(stem) && (ea === null || dH === null)) return null;
 
   const exothermic = EXOTHERMIC.test(stem);
   const endothermic = ENDOTHERMIC.test(stem);
@@ -354,9 +312,9 @@ function readProfile(stem: string, question: string, quantities: ChemPlanQuantit
   const catalysed = /catalys(?:t|ed|is|e)/.test(stem);
   let catalyst: ProfileSpec["catalyst"] = null;
   if (catalysed) {
-    const lowered = energyNear(stem, /(?:lowers?|reduces?|decreases?|brings?\s+down)\s+(?:the\s+)?(?:activation\s+energy|energy\s+barrier|e_?a)[^.]{0,30}?\bby\b/);
-    const withCatalyst = energyNear(stem, /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|catalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/) ??
-      energyNear(stem, /(?:activation\s+energy|e_?a)\s+(?:of|for|in)\s+(?:the\s+)?(?:catalys[ez]d|presence\s+of\s+(?:a\s+)?catalyst)[^.]{0,20}?/);
+    const lowered = energyNear(question, /(?:lowers?|reduces?|decreases?|brings?\s+down)\s+(?:the\s+)?(?:activation\s+energy|energy\s+barrier|e_?a)[^.]{0,30}?\bby\b/);
+    const withCatalyst = energyNear(question, /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|catalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/) ??
+      energyNear(question, /(?:activation\s+energy|e_?a)\s+(?:of|for|in)\s+(?:the\s+)?(?:catalys[ez]d|presence\s+of\s+(?:a\s+)?catalyst)[^.]{0,20}?/);
     if (ea !== null && lowered) catalyst = ea - toKj(lowered);
     else if (ea !== null && withCatalyst) catalyst = toKj(withCatalyst);
     else catalyst = "qualitative";
@@ -499,33 +457,27 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
 /* ---------------------------------------------------------------- gibbs */
 
 /** A stated absolute temperature, such as "at 298 K". Nonpositive values are rejected by the caller. */
-function statedKelvin(stem: string): number | null {
-  const match = /\bat\s+(\d+(?:\.\d+)?)\s*k\b/.exec(stem);
-  if (!match) return null;
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
+function statedKelvin(question: string): number | null {
+  const read = findChemistryQuantities({question, dimension: "temperature"});
+  return read.ok && read.reading.length === 1 ? read.reading[0]!.value : null;
 }
-
-function buildGibbs(question: string, stem: string, quantities: ChemPlanQuantity[]): SceneDocument | null {
-  const planH = planQuantity(quantities, ["dH", "delta_H", "deltaH", "enthalpy", "ΔH"]);
-  const planS = planQuantity(quantities, ["dS", "delta_S", "deltaS", "entropy", "ΔS"]);
-  const stemH = readEnthalpyChange(stem);
-  const stemS = readEntropyChange(stem);
-  const dH = planH ?? (stemH ? toKj(stemH) : null);
-  const dSkJ = planS !== null
-    ? (quantities.find((quantity) => /^(?:ds|delta_?s)$/i.test(quantity.id))?.unit?.toLowerCase().startsWith("kj") ? planS : planS / 1000)
-    : stemS ? (stemS.unit === "kJ" ? stemS.value : stemS.value / 1000) : null;
-  if (dH === null || dSkJ === null || dH === 0 || dSkJ === 0) return null;
-  const at = statedKelvin(stem);
+function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuantity[]): SceneDocument | null {
+  const stemH = readEnthalpyChange(question); const stemS = readEntropyChange(question);
+  if (!stemH || !stemS) return null;
+  const perMole = stemH.unit === "kJ/mol";
+  if (perMole !== (stemS.dimension === "molar_entropy")) return null;
+  const dH = stemH.value; const dSkJ = stemS.value / 1000;
+  if (dH === 0 || dSkJ === 0) return null;
+  const at = statedKelvin(question);
   if (at !== null && !(at > 0)) return null;
   const dgAt = at === null ? null : dH - at * dSkJ;
-  const perMole = /kj\s*\/\s*mol|j\s*\/\s*\(?\s*mol|per\s+mol|mol(?:−|-|–)?1/.test(stem);
   const dgUnit = perMole ? "kJ/mol" : "kJ";
   const dgText = dgAt === null ? null : `ΔG=${dgAt.toFixed(1)} ${dgUnit}`;
   const tEq = dH / dSkJ;
   const sign = Math.sign(dH);
-  const hText = `ΔH = ${signed(dH)} kJ/mol`;
-  const sText = `ΔS = ${signed(stemS && stemS.unit === "J" ? stemS.value : dSkJ * 1000)} J/K/mol`;
+  const hText = `ΔH = ${signed(dH)} ${dgUnit}`;
+  const entropyUnit = perMole ? "J/(mol K)" : "J/K";
+  const sText = `ΔS = ${signed(stemS.value)} ${entropyUnit}`;
 
   const c = new ChemScene(question, "ΔG = ΔH − TΔS as a straight line in T", THERMO_FAMILY);
   const s = c.scene;
@@ -539,15 +491,15 @@ function buildGibbs(question: string, stem: string, quantities: ChemPlanQuantity
     s.labelled("gibbs_line");
     s.point("t_eq", { x: 5, y: 0 }, "equilibrium temperature", `T = ${fmt(tEq)} K`);
     s.labelled("t_eq");
-    s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText.length <= 16 ? hText : `ΔH = ${signed(dH)} kJ`);
+    s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText);
     s.labelled("h_intercept");
     const spontaneousRight = sign > 0;
     c.text("spont", { x: spontaneousRight ? 7 : 2.4, y: spontaneousRight ? 0.8 : -0.8 }, "spontaneous", "region name");
     c.text("nonspont", { x: spontaneousRight ? 2.4 : 7, y: spontaneousRight ? -0.8 : 0.8 }, "not spontaneous", "region name");
     s.quantity("T_eq", "T_eq", tEq, "K");
-    s.quantity("dH", "ΔH", dH, "kJ/mol");
-    s.quantity("dS", "ΔS", dSkJ * 1000, "J/K/mol");
-    if (dgText && dgText.length <= 16) c.text("dg_at", { x: 4.2, y: 3.15 }, dgText, "calculated Gibbs energy");
+    s.quantity("dH", "ΔH", dH, dgUnit);
+    s.quantity("dS", "ΔS", dSkJ * 1000, entropyUnit);
+    if (dgText) c.text("dg_at", { x: 4.2, y: 3.15 }, dgText, "calculated Gibbs energy");
     if (dgAt !== null) s.quantity("dG", "ΔG", dgAt, dgUnit);
     c.text("schematic_l", { x: 1.7, y: 2.7 }, "schematic", "the line is not an energy scale");
     c.text("scale_l", { x: 1.7, y: 1.85 }, "not a kJ scale", "vertical axis is not kJ");
@@ -556,25 +508,25 @@ function buildGibbs(question: string, stem: string, quantities: ChemPlanQuantity
   }
   s.curve("gibbs_line", `${num(3 * sign)}*(1+x/8)`, 0, 8, "ΔG line", "ΔG = ΔH − TΔS", 33);
   s.labelled("gibbs_line");
-  s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText.length <= 16 ? hText : `ΔH = ${signed(dH)} kJ`);
+  s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText);
   s.labelled("h_intercept");
   c.text("region", { x: 4.5, y: sign > 0 ? -0.8 : 0.8 }, sign < 0 ? "ΔG < 0 at all T" : "ΔG > 0 at all T", "region name");
-  if (dgText && dgText.length <= 16) c.text("dg_at", { x: 4.2, y: 2.7 }, dgText, "calculated Gibbs energy");
+  if (dgText) c.text("dg_at", { x: 4.2, y: 2.7 }, dgText, "calculated Gibbs energy");
   if (dgAt !== null) s.quantity("dG", "ΔG", dgAt, dgUnit);
   c.text("schematic_l", { x: 7.1, y: 3.15 }, "schematic", "the line is not an energy scale");
   c.text("scale_l", { x: 7.1, y: 2.35 }, "not a kJ scale", "vertical axis is not kJ");
-  s.quantity("dH", "ΔH", dH, "kJ/mol");
-  s.quantity("dS", "ΔS", dSkJ * 1000, "J/K/mol");
+  s.quantity("dH", "ΔH", dH, dgUnit);
+  s.quantity("dS", "ΔS", dSkJ * 1000, entropyUnit);
   const caption = `${hText}, ${sText}. ΔH and ΔS have opposite signs, so ΔG = ΔH ${MINUS} TΔS never changes sign: the reaction is ${sign < 0 ? "spontaneous" : "non spontaneous"} at every temperature. The line is schematic: the vertical scale is not kJ.${dgText ? ` At ${fmt(at!)} K the calculated value is ${dgText}.` : ""}`;
   return c.build({ caption });
 }
 
 function buildGibbsVariation(question: string, stem: string): SceneDocument | null {
   const haber = /haber|ammonia|nh_?3/.test(stem);
-  const sPositive = /(?:δ|∆)s\s*(?:°|º)?\s*(?:>\s*0|is\s+positive|=\s*\+|positive)|entropy\s+increases|increase\s+in\s+entropy/.test(stem);
-  const sNegative = /(?:δ|∆)s\s*(?:°|º)?\s*(?:<\s*0|is\s+negative|=\s*-|negative)|entropy\s+decreases|decrease\s+in\s+entropy/.test(stem);
-  const hPositive = /(?:δ|∆)h\s*(?:°|º)?\s*(?:>\s*0|is\s+positive|=\s*\+|positive)|endothermic/.test(stem);
-  const hNegative = /(?:δ|∆)h\s*(?:°|º)?\s*(?:<\s*0|is\s+negative|=\s*-|negative)|exothermic/.test(stem);
+  const sPositive = /(?:δ|∆|Δ)s\s*(?:°|º)?\s*(?:>\s*0|is\s+positive|=\s*\+|positive)|entropy\s+increases|increase\s+in\s+entropy/.test(stem);
+  const sNegative = /(?:δ|∆|Δ)s\s*(?:°|º)?\s*(?:<\s*0|is\s+negative|=\s*-|negative)|entropy\s+decreases|decrease\s+in\s+entropy/.test(stem);
+  const hPositive = /(?:δ|∆|Δ)h\s*(?:°|º)?\s*(?:>\s*0|is\s+positive|=\s*\+|positive)|endothermic/.test(stem);
+  const hNegative = /(?:δ|∆|Δ)h\s*(?:°|º)?\s*(?:<\s*0|is\s+negative|=\s*-|negative)|exothermic/.test(stem);
   // Haber synthesis: ΔH° near -92 kJ/mol and ΔS° near -199 J/K/mol.
   const sSign = haber && !sPositive ? -1 : sNegative && !sPositive ? -1 : sPositive && !sNegative ? 1 : 0;
   const hSign = haber && !hPositive ? -1 : hNegative && !hPositive ? -1 : hPositive && !hNegative ? 1 : 0;
@@ -622,34 +574,31 @@ function alkaliHalide(question: string, stem: string): { metal: string; halogen:
   return null;
 }
 
-function buildBornHaber(question: string, stem: string, quantities: ChemPlanQuantity[]): SceneDocument | null {
+function buildBornHaber(question: string, stem: string, _quantities: ChemPlanQuantity[]): SceneDocument | null {
   const salt = alkaliHalide(question, stem);
   if (!salt) return null;
   const { metal, halogen } = salt;
+  const inventory = findChemistryQuantities({question, dimension: "energy"});
+  if (!inventory.ok || inventory.reading.length) return null;
   const halogenLower = halogen.toLowerCase();
 
-  const sub = planQuantity(quantities, ["dH_sub", "sublimation", "delta_sub_H", "Hsub"]) ??
-    energyNear(stem, /(?:enthalpy|heat|energy)\s+of\s+sublimation|sublimation\s+(?:enthalpy|energy)|(?:δ|∆)\s*_?\s*sub\s*h|atomi[sz]ation\s+(?:enthalpy|energy)\s+of\s+(?:the\s+)?(?:metal|sodium|potassium|lithium|rubidium|caesium|cesium|na|k|li|rb|cs)\b/)?.value ?? null;
-  const ie = planQuantity(quantities, ["IE", "IE1", "ionisation_enthalpy", "ionization_enthalpy", "ionisation_energy", "ionization_energy"]) ??
-    energyNear(stem, /ioni[sz]ation\s+(?:enthalpy|energy|potential)|\bie_?1?\b|\bip\b|(?:δ|∆)\s*_?\s*i\s*h/)?.value ?? null;
-  const dissRaw = energyNear(stem, new RegExp(`(?:bond\\s+)?dissociation\\s+(?:enthalpy|energy)|bond\\s+(?:enthalpy|energy)|(?:δ|∆)\\s*_?\\s*diss\\s*h|atomi[sz]ation\\s+(?:enthalpy|energy)\\s+of\\s+(?:${halogenLower}_?2|chlorine|bromine|fluorine|iodine)`));
-  const dissPlan = planQuantity(quantities, ["dH_diss", "bond_dissociation", "bond_enthalpy", "D"]);
-  let halfDiss: number | null = dissPlan ?? dissRaw?.value ?? null;
+  const sub = energyNear(question, /(?:enthalpy|heat|energy)\s+of\s+sublimation|sublimation\s+(?:enthalpy|energy)|(?:δ|∆|Δ)\s*_?\s*sub\s*h|atomi[sz]ation\s+(?:enthalpy|energy)\s+of\s+(?:the\s+)?(?:metal|sodium|potassium|lithium|rubidium|caesium|cesium|na|k|li|rb|cs)\b/)?.value ?? null;
+  const ie = energyNear(question, /ioni[sz]ation\s+(?:enthalpy|energy|potential)|\bie_?1?\b|\bip\b|(?:δ|∆|Δ)\s*_?\s*i\s*h/)?.value ?? null;
+  const dissRaw = energyNear(question, new RegExp(`(?:bond\\s+)?dissociation\\s+(?:enthalpy|energy)|bond\\s+(?:enthalpy|energy)|(?:δ|∆|Δ)\\s*_?\\s*diss\\s*h|atomi[sz]ation\\s+(?:enthalpy|energy)\\s+of\\s+(?:${halogenLower}_?2|chlorine|bromine|fluorine|iodine)`));
+  let halfDiss: number | null = dissRaw?.value ?? null;
   if (halfDiss !== null) {
     const givenAsHalf = new RegExp(`(?:½|1/2|half)[^.]{0,40}?(?:dissociation|bond)|per\\s+mole\\s+of\\s+(?:${halogenLower}|chlorine|bromine|fluorine|iodine)\\s+atoms|atomi[sz]ation`).test(stem);
     if (!givenAsHalf) halfDiss = halfDiss / 2;
   }
-  const egRaw = energyNear(stem, /electron\s+gain\s+enthalpy|electron\s+affinity|(?:δ|∆)\s*_?\s*eg\s*h|\bea\b(?!\s*\()/);
-  let eg: number | null = planQuantity(quantities, ["dH_eg", "electron_gain_enthalpy", "electron_affinity", "EA"]) ?? egRaw?.value ?? null;
+  const egRaw = energyNear(question, /electron\s+gain\s+enthalpy|electron\s+affinity|(?:δ|∆|Δ)\s*_?\s*eg\s*h|\bea\b(?!\s*\()/);
+  let eg: number | null = egRaw?.value ?? null;
   let egNegated = false;
   if (eg !== null && eg > 0) {
     eg = -eg;
     egNegated = true;
   }
-  const lattice = planQuantity(quantities, ["lattice_enthalpy", "lattice_energy", "U", "dH_lattice"]) ??
-    energyNear(stem, /lattice\s+(?:enthalpy|energy)\s*(?:of\s+[a-z0-9_() ]{1,12})?(?:is|=|:)/)?.value ?? null;
-  const formation = planQuantity(quantities, ["dH_f", "enthalpy_of_formation", "formation_enthalpy", "delta_f_H"]) ??
-    energyNear(stem, /(?:enthalpy|heat)\s+of\s+formation|formation\s+enthalpy|(?:δ|∆)\s*_?\s*f\s*h|standard\s+enthalpy\s+of\s+formation/)?.value ?? null;
+  const lattice = energyNear(question, /lattice\s+(?:enthalpy|energy)\s*(?:of\s+[a-z0-9_() ]{1,12})?(?:is|=|:)/)?.value ?? null;
+  const formation = energyNear(question, /(?:enthalpy|heat)\s+of\s+formation|formation\s+enthalpy|(?:δ|∆|Δ)\s*_?\s*f\s*h|standard\s+enthalpy\s+of\s+formation/)?.value ?? null;
 
   const known = [sub, ie, halfDiss, eg].filter((value) => value !== null).length;
   const closes = known === 4 && (lattice !== null || formation !== null);
@@ -686,11 +635,11 @@ function buildBornHaber(question: string, stem: string, quantities: ChemPlanQuan
   ];
   const shown = (value: number | null, symbol: string): string => {
     if (value === null) return symbol;
-    const text = `${symbol}=${fmt(value)}`;
-    return text.length <= 16 ? text : symbol;
+    const text = `${symbol}=${fmt(value)} kJ/mol`;
+    return text;
   };
   const stepNames = closes
-    ? [`ΔH_sub = ${fmt(steps[0]!)}`, `IE = ${fmt(steps[1]!)}`, `½ΔH_diss = ${fmt(steps[2]!)}`, `ΔH_eg = ${signed(steps[3]!)}`, `U = ${signed(steps[4]!)} kJ`]
+    ? [`ΔH_sub = ${fmt(steps[0]!)}`, `IE = ${fmt(steps[1]!)}`, `½ΔH_diss = ${fmt(steps[2]!)}`, `ΔH_eg = ${signed(steps[3]!)}`, `U = ${signed(steps[4]!)} kJ/mol`]
     : [shown(sub, "ΔH_sub"), shown(ie, "IE_1"), shown(halfDiss, "½ΔH_diss"), shown(eg, "ΔH_eg"), shown(lattice, "ΔH_lattice")];
   const levelIds: string[] = [];
   for (let index = 0; index < 5; index += 1) {
@@ -809,9 +758,11 @@ function buildMaxwell(question: string, stem: string): SceneDocument {
 
 /** The figure, or null when the stem does not ground it. */
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  if (!chemistryQuantityCuesValid(question, [{after: /activation energy|energy barrier/, dimensions: ["energy", "molar_energy"]}, {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]}])) return null;
   if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);
   const stem = chemStem(question);
-  const kind = classifyThermoStem(stem);
+  const kind = classifyThermoStem(question);
   if (!kind) return null;
   switch (kind) {
     case "profile": {
@@ -838,13 +789,13 @@ export const THERMO_PROBES: ReadonlyArray<{
   {
     question: "For an exothermic reaction the activation energy of the forward reaction is 60 kJ/mol and ΔH = −20 kJ/mol. Draw the energy profile diagram and find the activation energy of the backward reaction.",
     expect: "draw",
-    labels: ["E_a = 60 kJ", "ΔH = −20 kJ", "TS", "R", "P"],
+    labels: ["E_a = 60 kJ/mol", "ΔH = −20 kJ/mol", "TS", "R", "P"],
     note: "Ea(back) = 80 kJ/mol; products drawn below reactants",
   },
   {
     question: "The activation energy of a reaction is 50 kJ/mol and the reaction is endothermic with ΔH = +30 kJ/mol. Sketch the potential energy diagram along the reaction coordinate and mark the activation energy of the reverse reaction.",
     expect: "draw",
-    labels: ["E_a = 50 kJ", "ΔH = 30 kJ", "TS"],
+    labels: ["E_a = 50 kJ/mol", "ΔH = 30 kJ/mol", "TS"],
     note: "Ea(back) = 20 kJ/mol; products drawn above reactants",
   },
   {
@@ -874,7 +825,7 @@ export const THERMO_PROBES: ReadonlyArray<{
   {
     question: "Construct the Born Haber cycle for NaCl. Enthalpy of sublimation of Na = 108 kJ/mol, ionisation enthalpy of Na = 496 kJ/mol, bond dissociation enthalpy of Cl2 = 242 kJ/mol, electron gain enthalpy of Cl = −349 kJ/mol and enthalpy of formation of NaCl = −411 kJ/mol. Calculate the lattice enthalpy of NaCl.",
     expect: "draw",
-    labels: ["NaCl(s)", "U = −787 kJ", "IE = 496", "½ΔH_diss = 121"],
+    labels: ["NaCl(s)", "U = −787 kJ/mol", "IE = 496", "½ΔH_diss = 121"],
     note: "U = −411 − (108 + 496 + 121 − 349) = −787 kJ/mol",
   },
   {
@@ -905,7 +856,7 @@ export const THERMO_PROBES: ReadonlyArray<{
     question: "Draw the Born Haber cycle for potassium chloride and label each enthalpy term.",
     expect: "draw",
     labels: ["KCl(s)", "ΔH_sub", "IE_1", "ΔH_lattice"],
-    forbidLabels: ["U = −787 kJ"],
+    forbidLabels: ["U = −787 kJ/mol"],
     note: "qualitative ladder with symbolic labels only",
   },
   {
