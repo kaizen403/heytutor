@@ -13,7 +13,6 @@ import {
   getSegmentCommands,
   isStoredCommandTrustedGeometry,
   parseStoredSegmentCommands,
-  remainingDeferredAnnotations,
   serializeSegmentCommands,
   verifiedDiagramCommandToDrawCommand,
   type DrawCommand,
@@ -22,6 +21,7 @@ import {
 import { compileSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
+import type { TurnControlApi, UseTurnLifecycleParams } from "../../features/tutor-session/hooks/turn/types";
 import { boardContinuationArtifacts, pageTurnsEndingAt, storedTurnContinuesBoard } from "../../lib/boards/boardContinuation";
 import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
 import { drawReplayDiagramTimeline } from "../../features/tutor-session/lib/replay/completeReplayDiagram";
@@ -48,7 +48,12 @@ type HookResult = Record<string, any>;
 const modules = new Map<string, HookResult>();
 function hook(file: string): HookResult {
   if (modules.has(file)) return modules.get(file)!;
-  const compiled = ts.transpileModule(readFileSync(file, "utf8"), {
+  // A frozen original restore source gives this same live/compiled oracle
+  // a reproducible red consumer without mutating the checked-out hook.
+  const source = file === path.join(hooksDir, "useBoardSession.ts")
+    ? process.env.BOARD_FIDELITY_RESTORE_SOURCE ?? file
+    : file;
+  const compiled = ts.transpileModule(readFileSync(source, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const mod = { exports: {} as HookResult };
@@ -58,7 +63,7 @@ function hook(file: string): HookResult {
     if (specifier.startsWith("@/")) return requireApp(path.resolve(appRoot, specifier.slice(2)));
     if (specifier.startsWith(".")) {
       const target = path.resolve(path.dirname(file), specifier);
-      return path.dirname(target) === hooksDir.replace(/\/$/, "") ? hook(`${target}.ts`) : requireApp(target);
+      return target.startsWith(hooksDir) ? hook(`${target}.ts`) : requireApp(target);
     }
     return requireApp(specifier);
   }, mod, mod.exports);
@@ -188,6 +193,35 @@ async function scenario(vertical: boolean, status: "complete" | "stopped", conti
   });
   const execute = executor.executeCommand as (command: DrawCommand, options: Record<string, unknown>) => Promise<void>;
   const options = { durationScale: 0, trustedDiagramGeometry: true, applyLayout: false };
+  const lifecycle: UseTurnLifecycleParams = {
+    sessionId: "fidelity-board", isDraft: true, enableKeyboardControls: false, phase: "idle", isReplaying: false,
+    boardLoaded: true, narrationText: "", boards: [], whiteboardRef, cancelRef, activeVerifiedDiagramRef,
+    boardLayoutRef: layout.boardLayoutRef, narrationSinceEpochRef: layout.narrationSinceEpochRef,
+    pendingQuestionRef: ref(null), autoSubmitDoneRef: ref(null), phaseRef: ref("speaking"), isPausedRef: ref(false),
+    conversationHistoryRef: ref([]), liveQuestionRef: ref(question), boardPageRef: ref(null), boardShowsStoppedReplayRef: ref(false),
+    ttsClientRef: ref(null), replayAudioRef: ref(null), replayDrawClockRef: ref(null), replayAudioPreloadRef: ref(new Map()),
+    turnActiveRef: ref(true), turnGenerationRef: ref(1), turnAbortRef: ref(null), segmentChainRef: ref(Promise.resolve()),
+    drawChainRef: ref(Promise.resolve()), collectedSegmentsRef: ref(presentation.introSegments), recordedSegmentsRef: ref([]),
+    storedTurnsRef: ref([]), rawResponseRef: ref(""), currentTraceIdRef: ref(null), turnTelemetryRef: ref(null),
+    turnStatsRef: ref({ drawMs: 0, ttsChars: 0 }), fbdPhaseMarkedRef: ref(false), fbdPhaseStartedRef,
+    segmentPlanStatsRef: ref({ activeDiagramId: null, activeDiagramName: null, plannedSegmentCount: 0, introSegmentCount: 0,
+      llmSegmentCount: 0, blockedUnverifiedDrawCommands: 0, droppedMarkerOnlySegments: 0 }),
+    stopTurnRef: ref(null), speedRef: ref(1), fastModeRef: ref(false), familiarityRef: ref("normal"),
+    pendingSegmentCountRef: ref(0), narrationDensityRef: ref(0), replayGenerationRef: ref(0), replayCueRef: ref(null),
+    setPhase() {}, setIsPaused() {}, setNarrationText() {}, setCurrentSegmentText() {}, setInputInteracted() {},
+    setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {}, setStoredTurnsCount() {}, setBoards() {},
+    setLastError(error) { if (error && typeof error !== "function") throw new Error(error.message); },
+    ensureTTSClient() { throw new Error("Fidelity gate must not dispatch TTS"); },
+    executeCommandWithCancel: (command, drawOptions) => execute(command, { ...drawOptions, durationScale: 0 }),
+    cancellableDelay: async () => {}, raceWithCancel: async <T>(value: Promise<T>) => value, clearCancelTimers() {},
+    resetBoardLayout: layout.resetBoardLayout, beginBoardEpoch: layout.beginBoardEpoch,
+    reserveTextCommandPlacements: layout.reserveTextCommandPlacements,
+    persistTurnForReplay() { throw new Error("Fidelity gate uses the explicit save canonicalizer"); },
+    registerReplayBlobUrl() {}, revokeUnreferencedReplayBlobUrls() {},
+  };
+  const control = hook(path.join(hooksDir, "turn/useTurnControl.ts")).useTurnControl(
+    lifecycle, ref(async () => { throw new Error("Fidelity gate must not dispatch a teaching model"); }),
+  ) as TurnControlApi;
   try {
     // The compiled command set is the end-of-lesson ink oracle, independent
     // of intro/reveal scheduling and the persistence consumer.
@@ -196,16 +230,55 @@ async function scenario(vertical: boolean, status: "complete" | "stopped", conti
     await board.clearBoard();
     layout.resetBoardLayout(false, false);
     let syncedTurnIndex = -1;
-    for (const segment of presentation.introSegments) {
-      for (const command of getSegmentCommands(segment)) await execute(command, options);
-    }
+    let releaseSegments = () => {};
+    let releaseDraw = () => {};
+    let markIntroDrawn = () => {};
+    const segmentBarrier = new Promise<void>((resolve) => { releaseSegments = resolve; });
+    const drawBarrier = new Promise<void>((resolve) => { releaseDraw = resolve; });
+    const introDrawn = new Promise<void>((resolve) => { markIntroDrawn = resolve; });
+    // Reconstruct the streamed intro through real executor ink. The actual
+    // terminal callback must wait for both captured queues, then decide
+    // whether its current generation still owns the withheld engine marks.
+    lifecycle.segmentChainRef.current = (async () => {
+      for (const segment of presentation.introSegments) {
+        for (const command of getSegmentCommands(segment)) await execute(command, options);
+      }
+      markIntroDrawn();
+      await segmentBarrier;
+    })();
+    lifecycle.drawChainRef.current = lifecycle.segmentChainRef.current.then(() => drawBarrier);
+    const completesPage = status === "complete" || continuation === "resume" || continuation === "resume-after-doubt" || continuation === "absent-scene";
+    const superseded = !completesPage && (!continuation || continuation === "stopped-resume");
+    const generation = lifecycle.turnGenerationRef.current;
+    let terminalSettled = false;
+    const terminal = completesPage || continuation === "doubt" || superseded
+      ? control.processResponseText("[STEP]The segment is shown.[/STEP]", presentation.introSegments, true, generation, [], {
+          revealDeferredAnnotations: continuation !== "doubt",
+        }).then(() => { terminalSettled = true; })
+      : null;
+    if (superseded) lifecycle.turnGenerationRef.current += 1;
+    await introDrawn;
     const unfinished = ink(board);
     assert(unfinished.length < expected.length, "the gate must expose deferred compiled ink");
-    const completesPage = status === "complete" || continuation === "resume" || continuation === "resume-after-doubt" || continuation === "absent-scene";
-    if (completesPage) {
-      for (const command of remainingDeferredAnnotations(presentation.diagram)) await execute(verifiedDiagramCommandToDrawCommand(command), options);
-      assert.deepEqual(ink(board), expected, "live end flush matches all compiled ink");
+    if (terminal) assert(!terminalSettled, "live terminal must wait for its segment queue");
+    releaseSegments();
+    await lifecycle.segmentChainRef.current;
+    if (terminal) assert(!terminalSettled, "live terminal must also wait for its drawing queue");
+    assert.deepEqual(ink(board), unfinished, "pending terminal queues must not release unnamed marks");
+    releaseDraw();
+    await lifecycle.drawChainRef.current;
+    if (terminal) {
+      await terminal;
+      assert(terminalSettled, "actual live terminal callback finishes after both queues drain");
+      control.finishLectureUi(generation);
+      if (superseded) {
+        assert(lifecycle.turnActiveRef.current, "stale terminal cannot finish the new generation's UI");
+      } else {
+        assert(!lifecycle.turnActiveRef.current && lifecycle.phaseRef.current === "idle", "actual terminal cleanup leaves the completed lesson idle");
+      }
     }
+    const liveEnd = ink(board);
+    assert.deepEqual(liveEnd, completesPage ? expected : unfinished, "actual live terminal lifecycle must preserve the appropriate engine ink");
     const expectedReopen = completesPage ? expected : unfinished;
     const session = hook(path.join(hooksDir, "useBoardSession.ts")).useBoardSession({
       sessionId: "fidelity-board", router: { push() {} }, phase: "idle", speedMultiplier: 1,
@@ -218,6 +291,7 @@ async function scenario(vertical: boolean, status: "complete" | "stopped", conti
     });
     assert(await session.refreshBoardFromTurns("fidelity-board", pageTurns, () => true), "the real reopen consumer finishes");
     const reopened = ink(board);
+    console.log(JSON.stringify({ phase: "reopen", orientation: vertical ? "vertical" : "horizontal", status, continuation, compiledNodes: expected.length, liveNodes: liveEnd.length, reopenedNodes: reopened.length, withheldCommands: withheld.length }));
     assert.deepEqual(reopened, expectedReopen, `${continuation ?? status} ${vertical ? "vertical" : "horizontal"} reopen must preserve its live end ink`);
     await board.clearBoard();
     layout.resetBoardLayout(false, false);
@@ -236,7 +310,7 @@ async function scenario(vertical: boolean, status: "complete" | "stopped", conti
       },
     });
     const replayed = ink(board);
-    console.log(JSON.stringify({ orientation: vertical ? "vertical" : "horizontal", status, continuation, compiledNodes: expected.length, liveNodes: expectedReopen.length, reopenedNodes: reopened.length, replayedNodes: replayed.length, withheldCommands: withheld.length }));
+    console.log(JSON.stringify({ phase: "replay", orientation: vertical ? "vertical" : "horizontal", status, continuation, compiledNodes: expected.length, liveNodes: liveEnd.length, reopenedNodes: reopened.length, replayedNodes: replayed.length, withheldCommands: withheld.length }));
     assert.deepEqual(replayed, expectedReopen, `${continuation ?? status} replay timeline must preserve the page's live end ink`);
   } finally {
     clearInterval(pump);
