@@ -1,7 +1,7 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import {
   add2, canonicalUnit, compactNumber, hypot2, invalid, isRecord, placement, rejectUnknownKeys,
-  scale2, scalar, SourceInputError, validationNumber,
+  scale2, scalar, sourceUnits, SourceInputError, validationNumber,
   type SourceContext,
 } from "./sourceScalars";
 
@@ -37,6 +37,47 @@ const GRAVITY: Readonly<Record<string, string>> = { "m/s^2": "m/s^2", "m/s²": "
 const CHARGE: Readonly<Record<string, string>> = { C: "C" };
 const TESLA: Readonly<Record<string, string>> = { T: "T" };
 const SPEED: Readonly<Record<string, string>> = { "m/s": "m/s" };
+type Dimension = "resistance" | "length" | "emf" | "mass" | "gravity" | "charge" | "field" | "speed";
+const TO_BASE: Record<Dimension, Readonly<Record<string, number>>> = {
+  resistance: { ohm: 1, "Ω": 1, kohm: 1e3, "kΩ": 1e3, kOhm: 1e3, Mohm: 1e6, "MΩ": 1e6, mohm: 1e-3, "mΩ": 1e-3 },
+  length: { m: 1, metre: 1, meter: 1, cm: 0.01, mm: 0.001, km: 1000 },
+  emf: { V: 1, volt: 1, mV: 0.001, kV: 1000 },
+  mass: { kg: 1, g: 0.001, gram: 0.001, grams: 0.001, mg: 1e-6 },
+  gravity: { "m/s^2": 1, "m/s²": 1, "cm/s^2": 0.01, "cm/s²": 0.01 },
+  charge: { C: 1, mC: 0.001, uC: 1e-6, "μC": 1e-6, nC: 1e-9 },
+  field: { T: 1, mT: 0.001, uT: 1e-6, "μT": 1e-6 },
+  speed: { "m/s": 1, "cm/s": 0.01, "km/s": 1000, "km/h": 1000 / 3600, "km/hr": 1000 / 3600 },
+};
+
+function knownFactor(unit: string): { dimension: Dimension; toBase: number } | undefined {
+  for (const dimension of Object.keys(TO_BASE) as Dimension[]) {
+    const factor = TO_BASE[dimension][unit.trim()];
+    if (typeof factor === "number") return { dimension, toBase: factor };
+  }
+  return undefined;
+}
+
+function inDeclaredUnit(
+  value: unknown,
+  key: string,
+  dimension: Dimension,
+  workingUnit: string,
+  context: SourceContext,
+  document?: SceneDocument,
+): number {
+  const working = TO_BASE[dimension][workingUnit];
+  if (working === undefined) invalid("units", `${key} working unit ${workingUnit} is not a known ${dimension} unit`);
+  const declared = sourceUnits(value, document);
+  if (declared.length === 0) return scalar(value, key, context);
+  const factors = declared.map((unit) => {
+    const known = knownFactor(unit);
+    if (!known) invalid(key, `source unit ${unit} is unknown; it is not treated as ${workingUnit}`);
+    if (known.dimension !== dimension) invalid(key, `source unit ${unit} is ${known.dimension}, not ${dimension}`);
+    return known.toBase;
+  });
+  if (factors.some((factor) => factor !== factors[0])) invalid(key, "source units disagree");
+  return scalar(value, key, context) * factors[0]! / working;
+}
 
 function isOperator(operator: string): operator is (typeof CHAPTER_INSTRUMENT_OPERATORS)[number] {
   return (CHAPTER_INSTRUMENT_OPERATORS as readonly string[]).includes(operator);
@@ -50,29 +91,43 @@ function positive(value: unknown, key: string, context: SourceContext): number {
   if (!(number > 0)) invalid(key, `${key} must be positive`);
   return number;
 }
+function positiveDeclared(
+  value: unknown,
+  key: string,
+  dimension: Dimension,
+  workingUnit: string,
+  context: SourceContext,
+  document?: SceneDocument,
+): number {
+  const number = inDeclaredUnit(value, key, dimension, workingUnit, context, document);
+  if (!(number > 0)) invalid(key, `${key} must be positive`);
+  return number;
+}
 function unitOf(inputs: Record<string, unknown>, key: string, aliases: Readonly<Record<string, string>>, expected: string): void {
   if (!isRecord(inputs.units) || canonicalUnit(inputs.units[key], aliases) !== expected) invalid("units", `${key} must declare ${expected}`);
 }
-function agree(actual: number, supplied: unknown, key: string, context: SourceContext): number {
+function agreeDeclared(actual: number, supplied: unknown, key: string, dimension: Dimension, workingUnit: string, context: SourceContext, document?: SceneDocument): number {
   if (supplied === undefined) return actual;
-  const value = scalar(supplied, key, context);
+  const value = inDeclaredUnit(supplied, key, dimension, workingUnit, context, document);
   if (Math.abs(value - actual) > 1e-8 * Math.max(1, Math.abs(actual))) invalid(key, `${key} contradicts the balance law`);
   return actual;
 }
 
-function readBridge(inputs: Record<string, unknown>, context: SourceContext): InstrumentGeometry[] {
+function readBridge(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): InstrumentGeometry[] {
   rejectUnknownKeys(inputs, ["knownResistance", "unknownResistance", "balanceFromLeft", "wireLength", "origin", "displayLength", "units"]);
   unitOf(inputs, "resistance", OHM, "ohm");
-  if (!isRecord(inputs.units) || !canonicalUnit(inputs.units.length, LENGTH)) invalid("units", "length must declare m or cm");
-  const known = positive(inputs.knownResistance, "knownResistance", context);
-  const wire = positive(inputs.wireLength, "wireLength", context);
+  if (!isRecord(inputs.units)) invalid("units", "length must declare m or cm");
+  const lengthUnit = canonicalUnit(inputs.units.length, LENGTH);
+  if (!lengthUnit) invalid("units", "length must declare m or cm");
+  const known = positiveDeclared(inputs.knownResistance, "knownResistance", "resistance", "ohm", context, document);
+  const wire = positiveDeclared(inputs.wireLength, "wireLength", "length", lengthUnit, context, document);
   if (inputs.unknownResistance === undefined && inputs.balanceFromLeft === undefined) invalid("unknownResistance", "supply the unknown resistance or the balance length");
   const balance = inputs.balanceFromLeft === undefined
-    ? wire * known / (known + positive(inputs.unknownResistance, "unknownResistance", context))
-    : positive(inputs.balanceFromLeft, "balanceFromLeft", context);
+    ? wire * known / (known + positiveDeclared(inputs.unknownResistance, "unknownResistance", "resistance", "ohm", context, document))
+    : positiveDeclared(inputs.balanceFromLeft, "balanceFromLeft", "length", lengthUnit, context, document);
   if (!(balance < wire)) invalid("balanceFromLeft", "the jockey must lie strictly between the wire ends");
   const unknown = known * (wire - balance) / balance;
-  agree(unknown, inputs.unknownResistance, "unknownResistance", context);
+  agreeDeclared(unknown, inputs.unknownResistance, "unknownResistance", "resistance", "ohm", context, document);
   const origin = placement(inputs.origin, "origin", context);
   const display = positive(inputs.displayLength, "displayLength", context);
   const end = { x: origin.x + display, y: origin.y };
@@ -90,15 +145,17 @@ function readBridge(inputs: Record<string, unknown>, context: SourceContext): In
   ];
 }
 
-function readPotentiometer(inputs: Record<string, unknown>, context: SourceContext): InstrumentGeometry[] {
+function readPotentiometer(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): InstrumentGeometry[] {
   rejectUnknownKeys(inputs, ["driverEmf", "cellEmf", "wireLength", "balanceLength", "origin", "displayLength", "units"]);
   unitOf(inputs, "emf", VOLT, "V");
-  if (!isRecord(inputs.units) || !canonicalUnit(inputs.units.length, LENGTH)) invalid("units", "length must declare m or cm");
-  const driver = positive(inputs.driverEmf, "driverEmf", context);
-  const cell = positive(inputs.cellEmf, "cellEmf", context);
-  const wire = positive(inputs.wireLength, "wireLength", context);
+  if (!isRecord(inputs.units)) invalid("units", "length must declare m or cm");
+  const lengthUnit = canonicalUnit(inputs.units.length, LENGTH);
+  if (!lengthUnit) invalid("units", "length must declare m or cm");
+  const driver = positiveDeclared(inputs.driverEmf, "driverEmf", "emf", "V", context, document);
+  const cell = positiveDeclared(inputs.cellEmf, "cellEmf", "emf", "V", context, document);
+  const wire = positiveDeclared(inputs.wireLength, "wireLength", "length", lengthUnit, context, document);
   if (cell > driver) invalid("cellEmf", "a cell above the driver emf has no null point on the wire");
-  const balance = agree(wire * cell / driver, inputs.balanceLength, "balanceLength", context);
+  const balance = agreeDeclared(wire * cell / driver, inputs.balanceLength, "balanceLength", "length", lengthUnit, context, document);
   const origin = placement(inputs.origin, "origin", context);
   const display = positive(inputs.displayLength, "displayLength", context);
   return [
@@ -107,12 +164,12 @@ function readPotentiometer(inputs: Record<string, unknown>, context: SourceConte
   ];
 }
 
-function readIncline(inputs: Record<string, unknown>, context: SourceContext): InstrumentGeometry[] {
+function readIncline(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): InstrumentGeometry[] {
   rejectUnknownKeys(inputs, ["mass", "gravity", "angleDeg", "mu", "motion", "origin", "displayScale", "forceScale", "accelScale", "units"]);
   unitOf(inputs, "mass", MASS, "kg");
   unitOf(inputs, "gravity", GRAVITY, "m/s^2");
-  const mass = positive(inputs.mass, "mass", context);
-  const gravity = positive(inputs.gravity, "gravity", context);
+  const mass = positiveDeclared(inputs.mass, "mass", "mass", "kg", context, document);
+  const gravity = positiveDeclared(inputs.gravity, "gravity", "gravity", "m/s^2", context, document);
   const angle = scalar(inputs.angleDeg, "angleDeg", context, 90) * Math.PI / 180;
   if (!(angle > 0) || !(angle < Math.PI / 2)) invalid("angleDeg", "the incline angle must lie strictly between 0 and 90 degrees");
   const mu = scalar(inputs.mu, "mu", context);
@@ -129,9 +186,10 @@ function readIncline(inputs: Record<string, unknown>, context: SourceContext): I
     frictionMagnitude = parallel;
     acceleration = 0;
   } else if (inputs.motion === "down") {
-    acceleration = gravity * (Math.sin(angle) - mu * Math.cos(angle));
-    if (acceleration < -1e-9) invalid("motion", "kinetic friction would not let the block slide down");
-    acceleration = Math.max(0, acceleration);
+    const downhillAcceleration = gravity * (Math.sin(angle) - mu * Math.cos(angle));
+    if (downhillAcceleration < -1e-9) invalid("motion", "kinetic friction would not let the block slide down");
+    // Force components use the uphill basis, so downhill acceleration is negative.
+    acceleration = -Math.max(0, downhillAcceleration);
   } else {
     frictionUp = false;
     acceleration = -gravity * (Math.sin(angle) + mu * Math.cos(angle));
@@ -179,16 +237,16 @@ function dee(center: RenderPoint, radius: number, side: -1 | 1): RenderPoint[] {
   ];
 }
 
-function readCyclotron(inputs: Record<string, unknown>, context: SourceContext): InstrumentGeometry[] {
+function readCyclotron(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): InstrumentGeometry[] {
   rejectUnknownKeys(inputs, ["charge", "mass", "field", "speed", "origin", "displayScale", "units"]);
   unitOf(inputs, "charge", CHARGE, "C");
   unitOf(inputs, "mass", MASS, "kg");
   unitOf(inputs, "field", TESLA, "T");
   unitOf(inputs, "speed", SPEED, "m/s");
-  const charge = scalar(inputs.charge, "charge", context);
-  const mass = positive(inputs.mass, "mass", context);
-  const field = scalar(inputs.field, "field", context);
-  const speed = scalar(inputs.speed, "speed", context);
+  const charge = inDeclaredUnit(inputs.charge, "charge", "charge", "C", context, document);
+  const mass = positiveDeclared(inputs.mass, "mass", "mass", "kg", context, document);
+  const field = inDeclaredUnit(inputs.field, "field", "field", "T", context, document);
+  const speed = inDeclaredUnit(inputs.speed, "speed", "speed", "m/s", context, document);
   if (charge === 0 || field === 0) invalid("field", "a cyclotron orbit requires nonzero charge and field");
   if (!(speed > 0)) invalid("speed", "a cyclotron snapshot requires positive speed");
   const radius = mass * speed / (Math.abs(charge) * Math.abs(field));
@@ -221,12 +279,12 @@ function readCyclotron(inputs: Record<string, unknown>, context: SourceContext):
   ];
 }
 
-export function evaluateChapterInstrumentConstruction(operator: string, inputs: Record<string, unknown>, context: SourceContext): InstrumentGeometry[] {
+export function evaluateChapterInstrumentConstruction(operator: string, inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): InstrumentGeometry[] {
   if (!isOperator(operator)) invalid("operator", `unsupported instrument operator ${operator}`);
-  if (operator === "metre_bridge") return readBridge(inputs, context);
-  if (operator === "potentiometer") return readPotentiometer(inputs, context);
-  if (operator === "incline_friction") return readIncline(inputs, context);
-  return readCyclotron(inputs, context);
+  if (operator === "metre_bridge") return readBridge(inputs, context, document);
+  if (operator === "potentiometer") return readPotentiometer(inputs, context, document);
+  if (operator === "incline_friction") return readIncline(inputs, context, document);
+  return readCyclotron(inputs, context, document);
 }
 
 export function chapterInstrumentOutputLabels(operator: string, outputs: readonly unknown[], requested?: readonly unknown[]): string[] {
@@ -268,7 +326,7 @@ export function validateChapterInstrumentConstruction(
     },
     geometry: () => undefined,
   };
-  try { evaluateChapterInstrumentConstruction(operator, construction.inputs, context); }
+  try { evaluateChapterInstrumentConstruction(operator, construction.inputs, context, document); }
   catch (error) {
     issues.push({
       code: `invalid_${operator}_${error instanceof SourceInputError ? error.key : "inputs"}`,
