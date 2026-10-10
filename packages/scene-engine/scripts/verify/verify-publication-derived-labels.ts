@@ -11,6 +11,9 @@ const context = {
   point(value: unknown): { x: number; y: number } { if (typeof value === "object" && value !== null && "x" in value && "y" in value) return { x: Number(value.x), y: Number(value.y) }; throw new Error("not point"); },
   geometry(): unknown { return undefined; },
 };
+// A page-normal glyph (the dipole torque ring) is still a vector entity.
+const pageNormalGlyph = (geometry: object): boolean => "dipoleField" in geometry && typeof geometry.dipoleField === "object" && geometry.dipoleField !== null
+  && "pageNormal" in geometry.dipoleField && (geometry.dipoleField.pageNormal === "out" || geometry.dipoleField.pageNormal === "in");
 type Fixture = { operator: string; inputs: Record<string, unknown>; lane: "dipole" | "line" | "mass"; claim?: string; value?: number; output?: number };
 const pair = [{ position: { x: 1, y: 0 }, charge: 1 }, { position: { x: -1, y: 0 }, charge: -1 }];
 // Independent numeric oracles: Coulomb, distance, section, translation, slope,
@@ -42,7 +45,7 @@ function documentFor(fixture: Fixture): SceneDocument {
   const { operator, lane } = fixture;
   const inputs = structuredClone(fixture.inputs);
   const outputs = lane === "dipole" ? evaluateDipoleFieldConstruction(operator, inputs, context) : lane === "line" ? evaluateAnalyticLineConstruction(operator, inputs, context) : evaluateRigidMassConstruction(operator, inputs, context);
-  const entities = outputs.map((geometry, index) => ({ id: `result${index}`, role: "computed output", kind: lane === "mass" ? rigidMassEntityKind(geometry as ReturnType<typeof evaluateRigidMassConstruction>[number]) : geometry.kind === "point" ? "point" : geometry.kind === "circle" ? "circle" : geometry.kind === "multi_path" ? "polyline" : ["line_relation", "line_intercepts", "line_equation"].includes(operator) ? "line" : lane === "dipole" || "directed" in geometry && geometry.directed ? "vector" : "infinite" in geometry && geometry.infinite ? "line" : "segment" }));
+  const entities = outputs.map((geometry, index) => ({ id: `result${index}`, role: "computed output", kind: lane === "mass" ? rigidMassEntityKind(geometry as ReturnType<typeof evaluateRigidMassConstruction>[number]) : geometry.kind === "point" ? "point" : geometry.kind === "circle" ? "circle" : geometry.kind === "multi_path" ? (pageNormalGlyph(geometry) ? "vector" : "polyline") : ["line_relation", "line_intercepts", "line_equation"].includes(operator) ? "line" : lane === "dipole" || "directed" in geometry && geometry.directed ? "vector" : "infinite" in geometry && geometry.infinite ? "line" : "segment" }));
   if (operator === "section_point") Object.assign(entities[0]!, { label: "P" });
   const ids = entities.map((entity) => entity.id);
   const document: SceneDocument = { schemaVersion: "scene-document/v2", source: {}, visualDecision: { mode: "scene", reason: "publication regression" }, quantities: [], entities, constructions: [{ id: "make", operator, inputs, outputs: [...ids] }], relations: [], assertions: ids.map((id) => ({ id: `exists_${id}`, predicate: "exists", entities: [id], expected: true, severity: "fatal" })), annotations: [], requiredEntityIds: [...ids], revealGroups: [{ id: "setup", entityIds: [...ids], dependsOn: [], narrationCue: "computed result" }], teachingTimeline: [] };
@@ -70,6 +73,7 @@ function verify(document: SceneDocument, valid: boolean, message: string): void 
 for (const fixture of fixtures) {
   const base = documentFor(fixture); const id = base.entities[fixture.output ?? 0]!.id;
   verify(base, true, `${fixture.operator} baseline`);
+  const glyphOutput = fixture.lane === "dipole" && pageNormalGlyph(evaluateDipoleFieldConstruction(fixture.operator, structuredClone(fixture.inputs), context)[fixture.output ?? 0]!);
   for (const channel of ["entity", "label", "callout", "badge", "constructed", "quantity"] as const) {
     for (const valid of [true, false]) {
       if (valid && fixture.claim === undefined && channel === "quantity") continue;
@@ -85,6 +89,13 @@ for (const fixture of fixtures) {
         document.quantities.push({ id: "computed_quantity", symbol: fixture.claim ?? "density", value });
         document.annotations.push({ id: "claim", kind: "label", targetIds: [id], quantityId: "computed_quantity" });
       } else document.annotations.push({ id: "claim", kind: channel, targetIds: [id], text });
+      if (channel === "constructed" && glyphOutput) {
+        // A label construction is 2D geometry; the engine refuses to anchor it
+        // on a page-normal glyph, the same rule as every other dot/cross mark.
+        const compiled = compileSceneDocument(document);
+        assert(!compiled.ok && compiled.report.issues.some((issue) => issue.message.includes("page-normal")), `${fixture.operator} ${channel} ${valid}: a label construction on a page-normal glyph is refused`); checks++;
+        continue;
+      }
       verify(document, valid, `${fixture.operator} ${channel} ${valid}`);
     }
   }
