@@ -1,3 +1,4 @@
+import { exactBinary64LineResidual } from "../math/exactBinary64";
 import { validatePublicationDerivedClaims, type PublicationClaimAuthority } from "./publicationDerivedClaims";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
@@ -448,6 +449,29 @@ function ratioDenom(m: number, n: number, mode: "internal" | "external"): number
   return denominator;
 }
 
+/** wa * xa + wb * xb from the binary64 inputs, rounded once. */
+function exactWeightedSum(wa: number, xa: number, wb: number, xb: number): number {
+  try { return exactBinary64LineResidual({ a: wa, b: wb, c: 0 }, { x: xa, y: xb }); }
+  catch { return invalid("geometry", "section point exceeds binary64 precision"); }
+}
+
+/**
+ * Both ratio weights times one power of two, so the larger is at least 1.
+ * Exact in binary64, and keeps the exact weighted numerator from underflowing
+ * when a valid ratio is written with tiny weights.
+ */
+function liftedWeights(m: number, n: number): [number, number] {
+  let shift = -Math.floor(Math.log2(Math.max(Math.abs(m), Math.abs(n))));
+  let [liftedM, liftedN] = [m, n];
+  while (shift > 0) {
+    const step = Math.min(shift, 1000);
+    liftedM *= 2 ** step;
+    liftedN *= 2 ** step;
+    shift -= step;
+  }
+  return [liftedM, liftedN];
+}
+
 function sectionPoint(inputs: Record<string, unknown>, context: AnalyticLineEvaluationContext): AnalyticLineGeometry[] {
   const mode = inputs.mode;
   if (mode !== "internal" && mode !== "external" && mode !== "midpoint") invalid("mode", "section mode must be internal, external, or midpoint");
@@ -459,10 +483,14 @@ function sectionPoint(inputs: Record<string, unknown>, context: AnalyticLineEval
   const n = mode === "midpoint" ? 1 : readCoefficient(inputs.n, "n", context);
   const denominator = mode === "external" ? ratioDenom(m, n, "external") : ratioDenom(m, n, "internal");
   const parameter = m / denominator;
-  const aWeight = mode === "external" ? -n / denominator : n / denominator;
+  const [liftedM, liftedN] = liftedWeights(m, n);
+  const liftedDenominator = mode === "external" ? liftedM - liftedN : liftedM + liftedN;
+  const aNumeratorWeight = mode === "external" ? -liftedN : liftedN;
   const point = checkedPoint({
-    x: aWeight * a.x + parameter * b.x,
-    y: aWeight * a.y + parameter * b.y,
+    // Form the weighted numerator exactly before dividing. Dividing each
+    // weight first creates a nonzero rounding residue at a true zero point.
+    x: exactWeightedSum(aNumeratorWeight, a.x, liftedM, b.x) / liftedDenominator,
+    y: exactWeightedSum(aNumeratorWeight, a.y, liftedM, b.y) / liftedDenominator,
   }, "geometry");
   const reconstructed = checkedPoint({
     x: a.x + parameter * (b.x - a.x),
@@ -985,16 +1013,25 @@ function lineConcurrence(inputs: Record<string, unknown>, context: AnalyticLineE
   })];
 }
 
-function pointLineDistance(inputs: Record<string, unknown>, context: AnalyticLineEvaluationContext): AnalyticLineGeometry[] {
-  assertKeys(inputs, ["point", "a", "b", "c"], ["displayLength"], "point_line_distance");
-  const point = readPoint(inputs.point, "point", context);
-  const line = readFlatLine(inputs, context);
-  const displayLength = readDisplayLength(inputs, context);
+/**
+ * One incidence decision for a point and a line. The point is on the line when
+ * the rounded sum a x + b y + c is already 0 (decimal stems such as (0.1, 0.2)
+ * on 2x + 4y - 1 = 0, whose binary64 inputs miss by 2^-54) or when the binary64
+ * inputs satisfy the equation exactly while the rounded sum does not. Any other
+ * point measures its exact residual, rounded once, and keeps the foot checks.
+ */
+function certifiedPointLineProjection(point: RenderPoint, line: LineCoefficients): { signedDistance: number; distance: number; foot: RenderPoint } {
   const scale = lineScale(line);
-  const signedDistance = (line.a * point.x + line.b * point.y + line.c) / scale;
-  const formula = Math.abs(line.a * point.x + line.b * point.y + line.c) / scale;
-  if (!near(Math.abs(signedDistance), formula, formula)) invalid("geometry", "distance evaluations disagree");
-  if (formula !== 0 && !(formula > MIN_LENGTH)) invalid("geometry", "nonzero source distance is below drawable resolution");
+  if (!(scale > 0) || !Number.isFinite(scale)) invalid("geometry", "invalid projection normal");
+  const onLine = { signedDistance: 0, distance: 0, foot: { ...point } };
+  if (line.a * point.x + line.b * point.y + line.c === 0) return onLine;
+  let residual: number;
+  try { residual = exactBinary64LineResidual(line, point); }
+  catch { return invalid("geometry", "nonzero source distance is below drawable resolution"); }
+  if (residual === 0) return onLine;
+  const signedDistance = residual / scale;
+  const distance = Math.abs(signedDistance);
+  if (!(distance > MIN_LENGTH) || !Number.isFinite(distance)) invalid("geometry", "nonzero source distance is below drawable resolution");
   const foot = checkedPoint({
     x: point.x - signedDistance * line.a / scale,
     y: point.y - signedDistance * line.b / scale,
@@ -1002,11 +1039,21 @@ function pointLineDistance(inputs: Record<string, unknown>, context: AnalyticLin
   if (!satisfiesLine(line, foot)) invalid("geometry", "foot is not on the line");
   const step = { x: point.x - foot.x, y: point.y - foot.y };
   const stepLength = Math.hypot(step.x, step.y);
-  if (!near(stepLength, formula, Math.max(1, formula))) invalid("geometry", "foot distance disagrees with the formula");
+  if (!near(stepLength, distance, Math.max(1, distance))) invalid("geometry", "foot distance disagrees with the formula");
   const direction = directionOf(line);
-  if (stepLength > 0 && Math.abs(dot(step, direction)) > METRIC_TOLERANCE * stepLength * Math.hypot(direction.x, direction.y)) {
+  if (Math.abs(dot(step, direction)) > METRIC_TOLERANCE * stepLength * Math.hypot(direction.x, direction.y)) {
     invalid("geometry", "foot segment is not perpendicular to the line");
   }
+  return { signedDistance, distance, foot };
+}
+
+function pointLineDistance(inputs: Record<string, unknown>, context: AnalyticLineEvaluationContext): AnalyticLineGeometry[] {
+  assertKeys(inputs, ["point", "a", "b", "c"], ["displayLength"], "point_line_distance");
+  const point = readPoint(inputs.point, "point", context);
+  const line = readFlatLine(inputs, context);
+  const displayLength = readDisplayLength(inputs, context);
+  const { signedDistance, distance: formula, foot } = certifiedPointLineProjection(point, line);
+  const direction = directionOf(line);
   const onLine = formula === 0;
   const analyticLine: AnalyticLineRecord = {
     topic: TOPICS.pointDistance,
