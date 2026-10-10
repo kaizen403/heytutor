@@ -46,6 +46,7 @@ import type { TutorPhase } from "../types";
 import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
 import { drawSegmentInk, planSegmentInk } from "../lib/turn/segmentInk";
 import type { ExecuteCommandOptions } from "./turn/types";
+import { completeReplayDiagramTurn } from "../lib/replay/completeReplayDiagram";
 
 type ReplayGenerationState = {
   generation: number;
@@ -358,7 +359,7 @@ export function useReplay({
 
       // Render all completed commands instantly — no animation during seek.
       // durationScale 0 makes the whiteboard jump to the final state.
-      for (const cue of cues) {
+      for (const [cueIndex, cue] of cues.entries()) {
         if (cue.startMs >= timeMs) {
           break;
         }
@@ -390,9 +391,20 @@ export function useReplay({
             trustedDiagramGeometry: cue.trustedDiagramGeometry,
           });
         }
+        if (cue.endMs <= timeMs) {
+          await completeReplayDiagramTurn({
+            cue,
+            nextCue: cues[cueIndex + 1],
+            turn: storedTurnsRef.current[cue.turnIndex],
+            diagram: activeVerifiedDiagramRef?.current ?? null,
+            executeCommand,
+            shouldCancel: () => !isCurrentReplay(),
+            durationScale: 0,
+          });
+        }
       }
     },
-    [whiteboardRef, replayGenerationRef, cancelRef, executeCommand, resetBoardLayout, syncReplayTurn],
+    [whiteboardRef, replayGenerationRef, cancelRef, executeCommand, resetBoardLayout, syncReplayTurn, storedTurnsRef, activeVerifiedDiagramRef],
   );
 
   const playReplayCue = useCallback(
@@ -709,6 +721,14 @@ export function useReplay({
             nextCue,
             startCommandIndex,
           );
+          await completeReplayDiagramTurn({
+            cue,
+            nextCue,
+            turn: storedTurnsRef.current[cue.turnIndex],
+            diagram: activeVerifiedDiagramRef?.current ?? null,
+            executeCommand: executeCommandWithCancel,
+            shouldCancel: () => cancelRef.current || generation !== replayGenerationRef.current,
+          });
         }
 
         const lastTurn =
@@ -762,6 +782,8 @@ export function useReplay({
       finishLectureUi,
       syncReplayTurn,
       codeLessonControllerRef,
+      activeVerifiedDiagramRef,
+      executeCommandWithCancel,
     ],
   );
 

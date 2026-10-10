@@ -9,6 +9,9 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { writeComparisonGallery } from "./gallery";
+import { currentJudgeSummary, formatJudgeCounts, type JudgeSummary } from "./judging";
+import { formatDiagramFailureCounts } from "./diagramEval";
 
 interface Summary {
   total: number;
@@ -17,13 +20,27 @@ interface Summary {
   transportFailures?: number;
   passed: number;
   meanScore: number;
+  figureOnlyRows?: number;
   findingCounts: Record<string, number>;
   grades: { probeId: string; score: number; transportFailure?: boolean }[];
+  judge?: JudgeSummary;
+  judgingStatus?: { unreviewedRows: number };
+  evaluation?: {
+    emptyCauseCounts?: Record<string, number>;
+    candidateErrorCodeCounts?: Record<string, number>;
+  } | null;
 }
 
-const [beforePath, afterPath] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const galleryMode = args[0] === "--gallery";
+const [beforePath, afterPath] = galleryMode ? args.slice(1) : args;
 if (!beforePath || !afterPath) {
-  throw new Error("Usage: compare.ts <before round dir> <after round dir>");
+  throw new Error("Usage: compare.ts [--gallery] <before round dir> <after round dir>");
+}
+
+if (galleryMode) {
+  console.log(`comparison gallery: ${writeComparisonGallery(beforePath, afterPath)}`);
+  process.exit(0);
 }
 
 const read = (path: string): Summary =>
@@ -34,11 +51,21 @@ const after = read(afterPath);
 const delta = (value: number) => (value > 0 ? `+${value}` : String(value));
 
 console.log(`           ${beforePath}  ->  ${afterPath}`);
+console.log(`judge      ${formatJudgeCounts(currentJudgeSummary(before))} -> ${formatJudgeCounts(currentJudgeSummary(after))}`);
+if (before.judgingStatus?.unreviewedRows || after.judgingStatus?.unreviewedRows) {
+  console.log("judge totals: incomplete; resumed rows still need review");
+}
 console.log(
-  `mean score ${before.meanScore} -> ${after.meanScore}  (${delta(after.meanScore - before.meanScore)})`,
+  `empty      ${formatDiagramFailureCounts(before.evaluation?.emptyCauseCounts)} -> ${formatDiagramFailureCounts(after.evaluation?.emptyCauseCounts)}`,
 );
-const graded = (summary: Summary) => summary.graded ?? summary.total;
 console.log(
+  `candidate  ${formatDiagramFailureCounts(before.evaluation?.candidateErrorCodeCounts)} -> ${formatDiagramFailureCounts(after.evaluation?.candidateErrorCodeCounts)}`,
+);
+if (before.figureOnlyRows || after.figureOnlyRows) {
+  console.log("lesson score / pass comparison: not applicable (figure-only rows)");
+} else console.log(`mean score ${before.meanScore} -> ${after.meanScore}  (${delta(after.meanScore - before.meanScore)})`);
+const graded = (summary: Summary) => summary.graded ?? summary.total;
+if (!before.figureOnlyRows && !after.figureOnlyRows) console.log(
   `passed     ${before.passed}/${graded(before)} -> ${after.passed}/${graded(after)}`,
 );
 if (before.transportFailures || after.transportFailures) {
@@ -72,7 +99,7 @@ const transportFailed = new Set(
     .filter((grade) => grade.transportFailure)
     .map((grade) => grade.probeId),
 );
-const moved = after.grades
+const moved = (before.figureOnlyRows || after.figureOnlyRows ? [] : after.grades)
   .map((grade) => ({
     probeId: grade.probeId,
     before: scoreBefore.get(grade.probeId),

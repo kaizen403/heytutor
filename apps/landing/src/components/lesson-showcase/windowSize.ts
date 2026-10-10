@@ -2,9 +2,7 @@
    DashboardStage does for the use-cases section. */
 export const DESIGN_W = 1280
 export const DESIGN_H = 762
-/* The mockup's sidebar is 264px of the design width. Below the sm breakpoint
-   the window frames only the main column — the same thing the shipping product
-   does with its sidebar on a phone — so the board stays the subject instead of
-   shrinking the whole desktop UI into a thumbnail. */
-export const SIDEBAR_W = 264
+/* On phones the product actually removes its 264px desktop sidebar. This is a
+   compact layout width, not a crop into a desktop recording. */
+export const COMPACT_DESIGN_W = 1016
 export const MOBILE_MQ = '(max-width: 639px)'

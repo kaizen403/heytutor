@@ -23,6 +23,62 @@ export interface ScenePlannerPromptContext {
   constructionOperators?: readonly string[];
   proofPredicates?: readonly string[];
   planningGuidance?: readonly string[];
+  workedExamples?: readonly ScenePlannerWorkedExample[];
+}
+
+export interface ScenePlannerWorkedExample {
+  id: string;
+  sourceKind: "curated" | "synthesized";
+  question: string | null;
+  depicts: string;
+  document: Record<string, unknown>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Removes engine metadata and literal point coordinates from few-shot prompts. */
+export function compactSceneExampleDocument(document: Record<string, unknown>): Record<string, unknown> {
+  const compactEntities = Array.isArray(document.entities)
+    ? document.entities.flatMap((entity) => {
+        if (!isRecord(entity)) return [];
+        const compact = Object.fromEntries(
+          ["id", "kind", "role", "label"].flatMap((key) => entity[key] === undefined ? [] : [[key, entity[key]]]),
+        );
+        return [compact];
+      })
+    : [];
+  const compactConstructions = Array.isArray(document.constructions)
+    ? document.constructions.flatMap((construction) => {
+        if (!isRecord(construction)) return [];
+        const inputs = isRecord(construction.inputs) ? { ...construction.inputs } : {};
+        if (construction.operator === "point") {
+          delete inputs.x;
+          delete inputs.y;
+        }
+        if (Array.isArray(inputs.origin) && inputs.origin.every((value) => typeof value === "number")) {
+          delete inputs.origin;
+        }
+        return [{
+          id: construction.id,
+          operator: construction.operator,
+          inputs,
+          outputs: construction.outputs,
+        }];
+      })
+    : [];
+  const compact: Record<string, unknown> = {
+    schemaVersion: document.schemaVersion,
+    visualDecision: document.visualDecision,
+    quantities: document.quantities,
+    entities: compactEntities,
+    constructions: compactConstructions,
+  };
+  for (const key of ["relations", "assertions", "annotations", "requiredEntityIds", "revealGroups"] as const) {
+    if (Array.isArray(document[key]) && document[key].length > 0) compact[key] = document[key];
+  }
+  return compact;
 }
 
 export function buildSceneDocumentPlannerPrompt(
@@ -48,6 +104,13 @@ export function buildSceneDocumentPlannerPrompt(
   const capabilityGuidance = context.planningGuidance?.length
     ? `\nSELECTED VISUAL INVARIANTS\n${context.planningGuidance.map((item) => `- ${item}`).join("\n")}\n`
     : "";
+  const workedExamples = context.workedExamples?.length
+    ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
+      `EXAMPLE ${index + 1} (${example.id})\n${example.sourceKind === "curated" && example.question
+        ? `QUESTION\n${example.question}`
+        : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
+    ).join("\n")}\n`
+    : "";
 
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
 
@@ -61,6 +124,7 @@ AVAILABLE PROOF PREDICATES
 ${proofPredicates.join(", ")}
 ${capabilityGuidance}
 ${conversation}
+${workedExamples}
 QUESTION
 ${question}
 

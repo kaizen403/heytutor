@@ -3,21 +3,58 @@
  * The offline recorder executes the current whiteboard and ink conductor.
  */
 import asset from './lessonAsset.json' with { type: 'json' }
+import narration from './lessonNarration.json' with { type: 'json' }
 import type { TutorSegment, VerifiedDiagram } from '@heytutor/drawing'
 import type { AudioTimings } from '@heytutor/tutor-core'
+import type { HeroLessonLocale } from './heroLessonLocale'
 
 export const QUESTION_TEXT = asset.question
 export const LESSON_TITLE = asset.title
 export const VERIFIED_DIAGRAM = asset.diagram as unknown as VerifiedDiagram
-export const HERO_SEGMENTS = asset.segments as unknown as (TutorSegment & {
+type HeroSegment = TutorSegment & {
   verifiedDiagramIntro: boolean
   timings?: AudioTimings
-})[]
-export const SEGMENTS = HERO_SEGMENTS.map((segment) => ({
-  speech: segment.narration,
-  bubble: '',
-  fallbackDuration: segment.timings?.totalDuration ?? Math.max(2, segment.narration.length * 0.065),
-}))
+}
+const BASE_SEGMENTS = asset.segments as unknown as HeroSegment[]
+
+function localizeSegments(locale: HeroLessonLocale): HeroSegment[] {
+  return BASE_SEGMENTS.map((segment, index) => ({
+    ...segment,
+    narration: narration[locale][index] ?? segment.narration,
+    timings: undefined,
+  }))
+}
+
+const HERO_SEGMENTS_BY_LOCALE: Record<HeroLessonLocale, HeroSegment[]> = {
+  'en-GB': localizeSegments('en-GB'),
+  'hi-IN': localizeSegments('hi-IN'),
+}
+
+export function heroSegments(locale: HeroLessonLocale): HeroSegment[] {
+  return HERO_SEGMENTS_BY_LOCALE[locale]
+}
+
+export const HERO_SEGMENTS = heroSegments('en-GB')
+
+function summarizeSegments(locale: HeroLessonLocale) {
+  return heroSegments(locale).map((segment) => ({
+    speech: segment.narration,
+    bubble: '',
+    fallbackDuration:
+      segment.timings?.totalDuration ?? Math.max(2, segment.narration.length * 0.065),
+  }))
+}
+
+const LESSON_SEGMENTS_BY_LOCALE = {
+  'en-GB': summarizeSegments('en-GB'),
+  'hi-IN': summarizeSegments('hi-IN'),
+} satisfies Record<HeroLessonLocale, ReturnType<typeof summarizeSegments>>
+
+export function lessonSegments(locale: HeroLessonLocale) {
+  return LESSON_SEGMENTS_BY_LOCALE[locale]
+}
+
+export const SEGMENTS = lessonSegments('en-GB')
 
 /* ── Timing model ─────────────────────────────────────────────────────────── */
 
@@ -26,12 +63,14 @@ export interface LessonTiming {
   starts: number[]
   /** Total spoken duration, seconds. */
   total: number
+  /** Per-sentence provider alignment; Hinglish carries duration only. */
+  segments?: AudioTimings[]
 }
 
-export function fallbackTiming(): LessonTiming {
+export function fallbackTiming(locale: HeroLessonLocale = 'en-GB'): LessonTiming {
   const starts: number[] = []
   let t = 0
-  for (const seg of SEGMENTS) {
+  for (const seg of lessonSegments(locale)) {
     starts.push(t)
     t += seg.fallbackDuration
   }
@@ -57,6 +96,7 @@ export function toPlaybackTiming(raw: LessonTiming): LessonTiming {
   return {
     starts: raw.starts.map((s) => s / PLAYBACK_SPEED),
     total: raw.total / PLAYBACK_SPEED,
+    segments: raw.segments,
   }
 }
 
@@ -84,7 +124,11 @@ export interface LessonSnapshot {
   teaching: boolean
 }
 
-export function deriveSnapshot(timeSeconds: number, timing: LessonTiming): LessonSnapshot {
+export function deriveSnapshot(
+  timeSeconds: number,
+  timing: LessonTiming,
+  locale: HeroLessonLocale = 'en-GB',
+): LessonSnapshot {
   const loop = loopDuration(timing)
   const t = ((timeSeconds % loop) + loop) % loop
   const teach = teachStart()
@@ -111,14 +155,15 @@ export function deriveSnapshot(timeSeconds: number, timing: LessonTiming): Lesso
   }
 
   const lt = t - teach
+  const segments = lessonSegments(locale)
 
   if (lt < timing.total) {
     let seg = 0
-    for (let i = 0; i < SEGMENTS.length; i++) if (timing.starts[i] <= lt) seg = i
+    for (let i = 0; i < segments.length; i++) if (timing.starts[i] <= lt) seg = i
     return {
       phase: 'teaching',
       typedCount: 0,
-      bubble: SEGMENTS[seg].bubble,
+      bubble: segments[seg].bubble,
       chip: 'teaching',
       teaching: true,
     }
@@ -128,7 +173,7 @@ export function deriveSnapshot(timeSeconds: number, timing: LessonTiming): Lesso
     return {
       phase: 'hold',
       typedCount: 0,
-      bubble: SEGMENTS[SEGMENTS.length - 1].bubble,
+      bubble: segments[segments.length - 1].bubble,
       chip: 'teaching',
       teaching: true,
     }
