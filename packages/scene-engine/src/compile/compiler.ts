@@ -212,6 +212,15 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  return compileSceneDocumentInternal(document, options, false);
+}
+
+/** Original declarations must pass source-derived claims before optional text is erased. No scene is admitted by this check. */
+export function validateSceneConstructionClaims(document: SceneDocument): SceneIssue[] {
+  return compileSceneDocumentInternal(document, {}, true).report.issues;
+}
+
+function compileSceneDocumentInternal(document: SceneDocument, options: CompileOptions, constructionClaimsOnly: boolean): CompileResult {
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
@@ -274,6 +283,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     } catch (error) {
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
+  }
+  if (constructionClaimsOnly) {
+    validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
+    return { ok: false, renderScene: null, report: report(document, issues, 0) };
   }
   for (const construction of document.constructions) {
     if (construction.operator !== "connect" || !construction.outputs[0]) continue;

@@ -10,6 +10,7 @@ import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
 import { evaluateTopologyAssertion, parallelElementStatus } from "../topology/topology";
 import { evaluateMathExpression } from "../math/expression";
+import { validateSceneConstructionClaims } from "../compile/compiler";
 import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "../types";
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
@@ -2594,6 +2595,10 @@ export function pruneUnverifiedSceneAnnotations(
     return withoutLabel;
   });
   if (!changed) return document;
+  // Computed owners may carry stale values in labels, callouts or quantity
+  // annotations. Check those original claims before a plan-based projection
+  // erases them; retaining invalid text lets normal admission reject it.
+  if (validateSceneConstructionClaims(document).some((issue) => issue.severity === "fatal")) return document;
   return {
     ...document,
     entities,
