@@ -19,6 +19,43 @@ const mirrorPlan = {
   unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
 };
 const mirrorGivens = collectQuestionGivens(mirrorQuestion, mirrorPlan);
+const oxidationQuestion =
+  "In NaCl, sodium has valence 1 and oxidation state +1. Oxidation state is not formal charge.";
+const oxidationPlan = {
+  givens: [
+    { id: "valence_Na", symbol: "valence(Na)", value: 1, unit: "", provenance: "given", sourceText: "1" },
+    { id: "ox_Na", symbol: "ox(Na,NaCl)", value: 1, unit: "", provenance: "given", sourceText: "+1" },
+  ],
+};
+const oxidationGivens = collectQuestionGivens(oxidationQuestion, oxidationPlan);
+assert(
+  oxidationGivens.some((given) => given.board === "valence(Na) = 1"),
+  "valence stays an unsigned count",
+);
+assert(
+  oxidationGivens.some((given) => given.board === "ox(Na,NaCl) = +1"),
+  "an oxidation state stated as +1 must keep the sign",
+);
+
+// Equal numbers in a shared source sentence still belong to separate givens.
+for (const sourceText of [
+  "sodium has valence 1 and oxidation state +1",
+  "sodium has oxidation state +1 and valence 1",
+]) {
+  const givens = collectQuestionGivens(`${sourceText}. Find the oxidation state.`, {
+    givens: [
+      { id: "valence_Na", symbol: "valence(Na)", value: 1, unit: "", provenance: "given", sourceText },
+      { id: "ox_Na", symbol: "ox(Na,NaCl)", value: 1, unit: "", provenance: "given", sourceText },
+    ],
+  });
+  assert(givens.some((given) => given.board === "valence(Na) = 1"), `${sourceText}: valence remains unsigned`);
+  assert(givens.some((given) => given.board === "ox(Na,NaCl) = +1"), `${sourceText}: oxidation state retains its own plus`);
+  const labeled = collectQuestionGivens(`${sourceText}. Find the oxidation state.`, {
+    givens: [{ id: "q", symbol: "q", label: "oxidation state", value: 1, provenance: "given", sourceText }],
+  });
+  assert(labeled.some((given) => given.board === "q = +1"), `${sourceText}: a source label identifies the given's own occurrence`);
+}
+
 assert(mirrorGivens.some((given) => given.board === "f = 15 cm"), "mirror focal length was not listed as given");
 assert(mirrorGivens.some((given) => given.board === "u = 20 cm"), "object distance was not listed as given");
 assert(!mirrorGivens.some((given) => /^v\s*=/i.test(given.board)), "the asked image distance must not be listed as given");
@@ -300,4 +337,41 @@ assert(nestedIntro.some((given) => given.board === "r = ([1,2],{3,4})"), "nested
 const longMatrix = `A=[${Array.from({ length: 6 }, () => "[1,1,1,1,1,1]").join(",")}]. Show A.`;
 assert(!collectQuestionGivens(longMatrix).some((given) => given.symbol === "A"), "an oversized intro value must be omitted rather than asserted as a clipped source matrix");
 assert(collectQuestionGivens("A=[[1,2],[3,4]. Show A.").length === 0, "unbalanced source values must not become supplied intro facts");
+// A written plus survives any decimal spelling; addition is not a sign.
+for (const [sourceText, value, board] of [
+  ["+1.0", 1, "q = +1"],
+  ["+1.00", 1, "q = +1"],
+  ["state +1", 1, "q = +1"],
+  ["a +2 C charge", 2, "q = +2"],
+  ["A +2 V potential", 2, "q = +2"],
+  ["the body has a +2 C charge", 2, "q = +2"],
+  ["= +2", 2, "q = +2"],
+  ["1", 1, "q = 1"],
+  ["5 + 2", 2, "q = 2"],
+  ["5 +2", 2, "q = 2"],
+  ["x +2", 2, "q = 2"],
+  ["a +2", 2, "q = 2"],
+  ["a + 2", 2, "q = 2"],
+  ["a+2", 2, "q = 2"],
+  ["x +2 C charge", 2, "q = 2"],
+  ["b = a +2 C charge", 2, "q = 2"],
+  ["(a) + 2", 2, "q = 2"],
+  ["is +2", 2, "q = +2"],
+  ["+2", 0.002, "q = +0.002"],
+  ["Calcium has oxidation state +2 and atomic number 20", 20, "q = 20"],
+  ["Calcium has oxidation state +2 and atomic number 20", 2, "q = +2"],
+  ["+2 and 20", 0.2, "q = 0.2"],
+  ["1+1", 1, "q = 1"],
+] as const) {
+  const stated = `The value is ${sourceText}. Find q.`;
+  const givens = collectQuestionGivens(stated, {
+    givens: [{ id: "q", symbol: "q", value, unit: "", provenance: "given", sourceText }],
+  });
+  assert(givens.some((given) => given.board === board), `"${sourceText}" should give "${board}", got ${givens.map((given) => given.board).join(", ") || "nothing"}`);
+}
+const articleCharge = collectQuestionGivens("A particle has a +2 C charge. Find the force.", {
+  givens: [{ id: "q", symbol: "q", value: 2, unit: "C", provenance: "given", sourceText: "a +2 C charge" }],
+});
+assert(articleCharge.some((given) => given.board === "q = +2 C"), "an article before a signed charge keeps the written plus and unit");
+
 console.log("given value intro verification passed");

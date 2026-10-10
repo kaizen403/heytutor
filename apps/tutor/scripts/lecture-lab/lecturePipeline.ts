@@ -92,6 +92,7 @@ import {
 import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features/tutor-session/lib/scene/visualNeedClient";
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
+import type { LabSpendMode } from "./labSpend";
 
 export interface LectureStep {
   index: number;
@@ -262,6 +263,7 @@ export interface RunLectureOptions {
   diagramExampleCatalogue?: DiagramExampleCatalogue;
   /** Hard-cap accounting hook used by paid lecture-lab runs. */
   onModelCost?: (usd: number) => void;
+  spendMode?: LabSpendMode;
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
     diagram: VerifiedDiagram | null;
@@ -490,6 +492,7 @@ export async function runLecture(
           archetypeId: pickerGate.archetypeId,
           onModelCost: options.onModelCost,
           traceId: options.traceId,
+          spendMode: options.spendMode,
         },
       );
       const pickerFinishedAt = Date.now();

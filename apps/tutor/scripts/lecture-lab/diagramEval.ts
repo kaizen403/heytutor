@@ -7,6 +7,7 @@ import {
   type DiagramStrategyContext,
 } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { resolveCheapFireworksModel, resolveFireworksModel } from "../../lib/llm/fireworksModels";
+import { hasPricedUsage, type LabSpendMode, type LabUsageObservation, type LabUnresolvedCall } from "./labSpend";
 
 export type DiagramEvalArm =
   | "current"
@@ -52,10 +53,12 @@ export interface PlannerUsageSummary {
   cachedInputTokens: number;
   estimatedCostUsd: number;
   modelCalls: PlannerModelCall[];
+  knownUsageUsd?: number;
 }
 
 export interface PlannerModelCall {
   model: string;
+  pricingModel?: string;
   status: number;
   ok: boolean;
   usageKnown: boolean;
@@ -64,6 +67,10 @@ export interface PlannerModelCall {
   totalTokens: number;
   cachedInputTokens: number;
   estimatedCostUsd: number;
+  /** null means unknown, including partial token reports that cannot be priced. */
+  measuredCostUsd?: number | null;
+  unresolvedAttempts?: number;
+  unresolvedAllowanceUsd?: number;
 }
 
 export function classifyDiagramEmptyCause(input: {
@@ -434,68 +441,152 @@ function emptyUsage(): PlannerUsageSummary {
     cachedInputTokens: 0,
     estimatedCostUsd: 0,
     modelCalls: [],
+    knownUsageUsd: 0,
   };
 }
 
 /** Concurrent-safe accounting keyed by the trace id already carried by every planner request. */
 export class PlannerUsageTracker {
+  private readonly finishedTraces = new Set<string>();
   private readonly byTrace = new Map<string, PlannerUsageSummary>();
-  private readonly pendingWorstCaseByTrace = new Map<string, number[]>();
+  private readonly pendingWorstCaseByTrace = new Map<
+    string,
+    { usd: number; kind: "planner" | "teaching"; maxAttempts: number }[]
+  >();
   private readonly pendingResponsesByTrace = new Map<string, Promise<void>[]>();
 
-  constructor(private readonly onCost?: (usd: number, reservedUsd: number) => void) {}
+  constructor(
+    private readonly onCost?: (
+      usd: number,
+      reservedUsd: number,
+      observation: LabUsageObservation,
+      context: Pick<LabUnresolvedCall, "traceId" | "kind">,
+    ) => void,
+    private readonly spendMode: LabSpendMode = "conservative",
+  ) {}
 
-  recordRequest(traceId: string, worstCaseUsd = 0): void {
+  assertTraceOpen(traceId: string): void {
+    if (this.finishedTraces.has(traceId))
+      throw new Error("cannot reuse a finished lab trace");
+  }
+
+  recordRequest(
+    traceId: string,
+    worstCaseUsd = 0,
+    kind: "planner" | "teaching" = "planner",
+    maxAttempts = 1,
+  ): void {
+    this.assertTraceOpen(traceId);
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
     summary.calls += 1;
     this.byTrace.set(traceId, summary);
     const pending = this.pendingWorstCaseByTrace.get(traceId) ?? [];
-    pending.push(Math.max(0, worstCaseUsd));
+    pending.push({ usd: Math.max(0, worstCaseUsd), kind, maxAttempts });
     this.pendingWorstCaseByTrace.set(traceId, pending);
   }
 
-  async recordResponse(traceId: string, response: Response, reservedUsd?: number, maxAttempts = 1): Promise<void> {
+  async recordResponse(
+    traceId: string,
+    response: Response,
+    reservedUsd?: number,
+    maxAttempts = 1,
+    fallbackModel = "unknown",
+  ): Promise<void> {
     let usage: ReturnType<typeof parseProviderUsage> | null = null;
+    let payloadModel: string | null = null;
     try {
-      const payload = await response.clone().json() as { usage?: unknown };
+      const payload = (await response.clone().json()) as {
+        usage?: unknown;
+        model?: unknown;
+      };
       usage = parseProviderUsage(payload.usage);
+      payloadModel =
+        typeof payload.model === "string" && payload.model.trim()
+          ? payload.model.trim()
+          : null;
     } catch {
       // A planner call still counts when its provider omitted or malformed usage.
     }
+    const model =
+      response.headers.get("x-heytutor-planner-model") ??
+      response.headers.get("x-heytutor-model") ??
+      payloadModel ??
+      fallbackModel;
     this.recordParsedResponse(
       traceId,
       response.status,
       response.ok,
-      response.headers.get("x-heytutor-planner-model") ?? "unknown",
+      model,
       usage,
       reservedUsd,
-      this.retryAllowance(response, reservedUsd, maxAttempts),
+      this.upstreamAttempts(response, maxAttempts),
+      maxAttempts,
+      this.pricingModel(model, fallbackModel),
     );
   }
 
   /** Observe a cloned SSE body without delaying the lesson consuming the original stream. */
-  recordStreamingResponse(traceId: string, response: Response, reservedUsd?: number, maxAttempts = 1): void {
+  recordStreamingResponse(
+    traceId: string,
+    response: Response,
+    reservedUsd?: number,
+    maxAttempts = 1,
+    fallbackModel = "unknown",
+  ): void {
     const operation = (async () => {
       let usage: ReturnType<typeof parseProviderUsage> | null = null;
+      let payloadModel: string | null = null;
       try {
-        const text = await response.clone().text();
-        for (const line of text.split(/\r?\n/)) {
-          if (!line.startsWith("data: ") || line.slice(6).trim() === "[DONE]") continue;
-          const payload = JSON.parse(line.slice(6)) as { usage?: unknown };
-          const candidate = parseProviderUsage(payload.usage);
-          if (candidate.known) usage = candidate;
-        }
+        const reader = response.clone().body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const readLine = (line: string) => {
+          if (!line.startsWith("data:")) return;
+          const data = line.slice(5).trim();
+          if (!data || data === "[DONE]") return;
+          try {
+            const payload = JSON.parse(data) as {
+              usage?: unknown;
+              model?: unknown;
+            };
+            if (typeof payload.model === "string" && payload.model.trim())
+              payloadModel = payload.model.trim();
+            const candidate = parseProviderUsage(payload.usage);
+            if (hasPricedUsage(candidate)) usage = candidate;
+          } catch {
+            /* A malformed content chunk must not hide the final usage chunk. */
+          }
+        };
+        if (reader)
+          for (;;) {
+            const chunk = await reader.read();
+            buffer += decoder.decode(chunk.value, { stream: !chunk.done });
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() ?? "";
+            lines.forEach(readLine);
+            if (chunk.done) {
+              readLine(buffer);
+              break;
+            }
+          }
       } catch {
-        // Missing, cancelled, or malformed streams are charged at request worst case.
+        // Retain any usage already received; otherwise record an unresolved stream.
       }
+      const model =
+        response.headers.get("x-heytutor-model") ??
+        response.headers.get("x-heytutor-planner-model") ??
+        payloadModel ??
+        fallbackModel;
       this.recordParsedResponse(
         traceId,
         response.status,
         response.ok,
-        response.headers.get("x-heytutor-model") ?? "unknown",
+        model,
         usage,
         reservedUsd,
-        this.retryAllowance(response, reservedUsd, maxAttempts),
+        this.upstreamAttempts(response, maxAttempts),
+        maxAttempts,
+        this.pricingModel(model, fallbackModel),
       );
     })();
     const pending = this.pendingResponsesByTrace.get(traceId) ?? [];
@@ -504,9 +595,35 @@ export class PlannerUsageTracker {
   }
 
   async finishAsync(traceId: string): Promise<PlannerUsageSummary> {
-    await Promise.all(this.pendingResponsesByTrace.get(traceId) ?? []);
+    // A request can add a cloned stream observer as its headers arrive.
+    // Drain those additions as well as the initial HTTP operations.
+    let drained = 0;
+    let rejected: PromiseRejectedResult | undefined;
+    for (;;) {
+      const operations = this.pendingResponsesByTrace.get(traceId) ?? [];
+      if (drained === operations.length) break;
+      const next = operations.slice(drained);
+      drained = operations.length;
+      const outcomes = await Promise.allSettled(next);
+      rejected ??= outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+    }
     this.pendingResponsesByTrace.delete(traceId);
-    return this.finish(traceId);
+    const summary = this.finish(traceId);
+    if (rejected) throw rejected.reason;
+    return summary;
+  }
+
+  trackOperation(traceId: string, operation: Promise<unknown>): void {
+    this.assertTraceOpen(traceId);
+    const pending = this.pendingResponsesByTrace.get(traceId) ?? [];
+    // The caller receives transport failures; accounting still waits for them.
+    pending.push(
+      operation.then(
+        () => {},
+        () => {},
+      ),
+    );
+    this.pendingResponsesByTrace.set(traceId, pending);
   }
 
   private recordParsedResponse(
@@ -516,12 +633,27 @@ export class PlannerUsageTracker {
     model: string,
     usage: ReturnType<typeof parseProviderUsage> | null,
     reservedUsd?: number,
-    retryAllowanceUsd = 0,
+    attempts = 1,
+    maxAttempts = 1,
+    pricingModel = model,
   ): void {
+    if (this.finishedTraces.has(traceId)) return;
+    const pending = this.takePendingWorstCase(traceId, reservedUsd);
+    // An aborted parallel lane may report after finish() released its reservation.
+    // Every dispatch settles once; an orphan callback must not release another row.
+    if (!pending) return;
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
-    const worstCaseUsd = this.takePendingWorstCase(traceId, reservedUsd);
+    const worstCaseUsd = pending.usd;
+    const usageKnown = hasPricedUsage(usage) && pricingModel !== "unknown";
+    const measuredUsd = usageKnown
+      ? (calculateLlmCostDetails(usage!, { model: pricingModel }).total ?? 0)
+      : null;
+    const unresolvedAttempts = usageKnown ? attempts - 1 : attempts;
+    const unresolvedAllowanceUsd =
+      (worstCaseUsd / maxAttempts) * unresolvedAttempts;
     const call: PlannerModelCall = {
       model,
+      pricingModel,
       status,
       ok,
       usageKnown: false,
@@ -530,88 +662,126 @@ export class PlannerUsageTracker {
       totalTokens: 0,
       cachedInputTokens: 0,
       estimatedCostUsd: 0,
+      measuredCostUsd: measuredUsd,
+      unresolvedAttempts,
+      unresolvedAllowanceUsd,
     };
-    if (usage?.known) {
-        call.usageKnown = true;
-        call.inputTokens = usage.input ?? 0;
-        call.outputTokens = usage.output ?? 0;
-        call.totalTokens = usage.total ?? call.inputTokens + call.outputTokens;
-        call.cachedInputTokens = usage.cachedInput ?? 0;
-        call.estimatedCostUsd = (calculateLlmCostDetails(usage, { model }).total ?? 0) + retryAllowanceUsd;
-        summary.usageCalls += 1;
-        summary.inputTokens += call.inputTokens;
-        summary.outputTokens += call.outputTokens;
-        summary.totalTokens += call.totalTokens;
-        summary.cachedInputTokens += call.cachedInputTokens;
+    if (usageKnown && usage) {
+      call.usageKnown = true;
+      call.inputTokens = usage.input ?? 0;
+      call.outputTokens = usage.output ?? 0;
+      call.totalTokens = usage.total ?? call.inputTokens + call.outputTokens;
+      call.cachedInputTokens = usage.cachedInput ?? 0;
+      summary.usageCalls += 1;
+      summary.inputTokens += call.inputTokens;
+      summary.outputTokens += call.outputTokens;
+      summary.totalTokens += call.totalTokens;
+      summary.cachedInputTokens += call.cachedInputTokens;
     }
-    if (!call.usageKnown) call.estimatedCostUsd = worstCaseUsd;
-    call.estimatedCostUsd = Math.round(call.estimatedCostUsd * 1_000_000) / 1_000_000;
+    call.estimatedCostUsd =
+      (measuredUsd ?? 0) +
+      (this.spendMode === "conservative"
+        ? usageKnown
+          ? unresolvedAllowanceUsd
+          : worstCaseUsd
+        : 0);
+    call.estimatedCostUsd =
+      Math.round(call.estimatedCostUsd * 1_000_000) / 1_000_000;
     summary.estimatedCostUsd += call.estimatedCostUsd;
+    summary.knownUsageUsd = (summary.knownUsageUsd ?? 0) + (measuredUsd ?? 0);
     summary.modelCalls.push(call);
     this.byTrace.set(traceId, summary);
-    this.onCost?.(call.estimatedCostUsd, worstCaseUsd);
+    this.onCost?.(
+      call.estimatedCostUsd,
+      worstCaseUsd,
+      {
+        model,
+        measuredUsd,
+        unresolvedAttempts,
+        unresolvedAllowanceUsd,
+        reason:
+          attempts > maxAttempts ? "upstream_attempts_exceed_dispatch_ceiling" : pricingModel === "unknown"
+            ? "response_model_unreported_and_route_ambiguous"
+            : unresolvedAttempts > 0
+              ? usageKnown
+                ? "upstream_retry_usage_unmetered_or_attempt_count_unknown"
+                : "response_usage_missing_or_incomplete"
+              : null,
+      },
+      { traceId, kind: pending.kind },
+    );
   }
 
-  private retryAllowance(response: Response, reservedUsd: number | undefined, maxAttempts: number): number {
-    if (maxAttempts <= 1 || !reservedUsd) return 0;
-    const attempts = Number(response.headers.get("x-heytutor-upstream-attempts") ?? maxAttempts);
-    const boundedAttempts = Number.isFinite(attempts) ? Math.min(maxAttempts, Math.max(1, attempts)) : maxAttempts;
-    return (reservedUsd / maxAttempts) * (boundedAttempts - 1);
+  private pricingModel(model: string, fallbackModel: string): string {
+    // Azure payload `model` may name the base model rather than the deployment.
+    // That endpoint routes every lane to the configured, priced alias.
+    return process.env.LLM_PROVIDER?.trim().toLowerCase() === "azure" &&
+      fallbackModel !== "unknown" &&
+      fallbackModel === process.env.AZURE_OPENAI_DEPLOYMENT?.trim()
+      ? fallbackModel
+      : model;
   }
 
-  recordFailure(traceId: string, model = "unknown", reservedUsd?: number): void {
-    const summary = this.byTrace.get(traceId) ?? emptyUsage();
-    const worstCaseUsd = this.takePendingWorstCase(traceId, reservedUsd);
-    const estimatedCostUsd = Math.round(worstCaseUsd * 1_000_000) / 1_000_000;
-    summary.estimatedCostUsd += estimatedCostUsd;
-    summary.modelCalls.push({
+  private upstreamAttempts(response: Response, maxAttempts: number): number {
+    const raw = response.headers.get("x-heytutor-upstream-attempts");
+    const attempts = raw === null ? maxAttempts : Number(raw);
+    return Number.isSafeInteger(attempts) && attempts >= 1
+      ? attempts
+      : maxAttempts;
+  }
+
+  recordFailure(
+    traceId: string,
+    model = "unknown",
+    reservedUsd?: number,
+  ): void {
+    const pending = this.pendingWorstCaseByTrace
+      .get(traceId)
+      ?.find((call) => reservedUsd === undefined || call.usd === reservedUsd);
+    this.recordParsedResponse(
+      traceId,
+      0,
+      false,
       model,
-      status: 0,
-      ok: false,
-      usageKnown: false,
-      inputTokens: 0,
-      outputTokens: 0,
-      totalTokens: 0,
-      cachedInputTokens: 0,
-      estimatedCostUsd,
-    });
-    this.byTrace.set(traceId, summary);
-    this.onCost?.(estimatedCostUsd, worstCaseUsd);
+      null,
+      reservedUsd,
+      pending?.maxAttempts ?? 1,
+      pending?.maxAttempts ?? 1,
+    );
   }
 
   finish(traceId: string): PlannerUsageSummary {
+    for (const pending of [
+      ...(this.pendingWorstCaseByTrace.get(traceId) ?? []),
+    ])
+      this.recordFailure(traceId, "unknown", pending.usd);
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
-    for (const worstCaseUsd of this.pendingWorstCaseByTrace.get(traceId) ?? []) {
-      const estimatedCostUsd = Math.round(worstCaseUsd * 1_000_000) / 1_000_000;
-      summary.estimatedCostUsd += estimatedCostUsd;
-      summary.modelCalls.push({
-        model: "unknown",
-        status: 0,
-        ok: false,
-        usageKnown: false,
-        inputTokens: 0,
-        outputTokens: 0,
-        totalTokens: 0,
-        cachedInputTokens: 0,
-        estimatedCostUsd,
-      });
-      this.onCost?.(estimatedCostUsd, worstCaseUsd);
-    }
     this.byTrace.delete(traceId);
     this.pendingWorstCaseByTrace.delete(traceId);
     this.pendingResponsesByTrace.delete(traceId);
+    this.finishedTraces.add(traceId);
     return {
       ...summary,
-      estimatedCostUsd: Math.round(summary.estimatedCostUsd * 1_000_000) / 1_000_000,
+      estimatedCostUsd:
+        Math.round(summary.estimatedCostUsd * 1_000_000) / 1_000_000,
       modelCalls: summary.modelCalls.map((call) => ({ ...call })),
     };
   }
 
-  private takePendingWorstCase(traceId: string, reservedUsd?: number): number {
+  private takePendingWorstCase(
+    traceId: string,
+    reservedUsd?: number,
+  ):
+    | { usd: number; kind: "planner" | "teaching"; maxAttempts: number }
+    | undefined {
     const pending = this.pendingWorstCaseByTrace.get(traceId);
-    const index = reservedUsd === undefined ? 0 : pending?.indexOf(reservedUsd) ?? -1;
-    const value = index >= 0 ? pending?.splice(index, 1)[0] ?? 0 : 0;
-    if (!pending || pending.length === 0) this.pendingWorstCaseByTrace.delete(traceId);
+    const index =
+      reservedUsd === undefined
+        ? 0
+        : (pending?.findIndex((call) => call.usd === reservedUsd) ?? -1);
+    const value = index >= 0 ? pending?.splice(index, 1)[0] : undefined;
+    if (!pending || pending.length === 0)
+      this.pendingWorstCaseByTrace.delete(traceId);
     return value;
   }
 }
