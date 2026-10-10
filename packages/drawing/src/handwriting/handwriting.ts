@@ -1718,7 +1718,8 @@ function readScriptGroup(
   }
 
   if (content.length === 0) {
-    return { content: first, nextIndex: start + 1 };
+    const character = readStrokeCharacter(text, start);
+    return { content: character.char, nextIndex: character.nextIndex };
   }
 
   return { content, nextIndex: i };

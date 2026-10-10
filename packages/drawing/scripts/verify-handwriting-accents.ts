@@ -59,6 +59,19 @@ for (const size of [19, 32, 46]) {
   }
 
   // Base layout, including spacing across words and scripts, stays identical.
+  for (const marker of ["^", "_"]) {
+    for (const [letter, extraStrokes] of [["ẋ", 1], ["x̄", 1], ["x̂", 2], ["ẍ", 2], ["x⃗", 3]] as const) {
+      const text = `a${marker}${letter}`;
+      const paths = await textToStrokePaths(text, 70, 230, size);
+      const plain = await textToStrokePaths(`a${marker}x`, 70, 230, size);
+      assert.equal(paths.length, 2, `${text}: one body and one script glyph`);
+      assert.equal(paths[1]!.strokes.length, plain[1]!.strokes.length + extraStrokes,
+        `${text}: script must retain every attached accent stroke`);
+      assert.deepEqual(paths.map(p => [p.x, p.y, p.width, p.fontSize]),
+        plain.map(p => [p.x, p.y, p.width, p.fontSize]), `${text}: script layout changed`);
+      assert.equal(measureTextWidth(text, size), measureTextWidth(`a${marker}x`, size));
+    }
+  }
   for (const [text, base] of [
     ["v̄_1", "v_1"], ["Δx̄", "Δx"], ["v̄ x⃗", "v x"],
     ["x_(v̄1)", "x_(v1)"], ["x^ẋ", "x^x"], ["x_ẍ", "x_x"],
