@@ -51,6 +51,18 @@ rounds cannot be silently resumed with this policy. Scene-mode candidates for a
 requested figure must carry readable label or dimension text before ranking;
 valid text-only declines remain a separate outcome.
 
+Specific catalogue role guidance requires detection score at least 3. Weaker
+matches still admit planning; family guidance and operators remain available.
+This is a confidence filter, not proof of semantic fit. Strong incorrect cues
+and the picker's weak archetype hint remain outside this narrow correction.
+
+New runs persist `diagram.plannerDeclined` only for a selected, validated
+`text_only` document. Earlier rejected-attempt errors remain diagnostics. The
+old synthetic `planner_declined_required_scene` marker also covered dropped
+unlabelled scenes: without validated outcome evidence, historical marker-only
+empties are `planner_no_output` (outcome unknown), not proven declines. Required
+no-figure grading remains `empty_bad` regardless of the cause label.
+
 `pnpm --filter @heytutor/tutor verify:production-selection` checks the shared
 decision and the original six live/save figures plus both edited forgeries.
 
