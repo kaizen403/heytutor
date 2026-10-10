@@ -2341,7 +2341,7 @@ export function validateSceneQuantityAgreement(
   const qualitativeEvidence = plan.qualitativeClaims.flatMap((claim) => [
     claim.claim,
     ...(claim.relatedEntityHints ?? []),
-  ]).flatMap(extractMeasuredValues);
+  ]).flatMap((text) => extractMeasuredValues(text, plan));
   const authoritative = new Map(planQuantities.map((quantity) => [quantity.id, quantity]));
   sceneQuantities.forEach((quantity, index) => {
     const planned = authoritative.get(quantity.id);
@@ -2379,12 +2379,9 @@ export function validateSceneQuantityAgreement(
     }
   });
 
-  const supportedDisplays = planQuantities.map((quantity) => ({
-    value: quantity.value,
-    unit: quantity.unit ?? "",
-  })).concat(qualitativeEvidence);
+  const supportedDisplays = supportedSceneDisplayMeasurements(plan);
   displayedTexts.forEach((text, index) => {
-    for (const match of extractMeasuredValues(text)) {
+    for (const match of extractMeasuredValues(text, plan)) {
       if (!supportedDisplays.some((quantity) =>
         equivalentDisplayedMeasuredQuantity(
           quantity.value,
@@ -3864,10 +3861,14 @@ function pointForEntity(
 }
 
 function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
-  const pruned = text.replace(measuredValuePattern(), (measurement) => {
-    const unsupported = validateSceneQuantityAgreement([], plan, [measurement])
-      .some((issue) => issue.code === "displayed_quantity_unverified");
-    return unsupported ? "" : measurement;
+  const supported = supportedSceneDisplayMeasurements(plan);
+  const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
+    if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
+    const value = Number(_number.replace(/−/g, "-"));
+    const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
+    return supported.some((quantity) => equivalentDisplayedMeasuredQuantity(
+      quantity.value, quantity.unit, value, unit, tolerance,
+    )) ? measurement : "";
   });
   return pruned
     .replace(/\s*=\s*$/g, "")
@@ -3876,17 +3877,103 @@ function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): stri
     .trim();
 }
 
-function extractMeasuredValues(text: string): Array<{ value: number; unit: string; tolerance: number }> {
+function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: number; unit: string }> {
+  return [...plan.givens, ...plan.derived].map((quantity) => ({
+    value: quantity.value, unit: quantity.unit ?? "",
+  })).concat(plan.qualitativeClaims.flatMap((claim) => [claim.claim, ...(claim.relatedEntityHints ?? [])])
+    .flatMap((text) => extractMeasuredValues(text, plan)));
+}
+
+function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: number; unit: string; tolerance: number }> {
   const values: Array<{ value: number; unit: string; tolerance: number }> = [];
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
     const value = Number(match[1]?.replace(/−/g, "-"));
     const unit = match[2]?.trim();
-    if (Number.isFinite(value) && unit) {
+    if (Number.isFinite(value) && unit && !sceneMeasurementIsOwnedFormulaOperand(
+      text, { index: match.index!, length: match[0].length, unit }, plan,
+    )) {
       values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!.replace(/−/g, "-")) });
     }
   }
   return values;
+}
+
+/** Split a whole, case-sensitive identifier into declared symbols; never a prefix only. */
+function declaredSymbolProduct(token: string, symbols: ReadonlySet<string>): string[] | null {
+  const names = [...symbols].filter((name) => /^[\p{L}_][\p{L}\p{N}_]*$/u.test(name))
+    .sort((a, b) => b.length - a.length);
+  const memo = new Map<number, string[] | null>();
+  const split = (index: number): string[] | null => {
+    if (index === token.length) return [];
+    if (memo.has(index)) return memo.get(index)!;
+    for (const name of names) {
+      if (!token.startsWith(name, index)) continue;
+      const tail = split(index + name.length);
+      if (tail) { const result = [name, ...tail]; memo.set(index, result); return result; }
+    }
+    memo.set(index, null);
+    return null;
+  };
+  return split(0);
+}
+
+/** Lexical ownership only: this does not prove an expression's algebra or physical law. */
+function isDeclaredSymbolExpression(text: string, symbols: ReadonlySet<string>): boolean {
+  const functions = /^(?:arcsin|arccos|arctan|asin|acos|atan|sqrt|sin|cos|tan|sec|csc|cot|log|ln|exp)/;
+  const tokens = new RegExp(`${NUMBER_SOURCE}|[\\p{L}_][\\p{L}\\p{N}_]*|[=≈≃≅+−\\-*/×·⋅÷^()\\[\\]{}²³]`, "gu");
+  let end = 0;
+  for (const match of text.matchAll(tokens)) {
+    if (text.slice(end, match.index).trim()) return false;
+    end = match.index! + match[0].length;
+    if (!/^[\p{L}_]/u.test(match[0])) continue;
+    if (declaredSymbolProduct(match[0], symbols)) continue;
+    const fn = match[0].match(functions)?.[0];
+    if (!fn) return false;
+    const argument = match[0].slice(fn.length);
+    if (argument ? !declaredSymbolProduct(argument, symbols) : !/^\s*\(/.test(text.slice(end))) return false;
+  }
+  return !text.slice(end).trim();
+}
+
+/**
+ * A glued unit spelling can also be a declared symbolic product (2mg, 2µT).
+ * Keep the original formula context in both validation and pruning. Bare
+ * products need an actual source expression; variable names alone are not evidence.
+ */
+function sceneMeasurementIsOwnedFormulaOperand(
+  text: string,
+  found: { index: number; length: number; unit: string },
+  plan: TurnPlanV3,
+): boolean {
+  const end = found.index + found.length;
+  const unitStart = end - found.unit.length;
+  if (unitStart <= found.index || /\s/.test(text[unitStart - 1]!) || !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(found.unit)) return false;
+  const quantities = [...plan.givens, ...plan.derived, ...plan.unknowns];
+  const symbols = new Set(quantities.map((quantity) => quantity.symbol));
+  const product = declaredSymbolProduct(found.unit, symbols);
+  if (!product || !isDeclaredSymbolExpression(text, symbols)) return false;
+  const literalDimension = canonicalMeasurement(1, found.unit)?.dimension;
+  const assignedMeasurement = (prefix: string): boolean => {
+    const lhs = prefix.match(/^\s*([\p{L}_][\p{L}\p{N}_]*)\s*=/u)?.[1];
+    return lhs !== undefined && quantities.some((quantity) => quantity.symbol === lhs &&
+      quantity.unit !== undefined && canonicalMeasurement(1, quantity.unit)?.dimension === literalDimension);
+  };
+  // m=2mg is still a mass measurement even when m and g are also declared.
+  if (assignedMeasurement(text.slice(0, found.index))) return false;
+  const rhsStart = text.lastIndexOf("=", found.index - 1) + 1;
+  const context = text.slice(rhsStart, found.index) + text.slice(end);
+  if (/[\p{L}_*/×·⋅÷^²³]/u.test(context)) return true;
+
+  const coefficient = Number(text.slice(found.index, unitStart).replace(/−/g, "-"));
+  const factors = product.map(escapeRegExp).join("\\s*(?:[*×·⋅]\\s*)?");
+  const sourceExpression = new RegExp(`(?<![\\p{L}\\p{N}_])([\\p{L}_][\\p{L}\\p{N}_]*)\\s*=\\s*(${NUMBER_SOURCE})(?:\\s*[*×·⋅]\\s*|(?=[\\p{L}_]))${factors}(?![\\p{L}\\p{N}_])`, "gu");
+  for (const match of plan.question.matchAll(sourceExpression)) {
+    if (Number(match[2]!.replace(/−/g, "-")) !== coefficient || !symbols.has(match[1]!)) continue;
+    if (assignedMeasurement(`${match[1]}=`)) continue;
+    return true;
+  }
+  return false;
 }
 
 type ClaimMeasurement = {
@@ -3985,7 +4072,7 @@ function claimMatchesAtStatedPrecision(
   if (Math.sign(quantity.value) !== Math.sign(stated.value)) return false;
   const size = Math.abs(quantity.value);
   const statedSize = Math.abs(stated.value);
-  const slack = Math.max(1, size, statedSize) * 1e-9;
+  const slack = canonicalMeasurementComparisonSlack(size, statedSize);
   return size >= statedSize - slack && size < statedSize + Math.abs(lastPlace.value) - slack;
 }
 
@@ -4501,7 +4588,22 @@ function equivalentMeasuredQuantity(
   const first = canonicalMeasurement(firstValue, firstUnit);
   const second = canonicalMeasurement(secondValue, secondUnit);
   return first !== null && second !== null && first.dimension === second.dimension &&
-    approximatelyEqual(first.value, second.value);
+    canonicalMeasurementValuesAgree(first.value, second.value);
+}
+
+/** Floating-point slack scales with the measurement, never with one SI unit. */
+function canonicalMeasurementComparisonSlack(first: number, second: number): number {
+  return Math.max(Math.abs(first), Math.abs(second)) * 1e-9;
+}
+
+function canonicalMeasurementValuesAgree(
+  first: number,
+  second: number,
+  statedPrecisionTolerance = 0,
+): boolean {
+  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(statedPrecisionTolerance)) return false;
+  return Math.abs(first - second) <= statedPrecisionTolerance +
+    canonicalMeasurementComparisonSlack(first, second);
 }
 
 function claimSameDimension(firstUnit: unknown, secondUnit: unknown): boolean {
@@ -4522,8 +4624,7 @@ function claimEquivalentMeasuredQuantity(
   const tolerance = claimCanonicalMeasurement(secondTolerance, secondUnit);
   return first !== null && second !== null && tolerance !== null &&
     first.dimension === second.dimension && first.dimension === tolerance.dimension &&
-    Math.abs(first.value - second.value) <= tolerance.value +
-      Math.max(1, Math.abs(first.value), Math.abs(second.value)) * 1e-9;
+    canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
 function equivalentDisplayedMeasuredQuantity(
@@ -4538,8 +4639,7 @@ function equivalentDisplayedMeasuredQuantity(
   const tolerance = canonicalMeasurement(secondTolerance, secondUnit);
   return first !== null && second !== null && tolerance !== null &&
     first.dimension === second.dimension && first.dimension === tolerance.dimension &&
-    Math.abs(first.value - second.value) <= tolerance.value +
-      Math.max(1, Math.abs(first.value), Math.abs(second.value)) * 1e-9;
+    canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
 function canonicalMeasurement(
