@@ -62,6 +62,7 @@ import {
   drawReplayDiagramTimeline,
 } from "../lib/replay/completeReplayDiagram";
 import { isTypingElement } from "../lib/board/boardFullscreen";
+import { resetReplayPageAtTurn } from "../lib/replay/replayPageBoundary";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { useBoardLayout } from "./useBoardLayout";
 import { useCancelControl } from "./useCancelControl";
@@ -378,10 +379,14 @@ export function useLecturePlayer({
   );
 
   const syncTurn = useCallback(
-    (turnIndex: number) => {
+    async (turnIndex: number, shouldCancel: () => boolean = () => false) => {
+      if (!await resetReplayPageAtTurn({
+        turn: storedTurnsRef.current[turnIndex], previousTurnIndex: lastSyncedTurnRef.current, turnIndex,
+        whiteboard: playerBoardRef.current, resetBoardLayout: resetLayoutRef.current, shouldCancel,
+      })) return false;
       lastSyncedTurnRef.current = turnIndex;
       const turn = storedTurnsRef.current[turnIndex];
-      if (turn && storedTurnContinuesBoard(turn)) return;
+      if (turn && storedTurnContinuesBoard(turn)) return true;
       questionRef.current = turn?.question ?? "";
       const controller = controllerRef.current!;
       const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts) : null;
@@ -392,6 +397,7 @@ export function useLecturePlayer({
         controller.frames.current()?.presentation.diagram ?? restoreVerifiedDiagramFromTurn(turn);
       diagramRef.current = diagram;
       fbdStartedRef.current = Boolean(diagram);
+      return true;
     },
     [storedTurnsRef],
   );
@@ -524,7 +530,7 @@ export function useLecturePlayer({
       const catchUp = (async () => {
         for (let index = plan.epochCueIndex; index < plan.targetCueIndex; index++) {
           const cue = cues[index]!;
-          if (cue.turnIndex !== lastSyncedTurnRef.current) syncTurn(cue.turnIndex);
+          if (cue.turnIndex !== lastSyncedTurnRef.current && !await syncTurn(cue.turnIndex, () => !current())) return;
           for (const command of cue.commands) {
             if (!current()) return;
             // Pure dwell and transient emphasis leave no mark to catch up to.
@@ -579,8 +585,8 @@ export function useLecturePlayer({
         getTurn: (turnIndex) => storedTurnsRef.current[turnIndex],
         getPageTurns: (turnIndex) => pageTurnsEndingAt(storedTurnsRef.current, turnIndex),
         getDiagram: () => diagramRef.current,
-        onCueStart: (cue, index) => {
-          if (cue.turnIndex !== lastSyncedTurnRef.current) syncTurn(cue.turnIndex);
+        onCueStart: async (cue, index) => {
+          if (cue.turnIndex !== lastSyncedTurnRef.current && !await syncTurn(cue.turnIndex, () => !stillOurs())) return;
           if (activeRef.current && statusRef.current !== "seeking") publishCueText(cues, index);
         },
       })

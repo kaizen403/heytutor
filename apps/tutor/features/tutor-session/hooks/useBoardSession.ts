@@ -38,6 +38,7 @@ import {
   storedTurnContinuesBoard,
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
+import { resetReplayPageAtTurn } from "../lib/replay/replayPageBoundary";
 import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
@@ -649,7 +650,11 @@ export function useBoardSession({
           if (inkStale()) return;
           const continuesPage = storedTurnContinuesBoard(turn);
           if (restoredInk && !continuesPage) {
-            captureNotesEpoch();
+            if (!await resetReplayPageAtTurn({
+              turn, previousTurnIndex: turnIndex - 1, turnIndex,
+              whiteboard: whiteboardRef.current, resetBoardLayout,
+              shouldCancel: inkStale, capturePreviousPage: captureNotesEpoch,
+            })) return;
             restoredInk = false;
           }
           liveQuestionRef.current = storedTurnPageQuestion(turn);

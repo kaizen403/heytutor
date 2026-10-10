@@ -46,6 +46,7 @@ import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
 import { drawSegmentInk, planSegmentInk } from "../lib/turn/segmentInk";
 import type { ExecuteCommandOptions } from "./turn/types";
 import { completeReplayDiagramTurn } from "../lib/replay/completeReplayDiagram";
+import { resetReplayPageAtTurn } from "../lib/replay/replayPageBoundary";
 
 type ReplayGenerationState = {
   generation: number;
@@ -364,6 +365,10 @@ export function useReplay({
         }
 
         if (cue.turnIndex !== syncedTurnIndex) {
+          if (!await resetReplayPageAtTurn({
+            turn: storedTurnsRef.current[cue.turnIndex], previousTurnIndex: syncedTurnIndex, turnIndex: cue.turnIndex,
+            whiteboard: wb, resetBoardLayout, shouldCancel: () => !isCurrentReplay(),
+          })) return;
           syncedTurnIndex = cue.turnIndex;
           syncReplayTurn(syncedTurnIndex);
         }
@@ -701,6 +706,11 @@ export function useReplay({
 
           const cue = timeline.cues[i]!;
           if (cue.turnIndex !== syncedTurnIndex) {
+            if (!await resetReplayPageAtTurn({
+              turn: storedTurnsRef.current[cue.turnIndex], previousTurnIndex: syncedTurnIndex, turnIndex: cue.turnIndex,
+              whiteboard: whiteboardRef.current, resetBoardLayout,
+              shouldCancel: () => cancelRef.current || generation !== replayGenerationRef.current,
+            })) return;
             syncedTurnIndex = cue.turnIndex;
             syncReplayTurn(syncedTurnIndex);
           }
@@ -763,6 +773,7 @@ export function useReplay({
     [
       settleBoardRestore,
       whiteboardRef,
+      resetBoardLayout,
       storedTurnsRef,
       phaseRef,
       isReplaying,

@@ -9,6 +9,7 @@ import { deepEqual } from "../scene/diagramGeneration";
 import { restoreVerifiedDiagramFromTurn } from "../scene/restoreVerifiedDiagram";
 import {
   drawLectureTimeline,
+  waitUntilExportClock,
   type ExportExecuteCommand,
 } from "@/lib/lecture-export/drawLectureTimeline";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
@@ -96,11 +97,17 @@ export async function drawReplayDiagramTimeline(
   ) {
     if (options.shouldCancel()) return;
     const cue = cues[index]!;
+    await waitUntilExportClock(options.getClockMs, cue.startMs, options.waitForAdvance, options.shouldCancel);
+    if (options.shouldCancel()) return;
+    // Player page transitions clear asynchronously; ink must wait until the
+    // runtime owns the next page rather than racing its clear.
+    await options.onCueStart?.(cue, index);
+    if (options.shouldCancel()) return;
     await drawLectureTimeline({
       ...options,
       cues: [cue],
       startCueIndex: 0,
-      onCueStart: () => options.onCueStart?.(cue, index),
+      onCueStart: undefined,
     });
     // The finished lecture's voice is one stitched track with no gap between
     // turns, so the marks land instantly: animating them would push the next
