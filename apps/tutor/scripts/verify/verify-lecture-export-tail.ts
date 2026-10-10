@@ -291,7 +291,7 @@ async function main(): Promise<void> {
     assert.ok(tail.includes("drainExportTail("), "the encoder must drain the tail after the frame loop");
     assert.ok(/if \(await encodeFrame\(totalFrames \+ step, mediaMs\)\) tailChanged = true;/.test(tail),
       "the encoder notes whether a tail frame changed the picture");
-    assert.ok(tail.includes("const encodedFrames = totalFrames + (tail.settled && tail.steps === 1 && !tailChanged ? 0 : tail.steps);"),
+    assert.ok(tail.includes("let encodedFrames = totalFrames + (tail.settled && tail.steps === 1 && !tailChanged ? 0 : tail.steps);"),
       "a tail frame that only confirmed the end does not lengthen the file; one that put marks down is kept");
     assert.equal(
       /await\s+drawPromise\b/.test(tail),

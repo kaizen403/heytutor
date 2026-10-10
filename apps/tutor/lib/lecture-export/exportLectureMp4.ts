@@ -410,7 +410,15 @@ export async function exportLectureMp4(options: {
     // The tail's one frame only confirmed the end (the last marks were already
     // in the file): it does not lengthen the file. A frame that put marks
     // down is kept.
-    const encodedFrames = totalFrames + (tail.settled && tail.steps === 1 && !tailChanged ? 0 : tail.steps);
+    let encodedFrames = totalFrames + (tail.settled && tail.steps === 1 && !tailChanged ? 0 : tail.steps);
+    // Awaiting a previous captured span lets the final WRITE finish. The tail
+    // can then already be settled, or settle during its own encoder flush,
+    // without any capture seeing that last mark. Sample the settled board once;
+    // keep one extra frame only when this terminal picture actually changed.
+    if (tail.settled) {
+      if (options.shouldCancel()) await cancelEncode();
+      if (await encodeFrame(encodedFrames, options.clock.now())) encodedFrames += 1;
+    }
     await flushHold(encodedFrames);
     encodedFileMs = Math.max(fileTotalMs, encodedFrames * LECTURE_EXPORT_FRAME_MS);
 
