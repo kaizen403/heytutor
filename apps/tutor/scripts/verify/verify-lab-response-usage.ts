@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { budgetedVisualNeedFetch, visualNeedRequestWorstCaseUsd, summarizeVisualNeedCalls, type VisualNeedCallAccounting } from "../lecture-lab/labVisualNeed";
 import { labProviderConfig } from "../../lib/llm/labProviderConfig";
 import { resolveLlmRates } from "../../lib/obs/usageCost";
-import { LabSpendCap, parseOptions, restoredLabCharge, selectResumeProbes, plannerRequestWorstCaseUsd, directProviderRequestModel, runBudgetedLabRows } from "../lecture-lab/run";
+import { LabSpendCap, parseOptions, restoredLabCharge, selectResumeProbes, plannerRequestWorstCaseUsd, directProviderRequestModel, reserveLabRequest, runBudgetedLabRows } from "../lecture-lab/run";
 import { PlannerUsageTracker } from "../lecture-lab/diagramEval";
 import { assertLabSpendMode, assertLabUsageCheckpoint } from "../lecture-lab/labSpend";
 import { pickDiagramExamples } from "../lecture-lab/diagramExamplePicker";
@@ -101,6 +101,53 @@ async function main(): Promise<void> {
   assert.equal(failedPicker.record.unresolvedUsageCalls, 1);
   assert(failedPicker.record.unresolvedAllowanceUsd! > 0);
   assert.equal(failedPicker.record.estimatedCostUsd, 0, "picker reports a known subtotal and explicit unresolved exposure");
+  for (const spendMode of ["response_usage", "conservative"] as const) {
+    const admissions = spendMode === "response_usage" ? ["timeout", "denied"] as const : ["denied"] as const;
+    for (const admission of admissions) {
+      const blockedCap = new LabSpendCap(admission === "timeout" ? 0.4 : 0.1, spendMode);
+      if (admission === "timeout") assert.equal(await blockedCap.reserveCallAsync(0.3), true);
+      let nativeCalls = 0;
+      let costCallbacks = 0;
+      const unsent = await pickDiagramExamples([], buildDiagramExampleCatalogue([]), {
+        question: "Synthetic fixture.", families: [], archetypeId: null, env, spendMode,
+        onModelCost: () => { costCallbacks += 1; },
+        fetchImpl: async () => {
+          const abort = new AbortController();
+          const timer = setTimeout(() => abort.abort(new DOMException("Synthetic deadline", "TimeoutError")), 5);
+          try {
+            await reserveLabRequest(blockedCap, 0.2, abort.signal);
+            nativeCalls += 1;
+            return Response.json({});
+          } finally { clearTimeout(timer); }
+        },
+      });
+      assert.equal(nativeCalls, 0, `${spendMode}/${admission}: no provider dispatch`);
+      assert.equal(unsent.record.status, admission === "timeout" ? "timeout" : "failed");
+      assert.equal(unsent.record.attempts, 0, "unsent requests do not count as provider attempts");
+      assert.equal(unsent.record.unresolvedUsageCalls, 0, "unsent picker has no possible provider charge");
+      assert.equal(unsent.record.unresolvedAllowanceUsd, 0);
+      assert.equal(unsent.record.estimatedCostUsd, 0);
+      assert.equal(costCallbacks, 0, "unsent picker never calls the cost observer");
+      assert.equal(blockedCap.summary(0, 0).chargedUsd, 0);
+      assert.equal(blockedCap.summary(0, 0).unresolvedCalls.length, 0);
+    }
+    let retryCalls = 0;
+    const unsentRetry = await pickDiagramExamples([], buildDiagramExampleCatalogue([]), {
+      question: "Synthetic fixture.", families: [], archetypeId: null, env, spendMode,
+      fetchImpl: async () => {
+        if (++retryCalls === 1) return Response.json({ choices: [{ message: { content: "invalid JSON" } }],
+          usage: { prompt_tokens: 100, completion_tokens: 10 } });
+        await reserveLabRequest(new LabSpendCap(0.1, spendMode), 0.2);
+        throw new Error("denied retry cannot reach the provider");
+      },
+    });
+    assert.equal(unsentRetry.record.attempts, 1, "a denied retry preserves the earlier dispatched attempt");
+    assert.equal(unsentRetry.record.usageKnownCalls, 1);
+    assert.equal(unsentRetry.record.usageKnown, true);
+    assert.equal(unsentRetry.record.knownUsageUsd, 0.0003);
+    assert.equal(unsentRetry.record.unresolvedUsageCalls, 0);
+    assert.equal(unsentRetry.record.unresolvedAllowanceUsd, 0);
+  }
   await verifyPortRegressions();
   console.log("Lab response-usage checks passed (zero network/model calls).");
 }

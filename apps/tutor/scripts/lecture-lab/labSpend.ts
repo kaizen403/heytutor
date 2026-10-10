@@ -1,5 +1,8 @@
 export type LabSpendMode = "conservative" | "response_usage";
 
+/** The budget wrapper rejected admission before calling the provider transport. */
+export class LabRequestNotDispatchedError extends Error {}
+
 export interface LabUsageObservation {
   model: string;
   measuredUsd: number | null;

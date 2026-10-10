@@ -10,7 +10,7 @@ import {
   type DiagramExemplar,
 } from "./diagramExamples";
 import { estimateLabCallWorstCaseUsd } from "./diagramEval";
-import { hasPricedUsage, type LabSpendMode } from "./labSpend";
+import { hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode } from "./labSpend";
 
 export const DIAGRAM_EXAMPLE_PICKER_TIMEOUT_MS = 15_000;
 
@@ -294,15 +294,19 @@ export async function pickDiagramExamples(
       }
     }
   } catch (error) {
-    if (attempts > 0 && !pendingCharged) {
+    if (error instanceof LabRequestNotDispatchedError && !pendingCharged) {
+      attempts -= 1;
+      pendingCharged = true;
+    } else if (attempts > 0 && !pendingCharged) {
       unresolvedAllowanceUsd += pendingWorstCaseUsd;
       const callCostUsd = options.spendMode === "response_usage" ? 0 : pendingWorstCaseUsd;
       estimatedCostUsd += callCostUsd;
       options.onModelCost?.(callCostUsd);
       pendingCharged = true;
     }
+    const transportError = error instanceof LabRequestNotDispatchedError ? error.cause : error;
     const timedOut = Date.now() >= deadline ||
-      (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError"));
+      (transportError instanceof Error && (transportError.name === "TimeoutError" || transportError.name === "AbortError"));
     const examples = fallback(exemplars, options);
     return {
       examples,

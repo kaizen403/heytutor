@@ -57,7 +57,7 @@ import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
-import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
+import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
 
 export interface Options {
@@ -221,6 +221,17 @@ export class LabSpendCap {
       unresolvedAllowanceUsd: Math.round(this.unresolvedCalls.reduce((sum, call) => sum + call.allowanceUsd, 0) * 1_000_000) / 1_000_000,
       inFlightCalls: this.inFlightCalls,
     };
+  }
+}
+
+export async function reserveLabRequest(cap: LabSpendCap, worstCaseUsd: number, signal?: AbortSignal | null): Promise<void> {
+  try {
+    if (!await cap.reserveCallAsync(worstCaseUsd, signal)) {
+      throw new LabRequestNotDispatchedError("lab request denied before sending: --max-usd dispatch headroom exhausted");
+    }
+  } catch (error) {
+    if (error instanceof LabRequestNotDispatchedError) throw error;
+    throw new LabRequestNotDispatchedError(error instanceof Error ? error.message : String(error), { cause: error });
   }
 }
 
@@ -902,9 +913,13 @@ async function main(): Promise<void> {
       const requestWorstCaseUsd = chatRequest || directProviderRequest
         ? plannerRequestWorstCaseUsd(init, requestModel, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0) * maxAttempts
         : 0;
-      if ((chatRequest || directProviderRequest) && !await spendCap.reserveCallAsync(requestWorstCaseUsd, init?.signal)) {
-        if (traceId) budgetDeniedTraces.add(traceId);
-        throw new Error("lab request denied before sending: --max-usd dispatch headroom exhausted");
+      if (chatRequest || directProviderRequest) {
+        try {
+          await reserveLabRequest(spendCap, requestWorstCaseUsd, init?.signal);
+        } catch (error) {
+          if (traceId) budgetDeniedTraces.add(traceId);
+          throw error;
+        }
       }
       if (chatRequest || directProviderRequest) checkpointSpend();
       if (chatRequest) {
