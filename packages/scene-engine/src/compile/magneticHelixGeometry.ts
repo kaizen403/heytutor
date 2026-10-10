@@ -133,7 +133,7 @@ export function validateMagneticHelixLabels(construction: SceneConstruction, doc
     // Every standalone number must belong to a parsed source measurement.
     // Symbol indices and descriptions such as 3D are names, not values.
     const unclaimed = matches.reduce((remaining, match) => remaining.replace(match[0], " "), text).replace(/\b[123]D\b/gi, " ");
-    const number = /(?<![\p{L}\p{N}_'′^.])[+\-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+\-]?\d+)?/iu;
+    const number = /(?<![\p{L}\p{N}_'′^.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/iu;
     if (number.test(unclaimed) || /\b(?:r(?:adius)?|p(?:itch)?)\s*[=≈~]\s*\S/i.test(unclaimed) || /(?<![\p{L}\p{N}_])(?:π|pi|∞|Infinity|NaN)(?=\s*(?:m|cm|mm)\b|\s*[;,)]?\s*$)/iu.test(unclaimed)) fail("numeric helix labels require radius or pitch with a length unit");
     for (const [index, match] of matches.entries()) {
       const next = matches[index + 1];
