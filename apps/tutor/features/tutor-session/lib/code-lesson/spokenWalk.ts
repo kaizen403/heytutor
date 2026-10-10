@@ -173,6 +173,7 @@ export interface TypedBlockBeatInput {
   host: SpokenWalkHost;
   controller: CodeLessonController;
   blockId: string;
+  shownChars?: number;
   /** The sentence this block sits under; null when there is no audio to follow. */
   clock: SpokenSegmentClock | null;
   isCancelled: () => boolean;
@@ -258,6 +259,7 @@ export async function runTypedBlockBeat(input: TypedBlockBeatInput): Promise<Typ
   });
   try {
     await controller.typeBlock(blockId, {
+      shownChars: input.shownChars,
       shouldCancel: isCancelled,
       delay,
       ...(typingClock
@@ -272,7 +274,7 @@ export async function runTypedBlockBeat(input: TypedBlockBeatInput): Promise<Typ
   if (typedMs === 0 && clock) typedMs = clock.getAudioPositionMs();
   if (isCancelled()) return { cancelled: true, typedMs, linesVisited: [], schedule: null };
 
-  if (!clock || !plan) {
+  if (!clock || !plan || (input.shownChars !== undefined && input.shownChars < blockLength)) {
     host.setCursorState?.("thinking");
     return { cancelled: false, typedMs, linesVisited: [], schedule: null };
   }

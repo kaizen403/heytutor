@@ -6,7 +6,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getObjectStoreConfig } from "./config";
-import { isSafeObjectKey } from "./keys";
+import { isSafeObjectDeletionPrefix, isSafeObjectKey } from "./keys";
 import { mediaProxyUrl } from "./mediaUrl";
 
 export { boardAudioPrefix, userImagePrefix } from "./keys";
@@ -87,9 +87,8 @@ export async function getObject(key: string): Promise<StoredObjectBody | null> {
 }
 
 export async function deletePrefix(prefix: string): Promise<void> {
-  const folder = /^(?:lectures\/[A-Za-z0-9._-]{1,128}\/(?:[A-Za-z0-9._-]{1,128}\/)?|images\/[A-Za-z0-9._-]{1,128}\/)$/;
   const imageKey = prefix.startsWith("images/") && isSafeObjectKey(prefix) && !prefix.endsWith("/");
-  if ((!folder.test(prefix) && !imageKey) || prefix.includes("..")) throw new Error("invalid object deletion prefix");
+  if (!isSafeObjectDeletionPrefix(prefix)) throw new Error("invalid object deletion prefix");
   const config = getObjectStoreConfig();
   const client = getClient();
   if (!config || !client) throw new Error("object storage deletion is not configured");

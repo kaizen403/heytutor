@@ -42,13 +42,19 @@ assert.equal(recordingAudioPersistenceComplete(
 const handler = readFileSync(fileURLToPath(new URL(
   "../../features/tutor-session/hooks/turn/useQuestionHandler.ts", import.meta.url,
 )), "utf8");
-const completion = handler.slice(handler.indexOf("            if (onComplete) {"), handler.indexOf("\n          }\n        }\n      } catch (error)"));
-assert(completion.includes("const saved = await savePromise;"), "partial board is saved before outcome");
-assert.match(completion, /if \(saved\) \{\s*if \([\s\S]*?recordingAudioCaptureComplete\(recordedSegmentsRef\.current\)[\s\S]*?recordingAudioPersistenceComplete\(segmentsForSave, saved\.segments\)[\s\S]*?emitError\(/,
+const completionStart = handler.indexOf("            if (onComplete) {");
+const completionEnd = handler.indexOf("\n          }\n        }\n      } catch (error)", completionStart);
+assert(completionStart > 0 && completionEnd > completionStart, "completion slice anchors (both must exist)");
+const completion = handler.slice(completionStart, completionEnd);
+assert(completion.includes("const saved = await completed;"), "partial board is saved before outcome");
+assert.match(completion, /if \(saved\.ok\) \{\s*if \([\s\S]*?recordingAudioCaptureComplete\(recordedSegmentsRef\.current\)[\s\S]*?recordingAudioPersistenceComplete\(liveSave\.submittedRows\(\), saved\.turn\.segments\)[\s\S]*?emitError\(/,
   "only automatic recordings with captured and persisted audio may complete");
 assert.match(completion, /emitError\(\{[\s\S]*?\}\);\s*\} else \{\s*onComplete\(\);\s*\}/,
   "missing audio must report failure without completing the job");
-assert.match(handler, /return savedTurn;[\s\S]*?\}\)\.catch\(\(\) => null\)/,
+const liveSaveSource = readFileSync(fileURLToPath(new URL(
+  "../../features/tutor-session/lib/turn/liveTurnSave.ts", import.meta.url,
+)), "utf8");
+assert.match(liveSaveSource, /if \(turn\.final\) this\.settleComplete\(turn, \{ ok: true, turn: result\.turn \}\);/,
   "completion must inspect the server's saved turn, not the local blob-URL replay copy");
 
 async function verifySavedAudio(): Promise<void> {

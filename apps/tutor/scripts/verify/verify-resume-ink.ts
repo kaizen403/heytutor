@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { IncrementalTagParser, parseDrawingCommands, prepareVerifiedLessonSegments, type TutorSegment } from "@heytutor/drawing";
 import { canStreamResumeRepair, createResumeInkGate, isTeachingResponseIncomplete, normalizeSegmentForAlignment, shouldRepairResumeWithoutInk, shouldRestoreResumeOffer } from "../../features/tutor-session/lib/turn/segmentPlanning";
-import { pausedLessonFromLive } from "../../features/tutor-session/lib/turn/doubtTurn";
+import { pausedLessonFromLive, pausedLessonOnStop, resumePageRecord, lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { LectureMarkupBuffer } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import { buildResumeTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
@@ -163,7 +163,9 @@ assert(flushBody.includes("if (!resumeInkGate) {") &&
 assert(source.includes("resumeInkGate.reset()"), "speech-only first attempts must be discarded before retry");
 assert(source.includes("resumeInkGate.hasInk()"), "the final response must be checked for ink");
 assert(source.includes("offerPausedLessonResume(resume)"), "a failed generation must keep Continue available for another try");
-const billingGate = source.split("billed = await beginTurn(")[1]?.split("const partialTurnSaved =")[0] ?? "";
+// From the billing await to the save handle minted once billing passed. Both anchors must exist.
+assert(source.includes("billed = await beginTurn(") && source.includes("const liveSave = sessionId"), "billing gate anchors");
+const billingGate = source.split("billed = await beginTurn(")[1]?.split("const liveSave = sessionId")[0] ?? "";
 assert(billingGate.split("if (resume) offerPausedLessonResume(resume);").length === 3,
   "network and billing failures before teaching must each restore Continue");
 const teachingFailure = source.split("console.error(\"Tutor error:\", error);")[1]?.split("} finally {")[0] ?? "";
@@ -187,4 +189,52 @@ const beforePlayback = runner.split("let segmentCompleted = false;")[1]?.split("
 assert(onStartBody.includes("speakingNarrationRef.current = narration;") &&
   !beforePlayback.includes("speakingNarrationRef.current = narration;"),
   "a sentence must enter interrupted history only after speech starts");
+// A user Stop of a resumed lesson is offered again. The finally of the stopped
+// resume must not put back the stale request (its generation moved); Stop
+// itself snapshots the resume's own page, so Continue picks up after what the
+// resume taught.
+{
+  const pageBefore = lessonPageRecord("b1", "Find the range.");
+  pageBefore.figureDrawn = true;
+  const request = pausedLessonFromLive({
+    record: pageBefore, boardId: "b1", lessonQuestion: "Find the range.", codeLesson: false, figureDrawn: true,
+    lessonBoardRows: [{ text: "R = ?" }], interruptedStep: "so the range", reason: "stop", parentTraceId: "trace-lesson",
+  })!;
+  const resumePage = resumePageRecord({
+    boardId: "b1", lessonQuestion: "Find the range.", figureDrawn: true, turnPlan: null, solverProjection: null, scene: null,
+  });
+  const reoffered = pausedLessonOnStop({
+    record: resumePage, boardId: "b1", activeResume: { request, pageBefore }, taught: true,
+    liveQuestion: "Find the range.", codeLesson: false,
+    lessonBoardRows: [{ text: "R = ?" }, { text: "R = u^2 sin 2θ / g" }], interruptedStep: "at 45 degrees", parentTraceId: "trace-resume",
+  });
+  assert(reoffered?.reason === "stop" && reoffered.lessonQuestion === "Find the range.",
+    "a user Stop of a resume offers the lesson again");
+  assert(reoffered?.interruptedStep === "at 45 degrees" && reoffered.lessonBoardRows?.length === 2 &&
+    reoffered.parentTraceId === "trace-resume",
+    "the new offer starts after what the resume taught, not from the old snapshot");
+  assert(!shouldRestoreResumeOffer(false, true, 4, 5),
+    "the stopped resume's own finally must not put the stale request back");
+  const control = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useTurnControl.ts"), "utf8");
+  const slice = (start: string, end: string) => {
+    const from = control.indexOf(start);
+    assert(from >= 0, `useTurnControl: start anchor "${start}" is gone; repoint this gate`);
+    const to = control.indexOf(end, from + start.length);
+    assert(to > from, `useTurnControl: end anchor "${end}" is gone; repoint this gate`);
+    return control.slice(from, to);
+  };
+  const stop = slice("const stopTurn = useCallback(", "liveTurnSave().closeOwner(cancelRef);");
+  assert(stop.includes("activeResumeRef.current !== null ||") && stop.includes("activeResume: activeResumeRef.current,"),
+    "Stop knows a resume is live and snapshots it");
+  const flush = slice("const flushPausedLesson = useCallback(", "return {\n    finishLectureUi");
+  assert(flush.includes("const active = { request: resume, pageBefore: boardPageRef.current, attempt: {} }") &&
+    flush.indexOf("activeResumeRef.current = active;") >= 0 &&
+    flush.indexOf("activeResumeRef.current = active;") < flush.indexOf("handleQuestionRef.current(resume.lessonQuestion"),
+    "Continue marks the resume live before it starts, so an early Stop still finds it");
+  assert(flush.includes("if (activeResumeRef.current?.attempt !== active.attempt) return;"),
+    "a delayed admission acknowledgement may only settle its own resume receipt");
+  assert(flush.includes("if (activeResumeRef.current?.attempt === active.attempt) activeResumeRef.current = null;") &&
+    flush.includes("finished.then(release, release)"), "request settlement releases only its matching stable Continue attempt");
+}
+
 console.log("resume ink verification passed");

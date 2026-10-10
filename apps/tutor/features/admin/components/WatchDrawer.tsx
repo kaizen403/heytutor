@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { TutorSessionShell, unlockTutorAudio, type TutorSessionExportApi } from "@/features/tutor-session";
 import type { TutorPhase } from "@/features/tutor-session/types";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
+import { IDLE_DOWNLOAD } from "@/features/tutor-session/lib/download/downloadState";
 import {
   useBoardFullscreen,
   useSessionChromeHidden,
@@ -250,21 +251,19 @@ function WatchDrawerFrame({
           <>
             <LessonActions
               canReplay={exportApi?.canReplay ?? false}
-              canDownload={exportApi?.canDownload ?? false}
-              canDownloadLecture={exportApi?.canDownloadLecture ?? false}
+              downloadState={exportApi?.downloadState ?? IDLE_DOWNLOAD}
+              canDownloadPdf={exportApi?.canDownload ?? false}
+              canDownloadVideo={exportApi?.canDownloadLecture ?? false}
               lectureFileType={exportApi?.lectureFileType}
               isReplaying={exportApi?.isReplaying ?? false}
-              isDownloading={exportApi?.isDownloading ?? false}
-              isExportingLecture={exportApi?.isExportingLecture ?? false}
-              lectureExportProgress={exportApi?.lectureExportProgress ?? null}
-              lectureExportError={exportApi?.lectureExportError ?? null}
               onReplay={() => {
                 unlockTutorAudio();
                 exportApi?.replayLecture();
               }}
-              onDownload={() => exportApi?.downloadNotesPdf()}
-              onDownloadLecture={() => exportApi?.downloadLectureMp4()}
-              onCancelLectureExport={() => exportApi?.cancelLectureExport()}
+              onDownloadPdf={() => exportApi?.downloadNotesPdf()}
+              onDownloadVideo={() => exportApi?.downloadLectureMp4()}
+              onCancelDownload={() => exportApi?.cancelLectureExport()}
+              onDismissDownload={() => exportApi?.dismissDownload()}
               compact
               alwaysVisible
             />

@@ -1,6 +1,6 @@
 import type { LectureExportResult } from "./exportLectureMp4";
 
-export type CachedLectureExport = Pick<LectureExportResult, "blob" | "mimeType" | "extension">;
+export type CachedLectureExport = Pick<LectureExportResult, "blob" | "mimeType" | "extension" | "noVoice" | "missingAudioCues">;
 
 const memory = new Map<string, CachedLectureExport>();
 const DB_NAME = "heytutor-lecture-export";
@@ -33,7 +33,7 @@ async function readIndexedDb(key: string): Promise<CachedLectureExport | null> {
       const request = db.transaction(STORE, "readonly").objectStore(STORE).get(key);
       request.onsuccess = () => {
         const value = request.result as CachedLectureExport | undefined;
-        resolve(value?.blob instanceof Blob ? value : null);
+        resolve(value?.blob instanceof Blob && typeof value.noVoice === "boolean" && Number.isFinite(value.missingAudioCues) ? value : null);
       };
       request.onerror = () => reject(request.error);
     });

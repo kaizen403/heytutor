@@ -73,6 +73,15 @@ jobs:
           pnpm --filter @heytutor/tutor exec prisma generate
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
+      - name: Symbolic planner regressions
+        run: |
+          pnpm --filter @heytutor/scene-engine verify:symbolic-planner
+          pnpm --filter @heytutor/tutor-core verify:symbolic-planner
+      - name: Handwriting and speech notation regressions
+        run: |
+          pnpm --filter @heytutor/drawing verify
+          pnpm --filter @heytutor/whiteboard verify
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-speech-notation.ts
       - name: Typecheck and lint
         run: |
           pnpm typecheck

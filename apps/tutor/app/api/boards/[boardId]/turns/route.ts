@@ -9,6 +9,7 @@ import { abandonTurnStorage, reserveTurnStorage, settleTurnStorage, StorageQuota
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
+import { rejectTurnSave as rejectSave } from "@/lib/boards/turnSaveRejection";
 import {
   audioPrefixMatchesType,
   validateTurnUploadHeaders,
@@ -43,6 +44,7 @@ interface TurnMetadata {
   segments: TurnSegmentMeta[];
 }
 
+
 function nullableJson(value: unknown): Prisma.InputJsonValue | Prisma.NullTypes.DbNull {
   return value == null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
 }
@@ -72,6 +74,7 @@ function turnResponse(turn: Turn, insertedSegments: Segment[]) {
           command: segment.command,
           audioUrl: segment.audioUrl,
           audioFormat: segment.audioFormat,
+          audioRef: segment.audioRef,
           durationMs: segment.durationMs,
           timings: segment.timings,
         })),
@@ -82,18 +85,18 @@ function turnResponse(turn: Turn, insertedSegments: Segment[]) {
 export async function POST(request: Request, context: RouteContext) {
   const uploadPreflight = validateTurnUploadHeaders(request.headers);
   if (!uploadPreflight.ok) {
-    return NextResponse.json({ error: uploadPreflight.error }, { status: uploadPreflight.status });
+    return rejectSave("upload_headers_invalid", uploadPreflight.error, uploadPreflight.status);
   }
 
   const userId = await getUserId();
   if (!userId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return rejectSave("unauthorized", "unauthorized", 401);
   }
 
   const { boardId } = await context.params;
   const idempotencyKey = request.headers.get("idempotency-key");
   if (idempotencyKey !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
-    return NextResponse.json({ error: "invalid idempotency key" }, { status: 400 });
+    return rejectSave("idempotency_key_invalid", "invalid idempotency key", 400, { boardId });
   }
   await ensureUser(userId);
 
@@ -102,39 +105,39 @@ export async function POST(request: Request, context: RouteContext) {
   });
 
   if (!board) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
+    return rejectSave("board_not_found", "not found", 404, { boardId });
   }
 
   let formData: FormData;
   try {
     formData = await readBoundedFormData(request, MAX_TURN_UPLOAD_BYTES);
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "invalid multipart form data" },
-      { status: error instanceof RequestBodyError ? error.status : 400 });
+    return rejectSave("multipart_invalid", error instanceof Error ? error.message : "invalid multipart form data",
+      error instanceof RequestBodyError ? error.status : 400, { boardId });
   }
   const metadataRaw = formData.get("metadata");
 
   if (typeof metadataRaw !== "string") {
-    return NextResponse.json({ error: "metadata required" }, { status: 400 });
+    return rejectSave("metadata_missing", "metadata required", 400, { boardId });
   }
 
   let metadata: TurnMetadata;
   try {
     metadata = JSON.parse(metadataRaw) as TurnMetadata;
   } catch {
-    return NextResponse.json({ error: "invalid metadata json" }, { status: 400 });
+    return rejectSave("metadata_json_invalid", "invalid metadata json", 400, { boardId });
   }
   if (!metadata || typeof metadata !== "object" ||
     typeof metadata.question !== "string" || metadata.question.length > 12_000 ||
     typeof metadata.rawResponse !== "string" || metadata.rawResponse.length > 100_000 ||
     (metadata.traceId !== undefined && (typeof metadata.traceId !== "string" || metadata.traceId.length > 128)) ||
     (metadata.speedMultiplier !== undefined && (!Number.isFinite(metadata.speedMultiplier) || metadata.speedMultiplier < 0.25 || metadata.speedMultiplier > 4))) {
-    return NextResponse.json({ error: "invalid or oversized turn fields" }, { status: 400 });
+    return rejectSave("turn_fields_invalid", "invalid or oversized turn fields", 400, { boardId });
   }
   const requiresSaveAllowance = process.env.NODE_ENV === "production";
   if (requiresSaveAllowance) {
     if (!metadata.traceId || !await assertOwnedTrace(userId, metadata.traceId, boardId)) {
-      return NextResponse.json({ error: "an authorized lesson save allowance is required" }, { status: 403 });
+      return rejectSave("save_allowance_required", "an authorized lesson save allowance is required", 403, { boardId, traceId: metadata.traceId });
     }
     const allowance = await prisma.ownedTrace.findUnique({ where: { traceId: metadata.traceId } });
     if (allowance?.savedTurnId) {
@@ -143,28 +146,22 @@ export async function POST(request: Request, context: RouteContext) {
         include: { segments: { orderBy: { orderIndex: "asc" } } },
       });
       if (existing) return turnResponse(existing, existing.segments);
-      return NextResponse.json({ error: "lesson save allowance has already been used" }, { status: 409 });
+      return rejectSave("save_allowance_used", "lesson save allowance has already been used", 409, { boardId, traceId: metadata.traceId });
     }
   }
 
   const uploadParts = validateTurnUploadParts(formData, metadataRaw, metadata.segments);
   if (!uploadParts.ok) {
-    return NextResponse.json({ error: uploadParts.error }, { status: uploadParts.status });
+    return rejectSave("upload_parts_invalid", uploadParts.error, uploadParts.status, { boardId, traceId: metadata.traceId });
   }
 
   if (!isTurnMetadataPersistable(metadata)) {
-    return NextResponse.json(
-      { error: "question and rawResponse required unless persisting a required-diagram failure" },
-      { status: 400 },
-    );
+    return rejectSave("turn_not_persistable", "question and rawResponse required unless persisting a required-diagram failure", 400, { boardId, traceId: metadata.traceId });
   }
 
   const canonicalScene = await canonicalizeTurnSceneMetadata(metadata);
   if (!canonicalScene.ok) {
-    return NextResponse.json(
-      { error: `scene persistence rejected: ${canonicalScene.error}` },
-      { status: 400 },
-    );
+    return rejectSave(canonicalScene.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonicalScene.error}`, 400, { boardId, traceId: metadata.traceId });
   }
   metadata = {
     ...metadata,
@@ -187,7 +184,7 @@ export async function POST(request: Request, context: RouteContext) {
     if ((segment.narration !== undefined && (typeof segment.narration !== "string" || segment.narration.length > 12_000)) ||
       (segment.spokenText !== undefined && (typeof segment.spokenText !== "string" || segment.spokenText.length > 12_000)) ||
       (segment.durationMs !== undefined && (!Number.isFinite(segment.durationMs) || segment.durationMs < 0 || segment.durationMs > 600_000))) {
-      return NextResponse.json({ error: "invalid or oversized segment fields" }, { status: 400 });
+      return rejectSave("segment_fields_invalid", "invalid or oversized segment fields", 400, { boardId, traceId: metadata.traceId });
     }
   }
   // Validate all media before any upload so a later invalid segment cannot
@@ -196,7 +193,7 @@ export async function POST(request: Request, context: RouteContext) {
     if (!(value instanceof File) || value.size === 0) continue;
     const prefix = new Uint8Array(await value.slice(0, 12).arrayBuffer());
     if (!audioPrefixMatchesType(value.type, prefix)) {
-      return NextResponse.json({ error: "audio content does not match its declared format" }, { status: 415 });
+      return rejectSave("audio_format_mismatch", "audio content does not match its declared format", 415, { boardId, traceId: metadata.traceId });
     }
   }
   let storedBytes = new TextEncoder().encode(JSON.stringify(metadata)).byteLength;
@@ -205,7 +202,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     reservation = await reserveTurnStorage({ userId, boardId, turnId, bytes: storedBytes });
   } catch (error) {
-    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof StorageQuotaError) return rejectSave("storage_admission_rejected", error.message, error.status, { boardId, traceId: metadata.traceId });
     throw error;
   }
   let settled = false;
@@ -302,6 +299,7 @@ export async function POST(request: Request, context: RouteContext) {
           command: segment.command === undefined ? undefined : (segment.command as Prisma.InputJsonValue),
           audioUrl: audioUrls.get(segment.orderIndex) ?? null,
           audioFormat: audioFormats.get(segment.orderIndex) ?? "audio/mpeg",
+          audioRef: segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex,
           durationMs: segment.durationMs ?? null,
           timings: segment.timings === undefined ? undefined : (segment.timings as Prisma.InputJsonValue),
         }));
@@ -354,7 +352,7 @@ export async function POST(request: Request, context: RouteContext) {
         await abandonTurnStorage(reservation);
       } catch { /* the pre-upload receipt retains bytes and pending-turn recovery */ }
     }
-    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof StorageQuotaError) return rejectSave("storage_commit_rejected", error.message, error.status, { boardId, traceId: metadata.traceId });
     throw error;
   }
 }

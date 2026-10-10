@@ -43,6 +43,7 @@ import {
 import { isChemistryQuestion, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { teachingPromptAddon } from "@/lib/account/userSettings";
 import { BOARD_WORK_ROWS_PER_PAGE } from "../../constants";
+import type { PausedLessonReason } from "./doubtTurn";
 
 export interface TurnTeachingPromptInput {
   question: string;
@@ -468,6 +469,11 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
 
 export interface ResumeTeachingPromptInput {
   lessonQuestion: string;
+  /**
+   * Why the lesson paused. "stop" (the student stopped it, or left and came
+   * back) must never be told a doubt was answered. Defaults to "doubt".
+   */
+  reason?: PausedLessonReason;
   boardRows: readonly DoubtBoardRow[];
   /** Work as it stood before the doubt (may be on an earlier page now). */
   lessonBoardRows?: readonly DoubtBoardRow[];
@@ -511,17 +517,50 @@ const RESUME_LESSON_USER_PROMPT = "continue";
 const RESUME_AFTER_DOUBT_NOTE =
   "A doubt on this board has been answered. Pick up the original lesson from the next unwritten step and teach it to the end. Do not restart, do not recap, and do not repeat the doubt.";
 
+/** After a plain Stop or a reload there was no doubt: never claim one. */
+const RESUME_AFTER_STOP_NOTE =
+  "The student stopped this lesson and has come back to it. Pick up the original lesson from the step it stopped on and teach it to the end. Do not restart and do not recap.";
+
 /** The full user prompt for the first resume chunk, including any DSA leftover. */
-export function resumeLessonUserPrompt(codeLessonNote?: string | null): string {
-  return [RESUME_LESSON_USER_PROMPT, (codeLessonNote ?? "").trim(), RESUME_AFTER_DOUBT_NOTE]
+export function resumeLessonUserPrompt(
+  codeLessonNote?: string | null,
+  reason: PausedLessonReason = "doubt",
+): string {
+  return [
+    RESUME_LESSON_USER_PROMPT,
+    (codeLessonNote ?? "").trim(),
+    reason === "stop" ? RESUME_AFTER_STOP_NOTE : RESUME_AFTER_DOUBT_NOTE,
+  ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** The one corrective retry when a resume came back without board writing. */
+export function resumeInkRetryUserPrompt(reason: PausedLessonReason = "doubt"): string {
+  const repeat = reason === "stop" ? "Do not repeat any already written row." : "Do not repeat the doubt or any already written row.";
+  return `${resumeLessonUserPrompt(null, reason)}\n\nYour previous continuation contained no usable [WRITE] step. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short [WRITE:text,x,y] tag immediately after the words that explain it. ${repeat} Return [STEP] blocks, not narration alone.`;
 }
 
 const RESUME_LENGTH_ADDON = `LESSON LENGTH FOR THIS CONTINUATION
 This overrides every earlier step count, including the floors for a numbered problem or an explain request. Finish the original question completely: every remaining step, the result, and the closing check. Do not stop after two or three steps if work remains. Do not restart, and do not add a new example.`;
 
 const RESUME_CONTINUATION_PROMPT = `Continue the original lesson exactly where it stopped before the doubt. Return only [STEP]...[/STEP] blocks. Do not restate anything already said, do not recap the doubt, and do not start again from the givens.`;
+
+const RESUME_AFTER_STOP_CONTINUATION_PROMPT = `Continue the original lesson exactly where it stopped. Return only [STEP]...[/STEP] blocks. Do not restate anything already said, and do not start again from the givens.`;
+
+/** Where the next row goes when the lesson, not a doubt, continues the page. */
+function resumeSpaceRule(
+  input: Pick<ResumeTeachingPromptInput, "rowsLeftOnPage" | "nextRowY">,
+  figureOnBoard: boolean,
+): string {
+  const pitch = WORK_ZONE.lineHeight;
+  const figureStays = figureOnBoard ? ", and the figure stays" : "";
+  if (input.rowsLeftOnPage <= 0 || input.nextRowY === null) {
+    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the last result the lesson reached, restated in symbols at y = ${WORK_ZONE.topY}, and continue under it, stepping y by ${pitch}.`;
+  }
+  const rows = input.rowsLeftOnPage;
+  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page: your next row is y = ${doubtRowY(rows)}, then step y by ${pitch}. When the lesson needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the last result the lesson reached.`;
+}
 
 function remainingCodeLessonStepsBlock(input: ResumeTeachingPromptInput): string {
   const plan = input.codeLesson;
@@ -557,6 +596,8 @@ function remainingCodeLessonStepsBlock(input: ResumeTeachingPromptInput): string
  */
 export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): TurnTeachingPrompt {
   const lessonQuestion = input.lessonQuestion.trim();
+  const afterStop = input.reason === "stop";
+  const noRepeat = afterStop ? "do not recap" : "do not recap, do not repeat the doubt";
   const panelShowing = input.codePanelShowing;
   const codeBoard = panelShowing || Boolean(input.codeLessonBoard) || Boolean(input.codeLesson);
   const figureOnBoard = !codeBoard && Boolean(input.diagramPromptAddon);
@@ -576,34 +617,42 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       ]
     : panelShowing || input.codeLesson
     ? [
-        "- Continue the original lesson from the next unwritten step. Do not greet, do not recap, do not repeat the doubt, and do not start the lesson again.",
+        `- Continue the original lesson from the next unwritten step. Do not greet, ${noRepeat}, and do not start the lesson again.`,
         "- The original question is still the question of this lesson. Teach it to the end, including the complexity close.",
         "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE]. Reveal remaining code with [TYPE:blockId] and remaining frames with [FOCUS:frame_id].",
         input.codeLessonResumeNote?.trim() ? `- ${input.codeLessonResumeNote.trim()}` : "",
         "- End after the last remaining beat of the original lesson. No recap, and no question back to the student.",
       ]
     : [
-        "- Continue the original lesson from the next unwritten step. Do not greet, do not recap, do not repeat the doubt, and do not start from the givens.",
+        `- Continue the original lesson from the next unwritten step. Do not greet, ${noRepeat}, and do not start from the givens.`,
         "- The original question is still the question of this lesson. Teach it to the end: every remaining derivation step, the result, and the closing check.",
         figureOnBoard
           ? "- The figure on the right is already drawn and stays. [FOCUS:entity_id] when you name a part of it. [ANNOTATE:entity_id] may reveal a withheld measurement the lesson had not reached yet."
           : "- No figure is on this board. Do not use [FOCUS] or [ANNOTATE].",
         "- Never [WRITE] a row that is still on this page. To use one again, say so and point at it with [EMPHASIZE:wN].",
-        `- ${doubtSpaceRule(input, figureOnBoard)}`,
+        `- ${afterStop ? resumeSpaceRule(input, figureOnBoard) : doubtSpaceRule(input, figureOnBoard)}`,
         "- Every new step [WRITE]s a short board line and [FOCUS]es named figure parts. Teach to the end of the original question, then stop. No recap, and no question back to the student.",
       ];
 
   const resumeBlock = [
     "THIS TURN CONTINUES THE PAUSED LESSON",
-    lessonQuestion
-      ? `The student stopped the lesson on "${lessonQuestion}" to ask a doubt. The doubt has been answered. The board is exactly as they left it after that answer, and everything on it stays where it is. The original question is still the question of this lesson.`
-      : "The student asked a doubt. It has been answered. Continue the lesson on this board as it stands.",
+    afterStop
+      ? lessonQuestion
+        ? `The student stopped the lesson on "${lessonQuestion}" and has come back to it. The board is exactly as they left it, and everything on it stays where it is. The original question is still the question of this lesson.`
+        : "The student stopped the lesson and has come back to it. Continue the lesson on this board as it stands."
+      : lessonQuestion
+        ? `The student stopped the lesson on "${lessonQuestion}" to ask a doubt. The doubt has been answered. The board is exactly as they left it after that answer, and everything on it stays where it is. The original question is still the question of this lesson.`
+        : "The student asked a doubt. It has been answered. Continue the lesson on this board as it stands.",
     panelShowing ? doubtCodeBlock(input.codePanelText) : doubtBoardBlock(input.boardRows),
     !codeBoard && input.lessonBoardRows?.length
-      ? `The original lecture had reached these notebook lines when the student interrupted (an earlier page may no longer be visible):\n${input.lessonBoardRows.slice(-MAX_DOUBT_BOARD_ROWS).map((row) => row.text.slice(0, MAX_DOUBT_ROW_CHARS)).join("\n")}\nUse these as the completed work, not as lines to write again.`
+      ? `The original lecture had reached these notebook lines when the student ${afterStop ? "stopped it" : "interrupted"} (an earlier page may no longer be visible):\n${input.lessonBoardRows.slice(-MAX_DOUBT_BOARD_ROWS).map((row) => row.text.slice(0, MAX_DOUBT_ROW_CHARS)).join("\n")}\nUse these as the completed work, not as lines to write again.`
       : "",
     !codeBoard && input.interruptedStep?.trim()
-      ? `The last lesson idea before the interruption was: ${input.interruptedStep.trim().slice(0, 500)}. Finish its unfinished reasoning, then take the next step; do not jump back to the beginning.`
+      ? afterStop
+        // The step Stop cut off is saved with its board line (decision 12). The
+        // rest of the lesson follows it: finish it in words, never rewrite it.
+        ? `The student stopped during this step, so it may be cut off mid sentence: ${input.interruptedStep.trim().slice(0, 500)}. Its board line, if it had one, is already written above. Start here: finish explaining this step in words without writing its line again, then take the next step; do not jump back to the beginning.`
+        : `The last lesson idea before the interruption was: ${input.interruptedStep.trim().slice(0, 500)}. Finish its unfinished reasoning, then take the next step; do not jump back to the beginning.`
       : "",
     remainingSteps,
     "This turn continues the original lesson, not a new one. It replaces every rule above about opening the lesson, the \"Given\" rows, and restarting from the beginning. Those rules describe a fresh page; this page is already written.",
@@ -640,7 +689,7 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       ? resolveLessonBudget(lessonQuestion, input.familiarity)
       : DOUBT_LESSON_BUDGET,
     systemPrompt: `${basePrompt}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
-    continuationPrompt: `${RESUME_CONTINUATION_PROMPT}\n\n--- this lesson ---\n${runtimeAddon}`,
+    continuationPrompt: `${afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT}\n\n--- this lesson ---\n${runtimeAddon}`,
   };
 }
 

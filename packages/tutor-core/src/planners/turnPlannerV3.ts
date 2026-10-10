@@ -1031,13 +1031,13 @@ lawIds and assumptions are arrays of strings. Do not emit assumption objects. Cl
 Set visualRequirement to:
 - "required" for mensuration (area, perimeter, volume, surface area), explicit draw/diagram/sketch/construct/plot/graph/illustrate requests, spatial location, or tasks needing a faithful visual.
 - "optional" when a visual would help but the requested answer remains complete without one.
-- "none" when a visual adds no instructional meaning.
+- "none" when a visual adds no instructional meaning; never for maths whose standard method uses a graph, unit circle, Argand diagram, probability tree or triangle.
 ${TURN_PLAN_V3_VISUAL_GROUNDING}
 
 Copy numeric givens exactly. Every numerical unknown needs a finite derived answer justified by named lawIds; solve simultaneous equations completely. Never put null, NaN, infinity, or formulas in numeric value fields. Equations belong in sourceText; explicit arithmetic must equal the declared value.
 For symbolic derivations, omit symbolic parameters from numeric quantities. Put formulas in qualitativeClaims.expected as strings, linked to their unknowns by relatedQuantityIds; describe parameters in claims or assumptions. These are teaching relations, not verified numeric results. Mixed formula/numeric requests still need finite numerical answers. Never invent measurements.
 Keep valid JSON compact: givens contains independent stated values only; derived contains all numerical answers and at most four essential intermediate scalars; at most eight claims and six assumptions; sourceText at most 180 characters. Express coordinate labels, endpoints and repeated multiples from original givens instead of extra quantities.
-Independently recompute scalars and verify units. sign must agree with the scalar; spatial directions belong in claims. For directional claims, define coordinates, compute vectors componentwise, and check conservation laws and physical tendency. Claims must not contradict. Keep IDs compact. Never invent measurements, topology, directions or assumptions. question must copy the user's exact question.`;
+Independently recompute scalars and verify units. sign must agree with the scalar; spatial directions belong in claims. For directional claims, define coordinates, compute vectors componentwise, and check conservation laws and physical tendency. Claims must not contradict or ask the user for data. Keep IDs compact. Never invent measurements, topology, directions or assumptions. question must copy the user's exact question.`;
 
 const TURN_PLAN_V3_RETRY_PROMPT = `${TURN_PLAN_V3_PROMPT}
 

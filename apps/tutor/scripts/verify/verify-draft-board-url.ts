@@ -191,7 +191,8 @@ const questionHandler = read("features/tutor-session/hooks/turn/useQuestionHandl
 // Ordering, not adjacency: a doubt saves the part of the turn it stopped and
 // skips the epoch, and both of those sit between the commit and a lesson's
 // epoch. Every one of them must still come after the row exists.
-const HANDLER_ANCHOR = "const handleQuestion = useCallback(";
+// The question body; `handleQuestion` is the save-on-every-exit wrapper after it.
+const HANDLER_ANCHOR = "const teachQuestion = useCallback(";
 const handlerAt = questionHandler.indexOf(HANDLER_ANCHOR);
 assert(
   handlerAt >= 0,
@@ -200,11 +201,12 @@ assert(
 const handlerBody = questionHandler.slice(handlerAt);
 const committedAt = handlerBody.indexOf("await boardCommitted;");
 const epochAt = handlerBody.indexOf("await beginBoardEpoch()");
-const partialSaveAt = handlerBody.indexOf("saveTurnToBoard(partialTurnSave)");
+// The progressive save mints the turn and may send its first checkpoint.
+const liveSaveAt = handlerBody.indexOf("liveTurnSave().begin(");
 assert(
   committedAt >= 0 &&
     epochAt > committedAt &&
-    (partialSaveAt < 0 || partialSaveAt > committedAt),
+    liveSaveAt > committedAt,
   "the board row must exist before the turn starts saving to it",
 );
 assert(

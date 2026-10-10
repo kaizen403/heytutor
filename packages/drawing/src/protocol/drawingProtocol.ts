@@ -74,6 +74,8 @@ export interface DrawCommand {
   inkSettings?: DrawCommandInkSettings;
   /** Stable semantic ownership for compiled ink and later replay/debugging. */
   semanticRef?: DrawCommandSemanticRef;
+  /** TYPE only: UTF-16 code units actually shown before an interrupted recorded beat. */
+  shownChars?: number;
   /**
    * The word in the segment's sentence that names this mark, so the pen can
    * wait for it and draw the part while it is being said. Set by the verified
@@ -403,7 +405,8 @@ export function normalizeBoardText(text: string): string {
       .replace(/\br\s+squared\b/gi, 'r^2')
       .replace(/\bx\s+squared\b/gi, 'x^2')
       .replace(/\by\s+squared\b/gi, 'y^2')
-      .replace(/\b([a-z0-9)])\s+squared\b/gi, '$1^2')
+      // In "5 squared units", squared describes the unit, not the number.
+      .replace(/\b([a-z0-9)])\s+squared\b(?!\s+units?\b)/gi, '$1^2')
       .replace(/\bsquare\s+root\s+of\s+([a-z0-9()+\-\s]+)\b/gi, 'sqrt($1)')
       .replace(/\bminus\b/gi, '-')
       .replace(/\bplus\b/gi, '+')

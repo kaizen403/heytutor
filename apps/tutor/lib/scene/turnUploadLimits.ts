@@ -115,3 +115,58 @@ export function validateTurnUploadParts(
   }
   return { ok: true };
 }
+
+/** A checkpoint carries the scene, new rows and a bounded resume state. */
+export const MAX_CHECKPOINT_METADATA_BYTES = 384 * 1024;
+/** Merged (stored plus appended) turn metadata keeps today's one-shot limit. */
+export const MAX_TURN_MERGED_METADATA_BYTES = MAX_TURN_METADATA_BYTES;
+export const MAX_TURN_AUDIO_TOTAL_BYTES = MAX_TURN_TOTAL_AUDIO_BYTES;
+
+/**
+ * Shape checks for one checkpoint request: exactly one metadata text field and
+ * `audio-{i}` files of an allowed type and size. Which indexes may carry audio
+ * depends on the stored turn, so the handler checks that after loading it.
+ */
+export function validateCheckpointUploadParts(
+  formData: FormData,
+  metadataRaw: string,
+): TurnUploadValidation & { audioIndexes?: number[] } {
+  if (new TextEncoder().encode(metadataRaw).byteLength > MAX_CHECKPOINT_METADATA_BYTES) {
+    return { ok: false, status: 413, error: "checkpoint metadata exceeds the size limit" };
+  }
+  let metadataParts = 0;
+  let totalAudioBytes = 0;
+  const audioIndexes: number[] = [];
+  for (const [name, value] of formData.entries()) {
+    if (name === "metadata") {
+      metadataParts += 1;
+      if (typeof value !== "string") {
+        return { ok: false, status: 400, error: "metadata must be a text field" };
+      }
+      continue;
+    }
+    const match = /^audio-(0|[1-9]\d{0,5})$/.exec(name);
+    if (!match || !(value instanceof File)) {
+      return { ok: false, status: 400, error: `unexpected multipart field ${name}` };
+    }
+    const index = Number(match[1]);
+    if (audioIndexes.includes(index)) {
+      return { ok: false, status: 400, error: `audio part ${name} is repeated` };
+    }
+    if (value.type !== "audio/mpeg" && value.type !== "audio/wav") {
+      return { ok: false, status: 415, error: `audio part ${name} must be audio/mpeg or audio/wav` };
+    }
+    if (value.size > MAX_TURN_AUDIO_BYTES) {
+      return { ok: false, status: 413, error: `audio part ${name} exceeds the size limit` };
+    }
+    totalAudioBytes += value.size;
+    if (totalAudioBytes > MAX_TURN_TOTAL_AUDIO_BYTES) {
+      return { ok: false, status: 413, error: "turn audio exceeds the total size limit" };
+    }
+    audioIndexes.push(index);
+  }
+  if (metadataParts !== 1) {
+    return { ok: false, status: 400, error: "exactly one metadata field is required" };
+  }
+  return { ok: true, audioIndexes };
+}

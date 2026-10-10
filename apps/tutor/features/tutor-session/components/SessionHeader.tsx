@@ -1,9 +1,20 @@
 
 import { Maximize, Minimize } from "lucide-react";
 import { LessonActions } from "@/features/tutor-session/components/LessonActions";
-import type { LectureExportProgress } from "@/lib/lecture-export/exportLectureMp4";
+import { SaveStatusChip } from "@/features/tutor-session/components/SaveStatusChip";
+import type { DownloadState } from "@/features/tutor-session/lib/download/downloadState";
+import type { SaveStatus } from "@/features/tutor-session/lib/turn/saveStatus";
 import type { LectureFileType } from "@/lib/account/lessonSettings";
 import type { TutorPhase } from "../types";
+
+/**
+ * One face for every control on the right: 32 px tall on a wide header,
+ * 44 px compact, fully rounded, 12 px labels and 14 px icons.
+ */
+const HEADER_CONTROL = "btn-plain shrink-0 rounded-full type-accent-s";
+const HEADER_CONTROL_SIZE_COMPACT = "h-11 w-11 px-0";
+const HEADER_CONTROL_SIZE_ICON = "h-10 w-10 px-0 sm:h-8 sm:w-8";
+const HEADER_CONTROL_SIZE_LABEL = "h-10 w-10 px-0 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3";
 
 interface SessionHeaderProps {
   /** When true, always show the nav expand button (mobile drawer / collapsed sidebar). */
@@ -12,15 +23,15 @@ interface SessionHeaderProps {
   sidebarCollapsed?: boolean;
   onExpandSidebar: () => void;
   boardTitle: string;
+  /** The board was asked a lesson that never saved. The subtitle says so. */
+  boardStatus?: "unsaved";
+  /** Whether the lesson on screen is stored. Renders a quiet chip after the title. */
+  saveStatus?: SaveStatus;
+  /** Resend the unsaved part of the lesson. Never teaches again. */
+  onRetrySave?: () => void;
   canReplay: boolean;
-  canDownload: boolean;
-  canDownloadLecture: boolean;
   lectureFileType?: LectureFileType;
   isReplaying: boolean;
-  isDownloading: boolean;
-  isExportingLecture: boolean;
-  lectureExportProgress: LectureExportProgress | null;
-  lectureExportError: string | null;
   phase: TutorPhase;
   compactActions?: boolean;
   notesOpen?: boolean;
@@ -37,10 +48,19 @@ interface SessionHeaderProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   onReplay: () => void;
-  onDownload: () => void;
-  onDownloadLecture: () => void;
-  onCancelLectureExport: () => void;
   onStop: () => void;
+
+  /** What the download is doing. */
+  downloadState: DownloadState;
+  canDownloadPdf: boolean;
+  canDownloadVideo: boolean;
+  /** The lesson is live or stopped, so a new file covers it up to now. */
+  downloadPartial?: boolean;
+  downloadUnavailableReason?: string;
+  onDownloadPdf?: () => void;
+  onDownloadVideo?: () => void;
+  onCancelDownload?: () => void;
+  onDismissDownload?: () => void;
 }
 
 function displayBoardTitle(title: string): string {
@@ -57,15 +77,12 @@ export function SessionHeader({
   sidebarCollapsed = false,
   onExpandSidebar,
   boardTitle,
+  boardStatus,
+  saveStatus,
+  onRetrySave,
   canReplay,
-  canDownload,
-  canDownloadLecture,
   lectureFileType,
   isReplaying,
-  isDownloading,
-  isExportingLecture,
-  lectureExportProgress,
-  lectureExportError,
   phase,
   compactActions = false,
   notesOpen = false,
@@ -76,10 +93,16 @@ export function SessionHeader({
   isFullscreen = false,
   onToggleFullscreen,
   onReplay,
-  onDownload,
-  onDownloadLecture,
-  onCancelLectureExport,
   onStop,
+  downloadState,
+  canDownloadPdf,
+  canDownloadVideo,
+  downloadPartial,
+  downloadUnavailableReason,
+  onDownloadPdf,
+  onDownloadVideo,
+  onCancelDownload,
+  onDismissDownload,
 }: SessionHeaderProps) {
   const isLive = phase !== "idle" || isReplaying;
   const title = displayBoardTitle(boardTitle);
@@ -116,7 +139,7 @@ export function SessionHeader({
               type="button"
               onClick={onExpandSidebar}
               aria-label="Open navigation"
-              className={`btn-plain btn-ghost shrink-0 rounded-[9px] ${compactActions ? "h-11 w-11" : "h-10 w-10 sm:h-[34px] sm:w-[34px]"} ${navButtonClassName ?? ""}`}
+              className={`btn-plain btn-ghost shrink-0 rounded-[9px] ${compactActions ? "h-11 w-11" : "h-10 w-10 sm:h-8 sm:w-8"} ${navButtonClassName ?? ""}`}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -126,19 +149,30 @@ export function SessionHeader({
           )}
 
           <div className="min-w-0 flex-1">
-            <span
-              className={`wb-session-header-title min-w-0 text-[15px] font-semibold tracking-[-0.015em] text-frost sm:text-base ${compactActions ? "line-clamp-2 break-words" : "block truncate"}`}
-              title={title}
-            >
-              {title}
-            </span>
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className={`wb-session-header-title min-w-0 text-[15px] font-semibold tracking-[-0.015em] text-frost sm:text-base ${compactActions ? "line-clamp-2 break-words" : "block truncate"}`}
+                title={title}
+              >
+                {title}
+              </span>
+              {saveStatus ? (
+                <SaveStatusChip
+                  status={saveStatus}
+                  onRetrySave={onRetrySave}
+                  compact={compactActions}
+                />
+              ) : null}
+            </div>
             {showSubtitle && (
               <p className="mt-0.5 truncate text-[11px] text-soft sm:text-xs">
-                {isFreshBoard
-                  ? "Ask a question below to start this board"
-                  : isLive
-                    ? "Lesson in progress on the whiteboard"
-                    : "Whiteboard session"}
+                {boardStatus === "unsaved"
+                  ? "Not saved"
+                  : isFreshBoard
+                    ? "Ask a question below to start this board"
+                    : isLive
+                      ? "Lesson in progress on the whiteboard"
+                      : "Whiteboard session"}
               </p>
             )}
           </div>
@@ -152,8 +186,8 @@ export function SessionHeader({
               onClick={onToggleNotes}
               aria-label={notesOpen ? "Hide chat" : "Ask me anything"}
               aria-pressed={notesOpen}
-              className={`btn btn-sm ${notesOpen ? "btn-sky" : "btn-ghost"} ${
-                compactActions ? "h-11 w-11 px-0" : "h-10 w-10 px-0 sm:h-[34px] sm:w-auto sm:px-[15px]"
+              className={`${HEADER_CONTROL} ${notesOpen ? "btn-sky" : "btn-ghost"} ${
+                compactActions ? HEADER_CONTROL_SIZE_COMPACT : HEADER_CONTROL_SIZE_LABEL
               }`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -165,20 +199,20 @@ export function SessionHeader({
           ) : null}
           <LessonActions
             canReplay={canReplay}
-            canDownload={canDownload}
-            canDownloadLecture={canDownloadLecture}
             lectureFileType={lectureFileType}
             isReplaying={isReplaying}
-            isDownloading={isDownloading}
-            isExportingLecture={isExportingLecture}
-            lectureExportProgress={lectureExportProgress}
-            lectureExportError={lectureExportError}
             onReplay={onReplay}
-            onDownload={onDownload}
-            onDownloadLecture={onDownloadLecture}
-            onCancelLectureExport={onCancelLectureExport}
             compact={compactActions}
             alwaysVisible
+            downloadState={downloadState}
+            canDownloadPdf={canDownloadPdf}
+            canDownloadVideo={canDownloadVideo}
+            downloadPartial={downloadPartial}
+            downloadUnavailableReason={downloadUnavailableReason}
+            onDownloadPdf={onDownloadPdf}
+            onDownloadVideo={onDownloadVideo}
+            onCancelDownload={onCancelDownload}
+            onDismissDownload={onDismissDownload}
           />
 
           {onToggleFullscreen ? (
@@ -188,12 +222,12 @@ export function SessionHeader({
               aria-label={isFullscreen ? "Leave full screen" : "Full screen board"}
               aria-pressed={isFullscreen}
               title={isFullscreen ? "Leave full screen (f)" : "Full screen board (f)"}
-              className={`btn-plain btn-ghost shrink-0 rounded-full px-0 ${compactActions ? "h-11 w-11" : "h-10 w-10 sm:h-8 sm:w-8"}`}
+              className={`${HEADER_CONTROL} btn-ghost ${compactActions ? HEADER_CONTROL_SIZE_COMPACT : HEADER_CONTROL_SIZE_ICON}`}
             >
               {isFullscreen ? (
-                <Minimize size={15} strokeWidth={2} aria-hidden />
+                <Minimize size={14} strokeWidth={2} aria-hidden />
               ) : (
-                <Maximize size={15} strokeWidth={2} aria-hidden />
+                <Maximize size={14} strokeWidth={2} aria-hidden />
               )}
             </button>
           ) : null}
@@ -205,10 +239,10 @@ export function SessionHeader({
                 type="button"
                 onClick={onStop}
                 aria-label={isReplaying ? "Stop replay" : "Stop teaching"}
-                // Not the danger face. Stopping a lesson is reversible — the
+                // Not the danger face. Stopping a lesson is reversible: the
                 // board keeps everything written so far and the lecture can be
-                // replayed — so it does not warrant the one red in the UI.
-                className={`btn btn-ghost btn-sm shrink-0 ${compactActions ? "min-h-11" : ""}`}
+                // replayed, so it does not warrant the one red in the UI.
+                className={`${HEADER_CONTROL} btn-ghost ${compactActions ? "h-11 min-h-11 px-4" : "h-10 px-3 sm:h-8"}`}
               >
                 Stop
               </button>

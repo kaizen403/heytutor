@@ -5,7 +5,7 @@ export const MAX_PHOTO_BODY_BYTES = 2 * 1024 * 1024;
 
 /** Transport limits also cover requests whose caller omits Content-Length. */
 export function requestBodyLimitForPath(pathname: string): number {
-  if (/^\/api\/boards\/[^/]+\/turns\/?$/.test(pathname)) return MAX_TURN_BODY_BYTES;
+  if (/^\/api\/boards\/[^/]+\/turns(?:\/[^/]+)?\/?$/.test(pathname)) return MAX_TURN_BODY_BYTES;
   if (pathname === "/api/stt") return MAX_STT_BODY_BYTES;
   if (pathname === "/api/extract-question") return MAX_PHOTO_BODY_BYTES;
   // Auth providers send small URL-encoded bodies; webhook signature handlers

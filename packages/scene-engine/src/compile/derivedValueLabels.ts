@@ -2,6 +2,7 @@ import type { SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import type { KinematicStateDefinition, KinematicTrajectoryDefinition } from "./kinematicsGeometry";
 import type { VectorDefinition } from "./vectorGeometry";
 import type { CalculusDerivativeDefinition } from "./calculusGeometry";
+import { parseMathExpression } from "../math/expression";
 
 const OPERATORS = new Set(["constant_acceleration_trajectory", "trajectory_state", "vector_sum", "vector_scale", "vector_projection", "curve_anchor", "curve_secant", "curve_derivative", "point_line_distance", "section_point"]);
 const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
@@ -89,6 +90,45 @@ function tuple(authority: Authority, value: { x: number; y: number }, names: rea
   names.forEach((name) => authority.tupleKeys.add(key(name)));
 }
 function sourceCurve(construction: SceneConstruction, document: SceneDocument): SceneConstruction | undefined { return document.constructions.find((candidate) => candidate.outputs.includes(String(construction.inputs.curve))); }
+/**
+ * A stated x such as π reaches the engine as the nearest double x̂, with
+ * |x̂ - x| <= ε|x|/2, and evaluating f adds a few ulps. So |f(x̂)| at or below
+ * 8ε·max(1,|x|)·max(1,|f'(x̂)|) cannot be told apart from an exact zero at the
+ * stated x (sin π evaluates to 1.2e-16). This applies only where x̂ rounds a
+ * nonzero kπ/n and the curve is an explicit function with an analytic
+ * derivative; a small value at a representable x is kept exactly.
+ */
+/** True when x is the double nearest a nonzero kπ/n, so the stated x itself is irrational. */
+function roundedPiMultiple(x: number): boolean {
+  if (!(Number.isFinite(x)) || x === 0) return false;
+  for (let n = 1; n <= 12; n += 1) {
+    const k = Math.round(x * n / Math.PI);
+    if (k !== 0 && Math.abs(k) <= 48 && Math.abs(x - k * Math.PI / n) <= 2 * Number.EPSILON * Math.abs(x)) return true;
+  }
+  return false;
+}
+function certifiedZero(producer: SceneConstruction | undefined, x: number, y: number): boolean {
+  if (y === 0 || producer?.operator !== "function_curve" || typeof producer.inputs.expression !== "string") return false;
+  // Rounding only hides an exact zero when the stated x cannot be represented:
+  // a nonzero multiple of π. At a representable x a small value is real.
+  if (!roundedPiMultiple(x)) return false;
+  try {
+    const slope = Math.abs(parseMathExpression(producer.inputs.expression).derivative(x));
+    if (!Number.isFinite(slope)) return false;
+    return Math.abs(y) <= 8 * Number.EPSILON * Math.max(1, Math.abs(x)) * Math.max(1, slope);
+  } catch {
+    return false;
+  }
+}
+
+/** Exact multiples kπ/n inside coordinate claims become their double values. */
+function exactConstants(text: string): string {
+  return text.replace(/([+-]?)\s*(\d*)\s*π(?:\s*\/\s*(\d+))?/gu, (_match, sign: string, multiple: string, divisor: string | undefined) => {
+    const value = (sign === "-" ? -1 : 1) * (multiple ? Number(multiple) : 1) * Math.PI / (divisor ? Number(divisor) : 1);
+    return `${sign === "+" ? "+" : ""}${value}`;
+  });
+}
+
 function authorityFor(construction: SceneConstruction, geometry: unknown, document: SceneDocument): Authority {
   if (!record(geometry)) fail("Derived output is missing evaluated geometry");
   if (construction.operator === "point_line_distance") {
@@ -180,8 +220,10 @@ function authorityFor(construction: SceneConstruction, geometry: unknown, docume
     return result;
   }
   if (construction.operator === "curve_anchor" && record(geometry.point) && typeof geometry.point.x === "number" && typeof geometry.point.y === "number") {
-    const dim = dimension(motionUnits, "position"); tuple(result, { x: geometry.point.x, y: geometry.point.y }, ["P", "r", "position"], dim);
-    put(result, ["x"], geometry.point.x, dim); put(result, ["y"], geometry.point.y, dim); return result;
+    const dim = dimension(motionUnits, "position");
+    const y = certifiedZero(producer, geometry.point.x, geometry.point.y) ? 0 : geometry.point.y;
+    tuple(result, { x: geometry.point.x, y }, ["P", "r", "position"], dim);
+    put(result, ["x"], geometry.point.x, dim); put(result, ["y"], y, dim); return result;
   }
   if (construction.operator === "curve_secant" && Array.isArray(geometry.points) && record(geometry.points[0]) && record(geometry.points.at(-1))) {
     const first = geometry.points[0]; const last = geometry.points.at(-1)!;
@@ -202,7 +244,8 @@ export function readDerivedCoordinateLabelClaim(text: string): { name: string; v
 function parse(text: unknown): Claim | null {
   if (text === undefined) return null;
   if (typeof text !== "string") fail("Derived labels must be text");
-  const normalized = text.trim();
+  // U+2212 is the typeset minus sign, not a different character class.
+  const normalized = text.trim().replace(/−/g, "-");
   if (/(?:\bNaN\b|\bInfinity\b|∞)/i.test(normalized)) fail("Derived quantitative labels must be finite");
   // This is ratio notation, not a coordinate tuple or a scalar named AP.
   const ratio = new RegExp(`^([\\p{L}][\\p{L}\\p{N}_'′]*\\s*:\\s*[\\p{L}][\\p{L}\\p{N}_'′]*)\\s*=\\s*(${NUMBER})\\s*:\\s*(${NUMBER})$`, "u").exec(normalized);
@@ -216,9 +259,16 @@ function parse(text: unknown): Claim | null {
   // Digits in an identifier or a symbolic function argument are identifiers,
   // not scalar claims. Equality/numeric tuples and bare numbers are claims.
   if (/^[\p{L}][\p{L}\p{N}_'′]*(?:\([^=,]*\))?$/u.test(normalized)) return null;
-  if (!/[0-9]/.test(normalized) && !/(?:NaN|Infinity|∞)/i.test(normalized)) return null;
   const separator = normalized.search(/[=≈:]/); const name = separator < 0 ? "" : normalized.slice(0, separator);
-  const right = separator < 0 ? normalized : normalized.slice(separator + 1).trim();
+  const stated = separator < 0 ? normalized : normalized.slice(separator + 1).trim();
+  // kπ/n is an exact real; read it only where a coordinate or named value is claimed.
+  const right = separator >= 0 || /^[([]/.test(stated) ? exactConstants(stated) : stated;
+  // A label without digits states no value, except a pure kπ/n value such as
+  // (π, π) or y = π, which is as much a claim as (3.14, 0).
+  if (!/[0-9]/.test(normalized) && !/(?:NaN|Infinity|∞)/i.test(normalized)) {
+    const pair = right.match(PAIR); const scalar = right.match(SCALAR);
+    if (right === stated || !(pair && !pair[5]?.trim() || scalar && !scalar[2]?.trim())) return null;
+  }
   const pair = right.match(PAIR);
   if (pair) {
     if (pair[1] === "(" ? pair[4] !== ")" : pair[4] !== "]") fail("Derived coordinate/component tuple delimiters must match");

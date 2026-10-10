@@ -1,6 +1,8 @@
-import { codeLessonSectionCode, type CodeLessonPlan } from "@heytutor/tutor-core";
+import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
+import { revealedSectionText } from "@/features/tutor-session/lib/code-lesson/codeLessonController";
 import { DSA_CODE_PANEL_RECT } from "@/features/tutor-session/constants";
-import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { parseStoredCodeLesson, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
+import { storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
 import type { NotesPdfSection } from "@/features/tutor-session/lib/notes/notesPdf";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import {
@@ -9,14 +11,15 @@ import {
 } from "./renderCodeToCanvas";
 
 /**
- * One fully-revealed code page per lesson section for the notes PDF. The
+ * One code page per revealed lesson section for the notes PDF. The
  * board snapshot of a DSA turn shows only the diagram — the code lives in a
  * DOM panel invisible to Konva capture — so notes composite these renders.
  */
-function codeLessonNotesImages(plan: CodeLessonPlan, scale = 2): string[] {
+function codeLessonNotesImages(plan: CodeLessonPlan, revealedChars: Record<string, number>, scale = 2): string[] {
   const images: string[] = [];
-  for (const [sectionIndex, section] of plan.sections.entries()) {
-    const code = codeLessonSectionCode(section);
+  for (const sectionIndex of plan.sections.keys()) {
+    const code = revealedSectionText({ plan, revealedChars }, sectionIndex);
+    if (!code) continue;
     const width = DSA_CODE_PANEL_RECT.width;
     const height = codePanelContentHeight(code);
     const canvas = document.createElement("canvas");
@@ -31,7 +34,7 @@ function codeLessonNotesImages(plan: CodeLessonPlan, scale = 2): string[] {
         chrome: {
           title: plan.title,
           language: plan.language,
-          sectionTitle: section.title,
+          sectionTitle: plan.sections[sectionIndex]!.title,
           sectionIndex,
           sectionCount: plan.sections.length,
         },
@@ -46,25 +49,79 @@ function codeLessonNotesImages(plan: CodeLessonPlan, scale = 2): string[] {
   return images;
 }
 
+export type CodeLessonNotesReveal = {
+  turnId: string;
+  plan: CodeLessonPlan;
+  revealedChars: Record<string, number>;
+};
+
+/** A completed turn proves its recorded TYPE rows, even without media timing.
+ * In an unfinished turn, an untimed row can be either complete or a shown cut;
+ * only an explicit persisted or live reveal receipt proves that block's prefix.
+ */
+function recordedCodeReveal(turn: StoredTurn, plan: CodeLessonPlan): Record<string, number> {
+  const revealed: Record<string, number> = {};
+  for (const segment of turn.segments) {
+    for (const command of storedCodeLessonSegmentCommands(turn, segment)) {
+      if (command.type !== "TYPE") continue;
+      const id = command.semanticRef?.entityId ?? "";
+      const located = codeLessonBlockById(plan, id);
+      if (located) revealed[id] = Math.max(revealed[id] ?? 0, Math.min(command.shownChars ?? located.block.code.length, located.block.code.length));
+    }
+  }
+  return revealed;
+}
+
 /**
- * Append rendered code pages to the notes section of each DSA turn. Sections
- * are matched by question in turn order, mirroring how the section builder
- * paired board pages with turns.
+ * Append each DSA turn's cumulative shown code to its notes section. Receipts
+ * only accumulate across same-question continuations of the same plan; a new
+ * page or plan resets them. Sections match questions in stored turn order.
  */
 export function appendCodeLessonNotesImages(
   sections: NotesPdfSection[],
   storedTurns: readonly StoredTurn[],
+  capturedReveal?: CodeLessonNotesReveal | null,
 ): void {
   let nextSection = 0;
+  let pageQuestion: string | null = null;
+  let planKey: string | null = null;
+  let revealed: Record<string, number> = {};
   for (const turn of storedTurns) {
-    const plan = storedCodeLessonPlan(turn.sceneArtifacts);
-    if (!plan) continue;
+    const question = storedTurnPageQuestion(turn).trim();
+    if (!storedTurnContinuesBoard(turn) || question !== pageQuestion) {
+      pageQuestion = question;
+      planKey = null;
+      revealed = {};
+    }
     const index = sections.findIndex(
       (section, sectionIndex) =>
         sectionIndex >= nextSection && section.question === turn.question,
     );
-    if (index === -1) continue;
-    sections[index]!.images.push(...codeLessonNotesImages(plan));
-    nextSection = index + 1;
+    if (index !== -1) nextSection = index + 1;
+    const parsed = parseStoredCodeLesson(turn.sceneArtifacts);
+    if (parsed.status === "invalid") {
+      planKey = null;
+      revealed = {};
+    }
+    if (parsed.status !== "valid") continue;
+    const plan = parsed.plan;
+    const key = JSON.stringify(plan);
+    if (key !== planKey || plan.question.trim() !== pageQuestion) {
+      revealed = {};
+      planKey = key;
+    }
+    if (plan.question.trim() !== pageQuestion) continue;
+    const currentReveal = capturedReveal?.turnId === turn.id && JSON.stringify(capturedReveal.plan) === key
+      ? capturedReveal.revealedChars
+      : recordedCodeReveal(turn, plan);
+    // A resume starts after the blocks earlier turns already typed. Retain only
+    // same-page, same-plan receipts, never future turns or unrecorded plan code.
+    for (const [id, count] of Object.entries(currentReveal)) {
+      const block = codeLessonBlockById(plan, id)?.block;
+      if (block && Number.isFinite(count)) {
+        revealed[id] = Math.max(revealed[id] ?? 0, Math.min(block.code.length, Math.max(0, count)));
+      }
+    }
+    if (index !== -1) sections[index]!.images.push(...codeLessonNotesImages(plan, revealed));
   }
 }

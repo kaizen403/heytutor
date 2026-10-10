@@ -1,3 +1,5 @@
+import { lessonAdmission } from "../../lib/turn/lessonOwnership";
+import { fetchBoardDetail } from "@/lib/boards/boardsClient";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { stopReplayAudio } from "@/lib/replay/replayAudio";
 import {
@@ -33,7 +35,17 @@ import {
   DOUBT_INTERRUPT_TIMEOUT_MS,
   type DoubtTurnRequest,
 } from "../../lib/input/askDoubt";
-import { pausedLessonFromLive, type PausedLessonRequest } from "../../lib/turn/doubtTurn";
+import {
+  pausedLessonFromLive,
+  pausedLessonOnStop,
+  resumePageRecord,
+  type ActiveResume,
+  type PausedLessonReason,
+  type PausedLessonRequest,
+} from "../../lib/turn/doubtTurn";
+import { pausedLessonFromStoredTurns } from "../../lib/turn/pausedLessonRestore";
+import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { useSegmentRunner } from "./useSegmentRunner";
 import type { TutorPhase } from "../../types";
 import type { HandleQuestionOptions, TurnControlApi, TurnPauseSource, UseTurnLifecycleParams } from "./types";
@@ -58,6 +70,20 @@ export function emptyAiResponseError(question: string): { message: string; quest
   return { message: EMPTY_AI_RESPONSE_MESSAGE, question };
 }
 
+interface IntroProgress {
+  generation: number;
+  segments: TutorSegment[];
+  /** Beats fully drawn and spoken. */
+  completed: number;
+  /** A beat is drawing now, from `savepointId`. */
+  inBeat: boolean;
+  transactionId: string | null;
+  savepointId: string | null;
+  beatLayout: { rollback: () => void } | null;
+  /** The missing beats of a figure an earlier Stop cut off: drawn, never saved. */
+  remainder: boolean;
+}
+
 export function useTurnControl(
   params: UseTurnLifecycleParams,
   handleQuestionRef: RefObject<(question: string, options?: HandleQuestionOptions) => Promise<void>>,
@@ -75,6 +101,7 @@ export function useTurnControl(
     phase,
     isReplaying,
     boardLoaded,
+    refreshBoardFromTurns,
     whiteboardRef,
     pendingQuestionRef,
     autoSubmitDoneRef,
@@ -125,6 +152,16 @@ export function useTurnControl(
   const introNarrationCleanupRef = useRef<{ transactionId: string; rollback: () => void } | null>(null);
   /** Set when a doubt interrupt commits an in-flight intro so its catch does not roll the ink back. */
   const introKeptByStopRef = useRef<string | null>(null);
+  /**
+   * The figure intro queued or drawing now: which beats finished, and the
+   * savepoint of the one in progress. Stop keeps the finished beats and hands
+   * the rest to Continue (decision 4).
+   */
+  const introProgressRef = useRef<IntroProgress | null>(null);
+  /** Figure beats the last Stop left undrawn, for the doubt snapshot taken right after it. */
+  const stopRemainderRef = useRef<TutorSegment[] | undefined>(undefined);
+  /** The resume this tab is teaching now, so a Stop of it is offered again. */
+  const activeResumeRef = useRef<(ActiveResume & { attempt: object }) | null>(null);
   /** Resets on any segment that completes; see turnFailurePolicy. */
   const consecutiveSegmentFailuresRef = useRef(0);
 
@@ -289,9 +326,10 @@ export function useTurnControl(
   );
 
   const enqueueVerifiedIntro = useCallback(
-    (segments: TutorSegment[], turnGeneration = turnGenerationRef.current) => {
+    (segments: TutorSegment[], turnGeneration = turnGenerationRef.current, options?: { remainder?: boolean }) => {
       if (segments.length === 0 || turnGeneration !== turnGenerationRef.current) return;
       const normalized = segments.map(normalizeSegmentForAlignment);
+      const remainder = options?.remainder === true;
       const unsafeCommand = normalized.flatMap((segment) => segment.commands ?? []).find((command) =>
         !(
           command.type.startsWith("DRAW_") ||
@@ -328,9 +366,24 @@ export function useTurnControl(
 
       // Counted for the live turn only, as in `enqueueSegment`.
       const counted = () => turnGeneration === turnGenerationRef.current;
+      const progress: IntroProgress = {
+        generation: turnGeneration,
+        segments: normalized,
+        completed: 0,
+        inBeat: false,
+        transactionId: null,
+        savepointId: null,
+        beatLayout: null,
+        remainder,
+      };
+      introProgressRef.current = progress;
+      const releaseProgress = () => {
+        if (introProgressRef.current === progress) introProgressRef.current = null;
+      };
       segmentChainRef.current = segmentChainRef.current.then(async () => {
         const wb = whiteboardRef.current;
         if (!wb || cancelRef.current || turnGeneration !== turnGenerationRef.current) {
+          releaseProgress();
           if (counted()) {
             pendingSegmentCountRef.current = Math.max(
               pendingSegmentCountRef.current - normalized.length,
@@ -342,6 +395,12 @@ export function useTurnControl(
         const transactionId = wb.beginDrawTransaction();
         const introLayout = createIntroLayoutCheckpoint(boardLayoutRef.current);
         activeIntroTransactionRef.current = transactionId;
+        progress.transactionId = transactionId;
+        const introPage = boardPageRef.current?.boardId === sessionId ? boardPageRef.current : null;
+        // The rest of a figure Stop cut off: its rows are held like a fresh
+        // intro's, then dropped instead of sent. The stopped turn's save already
+        // holds the whole figure (the server completes its intro).
+        if (remainder && introPage) introPage.figureDrawn = false;
         const introRecordedRows = new Set<(typeof recordedSegmentsRef.current)[number]>();
         const narrationBeforeIntro = narrationSinceEpochRef.current;
         let narrationAfterIntro = narrationBeforeIntro;
@@ -366,6 +425,9 @@ export function useTurnControl(
             }
             const savepointId = wb.createDrawSavepoint(transactionId);
             const beatLayout = createIntroLayoutCheckpoint(introLayout.layout, introLayout);
+            progress.savepointId = savepointId;
+            progress.beatLayout = beatLayout;
+            progress.inBeat = true;
             await runSegment(
               segment,
               startIndex + offset,
@@ -384,17 +446,30 @@ export function useTurnControl(
                 narrationAfterIntro = narrationSinceEpochRef.current;
               },
             );
+            progress.inBeat = false;
+            progress.completed = offset + 1;
           }
           if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
             throw new DOMException("verified intro cancelled", "AbortError");
           }
           wb.commitDrawTransaction(transactionId);
           committed = true;
+          if (remainder) {
+            recordedSegmentsRef.current = recordedSegmentsRef.current.filter((row) => !introRecordedRows.has(row));
+            liveTurnSave().dropIntroRows(cancelRef, turnGeneration);
+            // Drawn: a later Stop of this resume owes no figure beats.
+            const active = activeResumeRef.current;
+            if (active?.request.remainingIntro) {
+              activeResumeRef.current = { ...active, request: { ...active.request, remainingIntro: undefined } };
+            }
+          }
           // The figure is ink now, not a plan: a doubt asked from here may point at it.
           const page = boardPageRef.current;
           if (page && page.boardId === sessionId) {
             page.figureDrawn = true;
           }
+          // Its held rows are ink now: save them with the figure at once.
+          liveTurnSave().figureCommitted(cancelRef, turnGeneration);
         } catch (error) {
           // A doubt interrupt may already have committed this intro so the
           // figure the student circled stays on the board. Aborting here
@@ -407,16 +482,22 @@ export function useTurnControl(
           // Remove exact rows owned by this intro even after Stop increments the
           // turn generation. Never splice a replacement turn's new recordings.
           recordedSegmentsRef.current = recordedSegmentsRef.current.filter((row) => !introRecordedRows.has(row));
+          // Never saved either: a figure that did not commit leaves no rows.
+          liveTurnSave().dropIntroRows(cancelRef, turnGeneration);
           rollbackIntroNarration();
+          // A remainder's figure keeps the beats an earlier Stop committed.
+          if (remainder && introPage) introPage.figureDrawn = true;
           // Only the intro's own turn is torn down with it. A stopped turn's
           // intro unwinding late must not cancel, abort, or strip the figure
           // from the turn that has already replaced it.
           if (counted()) {
             // Intro rows become successful together with the whole figure.
-            activeVerifiedDiagramRef.current = null;
-            setActiveVerifiedDiagram?.(null);
-            fbdPhaseMarkedRef.current = false;
-            fbdPhaseStartedRef.current = false;
+            if (!remainder) {
+              activeVerifiedDiagramRef.current = null;
+              setActiveVerifiedDiagram?.(null);
+              fbdPhaseMarkedRef.current = false;
+              fbdPhaseStartedRef.current = false;
+            }
 
             cancelRef.current = true;
             pendingSegmentCountRef.current = 0;
@@ -424,6 +505,7 @@ export function useTurnControl(
           }
           throw error;
         } finally {
+          releaseProgress();
           const kept = introKeptByStopRef.current === transactionId;
           if (kept) introKeptByStopRef.current = null;
           if (!committed && !kept) wb.finishAbortedDrawTransaction(transactionId);
@@ -676,15 +758,47 @@ export function useTurnControl(
   );
 
   const pausedLessonRef = useRef<PausedLessonRequest | null>(null);
-  /** Board id the offer belongs to, or null. Another board must not resume it. */
-  const [pausedLessonOfferBoardId, setPausedLessonOfferBoardId] = useState<string | null>(null);
+  /** Board the offer belongs to, and why it stopped. Another board must not resume it. */
+  const [pausedLessonOfferState, setPausedLessonOfferState] = useState<
+    { boardId: string; reason: PausedLessonReason } | null
+  >(null);
+  const showPausedLessonOffer = useCallback((pending: PausedLessonRequest | null) => {
+    setPausedLessonOfferState(pending ? { boardId: pending.boardId, reason: pending.reason } : null);
+  }, []);
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
     if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
+    // A plain Stop of a lesson or a resume (not a doubt's interrupt, not a new
+    // board, not a replay) leaves it to continue: it keeps its figure and words
+    // like a doubt does, and is offered again below (decisions 3 and 4).
+    const stopPage = boardPageRef.current?.boardId === sessionId ? boardPageRef.current : null;
+    const lessonStop =
+      !options?.keepVisibleBoard &&
+      !options?.supersede &&
+      phase !== "idle" &&
+      !isReplaying &&
+      (activeResumeRef.current !== null || stopPage?.turn?.kind === "lesson");
+    const keepIntro = options?.keepVisibleBoard === true || lessonStop;
+    const stoppedGeneration = turnGenerationRef.current;
+    const stoppedTraceId = currentTraceIdRef?.current ?? null;
+    const stoppedProgress = introProgressRef.current?.generation === stoppedGeneration
+      ? introProgressRef.current
+      : null;
+    // Read before anything below unwinds the turn: the step Stop cut off, and
+    // whether this turn put anything on the board at all.
+    const stoppedStep = lessonStop
+      ? (speakingNarrationRef.current || recordedSegmentsRef.current.at(-1)?.narration || "").trim()
+      : "";
+    const taught = lessonStop && (
+      recordedSegmentsRef.current.length > 0 ||
+      speakingNarrationRef.current.trim().length > 0 ||
+      Boolean(stoppedProgress && (stoppedProgress.completed > 0 || stoppedProgress.inBeat)));
+    stopRemainderRef.current = undefined;
     // Stop invalidates generation and releases the queue immediately. Remove
     // this intro's completed epoch contribution before a successor can append;
-    // a doubt explicitly retains the visible intro and its completed narration.
-    if (!options?.keepVisibleBoard) introNarrationCleanupRef.current?.rollback();
+    // a doubt or a resumable Stop retains the visible intro and its narration.
+    if (!keepIntro) introNarrationCleanupRef.current?.rollback();
+    liveTurnSave().captureShown(cancelRef);
     // Stop only this shell's primary and runner-owned fallback. Browser
     // speechSynthesis.cancel() is page-global and could silence a sibling.
     try {
@@ -698,6 +812,7 @@ export function useTurnControl(
     }
 
     if (phase === "idle" && !isReplaying) {
+      lessonAdmission().cancel(cancelRef);
       // New board. The UI is already idle, but a parked segment only checks
       // the generation it captured. Bump it so that segment cannot draw after
       // the next board clears the cancel flag. Do not touch input state: this
@@ -757,22 +872,68 @@ export function useTurnControl(
     replayGenerationRef.current += 1;
     whiteboardRef.current?.cancelAnimations();
     const activeIntroTransaction = activeIntroTransactionRef.current;
+    const progress = stoppedProgress?.transactionId === activeIntroTransaction ? stoppedProgress : null;
     if (activeIntroTransaction) {
-      if (options?.keepVisibleBoard) {
+      if (keepIntro) {
         // A doubt is asked over the figure the student can already see. Aborting
         // the intro rolled that ink back and the doubt answered on blank paper.
+        // A plain Stop keeps the beats that finished and takes back the one it
+        // cut off: Continue draws it whole, with the rest of the figure.
+        if (lessonStop && progress?.inBeat && progress.savepointId) {
+          whiteboardRef.current?.rollbackDrawSavepoint(activeIntroTransaction, progress.savepointId);
+          progress.beatLayout?.rollback();
+        }
+        // The rest of a figure an earlier Stop cut off is never saved: the
+        // stopped turn's save already holds the whole figure.
+        if (progress?.remainder) liveTurnSave().dropIntroRows(cancelRef, stoppedGeneration);
         whiteboardRef.current?.commitDrawTransaction(activeIntroTransaction);
         introKeptByStopRef.current = activeIntroTransaction;
+        // Before the save closes below, so the held intro rows go with the figure.
         const page = boardPageRef.current;
         if (page && page.boardId === sessionId) {
           page.figureDrawn = true;
         }
+        if (progress) stopRemainderRef.current = progress.segments.slice(progress.completed);
       } else {
         whiteboardRef.current?.abortDrawTransaction(activeIntroTransaction);
       }
       activeIntroTransactionRef.current = null;
+    } else if (stoppedProgress && stoppedProgress.transactionId === null && boardPageRef.current?.figureDrawn) {
+      // Queued behind other segments and never started: every beat still owed.
+      stopRemainderRef.current = [...stoppedProgress.segments];
     }
+    if (lessonStop) {
+      const contributedTurnId = liveTurnSave().turnIdFor(cancelRef, stoppedGeneration);
+      const snapshot = pausedLessonOnStop({
+        record: stopPage,
+        boardId: sessionId,
+        activeResume: activeResumeRef.current,
+        // Prepared narration and an epoch alone do not replace a resume's
+        // original parent. Read after synchronous shown-cut/intro settlement.
+        taught: activeResumeRef.current ? Boolean(contributedTurnId) : taught,
+        liveQuestion: liveQuestionRef.current ?? "",
+        codeLesson: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
+        lessonBoardRows: workColumnRows(boardLayoutRef.current).map((row) =>
+          row.workId ? { workId: row.workId, text: row.text } : { text: row.text },
+        ),
+        interruptedStep: stoppedStep,
+        parentTraceId: stoppedTraceId,
+        remainingIntro: stopRemainderRef.current,
+      });
+      activeResumeRef.current = null;
+      if (snapshot) {
+        const savedSnapshot = { ...snapshot, parentTurnId: contributedTurnId ?? snapshot.parentTurnId };
+        pausedLessonRef.current = savedSnapshot;
+        showPausedLessonOffer(savedSnapshot);
+      }
+    }
+    // Save what the stopped lesson taught now, not when its aborted chain
+    // unwinds (that may never happen on a stall). After the intro above, so a
+    // figure kept for a doubt goes with it. The turn's own `finally` is then a
+    // no-op.
+    liveTurnSave().closeOwner(cancelRef);
     whiteboardRef.current?.setPaused(false);
+    lessonAdmission().cancel(cancelRef);
 
     segmentChainRef.current = Promise.resolve();
     drawChainRef.current = Promise.resolve();
@@ -785,6 +946,13 @@ export function useTurnControl(
   }, [
     boardShowsStoppedReplayRef,
     boardPageRef,
+    boardLayoutRef,
+    codeLessonControllerRef,
+    currentTraceIdRef,
+    liveQuestionRef,
+    recordedSegmentsRef,
+    speakingNarrationRef,
+    showPausedLessonOffer,
     finishLectureUi,
     isReplaying,
     phase,
@@ -1023,6 +1191,16 @@ export function useTurnControl(
       };
       // From here the page is the doubt's own record.
       boardShowsStoppedReplayRef.current = false;
+      // The lesson stopped earlier is now continued after a doubt: its resume
+      // may say so. A resume this doubt interrupts is snapshotted below.
+      const activeResume = activeResumeRef.current?.request.boardId === sessionId
+        ? activeResumeRef.current
+        : null;
+      activeResumeRef.current = null;
+      const paused = pausedLessonRef.current;
+      if (paused && paused.boardId === sessionId && paused.reason !== "doubt") {
+        pausedLessonRef.current = { ...paused, reason: "doubt" };
+      }
 
       if (!interrupting) {
         pendingDoubtRef.current = null;
@@ -1059,30 +1237,43 @@ export function useTurnControl(
       const lessonBoardRows = workColumnRows(boardLayoutRef.current).map((row) => ({ ...row }));
       const interruptedStep = (speakingNarrationRef.current ||
         recordedSegmentsRef.current.at(-1)?.narration || "").trim();
+      const interruptedTraceId = currentTraceIdRef.current;
+      const interruptedGeneration = turnGenerationRef.current;
+      const resumePageBefore = activeResume?.pageBefore ?? null;
       pendingDoubtRef.current = request;
       doubtDeadlineRef.current = Date.now() + DOUBT_INTERRUPT_TIMEOUT_MS;
       // Stops the voice and the pen and leaves the page exactly as it is: the
       // doubt turn skips `beginBoardEpoch` and writes under what the lesson wrote.
       // Keep the visible figure — aborting an in-flight intro used to wipe it.
       stopTurn({ keepVisibleBoard: true });
+      const interruptedTurnId = liveTurnSave().turnIdFor(cancelRef, interruptedGeneration);
       // stop() closes the lecture AudioContext. Re-arm it in this click so the
       // doubt's first sentence is not silent after the interrupt unwind.
       ttsClientRef.current?.unlockAudio?.();
-      const snapshot = pausedLessonFromLive({
-        record: boardPageRef.current,
-        boardId: sessionId,
-        lessonQuestion: liveQuestionRef.current,
-        codeLesson: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
-        figureDrawn: Boolean(activeVerifiedDiagramRef.current),
-        lessonBoardRows,
-        interruptedStep,
-      });
+      // A resume interrupted before its own page record exists hands back the
+      // request it started from; otherwise the page it is teaching on.
+      const resumeNotStarted = activeResume !== null &&
+        (!interruptedTurnId || boardPageRef.current === resumePageBefore || boardPageRef.current?.turn.kind === "doubt");
+      const snapshot = resumeNotStarted
+        ? { ...activeResume.request, reason: "doubt" as const }
+        : pausedLessonFromLive({
+            record: boardPageRef.current,
+            boardId: sessionId,
+            lessonQuestion: liveQuestionRef.current,
+            codeLesson: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
+            figureDrawn: Boolean(activeVerifiedDiagramRef.current),
+            lessonBoardRows,
+            interruptedStep,
+            reason: "doubt",
+            parentTraceId: interruptedTraceId,
+            remainingIntro: stopRemainderRef.current,
+          });
       if (snapshot) {
         const existing = pausedLessonRef.current;
         // A nested doubt must not replace the original lesson snapshot with the
         // doubt's text-only page record, or the lecture resumes without its figure.
         if (!existing || boardPageRef.current?.turn.kind === "lesson") {
-          pausedLessonRef.current = snapshot;
+          pausedLessonRef.current = { ...snapshot, parentTurnId: interruptedTurnId ?? snapshot.parentTurnId };
         }
       }
 
@@ -1124,6 +1315,9 @@ export function useTurnControl(
       cancelDoubtFlush,
       codeLessonControllerRef,
       conversationHistoryRef,
+      currentTraceIdRef,
+      cancelRef,
+      turnGenerationRef,
       activeVerifiedDiagramRef,
       handleQuestionRef,
       liveQuestionRef,
@@ -1141,7 +1335,8 @@ export function useTurnControl(
 
   const clearPausedLesson = useCallback(() => {
     pausedLessonRef.current = null;
-    setPausedLessonOfferBoardId(null);
+    activeResumeRef.current = null;
+    setPausedLessonOfferState(null);
   }, []);
 
   const offerPausedLessonResume = useCallback((resume?: PausedLessonRequest) => {
@@ -1150,17 +1345,111 @@ export function useTurnControl(
     if (!pending || pending.boardId !== sessionId) {
       return;
     }
-    setPausedLessonOfferBoardId(pending.boardId);
-  }, [sessionId]);
+    showPausedLessonOffer(pending);
+  }, [sessionId, showPausedLessonOffer]);
+
+  const restoreRevisionRef = useRef(0);
+  const restoreBoardRevisionRef = useRef(0);
+  const restoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const visibleRestoreRef = useRef<{ boardId: string; revision: number } | null>(null);
+  useEffect(() => {
+    restoreRevisionRef.current += 1;
+    restoreBoardRevisionRef.current += 1;
+    if (restoreTimerRef.current !== null) clearTimeout(restoreTimerRef.current);
+    restoreTimerRef.current = null;
+    if (pausedLessonRef.current && pausedLessonRef.current.boardId !== sessionId) clearPausedLesson();
+    return () => {
+      restoreRevisionRef.current += 1;
+      restoreBoardRevisionRef.current += 1;
+      if (restoreTimerRef.current !== null) clearTimeout(restoreTimerRef.current);
+    };
+  }, [sessionId, clearPausedLesson]);
+
+  const restorePausedLesson = useCallback(async function restoreFromRead(turns: readonly StoredTurn[], refreshVisible = false): Promise<PausedLessonRequest | null> {
+    if (visibleRestoreRef.current?.boardId === sessionId) return null;
+    if (!sessionId || phaseRef.current !== "idle" || turnActiveRef.current || isReplayingRef.current || pendingSegmentCountRef.current > 0 || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
+    const revision = ++restoreRevisionRef.current;
+    const save = liveTurnSave();
+    if (turns.some((turn) => save.isLiveHere(turn.id))) return null;
+    const ownerState = await lessonAdmission().probe(sessionId);
+    if (revision !== restoreRevisionRef.current || phaseRef.current !== "idle" || turnActiveRef.current || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
+    let restored = pausedLessonFromStoredTurns(turns, { boardId: sessionId, ownerState, isLiveHere: (id) => save.isLiveHere(id) });
+    if (!restored) {
+      clearPausedLesson();
+      // Unknown/fresh active observations expire and are re-read, never cached null.
+      if (restoreTimerRef.current === null) {
+        const boardRevision = restoreBoardRevisionRef.current;
+        restoreTimerRef.current = setTimeout(() => {
+          if (boardRevision !== restoreBoardRevisionRef.current) return;
+          restoreTimerRef.current = null;
+          const readGeneration = turnGenerationRef.current;
+          const readPage = boardPageRef.current;
+          const readRevision = restoreRevisionRef.current;
+          void fetchBoardDetail(sessionId).then((detail) => {
+            // A board switch can occur while this authenticated read is in flight.
+            // Do not let its old closure advance the successor board's revision.
+            if (boardRevision !== restoreBoardRevisionRef.current || readRevision !== restoreRevisionRef.current ||
+              readGeneration !== turnGenerationRef.current || readPage !== boardPageRef.current || !detail) return;
+            return restoreFromRead(save.resumeTurns(sessionId, detail.turns), true);
+          }).catch(() => undefined);
+        }, 30_000);
+      }
+      return null;
+    }
+    if (refreshVisible) {
+      if (!refreshBoardFromTurns || boardShowsStoppedReplayRef.current ||
+        (boardPageRef.current && boardPageRef.current.boardId !== sessionId)) return null;
+      const boardRevision = restoreBoardRevisionRef.current;
+      const generation = turnGenerationRef.current;
+      const page = boardPageRef.current;
+      const pendingBefore = pausedLessonRef.current;
+      const token = { boardId: sessionId, revision };
+      visibleRestoreRef.current = token;
+      setPausedLessonOfferState(null);
+      const current = () => revision === restoreRevisionRef.current && boardRevision === restoreBoardRevisionRef.current &&
+        generation === turnGenerationRef.current && page === boardPageRef.current && pendingBefore === pausedLessonRef.current && phaseRef.current === "idle" &&
+        !turnActiveRef.current && !isReplayingRef.current && !boardShowsStoppedReplayRef.current &&
+        pendingSegmentCountRef.current === 0 && !activeResumeRef.current && !lessonAdmission().hasAttempt(cancelRef);
+      try {
+        if (!current() || !(await refreshBoardFromTurns(sessionId, turns, current)) || !current()) return null;
+        boardPageRef.current = resumePageRecord({ boardId: sessionId, lessonQuestion: restored.lessonQuestion,
+          turnPlan: restored.turnPlan ?? null, solverProjection: restored.solverProjection ?? null,
+          scene: restored.scene ?? null, figureDrawn: restored.figureDrawn });
+      } catch {
+        return null;
+      } finally {
+        if (visibleRestoreRef.current === token) visibleRestoreRef.current = null;
+      }
+    }
+    if (restoreTimerRef.current !== null) clearTimeout(restoreTimerRef.current);
+    restoreTimerRef.current = null;
+    const pending = pausedLessonRef.current;
+    const visiblePage = boardPageRef.current;
+    const sameParent = pending?.parentTurnId
+      ? pending.parentTurnId === restored.parentTurnId
+      : Boolean(pending?.parentTraceId && pending.parentTraceId === restored.parentTraceId);
+    // A saved-row refresh has not redrawn this in-tab page. The canonical
+    // saved figure is whole, but its missing visible beats are still owed.
+    // Session changes and replay clear the live page record before redraw.
+    if (!refreshVisible && pending?.remainingIntro?.length && sameParent && pending.boardId === sessionId &&
+      pending.lessonQuestion === restored.lessonQuestion && visiblePage?.boardId === sessionId &&
+      visiblePage.lessonQuestion === restored.lessonQuestion) {
+      restored = { ...restored, remainingIntro: pending.remainingIntro };
+    }
+    pausedLessonRef.current = restored;
+    showPausedLessonOffer(restored);
+    return restored;
+  }, [sessionId, phaseRef, turnActiveRef, pendingSegmentCountRef, showPausedLessonOffer, clearPausedLesson, cancelRef, boardPageRef, refreshBoardFromTurns, boardShowsStoppedReplayRef, turnGenerationRef]);
 
   const flushPausedLesson = useCallback(() => {
+    if (visibleRestoreRef.current?.boardId === sessionId || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return;
     const pending = pausedLessonRef.current;
     if (!pending || pending.boardId !== sessionId) {
       pausedLessonRef.current = null;
-      setPausedLessonOfferBoardId(null);
+      setPausedLessonOfferState(null);
       return;
     }
-    setPausedLessonOfferBoardId(null);
+    setPausedLessonOfferState(null);
     const deadline = Date.now() + DOUBT_INTERRUPT_TIMEOUT_MS;
     const tick = () => {
       const resume = pausedLessonRef.current;
@@ -1175,31 +1464,44 @@ export function useTurnControl(
           pendingSegmentCount: pendingSegmentCountRef.current,
         })
       ) {
-        tutorDebug("turn", "resuming paused lesson after doubt", {
+        tutorDebug("turn", "resuming paused lesson", {
           lesson_question_preview: resume.lessonQuestion.slice(0, 80),
+          reason: resume.reason,
           figure_drawn: resume.figureDrawn,
           code_lesson: resume.codeLesson,
         });
-        void handleQuestionRef.current(resume.lessonQuestion, { resume });
-        // The idle check and turnActive latch are synchronous. Only drop the
-        // snapshot once this resume owns the board; a silent drop used to
-        // lose the lecture.
-        if (turnActiveRef.current) {
-          pausedLessonRef.current = null;
-          return;
-        }
+        // Before the call: a Stop during its first synchronous steps must find it.
+        const active = { request: resume, pageBefore: boardPageRef.current, attempt: {} };
+        activeResumeRef.current = active;
+        const finished = handleQuestionRef.current(resume.lessonQuestion, { resume, onAdmission: (admitted) => {
+          if (activeResumeRef.current?.attempt !== active.attempt) return;
+          if (admitted) {
+            if (pausedLessonRef.current === resume) pausedLessonRef.current = null;
+          } else {
+            activeResumeRef.current = null;
+            showPausedLessonOffer(resume);
+          }
+        } });
+        // Intro completion replaces the request, but retains this attempt's token.
+        // An old completion must never release a successor Continue or its offer.
+        const release = () => {
+          if (activeResumeRef.current?.attempt === active.attempt) activeResumeRef.current = null;
+        };
+        void finished.then(release, release);
+        // One pending receipt owns this click; no RAF redispatch while awaiting.
+        return;
       }
       if (Date.now() >= deadline) {
         tutorDebug("turn", "paused lesson did not resume in time", {
           lesson_question_preview: resume.lessonQuestion.slice(0, 80),
         });
-        setPausedLessonOfferBoardId(resume.boardId);
+        showPausedLessonOffer(resume);
         return;
       }
       scheduleFrame(tick);
     };
     tick();
-  }, [handleQuestionRef, pendingSegmentCountRef, phaseRef, sessionId, turnActiveRef]);
+  }, [boardPageRef, handleQuestionRef, pendingSegmentCountRef, phaseRef, sessionId, showPausedLessonOffer, turnActiveRef, cancelRef]);
 
   return {
     finishLectureUi,
@@ -1213,7 +1515,9 @@ export function useTurnControl(
     flushPausedLesson,
     offerPausedLessonResume,
     clearPausedLesson,
-    pausedLessonOffer: pausedLessonOfferBoardId === sessionId,
+    restorePausedLesson,
+    pausedLessonOffer: pausedLessonOfferState?.boardId === sessionId,
+    pausedLessonReason: pausedLessonOfferState?.boardId === sessionId ? pausedLessonOfferState.reason : null,
     handleAskDoubt,
   };
 }

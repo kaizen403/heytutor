@@ -12,13 +12,14 @@ import {
 import type { VirtualWhiteboardClock } from "@heytutor/whiteboard";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { buildReplayTimeline } from "@/lib/replay/replayTimeline";
+import { buildReplayTimeline, type ReplayCue } from "@/lib/replay/replayTimeline";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
 import { DSA_CODE_PANEL_RECT, WHITEBOARD_COLOR } from "@/features/tutor-session/constants";
 import { canEncodeLectureMp4 } from "./canExportLectureMp4";
 import {
-  buildCodeLessonExportTrack,
+  buildCodeLessonExportSpans,
   codeLessonFrameSpec,
+  codeLessonSpanAt,
 } from "./codeLessonExportTrack";
 import { drawLectureTimeline, type ExportExecuteCommand } from "./drawLectureTimeline";
 import {
@@ -39,6 +40,7 @@ import {
   lectureFramesLookSame,
   sampleLectureFrame,
 } from "./lectureExportFrames";
+import { drainExportTail, pumpExportClock } from "./lectureExportTail";
 import {
   LECTURE_EXPORT_PLAYBACK_RATE,
   lectureExportFileMs,
@@ -49,6 +51,8 @@ const LECTURE_EXPORT_FPS = 24;
 const LECTURE_EXPORT_FRAME_MS = 1000 / LECTURE_EXPORT_FPS;
 const LECTURE_EXPORT_WIDTH = 1200;
 const LECTURE_EXPORT_HEIGHT = 700;
+/** Main thread work between yields while a lesson is live on the main board. */
+const LECTURE_EXPORT_YIELD_MS = 12;
 
 export type LectureExportProgress = {
   currentMs: number;
@@ -59,6 +63,10 @@ export type LectureExportProgress = {
 export type LectureExportResult = {
   blob: Blob;
   missingAudioCues: number;
+  /** No spoken cue had usable audio, so the file is silent. */
+  noVoice: boolean;
+  /** The drawing still ran when the tail limit was reached; the file ends there. */
+  tailTruncated: boolean;
   totalMs: number;
   mimeType: LectureExportProfile["mimeType"];
   extension: LectureExportProfile["extension"];
@@ -161,18 +169,6 @@ function copyFrameToCanvas(
   ctx.drawImage(source, 0, 0, LECTURE_EXPORT_WIDTH, LECTURE_EXPORT_HEIGHT);
 }
 
-async function pumpExportFrame(clock: VirtualWhiteboardClock): Promise<void> {
-  clock.pump();
-  await Promise.resolve();
-  for (let extra = 0; extra < 8; extra++) {
-    if (clock.pendingCount() === 0) {
-      break;
-    }
-    clock.pump();
-    await Promise.resolve();
-  }
-}
-
 export async function exportLectureMp4(options: {
   turn: StoredTurn;
   /**
@@ -188,6 +184,16 @@ export async function exportLectureMp4(options: {
   onProgress?: (progress: LectureExportProgress) => void;
   profile?: LectureExportProfile;
   preferredContainer?: LectureContainer;
+  /** In-memory audio for a cue (a live turn's clips), read before its URL. */
+  cueBytes?: (cue: ReplayCue) => Uint8Array | null;
+  /**
+   * True while a lesson is live on the main board. The frame loop then hands
+   * the main thread back every few milliseconds so the live pen and voice keep
+   * their timing.
+   */
+  shouldYield?: () => boolean;
+  /** Lesson time the drawing may run past the last word. */
+  tailLimitMs?: number;
 }): Promise<LectureExportResult> {
   const pageTurns = options.pageTurns && options.pageTurns.length > 0
     ? options.pageTurns
@@ -199,13 +205,9 @@ export async function exportLectureMp4(options: {
 
   // DSA turns type code into a DOM panel the board capture cannot see; the
   // export composites a deterministic canvas rendering per frame instead.
-  // The page's code lesson is the one its opening turn committed; a doubt on
-  // it carries no plan of its own.
-  let codeTrack: ReturnType<typeof buildCodeLessonExportTrack> = null;
-  for (const pageTurn of pageTurns) {
-    codeTrack = buildCodeLessonExportTrack(pageTurn, timeline.cues);
-    if (codeTrack) break;
-  }
+  // Each page's code lesson is the one its opening turn committed; a doubt on
+  // it carries no plan of its own, and a page without one shows no panel.
+  const codeSpans = buildCodeLessonExportSpans(pageTurns, timeline.cues);
 
   const profile =
     options.profile ?? (await probeLectureExportProfile(options.preferredContainer ?? "mp4"));
@@ -214,10 +216,15 @@ export async function exportLectureMp4(options: {
   }
 
   options.onProgress?.({ currentMs: 0, totalMs: timeline.totalMs, phase: "audio" });
+  if (options.shouldCancel()) {
+    throw new DOMException("Lecture export cancelled", "AbortError");
+  }
   const naturalAudio = await buildLectureAudioTrack({
     cues: timeline.cues,
     sampleRate: LECTURE_EXPORT_SAMPLE_RATE,
     decodeBytes: decodeMpegBytes,
+    cueBytes: options.cueBytes,
+    shouldCancel: options.shouldCancel,
   });
   const audioTrack = speedPcmTrack(naturalAudio, LECTURE_EXPORT_PLAYBACK_RATE);
   const fileTotalMs = lectureExportFileMs(timeline.totalMs);
@@ -255,6 +262,11 @@ export async function exportLectureMp4(options: {
 
   await output.start();
 
+  let tailTruncated = false;
+  let encodedFileMs = fileTotalMs;
+  // Set when the export stops before the drawing does (the tail limit, a
+  // failure), so the drawing's waits stop instead of lingering on this clock.
+  let abandoned = false;
   try {
     if (audioTrack.channels[0] && audioTrack.channels[0].length > 0) {
       await audioSource.add(pcmToAudioBuffer(audioTrack.channels, audioTrack.sampleRate));
@@ -264,13 +276,22 @@ export async function exportLectureMp4(options: {
     options.whiteboard.setAnimationSpeed(1);
     await options.whiteboard.clearBoard(0);
 
+    const drawShouldCancel = () => abandoned || options.shouldCancel();
+    let drawFailed = false;
+    let drawError: unknown = undefined;
     const drawPromise = drawLectureTimeline({
       cues: timeline.cues,
       executeCommand: options.executeCommand,
       getClockMs: options.clock.now,
       waitForAdvance: options.clock.waitForAdvance,
-      shouldCancel: options.shouldCancel,
+      shouldCancel: drawShouldCancel,
       setAnimationSpeed: (rate) => options.whiteboard.setAnimationSpeed(rate),
+    });
+    // A drawing that fails early stops the encode then, not after the whole
+    // lesson has been recorded around a broken board.
+    void drawPromise.catch((error: unknown) => {
+      drawFailed = true;
+      drawError = error;
     });
 
     const totalFrames = Math.max(1, Math.ceil(fileTotalMs / LECTURE_EXPORT_FRAME_MS));
@@ -297,23 +318,14 @@ export async function exportLectureMp4(options: {
       );
     };
 
-    for (let frame = 0; frame < totalFrames; frame++) {
-      if (options.shouldCancel()) {
-        await output.cancel();
-        await drawPromise.catch(() => undefined);
-        throw new DOMException("Lecture export cancelled", "AbortError");
-      }
-
-      const fileMs = frame * LECTURE_EXPORT_FRAME_MS;
-      const mediaMs = lectureExportMediaMs(fileMs);
-      options.clock.setNow(mediaMs);
-      await pumpExportFrame(options.clock);
-
+    /** Capture the board as it is now and encode it as `frame`. True when the picture changed. */
+    const encodeFrame = async (frame: number, mediaMs: number): Promise<boolean> => {
       const captured = options.whiteboard.captureFrame({ pixelRatio: 1, hideCursor: false });
       if (!captured) {
         throw new Error("Lecture export could not capture the board.");
       }
       copyFrameToCanvas(captured, composeCanvas);
+      const codeTrack = codeLessonSpanAt(codeSpans, mediaMs);
       if (codeTrack) {
         const composeCtx = composeCanvas.getContext("2d");
         if (composeCtx) {
@@ -326,40 +338,100 @@ export async function exportLectureMp4(options: {
       }
       const sample = sampleLectureFrame(composeCanvas, sampleCanvas);
       if (holdSample && lectureFramesLookSame(holdSample, sample)) {
-        options.onProgress?.({
-          currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, fileTotalMs),
-          totalMs: fileTotalMs,
-          phase: "video",
-        });
-        continue;
+        return false;
       }
       copyFrameToCanvas(composeCanvas, nextCanvas);
       await flushHold(frame);
       copyFrameToCanvas(nextCanvas, holdCanvas);
       holdSample = sample;
       holdStartFrame = frame;
+      return true;
+    };
+
+    const cancelEncode = async (): Promise<never> => {
+      await output.cancel();
+      options.clock.pump();
+      throw new DOMException("Lecture export cancelled", "AbortError");
+    };
+
+    let lastYieldAt = performance.now();
+    for (let frame = 0; frame < totalFrames; frame++) {
+      if (options.shouldCancel()) {
+        await cancelEncode();
+      }
+      if (drawFailed) {
+        throw drawError instanceof Error ? drawError : new Error("Lecture export could not draw the board.");
+      }
+
+      const fileMs = frame * LECTURE_EXPORT_FRAME_MS;
+      const mediaMs = lectureExportMediaMs(fileMs);
+      options.clock.setNow(mediaMs);
+      await pumpExportClock(options.clock);
+      await encodeFrame(frame, mediaMs);
       options.onProgress?.({
         currentMs: Math.min((frame + 1) * LECTURE_EXPORT_FRAME_MS, fileTotalMs),
         totalMs: fileTotalMs,
         phase: "video",
       });
-    }
-    await flushHold(totalFrames);
 
-    options.clock.setNow(timeline.totalMs);
-    await pumpExportFrame(options.clock);
-    await drawPromise;
+      if (options.shouldYield?.() && performance.now() - lastYieldAt >= LECTURE_EXPORT_YIELD_MS) {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 0);
+        });
+        lastYieldAt = performance.now();
+      }
+    }
+
+    // The audio has ended; the drawing may not have. Keep the clock moving and
+    // keep encoding until the last mark is down, bounded by the tail limit.
+    let tailChanged = false;
+    const tail = await drainExportTail({
+      clock: options.clock,
+      drawPromise,
+      shouldCancel: options.shouldCancel,
+      startMs: lectureExportMediaMs(totalFrames * LECTURE_EXPORT_FRAME_MS),
+      stepMs: lectureExportMediaMs(LECTURE_EXPORT_FRAME_MS),
+      limitMs: options.tailLimitMs,
+      onStep: async (mediaMs, step) => {
+        if (await encodeFrame(totalFrames + step, mediaMs)) tailChanged = true;
+      },
+    });
+    if (tail.cancelled) {
+      await cancelEncode();
+    }
+    if (tail.error !== undefined) {
+      throw tail.error instanceof Error ? tail.error : new Error("Lecture export could not draw the board.");
+    }
+    if (!tail.settled) {
+      abandoned = true;
+      options.clock.pump();
+    }
+    tailTruncated = !tail.settled;
+    // The tail's one frame only confirmed the end (the last marks were already
+    // in the file): it does not lengthen the file. A frame that put marks
+    // down is kept.
+    let encodedFrames = totalFrames + (tail.settled && tail.steps === 1 && !tailChanged ? 0 : tail.steps);
+    // Awaiting a previous captured span lets the final WRITE finish. The tail
+    // can then already be settled, or settle during its own encoder flush,
+    // without any capture seeing that last mark. Sample the settled board once;
+    // keep one extra frame only when this terminal picture actually changed.
+    if (tail.settled) {
+      if (options.shouldCancel()) await cancelEncode();
+      if (await encodeFrame(encodedFrames, options.clock.now())) encodedFrames += 1;
+    }
+    await flushHold(encodedFrames);
+    encodedFileMs = Math.max(fileTotalMs, encodedFrames * LECTURE_EXPORT_FRAME_MS);
 
     options.onProgress?.({
-      currentMs: fileTotalMs,
-      totalMs: fileTotalMs,
+      currentMs: encodedFileMs,
+      totalMs: encodedFileMs,
       phase: "mux",
     });
     await output.finalize();
   } catch (error) {
-    if (options.shouldCancel()) {
-      await output.cancel().catch(() => undefined);
-    }
+    abandoned = true;
+    options.clock.pump();
+    await output.cancel().catch(() => undefined);
     throw error;
   } finally {
     options.whiteboard.setTimeSource(null);
@@ -374,7 +446,9 @@ export async function exportLectureMp4(options: {
   return {
     blob: new Blob([buffer], { type: profile.mimeType }),
     missingAudioCues: naturalAudio.missingAudioCues,
-    totalMs: fileTotalMs,
+    noVoice: naturalAudio.spokenCues > 0 && naturalAudio.voicedCues === 0,
+    tailTruncated,
+    totalMs: encodedFileMs,
     mimeType: profile.mimeType,
     extension: profile.extension,
   };

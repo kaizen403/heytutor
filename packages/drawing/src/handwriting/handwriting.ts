@@ -21,7 +21,7 @@ const glyphDataRecord = glyphData as unknown as Record<string, TegakiGlyphData>;
 
 /** Greek/math symbols missing from Caveat glyph data — rendered as synthetic strokes. */
 const SYNTHETIC_GREEK_CHARS = new Set([
-  "θ", "Θ", "μ", "π",
+  "θ", "Θ", "μ", "µ", "π",
   "φ", "Φ", "ω", "Ω", "α", "Α", "β", "Β", "γ", "Γ", "δ", "Δ",
   "λ", "Λ", "ρ", "Ρ", "σ", "Σ", "τ", "Τ", "ε", "η", "κ", "ν", "ξ", "ψ", "χ", "ζ", "υ", "ι", "ο",
 ]);
@@ -39,6 +39,7 @@ const GREEK_LATIN_FALLBACK: Record<string, string> = {
  * (previously every one of these rendered as a blank gap).
  */
 const MATH_GLYPH_UNITS: Record<string, number> = {
+  "[": 300, "]": 300,
   "→": 560, "←": 560, "↔": 620, "⇒": 600, "⇐": 600, "⇌": 600,
   "±": 520, "∓": 520, "×": 460, "÷": 460, "·": 240, "∙": 240,
   "≤": 520, "≥": 520, "≈": 520, "≠": 520, "≡": 520, "∝": 520,
@@ -86,7 +87,7 @@ const SUBSCRIPT_MAP: Record<string, string> = {
  */
 export function normalizeStrokeText(text: string): string {
   // Do not use \b after the command name: LaTeX often continues with "_" / "^".
-  let source = scriptChemicalFormulas(text)
+  let source = scriptChemicalFormulas(text.replace(/\u2212/g, "-"))
     .replace(/\\int(?![A-Za-z])/g, "∫")
     .replace(/\\sum(?![A-Za-z])/g, "∑")
     .replace(/\\prod(?![A-Za-z])/g, "∏")
@@ -389,7 +390,7 @@ function glyphInk(char: string): GlyphInk {
   if (char === "π") advanceUnits = 460;
   else if (char === "Θ" || char === "θ" || char === "φ" || char === "Φ") {
     advanceUnits = glyphDataRecord.o?.w ?? 353;
-  } else if (char === "μ") {
+  } else if (char === "μ" || char === "µ") {
     advanceUnits = glyphDataRecord.u?.w ?? 370;
   } else if (char === "Δ") {
     advanceUnits = 420;
@@ -715,7 +716,7 @@ function syntheticGreekChar(
     };
   }
 
-  if (char === "μ") {
+  if (char === "μ" || char === "µ") {
     const uGlyph = glyphDataRecord.u;
     const glyphWidth = (uGlyph?.w ?? 370) * scale;
     const strokes: StrokePath[] = [];
@@ -922,6 +923,12 @@ function syntheticMathChar(
   const cx = u / 2;
 
   switch (char) {
+    case "[":
+      push(`M ${P(u - 60, -720)} L ${P(80, -720)} L ${P(80, 20)} L ${P(u - 60, 20)}`);
+      break;
+    case "]":
+      push(`M ${P(60, -720)} L ${P(u - 80, -720)} L ${P(u - 80, 20)} L ${P(60, 20)}`);
+      break;
     case "→":
       push(`M ${P(50, -260)} L ${P(u - 70, -260)} M ${P(u - 210, -350)} L ${P(u - 70, -260)} L ${P(u - 210, -170)}`);
       break;

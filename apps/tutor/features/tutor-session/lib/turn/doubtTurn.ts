@@ -145,12 +145,27 @@ export function doubtPageRecord(input: {
 }
 
 /**
- * What a mid-lesson doubt must hand back so the original lecture can continue
- * on the same page after the doubt is answered.
+ * Why the lesson is paused. "stop": the student pressed Stop (or left) and has
+ * come back. "doubt": a doubt on this board was answered after the lesson
+ * stopped. The resume prompt must not claim a doubt it never saw.
+ */
+export type PausedLessonReason = "stop" | "doubt";
+
+/**
+ * What a stopped lesson must hand back so it can continue on the same page:
+ * after a doubt, after a plain Stop, or after a reload.
  */
 export interface PausedLessonRequest {
   /** The board this lecture was paused on. A later board must not resume it. */
   boardId: string;
+  reason: PausedLessonReason;
+  /**
+   * Trace of the turn that stopped, for billing lineage only. The resume saves
+   * under a trace of its own (one turn per trace).
+   */
+  parentTraceId?: string | null;
+  /** Exact saved chain identity for a fresh continuation admission. */
+  parentTurnId?: string;
   lessonQuestion: string;
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
@@ -162,6 +177,31 @@ export interface PausedLessonRequest {
   lessonBoardRows?: readonly DoubtBoardRow[];
   /** The last lesson idea the student heard, for resuming at the next step. */
   interruptedStep?: string;
+  /**
+   * Figure intro beats Stop cut off before they were drawn (live only: a
+   * reloaded board has the whole figure, the server completes the intro of the
+   * stopped turn). Continue draws them first and never saves them, so the
+   * figure is not stored twice. Only set when `figureDrawn`.
+   */
+  remainingIntro?: readonly TutorSegment[];
+}
+
+/**
+ * The scene the rest of a lesson is saved with: the lesson's own scene plus the
+ * board continuation marker, so a reload, replay, the notes and the export keep
+ * it on the lesson's page. Without the marker the server rebuilt the whole
+ * figure intro into the resume and every surface drew the figure twice.
+ */
+export function resumeTurnScene(
+  scene: PersistedTurnScene | null,
+  lessonQuestion: string,
+): PersistedTurnScene {
+  const base = scene ?? textOnlyTurnScene();
+  const artifacts = isRecord(base.sceneArtifacts) ? base.sceneArtifacts : {};
+  return {
+    ...base,
+    sceneArtifacts: { ...artifacts, ...boardContinuationArtifacts(lessonQuestion) },
+  };
 }
 
 /**
@@ -186,7 +226,7 @@ export function resumePageRecord(input: {
       kind: "lesson",
       question: input.lessonQuestion,
       continuesBoard: true,
-      scene: input.scene,
+      scene: resumeTurnScene(input.scene, input.lessonQuestion),
       saved: false,
     },
   };
@@ -200,12 +240,14 @@ export function resumePageRecord(input: {
 export function pausedLessonFromPage(
   record: BoardPageRecord | null,
   codeLesson: boolean,
+  reason: PausedLessonReason = "doubt",
 ): PausedLessonRequest | null {
   if (!record) return null;
   const lessonQuestion = record.lessonQuestion.trim();
   if (!lessonQuestion) return null;
   return {
     boardId: record.boardId,
+    reason,
     lessonQuestion,
     turnPlan: record.turnPlan,
     solverProjection: record.solverProjection,
@@ -228,22 +270,34 @@ export function pausedLessonFromLive(input: {
   figureDrawn: boolean;
   lessonBoardRows?: readonly DoubtBoardRow[];
   interruptedStep?: string;
+  /** Defaults to "doubt": the doubt that stopped the lesson is answered first. */
+  reason?: PausedLessonReason;
+  parentTraceId?: string | null;
+  /** Exact saved chain identity for a fresh continuation admission. */
+  parentTurnId?: string;
+  remainingIntro?: readonly TutorSegment[];
 }): PausedLessonRequest | null {
-  const fromPage = pausedLessonFromPage(input.record, input.codeLesson);
+  const reason = input.reason ?? "doubt";
+  const fromPage = pausedLessonFromPage(input.record, input.codeLesson, reason);
   if (fromPage) {
+    const figureDrawn = fromPage.figureDrawn || input.figureDrawn;
     return {
       ...fromPage,
       boardId: fromPage.boardId || input.boardId,
-      figureDrawn: fromPage.figureDrawn || input.figureDrawn,
+      parentTraceId: input.parentTraceId ?? null,
+      figureDrawn,
       codeLesson: fromPage.codeLesson || input.codeLesson,
       lessonBoardRows: input.lessonBoardRows ?? fromPage.lessonBoardRows,
       interruptedStep: input.interruptedStep ?? fromPage.interruptedStep,
+      ...(figureDrawn && input.remainingIntro?.length ? { remainingIntro: input.remainingIntro } : {}),
     };
   }
   const lessonQuestion = input.lessonQuestion.trim();
   if (!lessonQuestion || !input.boardId) return null;
   return {
     boardId: input.boardId,
+    reason,
+    parentTraceId: input.parentTraceId ?? null,
     lessonQuestion,
     turnPlan: null,
     solverProjection: null,
@@ -253,6 +307,85 @@ export function pausedLessonFromLive(input: {
     lessonBoardRows: input.lessonBoardRows,
     interruptedStep: input.interruptedStep,
   };
+}
+
+/** A resume this tab is teaching, and the page record it started from. */
+export interface ActiveResume {
+  request: PausedLessonRequest;
+  pageBefore: BoardPageRecord | null;
+}
+
+/**
+ * What a plain Stop leaves to continue (decision 3: offered, never automatic).
+ *
+ * A lesson is resumable once it taught something: a finished row, the row Stop
+ * cut off, or figure ink. A resume is always resumable again, since the lesson
+ * it continues is still unfinished; stopped before it drew anything, it hands
+ * back the request it started from. A doubt is never a lesson to continue: the
+ * lesson it interrupted keeps its own offer.
+ */
+export function pausedLessonOnStop(input: {
+  record: BoardPageRecord | null;
+  boardId: string;
+  activeResume: ActiveResume | null;
+  taught: boolean;
+  liveQuestion: string;
+  codeLesson: boolean;
+  lessonBoardRows: readonly DoubtBoardRow[];
+  interruptedStep: string;
+  parentTraceId: string | null;
+  /** Figure beats still to draw: undefined when unknown, [] when none. */
+  remainingIntro?: readonly TutorSegment[];
+}): PausedLessonRequest | null {
+  if (!input.boardId) return null;
+  const record = input.record?.boardId === input.boardId ? input.record : null;
+  const resume = input.activeResume?.request.boardId === input.boardId ? input.activeResume : null;
+  if (resume) {
+    const resumePage =
+      record &&
+      record !== resume.pageBefore &&
+      record.turn.kind === "lesson" &&
+      record.turn.continuesBoard &&
+      record.lessonQuestion.trim() === resume.request.lessonQuestion.trim()
+        ? record
+        : null;
+    if (!resumePage || !input.taught) {
+      // `remainingIntro` undefined: this turn never started the figure's
+      // missing beats, so the request still owes them; [] means it drew them.
+      const { remainingIntro: owed, ...request } = resume.request;
+      const remainingIntro = input.remainingIntro ?? owed;
+      return {
+        ...request,
+        ...(request.figureDrawn && remainingIntro?.length ? { remainingIntro } : {}),
+      };
+    }
+    return pausedLessonFromLive({
+      record: resumePage,
+      boardId: input.boardId,
+      lessonQuestion: resume.request.lessonQuestion,
+      codeLesson: input.codeLesson || resume.request.codeLesson,
+      figureDrawn: false,
+      lessonBoardRows: input.lessonBoardRows,
+      interruptedStep: input.interruptedStep.trim() || resume.request.interruptedStep,
+      reason: "stop",
+      parentTraceId: input.parentTraceId ?? resume.request.parentTraceId ?? null,
+      remainingIntro: input.remainingIntro,
+    });
+  }
+  if (!record || record.turn.kind !== "lesson" || !input.taught) return null;
+  return pausedLessonFromLive({
+    record,
+    boardId: input.boardId,
+    lessonQuestion: input.liveQuestion,
+    codeLesson: input.codeLesson,
+    // Only ink counts: a figure planned but never drawn is redrawn on Continue.
+    figureDrawn: false,
+    lessonBoardRows: input.lessonBoardRows,
+    interruptedStep: input.interruptedStep.trim() || undefined,
+    reason: "stop",
+    parentTraceId: input.parentTraceId,
+    remainingIntro: input.remainingIntro,
+  });
 }
 
 export interface DoubtPagePlan {
@@ -319,6 +452,8 @@ function planOnlyArtifacts(artifacts: unknown): unknown | null {
     ...(source.schemaVersion ? { schemaVersion: source.schemaVersion } : {}),
     turnPlan: source.turnPlan ?? null,
     ...(source.codeLesson ? { codeLesson: source.codeLesson } : {}),
+    // A stopped resume saved without its figure is still on the lesson's page.
+    ...(source.boardContinuation ? { boardContinuation: source.boardContinuation } : {}),
     ...(source.diagramStrategy ? { diagramStrategy: source.diagramStrategy } : {}),
   };
 }

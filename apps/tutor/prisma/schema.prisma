@@ -194,7 +194,19 @@ model Turn {
   validationReport   Json?     @map("validation_report")
   visualStatus       String?   @map("visual_status")
   sceneArtifacts     Json?     @map("scene_artifacts")
+  /// live | stopped | complete. Legacy rows default to complete.
+  status             String    @default("complete")
+  /// lesson | doubt | resume
+  kind               String    @default("lesson")
+  checkpointSeq      Int       @default(0) @map("checkpoint_seq")
+  /// Metadata bytes already charged, so growth charges only the delta.
+  metadataBytes      BigInt    @default(0) @map("metadata_bytes")
+  /// Pre-canonical rows plus their audio refs; null once complete.
+  submittedSegments  Json?     @map("submitted_segments")
+  /// Opaque data a later Continue needs (for example solverProjection).
+  resumeState        Json?     @map("resume_state")
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   board              Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   segments           Segment[]
@@ -218,6 +230,8 @@ model Segment {
   audioFormat String?  @default("audio/mpeg") @map("audio_format")
   durationMs  Int?     @map("duration_ms")
   timings     Json?
+  /// Submitted row index whose audio clip this row plays (checkpoint saves).
+  audioRef    Int?     @map("audio_ref")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   turn        Turn     @relation(fields: [turnId], references: [id], onDelete: Cascade)
 

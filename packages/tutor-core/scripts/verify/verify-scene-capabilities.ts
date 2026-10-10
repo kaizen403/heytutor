@@ -19,6 +19,7 @@ import {
   buildSceneDocumentPlannerPrompt,
   DEFAULT_SCENE_CONSTRUCTION_OPERATORS,
   DEFAULT_SCENE_PROOF_PREDICATES,
+  contractLineOperators,
 } from "../../src/planners/scenePlannerV2Prompt";
 import { familiesFromProblemStructure, inferSceneCapabilities } from "../../src/planners/sceneCapabilities";
 
@@ -274,10 +275,29 @@ function promptCapabilitySection(prompt: string, heading: string): string[] {
     .filter((line) => line.length > 0);
 }
 
+// The universal catalog lists only operators that its contract lines do not
+// already name. Together they must expose exactly the planner-visible set.
+function promptConstructionOperators(prompt: string): string[] {
+  const listed = promptCapabilitySection(prompt, "AVAILABLE CONSTRUCTION OPERATORS");
+  const marker = "Each contract line below names one. Also:";
+  if (!listed[0]?.startsWith(marker)) return listed;
+  const contracts = prompt.split("OPERATOR INPUT CONTRACTS\n", 2)[1]?.split("\n\n", 1)[0] ?? "";
+  const rest = [listed[0].slice(marker.length), ...listed.slice(1)].filter((name) => name.length > 0);
+  const named = [...contractLineOperators(contracts)];
+  if (rest.some((name) => named.includes(name))) throw new Error("universal catalog listed an operator its contracts already name");
+  // Split across two sections, so compare membership in canonical order;
+  // unknown or missing names still fail the exact check.
+  const exposed = new Set([...named, ...rest]);
+  return [
+    ...PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS.filter((name) => exposed.has(name)),
+    ...[...exposed].filter((name) => !PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS.includes(name)),
+  ];
+}
+
 const defaultCapabilityPrompt = buildSceneDocumentPlannerPrompt("capability drift check");
 assertExactCapabilityList(
   "prompt construction operators",
-  promptCapabilitySection(defaultCapabilityPrompt, "AVAILABLE CONSTRUCTION OPERATORS"),
+  promptConstructionOperators(defaultCapabilityPrompt),
   PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS,
 );
 assertExactCapabilityList(
