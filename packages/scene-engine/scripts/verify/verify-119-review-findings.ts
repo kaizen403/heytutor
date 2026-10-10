@@ -5,7 +5,9 @@
  * 3. a genuinely small curve value keeps its value, only rounding at an
  *    irrational stated x (kπ/n) is certified zero;
  * 4. an accepted space right-angle mark proves its own angle;
- * 5. a translated figure keeps its verdict (tolerances follow local lengths).
+ * 5. a translated figure keeps its verdict (tolerances follow local lengths);
+ * 6. a certified zero product is a zero vector to a later cross product;
+ * 7. a digit-free kπ/n label such as (π, π) is still checked.
  */
 import assert from "node:assert/strict";
 import { compileSceneDocument, validateSceneDocument, type SceneDocument } from "../../src/index";
@@ -133,4 +135,38 @@ const angle = (entities: string[], degrees: number) => [{ id: "angle", predicate
   assert(!compile(crossFrom(0.5)).ok, "vectors starting half a unit apart far from the origin need an origin");
 }
 
-console.log("PR #119 review findings: directed vector angles, nonzero near-parallel products, small-value labels, right-angle mark proofs and translation-invariant tolerances verified");
+// 6. A certified zero product is a zero vector to later steps: (a×b)×c with
+// a ∥ b is zero again, while a nonzero nested product is still an arrow.
+{
+  const nested = (a: [number, number, number], b: [number, number, number], e: [number, number, number]) => scene("Find (a × b) × e.",
+    [...base, { id: "A", kind: "point" }, { id: "B", kind: "point" }, { id: "E", kind: "point" }, { id: "a", kind: "vector" }, { id: "b", kind: "vector" }, { id: "e", kind: "vector" }, { id: "c", kind: "vector" }, { id: "d", kind: "vector" }],
+    [origin, frame, sp("O", 0, 0, 0), sp("A", ...a), sp("B", ...b), sp("E", ...e),
+      { id: "make_a", operator: "space_vector", inputs: { frame: "frame", start: "O", end: "A" }, outputs: ["a"] },
+      { id: "make_b", operator: "space_vector", inputs: { frame: "frame", start: "O", end: "B" }, outputs: ["b"] },
+      { id: "make_e", operator: "space_vector", inputs: { frame: "frame", start: "O", end: "E" }, outputs: ["e"] },
+      { id: "make_c", operator: "space_cross", inputs: { frame: "frame", a: "a", b: "b" }, outputs: ["c"] },
+      { id: "make_d", operator: "space_cross", inputs: { frame: "frame", a: "c", b: "e" }, outputs: ["d"] }]);
+  const arrow = (result: ReturnType<typeof compile>, id: string) => result.render!.primitives.some((primitive) => primitive.entityId === id && primitive.kind !== "point" && primitive.kind !== "label");
+  const zero = compile(nested([1, 2, 3], [2, 4, 6], [0, 0, 1]));
+  assert(zero.ok, `a zero product feeds the next cross product: ${zero.issues}`);
+  assert(!arrow(zero, "d"), "(a×b)×e with a ∥ b is a zero marker, not an arrow");
+  const live = compile(nested([1, 0, 0], [0, 1, 0], [0, 1, 1]));
+  assert(live.ok && arrow(live, "d"), `a nonzero nested product is still drawn: ${live.issues}`);
+}
+
+// 7. A digit-free kπ/n label is still a value claim: (π, π) at x = π/2 on
+// sin x is false, while symbolic labels without values stay unchecked.
+{
+  const anchor = (text: string) => scene("Mark the point on the curve.",
+    [{ id: "curve", kind: "polyline" }, { id: "p", kind: "point" }],
+    [{ id: "make_curve", operator: "function_curve", inputs: { expression: "sin(x)", xMin: -1, xMax: 4 }, outputs: ["curve"] },
+      { id: "make_p", operator: "curve_anchor", inputs: { curve: "curve", at: Math.PI / 2 }, outputs: ["p"] }],
+    [], [{ id: "label_p", kind: "label", targetIds: ["p"], text }]);
+  assert(compile(anchor("(π/2, 1)")).ok, "the true coordinates of the peak pass");
+  assert(!compile(anchor("(π, π)")).ok, "(π, π) is a false claim at the peak of sin x");
+  assert(!compile(anchor("y = π")).ok, "y = π is a false claim at the peak of sin x");
+  assert(compile(anchor("(a, b)")).ok, "a symbolic label states no value and stays unchecked");
+  assert(compile(anchor("P")).ok, "a point name stays unchecked");
+}
+
+console.log("PR #119 review findings: directed vector angles, nonzero near-parallel products, small-value labels, right-angle mark proofs, translation-invariant tolerances, nested zero products and digit-free π labels verified");

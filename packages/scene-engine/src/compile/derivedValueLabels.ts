@@ -259,11 +259,16 @@ function parse(text: unknown): Claim | null {
   // Digits in an identifier or a symbolic function argument are identifiers,
   // not scalar claims. Equality/numeric tuples and bare numbers are claims.
   if (/^[\p{L}][\p{L}\p{N}_'′]*(?:\([^=,]*\))?$/u.test(normalized)) return null;
-  if (!/[0-9]/.test(normalized) && !/(?:NaN|Infinity|∞)/i.test(normalized)) return null;
   const separator = normalized.search(/[=≈:]/); const name = separator < 0 ? "" : normalized.slice(0, separator);
   const stated = separator < 0 ? normalized : normalized.slice(separator + 1).trim();
   // kπ/n is an exact real; read it only where a coordinate or named value is claimed.
   const right = separator >= 0 || /^[([]/.test(stated) ? exactConstants(stated) : stated;
+  // A label without digits states no value, except a pure kπ/n value such as
+  // (π, π) or y = π, which is as much a claim as (3.14, 0).
+  if (!/[0-9]/.test(normalized) && !/(?:NaN|Infinity|∞)/i.test(normalized)) {
+    const pair = right.match(PAIR); const scalar = right.match(SCALAR);
+    if (right === stated || !(pair && !pair[5]?.trim() || scalar && !scalar[2]?.trim())) return null;
+  }
   const pair = right.match(PAIR);
   if (pair) {
     if (pair[1] === "(" ? pair[4] !== ")" : pair[4] !== "]") fail("Derived coordinate/component tuple delimiters must match");
