@@ -1106,6 +1106,75 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
     reconcileTurnPlanV3ExplicitArithmetic(radianAlias).plan === radianAlias &&
       validateTurnPlanV3(radianAlias, radianAliasQuestion).valid,
     reconcileTurnPlanV3ExplicitArithmetic(radianAlias));
+  // Explicit source units outrank an inconsistent extracted degree symbol.
+  // The radian argument grammar is not limited to unsigned decimal literals.
+  for (const [name, evaluate, prescribed] of [
+    ["cos", Math.cos, 0.8], ["sin", Math.sin, 0.6], ["tan", Math.tan, 0.75],
+  ] as const) {
+    for (const [argument, angle] of [
+      ["+37 rad", 37], ["−37 radians", -37], ["74/2 rad", 37],
+      ["(74/2) rad", 37], ["3.7e1 rad", 37], ["π/6 rad", Math.PI / 6],
+    ] as const) {
+      const value = evaluate(angle);
+      const question = `Take ${name} 37° = ${prescribed}. Evaluate the explicitly radian quantity k.`;
+      const sourceText = `k = ${name}(${argument}) = ${value}`;
+      const input = {
+        ...plan([given("ratio", value, undefined, { symbol: `${name}37°`, sourceText })],
+          [derived("component", 30 * value, "N", `component = 30*k = ${30 * value}`)]),
+        question,
+      };
+      const label = `${name}(${argument}) with conflicting degree symbol`;
+      const correct = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+      check(`${label}: the radian given and source are preserved`,
+        correct.givens[0]?.value === value && correct.givens[0].sourceText === sourceText, correct);
+      check(`${label}: the correct radian plan validates`,
+        validateTurnPlanV3(input, question).valid, validateTurnPlanV3(input, question).issues);
+      const staleDependent = {
+        ...input,
+        derived: [derived("component", 30 * prescribed, "N", `component = 30*k = ${30 * prescribed}`)],
+      };
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(staleDependent).plan as ReturnType<typeof plan>;
+      check(`${label}: dependent arithmetic uses the radian binding`,
+        close(corrected.derived[0]?.value, 30 * value) && corrected.givens[0]?.sourceText === sourceText, corrected);
+      check(`${label}: the corrected radian plan validates`,
+        validateTurnPlanV3(corrected, question).valid, validateTurnPlanV3(corrected, question).issues);
+    }
+    for (const [expression, angle] of [
+      [`${name} +37 rad`, 37], [`${name} -37rad`, -37], [`${name}37rad`, 37],
+      [`${name}(πrad)`, Math.PI],
+    ] as const) {
+      const value = evaluate(angle);
+      const question = `Take ${name} 37° = ${prescribed}.`;
+      const sourceText = `k = ${expression} = ${value}`;
+      const input = {
+        ...plan([given("ratio", value, undefined, { symbol: `${name}37°`, sourceText })],
+          [derived("component", 30 * prescribed, "N", `component = 30*k = ${30 * prescribed}`)]),
+        question,
+      };
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+      check(`${expression}: explicit source unit preserves the given even without arithmetic interpretation`,
+        corrected.givens[0]?.value === value && corrected.givens[0].sourceText === sourceText, corrected);
+      check(`${expression}: an explicit source unit is not a degree-prescription conflict`,
+        !validateTurnPlanV3(input, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+        validateTurnPlanV3(input, question).issues);
+      check(`${expression}: dependent arithmetic retains its explicit-radian binding`,
+        close(corrected.derived[0]?.value, 30 * value), corrected);
+      check(`${expression}: corrected dependent arithmetic validates`,
+        validateTurnPlanV3(corrected, question).valid, validateTurnPlanV3(corrected, question).issues);
+    }
+  }
+  for (const word of ["radius", "radial", "gradient", "rad2"]) {
+    const question = "Take cos 37° = 0.8.";
+    const input = {
+      ...plan([given("ratio", 0.6, undefined, { symbol: "cos37°", sourceText: `k = 0.6; ${word} is recorded separately` })],
+        [derived("component", 18, "N", "component = 30*k = 18")]),
+      question,
+    };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`${word}: prose or an identifier is not an explicit radian unit`,
+      corrected.givens[0]?.value === 0.8 && corrected.derived[0]?.value === 24 &&
+        validateTurnPlanV3(corrected, question).valid, corrected);
+  }
   // A standalone function still computes a value; its prescribed answer
   // must not become a bare restatement that the arithmetic checker ignores.
   for (const [name, angle, expected] of [

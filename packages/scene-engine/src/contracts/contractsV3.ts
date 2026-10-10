@@ -1700,7 +1700,11 @@ function reconcilePrescribedTrigGiven(
     typeof given.id !== "string" || unitScale(given.unit)?.signature !== "") return given;
   const sourceParts = typeof given.sourceText === "string"
     ? given.sourceText.split(/[=≈≃≅]/).map((part) => part.trim()) : [];
-  if (sourceParts.some((part) => /^\s*(?:sin|cos|tan)\s*\(?\s*\d+(?:\.\d+)?\s*(?:rad|radians?)\s*\)?\s*$/i.test(part))) {
+  // Explicit source units outrank an extracted symbol, even when the
+  // arithmetic grammar cannot interpret the expression. A unit may be
+  // glued to a digit or π; words such as "radius" are not radian markers.
+  if (sourceParts.some((part) =>
+    /(?:^|[^\p{L}\p{N}_]|[0-9π])(?:radians?|rad)(?![\p{L}\p{N}_])/iu.test(part))) {
     return given;
   }
   const sourceAlias = sourceAssignmentAlias(given.sourceText);
