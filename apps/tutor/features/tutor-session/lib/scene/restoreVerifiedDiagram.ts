@@ -19,6 +19,7 @@ import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnSourceIssues } from "@/lib/scene/storedSceneSource";
 import { DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildVerifiedDiagramPresentation } from "./verifiedScenePresentation";
+import { isVisualPresentationRefusal } from "./visualPresentationRefusal";
 
 function isDsaSceneDocument(document: SceneDocument): boolean {
   return (document.source as Record<string, unknown>).synthesizedDsa === true;
@@ -39,11 +40,16 @@ export function restoreVerifiedPresentationFromTurn(
     dsa ? { viewport: DSA_DIAGRAM_ZONE } : {},
   );
   if (!compiled.ok || !compiled.renderScene) return null;
-  const presentation = buildVerifiedDiagramPresentation(
-    document,
-    compiled.renderScene,
-    dsa ? { layout: "code_lesson" } : {},
-  );
+  let presentation: ReturnType<typeof buildVerifiedDiagramPresentation>;
+  try {
+    presentation = buildVerifiedDiagramPresentation(
+      document, compiled.renderScene,
+      { originalQuestion: turn.question, ...(dsa ? { layout: "code_lesson" as const } : {}) },
+    );
+  } catch (error) {
+    if (isVisualPresentationRefusal(error)) return null;
+    throw error;
+  }
   if (!verifiedDiagramHasDrawableInk(presentation.diagram)) return null;
   return presentation;
 }

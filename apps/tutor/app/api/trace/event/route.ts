@@ -8,6 +8,8 @@ import { MAX_TURN_TELEMETRY_EVENTS } from "@/lib/obs/turnTelemetry";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
+import { FIGURE_OUTCOME_EVENT_NAMES, isFigureOutcomeMetadataKey, sanitizeFigureOutcomeMetadata } from "@/lib/obs/figureOutcome";
+import { SPEECH_PLAYBACK_EVENT_NAMES, sanitizeSpeechPlaybackMetadata, sanitizeSpeechPlaybackTraceMetadata } from "@/lib/obs/speechPlayback";
 
 interface TraceEventRequestBody {
   traceId?: string;
@@ -20,6 +22,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isSpeechPlaybackEvent(name: string): boolean {
+  return SPEECH_PLAYBACK_EVENT_NAMES.some((eventName) => eventName === name);
+}
+
 function isValidEvent(value: unknown): value is TurnTelemetryEvent {
   if (!isRecord(value)) {
     return false;
@@ -27,6 +33,8 @@ function isValidEvent(value: unknown): value is TurnTelemetryEvent {
 
   return (
     typeof value.name === "string" && value.name.length > 0 && value.name.length <= 120 &&
+    (!value.name.startsWith("figure-") || FIGURE_OUTCOME_EVENT_NAMES.some(name => name === value.name)) &&
+    (!value.name.startsWith("speech-playback-") || isSpeechPlaybackEvent(value.name)) &&
     typeof value.startTime === "string" && value.startTime.length <= 40 && Number.isFinite(Date.parse(value.startTime)) &&
     typeof value.endTime === "string" && value.endTime.length <= 40 && Number.isFinite(Date.parse(value.endTime))
   );
@@ -35,6 +43,8 @@ function isValidEvent(value: unknown): value is TurnTelemetryEvent {
 function boundedMetadata(value: unknown): Record<string, unknown> | undefined {
   if (!isRecord(value) || Array.isArray(value)) return undefined;
   const fields = Object.entries(value).slice(0, 50).flatMap<[string, unknown]>(([key, item]) => {
+    if (isFigureOutcomeMetadataKey(key)) return [];
+    if (key === "speech_trace_schema" || key.startsWith("speech_playback_")) return [];
     if (!/^[\w.-]{1,80}$/.test(key)) return [];
     if (typeof item === "string") return [[key, item.slice(0, 500)]];
     if (typeof item === "number" && Number.isFinite(item)) return [[key, item]];
@@ -42,7 +52,7 @@ function boundedMetadata(value: unknown): Record<string, unknown> | undefined {
     if (Array.isArray(item)) return [[key, item.slice(0, 20).filter(item => typeof item === "string").map(item => item.slice(0, 120))]];
     return [];
   });
-  return Object.fromEntries(fields);
+  return { ...Object.fromEntries(fields), ...sanitizeFigureOutcomeMetadata(value), ...sanitizeSpeechPlaybackTraceMetadata(value) };
 }
 
 function parseBody(rawBody: string): TraceEventRequestBody | null {
@@ -59,9 +69,10 @@ function parseBody(rawBody: string): TraceEventRequestBody | null {
           name: event.name,
           startTime: event.startTime,
           endTime: event.endTime,
-          parentName: typeof event.parentName === "string" ? event.parentName.slice(0, 120) : undefined,
+          parentName: event.name.startsWith("figure-") || isSpeechPlaybackEvent(event.name) ? undefined : typeof event.parentName === "string" ? event.parentName.slice(0, 120) : undefined,
           level: event.level === "DEBUG" || event.level === "WARNING" || event.level === "ERROR" ? event.level : "DEFAULT" as const,
-          metadata: { ...boundedMetadata(event.metadata), client_reported: true },
+          metadata: { ...(event.name.startsWith("figure-") ? sanitizeFigureOutcomeMetadata(event.metadata)
+            : isSpeechPlaybackEvent(event.name) ? sanitizeSpeechPlaybackMetadata(event.metadata) : boundedMetadata(event.metadata)), client_reported: true },
         }))
       : [];
     const traceMetadata = boundedMetadata(parsed.traceMetadata);

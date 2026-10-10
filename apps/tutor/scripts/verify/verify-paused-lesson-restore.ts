@@ -773,10 +773,16 @@ async function main() {
     assert(handler.includes("if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));"),
       "and a resume's rides its own");
     const branch = between(file, "} else if (resume) {", "diagramSource = activeDiagram ?");
-    assert(branch.includes("activeDiagram = resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;"),
-      "a figure a Stop caught before its first beat is drawn whole by Continue");
-    assert(branch.includes("sceneV2IntroSegments = [...resume.remainingIntro];") && branch.includes("resumeIntroRemainder = true;"),
-      "Continue draws the beats a Stop cut off");
+    assert(branch.includes("activeDiagram = resume.codeLesson ? activeVerifiedDiagramRef.current : null;") &&
+      branch.includes("restoreVerifiedPresentationFromTurn({") && branch.includes("question: originalQuestion,") &&
+      branch.includes("activeDiagram = restored.diagram;"),
+      "an ordinary cached figure is restored against the lesson source, never authorized by its drawn flag alone");
+    assert(branch.includes("let owedIntro = resume.figureDrawn ? [] : restored.introSegments;") &&
+      branch.includes("sceneV2IntroSegments = owedIntro;"),
+      "an undrawn figure resumes with the freshly verified full intro, while a completed figure is not redrawn");
+    assert(branch.includes("JSON.stringify(segment) === JSON.stringify(restored!.introSegments[start + index])") &&
+      branch.includes("owedIntro = restored.introSegments.slice(start);") && branch.includes("resumeIntroRemainder = true;"),
+      "Continue can draw stopped beats only as a freshly verified canonical suffix, never arbitrary cached commands");
     assert(handler.includes("enqueueVerifiedIntro(introSegments, turnGeneration, { remainder: resumeIntroRemainder });"),
       "as a remainder, never saved");
     assert(handler.includes("reason: resume.reason,") && handler.includes("resumeInkRetryUserPrompt(resume?.reason)") &&
