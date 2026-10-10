@@ -28,6 +28,7 @@ interface Quantity {
   unit?: string;
   sign?: "positive" | "negative" | "zero" | "unsigned";
   sourceText?: string;
+  dependsOn?: string[];
   provenance: "given" | "derived";
 }
 
@@ -959,6 +960,464 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
   check("a cos 37 = 0.8 the question states keeps F cos θ = 24",
     reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations.length === 0,
     reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations);
+  // A model's extracted given cannot replace the question's prescribed
+  // value, whether it arrives as source text or as a named trig quantity.
+  for (const [name, conflictingGiven] of [
+    ["given source text", given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
+    ["given trig symbol", given("cosT", 0.6, undefined, { symbol: "cos37°" })],
+  ] as const) {
+    const question = "A 30 N pull acts at 37°. Take cos 37° = 0.8. Find its horizontal component.";
+    const wrong = {
+      ...plan([...pull, conflictingGiven], [derived("F_x", 18, "N", "F_x = 30 cos 37° = 18")]),
+      question,
+    };
+    const wrongCodes = validateTurnPlanV3(wrong, question).issues.map((issue) => issue.code);
+    check(`${name} cannot override the question: wrong result is rejected`,
+      wrongCodes.includes("source_text_arithmetic_invalid") || wrongCodes.includes("source_text_value_mismatch"),
+      wrongCodes);
+    check(`${name} cannot override the question: wrong result reconciles to 24`,
+      close(reconciled(wrong, "F_x").value, 24), reconciled(wrong, "F_x"));
+    const correct = {
+      ...plan([...pull, conflictingGiven], [derived("F_x", 24, "N", "F_x = 30 cos 37° = 24")]),
+      question,
+    };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(correct);
+    check(`${name} cannot override the question: prescribed result stays valid`,
+      close(reconciled(correct, "F_x").value, 24) && validateTurnPlanV3(corrected.plan, question).valid,
+      corrected);
+  }
+  // A named trig quantity must carry the prescribed value into every
+  // dependent calculation, and into the published givens themselves.
+  for (const [identity, trigGiven] of [
+    ["source equality", given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
+    ["trig symbol", given("cosT", 0.6, undefined, { symbol: "cos37°", sourceText: "cosT = 0.6" })],
+  ] as const) {
+    const question = "A 30 N pull acts at 37°. Take cos 37° = 0.8. Find its horizontal component.";
+    const coefficient = given("mu", 0.6, undefined, { sourceText: "mu = 0.6" });
+    const input = {
+      ...plan([...pull, trigGiven, coefficient], [
+        derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+        derived("component", 18, "N", "component = F*cosT = 18"),
+      ]),
+      question,
+    };
+    const rawCodes = validateTurnPlanV3(input, question).issues.map((issue) => issue.code);
+    check(`${identity}: a conflicting trig given is rejected before reconciliation`,
+      rawCodes.includes("given_trig_stipulation_conflict"), rawCodes);
+    const result = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    const correctedGiven = result.givens.find((entry) => entry.id === "cosT");
+    check(`${identity}: the given value and source are canonical`,
+      correctedGiven?.value === 0.8 && correctedGiven.sourceText?.includes("0.8") === true &&
+        !correctedGiven.sourceText.includes("0.6"), correctedGiven);
+    check(`${identity}: the named alias computes 24`, close(reconciled(input, "component").value, 24), result);
+    check(`${identity}: a downstream quantity computes 48`, close(reconciled(input, "double").value, 48), result);
+    check(`${identity}: an unrelated same-valued given remains unchanged`,
+      JSON.stringify(result.givens.find((entry) => entry.id === "mu")) === JSON.stringify(coefficient), result.givens);
+    check(`${identity}: the fully reconciled plan validates`, validateTurnPlanV3(result, question).valid,
+      validateTurnPlanV3(result, question).issues);
+    const correctFigure = {
+      ...plan([...pull, trigGiven], [derived("component", 24, "N", "component = 30 cos 37° = 24")]),
+      question,
+    };
+    check(`${identity}: a correct figure cannot mask a stale given`,
+      !validateTurnPlanV3(correctFigure, question).valid, validateTurnPlanV3(correctFigure, question));
+  }
+  const staleSourceQuestion = "Take cos 37° = 0.8.";
+  const staleSource = {
+    ...plan([given("cosT", 0.8, undefined, { sourceText: "cos 37° = 0.6" })],
+      [derived("c", 0.8, undefined, "c = cosT = 0.8")]),
+    question: staleSourceQuestion,
+  };
+  check("a stale trig source is rejected even when its scalar is correct",
+    !validateTurnPlanV3(staleSource, staleSourceQuestion).valid, validateTurnPlanV3(staleSource, staleSourceQuestion));
+  const refreshedSource = reconcileTurnPlanV3ExplicitArithmetic(staleSource).plan as ReturnType<typeof plan>;
+  check("a source-only correction removes the stale given text",
+    refreshedSource.givens[0]?.sourceText?.includes("0.8") === true &&
+      !refreshedSource.givens[0].sourceText.includes("0.6") &&
+      validateTurnPlanV3(refreshedSource, staleSourceQuestion).valid, refreshedSource);
+  // The source's assignment name is also a numeric binding, even when it
+  // differs from both the quantity id and its trig symbol.
+  for (const givenValue of [0.6, 0.8]) {
+    const question = "Take cos 37° = 0.8.";
+    const input = {
+      ...plan([given("ratio", givenValue, undefined, { symbol: "cos37°", sourceText: "k = 0.6" })],
+        [derived("component", 18, "N", "component = 30*k = 18")]),
+      question,
+    };
+    const raw = validateTurnPlanV3(input, question);
+    check(`source assignment alias with scalar ${givenValue}: stale extraction is rejected`,
+      raw.issues.some((issue) => issue.code === "given_trig_stipulation_conflict"), raw);
+    const result = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`source assignment alias with scalar ${givenValue}: name and value survive correction`,
+      result.givens[0]?.sourceText?.startsWith("k = ") === true &&
+        result.givens[0].sourceText.endsWith("= 0.8") && result.givens[0].value === 0.8, result);
+    check(`source assignment alias with scalar ${givenValue}: dependent arithmetic computes 24`,
+      result.derived[0]?.value === 24, result);
+    check(`source assignment alias with scalar ${givenValue}: corrected plan validates`,
+      validateTurnPlanV3(result, question).valid, validateTurnPlanV3(result, question).issues);
+  }
+  const correctSourceAlias = {
+    ...plan([given("ratio", 0.8, undefined, { symbol: "cos37°", sourceText: "k = 0.8" })],
+      [derived("component", 24, "N", "component = 30*k = 24")]),
+    question: "Take cos 37° = 0.8.",
+  };
+  check("a correct third-name source alias is preserved",
+    reconcileTurnPlanV3ExplicitArithmetic(correctSourceAlias).plan === correctSourceAlias &&
+      validateTurnPlanV3(correctSourceAlias, correctSourceAlias.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(correctSourceAlias));
+  const percentRatio = given("ratio", 80, "%", { symbol: "cos37°", sourceText: "k = cos 37° = 0.8" });
+  const correctPercentRatio = {
+    ...plan([given("F", 30, "N"), percentRatio], [
+      derived("component", 24, "N", "component = F*k = 24"),
+      derived("double", 48, "N", "double = 2*component = 48", { dependsOn: ["component"] }),
+    ]),
+    question: "Take cos 37° = 0.8.",
+  };
+  const keptPercentRatio = reconcileTurnPlanV3ExplicitArithmetic(correctPercentRatio).plan as ReturnType<typeof plan>;
+  check("a correct prescribed trig ratio stays 80 percent",
+    JSON.stringify(keptPercentRatio.givens[1]) === JSON.stringify(percentRatio), keptPercentRatio);
+  check("a percent trig alias retains correct component and downstream arithmetic",
+    keptPercentRatio.derived[0]?.value === 24 && keptPercentRatio.derived[1]?.value === 48, keptPercentRatio);
+  check("a correct percent trig ratio validates before and after reconciliation",
+    validateTurnPlanV3(correctPercentRatio, correctPercentRatio.question).valid &&
+      validateTurnPlanV3(keptPercentRatio, correctPercentRatio.question).valid,
+    validateTurnPlanV3(keptPercentRatio, correctPercentRatio.question).issues);
+  const barePercentRatio = {
+    ...plan([given("cosT", 80, "%", { symbol: "cos37°" })],
+      [derived("component", 24, "N", "component = 30*cosT = 24")]),
+    question: "Take cos 37° = 0.8.",
+  };
+  check("a correct percent trig symbol without source text stays untouched and valid",
+    reconcileTurnPlanV3ExplicitArithmetic(barePercentRatio).plan === barePercentRatio &&
+      validateTurnPlanV3(barePercentRatio, barePercentRatio.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(barePercentRatio));
+  const stalePercentRatio = {
+    ...plan([given("F", 30, "N"), given("ratio", 60, "%", { symbol: "cos37°", sourceText: "k = cos 37° = 0.6" })], [
+      derived("component", 18, "N", "component = F*k = 18"),
+      derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+    ]),
+    question: "Take cos 37° = 0.8.",
+  };
+  const fixedPercentRatio = reconcileTurnPlanV3ExplicitArithmetic(stalePercentRatio).plan as ReturnType<typeof plan>;
+  check("a stale percent trig ratio corrects to 80 percent with a coherent source",
+    fixedPercentRatio.givens[1]?.value === 80 && fixedPercentRatio.givens[1].unit === "%" &&
+      fixedPercentRatio.givens[1].sourceText === "k = cos 37° = 0.8", fixedPercentRatio);
+  check("a stale percent trig alias computes 24 and downstream 48",
+    fixedPercentRatio.derived[0]?.value === 24 && fixedPercentRatio.derived[1]?.value === 48, fixedPercentRatio);
+  check("the corrected stale percent trig plan validates",
+    validateTurnPlanV3(fixedPercentRatio, stalePercentRatio.question).valid,
+    validateTurnPlanV3(fixedPercentRatio, stalePercentRatio.question).issues);
+  for (const [unit, correct, stale] of [
+    ["%", 80, 60], ["cm/m", 80, 60], ["m/cm", 0.008, 0.006], ["dimensionless", 0.8, 0.6],
+  ] as const) {
+    const ratio = given("ratio", correct, unit, { symbol: "cos37°", sourceText: "k = cos 37° = 0.8" });
+    const correctInput = {
+      ...plan([given("F", 30, "N"), ratio], [derived("component", 24, "N", "component = F*k = 24")]),
+      question: "Take cos 37° = 0.8.",
+    };
+    const preserved = reconcileTurnPlanV3ExplicitArithmetic(correctInput).plan as ReturnType<typeof plan>;
+    check(`${unit}: a correct equivalent ratio keeps its authored value, unit and source`,
+      JSON.stringify(preserved.givens[1]) === JSON.stringify(ratio) && preserved.derived[0]?.value === 24, preserved);
+    check(`${unit}: the correct equivalent ratio validates`,
+      validateTurnPlanV3(correctInput, correctInput.question).valid &&
+        validateTurnPlanV3(preserved, correctInput.question).valid, validateTurnPlanV3(preserved, correctInput.question).issues);
+    const staleInput = {
+      ...plan([given("F", 30, "N"), { ...ratio, value: stale, sourceText: "k = cos 37° = 0.6" }], [
+        derived("component", 18, "N", "component = F*k = 18"),
+        derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+      ]),
+      question: correctInput.question,
+    };
+    check(`${unit}: a stale equivalent ratio is rejected before reconciliation`,
+      validateTurnPlanV3(staleInput, staleInput.question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+      validateTurnPlanV3(staleInput, staleInput.question).issues);
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(staleInput).plan as ReturnType<typeof plan>;
+    check(`${unit}: correction preserves the declared unit and source alias`,
+      close(corrected.givens[1]?.value, correct) && corrected.givens[1]?.unit === unit &&
+        corrected.givens[1]?.sourceText === "k = cos 37° = 0.8", corrected);
+    check(`${unit}: prescribed alias arithmetic and its downstream quantity are coherent`,
+      corrected.derived[0]?.value === 24 && corrected.derived[1]?.value === 48 &&
+        validateTurnPlanV3(corrected, staleInput.question).valid, corrected);
+  }
+  for (const [value, statedPercent] of [[80, 80], [80, 60], [60, 60], [0.8, 0.8]] as const) {
+    const ratio = given("ratio", value, "%", { symbol: "cos37°", sourceText: `k = cos 37° = ${statedPercent}%` });
+    const input = {
+      ...plan([given("F", 30, "N"), ratio], [
+        derived("component", 18, "N", "component = F*k = 18"),
+        derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+      ]),
+      question: "Take cos 37° = 0.8.",
+    };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    const expectedSource = value === 80 && statedPercent === 80 ? ratio.sourceText : "k = cos 37° = 0.8";
+    check(`${value}% with ${statedPercent}% source: quantity, unit and third-name alias remain consistent`,
+      corrected.givens[1]?.value === 80 && corrected.givens[1].unit === "%" &&
+        corrected.givens[1].sourceText === expectedSource, corrected);
+    check(`${value}% with ${statedPercent}% source: component and downstream arithmetic use the ratio`,
+      corrected.derived[0]?.value === 24 && corrected.derived[1]?.value === 48 &&
+        validateTurnPlanV3(corrected, input.question).valid, corrected);
+    check(`${value}% with ${statedPercent}% source: stale source/scalar is rejected independently`,
+      validateTurnPlanV3(input, input.question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict") ===
+        !(value === 80 && statedPercent === 80), validateTurnPlanV3(input, input.question).issues);
+  }
+  const negativePercent = {
+    ...plan([given("ratio", 80, "%", { symbol: "cos143°", sourceText: "k = cos 143° = 80%", sign: "positive" })],
+      [derived("component", 24, "N", "component = 30*k = 24")]),
+    question: "Take cos 143° = -0.8.",
+  };
+  const fixedNegativePercent = reconcileTurnPlanV3ExplicitArithmetic(negativePercent).plan as ReturnType<typeof plan>;
+  check("a negative prescribed percentage keeps its unit and coherent sign",
+    fixedNegativePercent.givens[0]?.value === -80 && fixedNegativePercent.givens[0].unit === "%" &&
+      fixedNegativePercent.givens[0].sign === "negative" && fixedNegativePercent.derived[0]?.value === -24 &&
+      validateTurnPlanV3(fixedNegativePercent, negativePercent.question).valid, fixedNegativePercent);
+  for (const unit of ["N", "rad", "unknown-unit"]) {
+    const ratio = given("ratio", 60, unit, { symbol: "cos37°", sourceText: "k = cos 37° = 0.6" });
+    const input = { ...plan([ratio], []), question: "Take cos 37° = 0.8." };
+    check(`${unit}: a dimensional or unknown unit is never rewritten as a prescribed ratio`,
+      reconcileTurnPlanV3ExplicitArithmetic(input).plan === input &&
+        !validateTurnPlanV3(input, input.question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+      reconcileTurnPlanV3ExplicitArithmetic(input));
+  }
+  const unprescribedPercent = plan([given("F", 30, "N"), given("ratio", 80, "%", { symbol: "cos37°", sourceText: "k = 80%" })],
+    [derived("component", 24, "N", "component = F*k = 24")]);
+  check("a percent alias without a question prescription keeps existing dimensional reading",
+    reconcileTurnPlanV3ExplicitArithmetic(unprescribedPercent).plan === unprescribedPercent &&
+      validateTurnPlanV3(unprescribedPercent, unprescribedPercent.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(unprescribedPercent));
+  const unrelatedPercent = {
+    ...plan([given("F", 30, "N"), given("mu", 80, "%", { sourceText: "mu = 80%" })],
+      [derived("component", 18, "N", "component = F*mu = 18")]),
+    question: "Take cos 37° = 0.8.",
+  };
+  check("an unrelated percent quantity retains the existing unpinned mixed-unit policy",
+    reconcileTurnPlanV3ExplicitArithmetic(unrelatedPercent).plan === unrelatedPercent &&
+      !validateTurnPlanV3(unrelatedPercent, unrelatedPercent.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(unrelatedPercent));
+  for (const [unit, correct, wrongValues] of [
+    [undefined, 1e-12, [0, 3e-12]], ["%", 1e-10, [0, 3e-10]],
+  ] as const) {
+    const question = "Take cos 89.99° = 0.000000000001.";
+    const correctInput = {
+      ...plan([given("ratio", correct, unit, { symbol: "cos89.99°", sourceText: "k = cos 89.99° = 0.000000000001" })], []),
+      question,
+    };
+    check(`${unit ?? "factor1"}: the tiny correct prescribed ratio is preserved`,
+      reconcileTurnPlanV3ExplicitArithmetic(correctInput).plan === correctInput &&
+        validateTurnPlanV3(correctInput, question).valid, reconcileTurnPlanV3ExplicitArithmetic(correctInput));
+    for (const value of wrongValues) {
+      const input = { ...correctInput, givens: [given("ratio", value, unit, { symbol: "cos89.99°" })] };
+      check(`${unit ?? "factor1"}: ${value} cannot replace a tiny prescribed ratio`,
+        validateTurnPlanV3(input, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+        validateTurnPlanV3(input, question).issues);
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+      check(`${unit ?? "factor1"}: ${value} corrects to the tiny ratio in its own unit`,
+        typeof corrected.givens[0]?.value === "number" && Math.abs(corrected.givens[0].value - correct) <= 1e-25 &&
+          corrected.givens[0].unit === unit &&
+          validateTurnPlanV3(corrected, question).valid, corrected);
+    }
+    const staleSource = {
+      ...correctInput,
+      givens: [given("ratio", correct, unit, { symbol: "cos89.99°", sourceText: "k = cos 89.99° = 0.000000000003" })],
+    };
+    check(`${unit ?? "factor1"}: a stale tiny source conflicts even when the scalar is correct`,
+      validateTurnPlanV3(staleSource, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+      validateTurnPlanV3(staleSource, question).issues);
+    const refreshed = reconcileTurnPlanV3ExplicitArithmetic(staleSource).plan as ReturnType<typeof plan>;
+    check(`${unit ?? "factor1"}: a tiny source-only correction preserves the unit and alias`,
+      typeof refreshed.givens[0]?.value === "number" && Math.abs(refreshed.givens[0].value - correct) <= 1e-25 &&
+        refreshed.givens[0].unit === unit &&
+        refreshed.givens[0].sourceText === "k = cos 89.99° = 1e-12" && validateTurnPlanV3(refreshed, question).valid,
+      refreshed);
+  }
+  for (const [unit, wrong] of [[undefined, 1e-12], ["%", 1e-10]] as const) {
+    const question = "Take cos 90° = 0.";
+    const correct = { ...plan([given("ratio", 0, unit, { symbol: "cos90°" })], []), question };
+    check(`${unit ?? "factor1"}: the exact zero prescribed ratio is preserved`,
+      reconcileTurnPlanV3ExplicitArithmetic(correct).plan === correct && validateTurnPlanV3(correct, question).valid,
+      reconcileTurnPlanV3ExplicitArithmetic(correct));
+    const input = { ...plan([given("ratio", wrong, unit, { symbol: "cos90°" })], []), question };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`${unit ?? "factor1"}: a nonzero tiny extraction conflicts with an exact zero prescription`,
+      validateTurnPlanV3(input, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict") &&
+        corrected.givens[0]?.value === 0 && corrected.givens[0].unit === unit &&
+        validateTurnPlanV3(corrected, question).valid, corrected);
+  }
+  const noPrescription = plan([...pull, given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
+    [derived("component", 18, "N", "component = F*cosT = 18")]);
+  check("an alias without a question prescription is preserved",
+    reconcileTurnPlanV3ExplicitArithmetic(noPrescription).plan === noPrescription && issueCodes(noPrescription).length === 0,
+    reconcileTurnPlanV3ExplicitArithmetic(noPrescription));
+  for (const [sourceText, prescription, stale, expected] of [
+    ["cosT = cos 37° = 0.6", "Take cos 37° = 0.8.", 0.6, 0.8],
+    ["sin 37° = 2/5", "Take sin 37° = 3/5.", 0.4, 0.6],
+    ["cos 143° = 0.8", "Take cos 143° = -0.8.", 0.8, -0.8],
+  ] as const) {
+    const input = {
+      ...plan([given("cosT", stale, undefined, { sourceText, sign: "positive" })],
+        [derived("c", stale, undefined, `c = cosT = ${stale}`)]),
+      question: prescription,
+    };
+    const result = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`${sourceText}: exact identity supplies the given and derived alias`,
+      close(result.givens[0]?.value, expected) && close(result.derived[0]?.value, expected), result);
+    check(`${sourceText}: published source and sign agree`,
+      result.givens[0]?.sourceText?.endsWith(`= ${expected}`) === true &&
+        result.givens[0]?.sign === (expected < 0 ? "negative" : "positive") &&
+        validateTurnPlanV3(result, prescription).valid, result);
+  }
+  const proseGiven = given("mu", 0.6, undefined, { sourceText: "mu = 0.6; a force also uses cos 37°" });
+  const prose = { ...plan([proseGiven], []), question: "Take cos 37° = 0.8." };
+  check("trig mentioned in unrelated provenance does not change the quantity",
+    reconcileTurnPlanV3ExplicitArithmetic(prose).plan === prose && validateTurnPlanV3(prose, prose.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(prose));
+  const askedAlias = { ...noPrescription, question: "Is cos 37° = 0.8?" };
+  check("an asked trig equality cannot replace an alias given",
+    reconcileTurnPlanV3ExplicitArithmetic(askedAlias).plan === askedAlias, reconcileTurnPlanV3ExplicitArithmetic(askedAlias));
+  const radianAliasQuestion = "Take cos 37° = 0.8, then evaluate cos(37 rad).";
+  const radianAlias = {
+    ...plan([given("cosT", Math.cos(37), undefined, { symbol: "cos37°", sourceText: `cos(37 rad) = ${Math.cos(37)}` })],
+      [derived("c", Math.cos(37), undefined, `c = cosT = ${Math.cos(37)}`)]),
+    question: radianAliasQuestion,
+  };
+  check("an explicit-radian trig alias retains its value and source",
+    reconcileTurnPlanV3ExplicitArithmetic(radianAlias).plan === radianAlias &&
+      validateTurnPlanV3(radianAlias, radianAliasQuestion).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(radianAlias));
+  // Explicit source units outrank an inconsistent extracted degree symbol.
+  // The radian argument grammar is not limited to unsigned decimal literals.
+  for (const [name, evaluate, prescribed] of [
+    ["cos", Math.cos, 0.8], ["sin", Math.sin, 0.6], ["tan", Math.tan, 0.75],
+  ] as const) {
+    for (const [argument, angle] of [
+      ["+37 rad", 37], ["−37 radians", -37], ["74/2 rad", 37],
+      ["(74/2) rad", 37], ["3.7e1 rad", 37], ["π/6 rad", Math.PI / 6],
+    ] as const) {
+      const value = evaluate(angle);
+      const question = `Take ${name} 37° = ${prescribed}. Evaluate the explicitly radian quantity k.`;
+      const sourceText = `k = ${name}(${argument}) = ${value}`;
+      const input = {
+        ...plan([given("ratio", value, undefined, { symbol: `${name}37°`, sourceText })],
+          [derived("component", 30 * value, "N", `component = 30*k = ${30 * value}`)]),
+        question,
+      };
+      const label = `${name}(${argument}) with conflicting degree symbol`;
+      const correct = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+      check(`${label}: the radian given and source are preserved`,
+        correct.givens[0]?.value === value && correct.givens[0].sourceText === sourceText, correct);
+      check(`${label}: the correct radian plan validates`,
+        validateTurnPlanV3(input, question).valid, validateTurnPlanV3(input, question).issues);
+      const staleDependent = {
+        ...input,
+        derived: [derived("component", 30 * prescribed, "N", `component = 30*k = ${30 * prescribed}`)],
+      };
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(staleDependent).plan as ReturnType<typeof plan>;
+      check(`${label}: dependent arithmetic uses the radian binding`,
+        close(corrected.derived[0]?.value, 30 * value) && corrected.givens[0]?.sourceText === sourceText, corrected);
+      check(`${label}: the corrected radian plan validates`,
+        validateTurnPlanV3(corrected, question).valid, validateTurnPlanV3(corrected, question).issues);
+    }
+    for (const [expression, angle] of [
+      [`${name} +37 rad`, 37], [`${name} -37rad`, -37], [`${name}37rad`, 37],
+      [`${name}(πrad)`, Math.PI],
+    ] as const) {
+      const value = evaluate(angle);
+      const question = `Take ${name} 37° = ${prescribed}.`;
+      const sourceText = `k = ${expression} = ${value}`;
+      const input = {
+        ...plan([given("ratio", value, undefined, { symbol: `${name}37°`, sourceText })],
+          [derived("component", 30 * prescribed, "N", `component = 30*k = ${30 * prescribed}`)]),
+        question,
+      };
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+      check(`${expression}: explicit source unit preserves the given even without arithmetic interpretation`,
+        corrected.givens[0]?.value === value && corrected.givens[0].sourceText === sourceText, corrected);
+      check(`${expression}: an explicit source unit is not a degree-prescription conflict`,
+        !validateTurnPlanV3(input, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+        validateTurnPlanV3(input, question).issues);
+      check(`${expression}: dependent arithmetic retains its explicit-radian binding`,
+        close(corrected.derived[0]?.value, 30 * value), corrected);
+      check(`${expression}: corrected dependent arithmetic validates`,
+        validateTurnPlanV3(corrected, question).valid, validateTurnPlanV3(corrected, question).issues);
+    }
+  }
+  for (const word of ["radius", "radial", "gradient", "rad2"]) {
+    const question = "Take cos 37° = 0.8.";
+    const input = {
+      ...plan([given("ratio", 0.6, undefined, { symbol: "cos37°", sourceText: `k = 0.6; ${word} is recorded separately` })],
+        [derived("component", 18, "N", "component = 30*k = 18")]),
+      question,
+    };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`${word}: prose or an identifier is not an explicit radian unit`,
+      corrected.givens[0]?.value === 0.8 && corrected.derived[0]?.value === 24 &&
+        validateTurnPlanV3(corrected, question).valid, corrected);
+  }
+  // A standalone function still computes a value; its prescribed answer
+  // must not become a bare restatement that the arithmetic checker ignores.
+  for (const [name, angle, expected] of [
+    ["cos", 37, 0.8], ["sin", 37, 0.6], ["tan", 45, 1], ["cos", 143, -0.8],
+  ] as const) {
+    const question = `Take ${name} ${angle}° = ${expected}. Find the trig ratio.`;
+    for (const expression of [`${name}(${angle})`, `${name} ${angle}`, `${name}(${angle}°)`, `${name}(theta)`]) {
+      const wrongValue = expected === 0.6 ? 0.8 : 0.6;
+      const wrong = {
+        ...plan([given("theta", angle, "deg")], [derived("c", wrongValue, undefined, `c = ${expression} = ${wrongValue}`)]),
+        question,
+      };
+      const label = `standalone ${expression}`;
+      check(`${label}: a wrong answer is rejected`, !validateTurnPlanV3(wrong, question).valid,
+        validateTurnPlanV3(wrong, question).issues);
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(wrong);
+      check(`${label}: a wrong answer reconciles to its prescription`, close(reconciled(wrong, "c").value, expected), corrected);
+      check(`${label}: the corrected plan validates`, validateTurnPlanV3(corrected.plan, question).valid,
+        validateTurnPlanV3(corrected.plan, question).issues);
+      const correct = {
+        ...plan([given("theta", angle, "deg")], [derived("c", expected, undefined, `c = ${expression} = ${expected}`)]),
+        question,
+      };
+      check(`${label}: a correct answer is preserved`, reconcileTurnPlanV3ExplicitArithmetic(correct).plan === correct &&
+        validateTurnPlanV3(correct, question).valid, reconcileTurnPlanV3ExplicitArithmetic(correct));
+    }
+  }
+  // A prescribed value fixes its angle even when working omits the degree
+  // mark. The degree guard must not discard that independent evidence.
+  for (const [name, angle, prescription, expected] of [
+    ["cos", 37, "0.8", 24],
+    ["sin", 37, "0.6", 18],
+    ["tan", 45, "1", 30],
+    ["cos", 143, "-0.8", -24],
+  ] as const) {
+    for (const angleGiven of [true, false]) {
+      const question = `A 30 N force acts at ${angle}°. Take ${name} ${angle} = ${prescription}.`;
+      const givens = [given("F", 30, "N"), ...(angleGiven ? [given("theta", angle, "deg")] : [])];
+      const wrongValue = expected === 18 ? 12 : 18;
+      const wrong = {
+        ...plan(givens, [derived("component", wrongValue, "N", `component = 30 ${name} ${angle} = ${wrongValue}`)]),
+        question,
+      };
+      const wrongCodes = validateTurnPlanV3(wrong, question).issues.map((issue) => issue.code);
+      const label = `prescribed bare ${name} ${angle}${angleGiven ? " with a degree given" : " from the question alone"}`;
+      check(`${label}: wrong result is rejected`,
+        wrongCodes.includes("source_text_arithmetic_invalid") || wrongCodes.includes("source_text_value_mismatch"),
+        wrongCodes);
+      check(`${label}: wrong result reconciles to the prescription`,
+        close(reconciled(wrong, "component").value, expected), reconciled(wrong, "component"));
+      const correct = {
+        ...plan(givens, [derived("component", expected, "N", `component = 30 ${name} ${angle} = ${expected}`)]),
+        question,
+      };
+      check(`${label}: correct result stays valid`,
+        reconciliationsOf(correct).length === 0 && validateTurnPlanV3(correct, question).valid,
+        reconcileTurnPlanV3ExplicitArithmetic(correct));
+    }
+  }
+  const explicitRadiansQuestion = "Take cos 37° = 0.8, then evaluate cos(37 rad).";
+  const explicitRadians = {
+    ...plan([given("theta", 37, "deg")], [derived("c", 0.8, undefined, "c = cos(37 rad) = 0.8")]),
+    question: explicitRadiansQuestion,
+  };
+  check("a degree prescription does not replace an explicit radian argument",
+    close(reconciled(explicitRadians, "c").value, Math.cos(37)), reconciled(explicitRadians, "c"));
   // An equality the student is asked about is not an assumption: 20 sin 30° = 12 stays wrong.
   const askedQuestion = "Is sin 30° = 0.6? Find 20 sin 30°.";
   const askedEquality = {
