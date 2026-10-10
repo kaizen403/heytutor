@@ -69,4 +69,9 @@ const distortedOffset = scene(1, 1e-7); distortedOffset.constructions[2]!.inputs
 check(!compileSceneDocument(distortedOffset).ok, "materially distorted axial source offset refuses");
 const lostRadius = scene(); lostRadius.constructions[2]!.inputs.x = 1e9; lostRadius.constructions[3]!.inputs.radius = 1e-10;
 check(!compileSceneDocument(lostRadius).ok, "ring radius lost under translation refuses");
+
+for (const [name, candidate] of [["lost axial offset", lostOffset], ["distorted axial offset", distortedOffset], ["lost radius", lostRadius]] as const) {
+  let refused = false; try { evaluated(candidate); } catch { refused = true; }
+  check(refused, `source evaluator independently refuses ${name} before unrelated layout checks`);
+}
 console.log(`H4 charged ring: ${checks - failures.length}/${checks} passed`); assert.equal(failures.length, 0, failures.join("\n"));
