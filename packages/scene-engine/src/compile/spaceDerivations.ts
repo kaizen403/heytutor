@@ -283,7 +283,9 @@ function spaceAngleMark(angle: ResolvedSpaceAngle, size: number, right: boolean,
         return vec3Add(vertex, vec3Add(vec3Scale(u, size * Math.cos(phi)), vec3Scale(w, size * Math.sin(phi))));
       });
   const points = world.map((point) => projectedPoint(point, frameId, frame).point);
-  return { kind: "path", points, markedAngleRadians: right ? Math.PI / 2 : radians, spaceAngle: { frameId, vertex, u, v, radians: right ? Math.PI / 2 : radians, right } };
+  // Store the measured angle: a right mark is accepted within RIGHT_ANGLE_COSINE
+  // of 90 degrees, and its proof recomputes the angle from the same arms.
+  return { kind: "path", points, markedAngleRadians: radians, spaceAngle: { frameId, vertex, u, v, radians, right } };
 }
 
 /** All derivations use world vectors; the isometric projection is a presentation step. */
@@ -395,12 +397,19 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     const a = sub(first.b, first.a);
     const b = sub(second.b, second.a);
     const raw = cross(a, b);
-    if (!(vec3Length(raw) > MIN_SINE * vec3Length(a) * vec3Length(b))) {
+    // Only an exactly zero product is certified zero. A product within the
+    // rounding of a·b's magnitudes cannot be told from zero, so it is refused
+    // rather than drawn or zeroed; any larger product is drawn at its scale.
+    if (raw.x === 0 && raw.y === 0 && raw.z === 0) {
       return [{ ...projectedPoint(origin, frameId, frame), spaceCross: { frameId, a, b, product: { x: 0, y: 0, z: 0 }, scale, zero: true } }];
+    }
+    if (!(vec3Length(raw) > 8 * Number.EPSILON * vec3Length(a) * vec3Length(b))) {
+      invalid("b", "a×b is within floating rounding of zero; the inputs cannot certify parallel or not, so state exact components");
     }
     const product = finiteVector(vec3Scale(raw, scale), "geometry");
     const end = vec3Add(origin, product);
     const length = bounded(vec3Length(product), "geometry");
+    if (!(length > MIN_VECTOR)) invalid("scale", "scale*(a×b) is too short to draw; raise scale");
     return [{ kind: "path", points: projectedPath(origin, end, frameId, frame), directed: true, spaceSegment: { frameId, a: origin, b: end, length }, spaceCross: { frameId, a, b, product, scale, zero: false } }];
   }
   if (operator === "space_angle_mark" || operator === "space_right_angle_mark") {
@@ -530,12 +539,23 @@ export function spaceDirectionResidual(first: unknown, second: unknown, predicat
     return useDot ? Math.abs(dot(a.direction, b.direction)) : vec3Length(cross(a.direction, b.direction));
   } catch { return Infinity; }
 }
-/** Acute angle in radians; a line-plane angle measures the inclination to the plane. */
+/** A space_vector or space_cross output: a world segment with a sense. */
+function isDirectedWorldVector(value: unknown): boolean {
+  return isRecord(value) && value.kind === "path" && value.directed === true && value.spaceSegment !== undefined;
+}
+/**
+ * Angle in radians. Two directed vectors keep their sense (0 to 180 degrees);
+ * lines and planes have none, so they use the acute angle, and a line-plane
+ * angle measures the inclination to the plane.
+ */
 export function spaceAcuteAngle(first: unknown, second: unknown): number | null {
   if (!hasWorldGeometry(first) && !hasWorldGeometry(second)) return null;
   try {
     const a = proofDirection(first); const b = proofDirection(second);
     sameFrame(a.frameId, b.frameId, "geometry");
+    if (isDirectedWorldVector(first) && isDirectedWorldVector(second)) {
+      return Math.acos(Math.min(1, Math.max(-1, dot(a.direction, b.direction))));
+    }
     const cosine = Math.min(1, Math.max(0, Math.abs(dot(a.direction, b.direction))));
     return a.plane !== b.plane ? Math.asin(cosine) : Math.acos(cosine);
   } catch { return Infinity; }
