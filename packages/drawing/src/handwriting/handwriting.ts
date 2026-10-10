@@ -165,7 +165,7 @@ export function normalizeStrokeText(text: string): string {
   // explicit base + combining mark. Leave non-accent decompositions alone.
   return out.replace(/[\u0080-\u{10FFFF}]/gu, (char) => {
     const decomposed = char.normalize("NFD");
-    return /\p{M}/u.test(decomposed) ? decomposed : char;
+    return /^\p{L}\p{M}+$/u.test(decomposed) ? decomposed : char;
   });
 }
 
@@ -1557,6 +1557,10 @@ function appendCombiningStrokes(
         }
         break;
       }
+      case "\u0338": // negation overlay crosses its owner, never a detached glyph
+        add([bounds.x + bounds.width * 0.9, bounds.y + bounds.height,
+          bounds.x + bounds.width * 0.1, bounds.y]);
+        continue;
       case "\u20d7": { // vector arrow; the head stays above the base ink
         const head = Math.min(span * 0.3, fontSize * 0.1);
         const shaftY = bottomY - head;
@@ -1788,6 +1792,11 @@ export function prefetchStrokePaths(
   fontSize: number,
 ): void {
   void textToStrokePaths(rawText, x, y, fontSize);
+}
+
+/** The same visible glyph count used by the board, including attached marks and scripts. */
+export function countWrittenGlyphs(rawText: string): number {
+  return layOutStrokePaths(rawText, 0, 0, 32, false).paths.length;
 }
 
 export async function textToStrokePaths(

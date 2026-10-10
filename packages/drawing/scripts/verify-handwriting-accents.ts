@@ -108,6 +108,20 @@ for (const [composed, decomposed] of [["â", "â"], ["ẋ", "ẋ"], ["ẍ", "x�
     await textToStrokePaths(decomposed, 70, 230, 32), "canonical accents must replay as the same ink");
 }
 assert.equal(normalizeStrokeText("가"), "가", "unrelated canonical decompositions must stay unchanged");
+for (const sign of ["≠", "∉", "≮", "≯"]) {
+  assert.equal(normalizeStrokeText(sign), sign, "accent normalization must preserve mathematical negation");
+}
+assert.equal(normalizeStrokeText("\\neq"), "≠", "LaTeX negation must retain its sign");
+for (const sign of ["≠", "∉"]) {
+  const paths = await textToStrokePaths(sign, 70, 230, 32);
+  assert.equal(paths[0]!.char, sign);
+  const slash = inkOf([paths[0]!.strokes.at(-1)!]);
+  assert(slash.maxX - slash.minX > 4 && slash.maxY - slash.minY > 8, "negated sign must keep its diagonal slash");
+}
+const overlay = await textToStrokePaths("≠", 70, 230, 32);
+const equality = await textToStrokePaths("=", 70, 230, 32);
+assert.equal(overlay.length, 1);
+assert.equal(overlay[0]!.strokes.length, equality[0]!.strokes.length + 1, "explicit negation overlay retains its slash");
 const unknownBase = await textToStrokePaths("🦕̄", 70, 230, 32);
 assert.equal(unknownBase.length, 1);
 assert.equal(unknownBase[0]!.char, "🦕", "even an unsupported base must never pass a combining mark to Text");
