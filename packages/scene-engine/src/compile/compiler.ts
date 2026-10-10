@@ -1566,7 +1566,7 @@ function evaluateConstruction(
     }
     case "vector_components": {
       const origin = point(["origin", "start"]); const vector = resolveVector(first(inputs, ["vector"]), geometry);
-      const basisReference = first(inputs, ["basis", "parallelTo", "reference"]);
+      const basisReference = ["basis", "parallelTo", "reference"].map(name => inputs[name]).find(value => value !== undefined);
       if (basisReference !== undefined) {
         const [basisStart, basisEnd] = resolveLine(basisReference, geometry);
         const basis = normalize({ x: basisEnd.x - basisStart.x, y: basisEnd.y - basisStart.y });

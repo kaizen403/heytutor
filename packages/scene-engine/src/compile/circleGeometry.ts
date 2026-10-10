@@ -94,7 +94,10 @@ export function validateCircleSourceBinding(document: SceneDocument): SceneIssue
     if (circles.some((circle) => circle !== owner)) fail("Additional primitive circles have no deterministic source-locus derivation witness");
   }
   if (source.member && !(source.kind === "point" && samePoint(source.member, source.center))) {
-    const members = document.constructions.filter((construction) => construction.operator === "point" && document.entities.some((entity) => construction.outputs.includes(entity.id) && (entity.role === "named point" || /^P\b/.test(entity.label ?? ""))) && samePoint(point(construction.outputs[0]), source.member!));
+    // Roles and labels describe presentation, not source identity. A unique
+    // point in world coordinates is the witness; wrong coordinates, canvas
+    // coordinates and duplicate witnesses still fail closed.
+    const members = document.constructions.filter((construction) => construction.operator === "point" && construction.outputs.length === 1 && samePoint(point(construction.outputs[0]), source.member!));
     if (members.length !== 1) fail("The explicit membership point has missing or ambiguous ownership");
     else for (const id of members[0]!.outputs) roots.add(id);
   }
