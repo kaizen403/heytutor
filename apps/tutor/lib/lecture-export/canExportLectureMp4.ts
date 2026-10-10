@@ -63,9 +63,9 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
 
 /**
  * Bump when an already-cached file would be wrong for the same page.
- * `video3` drops exports captured before the final drawing had settled.
+ * `video4` drops files whose estimated speech clock outlasted their cue.
  */
-export const LECTURE_PAGE_CACHE_REVISION = "video3";
+export const LECTURE_PAGE_CACHE_REVISION = "video4";
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to
