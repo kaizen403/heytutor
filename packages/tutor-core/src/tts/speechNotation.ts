@@ -84,7 +84,9 @@ function expandUnicodeSubscripts(text: string): string {
 function expandUnicodePrimes(text: string): string {
   const primeWords = ["", "prime", "double prime", "triple prime", "quadruple prime"];
   const counts: Readonly<Record<string, number>> = { "′": 1, "″": 2, "‴": 3, "⁗": 4 };
-  return text.replace(/(?<![\p{L}\p{N}_])(\p{L}\p{M}*(?:_[A-Za-z0-9\p{Script=Greek}]+)?)([′″‴⁗]+)(?!\p{L})/gu,
+  // A numeric coefficient may touch the letter (`2v′`). Requiring a letter
+  // still excludes numeric angle minutes/seconds (`30′`, `20″`).
+  return text.replace(/(?<![\p{L}_])(\p{L}\p{M}*(?:_[A-Za-z0-9\p{Script=Greek}]+)?)([′″‴⁗]+)(?!\p{L})/gu,
     (_match, symbol: string, primes: string) => {
       const count = [...primes].reduce((total, prime) => total + counts[prime]!, 0);
       return `${symbol} ${primeWords[count] ?? `${count} primes`} `;

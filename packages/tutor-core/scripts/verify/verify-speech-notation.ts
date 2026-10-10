@@ -626,6 +626,27 @@ check("Unicode primes agree with the established ASCII prime spelling", () => {
   }
 });
 
+for (const [expression, label] of [["2v′", "v′"], ["0.25v′", "v′"], ["6.2e−3θ′", "θ′"], ["2v_A′", "v_A′"], ["2v̄₀′", "v̄₀′"]]) {
+  check(`a primed quantity in ${expression} retains its actual speech cue`, () => {
+    const narration = `First ${label![0]}, next ${expression}, finally ${label![0]} again.`;
+    const spoken = mathToSpeech(narration);
+    const reading = mathToSpeech(label!).trim();
+    const index = spoken.indexOf(reading);
+    const window = getCueSpeechWindow(narration, { token: label!, entityId: "primed-quantity" }, {
+      charStartTimes: Array.from(spoken, (_, position) => position * 0.01),
+      charDurations: Array.from(spoken, () => 0.01), totalDuration: spoken.length * 0.01,
+    });
+    assert(window.matched, `The actual cue ${label} must match inside ${expression}; speech was ${spoken}`);
+    assert(index > 0 && window.startMs === index * 10, "The primed cue must anchor after the earlier plain letter");
+    assert(normalizeForSpeechMatch(expression!).includes(normalizeForSpeechMatch(label!)), "A numeric coefficient must preserve its primed symbol reading");
+  });
+}
+
+check("allowing a coefficient before a primed letter does not reinterpret numeric angle marks", () => {
+  assert(mathToSpeech("2′ 20″") === "2′ 20″", "Numeric angle minutes and seconds stay distinct from letter-attached primes");
+  assert(mathToSpeech("word′ and version2′") === "word′ and version2′", "Unicode marks after words or numbers are not single-letter math primes");
+});
+
 check("a Unicode minus retains its role in scientific notation", () => {
   assert(mathToSpeech("6.626e−34") === mathToSpeech("6.626e-34"), "Unicode and ASCII negative scientific exponents must agree");
 });
