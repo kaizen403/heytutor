@@ -178,7 +178,7 @@ export async function repairSceneDocument(
   const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators)}
 
 REPAIR REQUEST
-Validation failed:complete replacement JSON,not a patch. Rebuild failing geometry from authoritative facts and supported operators.
+Replace all JSON,not a patch. Rebuild failed geometry from authoritative facts/supported operators.
 
 PREVIOUS STRUCTURE
 ${JSON.stringify(previousStructure)}
@@ -186,17 +186,17 @@ ${JSON.stringify(previousStructure)}
 STRUCTURED VALIDATION ERRORS
 ${JSON.stringify(errors)}
 
-Resolve every fatal error. Keep useful stable IDs; remove invalid, duplicate or unnecessary entities. Keep consumed helpers out of visible ownership. Label real targets. Preserve authoritative claims/proofs; repair geometry, never weaken assertions. Return replacement JSON only.`;
+Resolve all fatal errors. Reuse useful stable IDs; delete invalid/duplicate/unneeded entities. Hide consumed helpers; label real targets. Preserve authoritative claims/proofs,never weaken assertions; repair geometry. Replacement JSON only.`;
   const connectivityGuidance = errors.some((error) =>
     (error.code === "assertion_failed" && /connect|path|terminal/i.test(error.message)) ||
     error.code === "turnplan_loop_member_not_proven",
   )
-    ? "\nFailed connectivity/path: rebuild adjacent paths/components with the exact same endpoint IDs. Visual proximity is not connectivity. Rebuild disconnected geometry, never rewrite its assertion."
+    ? "\nConnectivity/path:adjacent paths/components share endpoint IDs. Visual proximity is not connectivity. Rebuild geometry,never rewrite its assertion."
     : "";
   const closedRouteMembers = [...new Set(errors.flatMap((error) =>
     error.code === "turnplan_loop_member_not_proven" ? error.entityIds ?? [] : []))];
   const closedRouteGuidance = closedRouteMembers.length > 0
-    ? `\nCLOSED-ROUTE REBUILD (mandatory): ${closedRouteMembers.join(", ")} must be edges of one nondegenerate closed route. Replace old geometry with cyclic shared point IDs p0...pN; adjacent members share IDs. Coordinates/crossings/overlaps/on/decorative polylines never prove connectivity. Component symbols replace side segments. Preserve authoritative cardinal directions.`
+    ? `\nCLOSED-ROUTE REBUILD (mandatory): ${closedRouteMembers.join(", ")} must form one nondegenerate closed route:cyclic shared IDs p0...pN,adjacent members share IDs. Coordinates/crossings/overlaps/on/decorative polylines prove no connectivity. Component symbols replace side segments; preserve authoritative cardinal directions.`
     : "";
   const bypassedMembers = [...new Set(errors.flatMap((error) =>
     error.code === "turnplan_loop_member_bypassed" ? error.entityIds ?? [] : []))];

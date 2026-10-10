@@ -161,7 +161,7 @@ AUTHORITY
 - Fixed question/plan:exact quantity id/value/unit. No invented measurements,signs,components,topology,assumptions except one symbolic representative. Display lengths prove no physical values.
 - Symbolic:owner symbols,never stock quantities; missing values alone never justify text_only. Unspecified classes (curve,conic,lines,planes,vectors,region):one generic nondegenerate member showing every feature. Normalized world/space literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
 - Data-seeking claims never block complete symbolic figures. Source overrides invariants/examples.
-- Arrays present; IDs unique,one producer/entity,dependency order,reuse IDs. No duplicate geometry/terminal pairs; keep output arity/order.
+- Arrays present; unique IDs,one producer/entity,reuse IDs,dependency order. No duplicate geometry/terminal pairs; exact output arity/order.
 - Derive curves,regions,solids,intersections,transforms,normals,rays; never guess. Regions:function_curve + function_region.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
 
@@ -176,14 +176,14 @@ RELATIONS
 
 LABELS AND REVEAL
 - Labels:owners/values,<=16 characters; narrate explanations. No titles,captions,underlines.
-- Owner labels:entity.label|annotation once; narration/endpoint marks are not labels. Angle symbols own angle marks. Derived coordinates:numbers/kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no positioning geometry/helper/junction/terminal labels. Paths:targetIds,never coordinates/CIRCLE_AROUND.
+- Labels once:entity.label|annotation; no narration/endpoint labels. Angle symbols own angle marks. Derived coordinates:numbers/kπ/n,(x,y) or x=/y=,no other arithmetic. Label owners,never positioning geometry/helpers/junctions/terminals. Paths:targetIds,never coordinates/CIRCLE_AROUND.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
-- slope_triangle:{kind:"slope_triangle",targetIds:[curve],curve?,first,second}. Paired source parameters (x/t/theta or quantity IDs) with matching units define exact secant rise/run,not a derivative; never sampled-ink estimates.
-- One group unless staged/separate views. Group/timeline targets:existing entity IDs.
+- slope_triangle:{kind:"slope_triangle",targetIds:[curve],curve?,first,second}. Paired x/t/theta literals or quantity IDs,matching parameter units:exact secant rise/run,not derivative or sampled-ink estimates.
+- One group unless staged/separate views; group/timeline target existing entity IDs.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,group.`;
 
 export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable IDs; numbers or quantity IDs.
-- point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
+- point: {x, y, coordinateSpace:"world"|"layout"}. World:physical distances/angles/directions; exact givens stay exact; unstated vector length may normalize a local frame. Layout:small dimensionless integers for topology only,no metric/direction claim.
 - segment/connect: {start: point_id, end: point_id}.
 - vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. Planar direction sets orientation; with direction,length overrides endpoint span. Pure [0,0,-1]/[0,0,1] draws cross/dot; length is glyph diameter (default 0.25). Mixed 3D direction needs space_vector.
 - ray/line: {start: point_id, end: point_id} or {start: point_id, direction: [dx,dy]}.
@@ -294,6 +294,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable
 - Dipole packet, k explicit, displayLength is arrow length only: coulomb_pair outputs two force vectors; point_charge_field, dipole_field, dipole_torque, and dipole_energy output one vector (dipole_torque draws a page-normal ⊙/⊗ glyph, a point at zero); field_lines outputs one polyline; equipotential outputs a circle when source is point_charge and a polyline when source is dipole. dipole_field mode is finite or ideal, and ideal requires separation large enough for the far-field check. Reject coincident charges, zero distance, a test charge, nonuniform torque, and a numeric field-line density. Rings, Gauss surfaces, and capacitors are not these operators.
 - field_components: {field:electric_field_id}. Output two vector entities [x_component,y_component] from the same computed field and display scale; zero components are point markers. Engine-derived labels retain physical values and units. Do not compute components from the drawn arrow's length or attach guessed numerical labels.
 - coulomb_pair: {charges:[{position,charge}x2],k,displayLength,units?:{charge:"C"|"mC"|"uC"|"nC",length:"m"|"cm"|"mm"}}. Output 2 force vectors,one per charge. position:point_id|[x,y]; bare explicit k:SI (k=1 schematic); displayLength:arrow only. Omitted units:bare SI; source charge/coordinate wrappers or quantity refs must match declared units. Coincident charges reject.
+- charged_ring_axial_field: {frame:space_frame_id,center:space_point_id,radius,charge,axialDistance,k,displayLength,units:{charge:"C"|"mC"|"uC"|"nC",length:"m"|"cm"|"mm"}}. Outputs [ring polyline,observation point,field vector]; field zero:point. Uniform ring in frame xy plane; axialDistance along signed +z. Engine computes E=kQz/(R²+z²)^(3/2) N/C. Source scalars/center units must match; k explicitly physical N*m^2/C^2,never schematic. displayLength:arrow only. No off-axis approximations or ring-boundary/field-length/ratio/derivative proofs.
 - point_charge_field: {charge:{position,charge},at,k,displayLength}. Output 1 vector. It is that charge's field at at; zero distance fails closed.
 - dipole_field: {charges:[{position,charge}x2],at,mode:"finite"|"ideal",k,displayLength}. Output 1 vector. ideal requires separation large enough for the far-field check.
 - dipole_torque/dipole_energy: {p:[px,py],E:[Ex,Ey],at,displayLength,zeroConvention?}. Output 1 vector or glyph. Torque draws a page-normal glyph, a point at zero; energy needs zeroConvention:"perpendicular" (U=0 when p is perpendicular to E); uniform fields only.
@@ -367,6 +368,7 @@ const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
   vector: "Output 1 vector; pure ±z:cross/dot,length is glyph diameter (default 0.25); mixed 3D:space_vector.",
   vector_sum: "Output 1 vector; zero:point. Physical/3D excluded; dimensionless mathematical curve_derivative may compose.",
   coulomb_pair: "Output 2 force vectors; omitted units:bare SI; source wrappers/refs match declared units; k bare SI.",
+  charged_ring_axial_field: "Outputs [ring polyline,observation point,field vector]; field zero:point. Physical k,xy ring,+z axis; no off-axis/metric/ratio/derivative proofs.",
   rectangle: "Output 1 rectangle; direction proofs require explicit axis.",
   right_angle_mark: "Output 1 mark; finite arms end at vertex; infinite line may pass through vertex.",
   dimension: "Output 1 dimension; direct wave_sample pairs: same wave,xScale=yScale=1,matching physical length units,no nonmetric metadata. Undeclared/dimensionless/scaled/mixed/descendant measurements reject.",
