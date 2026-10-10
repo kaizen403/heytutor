@@ -105,6 +105,53 @@ assert(chemGate.chemistryLane);
 assert.equal(chemGate.shouldPlanExactScene, false);
 assert.equal(chemGate.shouldAttemptLlmScene, false, "production chemistry still uses deterministic engine figures");
 
+for (const angleQuestion of [
+  "Find the angle between two lines.",
+  "Find the angle between two lines in 3D.",
+  "Find the angle between a line and a plane.",
+  "The angle between two lines is 30 degrees. Explain its meaning.",
+]) {
+  const anglePlan = planFor(angleQuestion, "required");
+  const angleCaps = inferSceneCapabilities(angleQuestion, { turnPlan: anglePlan });
+  const before = JSON.stringify({ anglePlan, angleCaps });
+  const gate = deriveSceneGate({ question: angleQuestion, turnPlan: anglePlan,
+    problemIR: null, sceneCapabilities: angleCaps });
+  assert.equal(gate.archetypeId, "vectors_resultant", "the weak detection remains an admission hint, not a figure mandate");
+  assert(!gate.request.planningGuidance?.some((line) => line.startsWith("Figure:")),
+    "a weak angle cue must not mandate origin/vector/resultant roles");
+  assert.equal(gate.shouldPlanExactScene, true);
+  assert.equal(gate.shouldAttemptLlmScene, true, "guidance confidence must not close planner admission");
+  assert.deepEqual(gate.families, angleCaps.families);
+  if (angleCaps.families.length > 0) {
+    assert.deepEqual(gate.request.planningGuidance, angleCaps.planningGuidance,
+      "generic family guidance remains available after weak specific guidance is suppressed");
+    assert.deepEqual(gate.request.constructionOperators, angleCaps.constructionOperators);
+    assert.deepEqual(gate.request.proofPredicates, angleCaps.proofPredicates);
+  }
+  assert.equal(JSON.stringify({ anglePlan, angleCaps }), before);
+}
+const groundedAngleQuestion = "Find the angle between a line and a plane.";
+const groundedAnglePlan: TurnPlanV3 = { ...planFor(groundedAngleQuestion, "required"), givens: [
+  { id: "theta", symbol: "θ", value: 30, unit: "deg", provenance: "given", sourceText: "30 degrees" },
+] };
+assert(!deriveSceneGate({ question: groundedAngleQuestion, turnPlan: groundedAnglePlan, problemIR: null })
+  .request.planningGuidance?.some((line) => line.startsWith("Figure:")),
+"a planner-supplied angle alone does not ground vector addition roles");
+
+for (const apparatus of [
+  "Explain vector addition using the parallelogram law and show the resultant.",
+  "Draw a simple pendulum: a bob suspended by a string from a pivot.",
+  "Draw a Wheatstone bridge with resistor arms and a galvanometer.",
+  "Show two long parallel current-carrying wires.",
+  "Illustrate Young double slit interference with a screen and fringes.",
+  "Draw a convex lens with an object on its principal axis.",
+]) {
+  const gate = deriveSceneGate({ question: apparatus, turnPlan: planFor(apparatus, "required"), problemIR: null });
+  assert(gate.request.planningGuidance?.some((line) => line.startsWith("Figure:")),
+    `specific numeric-free apparatus guidance must survive: ${apparatus}`);
+  assert.equal(gate.shouldAttemptLlmScene, true);
+}
+
 for (const consumer of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
   const source = readFileSync(resolve(process.cwd(), consumer), "utf8");
   assert(source.includes("selectProductionScene({"), `${consumer}: must call the same final decision`);

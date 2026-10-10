@@ -76,7 +76,10 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
     input.conversationContext,
     `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
   ].filter(Boolean).join("\n\n");
-  const archetypeSpec = earlyArchetype ? ARCHETYPES[earlyArchetype.id] : null;
+  // A score-2 relation cue (for example, "angle between") can admit a planner
+  // attempt, but cannot prescribe the catalogue's specific figure roles. Keep
+  // numeric-free apparatus hints; slot availability is not role confidence.
+  const archetypeSpec = earlyArchetype && earlyArchetype.score >= 3 ? ARCHETYPES[earlyArchetype.id] : null;
   const archetypeGuidance = archetypeSpec ? [
     `Figure: ${archetypeSpec.label}. It must contain entities with roles: ${archetypeSpec.contract.roles.join(", ")}` +
       (archetypeSpec.contract.operators?.length ? `; use ${archetypeSpec.contract.operators.join(", ")}` : "") + ".",
