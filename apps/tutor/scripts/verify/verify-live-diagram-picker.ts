@@ -6,6 +6,12 @@ import {
   awaitLiveDiagramExamplePicker,
   scenePlannerUrlWithExampleIds,
 } from "../../features/tutor-session/lib/scene/diagramExamplePickerClient";
+import {
+  injectLiveDiagramExamples,
+  parseLiveDiagramExampleIds,
+  resolveLiveDiagramExamples,
+} from "../../lib/scene/diagramExampleLibrary.server";
+import { loadDiagramExemplarLibrary } from "../lecture-lab/diagramExamples";
 
 async function main(): Promise<void> {
 let selectedIds: string[] = [];
@@ -39,6 +45,32 @@ const picked = await pickLiveDiagramExampleIds({
 });
 assert.deepEqual(picked.ids, ["synthesized:projectile"]);
 assert.equal(picked.status, "picked");
+
+// Exercise the actual browser response parser, URL transport, server parser,
+// allowlisted resolver and planner-body injection, not a copy of either regex.
+const library = loadDiagramExemplarLibrary(resolve(process.cwd(), "../../data/diagram-eval/v1/exemplars/_library.jsonl"), []);
+for (let offset = 0; offset < library.length; offset += 3) {
+  const ids = library.slice(offset, offset + 3).map(example => example.id);
+  const roundTrip = await pickLiveDiagramExampleIds({
+    question: plan.question, plan,
+    fetchImpl: async () => Response.json({ choices: [{ message: { content: JSON.stringify({ ids }) } }] }),
+  });
+  assert.deepEqual(roundTrip.ids, ids, "every checked library ID must survive the browser response parser");
+  const url = new URL(scenePlannerUrlWithExampleIds("/api/chat", roundTrip.ids), "http://localhost");
+  const admittedIds = parseLiveDiagramExampleIds(url.searchParams.get("diagramExampleIds"));
+  assert.deepEqual(admittedIds, ids, "every checked library ID must survive URL encoding and the server parser");
+  const resolved = resolveLiveDiagramExamples("Unrelated public regression fixture.", admittedIds);
+  assert.deepEqual(resolved.map(example => example.id), ids);
+  const injected = JSON.parse(injectLiveDiagramExamples(JSON.stringify({ messages: [
+    { role: "user", content: "Plan a checked figure." },
+  ] }), resolved)) as { messages: Array<{ content: string }> };
+  for (const id of ids) assert.ok(injected.messages[0]!.content.includes(id), "resolved examples reach the scene planner");
+}
+assert.deepEqual(parseLiveDiagramExampleIds(`curated:maths/x--1,bad id,../private,a?b,a#b,a%2Fb,${"a".repeat(129)}`), ["curated:maths/x--1"]);
+assert.deepEqual(resolveLiveDiagramExamples("Unrelated public regression fixture.", ["curated:maths/not-in-library--1", "https://host/x"]), [],
+  "permitting slash does not bypass the checked library allowlist");
+const curated = library.find(example => example.sourceKind === "curated")!;
+assert.deepEqual(resolveLiveDiagramExamples(curated.question!, [curated.id]), [], "source-question leak exclusion still applies");
 
 let noFigureRequests = 0;
 const noFigure = await pickLiveDiagramExampleIds({

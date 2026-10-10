@@ -100,5 +100,5 @@ export function buildLiveDiagramPickerBody(rawBody: string, question: string): s
 export function parseLiveDiagramExampleIds(value: string | null | undefined): string[] {
   if (!value) return [];
   return [...new Set(value.split(",").map((id) => id.trim()).filter((id) =>
-    /^[a-z0-9][a-z0-9:_-]{0,127}$/i.test(id)))].slice(0, 3);
+    /^[a-z0-9][a-z0-9:/_-]{0,127}$/i.test(id)))].slice(0, 3);
 }
