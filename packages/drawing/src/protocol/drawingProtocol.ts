@@ -405,7 +405,8 @@ export function normalizeBoardText(text: string): string {
       .replace(/\br\s+squared\b/gi, 'r^2')
       .replace(/\bx\s+squared\b/gi, 'x^2')
       .replace(/\by\s+squared\b/gi, 'y^2')
-      .replace(/\b([a-z0-9)])\s+squared\b/gi, '$1^2')
+      // In "5 squared units", squared describes the unit, not the number.
+      .replace(/\b([a-z0-9)])\s+squared\b(?!\s+units?\b)/gi, '$1^2')
       .replace(/\bsquare\s+root\s+of\s+([a-z0-9()+\-\s]+)\b/gi, 'sqrt($1)')
       .replace(/\bminus\b/gi, '-')
       .replace(/\bplus\b/gi, '+')
