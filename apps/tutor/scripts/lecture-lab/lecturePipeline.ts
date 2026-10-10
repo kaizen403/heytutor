@@ -92,6 +92,7 @@ import {
 } from "./diagramExamplePicker";
 import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features/tutor-session/lib/scene/visualNeedClient";
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
+import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 
 export interface LectureStep {
   index: number;
@@ -167,6 +168,7 @@ export interface LectureRun {
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
+  productionStrategy?: { classifiedSubject: DiagramSubject; strategy: "current" | "strict" };
   diagram: PlannerEvidence & {
     committed: boolean;
     /**
@@ -255,6 +257,7 @@ export interface RunLectureOptions {
   scenePlannerDeadlineMs?: number;
   /** Uses the same subject vocabulary as the live semantic planner. */
   subject?: DiagramSubject;
+  productionStrictSubjects?: readonly DiagramSubject[] | null;
   sceneDeclinePolicy?: SceneDeclinePolicy;
   traceId?: string;
   /** Frozen, identity-checked Jev answer for a lab rerun; undefined calls the live service. */
@@ -432,6 +435,7 @@ export async function runLecture(
       timeoutMs: TURN_PLAN_DEADLINE_MS,
       fastMode,
       traceId,
+      classifySubject: (options.productionStrictSubjects?.length ?? 0) > 0,
     });
     stages.turnPlanMs = Date.now() - turnPlanStartedAt;
     turnPlan = selectBestAvailableTurnPlan(
@@ -471,14 +475,18 @@ export async function runLecture(
     run.visualNeed = { plannerRequirement, assessment, mergedRequirement: turnPlan.visualRequirement,
       origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
-    const pickerDecision = evaluationDecision(options.arm ?? "current", {
+    const classifiedSubject = plannedTurn?.subject ?? "other";
+    const pickerDecision = labStrategyDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-    });
+    }, options.productionStrictSubjects, classifiedSubject);
+    if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
-      const picked = await pickDiagramExamples(
+      const picked = options.productionStrictSubjects ? await pickProductionLabExamples(examples, {
+        origin: options.origin, question, plan: turnPlan, traceId,
+      }) : await pickDiagramExamples(
         examples,
         options.diagramExampleCatalogue ?? buildDiagramExampleCatalogue(examples),
         {
@@ -519,10 +527,10 @@ export async function runLecture(
       const gate = deriveProductionSceneGate({
         question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
       });
-      const diagramStrategy = evaluationDecision(options.arm ?? "current", {
+      const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
         codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-      });
+      }, options.productionStrictSubjects, classifiedSubject);
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
         ...gate, diagramStrategy, examplesUsed,
