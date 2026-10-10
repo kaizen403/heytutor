@@ -46,6 +46,51 @@
  */
 import { unwrapMathMarkup } from "@heytutor/drawing";
 
+const WRITTEN_MODIFIERS: Readonly<Record<string, string>> = {
+  "\u0304": "bar",
+  "\u0305": "bar",
+  "\u0302": "hat",
+  "\u0307": "dot",
+  "\u0308": "double dot",
+  "\u20d7": "vector",
+};
+
+/**
+ * Say an explicit modifier, without guessing what it means in the lesson:
+ * `v̄` is "v bar", not automatically an average; `r̈` is "r double dot".
+ * Decompose only the matched letter so precomposed `ā` and `ṙ` agree with
+ * their combining forms. Whole-word accents such as "Māori" stay untouched.
+ */
+function expandWrittenModifiers(text: string): string {
+  return text.replace(/(?<![\p{L}_])(\p{L})(\p{M}*)/gu, (match: string, _letter: string, _marks: string, offset: number) => {
+    const [letter, ...marks] = [...match.normalize("NFD")];
+    if (!letter || !/^[A-Za-z\p{Script=Greek}]$/u.test(letter) || marks.length === 0 ||
+      marks.some((mark) => !WRITTEN_MODIFIERS[mark])) return match;
+    const followingLetter = /^[\p{L}\p{M}]/u.test(text.slice(offset + match.length));
+    // A combining vector is explicit math even when a scalar follows it:
+    // `a⃗t`. Other accents inside words are ordinary spelling.
+    if (followingLetter && !marks.includes("\u20d7")) return match;
+    return `${letter} ${marks.map((mark) => WRITTEN_MODIFIERS[mark]).join(" ")}${followingLetter ? " " : ""}`;
+  });
+}
+
+/** Unicode numeric subscripts use the same established reading as `_0`. */
+function expandUnicodeSubscripts(text: string): string {
+  return text.replace(/(?<=[\p{L}\p{M}])([₀-₉]+)/gu, (_match, digits: string) =>
+    `_${[...digits].map((digit) => String(digit.codePointAt(0)! - 0x2080)).join("")}`);
+}
+
+/** Letter-attached Unicode primes; numeric angle minutes/seconds stay intact. */
+function expandUnicodePrimes(text: string): string {
+  const primeWords = ["", "prime", "double prime", "triple prime", "quadruple prime"];
+  const counts: Readonly<Record<string, number>> = { "′": 1, "″": 2, "‴": 3, "⁗": 4 };
+  return text.replace(/(?<![\p{L}\p{N}_])(\p{L}\p{M}*(?:_[A-Za-z0-9\p{Script=Greek}]+)?)([′″‴⁗]+)(?!\p{L})/gu,
+    (_match, symbol: string, primes: string) => {
+      const count = [...primes].reduce((total, prime) => total + counts[prime]!, 0);
+      return `${symbol} ${primeWords[count] ?? `${count} primes`} `;
+    });
+}
+
 /** Insert spaces so `cosθ` and `2θ` tokenize like spoken math. */
 function spaceGreekMathSymbols(text: string): string {
   return text
@@ -68,9 +113,9 @@ function stripCodeMarkup(text: string): string {
  */
 function expandScientificNotation(text: string): string {
   return text.replace(
-    /(?<![A-Za-z])(\d+(?:\.\d+)?)[eE]([-+]?)(\d+)(?![\d.])/g,
+    /(?<![A-Za-z])(\d+(?:\.\d+)?)[eE]([-+\u2212]?)(\d+)(?![\d.])/g,
     (_match, mantissa: string, sign: string, exponent: string) =>
-      `${mantissa} times ten to the ${sign === "-" ? "minus " : ""}${exponent}`,
+      `${mantissa} times ten to the ${sign === "-" || sign === "\u2212" ? "minus " : ""}${exponent}`,
   );
 }
 
@@ -109,6 +154,19 @@ const UNIT_WORDS: Record<string, { plural: string; singular: string }> = {
   "\u03a9": { plural: "ohms", singular: "ohm" },
 };
 
+/**
+ * U+00B5 is the explicit MICRO SIGN prefix in `µC`, not the Greek variable
+ * `μ_s`. Known units share their existing names; unknown suffixes stay raw.
+ */
+function expandMicroUnits(text: string): string {
+  return text.replace(/(?<![\p{L}_])µ([A-Za-zΩ]{1,3})(?![\p{L}0-9_])/gu, (match, symbol: string) => {
+    const unit = UNIT_WORDS[symbol];
+    // Preserve adjacency for the later power reader (`µm²`), while separating
+    // a preceding numeric quantity (`2µC`). Identifier suffixes stay intact.
+    return unit ? ` micro${unit.plural}` : match;
+  });
+}
+
 const POWER_WORDS: Record<string, string> = {
   "2": "squared",
   "3": "cubed",
@@ -125,10 +183,17 @@ const POWER_WORDS: Record<string, string> = {
  * ampere.
  */
 function expandUnitRatios(text: string): string {
-  const ratio = "([A-Za-zΩ]{1,3})\\s*/\\s*([A-Za-zΩ]{1,3})(\\^?[23]|[²³])?";
+  const ratio = "(µ?[A-Za-zΩ]{1,3})\\s*/\\s*(µ?[A-Za-zΩ]{1,3})(\\^?[23]|[²³])?(?![\\p{L}0-9_])";
+  const unitWords = (symbol: string) => {
+    const micro = symbol.startsWith("µ");
+    const unit = UNIT_WORDS[micro ? symbol.slice(1) : symbol];
+    return !unit ? undefined : micro
+      ? { plural: `micro${unit.plural}`, singular: `micro${unit.singular}` }
+      : unit;
+  };
   const say = (numerator: string, denominator: string, power?: string): string | null => {
-    const top = UNIT_WORDS[numerator];
-    const bottom = UNIT_WORDS[denominator];
+    const top = unitWords(numerator);
+    const bottom = unitWords(denominator);
     if (!top || !bottom) return null;
     const exponent = power ? POWER_WORDS[power.replace("^", "")] : undefined;
     // "meters per second", never "meters per seconds": the denominator names
@@ -138,12 +203,12 @@ function expandUnitRatios(text: string): string {
 
   return text
     .replace(
-      new RegExp(`(\\d(?:[\\d.,]*\\d)?)(\\s*)${ratio}`, "g"),
+      new RegExp(`(\\d(?:[\\d.,]*\\d)?)(\\s*)${ratio}`, "gu"),
       (match, value: string, gap: string, top: string, bottom: string, power?: string) =>
         say(top, bottom, power) === null ? match : `${value}${gap || " "}${say(top, bottom, power)}`,
     )
     .replace(
-      new RegExp(`\\b(in|per)\\s+${ratio}`, "g"),
+      new RegExp(`\\b(in|per)\\s+${ratio}`, "gu"),
       (match, lead: string, top: string, bottom: string, power?: string) =>
         say(top, bottom, power) === null ? match : `${lead} ${say(top, bottom, power)}`,
     );
@@ -287,6 +352,9 @@ const OVER_SIDE = new RegExp(
 
 function expandOperators(text: string): string {
   return text
+    // U+2212 is an unambiguous mathematical minus, including glued `x−y`.
+    // ASCII hyphens retain their existing prose/code safeguards below.
+    .replace(/\s*\u2212\s*/g, " minus ")
     .replace(/\s*(?:<=|=<)\s*/g, " less than or equal to ")
     .replace(/\s*(?:>=|=>)\s*/g, " greater than or equal to ")
     .replace(/\s*!=\s*/g, " not equal to ")
@@ -488,10 +556,16 @@ function expandNotationSymbols(text: string): string {
 const SPEECH_STAGES: ((text: string) => string)[] = [
   // First: "\(d = r\)" must be read as "d equals r", never as delimiters.
   unwrapMathMarkup,
+  expandUnicodeSubscripts,
+  expandUnicodePrimes,
+  expandWrittenModifiers,
+  // Read unit ratios before the standalone MICRO SIGN and Greek spacing:
+  // `2µm/s²` names micrometers per second squared as a single quantity.
+  expandUnitRatios,
+  expandMicroUnits,
   spaceGreekMathSymbols,
   stripCodeMarkup,
   expandScientificNotation,
-  expandUnitRatios,
   expandSubscripts,
   expandDerivativeFractions,
   expandSymbolProducts,

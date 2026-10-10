@@ -1,5 +1,8 @@
 import { mathToSpeech } from "../../src/tts/elevenLabsClient";
-import { findSpokenToken } from "../../src/sync/cueWindow";
+import { findSpokenToken, getCueSpeechWindow } from "../../src/sync/cueWindow";
+import { normalizeForSpeechMatch } from "../../src/sync/audioSync";
+import { StreamingSpeechClient } from "../../src/tts/streamingSpeechClient";
+import { normalizeBoardText } from "@heytutor/drawing";
 
 function assert(condition: unknown, message: string): void {
   if (!condition) {
@@ -585,6 +588,139 @@ check(`${CUE_PAIRS.length} board labels are still found in their spoken sentence
     }
   }
 });
+
+console.log("\nNotation audit — written modifiers survive into speech and cues\n");
+
+const DECORATED_SYMBOL_READINGS: [string, string][] = [
+  ["v\u0304", "v bar"],
+  ["\u0101", "a bar"],
+  ["x\u0302", "x hat"],
+  ["\u1e59", "r dot"],
+  ["r\u0308", "r double dot"],
+  ["v\u20d7", "v vector"],
+  ["f\u2032", "f prime"],
+  ["y\u2033", "y double prime"],
+  ["\u03b8\u2032", "theta prime"],
+  ["v\u2080", "v 0"],
+  ["T\u2081", "T 1"],
+  ["H\u2082O", "H 2 O"],
+  ["v\u0304\u2080", "v bar 0"],
+  ["x\u2212y", "x minus y"],
+];
+
+for (const [input, expected] of DECORATED_SYMBOL_READINGS) {
+  check(`${JSON.stringify(input)} has an explicit modifier reading`, () => {
+    assert(mathToSpeech(input) === expected, `Expected ${JSON.stringify(input)} to read ${JSON.stringify(expected)}, got ${JSON.stringify(mathToSpeech(input))}`);
+    const narration = `Now ${input} is the quantity we compare.`;
+    assert(findSpokenToken(mathToSpeech(narration), mathToSpeech(input)) >= 0, `The cue for ${JSON.stringify(input)} must match its own spoken sentence`);
+  });
+}
+
+check("a combining vector can multiply the adjacent scalar", () => {
+  assertContains(mathToSpeech("a\u20d7t"), "a vector t", "a\u20d7t");
+});
+
+check("Unicode primes agree with the established ASCII prime spelling", () => {
+  for (const [unicode, ascii] of [["f′(x)", "f'(x)"], ["y″", "y''"], ["x₀′", "x_0'"]]) {
+    assert(mathToSpeech(unicode!) === mathToSpeech(ascii!), `Equivalent prime spellings must agree: ${unicode}`);
+  }
+});
+
+check("a Unicode minus retains its role in scientific notation", () => {
+  assert(mathToSpeech("6.626e−34") === mathToSpeech("6.626e-34"), "Unicode and ASCII negative scientific exponents must agree");
+});
+
+check("the MICRO SIGN prefix matches the unit the narration names", () => {
+  assert(mathToSpeech("2 µC") === "2 microcoulombs", "The explicit microcoulomb unit must reach speech");
+  assert(normalizeForSpeechMatch("µC") === normalizeForSpeechMatch("microcoulombs"), "The actual sync normalizer must retain the micro prefix");
+  assert(mathToSpeech("5 µF") === "5 microfarads", "Micro units use the existing generic unit vocabulary");
+  assertContains(mathToSpeech("the coefficient μ_s"), "mu s", "μ_s");
+  assertNotContains(mathToSpeech("unknown µX"), "micro", "unknown µX");
+  assertContains(mathToSpeech("unknown µX"), "µ", "unknown µX");
+});
+
+check("micro units keep attached powers and do not consume identifier prefixes", () => {
+  assert(mathToSpeech("2 µm²") === "2 micrometers squared", "A micro-unit must retain its square power");
+  assert(mathToSpeech("3 µm³") === "3 micrometers cubed", "A micro-unit must retain its cube power");
+  assert(mathToSpeech("2 µm/s²") === "2 micrometers per second squared", "Known micro-unit ratios retain their denominator and power");
+  assert(mathToSpeech("in C/µs") === "in coulombs per microsecond", "Micro prefixes can modify the known denominator");
+  assert(mathToSpeech("2e-3µm/s^2") === mathToSpeech("2e-3 micrometers per second squared"), "Unit ratios preserve a preceding scientific quantity");
+  for (const identifier of ["µC_name", "µC2", "µCode", "2 m/µC_name", "2 µC_name/s"]) {
+    assertNotContains(mathToSpeech(identifier), "micro", identifier);
+  }
+  assertContains(mathToSpeech("4μN"), "mu N", "4μN");
+});
+
+check("board normalization preserves the MICRO SIGN through actual speech cue matching", () => {
+  const label = normalizeBoardText("q = 2µC");
+  assert(label.includes("µC"), "A drawing shape alias must preserve the source unit text");
+  const narration = "Earlier q, now q equals 2 microcoulombs, then q again.";
+  const spoken = mathToSpeech(narration);
+  const index = spoken.indexOf("q equals 2 microcoulombs");
+  const window = getCueSpeechWindow(narration, { token: label, entityId: "charge" }, {
+    charStartTimes: Array.from(spoken, (_, position) => position * 0.01),
+    charDurations: Array.from(spoken, () => 0.01), totalDuration: spoken.length * 0.01,
+  });
+  assert(mathToSpeech(label) === "q equals 2 microcoulombs", "The parsed label must name its explicit micro unit");
+  assert(window.matched && window.startMs === index * 10, "The micro-unit cue must anchor on the full quantity reading");
+  assertContains(mathToSpeech(normalizeBoardText("μN")), "mu N", "μN");
+});
+
+check("actual cue alignment keeps the modifier and skips an earlier plain letter", () => {
+  for (const [label, reading] of [["v̄", "v bar"], ["v⃗_A/B", "v vector A over B"], ["f′", "f prime"], ["r̈", "r double dot"]]) {
+    const narration = `First ${label![0]}, then ${reading}, then ${label![0]} again.`;
+    const spoken = mathToSpeech(narration);
+    const index = spoken.indexOf(reading!);
+    assert(index > 0, "The decorated cue follows an earlier undecorated symbol");
+    const window = getCueSpeechWindow(narration, { token: label!, entityId: "source-symbol" }, {
+      charStartTimes: Array.from(spoken, (_, position) => position * 0.01),
+      charDurations: Array.from(spoken, () => 0.01), totalDuration: spoken.length * 0.01,
+    });
+    assert(window.matched && window.startMs === index * 10, `Actual cue must anchor ${label} on its modifier reading, not its earlier plain letter`);
+    assert(normalizeForSpeechMatch(label!) === normalizeForSpeechMatch(reading!), `Normalized ${label} must agree with the spoken modifier`);
+    assert(normalizeForSpeechMatch(label!) !== normalizeForSpeechMatch(label![0]!), "The sync normalizer must retain the modifier's meaning");
+  }
+  assert(normalizeForSpeechMatch("v₀") === normalizeForSpeechMatch("v zero"), "Unicode subscript zero must match the ordinary spoken number");
+});
+
+check("ordinary accents, apostrophes, numeric angle marks and code punctuation stay intact", () => {
+  const prose = "Māori café déjà vu Ångström and Coulomb's law; let's compare.";
+  assert(mathToSpeech(prose) === prose, "Decorated symbol rules must preserve ordinary prose accents and possessives");
+  assert(mathToSpeech("30′ 20″") === "30′ 20″", "Numeric angle marks remain ambiguous and must not be silently called symbol primes");
+  assert(mathToSpeech("arr[i]++ and node.next") === "arr[i]++ and node.next", "Code punctuation must retain its existing reading");
+  assert(mathToSpeech("r\u0304adius") === "r\u0304adius", "An accent inside an ordinary word is not a decorated variable");
+  assertContains(mathToSpeech("x/y = 1/2"), "x over y equals 1 over 2", "x/y = 1/2");
+});
+
+// The actual prefetch producer must send the same normalized text to HTTP.
+// The fake transport terminates before audio/credentials, with no network.
+const fetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, "fetch");
+const socketDescriptor = Object.getOwnPropertyDescriptor(globalThis, "WebSocket");
+let receiveText!: (text: string) => void;
+const sentText = new Promise<string>((resolve) => { receiveText = resolve; });
+const client = new StreamingSpeechClient();
+let watchdog: ReturnType<typeof setTimeout> | undefined;
+try {
+  Object.defineProperty(globalThis, "WebSocket", { configurable: true, value: class { static readonly OPEN = 1; } });
+  Object.defineProperty(globalThis, "fetch", { configurable: true, value: async (input: unknown, init?: RequestInit) => {
+    assert(String(input) === "/api/tts/stream", "Only the intercepted TTS transport is permitted");
+    const payload = JSON.parse(String(init?.body)) as { text: string };
+    receiveText(payload.text);
+    return new Response(null, { status: 200, headers: { "x-heytutor-tts-skipped": "test" } });
+  } });
+  client.prefetchSegment("Compare v̄ and v⃗_A/B with f′ and v₀, then q=2µC.");
+  const payload = await Promise.race([sentText, new Promise<never>((_resolve, reject) => {
+    watchdog = setTimeout(() => reject(new Error("Actual TTS prefetch did not submit its text")), 1000);
+  })]);
+  check("actual HTTP prefetch payload retains written modifiers", () => {
+    assert(payload === "Compare v bar and v vector A over B with f prime and v 0, then q equals 2 microcoulombs.", `Unexpected actual TTS payload: ${payload}`);
+  });
+} finally {
+  if (watchdog !== undefined) clearTimeout(watchdog);
+  client.stop();
+  if (fetchDescriptor) Object.defineProperty(globalThis, "fetch", fetchDescriptor); else Reflect.deleteProperty(globalThis, "fetch");
+  if (socketDescriptor) Object.defineProperty(globalThis, "WebSocket", socketDescriptor); else Reflect.deleteProperty(globalThis, "WebSocket");
+}
 
 console.log(`\n───────────────────────────────────`);
 console.log(`All ${passed} checks passed ✓`);
