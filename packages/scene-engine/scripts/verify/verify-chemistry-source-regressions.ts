@@ -145,6 +145,12 @@ check("Expression binding retains original complete span without relaxing litera
  assert.equal(question.slice(read.reading.source.span.start,read.reading.source.span.end),read.reading.source.text);
  assert.equal(parseChemistryScalar(question,read.reading.coefficient.span).ok,false);
 });
+for(const expression of ["αln k = 5 - 2000/T", "ln k = 5 - 2000/Tα", "ln k = 5 - 2000/T ÷2", "ln k = 5 - 2000/T ∕2", "𝛼ln k = 5 - 2000/T", "ln k = 5 - 2000/T𝛼"])check("Complete Unicode expression boundary: "+expression,()=>{
+ const question="For an Arrhenius reaction, "+expression+". Draw its Arrhenius plot.";
+ assert.equal(readChemistryArrheniusEquation(question).ok,false);
+ assert.equal(kineticsFromStem(question),null);
+ assert.equal(buildKineticsScene(question,[],false),null);
+});
 check("Delta given keeps the original unit/source span",()=>{
  const question="Temperature rises by 10 °C from 300 K.";
  const read=readChemistryQuantity({question,after:/rises by/,dimension:"temperature_delta"});assert.ok(read.ok);
