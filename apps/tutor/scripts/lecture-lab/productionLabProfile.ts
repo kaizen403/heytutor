@@ -1,17 +1,46 @@
 /** Opt-in bench profile for the exact production subject policy and picker client. */
 import type { DiagramSubject } from '@heytutor/tutor-core';
 import type { TurnPlanV3 } from '@heytutor/scene-engine';
-import { evaluationDiagramStrategyDecision, liveDiagramStrategyDecision, type DiagramStrategyContext } from '../../features/tutor-session/lib/scene/diagramStrategy';
+import { DIAGRAM_STRATEGY_POLICY_VERSION, PHYSICS_HYBRID_POLICY_VERSION,
+  evaluationDiagramStrategyDecision, liveDiagramStrategyDecision, type DiagramStrategyContext } from '../../features/tutor-session/lib/scene/diagramStrategy';
 import { pickLiveDiagramExampleIds } from '../../features/tutor-session/lib/scene/diagramExamplePickerClient';
 import { resolveCheapFireworksModel } from '../../lib/llm/fireworksModels';
-import type { DiagramEvalArm } from './diagramEval';
+import { evaluationUsesExamples, type DiagramEvalArm } from './diagramEval';
 import type { DiagramExemplar } from './diagramExamples';
 import type { DiagramExamplePickerResult } from './diagramExamplePicker';
 
+export function hasProductionLabProfile(strictSubjects: readonly DiagramSubject[] | null | undefined,
+  physicsMode?: 'hybrid' | null): boolean {
+  return strictSubjects != null || physicsMode === 'hybrid';
+}
+
+/** The corpus label cannot tell whether the actual planner will opt into strict maths. */
+export function productionLabUsesExamples(arm: DiagramEvalArm,
+  strictSubjects: readonly DiagramSubject[] | null | undefined): boolean {
+  return hasProductionLabProfile(strictSubjects) || evaluationUsesExamples(arm);
+}
+
+/** Approximate usage preflight, not the per-call hard-cap billing reservation. */
+export function productionLabPreflightArm(arm: DiagramEvalArm,
+  strictSubjects: readonly DiagramSubject[] | null | undefined): DiagramEvalArm {
+  return hasProductionLabProfile(strictSubjects) ? 'planner_examples_strict' : arm;
+}
+
+/** Shared by row, checkpoint and summary identity; mode/policy changes forbid resume. */
+export function productionLabExecutionIdentity(strictSubjects: readonly DiagramSubject[] | null | undefined,
+  physicsMode: 'hybrid' | null) {
+  return hasProductionLabProfile(strictSubjects, physicsMode) ? {
+    productionStrictSubjects: strictSubjects ?? [], productionPhysicsMode: physicsMode,
+    diagramStrategyPolicyVersion: DIAGRAM_STRATEGY_POLICY_VERSION,
+    physicsHybridPolicyVersion: PHYSICS_HYBRID_POLICY_VERSION,
+    examplePickerProfile: 'live-client-4000ms/v1', subjectClassification: 'existing-turn-plan',
+  } : {};
+}
+
 export function labStrategyDecision(arm: DiagramEvalArm, context: DiagramStrategyContext,
   strictSubjects: readonly DiagramSubject[] | null | undefined, classifiedSubject: DiagramSubject) {
-  return strictSubjects ? liveDiagramStrategyDecision({ ...context, assignedStrategy: 'current',
-    subject: classifiedSubject, strictSubjects }) : evaluationDiagramStrategyDecision(arm, context);
+  return hasProductionLabProfile(strictSubjects, context.physicsMode) ? liveDiagramStrategyDecision({ ...context, assignedStrategy: 'current',
+    subject: classifiedSubject, strictSubjects: strictSubjects ?? [] }) : evaluationDiagramStrategyDecision(arm, context);
 }
 
 export async function pickProductionLabExamples(examples: readonly DiagramExemplar[], input: {

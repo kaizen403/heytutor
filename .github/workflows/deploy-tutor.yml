@@ -90,6 +90,11 @@ jobs:
         run: pnpm build
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Physics policy and production lab parity
+        run: |
+          pnpm --filter @heytutor/tutor verify:production-selection
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-physics-hybrid.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-diagram-strategy.ts
       - name: Security and payment regressions
         run: |
           python3 deploy/aws/verify-ssm-deploy.py
