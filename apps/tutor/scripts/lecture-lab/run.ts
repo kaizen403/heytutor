@@ -23,7 +23,7 @@ import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
   LECTURE_LAB_ZERO_RETENTION_HEADER,
 } from "../../lib/billing/flags";
-import { parseDiagramSubject, type DiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import { parseDiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
   assertUniqueArtifactIds,
@@ -55,7 +55,9 @@ import {
 } from "../../lib/llm/fireworksModels";
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
-import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
+import { normalizeTutorQuestion } from "@heytutor/tutor-core";
+import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
+import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
 
 export interface Options {
@@ -88,13 +90,13 @@ export interface Options {
   figureOnly: boolean;
   yes: boolean;
   maxUsd: number;
+  spendMode: LabSpendMode;
   resume: boolean;
   /** Conservative allowance for an interrupted pre-checkpoint run. */
   resumeExtraUsd: number;
   sceneDeclinePolicy: SceneDeclinePolicy;
   visualNeedReplay: string | null;
   exampleExclusions: string | null;
-  productionStrictSubjects: readonly DiagramSubject[] | null;
 }
 
 export interface LabSpendSummary {
@@ -104,15 +106,24 @@ export interface LabSpendSummary {
   stoppedForBudget: boolean;
   rowsDone: number;
   rowsPlanned: number;
+  spendMode: LabSpendMode;
+  knownUsageUsd: number;
+  unresolvedCalls: LabUnresolvedCall[];
+  unresolvedAllowanceUsd: number;
+  inFlightCalls: number;
 }
 
-/** Reserve each paid request before sending; unknown usage consumes its reservation. */
+/** Reserve concurrent dispatch headroom; the mode decides how unresolved usage settles. */
 export class LabSpendCap {
   private chargedUsd = 0;
   private reservedUsd = 0;
   private stoppedForBudget = false;
+  private knownUsageUsd = 0;
+  private inFlightCalls = 0;
+  private readonly unresolvedCalls: LabUnresolvedCall[] = [];
+  private readonly waiters = new Set<() => void>();
 
-  constructor(readonly maxUsd: number) {
+  constructor(readonly maxUsd: number, readonly spendMode: LabSpendMode = "conservative") {
     if (!Number.isFinite(maxUsd) || maxUsd <= 0) {
       throw new Error("--max-usd must be a positive number");
     }
@@ -133,12 +144,63 @@ export class LabSpendCap {
       return false;
     }
     this.reservedUsd += worstCaseUsd;
+    this.inFlightCalls += 1;
     return true;
   }
 
-  settleCall(reservedUsd: number, chargedUsd: number): void {
+  /** Wait for existing responses to free headroom rather than rejecting a concurrent row. */
+  async reserveCallAsync(worstCaseUsd: number, signal?: AbortSignal | null): Promise<boolean> {
+    signal?.throwIfAborted();
+    if (this.spendMode === "conservative") return this.reserveCall(worstCaseUsd);
+    if (!Number.isFinite(worstCaseUsd) || worstCaseUsd <= 0) throw new Error("paid lab calls require a positive cost ceiling");
+    for (;;) {
+      signal?.throwIfAborted();
+      if (this.stoppedForBudget) return false;
+      if (this.chargedUsd + this.reservedUsd + worstCaseUsd <= this.maxUsd + 1e-9) {
+        this.reservedUsd += worstCaseUsd;
+        this.inFlightCalls += 1;
+        return true;
+      }
+      if (this.inFlightCalls === 0) { this.stoppedForBudget = true; return false; }
+      await new Promise<void>((resolveWait, reject) => {
+        const wake = () => { this.waiters.delete(wake); signal?.removeEventListener("abort", abort); resolveWait(); };
+        const abort = () => { this.waiters.delete(wake); signal?.removeEventListener("abort", abort); reject(signal?.reason); };
+        this.waiters.add(wake);
+        signal?.addEventListener("abort", abort, { once: true });
+      });
+    }
+  }
+
+  recordUnresolved(call: LabUnresolvedCall): void {
+    if (!Number.isFinite(call.allowanceUsd) || call.allowanceUsd < 0 || !Number.isInteger(call.attempts) || call.attempts < 1) throw new Error("invalid unresolved spend checkpoint");
+    this.unresolvedCalls.push({ ...call });
+  }
+
+  settleCall(reservedUsd: number, chargedUsd: number, observation?: LabUsageObservation, context?: Pick<LabUnresolvedCall, "traceId" | "kind">): void {
     this.reservedUsd = Math.max(0, this.reservedUsd - reservedUsd);
+    this.inFlightCalls = Math.max(0, this.inFlightCalls - 1);
+    this.knownUsageUsd += observation?.measuredUsd ?? 0;
+    if (observation && observation.unresolvedAttempts > 0) this.recordUnresolved({
+      traceId: context?.traceId ?? null, kind: context?.kind ?? "planner", model: observation.model,
+      attempts: observation.unresolvedAttempts, allowanceUsd: observation.unresolvedAllowanceUsd,
+      reason: observation.reason ?? "usage_missing",
+    });
     this.recordCost(chargedUsd);
+    for (const wake of [...this.waiters]) wake();
+  }
+
+  restoreKnownUsage(usd: number): void {
+    if (!Number.isFinite(usd) || usd < 0) throw new Error("invalid known usage checkpoint");
+    this.knownUsageUsd = usd;
+  }
+
+  restoreUnresolvedCheckpoint(checkpoint: { unresolvedCalls?: LabUnresolvedCall[]; reservedUsd: number; inFlightCalls?: number }, model: string): void {
+    if (!Array.isArray(checkpoint.unresolvedCalls) || !Number.isInteger(checkpoint.inFlightCalls) || checkpoint.inFlightCalls! < 0 || !Number.isFinite(checkpoint.reservedUsd) || checkpoint.reservedUsd < 0) throw new Error("response_usage checkpoint lacks valid unresolved call evidence");
+    for (const call of checkpoint.unresolvedCalls) this.recordUnresolved(call);
+    if (checkpoint.reservedUsd > 0) this.recordUnresolved({
+      traceId: null, kind: "checkpoint", model, attempts: checkpoint.inFlightCalls!,
+      allowanceUsd: checkpoint.reservedUsd, reason: "interrupted_checkpoint_inflight_usage_unknown_attempt_count",
+    });
   }
 
   canStartRow(): boolean {
@@ -153,7 +215,23 @@ export class LabSpendCap {
       stoppedForBudget: this.stoppedForBudget,
       rowsDone,
       rowsPlanned,
+      spendMode: this.spendMode,
+      knownUsageUsd: Math.round(this.knownUsageUsd * 1_000_000) / 1_000_000,
+      unresolvedCalls: this.unresolvedCalls.map((call) => ({ ...call })),
+      unresolvedAllowanceUsd: Math.round(this.unresolvedCalls.reduce((sum, call) => sum + call.allowanceUsd, 0) * 1_000_000) / 1_000_000,
+      inFlightCalls: this.inFlightCalls,
     };
+  }
+}
+
+export async function reserveLabRequest(cap: LabSpendCap, worstCaseUsd: number, signal?: AbortSignal | null): Promise<void> {
+  try {
+    if (!await cap.reserveCallAsync(worstCaseUsd, signal)) {
+      throw new LabRequestNotDispatchedError("lab request denied before sending: --max-usd dispatch headroom exhausted");
+    }
+  } catch (error) {
+    if (error instanceof LabRequestNotDispatchedError) throw error;
+    throw new LabRequestNotDispatchedError(error instanceof Error ? error.message : String(error), { cause: error });
   }
 }
 
@@ -165,19 +243,23 @@ export async function runBudgetedLabRows<T>(
 ): Promise<number> {
   let cursor = 0;
   let done = 0;
+  let failed = false;
   const worker = async (): Promise<void> => {
     for (;;) {
-      if (!spendCap.canStartRow()) return;
+      if (failed || !spendCap.canStartRow()) return;
       const index = cursor;
       cursor += 1;
       if (index >= rows.length) return;
-      await runRow(rows[index]!, index);
+      try { await runRow(rows[index]!, index); }
+      catch (error) { failed = true; throw error; }
       done += 1;
     }
   };
-  await Promise.all(
+  const outcomes = await Promise.allSettled(
     Array.from({ length: Math.max(1, concurrency) }, () => worker()),
   );
+  const rejected = outcomes.find((outcome) => outcome.status === "rejected");
+  if (rejected?.status === "rejected") throw rejected.reason;
   return done;
 }
 
@@ -250,6 +332,8 @@ export function parseOptions(argv: string[]): Options {
     throw new Error("--scene-planner-limit-ms must be 60000 or 120000");
   }
   const maxUsdRaw = flags.get("max-usd");
+  const spendMode = flags.get("spend-mode") ?? "conservative";
+  if (spendMode !== "conservative" && spendMode !== "response_usage") throw new Error("--spend-mode must be conservative or response_usage");
   const sceneDeclinePolicy = flags.get("scene-decline-policy") ?? "unchanged";
   if (sceneDeclinePolicy !== "unchanged" && sceneDeclinePolicy !== "qualitative_setup_v1") {
     throw new Error("--scene-decline-policy must be unchanged or qualitative_setup_v1");
@@ -270,10 +354,7 @@ export function parseOptions(argv: string[]): Options {
   const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
-  const productionStrictSubjects = flags.get("production-strict-subjects");
-  if (productionStrictSubjects && (productionStrictSubjects !== "maths" || evalFiles.length === 0 || arm !== "planner_examples_strict")) {
-    throw new Error("--production-strict-subjects maths requires a strict maths evaluation");
-  }
+  if (spendMode === "response_usage" && resumeExtraUsd > 0) throw new Error("--resume-extra-usd is an unmetered allowance; response_usage requires checkpoint evidence instead");
   return {
     difficulty: flags.get("difficulty") ?? "hard",
     units: list("units")?.map((entry) => Number.parseInt(entry, 10)) ?? null,
@@ -297,12 +378,12 @@ export function parseOptions(argv: string[]): Options {
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     yes: flags.get("yes") === "true",
     maxUsd,
+    spendMode,
     resume,
     resumeExtraUsd,
     sceneDeclinePolicy,
     visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
-    productionStrictSubjects: productionStrictSubjects ? ["maths"] : null,
   };
 }
 
@@ -310,6 +391,13 @@ export function parseOptions(argv: string[]): Options {
 export function restoredDiagramPng(diagram: { svg?: string | null; png?: string | null }, available: (path: string) => boolean): string | null {
   const path = diagram.png ?? diagram.svg?.replace(/\.svg$/i, ".png");
   return path && available(path) ? path : null;
+}
+
+export function labResponseUsagePricing(deployment: string) {
+  return {
+    pricing: resolveLlmRates(deployment),
+    visualNeedPricing: resolveLlmRates(LAB_VISUAL_NEED_POLICY.model),
+  };
 }
 
 export function selectResumeProbes<T extends { id: string; question: string }>(
@@ -322,7 +410,7 @@ export function selectResumeProbes<T extends { id: string; question: string }>(
   const byId = new Map(probes.map((probe) => [probe.id, probe]));
   const done = new Set<string>();
   for (const row of saved) {
-    if (done.has(row.probeId) || byId.get(row.probeId)?.question !== (row.evaluation?.question ?? row.question) || row.arm !== arm ||
+    if (done.has(row.probeId) || (row.evaluation ? byId.get(row.probeId)?.question !== row.evaluation.question : !byId.has(row.probeId) || normalizeTutorQuestion(byId.get(row.probeId)!.question) !== row.question) || row.arm !== arm ||
       row.providerConfig?.provider !== provider.provider || row.providerConfig?.deployment !== provider.deployment ||
       (executionConfig && JSON.stringify(row.executionConfig) !== JSON.stringify(executionConfig))) {
       throw new Error(`incompatible saved row for resume: ${row.probeId}`);
@@ -345,12 +433,22 @@ export function restoredLabCharge(
   storedRowUsd: number,
   checkpoint: { chargedUsd: number; reservedUsd: number } | null,
   extraUsd: number,
+  spendMode: LabSpendMode = "conservative",
 ): number {
   const values = [storedRowUsd, extraUsd, ...(checkpoint ? [checkpoint.chargedUsd, checkpoint.reservedUsd] : [])];
   if (values.some((value) => typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
     throw new Error("invalid spend checkpoint: charges must be finite nonnegative numbers");
   }
-  return Math.max(storedRowUsd, checkpoint ? checkpoint.chargedUsd + checkpoint.reservedUsd : 0) + extraUsd;
+  return Math.max(storedRowUsd, checkpoint ? checkpoint.chargedUsd + (spendMode === "conservative" ? checkpoint.reservedUsd : 0) : 0) + extraUsd;
+}
+
+/** Azure's endpoint fixes the deployment; direct Fireworks requests name their own model. */
+export function directProviderRequestModel(init: RequestInit | undefined, endpoint: { provider: string; deployment: string | null }): string {
+  if (endpoint.provider === "azure" && endpoint.deployment) return endpoint.deployment;
+  if (typeof init?.body !== "string") throw new Error("direct provider budgeting requires the exact JSON request body");
+  const body = JSON.parse(init.body) as { model?: unknown };
+  if (typeof body.model !== "string" || !body.model.trim()) throw new Error("direct provider budgeting requires a model identity");
+  return body.model.trim();
 }
 
 export function plannerRequestWorstCaseUsd(
@@ -661,8 +759,10 @@ async function main(): Promise<void> {
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
-    ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
-      examplePickerProfile: "live-client-4000ms/v1", subjectClassification: "existing-turn-plan" } : {}),
+    ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
+      ...labResponseUsagePricing(providerConfig.deployment),
+      plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
+    } : {}),
   };
   if (preflightEstimateUsd !== null) {
     console.log(
@@ -697,10 +797,14 @@ async function main(): Promise<void> {
   const reviewedIds = new Set(readRoundJudgments(outDir).map((row) => row.id));
   const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[] }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; spendMode?: LabSpendMode; knownUsageUsd?: number; unresolvedCalls?: LabUnresolvedCall[]; inFlightCalls?: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[] }
     : null;
   if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
   if (options.resume && !oldCheckpoint) throw new Error("resume requires a spend checkpoint with proven execution identity");
+  if (oldCheckpoint) {
+    assertLabSpendMode(oldCheckpoint.spendMode, options.spendMode);
+    assertLabUsageCheckpoint(oldCheckpoint, options.spendMode);
+  }
   if (oldCheckpoint && (oldCheckpoint.arm !== options.arm || oldCheckpoint.providerConfig.provider !== providerConfig.provider ||
     oldCheckpoint.providerConfig.deployment !== providerConfig.deployment || oldCheckpoint.scenePlannerLimitMs !== options.scenePlannerLimitMs ||
     JSON.stringify(oldCheckpoint.executionConfig) !== JSON.stringify(executionConfig) ||
@@ -713,8 +817,8 @@ async function main(): Promise<void> {
   }
   const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0)
     + (run.visualNeed?.origin === "live_service" ? run.visualNeed.accounting?.chargedUsd ?? 0 : 0), 0);
-  const priorChargeUsd = restoredLabCharge(storedRowUsd, oldCheckpoint, options.resumeExtraUsd);
-  console.log(`resume: ${runs.length} saved, ${pendingProbes.length} pending, prior conservative charge $${priorChargeUsd.toFixed(6)}`);
+  const priorChargeUsd = restoredLabCharge(storedRowUsd, oldCheckpoint, options.resumeExtraUsd, options.spendMode);
+  console.log(`resume: ${runs.length} saved, ${pendingProbes.length} pending, prior ${options.spendMode} charge $${priorChargeUsd.toFixed(6)}`);
 
   const landing = await fetch(`${options.origin}/`, { redirect: "manual" });
   const cookie = (landing.headers.getSetCookie?.() ?? [])
@@ -727,8 +831,15 @@ async function main(): Promise<void> {
   // to the browser's. Eval rounds also account every non-streaming planner
   // response by the trace id already carried on the request.
   const nativeFetch = globalThis.fetch;
-  const spendCap = new LabSpendCap(options.maxUsd);
+  const spendCap = new LabSpendCap(options.maxUsd, options.spendMode);
   spendCap.recordCost(priorChargeUsd);
+  if (options.spendMode === "response_usage") {
+    spendCap.restoreKnownUsage(priorChargeUsd);
+    if (oldCheckpoint) spendCap.restoreUnresolvedCheckpoint(oldCheckpoint, providerConfig.deployment);
+  } else {
+    spendCap.restoreKnownUsage(oldCheckpoint?.knownUsageUsd ?? 0);
+    if (oldCheckpoint?.unresolvedCalls) spendCap.restoreUnresolvedCheckpoint(oldCheckpoint, providerConfig.deployment);
+  }
   const visualNeedCalls: VisualNeedCallAccounting[] = [...(oldCheckpoint?.visualNeedCalls ?? [])];
   const visualNeedAccountingByTrace = new Map<string, VisualNeedCallAccounting>();
   const checkpointSpend = () => writeFileSync(checkpointPath, `${JSON.stringify({
@@ -768,8 +879,10 @@ async function main(): Promise<void> {
   };
   writeSummary();
   const worstCasePlannerModel = resolveFireworksModel({ fastMode: options.model === "fast" });
-  const settleSpend = (reservedUsd: number, usd: number) => { spendCap.settleCall(reservedUsd, usd); checkpointSpend(); };
-  const usageTracker = new PlannerUsageTracker((usd, reservedUsd) => settleSpend(reservedUsd, usd));
+  const settleSpend = (reservedUsd: number, usd: number, observation?: LabUsageObservation, context?: Pick<LabUnresolvedCall, "traceId" | "kind">) => {
+    spendCap.settleCall(reservedUsd, usd, observation, context); checkpointSpend();
+  };
+  const usageTracker = new PlannerUsageTracker((usd, reservedUsd, observation, context) => settleSpend(reservedUsd, usd, observation, context), options.spendMode);
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
@@ -787,137 +900,163 @@ async function main(): Promise<void> {
     const traceId = headers.get("x-heytutor-trace-id");
     if (url === `${options.origin}/api/visual-need`) {
       return budgetedVisualNeedFetch(input, { ...init, headers }, nativeFetch, {
-        reserve: (usd) => spendCap.reserveCall(usd), beforeDispatch: checkpointSpend, settle: settleSpend,
+        reserve: (usd) => options.spendMode === "response_usage" ? spendCap.reserveCallAsync(usd, init?.signal) : spendCap.reserveCall(usd), spendMode: options.spendMode,
+        beforeDispatch: checkpointSpend,
+        settle: (reserved, charged, observation) => settleSpend(reserved, charged, observation, { traceId, kind: "visual_need" }),
         onAccounting: (call) => { visualNeedCalls.push(call); if (traceId) visualNeedAccountingByTrace.set(traceId, call); checkpointSpend(); },
         onDenied: () => { if (traceId) budgetDeniedTraces.add(traceId); },
       });
     }
     const chatRequest = url === `${options.origin}/api/chat` && traceId;
-    const plannerRequest = chatRequest && headers.get("x-planner") === "1";
-    const directProviderRequest = url === endpoint.url;
-    const requestModel = plannerRequest
-      ? worstCasePlannerModel
-      : resolveTeachingFireworksModel({ fastMode: options.model === "fast" });
-    // The proxy dispatches up to two planner or three teaching attempts.
-    const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
-    const requestWorstCaseUsd = chatRequest || directProviderRequest
-      ? plannerRequestWorstCaseUsd(init, requestModel, plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap) * maxAttempts
-      : 0;
-    if ((chatRequest || directProviderRequest) && !spendCap.reserveCall(requestWorstCaseUsd)) {
-      if (traceId) budgetDeniedTraces.add(traceId);
-      throw new Error("lab request denied before sending: --max-usd reservation exhausted");
-    }
-    if (chatRequest || directProviderRequest) checkpointSpend();
-    if (chatRequest) {
-      usageTracker.recordRequest(traceId, requestWorstCaseUsd);
-    }
-    let accounted = false;
-    try {
-      const response = await nativeFetch(input, { ...init, headers });
-      if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts);
-      else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response, requestWorstCaseUsd, maxAttempts);
-      else if (directProviderRequest) {
-        let chargedUsd = requestWorstCaseUsd;
+    if (chatRequest) usageTracker.assertTraceOpen(traceId);
+    const operation = (async () => {
+      const plannerRequest = chatRequest && headers.get("x-planner") === "1";
+      const directProviderRequest = url === endpoint.url;
+      const requestModel = directProviderRequest ? directProviderRequestModel(init, endpoint) : plannerRequest
+        ? worstCasePlannerModel
+        : resolveTeachingFireworksModel({ fastMode: options.model === "fast" });
+      // The proxy dispatches up to two planner or three teaching attempts.
+      const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
+      const requestWorstCaseUsd = chatRequest || directProviderRequest
+        ? plannerRequestWorstCaseUsd(init, requestModel, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0) * maxAttempts
+        : 0;
+      if (chatRequest || directProviderRequest) {
         try {
-          const payload = await response.clone().json() as { usage?: unknown };
-          const usage = parseProviderUsage(payload.usage);
-          if (usage.known) chargedUsd = calculateLlmCostDetails(usage, { model: requestModel }).total ?? requestWorstCaseUsd;
-        } catch {
-          // Cancelled or malformed responses retain their full reservation.
+          await reserveLabRequest(spendCap, requestWorstCaseUsd, init?.signal);
+        } catch (error) {
+          if (traceId) budgetDeniedTraces.add(traceId);
+          throw error;
         }
-        settleSpend(requestWorstCaseUsd, chargedUsd);
       }
-      accounted = true;
-      if (chatRequest && response.ok && response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model") !== providerConfig.deployment) {
-        throw new Error("lab received an unexpected or unrecorded server model; paid usage has been retained");
+      if (chatRequest || directProviderRequest) checkpointSpend();
+      if (chatRequest) {
+        usageTracker.recordRequest(traceId, requestWorstCaseUsd, plannerRequest ? "planner" : "teaching", maxAttempts);
       }
-      return response;
-    } catch (error) {
-      if (!accounted && chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
-      else if (!accounted && directProviderRequest) settleSpend(requestWorstCaseUsd, requestWorstCaseUsd);
-      throw error;
-    }
+      let accounted = false;
+      try {
+        const response = await nativeFetch(input, { ...init, headers });
+        if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel);
+        else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel);
+        else if (directProviderRequest) {
+          let measuredUsd: number | null = null;
+          try {
+            const payload = await response.clone().json() as { usage?: unknown };
+            const usage = parseProviderUsage(payload.usage);
+            if (hasPricedUsage(usage)) measuredUsd = calculateLlmCostDetails(usage, { model: requestModel }).total ?? 0;
+          } catch {
+            // Missing usage is recorded separately from the known token cost.
+          }
+          accounted = true;
+          settleSpend(requestWorstCaseUsd, measuredUsd ?? (options.spendMode === "conservative" ? requestWorstCaseUsd : 0), {
+            model: requestModel, measuredUsd, unresolvedAttempts: measuredUsd === null ? 1 : 0,
+            unresolvedAllowanceUsd: measuredUsd === null ? requestWorstCaseUsd : 0, reason: measuredUsd === null ? "picker_usage_missing" : null,
+          }, { traceId, kind: "picker" });
+        }
+        accounted = true;
+        if (chatRequest && response.ok && response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model") !== providerConfig.deployment) {
+          throw new Error("lab received an unexpected or unrecorded server model; paid usage has been retained");
+        }
+        return response;
+      } catch (error) {
+        if (!accounted && chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
+        else if (!accounted && directProviderRequest) settleSpend(requestWorstCaseUsd, options.spendMode === "conservative" ? requestWorstCaseUsd : 0, {
+          model: requestModel, measuredUsd: null, unresolvedAttempts: 1, unresolvedAllowanceUsd: requestWorstCaseUsd, reason: "picker_transport_failed_or_interrupted",
+        }, { traceId, kind: "picker" });
+        throw error;
+      }
+    })();
+    if (chatRequest) usageTracker.trackOperation(traceId, operation);
+    return operation;
   }) as typeof fetch;
 
   console.log(
-    `lecture lab: ${probes.length} ${evaluationRows ? "evaluation rows" : `${options.difficulty} probes`}, concurrency ${options.concurrency}, max $${options.maxUsd.toFixed(2)}, familiarity ${options.familiarity} -> ${options.out}`,
+    `lecture lab: ${probes.length} ${evaluationRows ? "evaluation rows" : `${options.difficulty} probes`}, concurrency ${options.concurrency}, ${options.spendMode} max $${options.maxUsd.toFixed(2)}, familiarity ${options.familiarity} -> ${options.out}`,
   );
 
   let done = runs.length;
   let newRowsDone = 0;
-  await runBudgetedLabRows(
-    pendingProbes,
-    options.concurrency,
-    spendCap,
-    async (probe) => {
-      const startedAt = Date.now();
-      const traceId = crypto.randomUUID();
-      const run = await runLecture(probe.question, {
-        origin: options.origin,
-        cookie,
-        familiarity: options.familiarity,
-        narrationLanguage: options.narrationLanguage,
-        probeId: probe.id,
-        topicId: probe.topicId,
-        unitId: unitIdFromTopicId(probe.topicId),
-        difficulty: probe.difficulty,
-        arm: options.arm,
-        figureOnly: options.figureOnly,
-        fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
-        scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
-        subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
-        productionStrictSubjects: options.productionStrictSubjects,
-        sceneDeclinePolicy: options.sceneDeclinePolicy,
-        traceId,
-        visualNeedReplay: visualNeedReplay?.get(probe.id),
-        diagramExamples,
-        diagramExampleCatalogue,
-      });
-      run.planner = await usageTracker.finishAsync(traceId);
-      if (run.visualNeed?.origin === "live_service") run.visualNeed.accounting = visualNeedAccountingByTrace.get(traceId);
-      if (budgetDeniedTraces.has(traceId)) {
-        budgetTerminatedRows.push(probe.id);
-        mkdirSync(`${outDir}/interrupted`, { recursive: true });
-        writeFileSync(`${outDir}/interrupted/${labArtifactSlug(probe.id)}-${traceId}.json`, JSON.stringify({
-          ...run, providerConfig, executionConfig, evaluation: evaluationById.get(probe.id) ?? null,
-          status: "untested_budget", traceId,
-        }, null, 1) + "\n");
-        console.log(`budget ended during ${probe.id}; untested, not an empty-figure verdict`);
+  try {
+    await runBudgetedLabRows(
+      pendingProbes,
+      options.concurrency,
+      spendCap,
+      async (probe) => {
+        const startedAt = Date.now();
+        const traceId = crypto.randomUUID();
+        const run = await runLecture(probe.question, {
+          origin: options.origin,
+          cookie,
+          familiarity: options.familiarity,
+          narrationLanguage: options.narrationLanguage,
+          probeId: probe.id,
+          topicId: probe.topicId,
+          unitId: unitIdFromTopicId(probe.topicId),
+          difficulty: probe.difficulty,
+          arm: options.arm,
+          figureOnly: options.figureOnly,
+          fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
+          scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
+          subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
+          sceneDeclinePolicy: options.sceneDeclinePolicy,
+          traceId,
+          visualNeedReplay: visualNeedReplay?.get(probe.id),
+          diagramExamples,
+          diagramExampleCatalogue,
+          spendMode: options.spendMode,
+        });
+        run.planner = await usageTracker.finishAsync(traceId);
+        if (run.visualNeed?.origin === "live_service") run.visualNeed.accounting = visualNeedAccountingByTrace.get(traceId);
+        if (budgetDeniedTraces.has(traceId)) {
+          budgetTerminatedRows.push(probe.id);
+          mkdirSync(`${outDir}/interrupted`, { recursive: true });
+          writeFileSync(`${outDir}/interrupted/${labArtifactSlug(probe.id)}-${traceId}.json`, JSON.stringify({
+            ...run, providerConfig, executionConfig, evaluation: evaluationById.get(probe.id) ?? null,
+            status: "untested_budget", traceId,
+          }, null, 1) + "\n");
+          console.log(`budget ended during ${probe.id}; untested, not an empty-figure verdict`);
+          writeSummary();
+          return;
+        }
+        const grade = gradeLecture(run);
+        grades.push(grade);
+        runs.push(run);
+        const slug = labArtifactSlug(probe.id);
+        const svgPath = run.diagram.svg ? `frames/${slug}.svg` : null;
+        const pngPath = run.diagram.svg ? `frames/${slug}.png` : null;
+        if (run.diagram.svg) {
+          mkdirSync(`${outDir}/frames`, { recursive: true });
+          writeFileSync(`${outDir}/frames/${slug}.svg`, run.diagram.svg);
+        }
+        run.diagram.png = pngPath;
+        writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({
+          ...run,
+          providerConfig,
+          executionConfig,
+          evaluation: evaluationById.get(probe.id) ?? null,
+          diagram: { ...run.diagram, svg: svgPath, png: pngPath },
+        }, null, 1)}\n`);
+        writeFileSync(`${outDir}/transcripts/${slug}.md`, `${transcript(run, grade)}\n`);
+        done += 1;
+        newRowsDone += 1;
+        checkpointSpend();
         writeSummary();
-        return;
-      }
-      const grade = gradeLecture(run);
-      grades.push(grade);
-      runs.push(run);
-      const slug = labArtifactSlug(probe.id);
-      const svgPath = run.diagram.svg ? `frames/${slug}.svg` : null;
-      const pngPath = run.diagram.svg ? `frames/${slug}.png` : null;
-      if (run.diagram.svg) {
-        mkdirSync(`${outDir}/frames`, { recursive: true });
-        writeFileSync(`${outDir}/frames/${slug}.svg`, run.diagram.svg);
-      }
-      run.diagram.png = pngPath;
-      writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({
-        ...run,
-        providerConfig,
-        executionConfig,
-        evaluation: evaluationById.get(probe.id) ?? null,
-        diagram: { ...run.diagram, svg: svgPath, png: pngPath },
-      }, null, 1)}\n`);
-      writeFileSync(`${outDir}/transcripts/${slug}.md`, `${transcript(run, grade)}\n`);
-      done += 1;
-      newRowsDone += 1;
-      checkpointSpend();
-      writeSummary();
-      if (evaluationRows && newRowsDone === 5) {
-        assertRoundPlannerStarted(runs.slice(-5).map((completedRun) => completedRun.planner), 5);
-      }
-      const state = evaluationRows
-        ? run.error ? "dead" : run.diagram.committed ? "fig " : "none"
-        : grade.transportFailure ? "dead" : grade.passed ? "ok  " : "FAIL";
-      console.log(`[${done}/${probes.length}] ${state} ${Math.round((Date.now() - startedAt) / 1000)}s ${probe.id}`);
-    },
-  );
+        if (evaluationRows && newRowsDone === 5) {
+          assertRoundPlannerStarted(runs.slice(-5).map((completedRun) => completedRun.planner), 5);
+        }
+        const state = evaluationRows
+          ? run.error ? "dead" : run.diagram.committed ? "fig " : "none"
+          : grade.transportFailure ? "dead" : grade.passed ? "ok  " : "FAIL";
+        console.log(`[${done}/${probes.length}] ${state} ${Math.round((Date.now() - startedAt) / 1000)}s ${probe.id}`);
+      },
+    );
+  } catch (error) {
+    // Keep the settled paid evidence before surfacing a failed round.
+    writeSummary();
+    throw error;
+  } finally {
+    globalThis.fetch = nativeFetch;
+    checkpointSpend();
+  }
 
   // Paid records and summary exist before optional rendering can fail.
   const summary = writeSummary();
@@ -946,9 +1085,10 @@ async function main(): Promise<void> {
       `lecture lab stopped for budget after ${summary.rowsDone}/${summary.rowsPlanned} rows at $${summary.chargedUsd.toFixed(6)} / $${summary.maxUsd.toFixed(2)}`,
     );
   }
+  if (summary.unresolvedCalls.length > 0) console.log(`spend has ${summary.unresolvedCalls.reduce((sum, call) => sum + call.attempts, 0)} unmetered attempts; $${summary.knownUsageUsd.toFixed(6)} known usage, $${summary.unresolvedAllowanceUsd.toFixed(6)} unresolved allowance (not measured spend). Reconcile provider metrics before claiming a real total.`);
   if (galleryPath) console.log(`gallery: ${galleryPath}`);
 }
 
 if (process.argv[1]?.endsWith("run.ts")) {
-  void main();
+  void main().catch((error) => { console.error(error); process.exitCode = 1; });
 }

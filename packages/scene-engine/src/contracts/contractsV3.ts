@@ -108,6 +108,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     Array.isArray(raw.givens) ? raw.givens : [],
     bindingMeta,
   );
+  attachTrigStipulations(numericBindings, raw);
   const reconciliations: TurnPlanArithmeticReconciliation[] = [];
   const declined: TurnPlanArithmeticDecline[] = [];
   const derived: unknown[] = [...raw.derived];
@@ -268,6 +269,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
   const knownUnits = collectPlanUnits(raw);
   const validationBindingMeta: NumericBindingMetaMap = new Map();
   const validationBindings = collectNumericBindings(givens, validationBindingMeta);
+  attachTrigStipulations(validationBindings, raw);
   derivedEvaluationOrder(derived).forEach((index) => {
     const value = derived[index];
     if (
@@ -660,10 +662,13 @@ function evaluateExplicitArithmetic(
         tolerance: displayedNumberTolerance(String(options.declaredValue)),
       }
     : null;
+  const readableSource = chainWorksInDegrees(sourceText, expectedUnit, numericBindings)
+    ? guardBareDegreeLikeTrigArguments(sourceText)
+    : sourceText;
   let invalid = false;
   let signConflict = false;
   let mixedUnits = false;
-  for (const clause of splitArithmeticClauses(sourceText)) {
+  for (const clause of splitArithmeticClauses(readableSource)) {
     const equalityParts = splitEqualityParts(clause);
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
@@ -690,6 +695,14 @@ function evaluateExplicitArithmetic(
         if (reconcile || !stated) pushResult(inverseTrigDegrees);
         else pushResult(stated.value, stated);
       }
+      continue;
+    }
+    if (
+      normalizeUnit(expectedUnit) === "degree" &&
+      /\b(?:asin|acos|atan|arcsin|arccos|arctan)\s*\(/i.test(normalizeInverseTrigNotation(clause))
+    ) {
+      // An inverse trig result is in radians. For a target in degrees the
+      // clause is evidence only through the degree reading above.
       continue;
     }
     const assertion = parseTargetAssertion(equalityParts, clauseTargetKeys, expectedUnit);
@@ -1223,8 +1236,13 @@ function evaluateInverseTrigDegreeTarget(
   const hasDirectTarget = equalityParts.some((part) =>
     targets.has(normalizeNumericBindingKey(part)));
   if (!hasDirectTarget) return null;
-  for (const part of equalityParts) {
+  for (const rawPart of equalityParts) {
+    const part = normalizeInverseTrigNotation(rawPart.replace(/[−–]/g, "-"));
     if (!/\b(?:asin|acos|atan|arcsin|arccos|arctan)\s*\(/i.test(part)) continue;
+    // The member is converted from radians as a whole, which is right for
+    // "asin(x)", "2 atan(x)" or "90° - atan(x)" but not for a bare number
+    // added in degrees ("90 - atan(x)"). That reading would be a guess.
+    if (addsBareNumberToInverseTrig(part)) continue;
     const expression = normalizeExplicitNumericExpression(part, knownUnits, numericBindings);
     if (!expression) continue;
     try {
@@ -1235,6 +1253,28 @@ function evaluateInverseTrigDegreeTarget(
     }
   }
   return null;
+}
+
+function addsBareNumberToInverseTrig(part: string): boolean {
+  let outside = part;
+  for (;;) {
+    const match = /\b(?:asin|acos|atan|arcsin|arccos|arctan)\s*\(/i.exec(outside);
+    if (!match) break;
+    let depth = 0;
+    let end = outside.length;
+    for (let index = match.index + match[0].length - 1; index < outside.length; index += 1) {
+      if (outside[index] === "(") depth += 1;
+      else if (outside[index] === ")") depth -= 1;
+      if (depth === 0) {
+        end = index + 1;
+        break;
+      }
+    }
+    outside = `${outside.slice(0, match.index)} Q ${outside.slice(end)}`;
+  }
+  const additive = /[+-]/.test(outside.trim().replace(/^[+-]/, ""));
+  const bareNumber = /(?<![\d.])\d+(?:\.\d+)?(?![\d.]|\s*(?:°|degrees?\b|deg\b))/i.test(outside);
+  return additive && bareNumber;
 }
 
 interface SolvedTargetValue {
@@ -1375,7 +1415,10 @@ function coherentNumericBindings(
   for (const [key, value] of numericBindings) {
     const scale = scaledBindingUnit(key, bindingMeta);
     coherent.set(key, scale ? value * scale.factor : value);
+    markDegreeBinding(coherent, key, degreeBindingKeys(numericBindings).has(key));
   }
+  const stipulations = TRIG_STIPULATIONS.get(numericBindings);
+  if (stipulations) TRIG_STIPULATIONS.set(coherent, stipulations);
   return coherent;
 }
 
@@ -1584,6 +1627,188 @@ function parseLeadingMeasuredValue(
   };
 }
 
+/**
+ * Trig values the question or plan fixes for an angle ("Take sin 37 = 0.6
+ * and cos 37 = 0.8"), keyed "cos:37". The problem's own convention is the
+ * authority for that angle, so "F cos θ = 30 × 0.8 = 24" is never refined
+ * to the exact 23.96.
+ */
+const TRIG_STIPULATIONS = new WeakMap<Map<string, number>, Map<string, number>>();
+
+function collectTrigStipulations(plan: Record<string, unknown>): Map<string, number> {
+  const stipulations = new Map<string, number>();
+  // [text, whether a stated equality needs prescriptive wording to count]
+  const texts: Array<[string, boolean]> = [];
+  if (typeof plan.question === "string") texts.push([plan.question, true]);
+  for (const given of Array.isArray(plan.givens) ? plan.givens : []) {
+    if (!isRecord(given)) continue;
+    if (typeof given.sourceText === "string") texts.push([given.sourceText, false]);
+    if (typeof given.value !== "number" || !Number.isFinite(given.value)) continue;
+    for (const name of [given.symbol, given.id]) {
+      if (typeof name !== "string") continue;
+      const match = name.replace(/\\/g, "").match(
+        /^\s*(sin|cos|tan)\s*[_({]?\s*(\d+(?:\.\d+)?)\s*(?:°|\^\s*\\?circ|deg(?:rees?)?)?\s*[)}]?\s*$/i,
+      );
+      if (match) stipulations.set(`${match[1]!.toLowerCase()}:${Number(match[2])}`, given.value);
+    }
+  }
+  for (const [text, needsPrescription] of texts) {
+    for (const match of text.matchAll(
+      /(?<![A-Za-z])(sin|cos|tan)\s*\(?\s*(\d+(?:\.\d+)?)\s*(?:°|deg(?:rees?)?)?\s*\)?\s*(?:=|≈)\s*([+\-−]?\s*\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/gi,
+    )) {
+      if (needsPrescription && !prescribedInItsSentence(text, match.index ?? 0)) continue;
+      const numerator = Number(match[3]!.replace(/\s+/g, "").replace("−", "-"));
+      const value = numerator / (match[4] === undefined ? 1 : Number(match[4]));
+      if (Number.isFinite(value)) stipulations.set(`${match[1]!.toLowerCase()}:${Number(match[2])}`, value);
+    }
+  }
+  return stipulations;
+}
+
+/**
+ * A trig equality in the question fixes a value only when the problem
+ * prescribes it ("Take sin 37 = 0.6", "use cos 143° = -0.8"). One the student
+ * is asked about ("Is sin 30° = 0.6?") is not an assumption.
+ */
+function prescribedInItsSentence(text: string, index: number): boolean {
+  // A full stop ends a sentence only before whitespace or the end, so the
+  // decimal point in "0.6" does not split one.
+  const boundary = /[?!;]|\.(?=\s|$)/g;
+  let start = 0;
+  let end = text.length;
+  for (const match of text.matchAll(boundary)) {
+    const at = match.index ?? 0;
+    if (at < index) start = at + 1;
+    else { end = at; break; }
+  }
+  if (text[end] === "?") return false;
+  return /\b(?:take|taking|use|using|assume|assuming|given|let|put|where|with|consider)\b/i.test(text.slice(start, index));
+}
+
+function attachTrigStipulations(bindings: Map<string, number>, plan: Record<string, unknown>): void {
+  const stipulations = collectTrigStipulations(plan);
+  if (stipulations.size > 0) TRIG_STIPULATIONS.set(bindings, stipulations);
+}
+
+function trigStipulations(bindings: Map<string, number>): ReadonlyMap<string, number> {
+  return TRIG_STIPULATIONS.get(bindings) ?? new Map();
+}
+
+/** The stipulated value of name(argument) when the argument is that angle in degrees. */
+function stipulatedTrigValue(
+  stipulations: ReadonlyMap<string, number>,
+  name: string,
+  radiansArgument: string,
+): number | null {
+  if (stipulations.size === 0) return null;
+  let degrees: number;
+  try {
+    degrees = evaluateMathExpression(radiansArgument.replace(/\s+/g, ""), 0) * 180 / Math.PI;
+  } catch {
+    return null;
+  }
+  if (!Number.isFinite(degrees)) return null;
+  for (const [key, value] of stipulations) {
+    const [stipulatedName, angle] = key.split(":");
+    if (stipulatedName === name && Math.abs(Number(angle) - degrees) <= 1e-9 * Math.max(1, degrees)) return value;
+  }
+  return null;
+}
+
+// "cosθ" written glued is one token, as it always was; "cos θ" is cos(θ).
+const TRIG_FUNCTION = /(?<![A-Za-z0-9_])(sin|cos|tan)(?![A-Za-z0-9Α-Ωα-ω_])\s*/giu;
+
+/** sin⁻¹ x, sin^-1 x and sin^(-1) x are asin x. */
+function normalizeInverseTrigNotation(source: string): string {
+  return source.replace(
+    /(?<![A-Za-z0-9_])(sin|cos|tan)\s*(?:⁻¹|\^\s*\(\s*-\s*1\s*\)|\^\s*-\s*1(?![0-9.]))/gi,
+    (_, name: string) => `a${name.toLowerCase()}`,
+  );
+}
+
+/**
+ * Rewrite the argument of every sin, cos and tan: a parenthesised argument,
+ * or a single number or name written without parentheses ("cos θ",
+ * "sin 0.5 rad"). An unparenthesised argument that runs on into a product
+ * ("sin 2θ") is ambiguous and left as written.
+ */
+function mapTrigArguments(
+  expression: string,
+  rewrite: (name: "sin" | "cos" | "tan", argument: string, original: string) => string,
+): string {
+  let output = "";
+  let cursor = 0;
+  for (const match of expression.matchAll(TRIG_FUNCTION)) {
+    const start = match.index ?? 0;
+    if (start < cursor) continue;
+    const argumentStart = start + match[0].length;
+    const rest = expression.slice(argumentStart);
+    let argument: string | null = null;
+    let consumed = 0;
+    if (rest.startsWith("(")) {
+      let depth = 0;
+      for (let index = 0; index < rest.length; index += 1) {
+        if (rest[index] === "(") depth += 1;
+        else if (rest[index] === ")") depth -= 1;
+        if (depth === 0) {
+          argument = rest.slice(1, index);
+          consumed = index + 1;
+          break;
+        }
+      }
+    } else {
+      const atom = rest.match(
+        /^(?:[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:\s*(?:°|(?:degrees?|deg|radians?|rad)\b))?)/u,
+      );
+      if (atom && !/^\s*[A-Za-z0-9Α-Ωα-ω_.(]/u.test(rest.slice(atom[0].length))) {
+        argument = atom[0];
+        consumed = atom[0].length;
+      }
+    }
+    if (argument === null) continue;
+    const name = match[1]!.toLowerCase() as "sin" | "cos" | "tan";
+    const inner = mapTrigArguments(argument, rewrite);
+    const original = inner === argument
+      ? expression.slice(start, argumentStart + consumed)
+      : `${name}(${inner})`;
+    output += `${expression.slice(cursor, start)}${rewrite(name, inner, original)}`;
+    cursor = argumentStart + consumed;
+  }
+  return output + expression.slice(cursor);
+}
+
+/**
+ * A trig argument that is a bare number above 2π ("sin(60)") in a chain that
+ * works in degrees is almost certainly degrees written without the mark.
+ * Reading it in radians would be a guess, so that member is made unreadable
+ * and is no evidence; the chain's other members still are.
+ */
+function guardBareDegreeLikeTrigArguments(sourceText: string): string {
+  return mapTrigArguments(sourceText, (name, argument, original) => {
+    if (/[A-Za-zΑ-Ωα-ωπ°]/u.test(argument) || !/\d/.test(argument)) return original;
+    try {
+      const value = evaluateMathExpression(
+        argument.replace(/[−–]/g, "-").replace(/[×·⋅]/g, "*").replace(/\s+/g, ""),
+        0,
+      );
+      if (Number.isFinite(value) && Math.abs(value) > 2 * Math.PI) return `${name}(${argument} ?)`;
+    } catch {
+      // Not a plain number; nothing to judge.
+    }
+    return original;
+  });
+}
+
+function chainWorksInDegrees(
+  sourceText: string,
+  expectedUnit: unknown,
+  numericBindings: Map<string, number>,
+): boolean {
+  return normalizeUnit(expectedUnit) === "degree" ||
+    /°|\bdeg(?:rees?)?\b/i.test(sourceText) ||
+    degreeBindingKeys(numericBindings).size > 0;
+}
+
 function normalizeExplicitNumericExpression(
   source: string,
   knownUnits: string[],
@@ -1591,8 +1816,7 @@ function normalizeExplicitNumericExpression(
   allowedIdentifier?: string,
   usedBindingKeys?: Set<string>,
 ): string | null {
-  let expression = source
-    .replace(/[−–]/g, "-")
+  let expression = normalizeInverseTrigNotation(source.replace(/[−–]/g, "-"))
     .replace(/[×·⋅]/g, "*")
     .replace(/√\s*(?=\()/g, "sqrt")
     .replace(/√\s*(\d+(?:\.\d+)?|[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*)/gu, "sqrt($1)")
@@ -1610,6 +1834,20 @@ function normalizeExplicitNumericExpression(
     "(($1)*pi/180)",
   );
   const substitutedKeys = new Set<string>();
+  // Trig arguments first: a degree-valued binding becomes radians there
+  // ("u cos θ" with θ = 30 deg is u cos(π/6)), and only there.
+  const degreeKeys = degreeBindingKeys(numericBindings);
+  const stipulations = trigStipulations(numericBindings);
+  expression = mapTrigArguments(expression, (name, argument) => {
+    const radians = substituteNumericBindings(
+      argument.replace(/(\d|\))\s*(?:radians?|rad)\b(?!\s*[/^*])/gi, "$1"),
+      numericBindings,
+      substitutedKeys,
+      degreeKeys,
+    );
+    const stipulated = stipulatedTrigValue(stipulations, name, radians);
+    return stipulated === null ? `${name}(${radians})` : `(${stipulated})`;
+  });
   expression = substituteNumericBindings(expression, numericBindings, substitutedKeys);
   for (const unit of knownUnits) {
     const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
@@ -1649,7 +1887,11 @@ function substituteNumericBindings(
   expression: string,
   numericBindings: Map<string, number>,
   usedKeys?: Set<string>,
+  /** Keys to substitute in radians (the expression is a trig argument). */
+  degreeKeys: ReadonlySet<string> = new Set(),
 ): string {
+  const literal = (key: string, value: number) =>
+    degreeKeys.has(key) ? `((${value})*pi/180)` : `(${value})`;
   const reserved = new Set([
     "sqrt", "sin", "cos", "tan", "asin", "acos", "atan",
     "abs", "exp", "log", "ln", "pi", "e",
@@ -1664,7 +1906,7 @@ function substituteNumericBindings(
       const exact = numericBindings.get(token);
       if (exact !== undefined) {
         usedKeys?.add(token);
-        return `(${exact})`;
+        return literal(token, exact);
       }
 
       const replacements: Array<[string, number]> = [];
@@ -1676,7 +1918,7 @@ function substituteNumericBindings(
         cursor += match[0].length;
       }
       replacements.forEach(([key]) => usedKeys?.add(key));
-      return replacements.map(([, value]) => `(${value})`).join("*");
+      return replacements.map(([key, value]) => literal(key, value)).join("*");
     },
   );
 }
@@ -1715,10 +1957,12 @@ function addNumericBinding(
     magnitudeOnly: isMagnitudeOnlyQuantity(value),
     trusted,
   };
+  const degrees = normalizeUnit(value.unit) === "degree";
   const bind = (key: string) => {
     const normalized = normalizeNumericBindingKey(key);
     bindings.set(normalized, value.value as number);
     meta?.set(normalized, entry);
+    markDegreeBinding(bindings, normalized, degrees);
   };
   for (const key of [value.id, value.symbol]) {
     if (typeof key !== "string" || key.trim() === "") continue;
@@ -1730,6 +1974,32 @@ function addNumericBinding(
       bind(leftHandSide);
     }
   }
+}
+
+/**
+ * Keys of each binding map whose quantity is an angle in degrees (theta =
+ * 30 deg). A trigonometric function reads its argument in radians, so such a
+ * binding is converted where it is a trig argument ("u cos θ") and nowhere
+ * else ("θ/2" stays in degrees). Kept beside the map so every caller that
+ * evaluates with the map sees the same angle units.
+ */
+const DEGREE_BINDING_KEYS = new WeakMap<Map<string, number>, Set<string>>();
+
+function markDegreeBinding(bindings: Map<string, number>, key: string, degrees: boolean): void {
+  let keys = DEGREE_BINDING_KEYS.get(bindings);
+  if (!degrees) {
+    keys?.delete(key);
+    return;
+  }
+  if (!keys) {
+    keys = new Set();
+    DEGREE_BINDING_KEYS.set(bindings, keys);
+  }
+  keys.add(key);
+}
+
+function degreeBindingKeys(bindings: Map<string, number>): ReadonlySet<string> {
+  return DEGREE_BINDING_KEYS.get(bindings) ?? new Set();
 }
 
 function normalizeNumericBindingKey(value: string): string {

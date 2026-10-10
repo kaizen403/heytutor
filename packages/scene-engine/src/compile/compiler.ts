@@ -185,7 +185,13 @@ type DerivedGeometryMetadata = {
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; spaceCross?: SpaceCrossDefinition; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
   | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
-  | ({ kind: "multi_path"; paths: Point[][] } & DerivedGeometryMetadata)
+  | ({
+      kind: "multi_path";
+      paths: Point[][];
+      /** Per-path arrow semantics retained by operators that return several
+       * independent curves. Undefined means every path is ordinary ink. */
+      pathDirections?: boolean[];
+    } & DerivedGeometryMetadata)
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
@@ -245,7 +251,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric)) {
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
-      const outputs = evaluateConstruction(operator, inputs, geometry, quantities);
+      const outputs = evaluateConstruction(operator, inputs, geometry, quantities, document);
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
         if (override) outputs[0] = { kind: "point", point: override };
@@ -1273,7 +1279,12 @@ function adaptDipoleGeometry(value: DipoleGeometry): Geometry {
   if (value.kind === "point") return { kind: "point", point: value.point, dipoleField };
   if (value.kind === "path") return { kind: "path", points: value.points, directed: true, dipoleField };
   if (value.kind === "circle") return { kind: "circle", center: value.center, radius: value.radius, dipoleField };
-  return { kind: "multi_path", paths: value.paths.map((path) => path.points), dipoleField };
+  return {
+    kind: "multi_path",
+    paths: value.paths.map((path) => path.points),
+    pathDirections: value.paths.map((path) => path.directed),
+    dipoleField,
+  };
 }
 
 function evaluateConstruction(
@@ -1281,6 +1292,7 @@ function evaluateConstruction(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  document: SceneDocument,
 ): Geometry[] {
   const point = (names: string[]): Point => resolvePoint(first(inputs, names), geometry);
   const number = (names: string[]): number => resolveNumber(first(inputs, names), quantities);
@@ -1338,7 +1350,7 @@ function evaluateConstruction(
     case "metre_bridge":
     case "potentiometer":
     case "incline_friction":
-    case "cyclotron": return evaluateChapterInstrumentConstruction(operator, inputs, constructionContext);
+    case "cyclotron": return evaluateChapterInstrumentConstruction(operator, inputs, constructionContext, document);
     case "hydrostatic_profile":
     case "hydrostatic_state":
     case "buoyancy": return evaluateFluidConstruction(operator, inputs, constructionContext);
@@ -2301,7 +2313,7 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
       id: `primitive_${entityId}_${index}`,
       entityId,
       groupId,
-      kind: "polyline",
+      kind: value.pathDirections?.[index] === true ? "vector" : "polyline",
       points: path.map(transform),
       provenance,
     }));

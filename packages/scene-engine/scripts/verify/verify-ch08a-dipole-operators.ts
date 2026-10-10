@@ -387,7 +387,16 @@ check(intoPage.dipoleField.tauSense === "into-page" && intoPage.dipoleField.tau 
 exams(pageNormal.dipoleField.exams, "listed", "application", "listed", "torque exam tags");
 const longTorque = torque({ x: 1, y: 0 }, { x: 0, y: 2 }, 9);
 check(longTorque.dipoleField.tau === pageNormal.dipoleField.tau && longTorque.dipoleField.netForce?.x === 0, "display length does not change tau or net force");
-check(longTorque.kind === "path" && distance(longTorque.points[0]!, longTorque.points[1]!) === 9, "torque arrow uses display length");
+// tau = p x E is normal to the page: a ring of diameter displayLength with a
+// dot (out) or a cross (in), never an arrow along p, and no direction at zero.
+const ringRadius = (points: readonly RenderPoint[]): number => Math.max(...points.map((point) => distance(point, { x: 0, y: 0 })));
+check(longTorque.kind === "multi_path" && longTorque.paths.every((path) => !path.directed), "torque is an undirected page-normal glyph");
+check(longTorque.kind === "multi_path" && Math.abs(ringRadius(longTorque.paths[0]!.points) - 4.5) < 1e-9, "torque ring diameter uses display length");
+check(longTorque.kind === "multi_path" && longTorque.paths.length === 2 && ringRadius(longTorque.paths[1]!.points) < 0.5, "positive tau draws the out-of-page dot");
+check(longTorque.dipoleField.pageNormal === "out" && longTorque.dipoleField.components === undefined, "torque declares its page normal and does not reuse p");
+check(intoPage.kind === "multi_path" && intoPage.paths.length === 3 && intoPage.paths.slice(1).every((path) => path.points.length === 2 && !path.directed), "negative tau draws the into-page cross");
+check(intoPage.dipoleField.pageNormal === "in", "negative tau declares into the page");
+check(parallel.kind === "point" && parallel.dipoleField.pageNormal === null, "zero torque draws no direction");
 rejects(() => torque({ x: 1, y: 0 }, { x: 0, y: 2 }, 2, { nonuniform: true }), "nonuniform torque rejects");
 rejects(() => torque({ x: 1, y: 0 }, { x: 0, y: 2 }, 2, { gradient: { x: 1, y: 0 } }), "a supplied field gradient rejects");
 rejects(() => torque({ x: 1, y: 0 }, { x: 0, y: 2 }, 2, { uniform: false }), "uniform:false rejects");
