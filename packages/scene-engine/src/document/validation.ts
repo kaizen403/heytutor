@@ -139,6 +139,7 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   solid_of_revolution: "solid", solid_projection: "solid", solid_cross_section: "region", solid_anchor: "point",
   space_frame: "polyline", space_point: "point", space_line: "line", plane: "polygon",
   space_project: "point", space_segment: "segment",
+  space_vector: "vector", space_cross: "vector", space_angle_mark: "angle_mark", space_right_angle_mark: "right_angle_mark",
   wavefront_family: "polyline", aperture: "polyline", screen_pattern: "polyline",
   transverse_field: "polyline", polarizer: "polyline",
   optical_train: "ray",
@@ -187,6 +188,7 @@ const CALCULUS_OPERATORS = new Set([
 ]);
 const MENSURATION_OPERATORS = new Set(["solid_projection", "solid_cross_section", "solid_anchor"]);
 const SPACE_OPERATORS = new Set(["space_frame", "space_point", "space_line", "plane"]);
+const SPACE_ANGLE_MARK_OPERATORS = new Set(["space_angle_mark", "space_right_angle_mark"]);
 const WAVE_VISUAL_OPERATORS = new Set([
   "wavefront_family", "aperture", "screen_pattern", "transverse_field", "polarizer",
 ]);
@@ -4047,16 +4049,22 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
           : [],
       ),
     );
+    const assertionProducers = constructionProducers(Array.isArray(normalizedRaw.constructions) ? normalizedRaw.constructions : []);
     normalizedRaw.assertions = normalizedRaw.assertions.flatMap((assertion) => {
       if (!isRecord(assertion)) return [assertion];
       if (assertion.predicate === "angle_between") {
         const ids = Array.isArray(assertion.entities)
           ? assertion.entities.filter((id): id is string => typeof id === "string")
           : [];
+        // A world angle mark carries the angle it draws, so it is proved alone.
+        const worldAngleMark = ids.length === 1 &&
+          SPACE_ANGLE_MARK_OPERATORS.has(String(assertionProducers.get(ids[0]!)?.operator ?? ""));
         if (
-          ids.length !== 2 ||
-          ids[0] === ids[1] ||
-          ids.some((id) => entityKindById.get(id) === "axes")
+          !worldAngleMark && (
+            ids.length !== 2 ||
+            ids[0] === ids[1] ||
+            ids.some((id) => entityKindById.get(id) === "axes")
+          )
         ) {
           return [];
         }
@@ -6471,7 +6479,7 @@ function isInlineCoordinatePoint(value: unknown): value is Record<string, unknow
 
 function isAngleMarkVertex(entityId: string, document: SceneDocument): boolean {
   return document.constructions.some((construction) => {
-    if (construction.operator !== "angle_mark" && construction.operator !== "right_angle_mark") return false;
+    if (construction.operator !== "angle_mark" && construction.operator !== "right_angle_mark" && !SPACE_ANGLE_MARK_OPERATORS.has(construction.operator)) return false;
     return isRecord(construction.inputs) && construction.inputs.vertex === entityId;
   });
 }
