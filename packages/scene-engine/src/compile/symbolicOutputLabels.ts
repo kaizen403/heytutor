@@ -18,7 +18,7 @@ export function representativeOutputLabel(label: string | null, requested: unkno
   // Counts, probabilities and discrete witnesses remain actual mathematical
   // data even when their diagram uses a nonmetric layout.
   if (typeof output !== "object" || output === null
-    || !["opticalImage", "opticalFocus", "electricField", "dipoleField", "waveDefinition", "waveSample", "remainder"].some((key) => key in output)) return label;
+    || !["opticalImage", "opticalFocus", "electricField", "dipoleField", "chargedRing", "waveDefinition", "waveSample", "remainder"].some((key) => key in output)) return label;
   if (isSymbolicIdentity(requested)) return requested.trim();
-  return label?.split("=")[0]?.replace(/ schematic$/, "") ?? null;
+  return label?.split(/[=≈]/)[0]?.replace(/ schematic$/, "") ?? null;
 }

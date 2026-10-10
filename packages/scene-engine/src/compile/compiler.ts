@@ -1,3 +1,4 @@
+import { evaluateChargedRing, type ChargedRingDefinition } from "./chargedRingGeometry";
 import {
   SCENE_ENGINE_VERSION,
   type CompileOptions,
@@ -129,6 +130,7 @@ type SampledCurve = {
 };
 type DerivedGeometryMetadata = {
   rectangleAxes?: { width: [Point, Point]; height: [Point, Point]; axis?: "width" | "height" };
+  chargedRing?: ChargedRingDefinition;
   pageNormalVector?: { pageNormal: "out" | "in"; direction: readonly [0, 0, 1 | -1]; displayLength: number };
   combinatoricsGraph?: CombinatoricsGraphDefinition;
   combinatoricsNode?: CombinatoricsNodeDefinition;
@@ -250,7 +252,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (!isExecutableSceneConstructionOperator(operator)) {
         throw new Error(`unsupported operator ${operator}`);
       }
-      if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric) && !metricWaveDimension(inputs, geometry)) {
+      if (operator === "dimension" && (
+        hasDisplayAncestor(construction.outputs, geometry, document, isChargedRingBoundary)
+        || hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric) && !metricWaveDimension(inputs, geometry)
+      )) {
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
       const outputs = evaluateConstruction(operator, inputs, geometry, quantities, document);
@@ -1405,6 +1410,7 @@ function evaluateConstruction(
     case "probability_tree": return evaluateProbabilityConstruction(operator, inputs, constructionContext);
     case "electric_field":
     case "field_components": return evaluateFieldConstruction(operator, inputs, constructionContext);
+    case "charged_ring_axial_field": return evaluateChargedRing(inputs, constructionContext, document);
     case "coulomb_pair":
     case "point_charge_field":
     case "field_lines":
@@ -1781,6 +1787,10 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
   }
   if (hasUnconstructedGeometry) {
     issues.push({ code: "assertion_entity_unconstructed", message: `Assertion ${assertion.id} references unconstructed geometry`, severity, entityIds: assertion.entities });
+    return;
+  }
+  if (!["exists", "entity_count", "label_attached"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, isChargedRingBoundary)) {
+    issues.push({ code: "invalid_world_assertion", message: "Projected ring boundaries require implemented world-ring predicates; screen overlap cannot establish a physical ring relation", severity: "fatal", entityIds: assertion.entities });
     return;
   }
   if (values.some(isNonmetricGeometry) && !["exists", "entity_count", "label_attached"].includes(predicate)) {
@@ -4396,6 +4406,9 @@ function curveExpression(entityId: string | undefined, document: SceneDocument) 
     throw new Error(`${entityId} is not a function_curve`);
   }
   return parseMathExpression(construction.inputs.expression);
+}
+function isChargedRingBoundary(value: Geometry | undefined): boolean {
+  return value?.kind === "path" && value.chargedRing !== undefined && value.spaceSegment === undefined;
 }
 function isNonmetricGeometry(value: Geometry | undefined): boolean {
   return value !== undefined && Object.values(value).some((entry) => isRecord(entry) && entry.nonmetric === true);

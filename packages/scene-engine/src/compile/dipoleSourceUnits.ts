@@ -86,3 +86,14 @@ export function prepareDipoleSourceUnits(operator: string, inputs: Record<string
   for (const key of ["stepLength", "exclusionRadius"]) if (inputs[key] !== undefined) scalar(inputs[key], "m", "length", document);
   return { inputs: prepared, chargeFactor: CHARGE_SCALE[charge]!, lengthFactor: LENGTH_SCALE[length]! };
 }
+
+/** Shared finite electric source-unit contract; no schematic or dimensionless mode. */
+export function electricSourceUnits(units: unknown): { charge: string; length: string; chargeFactor: number; lengthFactor: number } {
+  if (!record(units) || Object.keys(units).some((key) => !["charge", "length"].includes(key))
+    || typeof units.charge !== "string" || typeof units.length !== "string"
+    || !Object.hasOwn(CHARGE_SCALE, units.charge) || !Object.hasOwn(LENGTH_SCALE, units.length)) fail("explicit supported charge and length units are required");
+  return { charge: units.charge, length: units.length, chargeFactor: CHARGE_SCALE[units.charge]!, lengthFactor: LENGTH_SCALE[units.length]! };
+}
+export function electricSourceScalar(value: unknown, unit: string, dimension: Dimension, document: SceneDocument): unknown {
+  return scalar(value, unit, dimension, document);
+}

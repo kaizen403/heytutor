@@ -1,3 +1,4 @@
+import { chargedRingLabels } from "./chargedRingGeometry";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import { probabilityTreeOutputLabels } from "./probabilityGeometry";
 import { fieldConstructionOutputLabels, validateEvaluatedFieldLabels } from "./fieldGeometry";
@@ -55,6 +56,9 @@ export function withEvaluatedOutputLabels(
   }
   let labels: readonly (string | null)[];
   switch (construction.operator) {
+    case "charged_ring_axial_field":
+      labels = chargedRingLabels(construction, index, document, outputs, issues);
+      break;
     case "permutation_cycles":
     case "subset_lattice":
       validateEvaluatedCombinatoricsLabels(construction, index, document, outputs, issues);

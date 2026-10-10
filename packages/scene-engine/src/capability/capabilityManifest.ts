@@ -132,6 +132,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "electric_field",
     "field_components",
     "coulomb_pair",
+    "charged_ring_axial_field",
     "point_charge_field",
     "field_lines",
     "dipole_field",

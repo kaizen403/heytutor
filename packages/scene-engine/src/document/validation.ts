@@ -1,3 +1,4 @@
+import { validateChargedRing } from "../compile/chargedRingGeometry";
 import {
   SCENE_ANNOTATION_KINDS,
   SCENE_DOCUMENT_VERSION,
@@ -4358,6 +4359,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (SPACE_DERIVATION_CONSTRUCTIONS.has(construction.operator)) validateSpaceDerivationConstruction(construction, index, document, constructionByOutput, issues);
       if (PROBABILITY_CONSTRUCTIONS.has(construction.operator)) validateProbabilityConstruction(construction, index, document, constructionByOutput, issues);
       if (FIELD_CONSTRUCTIONS.has(construction.operator)) validateFieldConstruction(construction, index, document, constructionByOutput, issues);
+      if (construction.operator === "charged_ring_axial_field") validateChargedRing(construction, index, document, issues);
       if (DIPOLE_FIELD_CONSTRUCTIONS.has(construction.operator)) validateDipoleFieldConstruction(construction, index, document, constructionByOutput, issues);
       if (COORDINATE_LINE_CONSTRUCTIONS.has(construction.operator)) validateCoordinateLineConstruction(construction, index, document, constructionByOutput, issues);
       if (RIGID_MASS_CONSTRUCTIONS.has(construction.operator)) validateRigidMassConstruction(construction, index, document, constructionByOutput, issues);
