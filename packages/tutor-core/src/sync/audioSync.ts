@@ -1,4 +1,4 @@
-import type { DrawCommand, ParsedResponse } from "@heytutor/drawing";
+import { countWrittenGlyphs, type DrawCommand, type ParsedResponse } from "@heytutor/drawing";
 import { mathToSpeech, type AudioTimings } from "../tts/elevenLabsClient";
 import {
   type InkPace,
@@ -1472,7 +1472,7 @@ function scheduleFromPlans(plans: TokenPlan[]): { offsetsMs: number[]; charDurat
 /**
  * Builds a per-character writing schedule so each token of a WRITE/LABEL command
  * is drawn while the narrator speaks it. Returns one start offset (ms from
- * audio start) per non-space character of `command.text`, in document order,
+ * audio start) per visible glyph of `command.text`, in document order,
  * which matches the order `textToStrokePaths` emits characters (it skips spaces).
  *
  * Each board token (whitespace-separated) is matched against the spoken words
@@ -1489,7 +1489,7 @@ export function getWriteCharScheduleMs(
   textCommandIndex = 0,
 ): WriteCharSchedule | null {
   const text = command.text ?? "";
-  const nonSpaceCount = text.replace(/\s/g, "").length;
+  const nonSpaceCount = countWrittenGlyphs(text);
   if (nonSpaceCount === 0) {
     return null;
   }
@@ -1516,7 +1516,7 @@ export function getWriteCharScheduleMs(
     const candidates = boardTokenSpokenCandidates(token, tokens[index - 1]);
     return {
       token,
-      count: token.length,
+      count: countWrittenGlyphs(token),
       silent: candidates.length === 0,
       candidates,
       match: null,
@@ -1526,6 +1526,9 @@ export function getWriteCharScheduleMs(
       endMs: 0,
     };
   });
+  // A script group can span whitespace. If token splitting changes its glyph
+  // count, use the whole-row fallback rather than shifting later word cues.
+  if (plans.reduce((sum, plan) => sum + plan.count, 0) !== nonSpaceCount) return null;
 
   let cursor = 0;
   if (textCommandIndex > 0) {
@@ -1647,7 +1650,7 @@ export function getFallbackWriteCharScheduleMs(
   msPerChar = defaultSpeechMsPerChar,
 ): WriteCharSchedule | null {
   const text = command.text ?? "";
-  const nonSpaceCount = text.replace(/\s/g, "").length;
+  const nonSpaceCount = countWrittenGlyphs(text);
   if (nonSpaceCount === 0) {
     return null;
   }
