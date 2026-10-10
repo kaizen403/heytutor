@@ -78,7 +78,7 @@ function pickerInput(rawBody: string, question: string): { plan: TurnPlanV3 | nu
 
 export function buildLiveDiagramPickerBody(rawBody: string, question: string): string {
   const { plan } = pickerInput(rawBody, question);
-  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question));
+  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question), { question, plan });
   const planSummary = diagramPlanRetrievalText(plan);
   const prompt = [
     "Pick up to 3 catalogue examples whose DRAWN FIGURE would best guide a diagram for the student question.",
