@@ -33,6 +33,8 @@ function loadHook(
   const filename = path.join(app, file);
   const sourceFile = file.endsWith("useQuestionHandler.ts")
     ? (process.env.LESSON_HANDLER_TEST_SOURCE ?? filename)
+    : file.endsWith("useTurnControl.ts")
+      ? (process.env.LESSON_CONTROL_TEST_SOURCE ?? filename)
     : filename;
   const js = ts.transpileModule(readFileSync(sourceFile, "utf8"), {
     compilerOptions: {
@@ -269,7 +271,7 @@ function handlerFixture(transport: LessonOwnershipTransport, turnId = "local") {
     boardLoaded: true,
     isDraft: false,
     commitDraftBoard: undefined,
-    whiteboardRef: ref({ getDrawLayer: () => ({}) }),
+    whiteboardRef: ref({ getDrawLayer: () => ({}), setPaused: noop, clearSpotlight: noop }),
     phaseRef: ref("idle"),
     cancelRef: ref(false),
     turnActiveRef: ref(false),
@@ -326,6 +328,7 @@ function handlerFixture(transport: LessonOwnershipTransport, turnId = "local") {
     values,
     admission,
     registry,
+    control,
     frames,
     effects,
     setFreshRead: (pending: Promise<StoredTurn[] | null>) => {
@@ -535,7 +538,7 @@ async function staleIntegratedAdmissions() {
       hook.useTurnControl as (
         ...args: unknown[]
       ) => import("../../features/tutor-session/hooks/turn/types").TurnControlApi
-    )(shell.params, ref(handler.handleQuestion));
+    )(shell.params, ref((question: string, options?: HandleQuestionOptions) => handler.handleQuestion(question, options)));
   };
   // Actual Stop cancels the pending admission before a delayed platform claim arrives.
   let released = 0;
@@ -696,6 +699,8 @@ async function staleIntegratedAdmissions() {
   shell.setFetched([stoppedTurn]);
   const handler = shell.render();
   const resumeControl = mountControl(shell, handler);
+  Object.assign(shell.control, resumeControl);
+  Object.assign(handler, shell.render());
   resumeControl.offerPausedLessonResume(resume);
   resumeControl.flushPausedLesson();
   resumeControl.flushPausedLesson();
@@ -709,6 +714,9 @@ async function staleIntegratedAdmissions() {
   assert.equal(acquires, 1, "admitted receipt consumes original offer");
   shell.finish();
   await tick();
+  resumeControl.flushPausedLesson();
+  await tick();
+  assert.equal(shell.bills, 2, "an admitted billing refusal restores a Continue that can actually retry");
 }
 
 async function pageEvents() {

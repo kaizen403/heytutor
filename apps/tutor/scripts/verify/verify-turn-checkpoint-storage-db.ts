@@ -23,6 +23,11 @@ async function main() {
   assert(input, "explicit disposable security database required");
   const url = new URL(input);
   assert(["localhost", "127.0.0.1"].includes(url.hostname) && /^\/heytutor_security_[a-zA-Z0-9_]+$/.test(url.pathname));
+  for (const [name, value] of Object.entries(process.env)) {
+    if (/API_KEY|API_TOKEN|AZURE_TOKEN|AWS_ACCESS_KEY|AWS_SECRET|AWS_SESSION_TOKEN|AI_GATEWAY/i.test(name)) {
+      assert(!value, `disposable DB verification requires ${name} absent`);
+    }
+  }
   process.env.DATABASE_URL = input;
   const load = createRequire(import.meta.url);
   const root = resolve(import.meta.dirname, "../..");
@@ -30,8 +35,10 @@ async function main() {
   const objects = new Map<string, number>();
   const deleted: string[] = [];
   let failUploadsWith: string | null = null;
+  let uploadPause: ((key: string) => Promise<void>) | null = null;
   mock.module(resolve(root, "lib/object-store/s3.ts"), { namedExports: {
     uploadAudio: async (key: string, bytes: Uint8Array) => {
+      await uploadPause?.(key);
       if (failUploadsWith) throw new Error(failUploadsWith);
       objects.set(key, bytes.byteLength);
       return `/api/lecture-audio?key=${encodeURIComponent(key)}`;
@@ -64,18 +71,35 @@ async function main() {
     bytes.set([73, 68, 51], 0);
     return bytes;
   };
+  const WAV = () => {
+    const dataSize = 800 * 8_000 * 2 / 1_000;
+    const bytes = new Uint8Array(44 + dataSize), view = new DataView(bytes.buffer);
+    const text = (offset: number, value: string) => bytes.set([...value].map(char => char.charCodeAt(0)), offset);
+    text(0, "RIFF"); view.setUint32(4, bytes.length - 8, true); text(8, "WAVE"); text(12, "fmt ");
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, 8_000, true); view.setUint32(28, 16_000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+    text(36, "data"); view.setUint32(40, dataSize, true);
+    for (let offset = 44; offset < bytes.length; offset += 2) view.setInt16(offset, (offset / 2 % 32 - 16) * 100, true);
+    return bytes;
+  };
   const CLEAR = { type: "CLEAR", params: [], charPosition: 0, narrationBefore: "" };
   const write = (text: string) => ({ type: "WRITE", params: [90, 145, 28], text, charPosition: 0, narrationBefore: "" });
   const row = (orderIndex: number, text: string, command: unknown = write(text)) =>
     ({ orderIndex, narration: text, spokenText: text, command, durationMs: 800 });
-  const put = async (turnId: string, meta: Record<string, unknown>, audio: Record<number, Uint8Array> = {}) => {
+  const put = async (turnId: string, meta: Record<string, unknown>, audio: Record<number, Uint8Array> = {}, audioFormat = "audio/mpeg") => {
     const form = new FormData();
     form.append("metadata", JSON.stringify({ question: "What is 2 + 3?", rawResponse: "", status: "live", ...meta }));
-    for (const [index, bytes] of Object.entries(audio)) form.append(`audio-${index}`, new Blob([new Uint8Array(bytes)], { type: "audio/mpeg" }));
+    for (const [index, bytes] of Object.entries(audio)) form.append(`audio-${index}`, new Blob([new Uint8Array(bytes)], { type: audioFormat }));
     const response = await handleTurnCheckpoint(
       new Request(`https://example.test/api/boards/${boardId}/turns/${turnId}`, { method: "PUT", body: form }),
       { boardId, turnId },
     );
+    return { status: response.status, body: await response.json() as Record<string, unknown> };
+  };
+  const close = async (turnId: string, body: Record<string, unknown>) => {
+    const response = await handleTurnClose(new Request(`https://example.test/api/boards/${boardId}/turns/${turnId}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    }), { boardId, turnId });
     return { status: response.status, body: await response.json() as Record<string, unknown> };
   };
   const balance = () => prisma.userStorage.findUniqueOrThrow({ where: { userId } });
@@ -149,9 +173,17 @@ async function main() {
 
     // --- board GET: status, kind, trace; no submitted rows; idle live is stopped
     const get = async () => {
-      const response = await boardRoute.GET(new Request(`https://example.test/api/boards/${boardId}?page=0`),
-        { params: Promise.resolve({ boardId }) });
-      return await response.json() as { turns: Array<Record<string, unknown>> };
+      const turns: Array<Record<string, unknown>> = [];
+      let page: number | null = 0;
+      for (let reads = 0; page !== null && reads < 20; reads++) {
+        const response = await boardRoute.GET(new Request(`https://example.test/api/boards/${boardId}?page=${page}`),
+          { params: Promise.resolve({ boardId }) });
+        assert.equal(response.status, 200);
+        const detail = await response.json() as { turns: Array<Record<string, unknown>>; nextPage: number | null };
+        turns.push(...detail.turns); page = detail.nextPage;
+      }
+      assert.equal(page, null, "bounded actual history reads cover all private fixture rows");
+      return { turns };
     };
     let detail = await get();
     const listed = detail.turns.find((entry) => entry.id === lesson)!;
@@ -198,6 +230,74 @@ async function main() {
     } finally {
       (process.env as Record<string, string | undefined>).NODE_ENV = previousEnv;
     }
+
+    // --- real sequence ownership across close, tail and delayed voice ---------
+    const metadata = randomUUID();
+    const readMetadata = async () => (await get()).turns.find(entry => entry.id === metadata)!;
+    await put(metadata, { seq: 1, baseCount: 0, appendSegments: [row(0, "First.")] });
+    await put(metadata, { seq: 3, baseCount: 1, appendSegments: [], rawResponse: "Current.", resumeState: { solver: "new" } });
+    const oldClose = await close(metadata, { seq: 2, status: "stopped", rawResponse: "Old.", resumeState: { solver: "old" } });
+    assert.equal(oldClose.status, 200);
+    assert.deepEqual((await readMetadata()).resumeState, { solver: "new" });
+    assert.equal((await readMetadata()).rawResponse, "Current.");
+    assert.equal((await readMetadata()).persistedStatus, "stopped");
+    assert.equal(oldClose.body.serverSeq, 3);
+    await close(metadata, { seq: 3, status: "stopped", resumeState: { solver: "equal-replay" } });
+    assert.deepEqual((await readMetadata()).resumeState, { solver: "new" });
+    const cleared = await close(metadata, { seq: 4, status: "stopped", rawResponse: "Latest.", resumeState: null });
+    assert.equal(cleared.body.serverSeq, 4); assert.equal((await readMetadata()).resumeState, null);
+    const cut = { ...row(1, "Shown cut."), durationMs: null };
+    const oldTail = { seq: 2, status: "stopped", baseCount: 0, appendSegments: [row(0, "First."), cut],
+      rawResponse: "Old tail.", resumeState: { solver: "old-tail" } };
+    assert.equal((await close(metadata, oldTail)).status, 200);
+    assert.equal((await readMetadata()).resumeState, null); assert.equal((await readMetadata()).rawResponse, "Latest.");
+    await close(metadata, oldTail);
+    const cutRows = (await readMetadata()).segments as Array<Record<string, unknown>>;
+    assert.equal(cutRows.length, 2); assert.equal(cutRows[1]!.audioUrl, null); assert.equal(cutRows[1]!.durationMs, null);
+    const olderPut = { seq: 3, baseCount: 2, appendSegments: [row(2, "Already voiced.")], rawResponse: "Old PUT.", resumeState: { solver: "old-put" } };
+    assert.equal((await put(metadata, olderPut, { 2: MP3(2_000, 8) })).status, 200);
+    assert.deepEqual((await readMetadata()).resumeState, null); assert.equal((await readMetadata()).rawResponse, "Latest.");
+    const voiced = (await readMetadata()).segments as Array<Record<string, unknown>>;
+    assert.equal(voiced.length, 3); assert.ok(voiced[2]!.audioUrl);
+    const oldObjectCount = objects.size;
+    await put(metadata, olderPut, { 2: MP3(2_000, 8) });
+    assert.equal(((await readMetadata()).segments as unknown[]).length, 3); assert.equal(objects.size, oldObjectCount);
+    await put(metadata, { seq: 5, baseCount: 3, status: "complete", rawResponse: "Final.", resumeState: { solver: "final" } });
+    await close(metadata, { seq: 99, status: "stopped", resumeState: { solver: "too-late" } });
+    assert.equal((await readMetadata()).persistedStatus, "complete"); assert.deepEqual((await readMetadata()).resumeState, { solver: "final" });
+
+    const race = randomUUID();
+    await put(race, { seq: 1, baseCount: 0, appendSegments: [row(0, "First.")] });
+    let started!: () => void, release!: () => void;
+    const uploading = new Promise<void>(resolve => { started = resolve; });
+    const heldUpload = new Promise<void>(resolve => { release = resolve; });
+    uploadPause = async key => { if (key.includes(`/${race}/`)) { started(); await heldUpload; } };
+    try {
+      const racingInput = { seq: 2, baseCount: 1, appendSegments: [row(1, "Shown during upload.")],
+        rawResponse: "Old upload.", resumeState: { solver: "old-upload" } };
+      const wav = WAV();
+      const pending = put(race, racingInput, { 1: wav }, "audio/wav");
+      await uploading;
+      await close(race, { seq: 3, status: "stopped", rawResponse: "New close.", resumeState: { solver: "new-close" } });
+      release(); assert.equal((await pending).status, 200);
+      const savedRace = (await get()).turns.find(entry => entry.id === race)!;
+      assert.deepEqual(savedRace.resumeState, { solver: "new-close" }); assert.equal(savedRace.rawResponse, "New close.");
+      assert.equal(savedRace.persistedStatus, "stopped");
+      const raceRows = savedRace.segments as Array<Record<string, unknown>>;
+      assert.equal(raceRows.length, 2); const clipKey = keyOf(raceRows[1]!.audioUrl as string)!;
+      assert.equal(raceRows[1]!.audioFormat, "audio/wav"); assert.match(clipKey, /\/1\.wav$/);
+      assert.equal(objects.get(clipKey), wav.length);
+      const objectCount = objects.size;
+      await put(race, racingInput, { 1: wav }, "audio/wav");
+      const duplicateRace = (await get()).turns.find(entry => entry.id === race)!;
+      const duplicateRows = duplicateRace.segments as Array<Record<string, unknown>>;
+      assert.equal(duplicateRows.length, 2); assert.equal(duplicateRows[1]!.audioUrl, raceRows[1]!.audioUrl);
+      assert.equal(objects.size, objectCount, "replaying the older WAV upload creates no duplicate object");
+      await runObjectDeletionBatch({ now: later });
+      assert.ok(objects.has(clipKey), "abandoning the earlier upload attempt preserves the final rescued voice");
+      assert.equal((await balance()).reservedBytes, (await prisma.turn.aggregate({ where: { userId }, _sum: { storageBytes: true } }))._sum.storageBytes,
+        "rescued voice charges only settled attempt storage after cleanup");
+    } finally { release(); uploadPause = null; }
 
     // --- real unique-index ordering, metadata and raw liveness -----------------
     const prefix = (await get()).turns.map(entry => entry.id);

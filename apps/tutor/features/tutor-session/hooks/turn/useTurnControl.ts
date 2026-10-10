@@ -159,7 +159,7 @@ export function useTurnControl(
   /** Figure beats the last Stop left undrawn, for the doubt snapshot taken right after it. */
   const stopRemainderRef = useRef<TutorSegment[] | undefined>(undefined);
   /** The resume this tab is teaching now, so a Stop of it is offered again. */
-  const activeResumeRef = useRef<ActiveResume | null>(null);
+  const activeResumeRef = useRef<(ActiveResume & { attempt: object }) | null>(null);
   /** Resets on any segment that completes; see turnFailurePolicy. */
   const consecutiveSegmentFailuresRef = useRef(0);
 
@@ -1365,7 +1365,7 @@ export function useTurnControl(
     if (turns.some((turn) => save.isLiveHere(turn.id))) return null;
     const ownerState = await lessonAdmission().probe(sessionId);
     if (revision !== restoreRevisionRef.current || phaseRef.current !== "idle" || turnActiveRef.current || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
-    const restored = pausedLessonFromStoredTurns(turns, { boardId: sessionId, ownerState, isLiveHere: (id) => save.isLiveHere(id) });
+    let restored = pausedLessonFromStoredTurns(turns, { boardId: sessionId, ownerState, isLiveHere: (id) => save.isLiveHere(id) });
     if (!restored) {
       clearPausedLesson();
       // Unknown/fresh active observations expire and are re-read, never cached null.
@@ -1386,10 +1386,23 @@ export function useTurnControl(
     }
     if (restoreTimerRef.current !== null) clearTimeout(restoreTimerRef.current);
     restoreTimerRef.current = null;
+    const pending = pausedLessonRef.current;
+    const visiblePage = boardPageRef.current;
+    const sameParent = pending?.parentTurnId
+      ? pending.parentTurnId === restored.parentTurnId
+      : Boolean(pending?.parentTraceId && pending.parentTraceId === restored.parentTraceId);
+    // A saved-row refresh has not redrawn this in-tab page. The canonical
+    // saved figure is whole, but its missing visible beats are still owed.
+    // Session changes and replay clear the live page record before redraw.
+    if (pending?.remainingIntro?.length && sameParent && pending.boardId === sessionId &&
+      pending.lessonQuestion === restored.lessonQuestion && visiblePage?.boardId === sessionId &&
+      visiblePage.lessonQuestion === restored.lessonQuestion) {
+      restored = { ...restored, remainingIntro: pending.remainingIntro };
+    }
     pausedLessonRef.current = restored;
     showPausedLessonOffer(restored);
     return restored;
-  }, [sessionId, phaseRef, turnActiveRef, pendingSegmentCountRef, showPausedLessonOffer, clearPausedLesson, cancelRef]);
+  }, [sessionId, phaseRef, turnActiveRef, pendingSegmentCountRef, showPausedLessonOffer, clearPausedLesson, cancelRef, boardPageRef]);
 
   const flushPausedLesson = useCallback(() => {
     if (activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return;
@@ -1421,10 +1434,10 @@ export function useTurnControl(
           code_lesson: resume.codeLesson,
         });
         // Before the call: a Stop during its first synchronous steps must find it.
-        const active = { request: resume, pageBefore: boardPageRef.current };
+        const active = { request: resume, pageBefore: boardPageRef.current, attempt: {} };
         activeResumeRef.current = active;
-        void handleQuestionRef.current(resume.lessonQuestion, { resume, onAdmission: (admitted) => {
-          if (activeResumeRef.current !== active) return;
+        const finished = handleQuestionRef.current(resume.lessonQuestion, { resume, onAdmission: (admitted) => {
+          if (activeResumeRef.current?.attempt !== active.attempt) return;
           if (admitted) {
             if (pausedLessonRef.current === resume) pausedLessonRef.current = null;
           } else {
@@ -1432,6 +1445,12 @@ export function useTurnControl(
             showPausedLessonOffer(resume);
           }
         } });
+        // Intro completion replaces the request, but retains this attempt's token.
+        // An old completion must never release a successor Continue or its offer.
+        const release = () => {
+          if (activeResumeRef.current?.attempt === active.attempt) activeResumeRef.current = null;
+        };
+        void finished.then(release, release);
         // One pending receipt owns this click; no RAF redispatch while awaiting.
         return;
       }

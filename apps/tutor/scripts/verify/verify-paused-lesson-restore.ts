@@ -551,6 +551,11 @@ async function main() {
     assert(shell.log.includes("close figureDrawn=true"), "the figure is marked drawn before the save closes, so its rows go with it");
     assert(shell.log.indexOf("commit") < shell.log.indexOf("close figureDrawn=true"));
     shell.idle();
+    // The shell rechecks saved rows on the idle/count change even though its
+    // visible in-tab figure still has only the beats Stop retained.
+    const restored = await shell.control.restorePausedLesson([{ ...validatedLesson(), id: "local-stopped-id" }]);
+    assert.deepEqual(restored?.remainingIntro?.map((beat) => beat.narration), introBeats.slice(1).map((beat) => beat.narration),
+      "same-parent saved-row refresh preserves the missing in-tab figure beats");
     shell.control.flushPausedLesson();
     const resume = shell.asked.at(-1)?.options?.resume;
     assert.equal(resume?.figureDrawn, true);
@@ -578,6 +583,62 @@ async function main() {
     assert(shell.log.indexOf("dropIntroRows 1") < shell.log.indexOf("figureCommitted"));
     assert.equal(pageRef.current?.figureDrawn, true, "and the page has its figure again");
     assert.equal(shell.params.recordedSegmentsRef.current.length, 0, "the remainder is not a recorded row of the resume");
+  }
+
+  // The attempt survives a remainder request replacement, and only its own
+  // completion releases it. Neither case reaches inside the control's refs.
+  {
+    pageRef.current = lessonRecord(true);
+    const shell = mount(); shell.idle();
+    const request = { ...pausedLessonFromStoredTurns([validatedLesson()], { boardId: BOARD })!, remainingIntro: introBeats.slice(1) };
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    shell.handleQuestionRef.current = (question, options) => {
+      shell.asked.push({ question, options }); options?.onAdmission?.(true); return pending;
+    };
+    shell.control.offerPausedLessonResume(request); shell.control.flushPausedLesson();
+    shell.control.enqueueVerifiedIntro(request.remainingIntro, 1, { remainder: true });
+    await shell.params.segmentChainRef.current;
+    shell.control.offerPausedLessonResume({ ...request, remainingIntro: undefined });
+    finish(); await pending; await Promise.resolve();
+    shell.control.flushPausedLesson();
+    assert.equal(shell.asked.length, 2, "consuming remainder beats cannot strand the matching Continue attempt");
+  }
+  {
+    pageRef.current = lessonRecord(true);
+    const shell = mount(); shell.idle();
+    const request = pausedLessonFromStoredTurns([validatedLesson()], { boardId: BOARD })!;
+    let finishOld!: () => void, finishNew!: () => void;
+    const old = new Promise<void>(resolve => { finishOld = resolve; });
+    const successor = new Promise<void>(resolve => { finishNew = resolve; });
+    shell.handleQuestionRef.current = (question, options) => {
+      shell.asked.push({ question, options }); options?.onAdmission?.(true);
+      return shell.asked.length === 1 ? old : successor;
+    };
+    shell.control.offerPausedLessonResume(request); shell.control.flushPausedLesson();
+    shell.control.clearPausedLesson();
+    const next = { ...request, parentTurnId: "successor" };
+    shell.control.offerPausedLessonResume(next); shell.control.flushPausedLesson();
+    finishOld(); await old; await Promise.resolve();
+    shell.control.flushPausedLesson();
+    assert.equal(shell.asked.length, 2, "older settlement cannot release an active successor Continue");
+    shell.control.offerPausedLessonResume(next);
+    finishNew(); await successor; await Promise.resolve();
+    shell.control.flushPausedLesson();
+    assert.equal(shell.asked.length, 3, "the successor releases on its own settlement");
+  }
+  for (const redraw of [true, false]) {
+    pageRef.current = lessonRecord(true);
+    const shell = mount(); shell.idle();
+    const request = { ...pausedLessonFromStoredTurns([{ ...validatedLesson(), id: "original" }], { boardId: BOARD })!, remainingIntro: introBeats.slice(1) };
+    shell.control.offerPausedLessonResume(request);
+    if (redraw) pageRef.current = null;
+    const fresh = { ...validatedLesson(), id: redraw ? "original" : "different-parent" };
+    const restored = await shell.control.restorePausedLesson([fresh]);
+    assert.equal(restored?.remainingIntro, undefined, redraw
+      ? "a truly redrawn page owes no old in-tab intro beats" : "different parent never inherits old intro beats");
+    const final = await shell.control.restorePausedLesson([{ ...fresh, status: "complete", persistedStatus: "complete" }]);
+    assert.equal(final, null, "fresh completion clears even a matching remainder offer");
   }
 
   // 5d. A user Stop of a resume is offered again; one stopped before it began

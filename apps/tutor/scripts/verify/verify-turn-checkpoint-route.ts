@@ -18,7 +18,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import vm from "node:vm";
 import ts from "typescript";
-import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { LiveTurnSaveRegistry, type LiveTurnMirrorEvent } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import * as drawing from "@heytutor/drawing";
 import * as requestBody from "../../lib/http/requestBody";
 import * as keys from "../../lib/object-store/keys";
@@ -53,6 +54,7 @@ const uploads: Array<{ key: string; bytes: number[] }> = [];
 const reservations: Row[] = [];
 let canonicalizeCalls = 0;
 let clock = Date.now();
+let uploadPause: ((key: string) => Promise<void>) | null = null;
 
 function clean(value: unknown): unknown {
   return value === DB_NULL ? null : value;
@@ -189,6 +191,7 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@/lib/object-store/keys": keys,
   "@/lib/object-store/s3": {
     uploadAudio: async (key: string, bytes: Uint8Array) => {
+      await uploadPause?.(key);
       uploads.push({ key, bytes: Array.from(bytes) });
       return `/api/lecture-audio?key=${encodeURIComponent(key)}`;
     },
@@ -242,16 +245,27 @@ const handleTurnCheckpoint = checkpoint.handleTurnCheckpoint as (r: Request, p: 
 const handleTurnClose = checkpoint.handleTurnClose as (r: Request, p: Row) => Promise<Response>;
 
 const MP3 = (tag: number) => new Uint8Array([73, 68, 51, 4, 0, 0, tag, tag, tag, tag, tag, tag]);
+const WAV = () => {
+  const dataSize = 900 * 8_000 * 2 / 1_000;
+  const bytes = new Uint8Array(44 + dataSize), view = new DataView(bytes.buffer);
+  const text = (offset: number, value: string) => bytes.set([...value].map(char => char.charCodeAt(0)), offset);
+  text(0, "RIFF"); view.setUint32(4, bytes.length - 8, true); text(8, "WAVE"); text(12, "fmt ");
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, 8_000, true); view.setUint32(28, 16_000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  text(36, "data"); view.setUint32(40, dataSize, true);
+  for (let offset = 44; offset < bytes.length; offset += 2) view.setInt16(offset, (offset / 2 % 32 - 16) * 100, true);
+  return bytes;
+};
 const CLEAR = { type: "CLEAR", params: [], charPosition: 0, narrationBefore: "" };
 const write = (text: string) => ({ type: "WRITE" as const, params: [90, 145, 28], text, charPosition: 0, narrationBefore: "" });
 const row = (orderIndex: number, text: string, command: unknown = write(text)) =>
   ({ orderIndex, narration: text, spokenText: text, command, durationMs: 900 });
 
-async function put(turnId: string, meta: Row, audio: Record<number, Uint8Array> = {}, boardId = "board-a") {
+async function put(turnId: string, meta: Row, audio: Record<number, Uint8Array> = {}, boardId = "board-a", audioFormat = "audio/mpeg") {
   const form = new FormData();
   form.append("metadata", JSON.stringify({ question: "Find the slope.", rawResponse: "", status: "live", ...meta }));
   for (const [index, bytes] of Object.entries(audio)) {
-    form.append(`audio-${index}`, new Blob([new Uint8Array(bytes)], { type: "audio/mpeg" }));
+    form.append(`audio-${index}`, new Blob([new Uint8Array(bytes)], { type: audioFormat }));
   }
   const response = await handleTurnCheckpoint(
     new Request(`https://example.test/api/boards/${boardId}/turns/${turnId}`, { method: "PUT", body: form }),
@@ -318,6 +332,8 @@ async function registryHistoryReceiptsDriveDurableInsertion() {
     const ids = [a,b]; let index=0;
     const registry = new LiveTurnSaveRegistry({transport:{checkpoint:client.checkpointTurn,close:client.closeTurnKeepalive},mintId:()=>ids[index++]!,now:()=>clock,isOnline:()=>true,setTimer:()=>0,clearTimer:()=>{}});
     const owner = {};
+    const mirrors: LiveTurnMirrorEvent[] = [];
+    registry.attach(owner, { openBoardId: () => "board-a", mirror: event => mirrors.push(event) });
     const recorded = (text:string) => ({orderIndex:0,narration:text,spokenText:text,command:write(text),audioBytes:null,durationMs:null,timings:null});
     const begin = (generation:number, question:string) => registry.begin({owner,generation,boardId:"board-a",traceId:null,kind:"lesson",question,preview:question,speedMultiplier:1,continuesBoard:false});
     registry.observeBoard("board-a", await saved());
@@ -327,6 +343,11 @@ async function registryHistoryReceiptsDriveDurableInsertion() {
     await put(x,{seq:1,baseCount:0,status:"complete",rawResponse:"X",appendSegments:[row(0,"X")]});
     registry.observeBoard("board-a", await saved());
     const later = begin(2,"B");registry.recordRow(owner,2,recorded("B"),{intro:false});await settle();later.close();await settle();
+    const acknowledged = mirrors.filter(event => event.turnId === b && event.source === "server").at(-1);
+    assert(acknowledged?.source === "server", "the actual client/checkpoint path replaces the local stopped mirror");
+    assert.equal(acknowledged.turn.persistedStatus, "stopped", "checkpoint ACK retains raw stopped provenance");
+    assert.equal(pausedLessonFromStoredTurns([acknowledged.turn], { boardId: "board-a", ownerState: "inactive" })?.lessonQuestion, "B",
+      "an acknowledged stopped mirror can offer Continue immediately without waiting for GET");
     assert.deepEqual(await freshOrder(),[p,x,b],"B is not blocked behind A's failed save");
     registry.retry("board-a"); await settle();
     assert.equal(attempted.find(meta=>meta.question==="A")?.orderBeforeTurnId,x,"registry learned X as A's first acknowledged successor");
@@ -335,9 +356,116 @@ async function registryHistoryReceiptsDriveDurableInsertion() {
   } finally { globalThis.fetch = originalFetch; }
 }
 
+async function closeMetadataSequenceOwnership() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const id = crypto.randomUUID();
+  const saved = async () => (await (await boardRoute.GET(new Request("http://local/api/boards/board-a"),
+    { params: Promise.resolve({ boardId: "board-a" }) })).json()).turns.find((turn: Row) => turn.id === id);
+  await put(id, { seq: 1, baseCount: 0, appendSegments: [row(0, "First.")] });
+  await put(id, { seq: 3, baseCount: 1, appendSegments: [], rawResponse: "Current narration.", resumeState: { solver: "new" } });
+  const old = await close(id, { seq: 2, status: "stopped", rawResponse: "Old narration.", resumeState: { solver: "old" } });
+  assert.equal(old.status, 200);
+  assert.deepEqual((await saved()).resumeState, { solver: "new" }, "a late metadata-only close cannot replace a newer solver receipt");
+  assert.equal((await saved()).rawResponse, "Current narration.");
+  assert.equal((await saved()).persistedStatus, "stopped", "the late close still stops its live turn");
+  assert.equal(old.body.serverSeq, 3);
+  await close(id, { seq: 3, status: "stopped", rawResponse: "Same-sequence replay.", resumeState: { solver: "replay" } });
+  assert.deepEqual((await saved()).resumeState, { solver: "new" }, "equal sequence metadata is a replay");
+  const clear = await close(id, { seq: 4, status: "stopped", rawResponse: "Newest narration.", resumeState: null });
+  assert.equal(clear.status, 200);
+  assert.equal((await saved()).resumeState, null, "newer explicit null clears solver state");
+  assert.equal(clear.body.serverSeq, 4, "a metadata-bearing close owns its accepted sequence");
+  assert.equal((await saved()).rawResponse, "Newest narration.");
+
+  const tail = crypto.randomUUID();
+  await put(tail, { seq: 1, baseCount: 0, appendSegments: [row(0, "First.")] });
+  await put(tail, { seq: 3, baseCount: 1, appendSegments: [], rawResponse: "Current tail narration.", resumeState: { solver: "current-tail" } });
+  const rejectedLive = await put(tail, { seq: 2, baseCount: 1, appendSegments: [row(1, "Stale live addition.")],
+    rawResponse: "Stale live header.", resumeState: { solver: "stale-live" } }, { 1: MP3(5) });
+  assert.equal(rejectedLive.body.stale, true, "an ordinary live stale PUT cannot add rows or metadata");
+  assert.equal(rowsOf(tail).length, 1);
+  const oldTail = { seq: 2, status: "stopped", baseCount: 0, rawResponse: "Old tail narration.",
+    resumeState: { solver: "old-tail" }, appendSegments: [row(0, "First."), row(1, "Shown cut.")] };
+  const appended = await close(tail, oldTail);
+  assert.equal(appended.status, 200);
+  const readTail = async () => (await (await boardRoute.GET(new Request("http://local/api/boards/board-a"),
+    { params: Promise.resolve({ boardId: "board-a" }) })).json()).turns.find((turn: Row) => turn.id === tail);
+  assert.deepEqual((await readTail()).resumeState, { solver: "current-tail" }, "a stale overlapping cut keeps newer solver metadata");
+  assert.equal((await readTail()).rawResponse, "Current tail narration.");
+  assert.equal((await readTail()).persistedStatus, "stopped");
+  assert.deepEqual((await readTail()).segments.map((entry: Row) => entry.narration), ["First.", "Shown cut."]);
+  assert.equal((await readTail()).segments[1].audioUrl, null, "the missing shown cut remains unvoiced");
+  await close(tail, oldTail);
+  assert.equal((await readTail()).segments.length, 2, "replaying an old cut cannot duplicate rows");
+
+  const late = crypto.randomUUID();
+  const readLate = async () => (await (await boardRoute.GET(new Request("http://local/api/boards/board-a"),
+    { params: Promise.resolve({ boardId: "board-a" }) })).json()).turns.find((turn: Row) => turn.id === late);
+  await put(late, { seq: 1, baseCount: 0, appendSegments: [row(0, "First.")] });
+  await close(late, { seq: 3, status: "stopped", rawResponse: "New close narration.", resumeState: { solver: "new-close" } });
+  const lateInput = { seq: 2, baseCount: 1, appendSegments: [row(1, "Already shown spoken row.")],
+    question: "Stale changed question.", speedMultiplier: 2,
+    rawResponse: "Old PUT narration.", resumeState: { solver: "old-put" } };
+  const latePut = await put(late, lateInput, { 1: MP3(6) });
+  assert.equal(latePut.status, 200);
+  assert.equal((await readLate()).segments.length, 2, "a newer metadata-only close cannot discard an older pending shown row");
+  assert.ok((await readLate()).segments[1].audioUrl, "the older pending row retains its voice");
+  assert.deepEqual((await readLate()).resumeState, { solver: "new-close" });
+  assert.equal((await readLate()).rawResponse, "New close narration.");
+  assert.equal((await readLate()).question, "Find the slope.");
+  assert.equal((await readLate()).speedMultiplier, 1, "late row recovery cannot change the stored header");
+  assert.equal((await readLate()).persistedStatus, "stopped");
+  assert.equal(latePut.body.serverSeq, 3);
+  const uploaded = uploads.length;
+  await put(late, lateInput, { 1: MP3(6) });
+  assert.equal((await readLate()).segments.length, 2, "replaying a rescued row cannot duplicate it");
+  assert.equal(uploads.length, uploaded, "replaying a rescued voice cannot upload it again");
+  const gap = await put(late, { seq: 2, baseCount: 99, appendSegments: [row(99, "Missing predecessors.")] });
+  assert.equal(gap.status, 409, "stopped payload recovery never fills a gap in submitted rows");
+  await put(late, { seq: 4, baseCount: 2, status: "complete", rawResponse: "Final.", resumeState: { solver: "final" } });
+  await close(late, { seq: 99, status: "stopped", resumeState: { solver: "after-final" } });
+  assert.equal((await readLate()).persistedStatus, "complete", "complete remains final even for a newer close");
+  assert.deepEqual((await readLate()).resumeState, { solver: "final" });
+
+  const racing = crypto.randomUUID();
+  const readRacing = async () => (await (await boardRoute.GET(new Request("http://local/api/boards/board-a"),
+    { params: Promise.resolve({ boardId: "board-a" }) })).json()).turns.find((turn: Row) => turn.id === racing);
+  await put(racing, { seq: 1, baseCount: 0, appendSegments: [row(0, "First.")] });
+  let started!: () => void, release!: () => void;
+  const uploading = new Promise<void>(resolve => { started = resolve; });
+  const heldUpload = new Promise<void>(resolve => { release = resolve; });
+  uploadPause = async key => { if (key.includes(`/${racing}/`)) { started(); await heldUpload; } };
+  try {
+    const racingInput = { seq: 2, baseCount: 1, appendSegments: [row(1, "Shown while uploading.")],
+      rawResponse: "Older upload narration.", resumeState: { solver: "older-upload" } };
+    const wav = WAV();
+    const inFlight = put(racing, racingInput, { 1: wav }, "board-a", "audio/wav");
+    await uploading;
+    await close(racing, { seq: 3, status: "stopped", rawResponse: "Newer close during upload.", resumeState: { solver: "newer-close" } });
+    release();
+    assert.equal((await inFlight).status, 200);
+    assert.equal((await readRacing()).segments.length, 2, "a close that wins during upload still retains the in-flight shown row");
+    const rescuedVoice = (await readRacing()).segments[1];
+    assert.equal(rescuedVoice.audioFormat, "audio/wav");
+    const rescuedKey = audioKeyOf(rescuedVoice.audioUrl)!;
+    assert.match(rescuedKey, /\/1\.wav$/);
+    assert.deepEqual(uploads.find(entry => entry.key === rescuedKey)!.bytes, [...wav], "the rescued WAV bytes remain unchanged");
+    const uploadCount = uploads.length;
+    await put(racing, racingInput, { 1: wav }, "board-a", "audio/wav");
+    assert.equal((await readRacing()).segments.length, 2);
+    assert.equal((await readRacing()).segments[1].audioUrl, rescuedVoice.audioUrl);
+    assert.equal(uploads.length, uploadCount, "a repeated stopped WAV PUT uploads no duplicate voice");
+    assert.deepEqual((await readRacing()).resumeState, { solver: "newer-close" });
+    assert.equal((await readRacing()).rawResponse, "Newer close during upload.");
+    assert.equal((await readRacing()).persistedStatus, "stopped");
+    assert.equal(reservations.filter(entry => entry.state === "open").length, 0, "the bounded recovery settles or abandons every attempt reservation");
+  } finally { release(); uploadPause = null; }
+}
+
 async function main() {
   await failedEarlierCreationKeepsDurableOrder();
   await registryHistoryReceiptsDriveDurableInsertion();
+  await closeMetadataSequenceOwnership();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   // --- 1. the first checkpoint creates the turn ------------------------------
   const lesson = crypto.randomUUID();

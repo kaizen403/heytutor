@@ -9,8 +9,9 @@
  * state is exactly what the legacy `POST /turns` would store for that row list:
  * same trust rules, same figure intro merge, same CLEAR rule.
  *
- * Order and idempotency: `seq` strictly increases per turn; a replay
- * (`seq <= checkpointSeq`) returns the stored turn before any upload.
+ * Order and idempotency: `seq` strictly owns newer headers. A stale live
+ * replay returns the stored turn before upload. After Stop, an older request
+ * may recover missing rows/audio under the stored header; complete is final.
  * `baseCount` must equal the submitted rows the server holds, else 409 with
  * the server's count so the client resends from there.
  *
@@ -149,6 +150,12 @@ function heldRows(turn: Pick<Turn, "submittedSegments"> | null): HeldRow[] {
   return Array.isArray(turn?.submittedSegments) ? (turn.submittedSegments as unknown as HeldRow[]) : [];
 }
 
+function hasMissingCheckpointPayload(turn: Turn, input: CheckpointInput, files: Map<number, File>): boolean {
+  const held = heldRows(turn);
+  return input.appendSegments.some((row) => row.orderIndex >= held.length) ||
+    [...files].some(([index, file]) => file.size > 0 && index < held.length && !held[index]?.audioUrl);
+}
+
 /** Serialized like the board GET turn, plus the checkpoint bookkeeping. */
 export function checkpointTurnJson(turn: Turn, segments: Segment[]) {
   return {
@@ -164,6 +171,7 @@ export function checkpointTurnJson(turn: Turn, segments: Segment[]) {
     visualStatus: turn.visualStatus,
     sceneArtifacts: turn.sceneArtifacts,
     status: isTurnStatus(turn.status) ? turn.status : "complete",
+    persistedStatus: isTurnStatus(turn.status) ? turn.status : "complete",
     kind: isTurnKind(turn.kind) ? turn.kind : "lesson",
     resumeState: turn.resumeState ?? null,
     createdAt: turn.createdAt.getTime(),
@@ -467,12 +475,15 @@ async function closeStatusOnly(
       const currentStatus = isTurnStatus(current.status) ? current.status : "complete";
       if (currentStatus === "complete") return current;
       const status = nextTurnStatus(currentStatus, input.status);
+      const ownsMetadata = input.seq > current.checkpointSeq;
+      const hasMetadata = input.rawResponse !== undefined || input.resumeState !== undefined;
       return tx.turn.update({
         where: { id: current.id },
         data: {
           status,
-          ...(input.rawResponse !== undefined ? { rawResponse: input.rawResponse } : {}),
-          ...(input.resumeState !== undefined ? { resumeState: nullableJson(input.resumeState) } : {}),
+          ...(ownsMetadata && input.rawResponse !== undefined ? { rawResponse: input.rawResponse } : {}),
+          ...(ownsMetadata && input.resumeState !== undefined ? { resumeState: nullableJson(input.resumeState) } : {}),
+          ...(ownsMetadata && hasMetadata ? { checkpointSeq: input.seq } : {}),
         },
       });
     });
@@ -488,6 +499,7 @@ type CommitOutcome =
   | { kind: "saved"; turn: TurnWithSegments }
   | { kind: "stale"; turn: TurnWithSegments }
   | { kind: "final"; turn: TurnWithSegments }
+  | { kind: "retry_stopped" }
   | { kind: "conflict"; serverCount: number; serverSeq: number }
   | { kind: "trace_saved"; turn: TurnWithSegments };
 
@@ -497,6 +509,7 @@ async function applyCheckpoint(
   { boardId, turnId }: RouteParams,
   input: CheckpointInput,
   files: Map<number, File>,
+  stoppedRetries = 0,
 ): Promise<Response> {
   const production = process.env.NODE_ENV === "production";
 
@@ -531,12 +544,17 @@ async function applyCheckpoint(
   const stored = heldRows(before);
   const beforeStatus: TurnStatus | null = before ? (isTurnStatus(before.status) ? before.status : "complete") : null;
   if (before && beforeStatus === "complete") return json(turnBody(before, { stale: true, final: true }));
+  // A metadata close may arrive before an older in-flight row/audio PUT.
+  // Recover only missing rows/clips of a stopped turn, never its old header.
+  const lateStoppedRows = Boolean(before && beforeStatus === "stopped" && input.seq <= before.checkpointSeq &&
+    hasMissingCheckpointPayload(before, input, files));
+  const tolerateOverlap = input.tolerateOverlap || lateStoppedRows;
   let append = input.appendSegments;
-  if (before && input.seq <= before.checkpointSeq && !input.tolerateOverlap) {
+  if (before && input.seq <= before.checkpointSeq && !tolerateOverlap) {
     return json(turnBody(before, { stale: true }));
   }
   if (input.baseCount !== stored.length) {
-    const overlap = input.tolerateOverlap && input.baseCount < stored.length;
+    const overlap = tolerateOverlap && input.baseCount < stored.length;
     // A close whose tail starts past the saved rows (a checkpoint still in
     // flight) cannot append, but still stops the turn. Its body reports the
     // server's count.
@@ -552,11 +570,12 @@ async function applyCheckpoint(
   }
 
   // --- What the turn becomes -------------------------------------------------
-  const question = input.question ?? before?.question ?? "";
+  const ownsMetadata = !before || input.seq > before.checkpointSeq;
+  const question = ownsMetadata ? input.question ?? before?.question ?? "" : before!.question;
   if (!question.trim()) return json({ error: "question is required" }, 400);
-  const rawResponse = input.rawResponse ?? before?.rawResponse ?? "";
+  const rawResponse = ownsMetadata ? input.rawResponse ?? before?.rawResponse ?? "" : before!.rawResponse;
   const status = before ? nextTurnStatus(beforeStatus!, input.status) : input.status;
-  const scene = input.scene === "stored" ? sceneOf(before!) : input.scene;
+  const scene = before && !ownsMetadata ? sceneOf(before) : input.scene === "stored" ? sceneOf(before!) : input.scene;
   if (status === "complete" && !rawResponse.trim() &&
     !(scene.visualStatus === "retry_required" && scene.sceneArtifacts != null)) {
     return json({ error: "question and rawResponse required unless persisting a required-diagram failure" }, 400);
@@ -602,7 +621,7 @@ async function applyCheckpoint(
   const canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: rows });
   if (!canonical.ok) return json({ error: `scene persistence rejected: ${canonical.error}` }, 400);
   const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
-  const resumeState = input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
+  const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
   const metadataBytes = utf8Bytes({
     question, rawResponse, ...canonical.value, segments: canonicalRows,
     submitted: status === "complete" ? null : merged, resumeState,
@@ -675,11 +694,20 @@ async function applyCheckpoint(
           if (!current && before) throw new StorageQuotaError("turn not found", 404);
           if (current) {
             if (current.status === "complete") { await release(); return { kind: "final", turn: current }; }
-            if (input.seq <= current.checkpointSeq && !input.tolerateOverlap) { await release(); return { kind: "stale", turn: current }; }
+            if (input.seq <= current.checkpointSeq && !tolerateOverlap) {
+              await release();
+              // A newer close may have committed while this clip uploaded.
+              // Re-read/canonicalize the missing payload under its newer header.
+              return current.status === "stopped" && stoppedRetries < 2 && hasMissingCheckpointPayload(current, input, files)
+                ? { kind: "retry_stopped" } : { kind: "stale", turn: current };
+            }
             // Anything committed since this request read the turn means the
             // canonical rows above were built on an old state: resend.
             if (heldRows(current).length !== stored.length || current.checkpointSeq !== (before?.checkpointSeq ?? 0)) {
               await release();
+              if (current.status === "stopped" && stoppedRetries < 2 && hasMissingCheckpointPayload(current, input, files)) {
+                return { kind: "retry_stopped" };
+              }
               return { kind: "conflict", serverCount: heldRows(current).length, serverSeq: current.checkpointSeq };
             }
           }
@@ -687,7 +715,7 @@ async function applyCheckpoint(
           const turnData = {
             question,
             rawResponse,
-            ...(input.speedMultiplier !== undefined ? { speedMultiplier: input.speedMultiplier } : {}),
+            ...(ownsMetadata && input.speedMultiplier !== undefined ? { speedMultiplier: input.speedMultiplier } : {}),
             sceneDocument: nullableJson(canonical.value.sceneDocument),
             sceneEngineVersion: canonical.value.sceneEngineVersion,
             validationReport: nullableJson(canonical.value.validationReport),
@@ -780,6 +808,7 @@ async function applyCheckpoint(
     if (!outcome) throw lastError ?? new Error("failed to save checkpoint after retries");
     settled = true;
     switch (outcome.kind) {
+      case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId }, input, files, stoppedRetries + 1);
       case "saved": return json(turnBody(outcome.turn));
       case "stale": return json(turnBody(outcome.turn, { stale: true }));
       case "final": return json(turnBody(outcome.turn, { stale: true, final: true }));
