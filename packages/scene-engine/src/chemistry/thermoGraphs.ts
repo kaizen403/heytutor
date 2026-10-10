@@ -90,7 +90,7 @@ export function isThermoGraphStem(question: string): boolean {
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, type ChemistryDimension } from "./quantityReader";
+import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryReferenceConstantValid, type ChemistryDimension } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -237,8 +237,8 @@ interface ProfileSpec {
 
 const EXOTHERMIC = /exothermic|evolution\s+of\s+heat|heat\s+is\s+(?:evolved|released|liberated)|releases?\s+heat|liberates?\s+heat/;
 const ENDOTHERMIC = /endothermic|absorption\s+of\s+heat|heat\s+is\s+absorbed|absorbs?\s+heat/;
-const BACKWARD_ACTIVATION = /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:backward|reverse)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:b|back|backward|rev|reverse)\s*\)?|(?:backward|reverse)\s+activation\s+energy/;
-const FORWARD_ACTIVATION = /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:forward|uncatalys[ez]d)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:f|fwd|forward)\s*\)?|(?:forward|uncatalys[ez]d)\s+activation\s+energy/;
+const BACKWARD_ACTIVATION = /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:backward|reverse)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:backward|reverse|back|rev|b)\b\s*\)?|(?:backward|reverse)\s+activation\s+energy/;
+const FORWARD_ACTIVATION = /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:forward|uncatalys[ez]d)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:forward|fwd|f)\b\s*\)?|(?:forward|uncatalys[ez]d)\s+activation\s+energy/;
 const GENERIC_ACTIVATION = /(?<!\b(?:forward|backward|reverse|uncatalys[ez]d)\s+)activation\s+energy(?!\s+(?:of|for)\s+(?:the\s+)?(?:forward|backward|reverse|uncatalys[ez]d)\b)|energy\s+of\s+activation|\be_?a\b(?!\s*\(?\s*(?:f|fwd|forward|b|back|backward|rev|reverse)\b)|(?<!\b(?:forward|backward|reverse)\s+)energy\s+barrier/;
 
 /**
@@ -289,8 +289,17 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   }
 
   const eaBackStem = energyNear(question, BACKWARD_ACTIVATION);
-  const eaForwardStem =
-    energyNear(question, FORWARD_ACTIVATION) ?? energyNear(question, GENERIC_ACTIVATION);
+  const eaExplicitForward = energyNear(question, FORWARD_ACTIVATION);
+  const eaGeneric = energyNear(question, GENERIC_ACTIVATION);
+  // Generic and explicit-forward literals independently describe the same
+  // barrier. Require canonical dimensional/value agreement before choosing;
+  // the separately read backward barrier keeps its distinct physical role.
+  if (eaExplicitForward && eaGeneric &&
+      (eaExplicitForward.unit !== eaGeneric.unit ||
+       !chemistryReferenceConstantValid(question, new RegExp(GENERIC_ACTIVATION.source, "i"),
+         eaExplicitForward.unit === "kJ/mol" ? "molar_energy" : "energy",
+         eaExplicitForward.unit === "kJ/mol" ? "kJ/mol" : "kJ", eaExplicitForward.value))) return null;
+  const eaForwardStem = eaExplicitForward ?? eaGeneric;
   const threshold = energyNear(question, /threshold\s+energy/);
   const energyR = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/);
   const energyP = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/);

@@ -169,6 +169,56 @@ check("Delta given keeps the original unit/source span",()=>{
  near(read.reading.value,10);assert.equal(read.reading.source.text,"10 °C");
  assert.equal(question.slice(read.reading.source.span.start,read.reading.source.span.end),"10 °C");
 });
+
+// PR137 role agreement: generic activation energy describes the forward
+// barrier only when the independently stated explicit-forward given agrees.
+for(const energies of [
+ "Activation energy is 50 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol. Activation energy is 50 kJ/mol.",
+ "Activation energy is 50000 J/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy is 50 kJ. Forward activation energy is 50 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy is 1e- kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy is 1e999 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Activation energy is 50 kJ/mol and activation energy is 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "Ea = 50 kJ/mol. Ea(forward) = 60 kJ/mol and Ea(backward) = 80 kJ/mol.",
+ "Energy of activation is 50 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",
+ "ACTIVATION ENERGY IS 50 kJ/mol. FORWARD ACTIVATION ENERGY IS 60 kJ/mol AND BACKWARD ACTIVATION ENERGY IS 80 kJ/mol.",
+])check("Generic versus forward role conflict/damage: "+energies,()=>{
+ const question="Draw an energy profile. "+energies;
+ assert.equal(buildThermoGraphScene(question,[],false),null);
+ assert.equal(buildThermoGraphScene(question,[],true),null);
+});
+for(const [energies,forward,backward] of [
+ ["Activation energy is 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",60,80],
+ ["Activation energy is 60000 J/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",60,80],
+ ["Activation energy is 60 kJ/mol. Forward activation energy is 60000 J/mol and backward activation energy is 80 kJ/mol.",60,80],
+ ["Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol. Activation energy is 60 kJ/mol.",60,80],
+ ["Activation energy is 50 kJ/mol and backward activation energy is 80 kJ/mol.",50,80],
+ ["Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.",60,80],
+ ["Activation energy is 60 kJ. Forward activation energy is 60 kJ and backward activation energy is 80 kJ.",60,80],
+ ["Activation energy is 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 40 kJ/mol.",60,40],
+ ["Ea = 60 kJ/mol. Ea(forward) = 60 kJ/mol and Ea(backward) = 80 kJ/mol.",60,80],
+] as const)check("Independent generic/forward agreement compiles: "+energies,()=>{
+ const result=compiled(buildThermoGraphScene("Draw an energy profile. "+energies,[],false));
+ near(result.document.quantities.find(q=>q.id==="Ea_forward")?.value,forward);
+ near(result.document.quantities.find(q=>q.id==="Ea_backward")?.value,backward);
+ near(result.document.quantities.find(q=>q.id==="dH")?.value,forward-backward);
+});
+check("Derived planner energy never replaces agreeing original role givens",()=>{
+ const question="Draw an energy profile. Activation energy is 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.";
+ const result=compiled(buildThermoGraphScene(question,[{id:"Ea",symbol:"E_a",value:999,unit:"kJ/mol",origin:"derived"}],false));
+ near(result.document.quantities.find(q=>q.id==="Ea_forward")?.value,60);
+ near(result.document.quantities.find(q=>q.id==="dH")?.value,-20);
+});
+check("Given planner energy must still match its exact original source span",()=>{
+ const question="Draw an energy profile. Activation energy is 60 kJ/mol. Forward activation energy is 60 kJ/mol and backward activation energy is 80 kJ/mol.";
+ const start=question.lastIndexOf("60 kJ/mol"),sourceText="60 kJ/mol",sourceSpan={start,end:start+sourceText.length};
+ const given={id:"Ea",symbol:"E_a",value:61,unit:"kJ/mol",origin:"given" as const,sourceSpan,sourceText};
+ assert.equal(buildThermoGraphScene(question,[given],false),null);
+ const result=compiled(buildThermoGraphScene(question,[{...given,value:60}],false));
+ near(result.document.quantities.find(q=>q.id==="Ea_forward")?.value,60);
+});
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
