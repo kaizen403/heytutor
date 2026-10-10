@@ -37,6 +37,25 @@ assert(
   "an oxidation state stated as +1 must keep the sign",
 );
 
+// Equal numbers in a shared source sentence still belong to separate givens.
+for (const sourceText of [
+  "sodium has valence 1 and oxidation state +1",
+  "sodium has oxidation state +1 and valence 1",
+]) {
+  const givens = collectQuestionGivens(`${sourceText}. Find the oxidation state.`, {
+    givens: [
+      { id: "valence_Na", symbol: "valence(Na)", value: 1, unit: "", provenance: "given", sourceText },
+      { id: "ox_Na", symbol: "ox(Na,NaCl)", value: 1, unit: "", provenance: "given", sourceText },
+    ],
+  });
+  assert(givens.some((given) => given.board === "valence(Na) = 1"), `${sourceText}: valence remains unsigned`);
+  assert(givens.some((given) => given.board === "ox(Na,NaCl) = +1"), `${sourceText}: oxidation state retains its own plus`);
+  const labeled = collectQuestionGivens(`${sourceText}. Find the oxidation state.`, {
+    givens: [{ id: "q", symbol: "q", label: "oxidation state", value: 1, provenance: "given", sourceText }],
+  });
+  assert(labeled.some((given) => given.board === "q = +1"), `${sourceText}: a source label identifies the given's own occurrence`);
+}
+
 assert(mirrorGivens.some((given) => given.board === "f = 15 cm"), "mirror focal length was not listed as given");
 assert(mirrorGivens.some((given) => given.board === "u = 20 cm"), "object distance was not listed as given");
 assert(!mirrorGivens.some((given) => /^v\s*=/i.test(given.board)), "the asked image distance must not be listed as given");
