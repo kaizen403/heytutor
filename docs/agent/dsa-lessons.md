@@ -9,7 +9,7 @@ example is drawn frame by frame on the right, and the tutor narrates both.
 ```text
 question
   -> classifyDsaQuestion            is this a coding problem at all
-  -> detectAlgorithm                which of 22 families, or decline
+  -> detectAlgorithm                which of 76 families, or decline
   -> familyTeachingFacts            what that family is, in one line
   -> planCodeLessonV1(context)      a program for THAT technique on THAT example
   -> simulator -> AlgorithmTrace    a real run, frame by frame
@@ -29,7 +29,7 @@ equals the trace value at every address.
 
 | File | Owns |
 |---|---|
-| `algorithmCatalog.ts` | 22 families: cues, hints, vetoes, how to lift the question's own example, which simulator to run |
+| `algorithmCatalog.ts` | 76 families: cues, hints, vetoes, how to lift the question's own example, which simulator to run |
 | `exampleSlots.ts` | Parsers scoped to the Input line of Example 1 first, so an Output list can never stand in for the input |
 | `detectAlgorithm.ts` | Scored routing; declines on a weak or contested win |
 | `familyTeaching.ts` | The one-line mechanism, the terms a new student needs, and the shape the code must have |
@@ -122,7 +122,7 @@ for.
 
 ## Coverage
 
-Seventy-six families. `verify-dsa-routing` scores all 104 probes in
+Seventy-six families. `verify-dsa-routing` scores every probe (106 today) in
 `data/leetcode-probes` against the live catalog: a probe whose declared pattern
 has a family must route to it, and a probe carrying a `catalogNote` must draw
 nothing. The remaining probes have no family yet and say so.
@@ -255,7 +255,7 @@ apart, so the pen "moved" and still looked parked.
 | `verify-dsa-trace` | scene-engine | each simulator against a hand-computed expectation, the answer contract, aside stability |
 | `verify-dsa-stacked` | scene-engine | the same structural rules applied to a stacked frame's panels, which the gate above reads straight past |
 | `verify-dsa-trace-render` | scene-engine | drawn text equals the trace at every address, labels fit and do not overlap, frames fit the zone (`--render <dir>` writes SVGs) |
-| `verify-dsa-routing` | scene-engine | statements route to their family; a wrong family is fatal, declines are budgeted; physics never routes. Its corpus section scores all 104 probes against the live catalog, so a new family that steals another's statement fails the day it lands |
+| `verify-dsa-routing` | scene-engine | statements route to their family; a wrong family is fatal, declines are budgeted; physics never routes. Its corpus section scores every probe in `data/leetcode-probes` against the live catalog, so a new family that steals another's statement fails the day it lands |
 | `verify-dsa-teaching` | scene-engine | every family has a teaching record, without which the planner is handed no board context and writes a solution the figure does not match |
 | `verify-dsa-classifier` | tutor-core | LeetCode statements reach the lane, physics stems do not |
 | `verify-code-lesson-plan` / `-teaching` | tutor-core | the plan contract, the beat plan, the band on a real lesson shape, familiarity |

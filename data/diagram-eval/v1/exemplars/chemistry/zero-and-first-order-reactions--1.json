@@ -1,0 +1,1012 @@
+{
+  "topic_id": "chemistry|8|zero-and-first-order-reactions",
+  "question": "Which of the following plots is a straight line for a first order reaction: [A] vs t, ln[A] vs t, or log([A]0/[A]) vs t?",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "the straight line plot that identifies the order"
+    },
+    "source": {
+      "question": "Which of the following plots is a straight line for a first order reaction: [A] vs t, ln[A] vs t, or log([A]0/[A]) vs t?",
+      "synthesizedFamily": true,
+      "archetype": "chem_kinetics",
+      "chemistryFamily": "chem_kinetics"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ca_xaxis",
+        "kind": "vector",
+        "role": "x axis"
+      },
+      {
+        "id": "ca_yaxis",
+        "kind": "vector",
+        "role": "y axis"
+      },
+      {
+        "id": "ca_xl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "t",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ca_yl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "[A]",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ca_line",
+        "kind": "polyline",
+        "role": "[A] against t"
+      },
+      {
+        "id": "ca_slope",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "not a line",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ca_int",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "[A]_0",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ca_title",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "first order",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ln_xaxis",
+        "kind": "vector",
+        "role": "x axis"
+      },
+      {
+        "id": "ln_yaxis",
+        "kind": "vector",
+        "role": "y axis"
+      },
+      {
+        "id": "ln_xl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "t",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ln_yl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "ln[A]",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ln_line",
+        "kind": "polyline",
+        "role": "ln[A] against t"
+      },
+      {
+        "id": "ln_slope",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "slope = -k",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ln_int",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "ln[A]_0",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ln_title",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "first order",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lg_xaxis",
+        "kind": "vector",
+        "role": "x axis"
+      },
+      {
+        "id": "lg_yaxis",
+        "kind": "vector",
+        "role": "y axis"
+      },
+      {
+        "id": "lg_xl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "t",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lg_yl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "log([A]_0/[A])",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lg_line",
+        "kind": "polyline",
+        "role": "log([A]_0/[A]) against t"
+      },
+      {
+        "id": "lg_slope",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "slope = k/2.303",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "lg_title",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "first order",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "ca_xaxis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_xaxis_h",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_yaxis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_yaxis_h",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_xl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_yl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_slope_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_int_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ca_title_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_xaxis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_xaxis_h",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_yaxis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_yaxis_h",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_xl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_yl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_slope_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_int_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ln_title_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_xaxis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_xaxis_h",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_yaxis_t",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_yaxis_h",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_xl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_yl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_slope_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "lg_title_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_ca_xaxis_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.45,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_xaxis_t"
+        ]
+      },
+      {
+        "id": "make_ca_xaxis_h",
+        "operator": "point",
+        "inputs": {
+          "x": 10.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_xaxis_h"
+        ]
+      },
+      {
+        "id": "make_ca_xaxis",
+        "operator": "vector",
+        "inputs": {
+          "start": "ca_xaxis_t",
+          "end": "ca_xaxis_h"
+        },
+        "outputs": [
+          "ca_xaxis"
+        ]
+      },
+      {
+        "id": "make_ca_yaxis_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -0.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_yaxis_t"
+        ]
+      },
+      {
+        "id": "make_ca_yaxis_h",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 6.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_yaxis_h"
+        ]
+      },
+      {
+        "id": "make_ca_yaxis",
+        "operator": "vector",
+        "inputs": {
+          "start": "ca_yaxis_t",
+          "end": "ca_yaxis_h"
+        },
+        "outputs": [
+          "ca_yaxis"
+        ]
+      },
+      {
+        "id": "make_ca_xl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 10.6,
+          "y": -0.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_xl_p"
+        ]
+      },
+      {
+        "id": "make_ca_xl",
+        "operator": "label",
+        "inputs": {
+          "target": "ca_xl_p",
+          "text": "t"
+        },
+        "outputs": [
+          "ca_xl"
+        ]
+      },
+      {
+        "id": "make_ca_yl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.05,
+          "y": 7.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_yl_p"
+        ]
+      },
+      {
+        "id": "make_ca_yl",
+        "operator": "label",
+        "inputs": {
+          "target": "ca_yl_p",
+          "text": "[A]"
+        },
+        "outputs": [
+          "ca_yl"
+        ]
+      },
+      {
+        "id": "make_ca_line",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0 + (6*exp(-0.3*(x-0)))",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 10,
+          "samples": 65
+        },
+        "outputs": [
+          "ca_line"
+        ]
+      },
+      {
+        "id": "make_ca_slope_p",
+        "operator": "point",
+        "inputs": {
+          "x": 6.6,
+          "y": 4.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_slope_p"
+        ]
+      },
+      {
+        "id": "make_ca_slope",
+        "operator": "label",
+        "inputs": {
+          "target": "ca_slope_p",
+          "text": "not a line"
+        },
+        "outputs": [
+          "ca_slope"
+        ]
+      },
+      {
+        "id": "make_ca_int_p",
+        "operator": "point",
+        "inputs": {
+          "x": 2.4,
+          "y": 6.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_int_p"
+        ]
+      },
+      {
+        "id": "make_ca_int",
+        "operator": "label",
+        "inputs": {
+          "target": "ca_int_p",
+          "text": "[A]_0"
+        },
+        "outputs": [
+          "ca_int"
+        ]
+      },
+      {
+        "id": "make_ca_title_p",
+        "operator": "point",
+        "inputs": {
+          "x": 6.2,
+          "y": 7.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ca_title_p"
+        ]
+      },
+      {
+        "id": "make_ca_title",
+        "operator": "label",
+        "inputs": {
+          "target": "ca_title_p",
+          "text": "first order"
+        },
+        "outputs": [
+          "ca_title"
+        ]
+      },
+      {
+        "id": "make_ln_xaxis_t",
+        "operator": "point",
+        "inputs": {
+          "x": 13.95,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_xaxis_t"
+        ]
+      },
+      {
+        "id": "make_ln_xaxis_h",
+        "operator": "point",
+        "inputs": {
+          "x": 25,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_xaxis_h"
+        ]
+      },
+      {
+        "id": "make_ln_xaxis",
+        "operator": "vector",
+        "inputs": {
+          "start": "ln_xaxis_t",
+          "end": "ln_xaxis_h"
+        },
+        "outputs": [
+          "ln_xaxis"
+        ]
+      },
+      {
+        "id": "make_ln_yaxis_t",
+        "operator": "point",
+        "inputs": {
+          "x": 14.4,
+          "y": -0.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_yaxis_t"
+        ]
+      },
+      {
+        "id": "make_ln_yaxis_h",
+        "operator": "point",
+        "inputs": {
+          "x": 14.4,
+          "y": 6.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_yaxis_h"
+        ]
+      },
+      {
+        "id": "make_ln_yaxis",
+        "operator": "vector",
+        "inputs": {
+          "start": "ln_yaxis_t",
+          "end": "ln_yaxis_h"
+        },
+        "outputs": [
+          "ln_yaxis"
+        ]
+      },
+      {
+        "id": "make_ln_xl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 25,
+          "y": -0.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_xl_p"
+        ]
+      },
+      {
+        "id": "make_ln_xl",
+        "operator": "label",
+        "inputs": {
+          "target": "ln_xl_p",
+          "text": "t"
+        },
+        "outputs": [
+          "ln_xl"
+        ]
+      },
+      {
+        "id": "make_ln_yl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 14.45,
+          "y": 7.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_yl_p"
+        ]
+      },
+      {
+        "id": "make_ln_yl",
+        "operator": "label",
+        "inputs": {
+          "target": "ln_yl_p",
+          "text": "ln[A]"
+        },
+        "outputs": [
+          "ln_yl"
+        ]
+      },
+      {
+        "id": "make_ln_line",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0 + (6 - 0.5*(x-14.4))",
+          "variable": "x",
+          "xMin": 14.4,
+          "xMax": 24.4,
+          "samples": 65
+        },
+        "outputs": [
+          "ln_line"
+        ]
+      },
+      {
+        "id": "make_ln_slope_p",
+        "operator": "point",
+        "inputs": {
+          "x": 21,
+          "y": 4.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_slope_p"
+        ]
+      },
+      {
+        "id": "make_ln_slope",
+        "operator": "label",
+        "inputs": {
+          "target": "ln_slope_p",
+          "text": "slope = -k"
+        },
+        "outputs": [
+          "ln_slope"
+        ]
+      },
+      {
+        "id": "make_ln_int_p",
+        "operator": "point",
+        "inputs": {
+          "x": 16.8,
+          "y": 6.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_int_p"
+        ]
+      },
+      {
+        "id": "make_ln_int",
+        "operator": "label",
+        "inputs": {
+          "target": "ln_int_p",
+          "text": "ln[A]_0"
+        },
+        "outputs": [
+          "ln_int"
+        ]
+      },
+      {
+        "id": "make_ln_title_p",
+        "operator": "point",
+        "inputs": {
+          "x": 20.6,
+          "y": 7.75,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ln_title_p"
+        ]
+      },
+      {
+        "id": "make_ln_title",
+        "operator": "label",
+        "inputs": {
+          "target": "ln_title_p",
+          "text": "first order"
+        },
+        "outputs": [
+          "ln_title"
+        ]
+      },
+      {
+        "id": "make_lg_xaxis_t",
+        "operator": "point",
+        "inputs": {
+          "x": -0.45,
+          "y": -10.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_xaxis_t"
+        ]
+      },
+      {
+        "id": "make_lg_xaxis_h",
+        "operator": "point",
+        "inputs": {
+          "x": 10.6,
+          "y": -10.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_xaxis_h"
+        ]
+      },
+      {
+        "id": "make_lg_xaxis",
+        "operator": "vector",
+        "inputs": {
+          "start": "lg_xaxis_t",
+          "end": "lg_xaxis_h"
+        },
+        "outputs": [
+          "lg_xaxis"
+        ]
+      },
+      {
+        "id": "make_lg_yaxis_t",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -11.05,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_yaxis_t"
+        ]
+      },
+      {
+        "id": "make_lg_yaxis_h",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_yaxis_h"
+        ]
+      },
+      {
+        "id": "make_lg_yaxis",
+        "operator": "vector",
+        "inputs": {
+          "start": "lg_yaxis_t",
+          "end": "lg_yaxis_h"
+        },
+        "outputs": [
+          "lg_yaxis"
+        ]
+      },
+      {
+        "id": "make_lg_xl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 10.6,
+          "y": -11.3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_xl_p"
+        ]
+      },
+      {
+        "id": "make_lg_xl",
+        "operator": "label",
+        "inputs": {
+          "target": "lg_xl_p",
+          "text": "t"
+        },
+        "outputs": [
+          "lg_xl"
+        ]
+      },
+      {
+        "id": "make_lg_yl_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0.05,
+          "y": -2.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_yl_p"
+        ]
+      },
+      {
+        "id": "make_lg_yl",
+        "operator": "label",
+        "inputs": {
+          "target": "lg_yl_p",
+          "text": "log([A]_0/[A])"
+        },
+        "outputs": [
+          "lg_yl"
+        ]
+      },
+      {
+        "id": "make_lg_line",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "-10.6 + (0.55*(x-0))",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 10,
+          "samples": 65
+        },
+        "outputs": [
+          "lg_line"
+        ]
+      },
+      {
+        "id": "make_lg_slope_p",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": -5.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_slope_p"
+        ]
+      },
+      {
+        "id": "make_lg_slope",
+        "operator": "label",
+        "inputs": {
+          "target": "lg_slope_p",
+          "text": "slope = k/2.303"
+        },
+        "outputs": [
+          "lg_slope"
+        ]
+      },
+      {
+        "id": "make_lg_title_p",
+        "operator": "point",
+        "inputs": {
+          "x": 6.2,
+          "y": -2.85,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lg_title_p"
+        ]
+      },
+      {
+        "id": "make_lg_title",
+        "operator": "label",
+        "inputs": {
+          "target": "lg_title_p",
+          "text": "first order"
+        },
+        "outputs": [
+          "lg_title"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "First order: [A] vs t curves down, ln[A] vs t is a straight line of slope -k, and log([A]_0/[A]) vs t is a straight line of slope k/2.303."
+      }
+    ],
+    "requiredEntityIds": [
+      "ca_xaxis",
+      "ca_yaxis",
+      "ca_xl",
+      "ca_yl",
+      "ca_line",
+      "ca_slope",
+      "ca_int",
+      "ca_title",
+      "ln_xaxis",
+      "ln_yaxis",
+      "ln_xl",
+      "ln_yl",
+      "ln_line",
+      "ln_slope",
+      "ln_int",
+      "ln_title",
+      "lg_xaxis",
+      "lg_yaxis",
+      "lg_xl",
+      "lg_yl",
+      "lg_line",
+      "lg_slope",
+      "lg_title"
+    ],
+    "revealGroups": [
+      {
+        "id": "panel_ca",
+        "entityIds": [
+          "ca_xaxis",
+          "ca_yaxis",
+          "ca_xl",
+          "ca_yl",
+          "ca_line",
+          "ca_slope",
+          "ca_int",
+          "ca_title"
+        ],
+        "dependsOn": [],
+        "narrationCue": "first order: [A] against t"
+      },
+      {
+        "id": "panel_ln",
+        "entityIds": [
+          "ln_xaxis",
+          "ln_yaxis",
+          "ln_xl",
+          "ln_yl",
+          "ln_line",
+          "ln_slope",
+          "ln_int",
+          "ln_title"
+        ],
+        "dependsOn": [
+          "panel_ca"
+        ],
+        "narrationCue": "first order: ln[A] against t"
+      },
+      {
+        "id": "panel_lg",
+        "entityIds": [
+          "lg_xaxis",
+          "lg_yaxis",
+          "lg_xl",
+          "lg_yl",
+          "lg_line",
+          "lg_slope",
+          "lg_title"
+        ],
+        "dependsOn": [
+          "panel_ln"
+        ],
+        "narrationCue": "first order: log([A]_0/[A]) against t"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_panel_ca",
+        "action": "reveal",
+        "targetId": "panel_ca",
+        "dependsOn": [],
+        "narrationIntent": "first order: [A] against t"
+      },
+      {
+        "id": "reveal_panel_ln",
+        "action": "reveal",
+        "targetId": "panel_ln",
+        "dependsOn": [
+          "reveal_panel_ca"
+        ],
+        "narrationIntent": "first order: ln[A] against t"
+      },
+      {
+        "id": "reveal_panel_lg",
+        "action": "reveal",
+        "targetId": "panel_lg",
+        "dependsOn": [
+          "reveal_panel_ln"
+        ],
+        "narrationIntent": "first order: log([A]_0/[A]) against t"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}

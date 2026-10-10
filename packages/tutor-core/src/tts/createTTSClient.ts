@@ -1,6 +1,5 @@
-import { HttpSpeechClient, type TTSClient } from "./speechClient";
+import type { TTSClient } from "./speechClient";
 import { StreamingSpeechClient } from "./streamingSpeechClient";
-import { resolveApiUrl } from "../publicOrigins";
 import type { TutorVoicePreferences } from "./voiceLanguage";
 
 export type CreateTTSClientOptions = {
@@ -10,14 +9,9 @@ export type CreateTTSClientOptions = {
   voicePreferences?: TutorVoicePreferences;
 };
 
+/** The lesson's speech client. Only the browser session creates one. */
 export function createTTSClient(options: CreateTTSClientOptions = {}): TTSClient {
-  const client =
-    typeof window !== "undefined"
-      ? new StreamingSpeechClient()
-      : new HttpSpeechClient({
-          proxyUrl: resolveApiUrl("/api/tts"),
-          streamUrl: resolveApiUrl("/api/tts/stream"),
-        });
+  const client = new StreamingSpeechClient();
   if (options.muted) {
     client.setMuted?.(true);
   }

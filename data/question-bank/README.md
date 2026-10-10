@@ -82,17 +82,17 @@ reports are sufficient to reproduce and audit a local build.
 
 ## NTA JEE Main staging
 
-`python3 tools/question-bank/nta_jee_main_acquisition.py` adds a deterministic
+`python3 tools/question-bank/importers/nta_jee_main_acquisition.py` adds a deterministic
 staging layer between the reviewed official NTA inventory report and any later
 manifest import. Its default inputs are:
 
-- `data/question-bank/reports/nta-jee-main-coverage-2026-08-10.json`
+- `data/question-bank/reports/coverage/nta-jee-main-coverage-2026-08-10.json`
 - `data/question-bank/nta-jee-main-official-schedule.json`
 
 Its default outputs are:
 
 - `data/question-bank/staging/nta-jee-main/` for staged PDFs plus stable sidecars
-- `data/question-bank/reports/nta-jee-main-acquisition-2026-08-10.json`
+- `data/question-bank/reports/coverage/nta-jee-main-acquisition-2026-08-10.json`
 
 Use `--dry-run` to build only the deterministic plan/report. Real runs stream to
 `.part`, enforce `--max-file-bytes` and `--max-total-bytes`, resume only on a
@@ -107,8 +107,9 @@ The full-syllabus build never edits canonical question-v3 rows. It emits one
 evidence and explicit abstentions for low scores, close margins, missing
 combined-paper context, and cross-source subject conflicts. Overlapping lexical
 signals are counted once; uncorroborated legacy topic projections and questions
-with strong evidence for a second unit enter the review queue. Chemistry
-remains an explicit `out_of_scope` result. The generated full SQLite database
+with strong evidence for a second unit enter the review queue. A subject
+outside Mathematics, Physics and Chemistry is an explicit `out_of_scope`
+result. The generated full SQLite database
 retains the ordinary documents/questions/source index and adds normalized
 syllabus framework, unit, topic, assignment, candidate, evidence, and review
 tables.

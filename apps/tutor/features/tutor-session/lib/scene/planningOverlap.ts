@@ -18,7 +18,7 @@
  * Both the live hook and the offline lecture lab run this module, so the bench
  * measures the path students get. Everything with I/O is injected.
  */
-import type { TurnPlanV3 } from "@heytutor/scene-engine";
+import type { FigureSource, TurnPlanV3 } from "@heytutor/scene-engine";
 import { deepEqual, finalizeScenePlanAfterAuthority } from "./diagramGeneration";
 
 /**
@@ -108,6 +108,8 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   speculationAllowed: boolean;
   /** Defaults to SCENE_SPECULATION_ENABLED; injectable for tests. */
   speculationEnabled?: boolean;
+  /** Per-gate selection policy. The omitted live default remains deterministic-family first. */
+  selectionOrder?: "current" | "planner_first" | ((gate: G) => "current" | "planner_first");
   plannerStartedAt: number;
   deadlineMs: number;
   now?: () => number;
@@ -159,6 +161,8 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
   /** The finalized scene planner result, or the recovered scene. */
   scene: R | null;
   recovered: boolean;
+  /** Provenance of the pre-fallback path that produced the usable candidate. */
+  figureSource: Extract<FigureSource, "fast_family" | "planner" | "verified_recovery"> | null;
   speculation: {
     started: boolean;
     /** The speculative run produced `scene`. */
@@ -175,6 +179,14 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
     scenePlannerMs: number;
     revalidateMs: number;
     revalidateSkipped: boolean | null;
+    /** All scene planner requests launched, including failed or aborted calls. */
+    plannerCalls: number;
+  };
+  attempts: {
+    deterministic: boolean;
+    planner: boolean;
+    /** Milliseconds left on the turn's scene-planning deadline at completion. */
+    deadlineRemainingMs: number;
   };
 }
 
@@ -263,7 +275,10 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     scenePlannerMs: 0,
     revalidateMs: 0,
     revalidateSkipped: null,
+    plannerCalls: 0,
   };
+  let deterministicAttempted = false;
+  let plannerAttempted = false;
 
   type Run = {
     controller: AbortController;
@@ -281,6 +296,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
   const inFlight = new Set<Run>();
   const requestBudget = { remaining: SCENE_REQUEST_BUDGET };
   const startRun = (gate: G, turnPlan: TurnPlanV3, speculative: boolean, restarted: boolean): Run => {
+    plannerAttempted = true;
     const controller = new AbortController();
     const signal = input.signal ? mergeAbortSignals(input.signal, controller.signal) : controller.signal;
     const span = input.telemetry?.span("scene-planner", parent);
@@ -359,11 +375,16 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     }
 
     const speculationEnabled = input.speculationEnabled ?? SCENE_SPECULATION_ENABLED;
+    const selectionOrderFor = (gate: G): "current" | "planner_first" =>
+      typeof input.selectionOrder === "function"
+        ? input.selectionOrder(gate)
+        : input.selectionOrder ?? "current";
     if (speculationEnabled && input.speculationAllowed && authorityPending) {
       const gate = input.deriveGate(input.turnPlan, null);
+      const plannerFirst = selectionOrderFor(gate) === "planner_first";
       const budgetMs = remainingMs();
       const eligible = gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && budgetMs > 0;
-      const deterministicPredicted = eligible && input.selectFast(input.turnPlan, null, gate) !== null;
+      const deterministicPredicted = !plannerFirst && eligible && input.selectFast(input.turnPlan, null, gate) !== null;
       if (shouldStartSpeculativeScene({
         speculationAllowed: input.speculationAllowed,
         authorityPending,
@@ -392,11 +413,13 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     if (authority) ({ turnPlan, authority } = input.applyAuthority(turnPlan, authority));
 
     const gate = input.deriveGate(turnPlan, authority);
+    const plannerFirst = selectionOrderFor(gate) === "planner_first";
     let scene = input.recover?.(gate, turnPlan) ?? null;
     const recovered = scene !== null;
 
     let fast: F | null = null;
-    if (!scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority)) {
+    if (!plannerFirst && !scene && gate.shouldPlanExactScene && !input.fastFigureBlocked(authority)) {
+      deterministicAttempted = true;
       const span = input.telemetry?.span("deterministic-figure", parent);
       const fastStartedAt = now();
       fast = input.selectFast(turnPlan, authority, gate);
@@ -435,7 +458,16 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
           restarted = true;
         }
       }
-    } else if (!scene && !fast && gate.shouldAttemptLlmScene && remainingMs() > 0) {
+    } else if (
+      !scene &&
+      !fast &&
+      (gate.shouldAttemptLlmScene || (plannerFirst && gate.shouldPlanExactScene)) &&
+      remainingMs() > 0
+    ) {
+      // Evaluation-only planner-first deliberately probes the questions that
+      // no family or archetype recognizes. The gate's empty family list is
+      // passed through unchanged; validation/proof/compile still decide if
+      // anything may render. The live/default current ordering is unchanged.
       run = startRun(gate, turnPlan, false, false);
     }
     if (run) scene = await finishRun(run);
@@ -462,6 +494,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       span?.end({ skipped: !revalidated });
     }
 
+    timings.plannerCalls = SCENE_REQUEST_BUDGET - requestBudget.remaining;
     return {
       turnPlan,
       authority,
@@ -469,8 +502,14 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       fast,
       scene,
       recovered,
+      figureSource: fast ? "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
       speculation: { started: kept || abortReason !== null, kept, abortReason, restarted },
       timings,
+      attempts: {
+        deterministic: deterministicAttempted,
+        planner: plannerAttempted,
+        deadlineRemainingMs: remainingMs(),
+      },
     };
   } finally {
     // A cancelled turn or a thrown authority never leaves a planner running,

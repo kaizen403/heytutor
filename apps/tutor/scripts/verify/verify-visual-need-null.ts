@@ -40,7 +40,8 @@ for (const [args, expected, message] of table) check(resolveVisualRequirement(..
 const handler = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
 check(/resolveVisualRequirement\(\s*turnPlan\.visualRequirement,\s*evaluatedVisualNeed,\s*questionRequiresVisual\(question\),\s*inferSceneCapabilities\(question, \{ turnPlan \}\)\.hasSourceProgram === true,\s*\)/.test(handler),
   "the live visual decision receives the engine source-program capability");
-check(handler.includes('turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)'), "the no-figure skip still keys on an effective none");
+const selection = readFileSync(resolve(__dirname, "../../features/tutor-session/lib/scene/productionSceneSelection.ts"), "utf8");
+check(handler.includes("selectProductionScene({") && selection.includes('turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)'), "the shared live no-figure skip still keys on an effective none");
 
 // 3. Real stems through the same decision the live turn makes with Jev null
 // and a planner "none".

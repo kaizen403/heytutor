@@ -6,6 +6,8 @@ export interface ParsedProviderUsage {
   total?: number;
   /** Prompt tokens the provider reported as cache hits. A subset of `input`. */
   cachedInput?: number;
+  /** Hidden reasoning tokens, when reported. A subset of `output`. */
+  reasoning?: number;
   /**
    * False when the provider sent no usage object. That spend is unknown.
    * It is not a measured zero.
@@ -34,9 +36,15 @@ function readCachedTokens(usage: Record<string, unknown>): number | undefined {
   return finiteToken(details.cached_tokens);
 }
 
+function readReasoningTokens(usage: Record<string, unknown>): number | undefined {
+  const details = usage.completion_tokens_details;
+  return isRecord(details) ? finiteToken(details.reasoning_tokens) : undefined;
+}
+
 /**
- * Reads a Fireworks chat-completions usage object, including cache hits when
- * the provider reports them. Gateway evaluation usage is a different shape
+ * Reads a Fireworks or Azure OpenAI chat-completions usage object, including
+ * cache hits (`prompt_tokens_details.cached_tokens` on Azure) and reasoning
+ * tokens when the provider reports them. Gateway evaluation usage is a different shape
  * and is parsed in the evaluation client.
  */
 export function parseProviderUsage(usage: unknown): ParsedProviderUsage {
@@ -53,11 +61,13 @@ export function parseProviderUsage(usage: unknown): ParsedProviderUsage {
     return { known: false };
   }
   const cachedInput = readCachedTokens(usage);
+  const reasoning = readReasoningTokens(usage);
   return {
     input,
     output,
     total,
     cachedInput: cachedInput !== undefined && input !== undefined ? Math.min(cachedInput, input) : cachedInput,
+    ...(reasoning !== undefined ? { reasoning } : {}),
     known: true,
   };
 }

@@ -90,13 +90,6 @@ export function planNumber(quantities: readonly PlanQuantity[], aliases: readonl
   return planQuantity(quantities, aliases)?.value ?? null;
 }
 
-/** All plan quantities whose unit or symbol looks like the given dimension. */
-export function planNumbersByUnit(quantities: readonly PlanQuantity[], unitPattern: RegExp, symbolPattern?: RegExp): number[] {
-  return quantities
-    .filter((quantity) => (quantity.unit && unitPattern.test(quantity.unit)) || (symbolPattern && symbolPattern.test(quantity.symbol)))
-    .map((quantity) => quantity.value);
-}
-
 /* ------------------------------------------------------------------------- */
 /* Stem numbers                                                               */
 /* ------------------------------------------------------------------------- */

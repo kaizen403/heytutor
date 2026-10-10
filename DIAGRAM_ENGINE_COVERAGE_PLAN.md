@@ -1,6 +1,6 @@
 # Diagram engine coverage plan and session record
 
-Current continuation (6 October 2026): the owner authorized publication of the consolidated handoff and numbered Maths/Physics repair and expansion waves. See [the continuation reference](docs/agent/coverage-continuation-20261006.md). Earlier pause/zero-acceptance statements are historical scoped receipts; preserve independently accepted Chemistry rows from main. Chemistry is excluded from future engineering in this continuation.
+Status, 9 October 2026: per-topic chapter diagram work is paused. The topic checklist is [the diagram topic matrix](docs/plans/diagram-topic-matrix/index.md). Do not assign packets or claim rows.
 
 Updated: 2 October 2026. Status: **25-chapter expansion complete; further coverage work paused at the user's request.**
 
@@ -85,7 +85,6 @@ The publication worktree preserves `main`'s newer polyhedral solids, hollow-cyli
 | Shared authority regressions | `verify-derived-value-labels.ts`, `verify-operator-accuracy.ts` in the engine verify directory |
 | Render gallery | `packages/scene-engine/scripts/verify/render-reusable-operators.ts` |
 | Planner transport and access gate | `packages/tutor-core/scripts/verify/verify-reusable-scene-capabilities.ts` |
-| Earlier detailed session report | [Reusable operator coverage](docs/plans/reusable-operator-coverage.md) |
 | Existing priorities | [Diagram engine priority](docs/plans/diagram-engine-priority.md) |
 | Longer-term capability architecture | [Universal syllabus capability plan](docs/architecture/universal-syllabus-capability-plan-v5.md) |
 
@@ -476,7 +475,7 @@ Each assigned packet must first enumerate **all** relevant frozen topics in its 
 
 The existing **more-than-90%** rule remains an inventory triage threshold, not a release guarantee. Keep separate topic-inventory, required-visual, accuracy and lifecycle measures. When these expanded topic lists are adopted, freeze a new denominator rather than comparing it directly with the old 6/14 or 2/24 counts. A chapter can leave this backlog only after the refreshed inventory clears the threshold **and** its required acceptance evidence exists; explicitly report the residual topics and unsupported variants. Zero known false certifications remains mandatory regardless of the share.
 
-Track packets through the [progress contract and chapter counters](docs/plans/diagram-topic-matrix/progress.md), backed by `topic-progress.csv`. Each worker writes a unique [packet evidence log](docs/plans/diagram-topic-matrix/work-logs/TEMPLATE.md) before reporting its assignment complete. The integration owner records accepted topic IDs after shared/live/replay review and recomputes the chapter counters in that tracker and the core queue above. All topics initially remain **planned**; no historical gate pass is copied into new evidence.
+Track packets through the [progress contract and chapter counters](docs/plans/diagram-topic-matrix/progress.md), backed by `topic-progress.csv`. Each worker writes a unique packet evidence log in `docs/plans/diagram-topic-matrix/work-logs/` before reporting its assignment complete. The integration owner records accepted topic IDs after shared/live/replay review and recomputes the chapter counters in that tracker and the core queue above. All topics initially remain **planned**; no historical gate pass is copied into new evidence.
 
 The core queue's **Historical baseline** stays unchanged. Its **Accepted topics (new audit)** column is the live counter: after six Kinematics topics have independently accepted evidence it can read `6/14`, and after all fourteen qualify it can read `14/14`. Never replace a fraction with “full” merely because coding is finished, a packet is allocated, or one family gate passes. Keep the denominator and residual variants visible.
 

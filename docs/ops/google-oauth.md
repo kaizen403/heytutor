@@ -76,7 +76,8 @@ AUTH_GOOGLE_ID=....apps.googleusercontent.com
 AUTH_GOOGLE_SECRET=...
 ```
 
-Login is on unless `AUTH_DISABLED=1` (ignored in production). After Google
+Login is on unless both `AUTH_DISABLED=1` and `NEXT_PUBLIC_AUTH_DISABLED=1`
+are set (`lib/authDisabled.ts`; production ignores them). After Google
 is on the box, do not set `AUTH_DISABLED`. The device cookie is not a user
 id while the login gate is on.
 

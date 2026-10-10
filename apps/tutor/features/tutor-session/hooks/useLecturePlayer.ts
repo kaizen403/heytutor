@@ -29,10 +29,7 @@ import {
   codeLessonFrameSpec,
   type CodeLessonExportTrack,
 } from "@/lib/lecture-export/codeLessonExportTrack";
-import {
-  drawLectureTimeline,
-  type ExportExecuteCommand,
-} from "@/lib/lecture-export/drawLectureTimeline";
+import type { ExportExecuteCommand } from "@/lib/lecture-export/drawLectureTimeline";
 import {
   buildLecturePlayerTimeline,
   createLecturePlayerStore,
@@ -60,6 +57,10 @@ import { BOARD_HEIGHT, BOARD_WIDTH, DSA_CODE_PANEL_RECT } from "../constants";
 import { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
+import {
+  completeReplayDiagramTurn,
+  drawReplayDiagramTimeline,
+} from "../lib/replay/completeReplayDiagram";
 import { isTypingElement } from "../lib/board/boardFullscreen";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { useBoardLayout } from "./useBoardLayout";
@@ -527,7 +528,9 @@ export function useLecturePlayer({
           for (const command of cue.commands) {
             if (!current()) return;
             // Pure dwell and transient emphasis leave no mark to catch up to.
-            if (command.type === "PAUSE" || command.type === "FOCUS" || command.type === "POINT") {
+            // FOCUS also releases permanent verified labels. Its instant
+            // executor path skips the gesture while retaining those marks.
+            if (command.type === "PAUSE" || command.type === "POINT") {
               continue;
             }
             await executeRef.current(command, {
@@ -537,6 +540,15 @@ export function useLecturePlayer({
               trustedDiagramGeometry: cue.trustedDiagramGeometry,
             });
           }
+          await completeReplayDiagramTurn({
+            cue,
+            nextCue: cues[index + 1],
+            turn: storedTurnsRef.current[cue.turnIndex],
+            diagram: diagramRef.current,
+            executeCommand: executePlayerCommand,
+            shouldCancel: () => !current(),
+            durationScale: 0,
+          });
         }
       })();
       // A finished mark still waits a frame for the odd tween with a floor (an
@@ -556,13 +568,15 @@ export function useLecturePlayer({
       const targetCue = cues[plan.targetCueIndex]!;
       clock.setNow(targetCue.startMs);
       drawDoneRef.current = false;
-      void drawLectureTimeline({
+      void drawReplayDiagramTimeline({
         cues,
         executeCommand: executePlayerCommand,
         getClockMs: clock.now,
         waitForAdvance: clock.waitForAdvance,
         shouldCancel: () => !stillOurs(),
         startCueIndex: plan.targetCueIndex,
+        getTurn: (turnIndex) => storedTurnsRef.current[turnIndex],
+        getDiagram: () => diagramRef.current,
         onCueStart: (cue, index) => {
           if (cue.turnIndex !== lastSyncedTurnRef.current) syncTurn(cue.turnIndex);
           if (activeRef.current && statusRef.current !== "seeking") publishCueText(cues, index);
@@ -624,6 +638,7 @@ export function useLecturePlayer({
       smoothClock,
       store,
       syncTurn,
+      storedTurnsRef,
     ],
   );
 
