@@ -218,6 +218,30 @@ export function evaluateTopologyAssertion(
       }
       const expected = Number(assertion.expected);
       const passed = count === expected;
+      // Any two nodes of one closed loop are joined by exactly two paths, so a
+      // count of two or more claims branches only when an end is a branch
+      // point or an open terminal. Two plain series junctions are just the two
+      // halves of one loop.
+      if (passed && expected >= 2) {
+        const nodeOf = electricalNodeRoots(graph);
+        const ends = [nodeOf(from!), nodeOf(to!)];
+        const isolatedLoop = ends[0] !== ends[1] && ends.every((end) => {
+          const node = electricalNodeConnections(graph, nodeOf, end, new Set());
+          return node.freeTerminals === 0 && node.elements < 3;
+        });
+        if (isolatedLoop) {
+          const nodes = ends.map((end) => describeElectricalNode(graph, nodeOf, end));
+          issues.push({
+            code: "assertion_failed",
+            message: `Assertion ${assertion.id}: ${from} and ${to} lie on one closed series loop with nothing else connected at ${nodes.join(" or ")}, so its two halves are not parallel branches. Prove a single loop with path, or add a third connection (a source, another element or a terminal lead) at those nodes.`,
+            severity,
+            entityIds: assertion.entities,
+            expected,
+            actual: { paths: count, isolatedLoop: nodes },
+          });
+          return false;
+        }
+      }
       if (!passed) {
         issues.push({
           code: "assertion_failed",
@@ -256,15 +280,19 @@ export function evaluateTopologyAssertion(
         return false;
       }
       const same = directSame || contractedSame;
-      const passed = assertion.expected === false ? !same : same;
+      const isolatedLoop = same ? isolatedLoopNodes(graph, edgeIds) : [];
+      const parallel = same && isolatedLoop.length === 0;
+      const passed = assertion.expected === false ? !parallel : parallel;
       if (!passed) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: edges do not share the same terminal pair`,
+          message: same && isolatedLoop.length > 0
+            ? `Assertion ${assertion.id}: ${edgeIds.join(", ")} share one terminal pair, but nothing else connects at ${isolatedLoop.join(" or ")}, so they form one closed series loop with no port. A parallel connection needs a third connection (a source, another element or a terminal lead) at a shared node; prove a two element loop with path.`
+            : assertion.reason ?? `Assertion ${assertion.id}: edges do not share the same terminal pair`,
           severity,
           entityIds: assertion.entities,
           expected: assertion.expected ?? true,
-          actual: terminals,
+          actual: same ? { terminals, isolatedLoop } : terminals,
         });
       }
       return passed;
@@ -391,6 +419,16 @@ function graphWithEdges(edges: TopologyEdge[]): TopologyGraph {
 
 /** Ordinary connectors identify electrical nodes even when drawn as several leads. */
 function contractConnectorNodes(graph: TopologyGraph): TopologyGraph {
+  const find = electricalNodeRoots(graph);
+  return graphWithEdges(graph.edges.map((edge) => ({
+    ...edge,
+    a: find(edge.a),
+    b: find(edge.b),
+  })));
+}
+
+/** Maps each drawn point to one representative point of its connector-joined electrical node. */
+function electricalNodeRoots(graph: TopologyGraph): (node: string) => string {
   const parent = new Map([...graph.nodes].map((node) => [node, node]));
   const find = (node: string): string => {
     const current = parent.get(node) ?? node;
@@ -399,19 +437,81 @@ function contractConnectorNodes(graph: TopologyGraph): TopologyGraph {
     parent.set(node, root);
     return root;
   };
-  const union = (a: string, b: string) => {
-    const rootA = find(a);
-    const rootB = find(b);
-    if (rootA !== rootB) parent.set(rootB, rootA);
-  };
   for (const edge of graph.edges) {
-    if (edge.kind === "connect") union(edge.a, edge.b);
+    if (edge.kind !== "connect") continue;
+    const rootA = find(edge.a);
+    const rootB = find(edge.b);
+    if (rootA !== rootB) parent.set(rootB, rootA);
   }
-  return graphWithEdges(graph.edges.map((edge) => ({
-    ...edge,
-    a: find(edge.a),
-    b: find(edge.b),
-  })));
+  return find;
+}
+
+/**
+ * What meets at one electrical node: elements (symbols that leave the node;
+ * a symbol shorted onto itself is not a connection) and free terminals (a
+ * drawn point with a single lead, where the outside circuit attaches).
+ */
+function electricalNodeConnections(
+  graph: TopologyGraph,
+  nodeOf: (node: string) => string,
+  root: string,
+  excluded: ReadonlySet<string>,
+): { elements: number; freeTerminals: number } {
+  const elements = graph.edges.filter((edge) => {
+    if (edge.kind !== "symbol" || excluded.has(edge.id)) return false;
+    const a = nodeOf(edge.a);
+    const b = nodeOf(edge.b);
+    return a !== b && (a === root || b === root);
+  }).length;
+  const freeTerminals = [...graph.nodes].filter((node) =>
+    nodeOf(node) === root && (graph.adjacency.get(node)?.length ?? 0) === 1).length;
+  return { elements, freeTerminals };
+}
+
+/**
+ * A node where only two elements meet is a series junction, not a branch
+ * point. Elements that share a node pair are in parallel only relative to a
+ * port: a third connection (another element or source, or a lead to a free
+ * terminal) at a shared node. When one shared node connects onward, the other
+ * open node is the network's exit terminal, as in a series resistor feeding a
+ * parallel pair. When neither does, the members close one series loop with no
+ * port (an isolated LC circuit is the textbook case), which `path` proves.
+ * Returns the shared nodes of such an isolated loop, else nothing.
+ */
+function isolatedLoopNodes(graph: TopologyGraph, memberIds: readonly string[]): string[] {
+  const nodeOf = electricalNodeRoots(graph);
+  const first = graph.edgeById.get(memberIds[0] ?? "");
+  if (!first) return [];
+  const members = new Set(memberIds);
+  const shared = [...new Set([nodeOf(first.a), nodeOf(first.b)])];
+  const isolated = shared.every((root) => {
+    const node = electricalNodeConnections(graph, nodeOf, root, members);
+    return members.size + node.elements + node.freeTerminals < 3;
+  });
+  return isolated ? shared.map((root) => describeElectricalNode(graph, nodeOf, root)) : [];
+}
+
+function describeElectricalNode(graph: TopologyGraph, nodeOf: (node: string) => string, root: string): string {
+  return `node ${[...graph.nodes].filter((node) => nodeOf(node) === root).join("/")}`;
+}
+
+/**
+ * Whether elements are in parallel: they share one electrical terminal pair
+ * and do not close an isolated loop. `isolatedLoop` names the shared nodes
+ * when nothing but the members meets at either of them.
+ */
+export function parallelElementStatus(
+  document: SceneDocument,
+  edgeIds: readonly string[],
+): { sharedTerminalPair: boolean; isolatedLoop: string[] } {
+  const graph = buildTopologyGraph(document);
+  const contracted = contractConnectorNodes(graph);
+  const sharedTerminalPair = edgeIds.length >= 2 &&
+    terminalPairsMatch(edgeIds.map((id) => edgeTerminals(contracted, id)));
+  return {
+    sharedTerminalPair,
+    isolatedLoop: sharedTerminalPair ? isolatedLoopNodes(graph, edgeIds) : [],
+  };
 }
 
 function terminalPairsMatch(terminals: Array<[string, string] | null>): boolean {

@@ -1947,6 +1947,18 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           passed = residual < tolerance(assertion) && worldOpposite.opposite;
           break;
         }
+        // F = I L x B on opposite sides of a loop in an in-plane field points
+        // out of and into the page: two page-normal glyphs are opposite exactly
+        // when one is out and the other in. An in-plane arrow is perpendicular
+        // to the page normal, so it is never opposite to a glyph.
+        const senses = assertion.entities.slice(0, 2).map((id, index) => pageNormalSense(id, values[index], document));
+        if (senses.some((sense) => sense !== null)) {
+          residual = 0;
+          passed = senses.length === 2 &&
+            senses.every((sense) => sense === "out" || sense === "in") &&
+            senses[0] !== senses[1];
+          break;
+        }
         const firstLine = asLine(values[0]);
         const secondLine = asLine(values[1]);
         const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
@@ -4318,6 +4330,23 @@ function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
 }
 function hasPageNormalGlyph(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => metadata.pageNormal === "out" || metadata.pageNormal === "in");
+}
+/**
+ * The page-normal sense an entity is drawn with: operator metadata (field,
+ * force and torque glyphs) or a dot/cross label, including a page-normal
+ * `vector` the document validator lowered to one. "mixed" when both appear.
+ */
+function pageNormalSense(id: string, value: Geometry | undefined, document: SceneDocument): "out" | "in" | "mixed" | null {
+  const senses = new Set<"out" | "in">();
+  geometryMetadataMatches(value, (metadata) => {
+    if (metadata.pageNormal === "out" || metadata.pageNormal === "in") senses.add(metadata.pageNormal);
+    return false;
+  });
+  const producer = document.constructions.find((construction) => construction.outputs.includes(id));
+  const text = producer?.operator === "label" && typeof producer.inputs.text === "string" ? producer.inputs.text.trim() : "";
+  if (isPageNormalMarker(text)) senses.add(text === "×" || text === "⊗" ? "in" : "out");
+  if (senses.size === 0) return null;
+  return senses.size > 1 ? "mixed" : [...senses][0]!;
 }
 /** Numeric ink on an untyped descendant cannot recover erased physical units/scales. */
 function validateDisplayDescendantClaims(document: SceneDocument, geometry: Map<string, Geometry>, checkedOutputIds: Set<string>, issues: SceneIssue[]): void {

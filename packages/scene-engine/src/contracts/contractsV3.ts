@@ -8,7 +8,7 @@
 import { validateCoordinateDistanceSourceInputs } from "../ir/coordinateDistanceSource";
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
-import { evaluateTopologyAssertion } from "../topology/topology";
+import { evaluateTopologyAssertion, parallelElementStatus } from "../topology/topology";
 import { evaluateMathExpression } from "../math/expression";
 import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "../types";
 import type { ProblemIR } from "../ir/problemIR";
@@ -2640,10 +2640,13 @@ export function validateTurnPlanSceneProofs(
       : [],
   );
   if (resistorIds.length < 2) return issues;
+  // The question states the concept as authoritatively as the plan's laws do:
+  // "Explain resistors connected in parallel" asks for the parallel proof.
+  const conceptText = `${plan.question.toLowerCase()} ${evidenceText}`;
   const needsSeries =
-    /\bseries[-_\s]+resistance\b|\bresistors?\s+in\s+series\b/.test(evidenceText);
+    /\bseries[-_\s]+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?in\s+series\b/.test(conceptText);
   const needsParallel =
-    /\bparallel[-_\s]+resistance\b|\bresistors?\s+in\s+parallel\b/.test(evidenceText);
+    /\bparallel[-_\s]+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?in\s+parallel\b/.test(conceptText);
   if (!needsSeries && !needsParallel) return issues;
 
   const resistorSet = new Set(resistorIds);
@@ -2663,14 +2666,16 @@ export function validateTurnPlanSceneProofs(
     const group = groupFor(concept);
     const groupMembers = group?.entityIds.filter((id) => resistorSet.has(id)) ?? [];
     const mixedTopology = conceptsRequested > 1 && !group;
+    const pairsOf = (ids: string[]) => ids.flatMap((first, index) =>
+      ids.slice(index + 1).map((second) => [first, second]));
+    // A parallel claim needs one pair of elements on a shared node pair, not
+    // every element on one pair: a mixed series-parallel network proves the
+    // parallel concept with its branch pair while its series element stays put.
     const candidateSets = mixedTopology
-      ? [
-          resistorIds,
-          ...resistorIds.flatMap((first, index) =>
-            resistorIds.slice(index + 1).map((second) => [first, second]),
-          ),
-        ]
-      : [groupMembers];
+      ? [resistorIds, ...pairsOf(resistorIds)]
+      : concept === "parallel"
+        ? [groupMembers, ...pairsOf(groupMembers)]
+        : [groupMembers];
     const proof = candidateSets.find((members) => {
       if (members.length < 2) return false;
       const proofIssues: SceneIssue[] = [];
@@ -2686,6 +2691,21 @@ export function validateTurnPlanSceneProofs(
     if (proof) return;
 
     const members = groupMembers.length > 0 ? groupMembers : resistorIds;
+    // Elements that share a terminal pair with nothing else at either node
+    // close one series loop; say which nodes need a connection.
+    const seriesLoop = concept === "parallel"
+      ? candidateSets.map((set) => ({ set, status: parallelElementStatus(document, set) }))
+          .find(({ status }) => status.sharedTerminalPair && status.isolatedLoop.length > 0)
+      : undefined;
+    if (seriesLoop) {
+      issues.push({
+        code: "turnplan_parallel_not_proven",
+        message: `TurnPlanV3 asks for a parallel connection. ${seriesLoop.set.join(" and ")} share one terminal pair, but nothing else connects at ${seriesLoop.status.isolatedLoop.join(" or ")}, so they form one closed series loop with no port. Add the source, another element or a terminal lead at the shared nodes.`,
+        severity: "fatal",
+        entityIds: seriesLoop.set,
+      });
+      return;
+    }
     if (members.length < 2) {
       issues.push({
         code: `turnplan_${concept}_group_missing`,
@@ -3615,6 +3635,11 @@ function claimedCurrentMemberHints(claim: string): string[] {
     match[1]?.trim() ? [match[1].trim()] : []);
 }
 
+/** Circuit apparatus drawn as one operator rather than symbols: each carries a load or meter. */
+const CIRCUIT_APPARATUS_OPERATORS = new Set(["kirchhoff_network", "metre_bridge", "potentiometer", "galvanometer"]);
+const LOAD_OR_METER =
+  /\b(?:resistors?|resistance|lamps?|bulbs?|loads?|appliances?|heaters?|motors?|rheostats?|capacitors?|inductors?|coils?|diodes?|(?:am|volt|galvano|multi)?meters?|galvanometers?)\b/i;
+
 function validatePoweredCircuitClosure(
   document: SceneDocument,
   evidenceText: string,
@@ -3637,6 +3662,18 @@ function validatePoweredCircuitClosure(
     return /\b(?:(?:ac|dc|voltage|current|power)[_ -]?source|battery|cell|supply|generator)\b/i
       .test(semantic);
   });
+  // An unloaded series or parallel combination of cells with free terminals
+  // is a valid two-terminal source: nothing is drawn for its terminals to
+  // drive. Closure is a physical demand only once the figure draws a load or
+  // meter, or the plan claims a current, which needs a closed path.
+  const sourceIds = new Set(sources.map(({ id }) => id));
+  const drawsLoadOrMeter =
+    edges.some(({ id, construction }) => construction.operator === "symbol" && !sourceIds.has(id)) ||
+    document.constructions.some((construction) => CIRCUIT_APPARATUS_OPERATORS.has(construction.operator)) ||
+    document.entities.some((entity) => !sourceIds.has(entity.id) && LOAD_OR_METER.test(
+      `${entity.id} ${entity.role ?? ""} ${entity.label ?? ""}`.replace(/[_-]+/g, " ")));
+  const claimsCurrent = /\bcurrents?\b|\bohm['’]?s?\b|\bkirchhoff/.test(evidenceText);
+  if (!drawsLoadOrMeter && !claimsCurrent) return [];
   const issues: SceneIssue[] = [];
   for (const source of sources) {
     const adjacency = new Map<string, string[]>();

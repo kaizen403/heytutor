@@ -308,6 +308,18 @@ function closeWithBattery(scene: SceneBuilder, left: string, right: string, left
   scene.symbol("battery", "battery", "bat_a", "bat_b", "source", emfLabel);
 }
 
+/**
+ * Two elements on one node pair with nothing else attached close a single
+ * series loop, not a parallel pair. Without a source or a third element the
+ * bank shows its port as terminal leads: the textbook "between A and B" figure.
+ */
+function terminalLeads(scene: SceneBuilder, left: string, right: string, leftAt: Vec2, rightAt: Vec2): void {
+  scene.point("t_left", { x: leftAt.x - 1, y: leftAt.y }, "terminal");
+  scene.point("t_right", { x: rightAt.x + 1, y: rightAt.y }, "terminal");
+  scene.connect("w_t_left", "t_left", left);
+  scene.connect("w_t_right", right, "t_right");
+}
+
 function resistorNetwork(context: GeneratorContext) {
   const values = numbers(context, "resistors");
   const stated = maybeNum(context, "resistorCount");
@@ -378,6 +390,7 @@ function resistorNetwork(context: GeneratorContext) {
     const lanes = count + (voltmeter ? 1 : 0);
     const lowestLane = 2 - ((lanes - 1) / 2) * 0.42 * 4;
     close(a, b, { x: 0, y: lowestLane }, { x: 4, y: lowestLane });
+    if (!withSource && !voltmeter && count === 2) terminalLeads(scene, a, b, { x: 0, y: 2 }, { x: 4, y: 2 });
     scene.assert("same_pair", "sameTerminalPair", ids, true);
   } else if (tree) {
     // Lay the bound tree out left to right: series children side by side,
@@ -615,6 +628,7 @@ function capacitorNetwork(context: GeneratorContext) {
     const b = scene.point("n1", { x: 4, y: 2 }, "node");
     const ids = labels.map((label, index) => scene.symbol(`C${index + 1}`, "capacitor", a, b, "capacitor", label));
     if (withSource) closeWithBattery(scene, a, b, { x: 0, y: 2 }, { x: 4, y: 2 }, emfLabel);
+    else if (count === 2) terminalLeads(scene, a, b, { x: 0, y: 2 }, { x: 4, y: 2 });
     scene.assert("same_pair", "sameTerminalPair", ids, true);
   } else {
     const nodes = Array.from({ length: count + 1 }, (_, index) => scene.point(`n${index}`, { x: index * 2, y: 2 }, "node"));
