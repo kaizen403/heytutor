@@ -168,11 +168,52 @@ and a positive `--max-usd` on every run. All planner, ProblemIR, teaching, and
 example-picker calls use the configured deployment. Azure fallback to Fireworks
 is rejected before dispatch. Preflight and measured usage price `gpt-6-1-sol`
 at US$2 input, US$0.10 cached input, and US$10 output per million tokens.
-Unknown usage is charged conservatively with Azure reasoning headroom included.
+By default (`--spend-mode conservative`), unknown usage is charged conservatively
+with Azure reasoning headroom included.
 Every summary and row records provider and deployment; every completed planner
 call retains its actual model and measured usage. `--model standard` remains a
 compatibility alias for the configured provider. The offline picker has a 15 s
 bound so Azure reasoning can finish.
+
+For provider-metric reconciled experiments, opt into `--spend-mode response_usage
+--max-usd 10`. This is a cap on the known response-usage subtotal, priced at the
+configured rates, not proof of a hard cap on the provider bill when usage is
+missing. Planner JSON, final teaching SSE usage chunks and every direct picker
+attempt settle measured tokens, including cached input and output reasoning.
+The existing lab visual-need meter follows the selected mode too. Known service
+usage is priced by its existing token/reported-cost evidence; missing-key and
+circuit-open answers prove zero dispatch. Other missing usage stays unresolved.
+Response-mode visual-need admission waits for occupied headroom, while the
+conservative default and frozen replay behavior stay unchanged.
+
+Earlier proxy retries without usage remain unresolved; unused retry slots never
+become measured spend. Missing or incomplete usage is unknown, not measured zero.
+Dispatch still reserves the full concurrent in-flight ceilings (including proxy
+retry limits); callers wait for existing responses to settle when they need
+headroom. No dispatch occurs when known settled cost plus those ceilings would
+exceed the allowance. A cap can stop with a small unused balance because the
+next call needs its full ceiling. Unresolved historical calls release dispatch
+headroom while their estimated exposure remains visible, so they can put the
+actual bill above the known-usage cap. Reconcile Azure ProcessedPromptTokens and
+GeneratedTokens before and after each controlled phase, stop to investigate
+unresolved usage, and give separate rounds only the remaining aggregate budget.
+
+In this mode, `chargedUsd` and `knownUsageUsd` are the measured subtotal;
+`reservedUsd`/`inFlightCalls` are temporary dispatch headroom.
+`unresolvedCalls[]` identifies trace, lane, model, attempt count, reason and
+`allowanceUsd`; `unresolvedAllowanceUsd` is their total estimated exposure, not
+paid cost. Per proxy `modelCalls[]` records `measuredCostUsd: null` when unknown,
+plus unresolved attempts/allowance. Picker rows record `knownUsageUsd`,
+`unresolvedUsageCalls` and `unresolvedAllowanceUsd`. Thus the known subtotal plus
+unresolved allowances describes the accounting range, subject to the request
+ceiling estimates; provider metrics remain the independent evidence. Checkpoints
+and row execution identities carry the mode, response pricing and server caps. Legacy checkpoints are conservative
+and cross-mode resume is rejected. In-flight calls from an interrupted
+response-usage checkpoint become explicit unresolved checkpoint evidence on
+resume, never measured charges; its `attempts` counts interrupted requests whose
+upstream attempt counts are unknown. `--resume-extra-usd` cannot add an unmetered
+allowance to this mode. The offline gate uses zero network/model calls and is included in the retained
+lab checks: `pnpm --filter @heytutor/tutor verify:lab`.
 
 The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`.
 Synthesized entries are keyed by `depicts`: plain family/archetype language,

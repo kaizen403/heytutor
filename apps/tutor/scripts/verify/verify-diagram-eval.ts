@@ -1027,6 +1027,11 @@ void (async () => {
     stoppedForBudget: true,
     rowsDone: 1,
     rowsPlanned: 3,
+    spendMode: "conservative",
+    knownUsageUsd: 0,
+    unresolvedCalls: [],
+    unresolvedAllowanceUsd: 0,
+    inFlightCalls: 0,
   });
 
   const concurrentCap = new LabSpendCap(0.1);
