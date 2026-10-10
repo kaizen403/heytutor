@@ -145,6 +145,13 @@ check("Expression binding retains original complete span without relaxing litera
  assert.equal(question.slice(read.reading.source.span.start,read.reading.source.span.end),read.reading.source.text);
  assert.equal(parseChemistryScalar(question,read.reading.coefficient.span).ok,false);
 });
+check("A newline separates ordinary equation context",()=>{
+ const question="For an Arrhenius reaction\nln k = 5 - 2000/T. Draw its Arrhenius plot.";
+ const read=readChemistryArrheniusEquation(question); assert.ok(read.ok);
+ assert.equal(read.reading.source.text,"ln k = 5 - 2000/T");
+ const spec=kineticsFromStem(question);assert.ok(spec);near(solveKinetics(spec).Ea,16628);
+ compiled(buildKineticsScene(question,[],false));
+});
 for(const expression of ["αln k = 5 - 2000/T", "ln k = 5 - 2000/Tα", "ln k = 5 - 2000/T ÷2", "ln k = 5 - 2000/T ∕2", "𝛼ln k = 5 - 2000/T", "ln k = 5 - 2000/T𝛼"])check("Complete Unicode expression boundary: "+expression,()=>{
  const question="For an Arrhenius reaction, "+expression+". Draw its Arrhenius plot.";
  assert.equal(readChemistryArrheniusEquation(question).ok,false);
