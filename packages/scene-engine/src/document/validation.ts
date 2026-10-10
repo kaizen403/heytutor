@@ -1853,7 +1853,7 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
     }
     if (constructionId) retainedConstructionIds.add(constructionId);
 
-    let operator = rawConstruction.operator;
+    const operator = rawConstruction.operator;
     let inputs = isRecord(rawConstruction.inputs)
       ? { ...rawConstruction.inputs }
       : rawConstruction.inputs;
