@@ -70,6 +70,8 @@ import { evaluateHarmonicMotionConstruction, type HarmonicMotionDefinition, type
 import { evaluateGravityConstruction, type GravityFieldDefinition, type GravityForceDefinition } from "./gravityGeometry";
 import { evaluateComplexConstruction, type ComplexNumberDefinition } from "./complexGeometry";
 import { evaluateMagneticConstruction, type MagneticForceDefinition } from "./magneticGeometry";
+import { evaluateMagneticHelix, type MagneticHelixDefinition } from "./magneticHelixGeometry";
+import { validatePhysicsRegionClaims } from "./physicsRegionClaims";
 import { evaluateRelativeMotionConstruction, type RelativeMotionMark } from "./relativeMotionGeometry";
 import { evaluateNetworkConstruction, type NetworkBranchDefinition } from "./networkGeometry";
 import { evaluateMechanicsDiagramConstruction, type MechanicsMark } from "./mechanicsDiagramGeometry";
@@ -148,6 +150,7 @@ type DerivedGeometryMetadata = {
   gravityForce?: GravityForceDefinition;
   complexNumber?: ComplexNumberDefinition;
   magneticForce?: MagneticForceDefinition;
+  magneticHelix?: MagneticHelixDefinition;
   relativeMotion?: RelativeMotionMark;
   networkBranch?: NetworkBranchDefinition;
   mechanics?: MechanicsMark;
@@ -366,6 +369,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           coincidentPointAliases.set(entityId, existing);
         }
       }
+      // A direction marker carries information the supporting stroke lacks.
+      // Preserve it before treating coincident line geometry as an alias.
+      else if (overlayId) directionOverlayIds.add(overlayId);
       else if (
         sameRevealGroup &&
         (explicitlyParallelPathAliases(document, existing, existingValue, entityId, value) ||
@@ -376,7 +382,6 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       ) {
         coincidentPathAliases.set(entityId, existing);
       }
-      else if (overlayId) directionOverlayIds.add(overlayId);
       else issues.push({ code: "duplicate_geometry", message: `${entityId} duplicates ${existing}`, severity: "fatal", entityIds: [existing, entityId] });
     } else {
       geometrySignatures.set(signature, [...existingIds, entityId]);
@@ -384,6 +389,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
+  validatePhysicsRegionClaims(document, geometry, value => resolveNumber(value, quantities), issues);
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
@@ -1320,6 +1326,7 @@ function evaluateConstruction(
     case "complex_point":
     case "complex_transform":
     case "complex_roots": return evaluateComplexConstruction(operator, inputs, constructionContext);
+    case "magnetic_helix": return evaluateMagneticHelix(inputs, constructionContext);
     case "magnetic_force":
     case "magnetic_components": return evaluateMagneticConstruction(operator, inputs, constructionContext);
     case "velocity_triangle":
@@ -1475,9 +1482,10 @@ function evaluateConstruction(
         : explicitDirection
           ? { x: start.x + explicitDirection.x, y: start.y + explicitDirection.y }
           : linePoints(inputs, geometry)[1];
-      const end = explicitDirection
+      const direction = explicitDirection ?? (inputs.length === undefined ? null : { x: endpoint.x - start.x, y: endpoint.y - start.y });
+      const end = direction
         ? (() => {
-            const unit = normalize(explicitDirection);
+            const unit = normalize(direction);
             const referenceSpan = distance(start, endpoint);
             const span = inputs.length === undefined
               ? (referenceSpan < EPSILON ? 1 : referenceSpan)

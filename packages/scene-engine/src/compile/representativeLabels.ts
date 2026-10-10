@@ -27,7 +27,7 @@ export function guardsRepresentativeValueLabels(document: Pick<SceneDocument, "s
 
 /** Operators whose result labels can state a value computed from physical inputs. */
 export const PHYSICAL_VALUE_LABEL_OPERATORS: ReadonlySet<string> = new Set([
-  "magnetic_force", "magnetic_components",
+  "magnetic_force", "magnetic_components", "magnetic_helix",
   "gaussian_image", "optical_focus",
   "metre_bridge", "potentiometer", "incline_friction", "cyclotron",
   "relative_velocity", "motion_graph", "uniform_circular_motion", "projectile_trajectory", "work_interval",

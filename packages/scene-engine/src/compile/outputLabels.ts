@@ -12,6 +12,7 @@ import { validateEvaluatedDerivedValueLabels } from "./derivedValueLabels";
 
 import { complexGeometryLabel, validateEvaluatedComplexLabels } from "./complexGeometry";
 import { magneticConstructionOutputLabels, validateEvaluatedMagneticLabels } from "./magneticGeometry";
+import { validateMagneticHelixLabels } from "./magneticHelixGeometry";
 import { relativeMotionOutputLabels } from "./relativeMotionGeometry";
 import { networkOutputLabels } from "./networkGeometry";
 import { mechanicsOutputLabels } from "./mechanicsDiagramGeometry";
@@ -55,6 +56,10 @@ export function withEvaluatedOutputLabels(
   }
   let labels: readonly (string | null)[];
   switch (construction.operator) {
+    case "magnetic_helix":
+      validateMagneticHelixLabels(construction, document, outputs, issues);
+      labels = construction.outputs.map(id => document.entities.find(entity => entity.id === id)?.label ?? "helix");
+      break;
     case "permutation_cycles":
     case "subset_lattice":
       validateEvaluatedCombinatoricsLabels(construction, index, document, outputs, issues);
