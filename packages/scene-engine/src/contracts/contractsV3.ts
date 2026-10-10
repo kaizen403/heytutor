@@ -92,9 +92,9 @@ export interface TurnPlanArithmeticReconciliationResult {
 }
 
 /**
- * Reconcile only arithmetic that is independently checkable from numeric
- * expressions written in a derived quantity's own sourceText. Symbolic
- * formulas and ambiguous calculations are deliberately left unchanged.
+ * Reconcile question-prescribed trig givens and independently checkable
+ * arithmetic in a derived quantity's own sourceText. Symbolic formulas and
+ * ambiguous calculations are deliberately left unchanged.
  */
 export function reconcileTurnPlanV3ExplicitArithmetic(
   raw: unknown,
@@ -102,14 +102,28 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
   if (!isRecord(raw) || !Array.isArray(raw.derived)) {
     return { plan: raw, reconciliations: [], declined: [] };
   }
+  const reconciliations: TurnPlanArithmeticReconciliation[] = [];
+  const originalGivens = Array.isArray(raw.givens) ? raw.givens : [];
+  const prescriptions = collectTrigStipulations({ question: raw.question });
+  const givens = originalGivens.map((given) => {
+    const corrected = reconcilePrescribedTrigGiven(given, prescriptions);
+    if (isRecord(given) && isRecord(corrected) && given.value !== corrected.value) {
+      reconciliations.push({
+        quantityId: String(given.id),
+        previousValue: given.value as number,
+        reconciledValue: corrected.value as number,
+      });
+    }
+    return corrected;
+  });
   const knownUnits = collectPlanUnits(raw);
   const bindingMeta: NumericBindingMetaMap = new Map();
   const numericBindings = collectNumericBindings(
-    Array.isArray(raw.givens) ? raw.givens : [],
+    givens,
     bindingMeta,
+    prescriptions,
   );
   attachTrigStipulations(numericBindings, raw);
-  const reconciliations: TurnPlanArithmeticReconciliation[] = [];
   const declined: TurnPlanArithmeticDecline[] = [];
   const derived: unknown[] = [...raw.derived];
   // Evaluate dependencies first so a corrected value reaches every quantity
@@ -172,9 +186,10 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     addNumericBinding(numericBindings, corrected, bindingMeta);
     return corrected;
   }
-  if (reconciliations.length === 0) return { plan: raw, reconciliations, declined };
+  const givensChanged = givens.some((given, index) => given !== originalGivens[index]);
+  if (reconciliations.length === 0 && !givensChanged) return { plan: raw, reconciliations, declined };
   return {
-    plan: { ...raw, derived },
+    plan: { ...raw, ...(givensChanged ? { givens } : {}), derived },
     reconciliations,
     declined,
   };
@@ -266,9 +281,21 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
 
   givens.forEach((value, index) => validateQuantity(value, `givens[${index}]`, "given"));
   derived.forEach((value, index) => validateQuantity(value, `derived[${index}]`, "derived"));
+  const prescriptions = collectTrigStipulations({ question: raw.question });
+  const prescribedGivens = givens.map((given, index) => {
+    const corrected = reconcilePrescribedTrigGiven(given, prescriptions);
+    if (corrected !== given) {
+      issues.push({
+        code: "given_trig_stipulation_conflict",
+        path: `givens[${index}]`,
+        message: "extracted trig quantity disagrees with the original question's prescribed value",
+      });
+    }
+    return corrected;
+  });
   const knownUnits = collectPlanUnits(raw);
   const validationBindingMeta: NumericBindingMetaMap = new Map();
-  const validationBindings = collectNumericBindings(givens, validationBindingMeta);
+  const validationBindings = collectNumericBindings(prescribedGivens, validationBindingMeta, prescriptions);
   attachTrigStipulations(validationBindings, raw);
   derivedEvaluationOrder(derived).forEach((index) => {
     const value = derived[index];
@@ -662,9 +689,11 @@ function evaluateExplicitArithmetic(
         tolerance: displayedNumberTolerance(String(options.declaredValue)),
       }
     : null;
-  const readableSource = chainWorksInDegrees(sourceText, expectedUnit, numericBindings)
-    ? guardBareDegreeLikeTrigArguments(sourceText)
-    : sourceText;
+  const readableSource = guardBareDegreeLikeTrigArguments(
+    sourceText,
+    trigStipulations(numericBindings),
+    chainWorksInDegrees(sourceText, expectedUnit, numericBindings),
+  );
   let invalid = false;
   let signConflict = false;
   let mixedUnits = false;
@@ -1635,11 +1664,116 @@ function parseLeadingMeasuredValue(
  */
 const TRIG_STIPULATIONS = new WeakMap<Map<string, number>, Map<string, number>>();
 
+interface WholeTrigIdentity {
+  name: string;
+  angle: number;
+}
+
+/** A whole quantity name, never a trig term embedded in prose or a product. */
+function wholeDegreeTrigIdentity(text: string): WholeTrigIdentity | null {
+  const match = text.replace(/\\/g, "").match(
+    /^\s*(sin|cos|tan)\s*[_({]?\s*(\d+(?:\.\d+)?)\s*(?:°|\^\s*circ|deg(?:rees?)?)?\s*[)}]?\s*$/i,
+  );
+  return match ? { name: match[1]!.toLowerCase(), angle: Number(match[2]) } : null;
+}
+
+function constantEqualityMember(text: string): number | null {
+  const measured = parseMeasuredPart(text);
+  const scale = measured ? unitScale(measured.unit) : null;
+  if (measured && scale?.signature === "") {
+    const value = measured.value * scale.factor;
+    return Number.isFinite(value) ? value : null;
+  }
+  const expression = text.replace(/[−–]/g, "-").replace(/\s+/g, "");
+  if (!/[0-9]/.test(expression) || !/^[0-9eE+\-*/^().]+$/.test(expression)) return null;
+  try {
+    const value = evaluateMathExpression(expression, 0);
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+interface PrescribedTrigGiven {
+  identity: WholeTrigIdentity;
+  sourceParts: string[];
+  wholeSourceChain: boolean;
+  sourceAlias: string | null;
+  ratio: number;
+  scale: UnitScale;
+}
+
+/** Exact prescriptions permit floating conversion slack, never a unit-sized floor. */
+function samePrescribedRatio(first: number, second: number): boolean {
+  return first === second || Math.abs(first - second) <=
+    16 * Number.EPSILON * Math.max(Math.abs(first), Math.abs(second));
+}
+
+/** Identify a whole dimensionless trig quantity; explicit source radians win. */
+function prescribedTrigGiven(
+  given: unknown,
+  prescriptions: ReadonlyMap<string, number>,
+): PrescribedTrigGiven | null {
+  if (!isRecord(given) || typeof given.value !== "number" || !Number.isFinite(given.value) ||
+    typeof given.id !== "string") return null;
+  const scale = unitScale(given.unit);
+  if (!scale || scale.signature !== "" || !Number.isFinite(scale.factor) || scale.factor <= 0) return null;
+  const sourceParts = typeof given.sourceText === "string"
+    ? given.sourceText.split(/[=≈≃≅]/).map((part) => part.trim()) : [];
+  // Explicit source units outrank an extracted symbol, even when the
+  // arithmetic grammar cannot interpret the expression. A unit may be
+  // glued to a digit or π; words such as "radius" are not radian markers.
+  if (sourceParts.some((part) =>
+    /(?:^|[^\p{L}\p{N}_]|[0-9π])(?:radians?|rad)(?![\p{L}\p{N}_])/iu.test(part))) {
+    return null;
+  }
+  const sourceAlias = sourceAssignmentAlias(given.sourceText);
+  const aliases = new Set([given.id, given.symbol, sourceAlias].filter((name): name is string => typeof name === "string"));
+  const wholeSourceChain = sourceParts.length >= 2 && sourceParts.every((part) =>
+    wholeDegreeTrigIdentity(part) !== null || aliases.has(part) || constantEqualityMember(part) !== null);
+  const sourceIdentities = wholeSourceChain
+    ? sourceParts.flatMap((part) => { const identity = wholeDegreeTrigIdentity(part); return identity ? [identity] : []; })
+    : [];
+  const identity = sourceIdentities[0] ?? [given.symbol, given.id].flatMap((name) => {
+    const parsed = typeof name === "string" ? wholeDegreeTrigIdentity(name) : null;
+    return parsed ? [parsed] : [];
+  })[0];
+  if (!identity || sourceIdentities.some((other) => other.name !== identity.name || other.angle !== identity.angle)) return null;
+  const ratio = prescriptions.get(`${identity.name}:${identity.angle}`);
+  if (ratio === undefined || !Number.isFinite(ratio / scale.factor)) return null;
+  return { identity, sourceParts, wholeSourceChain, sourceAlias, ratio, scale };
+}
+
+/**
+ * Keep the declared unit while applying the question's coherent ratio. An
+ * unrelated given with the same scalar cannot inherit the prescription.
+ */
+function reconcilePrescribedTrigGiven(
+  given: unknown,
+  prescriptions: ReadonlyMap<string, number>,
+): unknown {
+  const prescription = prescribedTrigGiven(given, prescriptions);
+  if (!prescription || !isRecord(given) || typeof given.value !== "number") return given;
+  const { identity, sourceParts, wholeSourceChain, sourceAlias, ratio, scale } = prescription;
+  const value = ratio / scale.factor;
+  const sourceConflict = wholeSourceChain && sourceParts.some((part) => {
+    const stated = constantEqualityMember(part);
+    return stated !== null && !samePrescribedRatio(stated, ratio);
+  });
+  const signConflict = given.sign !== undefined && given.sign !== "unsigned" && given.sign !== numericSign(value);
+  if (samePrescribedRatio(given.value * scale.factor, ratio) && !sourceConflict && !signConflict) return given;
+  return {
+    ...given,
+    value,
+    sign: numericSign(value),
+    sourceText: `${sourceAlias ? `${sourceAlias} = ` : ""}${identity.name} ${identity.angle}° = ${ratio}`,
+  };
+}
+
 function collectTrigStipulations(plan: Record<string, unknown>): Map<string, number> {
   const stipulations = new Map<string, number>();
   // [text, whether a stated equality needs prescriptive wording to count]
   const texts: Array<[string, boolean]> = [];
-  if (typeof plan.question === "string") texts.push([plan.question, true]);
   for (const given of Array.isArray(plan.givens) ? plan.givens : []) {
     if (!isRecord(given)) continue;
     if (typeof given.sourceText === "string") texts.push([given.sourceText, false]);
@@ -1652,6 +1786,9 @@ function collectTrigStipulations(plan: Record<string, unknown>): Map<string, num
       if (match) stipulations.set(`${match[1]!.toLowerCase()}:${Number(match[2])}`, given.value);
     }
   }
+  // Extracted givens may be stale or wrong. Read the original question last
+  // so its prescriptions remain authoritative over every model extraction.
+  if (typeof plan.question === "string") texts.push([plan.question, true]);
   for (const [text, needsPrescription] of texts) {
     for (const match of text.matchAll(
       /(?<![A-Za-z])(sin|cos|tan)\s*\(?\s*(\d+(?:\.\d+)?)\s*(?:°|deg(?:rees?)?)?\s*\)?\s*(?:=|≈)\s*([+\-−]?\s*\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/gi,
@@ -1780,10 +1917,15 @@ function mapTrigArguments(
 /**
  * A trig argument that is a bare number above 2π ("sin(60)") in a chain that
  * works in degrees is almost certainly degrees written without the mark.
- * Reading it in radians would be a guess, so that member is made unreadable
- * and is no evidence; the chain's other members still are.
+ * A prescription for that precise angle is independent evidence and applies
+ * before the guard. Otherwise reading it in radians would be a guess, so
+ * that member is made unreadable; the chain's other members still count.
  */
-function guardBareDegreeLikeTrigArguments(sourceText: string): string {
+function guardBareDegreeLikeTrigArguments(
+  sourceText: string,
+  stipulations: ReadonlyMap<string, number>,
+  worksInDegrees: boolean,
+): string {
   return mapTrigArguments(sourceText, (name, argument, original) => {
     if (/[A-Za-zΑ-Ωα-ωπ°]/u.test(argument) || !/\d/.test(argument)) return original;
     try {
@@ -1791,7 +1933,13 @@ function guardBareDegreeLikeTrigArguments(sourceText: string): string {
         argument.replace(/[−–]/g, "-").replace(/[×·⋅]/g, "*").replace(/\s+/g, ""),
         0,
       );
-      if (Number.isFinite(value) && Math.abs(value) > 2 * Math.PI) return `${name}(${argument} ?)`;
+      if (Number.isFinite(value)) {
+        const stipulated = stipulatedTrigValue(stipulations, name, `(${value})*pi/180`);
+        // Retain the function as arithmetic evidence. A literal replacement
+        // would make a standalone "c = cos(37) = 0.6" look like restatements.
+        if (stipulated !== null) return `${name}(${value}°)`;
+        if (worksInDegrees && Math.abs(value) > 2 * Math.PI) return `${name}(${argument} ?)`;
+      }
     } catch {
       // Not a plain number; nothing to judge.
     }
@@ -1939,10 +2087,27 @@ type NumericBindingMetaMap = Map<string, NumericBindingMeta>;
 function collectNumericBindings(
   values: unknown[],
   meta?: NumericBindingMetaMap,
+  prescriptions?: ReadonlyMap<string, number>,
 ): Map<string, number> {
   const bindings = new Map<string, number>();
-  values.forEach((value) => addNumericBinding(bindings, value, meta));
+  values.forEach((value) => {
+    const prescribed = prescriptions ? prescribedTrigGiven(value, prescriptions) : null;
+    // The question pins this exact ratio, so an alias denotes the coherent
+    // dimensionless value (80% as 0.8). Its published given keeps its unit.
+    // Other percentages retain the existing mixed-unit evidence rules.
+    const binding = prescribed && isRecord(value)
+      ? { ...value, value: prescribed.ratio, unit: undefined } : value;
+    addNumericBinding(bindings, binding, meta);
+  });
   return bindings;
+}
+
+/** The same plain source LHS is preserved by reconciliation and bound by arithmetic. */
+function sourceAssignmentAlias(sourceText: unknown): string | null {
+  if (typeof sourceText !== "string") return null;
+  const leftHandSide = sourceText.split(/[=≈≃≅]/, 1)[0]?.trim();
+  return leftHandSide && /^[A-Za-zΑ-Ωα-ω][A-Za-z0-9Α-Ωα-ω_{}\\]*$/u.test(leftHandSide)
+    ? leftHandSide : null;
 }
 
 function addNumericBinding(
@@ -1968,12 +2133,8 @@ function addNumericBinding(
     if (typeof key !== "string" || key.trim() === "") continue;
     bind(key);
   }
-  if (typeof value.sourceText === "string") {
-    const leftHandSide = value.sourceText.split(/[=≈≃≅]/, 1)[0]?.trim();
-    if (leftHandSide && /^[A-Za-zΑ-Ωα-ω][A-Za-z0-9Α-Ωα-ω_{}\\]*$/u.test(leftHandSide)) {
-      bind(leftHandSide);
-    }
-  }
+  const sourceAlias = sourceAssignmentAlias(value.sourceText);
+  if (sourceAlias) bind(sourceAlias);
 }
 
 /**
@@ -2341,7 +2502,7 @@ export function validateSceneQuantityAgreement(
   const qualitativeEvidence = plan.qualitativeClaims.flatMap((claim) => [
     claim.claim,
     ...(claim.relatedEntityHints ?? []),
-  ]).flatMap(extractMeasuredValues);
+  ]).flatMap((text) => extractMeasuredValues(text, plan));
   const authoritative = new Map(planQuantities.map((quantity) => [quantity.id, quantity]));
   sceneQuantities.forEach((quantity, index) => {
     const planned = authoritative.get(quantity.id);
@@ -2379,12 +2540,9 @@ export function validateSceneQuantityAgreement(
     }
   });
 
-  const supportedDisplays = planQuantities.map((quantity) => ({
-    value: quantity.value,
-    unit: normalizeUnit(quantity.unit),
-  })).concat(qualitativeEvidence);
+  const supportedDisplays = supportedSceneDisplayMeasurements(plan);
   displayedTexts.forEach((text, index) => {
-    for (const match of extractMeasuredValues(text)) {
+    for (const match of extractMeasuredValues(text, plan)) {
       if (!supportedDisplays.some((quantity) =>
         equivalentDisplayedMeasuredQuantity(
           quantity.value,
@@ -3864,10 +4022,14 @@ function pointForEntity(
 }
 
 function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
-  const pruned = text.replace(measuredValuePattern(), (measurement) => {
-    const unsupported = validateSceneQuantityAgreement([], plan, [measurement])
-      .some((issue) => issue.code === "displayed_quantity_unverified");
-    return unsupported ? "" : measurement;
+  const supported = supportedSceneDisplayMeasurements(plan);
+  const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
+    if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
+    const value = Number(_number.replace(/−/g, "-"));
+    const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
+    return supported.some((quantity) => equivalentDisplayedMeasuredQuantity(
+      quantity.value, quantity.unit, value, unit, tolerance,
+    )) ? measurement : "";
   });
   return pruned
     .replace(/\s*=\s*$/g, "")
@@ -3876,17 +4038,103 @@ function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): stri
     .trim();
 }
 
-function extractMeasuredValues(text: string): Array<{ value: number; unit: string; tolerance: number }> {
+function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: number; unit: string }> {
+  return [...plan.givens, ...plan.derived].map((quantity) => ({
+    value: quantity.value, unit: quantity.unit ?? "",
+  })).concat(plan.qualitativeClaims.flatMap((claim) => [claim.claim, ...(claim.relatedEntityHints ?? [])])
+    .flatMap((text) => extractMeasuredValues(text, plan)));
+}
+
+function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: number; unit: string; tolerance: number }> {
   const values: Array<{ value: number; unit: string; tolerance: number }> = [];
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
-    const value = Number(match[1]);
-    const unit = normalizeUnit(match[2]);
-    if (Number.isFinite(value) && unit) {
-      values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!) });
+    const value = Number(match[1]?.replace(/−/g, "-"));
+    const unit = match[2]?.trim();
+    if (Number.isFinite(value) && unit && !sceneMeasurementIsOwnedFormulaOperand(
+      text, { index: match.index!, length: match[0].length, unit }, plan,
+    )) {
+      values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!.replace(/−/g, "-")) });
     }
   }
   return values;
+}
+
+/** Split a whole, case-sensitive identifier into declared symbols; never a prefix only. */
+function declaredSymbolProduct(token: string, symbols: ReadonlySet<string>): string[] | null {
+  const names = [...symbols].filter((name) => /^[\p{L}_][\p{L}\p{N}_]*$/u.test(name))
+    .sort((a, b) => b.length - a.length);
+  const memo = new Map<number, string[] | null>();
+  const split = (index: number): string[] | null => {
+    if (index === token.length) return [];
+    if (memo.has(index)) return memo.get(index)!;
+    for (const name of names) {
+      if (!token.startsWith(name, index)) continue;
+      const tail = split(index + name.length);
+      if (tail) { const result = [name, ...tail]; memo.set(index, result); return result; }
+    }
+    memo.set(index, null);
+    return null;
+  };
+  return split(0);
+}
+
+/** Lexical ownership only: this does not prove an expression's algebra or physical law. */
+function isDeclaredSymbolExpression(text: string, symbols: ReadonlySet<string>): boolean {
+  const functions = /^(?:arcsin|arccos|arctan|asin|acos|atan|sqrt|sin|cos|tan|sec|csc|cot|log|ln|exp)/;
+  const tokens = new RegExp(`${NUMBER_SOURCE}|[\\p{L}_][\\p{L}\\p{N}_]*|[=≈≃≅+−\\-*/×·⋅÷^()\\[\\]{}²³]`, "gu");
+  let end = 0;
+  for (const match of text.matchAll(tokens)) {
+    if (text.slice(end, match.index).trim()) return false;
+    end = match.index! + match[0].length;
+    if (!/^[\p{L}_]/u.test(match[0])) continue;
+    if (declaredSymbolProduct(match[0], symbols)) continue;
+    const fn = match[0].match(functions)?.[0];
+    if (!fn) return false;
+    const argument = match[0].slice(fn.length);
+    if (argument ? !declaredSymbolProduct(argument, symbols) : !/^\s*\(/.test(text.slice(end))) return false;
+  }
+  return !text.slice(end).trim();
+}
+
+/**
+ * A glued unit spelling can also be a declared symbolic product (2mg, 2µT).
+ * Keep the original formula context in both validation and pruning. Bare
+ * products need an actual source expression; variable names alone are not evidence.
+ */
+function sceneMeasurementIsOwnedFormulaOperand(
+  text: string,
+  found: { index: number; length: number; unit: string },
+  plan: TurnPlanV3,
+): boolean {
+  const end = found.index + found.length;
+  const unitStart = end - found.unit.length;
+  if (unitStart <= found.index || /\s/.test(text[unitStart - 1]!) || !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(found.unit)) return false;
+  const quantities = [...plan.givens, ...plan.derived, ...plan.unknowns];
+  const symbols = new Set(quantities.map((quantity) => quantity.symbol));
+  const product = declaredSymbolProduct(found.unit, symbols);
+  if (!product || !isDeclaredSymbolExpression(text, symbols)) return false;
+  const literalDimension = canonicalMeasurement(1, found.unit)?.dimension;
+  const assignedMeasurement = (prefix: string): boolean => {
+    const lhs = prefix.match(/^\s*([\p{L}_][\p{L}\p{N}_]*)\s*=/u)?.[1];
+    return lhs !== undefined && quantities.some((quantity) => quantity.symbol === lhs &&
+      quantity.unit !== undefined && canonicalMeasurement(1, quantity.unit)?.dimension === literalDimension);
+  };
+  // m=2mg is still a mass measurement even when m and g are also declared.
+  if (assignedMeasurement(text.slice(0, found.index))) return false;
+  const rhsStart = text.lastIndexOf("=", found.index - 1) + 1;
+  const context = text.slice(rhsStart, found.index) + text.slice(end);
+  if (/[\p{L}_*/×·⋅÷^²³]/u.test(context)) return true;
+
+  const coefficient = Number(text.slice(found.index, unitStart).replace(/−/g, "-"));
+  const factors = product.map(escapeRegExp).join("\\s*(?:[*×·⋅]\\s*)?");
+  const sourceExpression = new RegExp(`(?<![\\p{L}\\p{N}_])([\\p{L}_][\\p{L}\\p{N}_]*)\\s*=\\s*(${NUMBER_SOURCE})(?:\\s*[*×·⋅]\\s*|(?=[\\p{L}_]))${factors}(?![\\p{L}\\p{N}_])`, "gu");
+  for (const match of plan.question.matchAll(sourceExpression)) {
+    if (Number(match[2]!.replace(/−/g, "-")) !== coefficient || !symbols.has(match[1]!)) continue;
+    if (assignedMeasurement(`${match[1]}=`)) continue;
+    return true;
+  }
+  return false;
 }
 
 type ClaimMeasurement = {
@@ -3985,7 +4233,7 @@ function claimMatchesAtStatedPrecision(
   if (Math.sign(quantity.value) !== Math.sign(stated.value)) return false;
   const size = Math.abs(quantity.value);
   const statedSize = Math.abs(stated.value);
-  const slack = Math.max(1, size, statedSize) * 1e-9;
+  const slack = canonicalMeasurementComparisonSlack(size, statedSize);
   return size >= statedSize - slack && size < statedSize + Math.abs(lastPlace.value) - slack;
 }
 
@@ -4456,7 +4704,11 @@ function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
 }
 
 function measuredValuePattern(): RegExp {
-  return /(-?\d+(?:\.\d+)?)\s*(ohms?|Ω|volts?|V|amps?|A|mm|cm|km|m|deg|degrees?|°|rad|radians?|Hz|N|J|W)(?=\s|$|[,;).!?:])/gi;
+  // Match the whole physical unit, including powers and compound units.
+  // Reading only "m" silently missed speed/acceleration labels at the slash.
+  const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
+  const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
+  return new RegExp(`(${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
 }
 
 function sourceContainsMatchingMeasuredValue(
@@ -4467,7 +4719,7 @@ function sourceContainsMatchingMeasuredValue(
   const unit = normalizeUnit(expectedUnit);
   if (!unit) return false;
   for (const match of sourceText.matchAll(measuredValuePattern())) {
-    const value = Number(match[1]);
+    const value = Number(match[1]?.replace(/−/g, "-"));
     if (
       Number.isFinite(value) &&
       normalizeUnit(match[2]) === unit &&
@@ -4497,7 +4749,22 @@ function equivalentMeasuredQuantity(
   const first = canonicalMeasurement(firstValue, firstUnit);
   const second = canonicalMeasurement(secondValue, secondUnit);
   return first !== null && second !== null && first.dimension === second.dimension &&
-    approximatelyEqual(first.value, second.value);
+    canonicalMeasurementValuesAgree(first.value, second.value);
+}
+
+/** Floating-point slack scales with the measurement, never with one SI unit. */
+function canonicalMeasurementComparisonSlack(first: number, second: number): number {
+  return Math.max(Math.abs(first), Math.abs(second)) * 1e-9;
+}
+
+function canonicalMeasurementValuesAgree(
+  first: number,
+  second: number,
+  statedPrecisionTolerance = 0,
+): boolean {
+  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(statedPrecisionTolerance)) return false;
+  return Math.abs(first - second) <= statedPrecisionTolerance +
+    canonicalMeasurementComparisonSlack(first, second);
 }
 
 function claimSameDimension(firstUnit: unknown, secondUnit: unknown): boolean {
@@ -4518,8 +4785,7 @@ function claimEquivalentMeasuredQuantity(
   const tolerance = claimCanonicalMeasurement(secondTolerance, secondUnit);
   return first !== null && second !== null && tolerance !== null &&
     first.dimension === second.dimension && first.dimension === tolerance.dimension &&
-    Math.abs(first.value - second.value) <= tolerance.value +
-      Math.max(1, Math.abs(first.value), Math.abs(second.value)) * 1e-9;
+    canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
 function equivalentDisplayedMeasuredQuantity(
@@ -4534,8 +4800,7 @@ function equivalentDisplayedMeasuredQuantity(
   const tolerance = canonicalMeasurement(secondTolerance, secondUnit);
   return first !== null && second !== null && tolerance !== null &&
     first.dimension === second.dimension && first.dimension === tolerance.dimension &&
-    Math.abs(first.value - second.value) <= tolerance.value +
-      Math.max(1, Math.abs(first.value), Math.abs(second.value)) * 1e-9;
+    canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
 function canonicalMeasurement(
@@ -4552,13 +4817,14 @@ function canonicalMeasurement(
     case "scalar":
     case "unitless":
       return { value, dimension: "dimensionless" };
-    case "mm": return { value: value * 1e-3, dimension: "length" };
-    case "cm": return { value: value * 1e-2, dimension: "length" };
-    case "m": return { value, dimension: "length" };
-    case "km": return { value: value * 1e3, dimension: "length" };
     case "degree": return { value: value * Math.PI / 180, dimension: "angle" };
     case "radian": return { value, dimension: "angle" };
-    default: return { value, dimension: normalized };
+    default: {
+      const coherent = unitScale(unit);
+      return coherent
+        ? { value: value * coherent.factor, dimension: coherent.signature === "m^1" ? "length" : coherent.signature || "dimensionless" }
+        : { value, dimension: normalized };
+    }
   }
 }
 

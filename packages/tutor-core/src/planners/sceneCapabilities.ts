@@ -41,6 +41,7 @@ export interface SceneStructureHints {
   turnPlan?: {
     lawIds?: readonly string[];
     visualRequirement?: string;
+    givens?: readonly { value: number }[];
   } | null;
 }
 
@@ -382,6 +383,12 @@ export function inferSceneCapabilities(
     stem,
     structureDecisive ? ordered : orderFamiliesByStemPreference(stem, ordered),
   );
+  // A known symbol-only plan can use normalized geometry when a physical
+  // operator requires measurements. Keep numeric and chemistry contracts
+  // scoped to their selected representations.
+  if (hints.turnPlan?.givens?.length === 0 && !orderedFamilies.some((family) => family.startsWith("chem_"))) {
+    ["circle", "function_curve", "curve_anchor"].forEach((operator) => operators.add(operator));
+  }
   // An explicit visual without a recognized representation still reaches the
   // universal construction language. Do not add chapter keyword routers to
   // make a reusable operator available.
