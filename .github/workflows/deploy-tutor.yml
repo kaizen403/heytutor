@@ -90,6 +90,8 @@ jobs:
         run: pnpm build
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Storage admission and save feedback regressions
+        run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

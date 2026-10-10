@@ -6,6 +6,8 @@ import { lectureAudioKey } from "@/lib/object-store/keys";
 import { uploadAudio } from "@/lib/object-store/s3";
 import { readBoundedFormData, RequestBodyError } from "@/lib/http/requestBody";
 import { abandonTurnStorage, reserveTurnStorage, settleTurnStorage, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
+import { turnMetadataStorageBytes } from "@/lib/boards/storageAccounting";
+import { mediaProxyUrl } from "@/lib/object-store/mediaUrl";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
@@ -196,13 +198,24 @@ export async function POST(request: Request, context: RouteContext) {
       return rejectSave("audio_format_mismatch", "audio content does not match its declared format", 415, { boardId, traceId: metadata.traceId });
     }
   }
-  let storedBytes = new TextEncoder().encode(JSON.stringify(metadata)).byteLength;
-  for (const [, value] of formData.entries()) if (value instanceof File) storedBytes += value.size;
+  const audioFileFor = (segment: TurnMetadata["segments"][number]) => {
+    const source = segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex;
+    const file = source === null ? null : formData.get(`audio-${source}`);
+    return file instanceof File && file.size > 0 ? file : null;
+  };
+  const plannedSegments = segmentMeta.map(segment => {
+    const file = audioFileFor(segment);
+    return { ...segment, audioRef: segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex,
+      audioUrl: file ? mediaProxyUrl(lectureAudioKey(boardId, turnId, segment.orderIndex, file.type)) : null,
+      audioFormat: file?.type ?? "audio/mpeg" };
+  });
+  const audioBytes = segmentMeta.reduce((sum, segment) => sum + (audioFileFor(segment)?.size ?? 0), 0);
+  const storedBytes = turnMetadataStorageBytes({ ...metadata, segments: plannedSegments }) + audioBytes;
   let reservation;
   try {
     reservation = await reserveTurnStorage({ userId, boardId, turnId, bytes: storedBytes });
   } catch (error) {
-    if (error instanceof StorageQuotaError) return rejectSave("storage_admission_rejected", error.message, error.status, { boardId, traceId: metadata.traceId });
+    if (error instanceof StorageQuotaError) return rejectSave(error.code ?? "storage_admission_rejected", error.message, error.status, { boardId, traceId: metadata.traceId });
     throw error;
   }
   let settled = false;
@@ -222,13 +235,21 @@ export async function POST(request: Request, context: RouteContext) {
       const bytes = new Uint8Array(await file.arrayBuffer());
       audioFormats.set(segment.orderIndex, file.type);
       const key = lectureAudioKey(boardId, turnId, segment.orderIndex, file.type);
-      audioUrls.set(segment.orderIndex, await uploadAudio(key, bytes, file.type, uploadSignal));
+      const audioUrl = await uploadAudio(key, bytes, file.type, uploadSignal);
+      if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
+      if (!audioUrl) throw new StorageQuotaError("Your lesson could not be saved because its audio upload failed. Please try saving again.", 503, "storage_verification_failed");
+      audioUrls.set(segment.orderIndex, audioUrl);
     } else {
       audioUrls.set(segment.orderIndex, null);
     }
   }
 
   if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
+  const retainedMetadataBytes = turnMetadataStorageBytes({ ...metadata, segments: plannedSegments.map(segment => ({
+    ...segment, audioUrl: audioUrls.get(segment.orderIndex) ?? null,
+  })) });
+  const retainedBytes = retainedMetadataBytes + audioBytes;
+  if (retainedBytes > reservation.bytes) throw new StorageQuotaError("storage accounting changed; try saving again", 409);
 
   const MAX_INSERT_ATTEMPTS = 3;
   let saved: { turn: Turn; insertedSegments: Segment[] } | null = null;
@@ -279,7 +300,8 @@ export async function POST(request: Request, context: RouteContext) {
             idempotencyKey,
             orderIndex,
             question: metadata.question,
-            storageBytes: BigInt(storedBytes),
+            storageBytes: BigInt(retainedBytes),
+            metadataBytes: BigInt(retainedMetadataBytes),
             rawResponse: metadata.rawResponse,
             speedMultiplier: metadata.speedMultiplier ?? 1,
             traceId: metadata.traceId ?? null,
@@ -321,7 +343,7 @@ export async function POST(request: Request, context: RouteContext) {
           where: { traceId: metadata.traceId! }, data: { savedTurnId: turn.id },
         });
 
-        await settleTurnStorage(reservation, false, tx);
+        await settleTurnStorage(reservation, false, tx, retainedBytes);
         return { turn, insertedSegments };
       });
       break;
@@ -352,7 +374,7 @@ export async function POST(request: Request, context: RouteContext) {
         await abandonTurnStorage(reservation);
       } catch { /* the pre-upload receipt retains bytes and pending-turn recovery */ }
     }
-    if (error instanceof StorageQuotaError) return rejectSave("storage_commit_rejected", error.message, error.status, { boardId, traceId: metadata.traceId });
+    if (error instanceof StorageQuotaError) return rejectSave(error.code ?? "storage_commit_rejected", error.message, error.status, { boardId, traceId: metadata.traceId });
     throw error;
   }
 }

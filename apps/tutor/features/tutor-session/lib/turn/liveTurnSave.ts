@@ -233,6 +233,10 @@ interface LiveTurn {
   attempt: number;
   conflicts: number;
   failure: SaveFailure | null;
+  failureSource: "checkpoint" | "close" | null;
+  failureSeq: number;
+  /** Visible storage verification warning while ordinary bounded retries continue. */
+  retryWarning: { failure: SaveFailure; seq: number } | null;
   final: boolean;
   /** Ended with nothing worth a turn: never sent, never blocks the board's queue. */
   abandoned: boolean;
@@ -300,14 +304,18 @@ export function liveTurnScene(input: {
 export function saveFailureMessage(failure: Pick<SaveFailure, "reason">): string {
   switch (failure.reason) {
     case "quota":
-      return "Your storage is full, so this lesson was not saved.";
+      return "Your storage is full, so this lesson has not saved. Keep this tab open. Delete an old board to free space, then try again.";
+    case "lesson_limit":
+      return "You have reached the saved lesson limit, so this lesson has not saved. Keep this tab open. Delete an old board, then try again.";
+    case "storage_verification":
+      return "We could not verify your storage, so this lesson has not saved. Keep this tab open and try again.";
     case "signed_out":
       return "You are signed out, so this lesson was not saved.";
     case "not_found":
     case "forbidden":
       return "This board is no longer yours to save to.";
     default:
-      return "This lesson did not save.";
+      return "This lesson did not save. Keep this tab open and try again.";
   }
 }
 
@@ -394,6 +402,9 @@ export class LiveTurnSaveRegistry {
       attempt: 0,
       conflicts: 0,
       failure: null,
+      failureSource: null,
+      failureSeq: 0,
+      retryWarning: null,
       final: false,
       abandoned: false,
       lastAckAt: null,
@@ -596,7 +607,10 @@ export class LiveTurnSaveRegistry {
         speedMultiplier: turn.speedMultiplier,
         sceneArtifacts: turn.ackedStatus === null ? scene.sceneArtifacts : undefined,
         ...(turn.resumeDirty ? { resumeState: turn.resumeState ?? null } : {}),
-      }).then((result) => this.onCloseResult(turn, result, resumeRevision), () => undefined);
+      }).then(
+        (result) => this.onCloseResult(turn, result, resumeRevision, seq),
+        () => this.onCloseResult(turn, { ok: false, status: 0, error: "the close did not reach the server", reason: "network", retryable: true }, resumeRevision, seq),
+      );
     }
     this.emit();
   }
@@ -633,9 +647,9 @@ export class LiveTurnSaveRegistry {
     if (!boardId) return IDLE_SAVE;
     const turns = this.turns.filter((turn) => turn.boardId === boardId);
     let status: SaveStatus = IDLE_SAVE;
-    const failed = turns.find((turn) => turn.failure);
-    if (failed?.failure) {
-      status = { kind: "failed", message: saveFailureMessage(failed.failure) };
+    const failure = turns.find((turn) => turn.failure)?.failure ?? turns.find((turn) => turn.retryWarning)?.retryWarning?.failure;
+    if (failure) {
+      status = { kind: "failed", message: saveFailureMessage(failure) };
     } else if (turns.some((turn) => this.busy(turn))) {
       status = turns.some((turn) => turn.waitingOnline) ? { kind: "offline" } : { kind: "saving" };
     } else {
@@ -654,8 +668,10 @@ export class LiveTurnSaveRegistry {
     if (!boardId) return;
     for (const turn of [...this.turns]) {
       if (turn.boardId !== boardId) continue;
+      turn.retryWarning = null;
       if (turn.failure) {
         turn.failure = null;
+        turn.failureSource = null;
         turn.attempt = 0;
         turn.conflicts = 0;
       }
@@ -712,6 +728,7 @@ export class LiveTurnSaveRegistry {
       events.push(this.localEvent(turn));
       if (turn.failure?.retryable) {
         turn.failure = null;
+        turn.failureSource = null;
         turn.attempt = 0;
         turn.conflicts = 0;
         this.pump(turn);
@@ -1021,8 +1038,9 @@ export class LiveTurnSaveRegistry {
     for (const resolve of waiters) resolve(result);
   }
 
-  private pump(turn: LiveTurn): void {
-    if (turn.inflight || turn.final || turn.failure || turn.hasRetryTimer || turn.waitingOnline) return;
+  private pump(turn: LiveTurn, recoverFailedClose = false): void {
+    const blockedFailure = turn.failure && !(recoverFailedClose && turn.failureSource === "close");
+    if (turn.inflight || turn.final || blockedFailure || turn.hasRetryTimer || turn.waitingOnline) return;
     if (turn.ackedStatus === null && !this.queueAllows(turn)) return;
     if (turn.opensPage === null) turn.opensPage = this.decideOpensPage(turn);
     this.freeze(turn);
@@ -1117,7 +1135,14 @@ export class LiveTurnSaveRegistry {
       }
       const page = turn.page;
       if (page && page.boardId === turn.boardId) page.turn.saved = turn.final || !this.scenePending(turn);
-      if (result.serverSeq < turn.ackedSeq && !result.final) { this.emit(); this.pump(turn); return; }
+      if (result.serverSeq < turn.ackedSeq && !result.final) { this.emit(); this.pump(turn, true); return; }
+      if (turn.retryWarning && (result.final || result.serverSeq >= turn.retryWarning.seq)) turn.retryWarning = null;
+      // The independent PUT may succeed after a failed keepalive close. It
+      // still owns the remaining tail/audio/status, so let it continue saving.
+      if (turn.failureSource === "close" && (result.final || result.serverSeq >= turn.failureSeq)) {
+        turn.failure = null;
+        turn.failureSource = null;
+      }
       turn.ackedSeq = Math.max(turn.ackedSeq, result.serverSeq);
       turn.seq = Math.max(turn.seq, result.serverSeq);
       turn.attempt = 0;
@@ -1149,7 +1174,7 @@ export class LiveTurnSaveRegistry {
       }
       this.releaseQueue(turn);
       this.emit();
-      this.pump(turn);
+      this.pump(turn, true);
       return;
     }
 
@@ -1177,6 +1202,7 @@ export class LiveTurnSaveRegistry {
       this.pump(turn);
       return;
     }
+    if (result.reason === "storage_verification") turn.retryWarning = { failure: result, seq: sent.seq };
     if (result.retryable) {
       if (result.reason === "network" && !this.env.isOnline()) {
         turn.waitingOnline = true;
@@ -1198,14 +1224,37 @@ export class LiveTurnSaveRegistry {
       }
     }
     turn.failure = result;
+    turn.failureSource = "checkpoint";
+    turn.failureSeq = sent.seq;
     this.settleComplete(turn, result);
     this.releaseQueue(turn);
     this.emit();
   }
 
-  private onCloseResult(turn: LiveTurn, result: TurnCheckpointResult, resumeRevision: number): void {
+  private onCloseResult(turn: LiveTurn, result: TurnCheckpointResult, resumeRevision: number, sentSeq: number): void {
     if (turn.final && (!result.ok || !result.final)) return;
-    if (!result.ok || (result.serverSeq < turn.ackedSeq && !result.final)) return;
+    if (!result.ok) {
+      // Queued is not saved. The browser may stay alive after pagehide, and
+      // the failed body must not suppress the next close or hide its failure.
+      // A newer successful receipt already covers an older rejected close.
+      if (sentSeq <= turn.ackedSeq || sentSeq < turn.failureSeq || !this.hasUnsent(turn)) return;
+      turn.keepaliveCovered = -1;
+      turn.keepaliveResumeRevision = -1;
+      turn.keepaliveSceneKey = null;
+      turn.failure = result;
+      turn.failureSource = "close";
+      turn.failureSeq = sentSeq;
+      this.settleComplete(turn, result);
+      this.releaseQueue(turn);
+      this.emit();
+      return;
+    }
+    if (result.serverSeq < turn.ackedSeq && !result.final) return;
+    if (turn.retryWarning && (result.final || result.serverSeq >= turn.retryWarning.seq)) turn.retryWarning = null;
+    if (turn.failureSource === "close" && (result.final || result.serverSeq >= turn.failureSeq)) {
+      turn.failure = null;
+      turn.failureSource = null;
+    }
     turn.ackedSeq = Math.max(turn.ackedSeq, result.serverSeq);
     if (!result.stale && resumeRevision === turn.resumeRevision && JSON.stringify(result.turn.resumeState) === JSON.stringify(turn.resumeState)) {
       turn.ackedResumeRevision = Math.max(turn.ackedResumeRevision, resumeRevision);
@@ -1222,6 +1271,8 @@ export class LiveTurnSaveRegistry {
     }
     if (result.final) {
       turn.final = true;
+      turn.failure = null;
+      turn.failureSource = null;
       turn.ackedStatus = "complete";
       this.settleComplete(turn, { ok: true, turn: result.turn });
     } else {
@@ -1236,7 +1287,7 @@ export class LiveTurnSaveRegistry {
     this.releaseQueue(turn);
     this.emit();
     // The page lived on (bfcache): send the clips the close could not carry.
-    this.pump(turn);
+    this.pump(turn, true);
   }
 
   private startHeartbeat(turn: LiveTurn): void {

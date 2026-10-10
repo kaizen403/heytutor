@@ -28,6 +28,8 @@ import * as turnStatus from "../../lib/boards/turnStatus";
 import * as turnSaveRejection from "../../lib/boards/turnSaveRejection";
 import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as storedSceneSource from "../../lib/scene/storedSceneSource";
+import * as mediaUrl from "../../lib/object-store/mediaUrl";
+import { turnMetadataStorageBytes } from "../../lib/boards/storageAccounting";
 import { canonicalizeTurnSceneMetadata as canonicalizeRealScene } from "../../lib/scene/turnScenePersistence";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 import { enrichStoredSegmentsWithReplayAudio, replayAudioBytesForUrl, releaseReplayAudioBytes } from "../../lib/replay/replayTurns";
@@ -58,6 +60,7 @@ let userId = "alice";
 const env: Record<string, string> = { NODE_ENV: "test" };
 const uploads: Array<{ key: string; bytes: number[] }> = [];
 const reservations: Row[] = [];
+const metadataRefunds: Array<{ userId: string; bytes: bigint }> = [];
 let canonicalizeCalls = 0;
 let clock = Date.now();
 let uploadPause: ((key: string) => Promise<void>) | null = null;
@@ -205,11 +208,13 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@/lib/auth": { getUserId: async () => userId, ensureUser: async () => {} },
   "@/lib/db/prisma": { prisma },
   "@/lib/object-store/keys": keys,
+  "@/lib/object-store/mediaUrl": mediaUrl,
+  "@/lib/boards/storageAccounting": { turnMetadataStorageBytes },
   "@/lib/object-store/s3": {
     uploadAudio: async (key: string, bytes: Uint8Array) => {
       await uploadPause?.(key);
       uploads.push({ key, bytes: Array.from(bytes) });
-      return `/api/lecture-audio?key=${encodeURIComponent(key)}`;
+      return mediaUrl.mediaProxyUrl(key);
     },
   },
   "@/lib/http/requestBody": requestBody,
@@ -226,7 +231,11 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
       await growthPause?.();
       return reservation;
     },
-    settleTurnStorage: async (reservation: Row) => { reservation.state = "settled"; },
+    settleTurnStorage: async (reservation: Row, _refund: boolean, _tx: unknown, retainedBytes = reservation.bytes) => {
+      reservation.state = "settled"; reservation.retainedBytes = retainedBytes;
+    },
+    prepareStorageAccounting: async () => {},
+    refundTurnMetadataStorage: async (_tx: unknown, owner: string, bytes: bigint) => { metadataRefunds.push({ userId: owner, bytes }); },
     abandonTurnStorage: async (reservation: Row) => { if (reservation.state === "open") reservation.state = "abandoned"; },
     withUserStorageLock: (_userId: string, run: (tx: Row) => Promise<unknown>) => prisma.$transaction(run),
     StorageQuotaError,
@@ -585,7 +594,7 @@ async function metadataOnlyCloseChargesGrowth() {
   assert(stored(id).metadataBytes > metadata, "a metadata-only close charges the newly stored header/state bytes");
   const growth = reservations.at(-1)!;
   assert.equal(growth.type, "growth"); assert.equal(growth.state, "settled");
-  assert.equal(stored(id).storageBytes, charged + BigInt(growth.bytes));
+  assert.equal(stored(id).storageBytes, charged + BigInt(growth.retainedBytes));
   assert.equal(grown.body.serverSceneSeq, 1, "header growth never advances scene authority");
   const once = stored(id).storageBytes; const count = reservations.length;
   await close(id, { seq: 2, status: "stopped", rawResponse: "stale".repeat(1000), resumeState: { stale: true } });
@@ -601,7 +610,9 @@ async function metadataOnlyCloseChargesGrowth() {
   } finally { growthBytesLimit = null; }
   const cleared = await close(id, { seq: 3, status: "stopped", rawResponse: "Short.", resumeState: null });
   assert.equal(cleared.status, 200); assert.equal(stored(id).resumeState, null);
-  assert.equal(stored(id).storageBytes, once, "shrinking or clearing preserves the existing allocation high-water mark");
+  assert(stored(id).storageBytes < once, "shrinking or clearing refunds metadata that is no longer retained");
+  assert.equal(metadataRefunds.at(-1)!.bytes, once - stored(id).storageBytes,
+    "the account receives exactly the saved receipt's reduction");
   assert.equal(reservations.length, count);
 
   const race = crypto.randomUUID();
@@ -625,7 +636,7 @@ async function metadataOnlyCloseChargesGrowth() {
     assert.equal(reservations.filter(entry => entry.state === "open").length, 0,
       "the superseded metadata reservation is abandoned, not double-settled");
     assert.equal(stored(race).storageBytes, reservations.filter(entry => entry.turnId === race && entry.state === "settled")
-      .reduce((total, entry) => total + BigInt(entry.bytes), 0n));
+      .reduce((total, entry) => total + BigInt(entry.retainedBytes), 0n));
   } finally { release(); growthPause = null; }
 }
 
@@ -661,7 +672,7 @@ async function main() {
   assert.equal(keys.parseStoredObjectKey(firstKey)?.kind, "lecture", "media serving still parses the key");
   assert.equal(rowsOf(lesson)[1]!.audioRef, 1);
   const chargedAfterFirst = stored(lesson).storageBytes as bigint;
-  assert.equal(chargedAfterFirst, BigInt(firstReservation.bytes));
+  assert.equal(chargedAfterFirst, BigInt(firstReservation.retainedBytes));
 
   // --- 2. a later checkpoint appends rows and audio --------------------------
   const uploadsBefore = uploads.length;
@@ -680,7 +691,7 @@ async function main() {
   assert.notEqual(growth.prefix, firstReservation.prefix, "each attempt has its own folder");
   assert.ok(secondKey.startsWith(growth.prefix));
   assert.equal(uploads.length, uploadsBefore + 1, "only the new clip is uploaded");
-  assert.equal(stored(lesson).storageBytes, chargedAfterFirst + BigInt(growth.bytes),
+  assert.equal(stored(lesson).storageBytes, chargedAfterFirst + BigInt(growth.retainedBytes),
     "storage grows by exactly the charged growth");
   assert.ok(growth.bytes < firstReservation.bytes + 12 + 2_000, "growth charges new bytes, not the whole turn again");
   assert.ok(growth.bytes >= 12, "growth includes the new clip");
@@ -923,7 +934,7 @@ async function main() {
       segments: Array.from({ length: 60 }, (_, i) => recorded(`Row ${i} `.repeat(30), null)) }, 2_000));
     assert.equal(tiny.appendSegments, undefined, "an oversized tail falls back to a status-only close");
     assert.equal(tiny.question, "Q", "the status-only close can still create the turn");
-    assert.equal(client.classifySaveFailure(429, { error: "turn storage quota exceeded" }).reason, "quota");
+    assert.equal(client.classifySaveFailure(429, { error: "turn storage quota exceeded" }).reason, "lesson_limit");
     assert.equal(client.classifySaveFailure(429, { error: "rate_limited" }).retryable, true);
     assert.equal(client.classifySaveFailure(413, { error: "account storage quota exceeded" }).reason, "quota");
     assert.equal(client.classifySaveFailure(409, { code: "trace_saved" }).retryable, false);

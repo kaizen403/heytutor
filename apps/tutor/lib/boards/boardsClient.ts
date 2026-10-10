@@ -231,6 +231,8 @@ export type SaveFailureReason =
   | "conflict"
   | "trace_saved"
   | "quota"
+  | "lesson_limit"
+  | "storage_verification"
   | "too_large"
   | "signed_out"
   | "forbidden"
@@ -254,13 +256,18 @@ export function classifySaveFailure(status: number, body: Record<string, unknown
   const error = typeof body?.error === "string" ? body.error : status === 0 ? "network error" : `HTTP ${status}`;
   const fail = (reason: SaveFailureReason, retryable: boolean): SaveFailure => ({ ok: false, status, error, reason, retryable });
   if (status === 0) return fail("network", true);
+  if (status === 503 && body?.code === "storage_verification_failed") return fail("storage_verification", true);
   if (status >= 500) return fail("server", true);
   if (status === 401) return fail("signed_out", false);
   if (status === 403) return fail("forbidden", false);
   if (status === 404) return fail("not_found", false);
   if (status === 415) return fail("bad_audio", false);
-  if (status === 429) return /quota/i.test(error) ? fail("quota", false) : fail("rate_limited", true);
-  if (status === 413) return /quota/i.test(error) ? fail("quota", false) : fail("too_large", false);
+  if (status === 429) {
+    if (body?.code === "turn_storage_limit_reached" || /turn.*quota/i.test(error)) return fail("lesson_limit", false);
+    return /quota/i.test(error) ? fail("quota", false) : fail("rate_limited", true);
+  }
+  if (status === 413) return body?.code === "storage_admission_rejected" || body?.code === "storage_commit_rejected" || /quota/i.test(error)
+    ? fail("quota", false) : fail("too_large", false);
   if (status === 409) {
     if (body?.code === "trace_saved") return fail("trace_saved", false);
     if (typeof body?.serverCount === "number") return fail("conflict", true);

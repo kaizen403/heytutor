@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
-import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardStorageBytes, ensureStorageAccounting, withUserStorageLock } from "@/lib/boards/storageQuota";
+import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardStorageBytes, ensureStorageAccounting, prepareStorageAccounting, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { boardAudioPrefix } from "@/lib/object-store/keys";
 import { effectiveTurnStatus, isTurnKind, isTurnStatus } from "@/lib/boards/turnStatus";
 
@@ -225,6 +225,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       }
     } else {
       // Explicit user deletion retains its existing unconditional semantics.
+      await prepareStorageAccounting(userId);
       const deleted = await withUserStorageLock(userId, async (tx) => {
         const board = await tx.board.findFirst({ where: { id: boardId, userId } });
         if (!board) return false;
@@ -241,6 +242,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     console.error("[boards] DELETE failed:", error);
     return NextResponse.json({ error: "failed to delete board" }, { status: 500 });
   }

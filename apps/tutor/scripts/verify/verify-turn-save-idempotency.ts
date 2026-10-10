@@ -8,6 +8,9 @@ import * as storedSceneSource from "../../lib/scene/storedSceneSource";
 import * as turnStatus from "../../lib/boards/turnStatus";
 import * as turnSaveRejection from "../../lib/boards/turnSaveRejection";
 import { audioPrefixMatchesType } from "../../lib/scene/turnUploadLimits";
+import { turnMetadataStorageBytes } from "../../lib/boards/storageAccounting";
+import * as mediaUrl from "../../lib/object-store/mediaUrl";
+import * as objectKeys from "../../lib/object-store/keys";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -102,12 +105,14 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
     withUserStorageLock: (_userId: string, run: (tx: Row) => Promise<Row>) => prisma.$transaction(run),
     StorageQuotaError: class extends Error {},
   },
-  "@/lib/object-store/keys": { lectureAudioKey: () => "key" },
+  "@/lib/boards/storageAccounting": { turnMetadataStorageBytes },
+  "@/lib/object-store/mediaUrl": mediaUrl,
+  "@/lib/object-store/keys": objectKeys,
   "@/lib/boards/turnSaveRejection": turnSaveRejection,
-  "@/lib/object-store/s3": { uploadAudio: async (_key: string, bytes: Uint8Array) => {
+  "@/lib/object-store/s3": { uploadAudio: async (key: string, bytes: Uint8Array) => {
     uploads++;
     uploadedAudio.push(Array.from(bytes));
-    return "https://example.test/audio";
+    return mediaUrl.mediaProxyUrl(key);
   }, deletePrefix: async () => undefined },
   "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: async (metadata: Row) => ({
@@ -150,7 +155,8 @@ async function main() {
     assert.equal(uploads, 1, "retry should not upload audio again");
     assert.equal(saved?.id, turns[0]?.id, "retry returns the original persisted turn");
     assert.equal(saved?.segments[0]?.id, segments[0]?.id, "retry returns the persisted segment, not a rebuilt copy");
-    assert.equal(saved?.segments[0]?.audioUrl, "https://example.test/audio", "retry retains its stored audio URL");
+    assert.equal(saved?.segments[0]?.audioUrl, mediaUrl.mediaProxyUrl(objectKeys.lectureAudioKey("board-a", turns[0].id, 0)),
+      "retry retains its exact stored audio URL");
     assert.equal(saved?.segments[0]?.audioRef, 0, "legacy one-shot rows without sourceOrderIndex retain submitted index zero");
     assert.match(turns[0]?.idempotencyKey, /^[0-9a-f-]{36}$/, "save sends a stable UUID idempotency key");
 

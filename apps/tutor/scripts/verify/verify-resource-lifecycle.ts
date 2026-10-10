@@ -135,7 +135,8 @@ const db = {
   turn: { findMany: async () => [], aggregate: async () => ({ _sum: { storageBytes: 0n } }), count: async () => 0 },
   segment: { count: async () => 0 },
   boardChatMessage: {
-    count: async () => chatRows.length,
+    count: async ({ where }: { where?: { storageBytes?: number } } = {}) => where?.storageBytes === 0
+      ? chatRows.filter(row => row.storageBytes === 0n && row.content !== "").length : chatRows.length,
     findMany: async ({ take }: { take: number }) => chatRows.slice(-take).reverse(),
     aggregate: async () => ({ _sum: { storageBytes: storedChatBytes() } }),
     create: async ({ data }: { data: Omit<ChatRow, "id" | "createdAt"> }) => {
@@ -145,7 +146,11 @@ const db = {
       chatRows.push(row); return row;
     },
   },
-  objectDeletionJob: { create: async ({ data }: { data: typeof deletionJobs[number] }) => { deletionJobs.push(data); return data; } },
+  objectDeletionJob: {
+    // This notes/WS fixture creates deletion receipts, never expired upload intents.
+    findFirst: async () => null,
+    create: async ({ data }: { data: typeof deletionJobs[number] }) => { deletionJobs.push(data); return data; },
+  },
 };
 let transactionTail: Promise<void> = Promise.resolve();
 const prisma = { ...db, $transaction: <T>(run: (tx: typeof db) => Promise<T>) => {

@@ -1,6 +1,7 @@
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -31,6 +32,59 @@ export type StoredObjectBody = {
   body: ReadableStream<Uint8Array>;
   contentType: string;
 };
+
+export type ObjectSize = { status: "found"; bytes: number } | { status: "missing" };
+
+/** Only a provider 404 establishes absence; access errors must retain charges. */
+export async function headObjectSize(key: string, signal?: AbortSignal): Promise<ObjectSize> {
+  if (!isSafeObjectKey(key)) throw new Error("invalid storage measurement key");
+  const config = getObjectStoreConfig();
+  const client = getClient();
+  if (!config || !client) throw new Error("storage measurement is not configured");
+  try {
+    const result = await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key: key }), {
+      abortSignal: signal ? AbortSignal.any([signal, AbortSignal.timeout(5_000)]) : AbortSignal.timeout(5_000),
+    });
+    if (!Number.isSafeInteger(result.ContentLength) || (result.ContentLength ?? -1) < 0) {
+      throw new Error("storage measurement returned an invalid size");
+    }
+    return { status: "found", bytes: result.ContentLength! };
+  } catch (error) {
+    const status = typeof error === "object" && error !== null && "$metadata" in error
+      ? (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode : undefined;
+    if (status === 404) return { status: "missing" };
+    throw new Error("storage object size could not be verified");
+  }
+}
+
+/** Read-only bounded inventory, also used to prove an expired attempt empty. */
+export async function listObjectSizes(prefix: string, parentSignal?: AbortSignal): Promise<Array<{ key: string; bytes: number }>> {
+  if (!isSafeObjectDeletionPrefix(prefix)) throw new Error("invalid storage measurement prefix");
+  const config = getObjectStoreConfig();
+  const client = getClient();
+  if (!config || !client) throw new Error("storage measurement is not configured");
+  const signal = parentSignal ? AbortSignal.any([parentSignal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000);
+  const objects: Array<{ key: string; bytes: number }> = [];
+  const tokens = new Set<string>();
+  let token: string | undefined;
+  for (let page = 0; page < 20; page++) {
+    const result = await client.send(new ListObjectsV2Command({
+      Bucket: config.bucket, Prefix: prefix, ContinuationToken: token, MaxKeys: 1000,
+    }), { abortSignal: signal });
+    if (typeof result.IsTruncated !== "boolean") throw new Error("storage inventory completion is unverified");
+    for (const object of result.Contents ?? []) {
+      if (!object.Key?.startsWith(prefix) || !Number.isSafeInteger(object.Size) || (object.Size ?? -1) < 0) {
+        throw new Error("storage inventory returned an invalid object");
+      }
+      objects.push({ key: object.Key, bytes: object.Size! });
+    }
+    if (!result.IsTruncated) return objects;
+    token = result.NextContinuationToken;
+    if (!token || tokens.has(token)) throw new Error("storage inventory pagination is invalid");
+    tokens.add(token);
+  }
+  throw new Error("storage inventory exceeds its page limit");
+}
 
 async function putObject(
   key: string,

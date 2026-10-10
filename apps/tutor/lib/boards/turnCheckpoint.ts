@@ -34,9 +34,13 @@ import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { checkpointAttemptPrefix, checkpointAudioKey } from "@/lib/object-store/keys";
 import { uploadAudio } from "@/lib/object-store/s3";
+import { mediaProxyUrl } from "@/lib/object-store/mediaUrl";
+import { turnMetadataStorageBytes } from "@/lib/boards/storageAccounting";
 import { readBoundedFormData, readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import {
   abandonTurnStorage,
+  prepareStorageAccounting,
+  refundTurnMetadataStorage,
   reserveTurnGrowthStorage,
   reserveTurnStorage,
   settleTurnStorage,
@@ -67,8 +71,6 @@ import {
 export const MAX_CLOSE_BODY_BYTES = 16 * 1024;
 export const MAX_RESUME_STATE_BYTES = 128 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-/** Allowance for the audio URL each new clip adds to the stored JSON. */
-const AUDIO_REF_BYTES = 256;
 const VISUAL_STATUSES = new Set(["validated", "text_only", "legacy", "retry_required"]);
 /** Pointing that names parts of a scene; a text only save has no scene to name. */
 const SCENE_POINTING = new Set<DrawCommand["type"]>(["POINT", "FOCUS", "FRAME", "ANNOTATE"]);
@@ -550,7 +552,7 @@ async function closeStatusOnly(
     const segments = await prisma.segment.findMany({ where: { turnId: turn.id }, orderBy: { orderIndex: "asc" } });
     return json(turnBody({ ...turn, segments }));
   } catch (error) {
-    if (error instanceof StorageQuotaError) return reject("storage_commit_rejected", error.message, error.status);
+    if (error instanceof StorageQuotaError) return reject(error.code ?? "storage_commit_rejected", error.message, error.status);
     throw error;
   }
 }
@@ -574,7 +576,7 @@ async function applyCheckpoint(
   const production = process.env.NODE_ENV === "production";
 
   // --- Trace: one turn per lesson trace ------------------------------------
-  const before = await prisma.turn.findFirst({
+  let before = await prisma.turn.findFirst({
     where: { id: turnId },
     include: { segments: { orderBy: { orderIndex: "asc" } } },
   });
@@ -605,7 +607,7 @@ async function applyCheckpoint(
   }
 
   // --- Order and idempotency, before any upload ----------------------------
-  const stored = heldRows(before);
+  let stored = heldRows(before);
   const beforeStatus: TurnStatus | null = before ? (isTurnStatus(before.status) ? before.status : "complete") : null;
   if (before && beforeStatus === "complete") return json(turnBody(before, { stale: true, final: true }));
   // A metadata close may arrive before an older in-flight row/audio PUT.
@@ -616,6 +618,17 @@ async function applyCheckpoint(
   let append = input.appendSegments;
   if (before && input.seq <= before.checkpointSeq && !tolerateOverlap) {
     return json(turnBody(before, { stale: true }));
+  }
+  if (before) {
+    try {
+      await prepareStorageAccounting(userId);
+      before = await prisma.turn.findFirst({ where: { id: turnId }, include: { segments: { orderBy: { orderIndex: "asc" } } } });
+      if (!before || before.userId !== userId || before.boardId !== boardId) return reject("turn_not_found", "not found", 404);
+      stored = heldRows(before);
+    } catch (error) {
+      if (error instanceof StorageQuotaError) return reject(error.code ?? "storage_admission_rejected", error.message, error.status);
+      throw error;
+    }
   }
   if (input.baseCount !== stored.length) {
     const overlap = tolerateOverlap && input.baseCount < stored.length;
@@ -699,16 +712,26 @@ async function applyCheckpoint(
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
   const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
-  const metadataBytes = utf8Bytes({
-    question, rawResponse, ...canonical.value, segments: canonicalRows,
-    submitted: status === "complete" ? null : heldCheckpoint(merged, sceneSeq), resumeState,
-  }) + uploads.size * AUDIO_REF_BYTES * 2;
+  const attemptDir = attemptDirName();
+  const prefix = checkpointAttemptPrefix(boardId, turnId, attemptDir);
+  const expectedHeld = merged.map((row, index) => uploads.has(index) ? {
+    ...row, audioUrl: mediaProxyUrl(checkpointAudioKey(boardId, turnId, attemptDir, index, uploads.get(index)!.type)),
+    audioFormat: uploads.get(index)!.type,
+  } : row);
+  const expectedSegments = canonicalRows.map(row => {
+    const source = typeof row.sourceOrderIndex === "number" ? row.sourceOrderIndex : null;
+    const clip = source === null ? null : expectedHeld[source];
+    return { ...row, audioUrl: clip?.audioUrl ?? null, audioFormat: clip?.audioFormat ?? "audio/mpeg", audioRef: source };
+  });
+  const metadataBytes = turnMetadataStorageBytes({
+    question, rawResponse, ...canonical.value, speedMultiplier: input.speedMultiplier ?? before?.speedMultiplier ?? 1,
+    status, kind: before?.kind ?? input.kind, segments: expectedSegments,
+    submittedSegments: status === "complete" ? null : heldCheckpoint(expectedHeld, sceneSeq), resumeState,
+  });
   const metadataGrowth = before ? Math.max(0, metadataBytes - Number(before.metadataBytes)) : metadataBytes;
   const chargeBytes = metadataGrowth + newAudioBytes;
 
   // --- Reserve, upload, commit ---------------------------------------------
-  const attemptDir = attemptDirName();
-  const prefix = checkpointAttemptPrefix(boardId, turnId, attemptDir);
   let reservation: TurnStorageReservation | null = null;
   try {
     if (!before) {
@@ -717,7 +740,7 @@ async function applyCheckpoint(
       reservation = await reserveTurnGrowthStorage({ userId, boardId, turnId, bytes: chargeBytes, prefix });
     }
   } catch (error) {
-    if (error instanceof StorageQuotaError) return reject("storage_admission_rejected", error.message, error.status);
+    if (error instanceof StorageQuotaError) return reject(error.code ?? "storage_admission_rejected", error.message, error.status);
     throw error;
   }
 
@@ -729,6 +752,8 @@ async function applyCheckpoint(
       if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
       const key = checkpointAudioKey(boardId, turnId, attemptDir, index, file.type);
       const url = await uploadAudio(key, new Uint8Array(await file.arrayBuffer()), file.type, uploadSignal);
+      if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
+      if (!url) throw new StorageQuotaError("Your lesson could not be saved because its audio upload failed. Please try saving again.", 503, "storage_verification_failed");
       uploaded.set(index, { url, format: file.type });
     }
     if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
@@ -807,6 +832,14 @@ async function applyCheckpoint(
             submittedSegments: finalStatus === "complete" ? Prisma.DbNull : (heldCheckpoint(held, sceneSeq) as unknown as Prisma.InputJsonValue),
             resumeState: nullableJson(resumeState),
           };
+          const retainedMetadataBytes = turnMetadataStorageBytes({
+            question, rawResponse, ...canonical.value,
+            speedMultiplier: turnData.speedMultiplier ?? current?.speedMultiplier ?? input.speedMultiplier ?? 1,
+            status: finalStatus, kind: current?.kind ?? input.kind, segments: segmentValues, resumeState,
+            submittedSegments: finalStatus === "complete" ? null : heldCheckpoint(held, sceneSeq),
+          });
+          const retainedGrowth = Math.max(0, retainedMetadataBytes - Number(current?.metadataBytes ?? 0n)) + newAudioBytes;
+          if (retainedGrowth > (reservation?.bytes ?? 0)) throw new StorageQuotaError("storage accounting changed; try saving again", 409);
           let turn: Turn;
           if (!current) {
             if (production) {
@@ -851,8 +884,8 @@ async function applyCheckpoint(
                 kind: input.kind,
                 traceId: traceId ?? null,
                 speedMultiplier: input.speedMultiplier ?? 1,
-                storageBytes: BigInt(chargeBytes),
-                metadataBytes: BigInt(metadataBytes),
+                storageBytes: BigInt(retainedGrowth),
+                metadataBytes: BigInt(retainedMetadataBytes),
                 ...turnData,
               },
             });
@@ -868,8 +901,8 @@ async function applyCheckpoint(
               where: { id: turnId },
               data: {
                 ...turnData,
-                storageBytes: { increment: BigInt(chargeBytes) },
-                metadataBytes: BigInt(Math.max(metadataBytes, Number(current.metadataBytes))),
+                storageBytes: current.storageBytes - current.metadataBytes + BigInt(retainedMetadataBytes + newAudioBytes),
+                metadataBytes: BigInt(retainedMetadataBytes),
               },
             });
             await tx.segment.deleteMany({ where: { turnId } });
@@ -877,7 +910,10 @@ async function applyCheckpoint(
           const segments = segmentValues.length > 0
             ? await tx.segment.createManyAndReturn({ data: segmentValues })
             : [];
-          if (reservation) await settleTurnStorage(reservation, false, tx);
+          if (reservation) await settleTurnStorage(reservation, false, tx, retainedGrowth);
+          if (current && current.metadataBytes > BigInt(retainedMetadataBytes)) {
+            await refundTurnMetadataStorage(tx, userId, current.metadataBytes - BigInt(retainedMetadataBytes));
+          }
           return { kind: "saved", turn: { ...turn, segments }, sceneAccepted: ownsScene };
         });
       } catch (error) {
@@ -902,7 +938,7 @@ async function applyCheckpoint(
         await abandonTurnStorage(reservation);
       } catch { /* the durable intent's own deadline still recovers the charge */ }
     }
-    if (error instanceof StorageQuotaError) return reject("storage_commit_rejected", error.message, error.status);
+    if (error instanceof StorageQuotaError) return reject(error.code ?? "storage_commit_rejected", error.message, error.status);
     throw error;
   }
 }

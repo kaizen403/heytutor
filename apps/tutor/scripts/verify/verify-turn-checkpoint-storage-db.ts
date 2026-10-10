@@ -40,11 +40,13 @@ async function main() {
   let failUploadsWith: string | null = null;
   let uploadPause: ((key: string) => Promise<void>) | null = null;
   mock.module(resolve(root, "lib/object-store/s3.ts"), { namedExports: {
+    headObjectSize: async (key: string) => objects.has(key) ? { status: "found", bytes: objects.get(key)! } : { status: "missing" },
+    listObjectSizes: async (prefix: string) => [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, bytes]) => ({ key, bytes })),
     uploadAudio: async (key: string, bytes: Uint8Array) => {
       await uploadPause?.(key);
       if (failUploadsWith) throw new Error(failUploadsWith);
       objects.set(key, bytes.byteLength);
-      return `/api/lecture-audio?key=${encodeURIComponent(key)}`;
+      return `/api/media?key=${encodeURIComponent(key)}`;
     },
     deletePrefix: async (prefix: string) => {
       deleted.push(prefix);
@@ -222,7 +224,10 @@ async function main() {
       await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: heldBalance } });
     }
     assert.equal((await close(headerTurn, { seq: 3, status: "stopped", rawResponse: "Short.", resumeState: null })).status, 200);
-    assert.equal((await balance()).reservedBytes, heldBalance, "clearing metadata keeps the allocated high-water charge");
+    const headerCleared = await turnRow(headerTurn);
+    assert(headerCleared.storageBytes < headerAtQuota.storageBytes, "clearing metadata releases its former high-water allocation");
+    assert.equal(heldBalance - (await balance()).reservedBytes, headerAtQuota.storageBytes - headerCleared.storageBytes,
+      "clearing metadata refunds exactly the removed retained bytes to the account");
     assert.equal((await turnRow(headerTurn)).resumeState, null);
     const [closeA, closeB] = await Promise.all([
       close(headerTurn, { seq: 4, status: "stopped", rawResponse: "older".repeat(1000), resumeState: { older: true } }),
