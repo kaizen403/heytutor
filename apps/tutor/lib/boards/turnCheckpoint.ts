@@ -22,6 +22,7 @@
  */
 import { Prisma, type Segment, type Turn } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { rejectTurnSave, type SaveRejectionCode } from "@/lib/boards/turnSaveRejection";
 import {
   isStoredCommandTrustedGeometry,
   parseStoredSegmentCommands,
@@ -121,12 +122,18 @@ interface CheckpointInput {
 interface RouteParams {
   boardId: string;
   turnId: string;
+  entryPoint?: "checkpoint_put" | "checkpoint_close";
 }
 
 type TurnWithSegments = Turn & { segments: Segment[] };
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status });
+}
+
+function checkpointRejection(params: RouteParams, traceId?: string) {
+  return (code: SaveRejectionCode, error: string, status: number, responseFields?: Record<string, unknown>) =>
+    rejectTurnSave(code, error, status, { ...params, traceId, entryPoint: params.entryPoint ?? "checkpoint_put" }, responseFields);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -391,45 +398,49 @@ function sceneOf(turn: Turn): CheckpointScene {
 // Handlers
 // ---------------------------------------------------------------------------
 
-async function authorize(boardId: string, turnId: string): Promise<{ ok: true; userId: string } | { ok: false; response: Response }> {
+async function authorize(params: RouteParams): Promise<{ ok: true; userId: string } | { ok: false; response: Response }> {
+  const { boardId, turnId } = params;
+  const reject = checkpointRejection(params);
   const userId = await getUserId();
-  if (!userId) return { ok: false, response: json({ error: "unauthorized" }, 401) };
-  if (!UUID.test(turnId)) return { ok: false, response: json({ error: "turn id must be a UUID" }, 400) };
+  if (!userId) return { ok: false, response: reject("unauthorized", "unauthorized", 401) };
+  if (!UUID.test(turnId)) return { ok: false, response: reject("turn_id_invalid", "turn id must be a UUID", 400) };
   await ensureUser(userId);
   const board = await prisma.board.findFirst({ where: { id: boardId, userId } });
-  if (!board) return { ok: false, response: json({ error: "not found" }, 404) };
+  if (!board) return { ok: false, response: reject("board_not_found", "not found", 404) };
   return { ok: true, userId };
 }
 
 /** `PUT /api/boards/{boardId}/turns/{turnId}`: multipart `metadata` plus `audio-{i}` parts. */
 export async function handleTurnCheckpoint(request: Request, params: RouteParams): Promise<Response> {
+  params = { ...params, entryPoint: "checkpoint_put" };
+  const reject = checkpointRejection(params);
   const preflight = validateTurnUploadHeaders(request.headers);
-  if (!preflight.ok) return json({ error: preflight.error }, preflight.status);
-  const auth = await authorize(params.boardId, params.turnId);
+  if (!preflight.ok) return reject("upload_headers_invalid", preflight.error, preflight.status);
+  const auth = await authorize(params);
   if (!auth.ok) return auth.response;
 
   let formData: FormData;
   try {
     formData = await readBoundedFormData(request, MAX_TURN_UPLOAD_BYTES);
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "invalid multipart form data" },
+    return reject("multipart_invalid", error instanceof Error ? error.message : "invalid multipart form data",
       error instanceof RequestBodyError ? error.status : 400);
   }
   const metadataRaw = formData.get("metadata");
-  if (typeof metadataRaw !== "string") return json({ error: "metadata required" }, 400);
+  if (typeof metadataRaw !== "string") return reject("metadata_missing", "metadata required", 400);
   const parts = validateCheckpointUploadParts(formData, metadataRaw);
-  if (!parts.ok) return json({ error: parts.error }, parts.status);
+  if (!parts.ok) return reject("upload_parts_invalid", parts.error, parts.status);
   let raw: unknown;
   try {
     raw = JSON.parse(metadataRaw);
   } catch {
-    return json({ error: "invalid metadata json" }, 400);
+    return reject("metadata_json_invalid", "invalid metadata json", 400);
   }
-  if (!isRecord(raw)) return json({ error: "invalid metadata" }, 400);
+  if (!isRecord(raw)) return reject("turn_fields_invalid", "invalid metadata", 400);
   const common = parseCommon(raw, "put");
-  if (!common.ok) return json({ error: common.error }, 400);
+  if (!common.ok) return reject("turn_fields_invalid", common.error, 400);
   const scene = parseScene(raw);
-  if (!scene.ok) return json({ error: scene.error }, 400);
+  if (!scene.ok) return reject("turn_fields_invalid", scene.error, 400);
 
   const files = new Map<number, File>();
   for (const [name, value] of formData.entries()) {
@@ -450,18 +461,20 @@ export async function handleTurnCheckpoint(request: Request, params: RouteParams
  * turn's stored scene and takes `seq`.
  */
 export async function handleTurnClose(request: Request, params: RouteParams): Promise<Response> {
-  const auth = await authorize(params.boardId, params.turnId);
+  params = { ...params, entryPoint: "checkpoint_close" };
+  const reject = checkpointRejection(params);
+  const auth = await authorize(params);
   if (!auth.ok) return auth.response;
   let raw: unknown;
   try {
     raw = await readBoundedJson(request, MAX_CLOSE_BODY_BYTES);
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "invalid json" },
+    return reject("close_body_invalid", error instanceof Error ? error.message : "invalid json",
       error instanceof RequestBodyError ? error.status : 400);
   }
-  if (!isRecord(raw)) return json({ error: "invalid close body" }, 400);
+  if (!isRecord(raw)) return reject("close_body_invalid", "invalid close body", 400);
   const common = parseCommon(raw, "patch");
-  if (!common.ok) return json({ error: common.error }, 400);
+  if (!common.ok) return reject("turn_fields_invalid", common.error, 400);
   // A close that creates the turn saves it as text: the figure never committed
   // on this tab's checkpoints, and the body has no room for a scene. Its
   // artifacts may still carry the plan and the page continuation marker.
@@ -471,9 +484,9 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   };
   const existing = await prisma.turn.findFirst({ where: { id: params.turnId } });
   if (existing && (existing.userId !== auth.userId || existing.boardId !== params.boardId)) {
-    return json({ error: "not found" }, 404);
+    return reject("turn_not_found", "not found", 404);
   }
-  if (!existing && !common.value.question?.trim()) return json({ error: "turn not found" }, 404);
+  if (!existing && !common.value.question?.trim()) return reject("turn_not_found", "turn not found", 404);
   if (existing && common.value.appendSegments.length === 0) {
     return closeStatusOnly(request, auth.userId, params, existing, common.value);
   }
@@ -495,6 +508,7 @@ async function closeStatusOnly(
   existing: Turn,
   input: Omit<CheckpointInput, "scene" | "tolerateOverlap">,
 ): Promise<Response> {
+  const reject = checkpointRejection(params, input.traceId ?? existing.traceId ?? undefined);
   // New metadata has the same canonical byte budget/quota as a full save.
   // Only a status-only or stale-header close may skip that charged path.
   // Legacy rows also need their existing scene receipt envelope accounted.
@@ -507,10 +521,10 @@ async function closeStatusOnly(
   }
   const production = process.env.NODE_ENV === "production";
   if (production && !await ownedTraceAllowed(userId, params.boardId, input.traceId ?? existing.traceId ?? undefined)) {
-    return json({ error: "an authorized lesson save allowance is required" }, 403);
+    return reject("save_allowance_required", "an authorized lesson save allowance is required", 403);
   }
   if (existing.traceId && input.traceId && existing.traceId !== input.traceId) {
-    return json({ error: "trace does not match the saved turn" }, 409);
+    return reject("trace_mismatch", "trace does not match the saved turn", 409);
   }
   try {
     const turn = await withUserStorageLock(userId, async (tx) => {
@@ -536,7 +550,7 @@ async function closeStatusOnly(
     const segments = await prisma.segment.findMany({ where: { turnId: turn.id }, orderBy: { orderIndex: "asc" } });
     return json(turnBody({ ...turn, segments }));
   } catch (error) {
-    if (error instanceof StorageQuotaError) return json({ error: error.message }, error.status);
+    if (error instanceof StorageQuotaError) return reject("storage_commit_rejected", error.message, error.status);
     throw error;
   }
 }
@@ -552,7 +566,7 @@ type CommitOutcome =
 async function applyCheckpoint(
   request: Request,
   userId: string,
-  { boardId, turnId }: RouteParams,
+  { boardId, turnId, entryPoint = "checkpoint_put" }: RouteParams,
   input: CheckpointInput,
   files: Map<number, File>,
   stoppedRetries = 0,
@@ -564,17 +578,18 @@ async function applyCheckpoint(
     where: { id: turnId },
     include: { segments: { orderBy: { orderIndex: "asc" } } },
   });
-  if (before && (before.userId !== userId || before.boardId !== boardId)) return json({ error: "not found" }, 404);
+  const reject = checkpointRejection({ boardId, turnId, entryPoint }, input.traceId ?? before?.traceId ?? undefined);
+  if (before && (before.userId !== userId || before.boardId !== boardId)) return reject("turn_not_found", "not found", 404);
   if (!before && !input.tolerateOverlap && (input.question === undefined || input.rawResponse === undefined)) {
-    return json({ error: "question and rawResponse are required to create a checkpoint" }, 400);
+    return reject("turn_fields_invalid", "question and rawResponse are required to create a checkpoint", 400);
   }
   const traceId = input.traceId ?? before?.traceId ?? undefined;
   if (before?.traceId && input.traceId && before.traceId !== input.traceId) {
-    return json({ error: "trace does not match the saved turn" }, 409);
+    return reject("trace_mismatch", "trace does not match the saved turn", 409);
   }
   if (production) {
     if (!await ownedTraceAllowed(userId, boardId, traceId)) {
-      return json({ error: "an authorized lesson save allowance is required" }, 403);
+      return reject("save_allowance_required", "an authorized lesson save allowance is required", 403);
     }
     if (!before) {
       const allowance = await prisma.ownedTrace.findUnique({ where: { traceId: traceId! } });
@@ -583,8 +598,8 @@ async function applyCheckpoint(
           where: { id: allowance.savedTurnId, userId, boardId },
           include: { segments: { orderBy: { orderIndex: "asc" } } },
         });
-        if (saved) return json({ error: "this lesson is already saved as another turn", code: "trace_saved", ...turnBody(saved) }, 409);
-        return json({ error: "lesson save allowance has already been used" }, 409);
+        if (saved) return reject("trace_saved", "this lesson is already saved as another turn", 409, turnBody(saved));
+        return reject("save_allowance_used", "lesson save allowance has already been used", 409);
       }
     }
   }
@@ -608,52 +623,52 @@ async function applyCheckpoint(
     // flight) cannot append, but still stops the turn. Its body reports the
     // server's count.
     if (input.tolerateOverlap && before && !overlap) {
-      return closeStatusOnly(request, userId, { boardId, turnId }, before, input);
+      return closeStatusOnly(request, userId, { boardId, turnId, entryPoint }, before, input);
     }
-    if (!overlap) return json({ error: "checkpoint does not continue the saved rows", serverCount: stored.length, serverSeq: before?.checkpointSeq ?? 0 }, 409);
+    if (!overlap) return reject("checkpoint_rows_conflict", "checkpoint does not continue the saved rows", 409, { serverCount: stored.length, serverSeq: before?.checkpointSeq ?? 0 });
     append = append.filter((row) => row.orderIndex >= stored.length);
   }
   const seq = Math.max(input.seq, before?.checkpointSeq ?? 0);
   if (before && input.tolerateOverlap && append.length === 0 && !Array.isArray(before.submittedSegments) &&
     (input.seq <= before.checkpointSeq || (input.rawResponse === undefined && input.resumeState === undefined))) {
-    return closeStatusOnly(request, userId, { boardId, turnId }, before, input);
+    return closeStatusOnly(request, userId, { boardId, turnId, entryPoint }, before, input);
   }
 
   // --- What the turn becomes -------------------------------------------------
   const ownsMetadata = !before || input.seq > before.checkpointSeq;
   const question = ownsMetadata ? input.question ?? before?.question ?? "" : before!.question;
-  if (!question.trim()) return json({ error: "question is required" }, 400);
+  if (!question.trim()) return reject("turn_fields_invalid", "question is required", 400);
   const rawResponse = ownsMetadata ? input.rawResponse ?? before?.rawResponse ?? "" : before!.rawResponse;
   const status = before ? nextTurnStatus(beforeStatus!, input.status) : input.status;
   let ownsScene = !input.tolerateOverlap && input.scene !== "stored" && (!before || input.seq > heldSceneSeq(before));
   const scene = before && !ownsScene ? sceneOf(before) : input.scene === "stored" ? sceneOf(before!) : input.scene;
   if (status === "complete" && !rawResponse.trim() &&
     !(scene.visualStatus === "retry_required" && scene.sceneArtifacts != null)) {
-    return json({ error: "question and rawResponse required unless persisting a required-diagram failure" }, 400);
+    return reject("turn_not_persistable", "question and rawResponse required unless persisting a required-diagram failure", 400);
   }
 
   const merged: HeldRow[] = [...stored, ...append];
-  if (merged.length > MAX_TURN_SEGMENTS) return json({ error: "turn has too many segments" }, 413);
+  if (merged.length > MAX_TURN_SEGMENTS) return reject("turn_segments_oversized", "turn has too many segments", 413);
 
   // Audio parts: new rows, or late audio for a held row that has none yet.
   const uploads = new Map<number, File>();
   for (const [index, file] of files) {
     if (file.size === 0) continue;
     const target = merged[index];
-    if (!target) return json({ error: `audio part audio-${index} has no matching segment` }, 400);
+    if (!target) return reject("audio_segment_missing", `audio part audio-${index} has no matching segment`, 400);
     if (index < stored.length && target.audioUrl) continue;
     uploads.set(index, file);
   }
   for (const file of uploads.values()) {
     const prefix = new Uint8Array(await file.slice(0, 12).arrayBuffer());
     if (!audioPrefixMatchesType(file.type, prefix)) {
-      return json({ error: "audio content does not match its declared format" }, 415);
+      return reject("audio_format_mismatch", "audio content does not match its declared format", 415);
     }
   }
   const newAudioBytes = [...uploads.values()].reduce((sum, file) => sum + file.size, 0);
   const chargedAudio = before ? Number(before.storageBytes - before.metadataBytes) : 0;
   if (Math.max(0, chargedAudio) + newAudioBytes > MAX_TURN_AUDIO_TOTAL_BYTES) {
-    return json({ error: "turn audio exceeds the total size limit" }, 413);
+    return reject("turn_audio_oversized", "turn audio exceeds the total size limit", 413);
   }
 
   const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" ? merged : stripSceneInk(merged))
@@ -667,20 +682,20 @@ async function applyCheckpoint(
     }));
   const header = { question, rawResponse, ...scene };
   if (utf8Bytes({ ...header, segments: merged }) > MAX_TURN_MERGED_METADATA_BYTES) {
-    return json({ error: "turn metadata exceeds the size limit" }, 413);
+    return reject("turn_metadata_oversized", "turn metadata exceeds the size limit", 413);
   }
   let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) });
-  if (!canonical.ok) return json({ error: `scene persistence rejected: ${canonical.error}` }, 400);
+  if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
   const sceneOnlyRepair = before && input.question === undefined && input.rawResponse === undefined && input.resumeState === undefined;
   if (ownsScene && before && (!ownsMetadata || sceneOnlyRepair) && !sceneMatchesResumeAuthority(canonical.value, resumeState)) {
-    if (ownsMetadata) return json({ error: "scene persistence rejected: scene disagrees with the current resume authority" }, 400);
+    if (ownsMetadata) return reject("scene_resume_authority_mismatch", "scene persistence rejected: scene disagrees with the current resume authority", 400);
     // Keep the rescued payload and newer header, but do not acknowledge this
     // scene. A surviving producer must submit a fresh, coherent scene.
     ownsScene = false;
     const storedScene = sceneOf(before);
     canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) });
-    if (!canonical.ok) return json({ error: `scene persistence rejected: ${canonical.error}` }, 400);
+    if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
   const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
@@ -702,7 +717,7 @@ async function applyCheckpoint(
       reservation = await reserveTurnGrowthStorage({ userId, boardId, turnId, bytes: chargeBytes, prefix });
     }
   } catch (error) {
-    if (error instanceof StorageQuotaError) return json({ error: error.message }, error.status);
+    if (error instanceof StorageQuotaError) return reject("storage_admission_rejected", error.message, error.status);
     throw error;
   }
 
@@ -874,12 +889,12 @@ async function applyCheckpoint(
     if (!outcome) throw lastError ?? new Error("failed to save checkpoint after retries");
     settled = true;
     switch (outcome.kind) {
-      case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId }, input, files, stoppedRetries + 1);
+      case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId, entryPoint }, input, files, stoppedRetries + 1);
       case "saved": return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
       case "stale": return json(turnBody(outcome.turn, { stale: true, sceneAccepted: false }));
       case "final": return json(turnBody(outcome.turn, { stale: true, final: true }));
-      case "conflict": return json({ error: "checkpoint does not continue the saved rows", serverCount: outcome.serverCount, serverSeq: outcome.serverSeq }, 409);
-      case "trace_saved": return json({ error: "this lesson is already saved as another turn", code: "trace_saved", ...turnBody(outcome.turn) }, 409);
+      case "conflict": return reject("checkpoint_rows_conflict", "checkpoint does not continue the saved rows", 409, { serverCount: outcome.serverCount, serverSeq: outcome.serverSeq });
+      case "trace_saved": return reject("trace_saved", "this lesson is already saved as another turn", 409, turnBody(outcome.turn));
     }
   } catch (error) {
     if (!settled && reservation) {
@@ -887,7 +902,7 @@ async function applyCheckpoint(
         await abandonTurnStorage(reservation);
       } catch { /* the durable intent's own deadline still recovers the charge */ }
     }
-    if (error instanceof StorageQuotaError) return json({ error: error.message }, error.status);
+    if (error instanceof StorageQuotaError) return reject("storage_commit_rejected", error.message, error.status);
     throw error;
   }
 }
