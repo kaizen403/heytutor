@@ -339,6 +339,7 @@ export function inferSceneCapabilities(
     }
   }
   applyStemFamilyOverrides(stem, families, {
+    originalQuestion: question,
     preserveFamilies: structureDecisive ? structureFamilies : [],
   });
   // "thermodynamic" in a law id is not a P–V cycle. Keep state_plot only when

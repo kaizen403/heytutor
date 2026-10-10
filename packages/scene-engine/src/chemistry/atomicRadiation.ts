@@ -4,7 +4,8 @@
  * and the read-only Bohr authorities. A missing work function, a nonpositive
  * momentum, an impossible level or a reversed emission draws nothing.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity } from "./quantityReader";
+import { atomicElectronContext } from "./semanticCues";
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
@@ -23,6 +24,10 @@ const LIGHT_M_PER_S = 299792458;
 const JOULE_PER_EV = 1.602176634e-19;
 const HBAR_J_S = 1.054571817e-34;
 const ELECTRON_MASS_KG = 9.109e-31;
+const WORK_FUNCTION_CUE = /work function/;
+const PHOTON_ENERGY_CUE = /photon energy|photons? of energy|energy of (?:the )?photons?/;
+const FREQUENCY_CUE = /frequency/;
+const WAVELENGTH_CUE = /wavelength/;
 
 /** Sentences the shared energy-level ladder already owns. */
 const SHARED_LEVEL_SENTENCE = /draw the energy level diagram|emits a photon during the transition|absorbs a photon during the transition/;
@@ -32,22 +37,44 @@ function fit(text: string): string {
 }
 
 function workFunctionEv(question: string): number | null {
-  const value = numberAfter(question, /work function/, "energy", "eV");
+  const value = numberAfter(question, WORK_FUNCTION_CUE, "energy", "eV");
   return value !== null && value > 0 ? value : null;
 }
 function photonEnergyEv(question: string): number | null {
-  const stated = numberAfter(question, /photon energy|photons? of energy|energy of (?:the )?photons?/, "energy", "eV");
-  if (stated !== null && stated > 0) return stated;
-  const hertz = numberAfter(question, /frequency/, "frequency", "Hz");
-  if (hertz !== null && hertz > 0) return PLANCK_J_S * hertz / JOULE_PER_EV;
-  const metres = numberAfter(question, /wavelength/, "length", "m");
-  return metres !== null && metres > 0 ? PLANCK_J_S * LIGHT_M_PER_S / metres / JOULE_PER_EV : null;
+  const stated = readChemistryQuantity({ question, after: PHOTON_ENERGY_CUE, dimension: "energy", targetUnit: "eV" });
+  const frequency = readChemistryQuantity({ question, after: FREQUENCY_CUE, dimension: "frequency", targetUnit: "Hz" });
+  const wavelength = readChemistryQuantity({ question, after: WAVELENGTH_CUE, dimension: "length", targetUnit: "m" });
+  // A failed explicit measurement cannot disappear behind another representation.
+  for (const read of [stated, frequency, wavelength]) {
+    if (read.ok ? !(read.reading.value > 0) : read.code !== "missing") return null;
+  }
+  const fromFrequency = frequency.ok ? PLANCK_J_S * frequency.reading.value / JOULE_PER_EV : null;
+  const fromWavelength = wavelength.ok ? PLANCK_J_S * LIGHT_M_PER_S / wavelength.reading.value / JOULE_PER_EV : null;
+  for (const energy of [fromFrequency, fromWavelength]) {
+    if (energy !== null && (!Number.isFinite(energy) || !(energy > 0))) return null;
+  }
+  // The shared reader's canonical conversion and agreement policy certify the
+  // independently supplied values; no local tolerance or scalar grammar.
+  if (stated.ok) {
+    for (const energy of [fromFrequency, fromWavelength]) {
+      if (energy !== null && !chemistryReferenceConstantValid(question, PHOTON_ENERGY_CUE, "energy", "eV", energy)) return null;
+    }
+  }
+  if (frequency.ok && wavelength.ok
+    && !chemistryReferenceConstantValid(question, FREQUENCY_CUE, "frequency", "Hz", LIGHT_M_PER_S / wavelength.reading.value)) return null;
+  return stated.ok ? stated.reading.value : fromFrequency ?? fromWavelength;
 }
 
 function isPhotoelectricStem(question: string): boolean {
   const stem = chemStem(question);
   if (!/(?:photoelectric|photoelectron|work function)/.test(stem)) return false;
-  return workFunctionEv(question) !== null || photonEnergyEv(question) !== null;
+  // Routing recognizes the supplied role, including a damaged value; the
+  // builder must decline it rather than losing the role to another family.
+  const roles = [
+    readChemistryQuantity({ question, after: WORK_FUNCTION_CUE, dimension: "energy", targetUnit: "eV" }),
+    readChemistryQuantity({ question, after: PHOTON_ENERGY_CUE, dimension: "energy", targetUnit: "eV" }),
+  ];
+  return roles.some(read => read.ok || read.code !== "missing") || photonEnergyEv(question) !== null;
 }
 
 function hydrogenicZ(stem: string): number | null {
@@ -79,7 +106,8 @@ function isUncertaintyStem(stem: string): boolean {
 export function isAtomicRadiationStem(question: string): boolean {
   const stem = chemStem(question);
   if (SHARED_LEVEL_SENTENCE.test(stem)) return false;
-  return isPhotoelectricStem(question) || isDebroglieStem(stem) || isBohrModelStem(stem) || isUncertaintyStem(stem);
+  return isBohrModelStem(stem) || (atomicElectronContext(question)
+    && (isPhotoelectricStem(question) || isDebroglieStem(stem) || isUncertaintyStem(stem)));
 }
 
 function evText(symbol: string, value: number): string {
@@ -289,8 +317,9 @@ export function buildAtomicRadiationScene(
     || !chemistryReferenceConstantValid(question, /\bhc\s*=/i, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)
     || !chemistryReferenceConstantValid(question, /\bc\s*=|speed of light\s*(?:is|=)/i, "speed", "m/s", LIGHT_M_PER_S)) return null;
   if (!chemistryQuantityCuesValid(question, [
-    {after: /work function|photon energy|photons? of energy/, dimensions: ["energy"]},
-    {after: /frequency/, dimensions: ["frequency"]}, {after: /wavelength/, dimensions: ["length"]},
+    {after: WORK_FUNCTION_CUE, dimensions: ["energy"]},
+    {after: PHOTON_ENERGY_CUE, dimensions: ["energy"]},
+    {after: FREQUENCY_CUE, dimensions: ["frequency"]}, {after: WAVELENGTH_CUE, dimensions: ["length"]},
   ])) return null;
   const stem = chemStem(question);
   if (isPhotoelectricStem(question)) return buildPhotoelectric(question, stem);

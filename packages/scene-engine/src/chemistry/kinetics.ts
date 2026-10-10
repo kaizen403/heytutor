@@ -16,6 +16,7 @@
  * `scene.quantity`. Axis labels are pinned texts at the axis ends.
  */
 import type { SceneDocument } from "../types";
+import { chemicalKineticsContext } from "./semanticCues";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -550,6 +551,7 @@ function hasRateTemperatureNumbers(stem: string): boolean {
 /** True when the kinetics family should draw for this stem. */
 export function isKineticsStem(question: string): boolean {
   const stem = chemStem(question);
+  if (!chemicalKineticsContext(stem)) return false;
   if (HARD_VETO.test(stem)) return false;
   if (PROFILE_WORDS.test(stem) && !hasRateTemperatureNumbers(question)) return false;
   const orderWord = /\b(?:zero|zeroth|first|second|pseudo[ -]?first|1st|2nd|0th)[ -]?order\b/.test(stem);
@@ -1004,6 +1006,7 @@ function buildEquilibriumPlot(question: string, spec: KineticsSpec): SceneDocume
 
 /** The kinetics figure, or null when the stem does not ground one. */
 export function buildKineticsScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  if (!isKineticsStem(question)) return null;
   const stem = chemStem(question);
   if (HARD_VETO.test(stem)) return null;
   if (figureAbsent(stem)) return null;
