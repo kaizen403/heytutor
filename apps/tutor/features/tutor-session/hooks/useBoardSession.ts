@@ -542,7 +542,7 @@ export function useBoardSession({
   }, [executeCommand]);
 
   const restoreBoardFromApi = useCallback(
-    async (boardId: string, generation: number, draft: boolean) => {
+    async (boardId: string, generation: number, draft: boolean, read?: { turns: readonly StoredTurn[]; current: () => boolean; completed: boolean }) => {
       if (generation !== restoreGenerationRef.current || boardId !== activeSessionIdRef.current) return;
       let finishInk: () => void = () => {};
       const ink = { cancelled: false, done: new Promise<void>((resolve) => { finishInk = resolve; }) };
@@ -550,16 +550,17 @@ export function useBoardSession({
       const isStale = () =>
         ink.cancelled ||
         generation !== restoreGenerationRef.current ||
-        boardId !== activeSessionIdRef.current;
+        boardId !== activeSessionIdRef.current ||
+        read?.current() === false;
 
       try {
         // An unsaved home board has nothing to fetch and must not be written:
         // it starts empty, and only a question puts it in the database.
         // A lesson stopped here a moment ago may still be on its way to the
         // server: read the board after it lands (or after a short wait).
-        if (!draft) await liveTurnSave().drained(boardId, RESTORE_SAVE_DRAIN_MS);
+        if (!draft && !read) await liveTurnSave().drained(boardId, RESTORE_SAVE_DRAIN_MS);
         if (isStale()) return;
-        let detail = draft ? null : await fetchBoardDetail(boardId);
+        let detail = read ? { turns: [...read.turns] } : draft ? null : await fetchBoardDetail(boardId);
         if (isStale()) return;
 
         if (!detail && !draft) {
@@ -627,9 +628,10 @@ export function useBoardSession({
         // The overlay is "loading the board", and it only leaves when this
         // flag flips. Ink after this is the finished page, drawn with no
         // stroke delays, so it should not keep the spinner up.
-        if (!isStale()) setBoardLoaded(true);
+        if (!isStale() && !read) setBoardLoaded(true);
 
         if (turns.length === 0 || skipInkRestoreRef?.current) {
+          if (read && turns.length === 0) read.completed = true;
           return;
         }
 
@@ -736,12 +738,13 @@ export function useBoardSession({
           controller.markLessonComplete();
         }
         if (isStale()) return;
+        if (read) read.completed = true;
       } catch {
         // Network-level fetch failures must still clear the loading overlay.
       } finally {
         if (restoreInkRef.current === ink) restoreInkRef.current = null;
         finishInk();
-        if (!isStale()) {
+        if (!isStale() || (read && generation === restoreGenerationRef.current && boardId === activeSessionIdRef.current)) {
           setBoardLoaded(true);
         }
       }
@@ -781,6 +784,19 @@ export function useBoardSession({
     await ink.done;
     if (generation === restoreGenerationRef.current) setBoardLoaded(true);
   }, []);
+
+  /** Replay one authenticated read through the same hydration path before Continue. */
+  const refreshBoardFromTurns = useCallback(async (boardId: string, turns: readonly StoredTurn[], current: () => boolean): Promise<boolean> => {
+    if (!boardId || boardId !== activeSessionIdRef.current || !current()) return false;
+    await settleBoardRestore();
+    if (boardId !== activeSessionIdRef.current || !current()) return false;
+    const generation = restoreGenerationRef.current;
+    const read = { turns, current, completed: false };
+    cancelRef.current = false;
+    setBoardLoaded(false);
+    await restoreBoardFromApi(boardId, generation, false, read);
+    return read.completed && generation === restoreGenerationRef.current && boardId === activeSessionIdRef.current && current();
+  }, [cancelRef, restoreBoardFromApi, settleBoardRestore]);
 
   const restoreBoardFromApiRef = useRef(restoreBoardFromApi);
   useEffect(() => {
@@ -845,6 +861,7 @@ export function useBoardSession({
     revokeUnreferencedReplayBlobUrls,
     persistTurnForReplay,
     settleBoardRestore,
+    refreshBoardFromTurns,
     saveStatus,
     retrySave,
     getLiveTurn,

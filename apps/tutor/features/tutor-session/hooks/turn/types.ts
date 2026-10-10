@@ -101,6 +101,8 @@ export type UseTurnLifecycleParams = {
   phase: TutorPhase;
   isReplaying: boolean;
   boardLoaded: boolean;
+  /** Restore a fresh authenticated history before publishing its Continue offer. */
+  refreshBoardFromTurns?: (boardId: string, turns: readonly StoredTurn[], current: () => boolean) => Promise<boolean>;
   narrationText: string;
   boards: BoardEntry[];
   whiteboardRef: RefObject<WhiteboardHandle | null>;

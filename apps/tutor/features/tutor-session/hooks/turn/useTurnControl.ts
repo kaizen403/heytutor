@@ -38,6 +38,7 @@ import {
 import {
   pausedLessonFromLive,
   pausedLessonOnStop,
+  resumePageRecord,
   type ActiveResume,
   type PausedLessonReason,
   type PausedLessonRequest,
@@ -100,6 +101,7 @@ export function useTurnControl(
     phase,
     isReplaying,
     boardLoaded,
+    refreshBoardFromTurns,
     whiteboardRef,
     pendingQuestionRef,
     autoSubmitDoneRef,
@@ -1349,6 +1351,7 @@ export function useTurnControl(
   const restoreRevisionRef = useRef(0);
   const restoreBoardRevisionRef = useRef(0);
   const restoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const visibleRestoreRef = useRef<{ boardId: string; revision: number } | null>(null);
   useEffect(() => {
     restoreRevisionRef.current += 1;
     restoreBoardRevisionRef.current += 1;
@@ -1362,7 +1365,8 @@ export function useTurnControl(
     };
   }, [sessionId, clearPausedLesson]);
 
-  const restorePausedLesson = useCallback(async function restoreFromRead(turns: readonly StoredTurn[]): Promise<PausedLessonRequest | null> {
+  const restorePausedLesson = useCallback(async function restoreFromRead(turns: readonly StoredTurn[], refreshVisible = false): Promise<PausedLessonRequest | null> {
+    if (visibleRestoreRef.current?.boardId === sessionId) return null;
     if (!sessionId || phaseRef.current !== "idle" || turnActiveRef.current || isReplayingRef.current || pendingSegmentCountRef.current > 0 || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
     const revision = ++restoreRevisionRef.current;
     const save = liveTurnSave();
@@ -1378,15 +1382,44 @@ export function useTurnControl(
         restoreTimerRef.current = setTimeout(() => {
           if (boardRevision !== restoreBoardRevisionRef.current) return;
           restoreTimerRef.current = null;
+          const readGeneration = turnGenerationRef.current;
+          const readPage = boardPageRef.current;
+          const readRevision = restoreRevisionRef.current;
           void fetchBoardDetail(sessionId).then((detail) => {
             // A board switch can occur while this authenticated read is in flight.
             // Do not let its old closure advance the successor board's revision.
-            if (boardRevision !== restoreBoardRevisionRef.current || !detail) return;
-            return restoreFromRead(save.resumeTurns(sessionId, detail.turns));
+            if (boardRevision !== restoreBoardRevisionRef.current || readRevision !== restoreRevisionRef.current ||
+              readGeneration !== turnGenerationRef.current || readPage !== boardPageRef.current || !detail) return;
+            return restoreFromRead(save.resumeTurns(sessionId, detail.turns), true);
           }).catch(() => undefined);
         }, 30_000);
       }
       return null;
+    }
+    if (refreshVisible) {
+      if (!refreshBoardFromTurns || boardShowsStoppedReplayRef.current ||
+        (boardPageRef.current && boardPageRef.current.boardId !== sessionId)) return null;
+      const boardRevision = restoreBoardRevisionRef.current;
+      const generation = turnGenerationRef.current;
+      const page = boardPageRef.current;
+      const pendingBefore = pausedLessonRef.current;
+      const token = { boardId: sessionId, revision };
+      visibleRestoreRef.current = token;
+      setPausedLessonOfferState(null);
+      const current = () => revision === restoreRevisionRef.current && boardRevision === restoreBoardRevisionRef.current &&
+        generation === turnGenerationRef.current && page === boardPageRef.current && pendingBefore === pausedLessonRef.current && phaseRef.current === "idle" &&
+        !turnActiveRef.current && !isReplayingRef.current && !boardShowsStoppedReplayRef.current &&
+        pendingSegmentCountRef.current === 0 && !activeResumeRef.current && !lessonAdmission().hasAttempt(cancelRef);
+      try {
+        if (!current() || !(await refreshBoardFromTurns(sessionId, turns, current)) || !current()) return null;
+        boardPageRef.current = resumePageRecord({ boardId: sessionId, lessonQuestion: restored.lessonQuestion,
+          turnPlan: restored.turnPlan ?? null, solverProjection: restored.solverProjection ?? null,
+          scene: restored.scene ?? null, figureDrawn: restored.figureDrawn });
+      } catch {
+        return null;
+      } finally {
+        if (visibleRestoreRef.current === token) visibleRestoreRef.current = null;
+      }
     }
     if (restoreTimerRef.current !== null) clearTimeout(restoreTimerRef.current);
     restoreTimerRef.current = null;
@@ -1398,7 +1431,7 @@ export function useTurnControl(
     // A saved-row refresh has not redrawn this in-tab page. The canonical
     // saved figure is whole, but its missing visible beats are still owed.
     // Session changes and replay clear the live page record before redraw.
-    if (pending?.remainingIntro?.length && sameParent && pending.boardId === sessionId &&
+    if (!refreshVisible && pending?.remainingIntro?.length && sameParent && pending.boardId === sessionId &&
       pending.lessonQuestion === restored.lessonQuestion && visiblePage?.boardId === sessionId &&
       visiblePage.lessonQuestion === restored.lessonQuestion) {
       restored = { ...restored, remainingIntro: pending.remainingIntro };
@@ -1406,10 +1439,10 @@ export function useTurnControl(
     pausedLessonRef.current = restored;
     showPausedLessonOffer(restored);
     return restored;
-  }, [sessionId, phaseRef, turnActiveRef, pendingSegmentCountRef, showPausedLessonOffer, clearPausedLesson, cancelRef, boardPageRef]);
+  }, [sessionId, phaseRef, turnActiveRef, pendingSegmentCountRef, showPausedLessonOffer, clearPausedLesson, cancelRef, boardPageRef, refreshBoardFromTurns, boardShowsStoppedReplayRef, turnGenerationRef]);
 
   const flushPausedLesson = useCallback(() => {
-    if (activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return;
+    if (visibleRestoreRef.current?.boardId === sessionId || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return;
     const pending = pausedLessonRef.current;
     if (!pending || pending.boardId !== sessionId) {
       pausedLessonRef.current = null;
