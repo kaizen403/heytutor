@@ -19,7 +19,7 @@ import { resolveVisualRequirement } from "./visualRequirement";
 import { selectVerifiedRepresentation, type SelectedRepresentation } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v1";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v2";
 
 export interface ProductionSceneInput {
   question: string;
@@ -76,7 +76,10 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
     input.conversationContext,
     `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
   ].filter(Boolean).join("\n\n");
-  const archetypeSpec = earlyArchetype ? ARCHETYPES[earlyArchetype.id] : null;
+  // A score-2 relation cue (for example, "angle between") can admit a planner
+  // attempt, but cannot prescribe the catalogue's specific figure roles. Keep
+  // numeric-free apparatus hints; slot availability is not role confidence.
+  const archetypeSpec = earlyArchetype && earlyArchetype.score >= 3 ? ARCHETYPES[earlyArchetype.id] : null;
   const archetypeGuidance = archetypeSpec ? [
     `Figure: ${archetypeSpec.label}. It must contain entities with roles: ${archetypeSpec.contract.roles.join(", ")}` +
       (archetypeSpec.contract.operators?.length ? `; use ${archetypeSpec.contract.operators.join(", ")}` : "") + ".",
@@ -152,11 +155,24 @@ export function validateProductionSceneCandidate(input: {
   const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   const compiledScene = compileSceneDocument(validated.document);
+  // Final admission already requires readable ink. Reject the same candidates
+  // here so a cheaper unlabelled scene cannot displace a drawable sibling.
+  const missingReadableLabel = compiledScene.ok && compiledScene.renderScene &&
+    validated.document.visualDecision.mode === "scene" && authoritativePlan.visualRequirement !== "none" &&
+    !compiledScene.renderScene.primitives.some((primitive) =>
+      (primitive.kind === "label" || primitive.kind === "dimension") &&
+      typeof primitive.text === "string" && primitive.text.trim().length > 0);
   const fatalIssues = [
     ...sourceIssues,
     ...authorityIssues,
     ...proofIssues,
     ...compiledScene.report.issues,
+    ...(missingReadableLabel ? [{
+      code: "scene_without_readable_label",
+      message: "A requested scene must contain readable label or dimension text attached to its geometry.",
+      path: "entities",
+      severity: "fatal" as const,
+    }] : []),
   ].filter((issue) => issue.severity === "fatal");
   if (fatalIssues.length > 0 || !compiledScene.ok || !compiledScene.renderScene) {
     return {
