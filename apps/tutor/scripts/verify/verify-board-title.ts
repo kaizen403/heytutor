@@ -149,9 +149,27 @@ for (const written of ["CO", "NO", "DNA", "SHM", "AC", "IUPAC", "H2O", "HCHO", "
   assert(title === written, `single-word notation: "${written}" became "${title}"`);
 }
 
+// Short formulas in multiword prose must not turn into different symbols/words.
+assert(
+  deriveBoardTitleFromQuestion("CO AND NO") === "CO and NO",
+  "short formulas retain their case in a multiword all-caps question",
+);
+assert(
+  finalizeBoardTitle("Compare the compounds", "CO AND NO") === "CO and NO",
+  "short formulas retain their case in a generated multiword title",
+);
+
 for (const formula of ["HCHO", "HCOOH"]) {
   assert(finalizeBoardTitle("Explain the compound", formula) === formula, "formula LLM title: " + formula);
 }
+assert(
+  deriveBoardTitleFromQuestion("WHY IS CO IN NO?") === "Why is CO in NO",
+  "short grammatical words remain prose beside short formulas",
+);
+assert(
+  deriveBoardTitleFromQuestion("CO OR NO") === "CO or NO",
+  "a conjunction remains prose between short formulas",
+);
 assert(
   deriveBoardTitleFromQuestion("HCHO REACTIONS") === "HCHO reactions",
   "all-caps prose should sentence case words while retaining formula notation",

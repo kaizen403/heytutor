@@ -121,15 +121,21 @@ function keepsWrittenCase(word: string): boolean {
   return !WORD_LIKE_SYMBOLS.has(core) || /^[A-Z][a-z]?[+\-−]/.test(word);
 }
 
-/** Preserve complete element-symbol sequences as notation, including HCHO. */
+/** Short grammatical words remain prose even when their letters spell atoms. */
+const SHORT_PROSE_WORDS = new Set(
+  ("A AN THE AND OR BUT NOR FOR SO YET AS AT BY IN OF ON TO UP VIA IF " +
+    "IS AM ARE BE WAS DO HAS WHO WHY HOW I ME MY WE US HE HIM HER SHE IT YOU").split(" "),
+);
+
+/** Preserve complete element-symbol sequences as notation, including CO and HCHO. */
 function keepsFormulaCase(word: string): boolean {
   const core = word.replace(/[^A-Za-z]/g, "");
   const symbols = core.match(/[A-Z][a-z]?/g) ?? [];
-  // The new protection covers long tokens that sentence casing now changes.
-  // Keep legacy short-token prose/acronym handling (WHY, IS, OF) unchanged.
-  // Some ordinary words are also valid atom sequences (PHYSICS). Ambiguous
-  // sequences retain written case rather than corrupting a possible formula.
-  return core.length > 3 && symbols.length > 1 && symbols.join("") === core &&
+  // WHY, IS and OF are grammatical title words, although each also spells
+  // an atom sequence. Other ambiguous sequences (CO, NO, PHYSICS) retain
+  // written case rather than corrupting a possible formula.
+  if (core.length <= 3 && SHORT_PROSE_WORDS.has(core)) return false;
+  return symbols.length > 1 && symbols.join("") === core &&
     symbols.every((symbol) => ELEMENT_SYMBOLS.has(symbol));
 }
 
