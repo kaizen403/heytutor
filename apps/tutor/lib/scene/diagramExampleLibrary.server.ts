@@ -78,7 +78,7 @@ function pickerInput(rawBody: string, question: string): { plan: TurnPlanV3 | nu
 
 export function buildLiveDiagramPickerBody(rawBody: string, question: string): string {
   const { plan } = pickerInput(rawBody, question);
-  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question));
+  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question), { question, plan });
   const planSummary = diagramPlanRetrievalText(plan);
   const prompt = [
     "Pick up to 3 catalogue examples whose DRAWN FIGURE would best guide a diagram for the student question.",
@@ -100,5 +100,5 @@ export function buildLiveDiagramPickerBody(rawBody: string, question: string): s
 export function parseLiveDiagramExampleIds(value: string | null | undefined): string[] {
   if (!value) return [];
   return [...new Set(value.split(",").map((id) => id.trim()).filter((id) =>
-    /^[a-z0-9][a-z0-9:_-]{0,127}$/i.test(id)))].slice(0, 3);
+    /^[a-z0-9][a-z0-9:/_-]{0,127}$/i.test(id)))].slice(0, 3);
 }
