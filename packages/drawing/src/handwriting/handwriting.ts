@@ -161,7 +161,12 @@ export function normalizeStrokeText(text: string): string {
     i++;
   }
 
-  return out;
+  // Canonically accented letters (â, ẋ, ẍ) use the same attached strokes as
+  // explicit base + combining mark. Leave non-accent decompositions alone.
+  return out.replace(/[\u0080-\u{10FFFF}]/gu, (char) => {
+    const decomposed = char.normalize("NFD");
+    return /\p{M}/u.test(decomposed) ? decomposed : char;
+  });
 }
 
 function rewriteLatexScriptBraces(text: string): string {
@@ -537,9 +542,29 @@ function spaceAdvancePx(
   return Math.max(wanted, fontSize * WORD_GAP_MIN_RATIO);
 }
 
+function isCombiningMark(char: string): boolean {
+  return char > "\u007F" && /^\p{M}$/u.test(char);
+}
+
+/** One base glyph and its marks; a mark never owns a cursor position. */
+function readStrokeCharacter(text: string, start: number): {
+  base: string;
+  char: string;
+  nextIndex: number;
+} {
+  const base = String.fromCodePoint(text.codePointAt(start)!);
+  let nextIndex = start + base.length;
+  while (nextIndex < text.length) {
+    const next = String.fromCodePoint(text.codePointAt(nextIndex)!);
+    if (!isCombiningMark(next)) break;
+    nextIndex += next.length;
+  }
+  return { base, char: text.slice(start, nextIndex), nextIndex };
+}
+
 function nextPairChar(text: string, from: number): string | null {
   if (from >= text.length) return null;
-  const ch = text[from];
+  const ch = String.fromCodePoint(text.codePointAt(from)!);
   if (ch === " " || ch === "^" || ch === "_" || ch === "{" || ch === "}") {
     return null;
   }
@@ -548,18 +573,23 @@ function nextPairChar(text: string, from: number): string | null {
 
 /** The last letter written before `from`, skipping spaces and markers. */
 function previousBodyChar(text: string, from: number): string | null {
-  for (let index = from; index >= 0; index--) {
-    const char = text[index];
-    if (char === undefined) continue;
-    if (char === " " || char === "^" || char === "_" || char === "{" || char === "}") continue;
+  for (let index = from; index >= 0;) {
+    // Walk whole code points backwards, including marks outside the BMP.
+    const end = index + 1;
+    if (index > 0 && /[\uDC00-\uDFFF]/.test(text[index]!)) index--;
+    const char = text.slice(index, end);
+    index--;
+    if (isCombiningMark(char) || char === " " || char === "^" || char === "_" || char === "{" || char === "}") continue;
     return char;
   }
   return null;
 }
 
 function nextNonSpace(text: string, from: number): string | null {
-  for (let index = from; index < text.length; index++) {
-    if (text[index] !== " ") return text[index] ?? null;
+  for (let index = from; index < text.length;) {
+    const char = String.fromCodePoint(text.codePointAt(index)!);
+    if (char !== " " && !isCombiningMark(char)) return char;
+    index += char.length;
   }
   return null;
 }
@@ -1460,6 +1490,99 @@ function renderChar(
   fontSize: number,
   print = true,
 ): { path: CharacterPath; advance: number } {
+  const [base, ...marks] = Array.from(char);
+  const rendered = renderBaseChar(base!, currentX, baselineY, topY, fontScale, fontSize, print);
+  if (marks.length === 0) return rendered;
+  // Unsupported bases may still use Text, but a combining mark must never be
+  // handed to that detached fallback. Known bases keep all marks in one hand.
+  if (rendered.path.strokes.length === 0) return rendered;
+  rendered.path.char = char;
+  appendCombiningStrokes(rendered.path, marks, fontSize, print);
+  return rendered;
+}
+
+/** Attach accents to the base's actual ink, before its shared hand transform. */
+function appendCombiningStrokes(
+  path: CharacterPath,
+  marks: string[],
+  fontSize: number,
+  print: boolean,
+): void {
+  const ink = new InkExtent();
+  const identity: HandTransform = {
+    cos: 1, sin: 0, scale: 1, centreX: 0, centreY: 0, dx: 0, dy: 0,
+  };
+  for (const stroke of path.strokes) {
+    includeHandwrittenStroke(stroke, identity, stroke.width / 2, ink);
+  }
+  const bounds = ink.bounds();
+  if (!bounds) return;
+
+  const centreX = bounds.x + bounds.width / 2;
+  const span = Math.max(bounds.width * 0.82, fontSize * 0.16);
+  const left = centreX - span / 2;
+  const right = centreX + span / 2;
+  const width = strokeWidthPx(fontNibUnits(), fontSize);
+  let bottomY = bounds.y - fontSize * 0.08;
+  const add = (coordinates: number[]): void => {
+    const stroke: LaidOutStroke = {
+      pathData: print ? printPolylinePath(coordinates) : "",
+      startX: coordinates[0]!, startY: coordinates[1]!, width,
+      delay: 0, duration: 100, priority: 0,
+      ...(print ? {} : { coordinates }),
+    };
+    path.strokes.push(stroke);
+  };
+
+  for (const mark of marks) {
+    let topY = bottomY;
+    switch (mark) {
+      case "\u0304": // macron
+      case "\u0305": // overline
+        add([left, bottomY, right, bottomY]);
+        break;
+      case "\u0302": { // hat: two straight pen strokes
+        topY -= fontSize * 0.12;
+        add([left, bottomY, centreX, topY]);
+        add([centreX, topY, right, bottomY]);
+        break;
+      }
+      case "\u0307": // dot: a short round-capped stroke leaves real ink
+        add([centreX - width * 0.15, bottomY, centreX + width * 0.15, bottomY]);
+        break;
+      case "\u0308": {
+        const offset = span * 0.24;
+        for (const x of [centreX - offset, centreX + offset]) {
+          add([x - width * 0.15, bottomY, x + width * 0.15, bottomY]);
+        }
+        break;
+      }
+      case "\u20d7": { // vector arrow; the head stays above the base ink
+        const head = Math.min(span * 0.3, fontSize * 0.1);
+        const shaftY = bottomY - head;
+        topY = shaftY - head;
+        add([left, shaftY, right, shaftY]);
+        add([right - head, topY, right, shaftY]);
+        add([right, shaftY, right - head, bottomY]);
+        break;
+      }
+      default:
+        // An unknown mark is dropped, retaining the base and its advance.
+        continue;
+    }
+    bottomY = topY - fontSize * 0.08 - width;
+  }
+}
+
+function renderBaseChar(
+  char: string,
+  currentX: number,
+  baselineY: number,
+  topY: number,
+  fontScale: number,
+  fontSize: number,
+  print = true,
+): { path: CharacterPath; advance: number } {
   if (SYNTHETIC_GREEK_CHARS.has(char)) {
     const synthetic = syntheticGreekChar(char, currentX, baselineY, topY, fontScale, fontSize);
     if (synthetic) {
@@ -1578,14 +1701,16 @@ function readScriptGroup(
     kind === "^" || /[0-9]/.test(first) ? /[0-9]/ : /[A-Za-z]/.test(first) ? /[A-Za-z]/ : null;
 
   if (runPattern === null) {
-    return { content: first, nextIndex: start + 1 };
+    const character = readStrokeCharacter(text, start);
+    return { content: character.char, nextIndex: character.nextIndex };
   }
 
   let i = start;
   let content = "";
   while (i < text.length && runPattern.test(text[i])) {
-    content += text[i];
-    i++;
+    const character = readStrokeCharacter(text, i);
+    content += character.char;
+    i = character.nextIndex;
   }
 
   if (content.length === 0) {
@@ -1608,19 +1733,23 @@ function renderScriptRun(
 ): { paths: CharacterPath[]; width: number } {
   const paths: CharacterPath[] = [];
   let cursorX = startX;
-  for (let index = 0; index < content.length; index++) {
-    const scriptChar = content[index]!;
+  for (let index = 0; index < content.length;) {
+    const character = readStrokeCharacter(content, index);
+    const scriptChar = character.base;
+    const previousIndex = index - 1;
+    index = character.nextIndex;
+    if (isCombiningMark(scriptChar)) continue;
     if (scriptChar === " ") {
       cursorX += spaceAdvancePx(
-        previousBodyChar(content, index - 1),
-        nextNonSpace(content, index + 1),
+        previousBodyChar(content, previousIndex),
+        nextNonSpace(content, index),
         scriptScale,
         scriptFontSize,
       );
       continue;
     }
     const { path } = renderChar(
-      scriptChar,
+      character.char,
       cursorX,
       baselineY,
       topY,
@@ -1631,7 +1760,7 @@ function renderScriptRun(
     paths.push(path);
     cursorX += pairAdvancePx(
       scriptChar,
-      nextNonSpace(content, index + 1),
+      nextNonSpace(content, index),
       scriptScale,
       scriptFontSize,
     );
@@ -1756,7 +1885,14 @@ function layOutStrokePaths(
   let i = 0;
 
   while (i < text.length) {
-    const char = text[i];
+    const character = readStrokeCharacter(text, i);
+    const char = character.base;
+
+    // Leading marks have no base to attach to; never create fallback nodes.
+    if (isCombiningMark(char)) {
+      i = character.nextIndex;
+      continue;
+    }
 
     if (char === " ") {
       currentX += spaceAdvancePx(
@@ -1819,10 +1955,10 @@ function layOutStrokePaths(
     }
 
     // Normal character
-    const { path } = renderChar(char, currentX, baselineY, y, scale, fontSize, print);
+    const { path } = renderChar(character.char, currentX, baselineY, y, scale, fontSize, print);
     results.push(path);
-    currentX += pairAdvancePx(char, nextPairChar(text, i + 1), scale, fontSize);
-    i++;
+    i = character.nextIndex;
+    currentX += pairAdvancePx(char, nextPairChar(text, i), scale, fontSize);
 
     // Integral / sum / product limits stack beside the owner glyph instead of
     // marching left-to-right as separate script runs.
@@ -2074,18 +2210,22 @@ function measureScriptRunWidth(
   scriptScale: number,
 ): number {
   let width = 0;
-  for (let index = 0; index < content.length; index++) {
-    const subChar = content[index]!;
+  for (let index = 0; index < content.length;) {
+    const character = readStrokeCharacter(content, index);
+    const subChar = character.base;
+    const previousIndex = index - 1;
+    index = character.nextIndex;
+    if (isCombiningMark(subChar)) continue;
     if (subChar === " ") {
       width += spaceAdvancePx(
-        previousBodyChar(content, index - 1),
-        nextNonSpace(content, index + 1),
+        previousBodyChar(content, previousIndex),
+        nextNonSpace(content, index),
         scriptScale,
         scriptFontSize,
       );
       continue;
     }
-    width += pairAdvancePx(subChar, nextNonSpace(content, index + 1), scriptScale, scriptFontSize);
+    width += pairAdvancePx(subChar, nextNonSpace(content, index), scriptScale, scriptFontSize);
   }
   return width;
 }
@@ -2100,7 +2240,13 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
   let i = 0;
 
   while (i < text.length) {
-    const char = text[i];
+    const character = readStrokeCharacter(text, i);
+    const char = character.base;
+
+    if (isCombiningMark(char)) {
+      i = character.nextIndex;
+      continue;
+    }
 
     if (char === " ") {
       currentX += spaceAdvancePx(
@@ -2128,8 +2274,8 @@ export function measureTextWidth(rawText: string, fontSize: number = 32): number
       continue;
     }
 
-    currentX += pairAdvancePx(char, nextPairChar(text, i + 1), scale, fontSize);
-    i++;
+    i = character.nextIndex;
+    currentX += pairAdvancePx(char, nextPairChar(text, i), scale, fontSize);
 
     if (STACKED_LIMIT_OWNERS.has(char)) {
       let lower: string | null = null;
