@@ -1,10 +1,12 @@
 # Accelute
 
-> Accelute is an AI whiteboard tutor. Students ask a question and watch it draw the diagram, write the notes, and explain each step out loud, in sync.
+> Accelute is an AI whiteboard tutor for maths, physics, chemistry, coding and more. Type a question or upload a photo to watch the diagram, working and spoken explanation unfold together.
 
 Accelute is the product name. The marketing site is https://accelute.co/. The tutor app is https://app.accelute.co/. Contact: hi@accelute.co.
 
 It is a student product (age 13+) for 1:1 lessons on a live whiteboard. Not a team canvas like Miro, not a chatbot like ChatGPT, and not a classroom management tool.
+
+Students can ask a doubt on the same board, replay saved lessons, and download notes. Lessons support English and Hinglish. The tutor runs in the browser and requires a student account; the Free plan lets students try it.
 
 ## Pages
 
