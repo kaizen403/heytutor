@@ -26,7 +26,7 @@
     "verify:visual-obligations": "tsx scripts/verify/verify-visual-obligations.ts",
     "verify:coverage-eval": "tsx scripts/verify/verify-coverage-eval-v1.ts",
     "verify:instrument-authority": "pnpm build && tsx scripts/verify/verify-instrument-source-units.ts --compiled-boundary && tsx scripts/verify/verify-incline-acceleration-basis.ts --compiled-boundary",
-    "verify:symbolic-planner": "tsx scripts/verify/verify-symbolic-planner-tier.ts"
+    "verify:symbolic-planner": "tsx scripts/verify/verify-symbolic-planner-tier.ts && tsx scripts/verify/verify-measurement-agreement.ts"
   },
   "dependencies": {
     "@heytutor/drawing": "workspace:*"

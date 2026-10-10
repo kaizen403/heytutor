@@ -3985,7 +3985,7 @@ function claimMatchesAtStatedPrecision(
   if (Math.sign(quantity.value) !== Math.sign(stated.value)) return false;
   const size = Math.abs(quantity.value);
   const statedSize = Math.abs(stated.value);
-  const slack = Math.max(1, size, statedSize) * 1e-9;
+  const slack = canonicalMeasurementComparisonSlack(size, statedSize);
   return size >= statedSize - slack && size < statedSize + Math.abs(lastPlace.value) - slack;
 }
 
@@ -4501,7 +4501,22 @@ function equivalentMeasuredQuantity(
   const first = canonicalMeasurement(firstValue, firstUnit);
   const second = canonicalMeasurement(secondValue, secondUnit);
   return first !== null && second !== null && first.dimension === second.dimension &&
-    approximatelyEqual(first.value, second.value);
+    canonicalMeasurementValuesAgree(first.value, second.value);
+}
+
+/** Floating-point slack scales with the measurement, never with one SI unit. */
+function canonicalMeasurementComparisonSlack(first: number, second: number): number {
+  return Math.max(Math.abs(first), Math.abs(second)) * 1e-9;
+}
+
+function canonicalMeasurementValuesAgree(
+  first: number,
+  second: number,
+  statedPrecisionTolerance = 0,
+): boolean {
+  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(statedPrecisionTolerance)) return false;
+  return Math.abs(first - second) <= statedPrecisionTolerance +
+    canonicalMeasurementComparisonSlack(first, second);
 }
 
 function claimSameDimension(firstUnit: unknown, secondUnit: unknown): boolean {
@@ -4522,8 +4537,7 @@ function claimEquivalentMeasuredQuantity(
   const tolerance = claimCanonicalMeasurement(secondTolerance, secondUnit);
   return first !== null && second !== null && tolerance !== null &&
     first.dimension === second.dimension && first.dimension === tolerance.dimension &&
-    Math.abs(first.value - second.value) <= tolerance.value +
-      Math.max(1, Math.abs(first.value), Math.abs(second.value)) * 1e-9;
+    canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
 function equivalentDisplayedMeasuredQuantity(
@@ -4538,8 +4552,7 @@ function equivalentDisplayedMeasuredQuantity(
   const tolerance = canonicalMeasurement(secondTolerance, secondUnit);
   return first !== null && second !== null && tolerance !== null &&
     first.dimension === second.dimension && first.dimension === tolerance.dimension &&
-    Math.abs(first.value - second.value) <= tolerance.value +
-      Math.max(1, Math.abs(first.value), Math.abs(second.value)) * 1e-9;
+    canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
 function canonicalMeasurement(
