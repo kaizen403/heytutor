@@ -3651,10 +3651,29 @@ const LOAD_OR_METER =
 
 /** A string-valued expectation can deny flow without requiring a closed path. */
 function expectedClaimDemandsCurrent(text: string): boolean {
-  const zeroPredicate = /\bcurrents?(?:\s+(?:in|through|along)\s+(?:(?!(?:is|are|equals?|remains?|flows?|and|but)\b)[\p{L}_][\p{L}\p{N}_-]*\s+){1,12})?\s*(?:is|are|equals?|remains?|=)\s*(?:zero\b|0(?:\.0+)?(?![\w.]))/gu;
-  const positiveText = text
-    .replace(/\b(?:no|zero)\s+currents?\b|\bcurrents?\s+(?:cannot|can['’]t|does\s+not|will\s+not)\s+flow\b/g, "")
-    .replace(zeroPredicate, "");
+  const normalized = text.toLowerCase().replace(/−/g, "-");
+  const zeroValue = "(?:zero\\b|[+-]?(?:0(?:\\.0+)?|\\.0+)(?:e[+-]?\\d+)?(?![\\p{L}\\p{N}_]|[.,][\\p{L}\\p{N}_.]))";
+  const memberWord = "(?!(?:is|are|equals?|remains?|flows?|and|but)\\b)[\\p{L}_][\\p{L}\\p{N}_-]*";
+  const memberScope = `(?:\\s+(?:in|through|along)\\s+${memberWord}(?:\\s+${memberWord}){0,11})?`;
+  const zeroPredicate = new RegExp(`\\bcurrents?${memberScope}(?:\\s+[\\p{L}_][\\p{L}\\p{N}_]*)?\\s*(?:is|are|equals?|remains?|=)\\s*${zeroValue}`, "gu");
+  // Only literal zero denies flow. Arithmetic after zero (with or without
+  // an ampere unit) must retain the current demand rather than erase a prefix.
+  const arithmeticContinuation = /^\s*(?:(?:[a-zµμ]*a|amperes?|amps?)\b\s*)?(?:[+*/×÷·⋅^=-]|\b(?:plus|minus|times|over|divided)\b)/u;
+  // A later I binding can contradict a no-flow/zero clause without repeating
+  // "current". Check the literal spelling so tiny nonzero values never become
+  // zero through a magnitude threshold or floating-point underflow.
+  if (/\bcurrents?\b/.test(normalized)) {
+    const literalZero = new RegExp(`^${zeroValue}`, "u");
+    for (const binding of normalized.matchAll(/\bi(?:[\p{N}_][\p{L}\p{N}_]*)?\s*(?:=|is|equals?)\s*/gu)) {
+      const rhs = normalized.slice(binding.index + binding[0].length);
+      const zero = literalZero.exec(rhs);
+      if (!zero || arithmeticContinuation.test(rhs.slice(zero[0].length))) return true;
+    }
+  }
+  const positiveText = normalized
+    .replace(/\b(?:no|zero)\s+currents?\b|\bno\s+flow\s+of\s+(?:the\s+)?currents?\b|\bcurrents?\s+(?:cannot|can['’]t|does\s+not|will\s+not)\s+flow\b/g, "")
+    .replace(zeroPredicate, (predicate: string, offset: number, currentText: string) =>
+      arithmeticContinuation.test(currentText.slice(offset + predicate.length)) ? predicate : "");
   return /\bcurrents?\b/.test(positiveText);
 }
 

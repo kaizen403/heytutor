@@ -25,13 +25,39 @@ const currentKey = structuredClone(unloaded); currentKey.qualitativeClaims = [{ 
 check(validateTurnPlanSceneProofs(openCells, currentKey).some((issue) => issue.code === "source_loop_not_closed"), "existing current-key demand remains enforced");
 const booleanClaim = structuredClone(unloaded); booleanClaim.qualitativeClaims = [{ id: "behavior", claim: "cell_behavior", expected: true }];
 check(validateTurnPlanSceneProofs(openCells, booleanClaim).length === 0, "unrelated boolean expectation does not invent a current demand");
-for (const expected of ["No current flows through the open terminals.", "Zero current flows through each cell.", "The current is zero because the terminals are open.", "Current cannot flow until the terminals are connected.", "Current=0.00 A.", "The current in an open circuit is zero."]) {
+for (const expected of [
+  "No current flows through the open terminals.", "Zero current flows through each cell.",
+  "The current is zero because the terminals are open.", "Current cannot flow until the terminals are connected.",
+  "Current=0.00 A.", "The current in an open circuit is zero.",
+  "There is no flow of current.", "There is no flow of the current through the cells.",
+  "The current I=0", "The current I = 0 A.", "The current I_1=-0.000 A.",
+  "Current I_total=+0.0e-9 A.", "The current I=−0.000e+10 A.",
+  "The current through cell1 I=0e-4 A.", "Current=.000 A.", "The current I=0.",
+  "Current=0.00.", "The current I=0e+10 A.",
+  "The current I=0 A and I_2=−0.00e-100 A.", "The current I=0 while V=1 V.",
+]) {
   const noCurrent = structuredClone(unloaded); noCurrent.qualitativeClaims = [{ id: "behavior", claim: "cell_behavior", expected }];
-  check(validateTurnPlanSceneProofs(openCells, noCurrent).length === 0, "a declared zero/no-current unloaded source still permits open terminals");
+  check(validateTurnPlanSceneProofs(openCells, noCurrent).length === 0, `a declared zero/no-current unloaded source still permits open terminals: ${expected}`);
 }
-for (const expected of ["Current=0.01 A.", "Current is 0.000001 A.", "No current flows initially, but current flows through each cell now.", "The same current flows through the cells in an open circuit.", "Current through cell1 is positive and current through cell2 is zero."]) {
+for (const expected of [
+  "Current=0.01 A.", "Current is 0.000001 A.",
+  "No current flows initially, but current flows through each cell now.",
+  "The same current flows through the cells in an open circuit.",
+  "Current through cell1 is positive and current through cell2 is zero.",
+  "There is no flow of current, but current=1e-100 A.", "The current I=1e-100 A.",
+  "The current I=0 initially, but I=1 A now",
+  "There is no flow of current, but I=0.000001 A",
+  "The current I=0 A and I_2=-1e-9 A",
+  "There is no flow of current, but I=1e-1000000 A.",
+  "There is no flow of current, but I=0+1 A.",
+  "The current I=-0.000001 A.", "The current I=0+1 A.", "Current=0+1 A.",
+  "Current=0 - 1 A.", "Current=0.00 A + 1 A.", "Current=0e-9*1+1 A.",
+  "Current=0/1+1 A.", "Current=0^0 A.", "Current=zero + 1 A.",
+  "Current=0 plus 1 A.", "Current=0.00000000000000000001 A.", "Current=0.e+1 A.",
+  "Current=0 pA + 1 A.", "Current=0 A·1+1 A.", "Current=0,1 A.",
+]) {
   const demanded = structuredClone(unloaded); demanded.qualitativeClaims = [{ id: "behavior", claim: "cell_behavior", expected }];
-  check(validateTurnPlanSceneProofs(openCells, demanded).some((issue) => issue.code === "source_loop_not_closed"), "positive/tiny or contradictory expectation still requires a closed current path");
+  check(validateTurnPlanSceneProofs(openCells, demanded).some((issue) => issue.code === "source_loop_not_closed"), `positive/tiny or contradictory expectation still requires a closed current path: ${expected}`);
 }
 const closed = circuit([["cell1", "cell", "A", "B"], ["cell2", "cell", "B", "C"], ["load", "resistor", "C", "A"]]);
 check(validateTurnPlanSceneProofs(closed, stringClaim).length === 0, "closed loaded circuit satisfies string-valued current claim");
