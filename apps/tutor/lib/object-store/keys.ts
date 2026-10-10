@@ -112,3 +112,15 @@ export function parseStoredObjectKey(key: string): StoredObjectRef | null {
 export function isSafeObjectKey(key: string): boolean {
   return parseStoredObjectKey(key) !== null;
 }
+
+/** Deletion is bounded to a board, turn, validated upload attempt, or user image. */
+export function isSafeObjectDeletionPrefix(prefix: string): boolean {
+  if (prefix.includes("..") || prefix.trim() !== prefix) return false;
+  if (/^(?:lectures|images)\/[A-Za-z0-9._-]{1,128}\/$/.test(prefix)) return true;
+  // The object parser already owns both the legacy turn folder and the exact
+  // 12-character attempt grammar. A sentinel file validates only that folder.
+  if (prefix.startsWith("lectures/") && prefix.endsWith("/")) {
+    return isSafeObjectKey(`${prefix}0.mp3`);
+  }
+  return prefix.startsWith("images/") && !prefix.endsWith("/") && isSafeObjectKey(prefix);
+}
