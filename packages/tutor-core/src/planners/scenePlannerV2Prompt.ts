@@ -486,9 +486,11 @@ export function selectConstructionInputContracts(operators: readonly string[], d
         const outputContract = explicitOutput ?? (outputs?.includes("[")
           ? outputs.slice(0, outputs.lastIndexOf("]") + 1)
           : outputs?.match(/^Outputs? (?:exactly )?(?:one|two|three|four) (?:complex-plane )?[a-z_]+/i)?.[0] ?? outputs);
-        output.push(outputContract && outputs !== shape ? `${shape}. ${outputContract}` : shape);
+        output.push(outputContract && outputs !== shape
+          ? `${shape} -> ${outputContract.replace(/^Outputs? /, "")}`
+          : shape);
       } else output.push(line);
     }
   }
-  return (usedCompactTypes ? "Compact types: @name=entity ID; @path=line/segment/vector; @surface=line/circle/arc; positive/nonzero=finite scalars; int/oddA..B=bounded integer.\n" : "") + output.join("\n");
+  return (usedCompactTypes ? "Compact types: @name=entity ID; @path=line/segment/vector; @surface=line/circle/arc; positive/nonzero=finite scalars; int/oddA..B=bounded integer; -> output count/kinds/order.\n" : "") + output.join("\n");
 }

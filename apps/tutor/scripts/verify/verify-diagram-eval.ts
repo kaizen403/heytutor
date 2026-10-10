@@ -593,7 +593,14 @@ assert.ok(examplePrompt.includes("WORKED SCENE EXAMPLES"));
 assert.ok(examplePrompt.includes("Figure: velocity vector labelled v"));
 assert.ok(!examplePrompt.includes("QUESTION\nnull"));
 assert.ok(!examplePrompt.includes('"x":12') && !examplePrompt.includes('"y":30'));
-assert.ok(!examplePrompt.includes("provenance") && !examplePrompt.includes("synthesizedFamily"));
+const examplePayload = examplePrompt.slice(
+  examplePrompt.indexOf("WORKED SCENE EXAMPLES\n") + "WORKED SCENE EXAMPLES\n".length,
+  examplePrompt.lastIndexOf("\nQUESTION\n"),
+);
+assert.ok(examplePayload.includes("EXAMPLE 1") && examplePayload.includes("SCENE\n"));
+for (const metadata of ["provenance", "engineOwned", "synthesizedFamily", "sourceKind", '"source"', '"question"']) {
+  assert.ok(!examplePayload.includes(metadata), `worked examples must omit model/source metadata: ${metadata}`);
+}
 assert.match(
   buildDiagramExemplarDepicts(exemplarDocument, "vector_diagram", null),
   /vector diagram.*vector.*F/i,

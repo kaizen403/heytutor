@@ -105,6 +105,7 @@ const EXPECTED_EXECUTABLE_PROOF_PREDICATES = [
   "distance_ratio",
   "same_side",
   "opposite_direction",
+  "same_direction",
   "vector_sum",
   "inside",
   "ordered_along",
@@ -136,6 +137,7 @@ const EXPECTED_PLANNER_PROOF_PREDICATES = [
   "distance_ratio",
   "same_side",
   "opposite_direction",
+  "same_direction",
   "inside",
   "ordered_along",
   "equal_spacing",
@@ -279,7 +281,7 @@ function promptCapabilitySection(prompt: string, heading: string): string[] {
 // already name. Together they must expose exactly the planner-visible set.
 function promptConstructionOperators(prompt: string): string[] {
   const listed = promptCapabilitySection(prompt, "AVAILABLE CONSTRUCTION OPERATORS");
-  const marker = "Each contract line below names one. Also:";
+  const marker = "Contracts name operators; also:";
   if (!listed[0]?.startsWith(marker)) return listed;
   const contracts = prompt.split("OPERATOR INPUT CONTRACTS\n", 2)[1]?.split("\n\n", 1)[0] ?? "";
   const rest = [listed[0].slice(marker.length), ...listed.slice(1)].filter((name) => name.length > 0);
