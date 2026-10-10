@@ -28,6 +28,7 @@ import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topolo
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
+import { validatePlaneSourceBinding } from "../ir/planeSource";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
 import { parseMathExpression, parseMathExpression2D, parseParameterizedMathExpression } from "../math/expression";
@@ -284,6 +285,13 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       });
     }
   }
+
+  // A drawn plane whose label, name or the question's single stated plane
+  // fixes its equation must be that equation (see ir/planeSource.ts).
+  issues.push(...validatePlaneSourceBinding(document, {
+    number: (value) => resolveNumber(value, quantities),
+    plane: (id) => { const value = geometry.get(id); return value?.kind === "path" ? value.spacePlane : undefined; },
+  }));
 
   for (const entityId of document.requiredEntityIds) {
     const entity = document.entities.find((candidate) => candidate.id === entityId);
