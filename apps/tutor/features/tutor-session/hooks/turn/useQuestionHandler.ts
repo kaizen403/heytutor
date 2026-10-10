@@ -2690,15 +2690,18 @@ export function useQuestionHandler(
       const generation = turnGenerationRef.current;
       const saveExit: LiveTurnSaveExit = { handle: null };
       let admittedOptions = options;
+      const admissionCurrent = () => admissionBoardRef.current === sessionId && turnGenerationRef.current === generation && phaseRef.current === "idle" && !turnActiveRef.current;
       const receipt = lessonAdmission().start(cancelRef, sessionId, {
-        current: () => admissionBoardRef.current === sessionId && turnGenerationRef.current === generation && phaseRef.current === "idle" && !turnActiveRef.current,
-        validate: async () => {
+        current: admissionCurrent,
+        validate: async (signal) => {
           // Commit a home draft under the held claim, then require an owned read.
           // A stale draft prop or unavailable GET never stands for empty history.
           if (isDraft && commitDraftBoard) {
             try { await commitDraftBoard(); } catch { return false; }
           }
-          const detail = await fetchBoardDetail(sessionId).catch(() => null);
+          if (signal.aborted || !admissionCurrent()) return false;
+          const detail = await fetchBoardDetail(sessionId, { signal }).catch(() => null);
+          if (signal.aborted || !admissionCurrent()) return false;
           if (!detail) {
             if (admissionBoardRef.current === sessionId && turnGenerationRef.current === generation) {
               emitError({ message: "The lesson could not start. Check your connection and try again.", question: rawQuestion });

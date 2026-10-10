@@ -18,6 +18,7 @@ interface Attempt {
   controller: AbortController;
   claim: LessonClaim | null;
 }
+const ADMISSION_VALIDATION_DEADLINE_MS = 12_000;
 
 /** One synchronous attempt per shell, before acquisition or any provider work. */
 export class LessonAdmission {
@@ -35,7 +36,7 @@ export class LessonAdmission {
     options: {
       current(): boolean;
       /** Fresh saved last-page chain, checked under the exclusive claim. */
-      validate(): Promise<boolean>;
+      validate(signal: AbortSignal): Promise<boolean>;
       run(): Promise<void>;
     },
   ): LessonAdmissionReceipt {
@@ -63,7 +64,7 @@ export class LessonAdmission {
         attempt.claim = claim;
         if (
           !current() ||
-          !(await options.validate().catch(() => false)) ||
+          !(await this.validateUnderDeadline(attempt, options.validate)) ||
           !current()
         ) {
           acknowledge(false);
@@ -80,6 +81,33 @@ export class LessonAdmission {
       }
     })();
     return { admitted, finished };
+  }
+  /** Bound only the fresh-history admission, never an admitted lesson's claim. */
+  private async validateUnderDeadline(
+    attempt: Attempt,
+    validate: (signal: AbortSignal) => Promise<boolean>,
+  ): Promise<boolean> {
+    const signal = attempt.controller.signal;
+    if (signal.aborted) return false;
+    let removeAbort = () => {};
+    const aborted = new Promise<boolean>((resolve) => {
+      const onAbort = () => resolve(false);
+      signal.addEventListener("abort", onAbort, { once: true });
+      removeAbort = () => signal.removeEventListener("abort", onAbort);
+    });
+    const deadline = setTimeout(
+      () => attempt.controller.abort(),
+      ADMISSION_VALIDATION_DEADLINE_MS,
+    );
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => signal.aborted ? false : validate(signal)).catch(() => false),
+        aborted,
+      ]);
+    } finally {
+      clearTimeout(deadline);
+      removeAbort();
+    }
   }
   /** Caller captures and halts the matching runtime before cancellation. */
   cancel(owner: object): void {

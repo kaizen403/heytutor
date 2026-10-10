@@ -138,11 +138,11 @@ export async function requestBoardTitle(question: string): Promise<string> {
   }
 }
 
-export async function fetchBoardDetail(boardId: string): Promise<BoardDetail | null> {
+export async function fetchBoardDetail(boardId: string, options?: { signal?: AbortSignal }): Promise<BoardDetail | null> {
   let result: BoardDetail | null = null;
   let page = 0;
   for (let attempt = 0; attempt < 200; attempt++) {
-    const res = await fetch(resolveApiUrl(`/api/boards/${boardId}?page=${page}`));
+    const res = await fetch(resolveApiUrl(`/api/boards/${boardId}?page=${page}`), options?.signal ? { signal: options.signal } : undefined);
     if (!res.ok) return null;
     const data = await res.json() as BoardDetail & { nextPage?: number | null };
     if (!result) result = { board: data.board, turns: [] };
