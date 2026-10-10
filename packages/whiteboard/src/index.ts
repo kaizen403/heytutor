@@ -94,5 +94,4 @@ export {
 } from "./penStunts";
 export { MarkerStuntPreview, type MarkerStuntPreviewProps } from "./MarkerStuntPreview";
 export { PenSpinner, type PenSpinnerProps } from "./PenSpinner";
-export { SpeakingWaveform } from "./SpeakingWaveform";
 export { ThinkingSpinner } from "./ThinkingSpinner";

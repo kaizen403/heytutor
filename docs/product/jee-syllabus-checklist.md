@@ -1,5 +1,9 @@
 # JEE Main Syllabus Checklist — Physics & Mathematics
 
+> **Status:** Historical source for framework `jee-main-2025-local` in
+> `data/question-bank/syllabus-taxonomy.json`, which cites this path. The
+> active framework is `jee-main-2026`. The checkboxes below are not maintained.
+
 > **Source:** NTA official JEE Main 2025 syllabus (jeemain.nta.nic.in)
 > **Purpose:** Verify heytutor can solve and teach every topic below.
 > **Scope:** Physics (all units) + Mathematics (all units, with Calculus and Mensuration flagged as first focus).

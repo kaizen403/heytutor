@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { safeNextPath } from "../../lib/auth/publicPaths";
+import { isAuthPublicPath, safeNextPath } from "../../lib/auth/publicPaths";
+import { SITE_PREVIEW } from "../../lib/site";
 
 const origin = "https://app.accelute.co";
+
+test("share media is public while other lecture videos remain protected", () => {
+  assert.equal(isAuthPublicPath(SITE_PREVIEW.image), true);
+  assert.equal(isAuthPublicPath(SITE_PREVIEW.video), true);
+  assert.equal(isAuthPublicPath("/private-lecture.mp4"), false);
+  assert.equal(isAuthPublicPath("/c/private-board"), false);
+});
 
 test("a slash-backslash login destination cannot navigate to another origin", () => {
   const result = safeNextPath("/\\phishing.invalid/login");

@@ -121,6 +121,9 @@ export async function POST(request: Request): Promise<Response> {
       // Client timing and outcome reports are diagnostics, never server cost,
       // ownership, entitlement, or verification authority.
       metadata: { client_telemetry: body.traceMetadata },
+      ...(body.traceMetadata.diagram_strategy === "current" || body.traceMetadata.diagram_strategy === "strict"
+        ? { tags: [`diagram-strategy:${body.traceMetadata.diagram_strategy}`] }
+        : {}),
     });
   }
 

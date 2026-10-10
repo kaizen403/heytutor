@@ -113,7 +113,7 @@ pnpm verify:chemistry
 | `verify-chemistry-lane` | tutor | subject offered, addon keyed off the question, exact planner skipped, figure named to the tutor |
 
 The lecture lab runs a chemistry question the same way as physics:
-`pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --out .lecture-lab/chem-01`
+`pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --max-usd 5 --out .lecture-lab/chem-01`
 now writes the committed figure to `frames/<slug>.svg` beside the transcript.
 
 ## The bank sweep

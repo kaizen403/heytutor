@@ -18,7 +18,13 @@ export interface HeroInk {
 }
 const delay = () => new Promise<void>((resolve) => setTimeout(resolve, 16))
 
-export async function runHeroLessonLoop(board: WhiteboardHandle, timing: LessonTiming, c: HeroPlayerControls, ink: HeroInk): Promise<void> {
+export async function runHeroLessonLoop(
+  board: WhiteboardHandle,
+  timing: LessonTiming,
+  c: HeroPlayerControls,
+  ink: HeroInk,
+  segments = HERO_SEGMENTS,
+): Promise<void> {
   const teachMs = teachStart() * 1000
   const totalMs = timing.total * 1000
   const loopMs = teachMs + totalMs + (HOLD_DURATION + CLEAR_DURATION) * 1000
@@ -33,8 +39,8 @@ export async function runHeroLessonLoop(board: WhiteboardHandle, timing: LessonT
     c.setCursorState('thinking')
     if (!(await at(teachMs))) return
     c.setCursorState('speaking')
-    for (let index = 0; index < HERO_SEGMENTS.length; index++) {
-      const segment = HERO_SEGMENTS[index]
+    for (let index = 0; index < segments.length; index++) {
+      const segment = segments[index]
       const startMs = timing.starts[index] * 1000
       const endMs = (timing.starts[index + 1] ?? timing.total) * 1000
       if (!(await at(teachMs + startMs))) return

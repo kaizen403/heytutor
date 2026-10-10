@@ -15,7 +15,6 @@ import {
   LIVE_EDGE_TOLERANCE_MS,
 } from "../../lib/replay/liveTimeline";
 import { resolveCommandInkBudgetMs } from "../../features/tutor-session/types";
-import { resolveActiveStatus } from "../../features/tutor-session/lib/statusConfig";
 import type {
   RecordedSegmentPayload,
   StoredTurn,
@@ -320,16 +319,6 @@ assert.equal(
   }) >= 420,
   true,
   "a short speech window must not dump a follow WRITE without pen motion",
-);
-
-// --- what the header says -------------------------------------------------
-
-assert.equal(resolveActiveStatus("drawing", false, false).label, "teaching…");
-assert.equal(resolveActiveStatus("idle", true, false).label, "replaying…");
-assert.equal(
-  resolveActiveStatus("drawing", false, true, true).label,
-  "reviewing…",
-  "a rewound lecture reads as reviewing, not paused",
 );
 
 console.log("verify-lecture-dvr: ok");

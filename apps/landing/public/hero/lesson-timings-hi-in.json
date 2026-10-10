@@ -1,0 +1,140 @@
+{
+  "locale": "hi-IN",
+  "starts": [
+    0,
+    7.631167,
+    13.52175,
+    22.999708,
+    34.900290999999996,
+    41.759373999999994,
+    47.551790999999994,
+    56.44191599999999,
+    64.28845799999999,
+    70.876583,
+    76.669,
+    86.340667,
+    92.640625,
+    109.101083,
+    117.436541,
+    124.781166,
+    130.983208,
+    144.84574999999998,
+    152.094833,
+    160.410583,
+    166.89920800000002
+  ],
+  "total": 178.802375,
+  "segments": [
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 7.631167
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 5.890583
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 9.477958
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 11.900583
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 6.859083
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 5.792417
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 8.890125
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 7.846542
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 6.588125
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 5.792417
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 9.671667
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 6.299958
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 16.460458
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 8.335458
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 7.344625
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 6.202042
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 13.862542
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 7.249083
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 8.31575
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 6.488625
+    },
+    {
+      "charStartTimes": [],
+      "charDurations": [],
+      "totalDuration": 11.903167
+    }
+  ],
+  "voice": {
+    "provider": "sarvam",
+    "model": "bulbul:v3",
+    "voiceKey": "hi-IN",
+    "voiceId": "ritu"
+  }
+}

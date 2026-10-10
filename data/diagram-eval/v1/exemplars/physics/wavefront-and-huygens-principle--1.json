@@ -1,0 +1,119 @@
+{
+  "topic_id": "physics|16|wavefront-and-huygens-principle",
+  "question": "Represent a family of four equally spaced plane wavefronts.",
+  "figure_kind": "wave",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "plane wavefront family"
+    },
+    "source": {
+      "question": "Represent a family of four equally spaced plane wavefronts.",
+      "synthesizedFamily": true
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "origin",
+        "kind": "point",
+        "role": "wave origin"
+      },
+      {
+        "id": "fronts",
+        "kind": "polyline",
+        "role": "wavefront family"
+      },
+      {
+        "id": "fronts_label",
+        "kind": "label",
+        "role": "diagram label",
+        "label": "plane wavefronts"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_origin",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "origin"
+        ]
+      },
+      {
+        "id": "make_fronts",
+        "operator": "wavefront_family",
+        "inputs": {
+          "origin": "origin",
+          "direction": [
+            1,
+            0
+          ],
+          "shape": "plane",
+          "count": 4,
+          "spacing": 0.7,
+          "span": 4
+        },
+        "outputs": [
+          "fronts"
+        ]
+      },
+      {
+        "id": "make_fronts_label",
+        "operator": "label",
+        "inputs": {
+          "target": "origin",
+          "text": "plane wavefronts"
+        },
+        "outputs": [
+          "fronts_label"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "fronts_exist",
+        "predicate": "exists",
+        "entities": [
+          "fronts"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "origin",
+      "fronts",
+      "fronts_label"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "origin",
+          "fronts",
+          "fronts_label"
+        ],
+        "dependsOn": [],
+        "narrationCue": "plane wavefront family"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "plane wavefront family"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

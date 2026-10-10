@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { CursorState, WhiteboardHandle } from '@heytutor/whiteboard'
 import {
   PLAYBACK_SPEED,
-  SEGMENTS,
   completedSnapshot,
   deriveSnapshot,
   fallbackTiming,
+  heroSegments,
   toPlaybackTiming,
   type LessonSnapshot,
   type LessonTiming,
@@ -24,9 +24,7 @@ import {
 } from './heroAudioClock'
 import { useHeroInk } from './useHeroInk'
 import { createHeroAudioEngine, type HeroAudioEngine } from './heroAudioEngine'
-
-const AUDIO_SRC = '/hero/lesson.mp3'
-const TIMINGS_SRC = '/hero/lesson-timings.json'
+import { heroLessonAssets, type HeroLessonLocale } from './heroLessonLocale'
 
 export type SoundState = 'loading' | 'unavailable' | 'off' | 'on'
 
@@ -48,7 +46,10 @@ interface SimInternals {
  * speaking, that clock is slaved to the audio engine — the board never seeks
  * the voice onto a wall clock, which is what cut the sentence off on phones.
  */
-export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
+export function useLessonSimulation(
+  rootRef: RefObject<HTMLElement | null>,
+  locale: HeroLessonLocale = 'en-GB',
+): {
   snapshot: LessonSnapshot
   sound: SoundState
   toggleSound: () => void
@@ -59,19 +60,20 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
   const [snapshot, setSnapshot] = useState<LessonSnapshot>(() =>
-    reduced ? completedSnapshot() : deriveSnapshot(0, toPlaybackTiming(fallbackTiming())),
+    reduced ? completedSnapshot() : deriveSnapshot(0, toPlaybackTiming(fallbackTiming(locale)), locale),
   )
   const [sound, setSound] = useState<SoundState>(reduced ? 'unavailable' : 'loading')
   const [cursorState, setCursorState] = useState<CursorState>('thinking')
   const [boardReady, setBoardReady] = useState(false)
-  const [timingReady, setTimingReady] = useState(false)
+  const [timingLocale, setTimingLocale] = useState<HeroLessonLocale | null>(null)
+  const segments = useMemo(() => heroSegments(locale), [locale])
   const boardHandleRef = useRef<WhiteboardHandle | null>(null)
   const ink = useHeroInk(boardHandleRef)
   const inkRef = useRef(ink)
   useEffect(() => { inkRef.current = ink }, [ink])
   const engineRef = useRef<HeroAudioEngine | null>(null)
   const stRef = useRef<SimInternals>({
-    timing: toPlaybackTiming(fallbackTiming()),
+    timing: toPlaybackTiming(fallbackTiming(locale)),
     start: 0,
     pausedAccum: 0,
     pausedAt: null,
@@ -124,6 +126,9 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
   useEffect(() => {
     if (reduced) return
     const st = stRef.current
+    const assets = heroLessonAssets(locale)
+    st.timing = toPlaybackTiming(fallbackTiming(locale))
+    st.soundOn = false
     const engine = createHeroAudioEngine({
       onBlocked: () => {
         stRef.current.soundOn = false
@@ -135,13 +140,13 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
 
     void (async () => {
       try {
-        const [timingRes, audioRes] = await Promise.all([fetch(TIMINGS_SRC), fetch(AUDIO_SRC)])
+        const [timingRes, audioRes] = await Promise.all([fetch(assets.timings), fetch(assets.audio)])
         if (!timingRes.ok) throw new Error(`timings ${timingRes.status}`)
         if (!audioRes.ok) throw new Error(`audio ${audioRes.status}`)
         const data = (await timingRes.json()) as LessonTiming
         if (
           !Array.isArray(data?.starts) ||
-          data.starts.length !== SEGMENTS.length ||
+          data.starts.length !== segments.length ||
           typeof data.total !== 'number'
         ) {
           throw new Error('malformed timings')
@@ -158,7 +163,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
           setSound(heroSoundAfterAssetsLoad({ reducedMotion: false, timingsOk: false }))
         }
       } finally {
-        if (!cancelled) setTimingReady(true)
+        if (!cancelled) setTimingLocale(locale)
       }
     })()
 
@@ -168,7 +173,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       engineRef.current = null
       st.soundOn = false
     }
-  }, [reduced])
+  }, [locale, reduced, segments.length])
 
   useEffect(() => {
     if (reduced) return
@@ -243,7 +248,7 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
         }
       }
 
-      setSnapshot({ ...deriveSnapshot(t, st.timing), timeSeconds: t })
+      setSnapshot({ ...deriveSnapshot(t, st.timing, locale), timeSeconds: t })
     }
     raf = requestAnimationFrame(tick)
 
@@ -253,10 +258,10 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       document.removeEventListener('visibilitychange', onVis)
       engineRef.current?.stop()
     }
-  }, [rootRef, reduced])
+  }, [rootRef, reduced, locale])
 
   useEffect(() => {
-    if (reduced || !boardReady || !timingReady) return
+    if (reduced || !boardReady || timingLocale !== locale) return
     const board = boardHandleRef.current
     if (!board) return
 
@@ -284,14 +289,18 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
       isCancelled: () => cancelled,
       setCursorState,
     }
-    void runHeroLessonLoop(board, st.timing, controls, inkRef.current)
+    const timedSegments = segments.map((segment, index) => ({
+      ...segment,
+      timings: st.timing.segments?.[index],
+    }))
+    void runHeroLessonLoop(board, st.timing, controls, inkRef.current, timedSegments)
 
     return () => {
       cancelled = true
       inkRef.current.cancelRef.current = true
       board.cancelAnimations()
     }
-  }, [reduced, boardReady, timingReady])
+  }, [reduced, boardReady, timingLocale, locale, segments])
 
   useEffect(() => {
     if (!reduced || !boardReady || !boardHandleRef.current) return
@@ -311,5 +320,8 @@ export function useLessonSimulation(rootRef: RefObject<HTMLElement | null>): {
     startVoice()
   }
 
-  return { snapshot, sound, toggleSound, boardRef, cursorState }
+  const reportedSound: SoundState = timingLocale === locale
+    ? sound
+    : reduced ? 'unavailable' : 'loading'
+  return { snapshot, sound: reportedSound, toggleSound, boardRef, cursorState }
 }

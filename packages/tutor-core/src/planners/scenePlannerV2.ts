@@ -49,6 +49,22 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
   fastMode?: boolean;
+  /** Evaluation diagnostics for every HTTP attempt, including null candidates. */
+  onRequestOutcome?: (outcome: ScenePlannerRequestOutcome) => void;
+  /** Optional private diagnostics, including responses from discarded speculative searches. */
+  onResponse?: (response: ScenePlannerResponse) => void;
+  onCandidateValidation?: (response: ScenePlannerResponse, validation: SceneCandidateValidation) => void;
+}
+
+export interface ScenePlannerRequestOutcome {
+  phase: "plan" | "repair";
+  lane: ScenePlannerLane;
+  httpStatus: number | null;
+  error: string | null;
+  /** True only when the model body contained a parseable scene JSON object. */
+  bodyParsed: boolean;
+  promptChars: number;
+  elapsedMs: number;
 }
 
 export interface ScenePlanWithRepairResult<T> {
@@ -390,6 +406,7 @@ export async function planSceneDocumentWithRepair<T>(
   };
   const evaluate = async (candidate: ScenePlannerResponse) => {
     const candidateValidation = await validate(candidate.document);
+    notifySceneObserver(() => plannerOptions.onCandidateValidation?.(candidate, candidateValidation));
     tutorDebug("planner", "semantic scene candidate validation", {
       phase: candidate.phase,
       valid: candidateValidation.valid,
@@ -547,11 +564,13 @@ export async function planSceneDocumentWithRepair<T>(
 export async function revalidateScenePlanWithRepairResult<T>(
   result: ScenePlanWithRepairResult<T>,
   validate: SceneCandidateValidator<T>,
+  observe?: ScenePlannerOptions["onCandidateValidation"],
 ): Promise<ScenePlanWithRepairResult<T>> {
-  const candidates = await Promise.all(result.candidates.map(async (candidate) => ({
-    ...candidate,
-    validation: await validate(candidate.response.document),
-  })));
+  const candidates = await Promise.all(result.candidates.map(async (candidate) => {
+    const validation = await validate(candidate.response.document);
+    notifySceneObserver(() => observe?.(candidate.response, validation));
+    return { ...candidate, validation };
+  }));
   const selected = [...candidates].sort((first, second) =>
     compareValidations(first.validation, second.validation))[0]!;
   return {
@@ -591,6 +610,25 @@ async function requestSceneDocument(
 ): Promise<ScenePlannerResponse | null> {
   const { proxyUrl, sessionId, traceId, signal, timeoutMs = SCENE_PLANNER_TIMEOUT_MS } = options;
   const startedAt = Date.now();
+  let httpStatus: number | null = null;
+  let outcomeReported = false;
+  const reportOutcome = (error: string | null, bodyParsed: boolean) => {
+    if (outcomeReported) return;
+    outcomeReported = true;
+    try {
+      options.onRequestOutcome?.({
+        phase,
+        lane,
+        httpStatus,
+        error,
+        bodyParsed,
+        promptChars: prompt.length,
+        elapsedMs: Date.now() - startedAt,
+      });
+    } catch {
+      // Diagnostics must never change planning behavior.
+    }
+  };
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), Math.max(1, timeoutMs));
   const combinedSignal = signal
@@ -636,32 +674,47 @@ async function requestSceneDocument(
         ],
       }),
     });
+    httpStatus = response.status;
 
     if (!response.ok) {
+      const responseText = (await response.text().catch(() => "")).trim();
+      const errorText = responseText.slice(0, 500) || response.statusText || `HTTP ${response.status}`;
       tutorDebug("planner", `semantic scene ${phase} request failed`, {
         status: response.status,
+        error: errorText,
         elapsed_ms: Date.now() - startedAt,
       });
+      reportOutcome(errorText, false);
       return null;
     }
 
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-    };
+    let payload: { choices?: Array<{ message?: { content?: unknown } }> };
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch (error) {
+      const errorText = `response_json_parse_failed: ${error instanceof Error ? error.message : String(error)}`;
+      tutorDebug("planner", `semantic scene ${phase} returned an unreadable response body`, {
+        elapsed_ms: Date.now() - startedAt,
+      });
+      reportOutcome(errorText, false);
+      return null;
+    }
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.trim() === "") {
       tutorDebug("planner", `semantic scene ${phase} returned empty content`, {
         elapsed_ms: Date.now() - startedAt,
       });
+      reportOutcome("empty_content", false);
       return null;
     }
 
-    const document = parseJsonObject(content);
+    const document = parseScenePlannerResponseJson(content);
     if (!document) {
       tutorDebug("planner", `semantic scene ${phase} returned invalid JSON`, {
         content_preview: content.slice(0, 200),
         elapsed_ms: Date.now() - startedAt,
       });
+      reportOutcome("invalid_scene_json", false);
       return null;
     }
 
@@ -671,8 +724,9 @@ async function requestSceneDocument(
       entity_count: Array.isArray(document.entities) ? document.entities.length : undefined,
       elapsed_ms: elapsedMs,
     });
+    reportOutcome(null, true);
 
-    return {
+    const plannedResponse: ScenePlannerResponse = {
       document,
       rawContent: content,
       phase,
@@ -680,20 +734,30 @@ async function requestSceneDocument(
       elapsedMs,
       traceId: response.headers.get("x-heytutor-trace-id") ?? undefined,
     };
+    notifySceneObserver(() => options.onResponse?.(plannedResponse));
+    return plannedResponse;
   } catch (error) {
     const isAbort = error instanceof DOMException && error.name === "AbortError";
     tutorDebug("planner", `semantic scene ${phase} failed`, {
       reason: isAbort ? "timeout_or_cancelled" : String(error),
       elapsed_ms: Date.now() - startedAt,
     });
+    reportOutcome(
+      isAbort ? "timeout_or_cancelled" : error instanceof Error ? error.message : String(error),
+      false,
+    );
     return null;
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
+function notifySceneObserver(observer: () => void): void {
+  try { observer(); } catch { /* Diagnostics must never change planning behavior. */ }
+}
+
 /** Parse only the JSON envelope; scene-engine owns all semantic validation. */
-function parseJsonObject(content: string): SceneDocumentCandidate | null {
+export function parseScenePlannerResponseJson(content: string): SceneDocumentCandidate | null {
   let text = content.trim();
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced?.[1]) text = fenced[1].trim();

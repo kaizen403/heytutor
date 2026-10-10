@@ -1,0 +1,235 @@
+{
+  "topic_id": "physics|18|bohr-model-and-hydrogen-spectrum",
+  "question": "A hydrogen atom emits a photon during a transition from n = 3 to n = 2. Draw the energy level diagram.",
+  "figure_kind": "energy_diagram",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+    },
+    "source": {
+      "question": "A hydrogen atom emits a photon during a transition from n = 3 to n = 2. Draw the energy level diagram.",
+      "synthesizedFamily": true
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "level_2_a",
+        "kind": "point",
+        "role": "level display anchor"
+      },
+      {
+        "id": "level_2_b",
+        "kind": "point",
+        "role": "level display anchor"
+      },
+      {
+        "id": "level_2_center",
+        "kind": "point",
+        "role": "relation display anchor"
+      },
+      {
+        "id": "level_2",
+        "kind": "segment",
+        "role": "energy level",
+        "label": "n=2"
+      },
+      {
+        "id": "level_3_a",
+        "kind": "point",
+        "role": "level display anchor"
+      },
+      {
+        "id": "level_3_b",
+        "kind": "point",
+        "role": "level display anchor"
+      },
+      {
+        "id": "level_3_center",
+        "kind": "point",
+        "role": "relation display anchor"
+      },
+      {
+        "id": "level_3",
+        "kind": "segment",
+        "role": "energy level",
+        "label": "n=3"
+      },
+      {
+        "id": "level_relation",
+        "kind": "vector",
+        "role": "source-stated photon transition"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_level_2_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "level_2_a"
+        ]
+      },
+      {
+        "id": "make_level_2_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "level_2_b"
+        ]
+      },
+      {
+        "id": "make_level_2_center",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "level_2_center"
+        ]
+      },
+      {
+        "id": "make_level_2",
+        "operator": "segment",
+        "inputs": {
+          "start": "level_2_a",
+          "end": "level_2_b"
+        },
+        "outputs": [
+          "level_2"
+        ]
+      },
+      {
+        "id": "make_level_3_a",
+        "operator": "point",
+        "inputs": {
+          "x": -1,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "level_3_a"
+        ]
+      },
+      {
+        "id": "make_level_3_b",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "level_3_b"
+        ]
+      },
+      {
+        "id": "make_level_3_center",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "level_3_center"
+        ]
+      },
+      {
+        "id": "make_level_3",
+        "operator": "segment",
+        "inputs": {
+          "start": "level_3_a",
+          "end": "level_3_b"
+        },
+        "outputs": [
+          "level_3"
+        ]
+      },
+      {
+        "id": "make_level_relation",
+        "operator": "vector",
+        "inputs": {
+          "start": "level_3_center",
+          "end": "level_2_center"
+        },
+        "outputs": [
+          "level_relation"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "source_levels_exist",
+        "predicate": "exists",
+        "entities": [
+          "level_2",
+          "level_3",
+          "level_relation"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "ordinal_level_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "Ordinal level relation; not to scale"
+      }
+    ],
+    "requiredEntityIds": [
+      "level_2_a",
+      "level_2_b",
+      "level_2_center",
+      "level_2",
+      "level_3_a",
+      "level_3_b",
+      "level_3_center",
+      "level_3",
+      "level_relation"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "level_2_a",
+          "level_2_b",
+          "level_2_center",
+          "level_2",
+          "level_3_a",
+          "level_3_b",
+          "level_3_center",
+          "level_3",
+          "level_relation"
+        ],
+        "dependsOn": [],
+        "narrationCue": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+      }
+    ]
+  },
+  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
+  "validatedOn": "2026-10-09"
+}

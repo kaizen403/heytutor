@@ -1,6 +1,9 @@
 import type {
   DiagramGenerationStatus,
+  FigureSource,
 } from "@heytutor/scene-engine";
+import { FIGURE_SOURCES } from "@heytutor/scene-engine";
+import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
 /**
  * How a persisted turn ended up on the canvas, folded to what an admin needs
@@ -59,10 +62,16 @@ const ISSUE_CODE_PATTERN = /^[a-z0-9_-]{1,64}$/i;
  */
 export interface ArtifactSummary {
   representationTier: RepresentationTier | null;
+  figureSource: FigureSource | null;
   degradationReason: DegradationReason | null;
   issueCodes: string[];
   candidateCount: number | null;
   diagramResultStatus: DiagramGenerationStatus | null;
+  diagramStrategy: DiagramStrategy | null;
+}
+
+function isFigureSource(value: unknown): value is FigureSource {
+  return typeof value === "string" && (FIGURE_SOURCES as readonly string[]).includes(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -114,11 +123,15 @@ export function extractArtifactSummary(raw: unknown): ArtifactSummary | null {
     representationTier: isRepresentationTier(raw.representationTier)
       ? raw.representationTier
       : null,
+    figureSource: isFigureSource(raw.figureSource) ? raw.figureSource : null,
     degradationReason: null,
     issueCodes: [],
     candidateCount: null,
     diagramResultStatus: isDiagramResultStatus(raw.diagramResultStatus)
       ? raw.diagramResultStatus
+      : null,
+    diagramStrategy: raw.diagramStrategy === "current" || raw.diagramStrategy === "strict"
+      ? raw.diagramStrategy
       : null,
   };
   if (isRecord(raw.degradation)) {
