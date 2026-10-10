@@ -901,11 +901,14 @@ export function useTurnControl(
       stopRemainderRef.current = [...stoppedProgress.segments];
     }
     if (lessonStop) {
+      const contributedTurnId = liveTurnSave().turnIdFor(cancelRef, stoppedGeneration);
       const snapshot = pausedLessonOnStop({
         record: stopPage,
         boardId: sessionId,
         activeResume: activeResumeRef.current,
-        taught,
+        // Prepared narration and an epoch alone do not replace a resume's
+        // original parent. Read after synchronous shown-cut/intro settlement.
+        taught: activeResumeRef.current ? Boolean(contributedTurnId) : taught,
         liveQuestion: liveQuestionRef.current ?? "",
         codeLesson: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
         lessonBoardRows: workColumnRows(boardLayoutRef.current).map((row) =>
@@ -917,7 +920,7 @@ export function useTurnControl(
       });
       activeResumeRef.current = null;
       if (snapshot) {
-        const savedSnapshot = { ...snapshot, parentTurnId: liveTurnSave().turnIdFor(cancelRef, stoppedGeneration) ?? snapshot.parentTurnId };
+        const savedSnapshot = { ...snapshot, parentTurnId: contributedTurnId ?? snapshot.parentTurnId };
         pausedLessonRef.current = savedSnapshot;
         showPausedLessonOffer(savedSnapshot);
       }
@@ -1233,7 +1236,7 @@ export function useTurnControl(
       const interruptedStep = (speakingNarrationRef.current ||
         recordedSegmentsRef.current.at(-1)?.narration || "").trim();
       const interruptedTraceId = currentTraceIdRef.current;
-      const interruptedTurnId = liveTurnSave().turnIdFor(cancelRef, turnGenerationRef.current);
+      const interruptedGeneration = turnGenerationRef.current;
       const resumePageBefore = activeResume?.pageBefore ?? null;
       pendingDoubtRef.current = request;
       doubtDeadlineRef.current = Date.now() + DOUBT_INTERRUPT_TIMEOUT_MS;
@@ -1241,13 +1244,14 @@ export function useTurnControl(
       // doubt turn skips `beginBoardEpoch` and writes under what the lesson wrote.
       // Keep the visible figure — aborting an in-flight intro used to wipe it.
       stopTurn({ keepVisibleBoard: true });
+      const interruptedTurnId = liveTurnSave().turnIdFor(cancelRef, interruptedGeneration);
       // stop() closes the lecture AudioContext. Re-arm it in this click so the
       // doubt's first sentence is not silent after the interrupt unwind.
       ttsClientRef.current?.unlockAudio?.();
       // A resume interrupted before its own page record exists hands back the
       // request it started from; otherwise the page it is teaching on.
       const resumeNotStarted = activeResume !== null &&
-        (boardPageRef.current === resumePageBefore || boardPageRef.current?.turn.kind === "doubt");
+        (!interruptedTurnId || boardPageRef.current === resumePageBefore || boardPageRef.current?.turn.kind === "doubt");
       const snapshot = resumeNotStarted
         ? { ...activeResume.request, reason: "doubt" as const }
         : pausedLessonFromLive({

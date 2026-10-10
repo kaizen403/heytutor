@@ -1242,7 +1242,12 @@ export class LiveTurnSaveRegistry {
     turn.heartbeatTimer = null; turn.heartbeatDirty = false;
   }
 
-  turnIdFor(owner: object, generation: number): string | undefined { return this.find(owner, generation)?.turnId; }
+  /** Lineage names a taught/persisted turn, never a minted empty resume attempt. */
+  turnIdFor(owner: object, generation: number): string | undefined {
+    const turn = this.find(owner, generation);
+    return turn && !this.notWorthCreating(turn, this.previewRows(turn, { includeCut: true }))
+      ? turn.turnId : undefined;
+  }
 
   /** Authenticated chronological history observed while this browser holds the claim. */
   observeBoard(boardId: string, saved: readonly StoredTurn[]): void {
@@ -1300,6 +1305,9 @@ export class LiveTurnSaveRegistry {
   }
 
   private mirrorLocal(turn: LiveTurn): void {
+    // The same admission rule as persistence: preparation-only resume metadata
+    // must not leave an unsaved live row that hides its taught parent's offer.
+    if (this.notWorthCreating(turn, this.previewRows(turn, { includeCut: true }))) return;
     const hooks = this.owners.get(turn.owner);
     if (!hooks || hooks.openBoardId() !== turn.boardId) return;
     try {
