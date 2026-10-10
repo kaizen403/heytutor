@@ -4,10 +4,11 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { getSegmentCommands, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
+import { getSegmentCommands, serializeSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
 import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, type SpeakSegmentOptions, type TTSClient } from "@heytutor/tutor-core";
 import { validateTurnPlanV3, synthesizeFamilyScene, type TurnPlanV3, type ProblemIR } from "@heytutor/scene-engine";
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { forgetVerifiedScene } from "../../features/tutor-session/lib/scene/verifiedSceneRecovery";
 import { createEmptySegmentPlanStats } from "../../features/tutor-session/lib/turn/segmentPlanning";
 import type { HandleQuestionOptions, UseTurnLifecycleParams, TurnControlApi } from "../../features/tutor-session/hooks/turn/types";
@@ -20,6 +21,7 @@ const react = {
   useRef: (current: unknown) => ({ current }),
   useCallback: (fn: unknown) => fn,
   useEffect() {},
+  useLayoutEffect: (commit: () => void) => commit(),
   useState: (value: unknown) => [value, () => {}],
 };
 const projectileQuestion = "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.";
@@ -127,11 +129,28 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
   replace("window", globalThis);
   replace("addEventListener", () => {});
   replace("removeEventListener", () => {});
+  const heldLocks = new Set<string>();
+  replace("navigator", { locks: {
+    async request(name: string, options: { ifAvailable?: boolean; signal?: AbortSignal }, callback: (lock: { name: string } | null) => Promise<void>) {
+      assert(!(options.ifAvailable && options.signal), "native Web Locks rejects ifAvailable with signal");
+      if (heldLocks.has(name)) return callback(null);
+      heldLocks.add(name);
+      record("lesson-claim-acquired");
+      try { await callback({ name }); }
+      finally { heldLocks.delete(name); record("lesson-claim-released"); }
+    },
+    query: async () => ({ held: [...heldLocks].map((name) => ({ name, mode: "exclusive" })), pending: [] }),
+  } });
   Date.now = () => 1_800_000_000_000 + now;
   const plan = mode === "numeric" ? numericPlan : mode === "failed-compile" ? failedCompilePlan
     : mode === "recorded-projectile" ? recordedPlan : symbolicPlan;
   const question = plan.question;
   const boardId = `startup-${mode}`;
+  const parentId = `${boardId}-stopped-parent`;
+  const parentTraceId = `${boardId}-parent-trace`;
+  const savedRepresentation = mode === "resume-no-ink" ? selectFastVerifiedRepresentation({ question, turnPlan: plan }) : null;
+  if (mode === "resume-no-ink") assert(savedRepresentation, "the stopped parent uses the same source-valid verified figure");
+  const savedCommands = savedRepresentation ? buildVerifiedDiagramPresentation(savedRepresentation.sceneDocument, savedRepresentation.renderScene).diagram.commands.map((command) => verifiedDiagramCommandToDrawCommand(command)) : [];
   const streams: Array<{
     controller: ReadableStreamDefaultController<Uint8Array>;
     response: Response;
@@ -153,6 +172,20 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
   const completion = (value: unknown) => Response.json({ choices: [{ message: { content: JSON.stringify(value) } }] });
   replace("fetch", async (url: string, init?: RequestInit) => {
     const headers = new Headers(init?.headers);
+    if (url.endsWith(`/api/boards/${boardId}?page=0`)) {
+      record("owned-history-read");
+      return Response.json({ board: { id: boardId, title: "Projectile lesson", createdAt: 0 }, nextPage: null,
+        turns: savedRepresentation ? [{
+          id: parentId, orderIndex: 0, question, rawResponse: "The range follows from horizontal motion.",
+          speedMultiplier: 1, traceId: parentTraceId, status: "stopped", persistedStatus: "stopped", kind: "lesson",
+          sceneDocument: savedRepresentation.sceneDocument, sceneEngineVersion: null, validationReport: savedRepresentation.validationReport,
+          visualStatus: "validated", sceneArtifacts: { turnPlan: plan },
+          segments: [{ id: `${parentId}-figure`, orderIndex: 0, narration: "The range follows from horizontal motion.",
+            spokenText: "The range follows from horizontal motion.", command: serializeSegmentCommands(savedCommands, { trustedDiagramGeometry: true }),
+            audioUrl: null, durationMs: null, timings: null }],
+        }] : [],
+      });
+    }
     if (url.endsWith("/api/visual-need")) {
       record("visual-need-request");
       return Response.json({ decision: "required" });
@@ -364,12 +397,20 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
     handleRef.current = handler.handleQuestion;
     const resume: PausedLessonRequest | undefined = mode === "resume-no-ink" ? {
       boardId, reason: "doubt", lessonQuestion: question, turnPlan: plan, solverProjection: null,
+      parentTurnId: parentId, parentTraceId,
       scene: null, figureDrawn: true, codeLesson: false, lessonBoardRows: [], interruptedStep: "The range follows from horizontal motion.",
     } : undefined;
     if (resume) control.offerPausedLessonResume(resume);
     let done = false;
     const turn = handler.handleQuestion(plan === recordedPlan ? projectileQuestion : question, resume ? { resume } : undefined).finally(() => { done = true; });
     await flush();
+    const claimAt = events.findIndex((event) => event.name === "lesson-claim-acquired");
+    const historyAt = events.findIndex((event) => event.name === "owned-history-read");
+    const billingAt = events.findIndex((event) => event.name === "turn-admission");
+    assert(claimAt >= 0 && historyAt >= 0 && billingAt >= 0, "startup requires positive claim, history and billing receipts");
+    assert(claimAt < historyAt, "fresh history is read under the held claim");
+    assert(historyAt < billingAt, "successful owned history precedes billing");
+    assert(heldLocks.has(`heytutor-lesson:${boardId}`), "the native claim remains held throughout the live teaching turn");
     assert.equal(streams.length, 1, `${mode}: planning must reach the real teaching stream`);
     const outputs = () => events.filter((event) => ["enqueue", "enqueue-intro", "playback", "board-command"].includes(event.name));
     assert.equal(outputs().length, 0, "planning/prefetch must not enqueue or play the opening");
@@ -423,8 +464,23 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
       await turn;
       assert.equal(outputs().length, 0, "no-ink resumed attempts must not release opening, figure or speech");
       assert(events.some((event) => event.name === "turn-error"), "a failed no-ink resume must expose an error");
-      assert(events.some((event) => event.name === "resume-offer" && event.data === resume),
-        "failed notebook resumption must restore Continue with the exact original request");
+      const restoredOffer = events.find((event) => event.name === "resume-offer")?.data as PausedLessonRequest | undefined;
+      assert(restoredOffer && savedRepresentation, "failed notebook resumption must restore its authenticated request");
+      assert.equal(restoredOffer.boardId, boardId);
+      assert.equal(restoredOffer.parentTurnId, parentId);
+      assert.equal(restoredOffer.parentTraceId, parentTraceId);
+      assert.equal(restoredOffer.lessonQuestion, question);
+      assert.equal(restoredOffer.reason, "stop", "the saved parent is an explicit Stop, not the obsolete doubt context");
+      assert.deepEqual(restoredOffer.turnPlan, plan, "retry retains the source plan in the owned parent receipt");
+      assert.deepEqual(restoredOffer.scene, {
+        sceneDocument: savedRepresentation.sceneDocument, sceneEngineVersion: null,
+        validationReport: savedRepresentation.validationReport, visualStatus: "validated", sceneArtifacts: { turnPlan: plan },
+      }, "retry retains the already drawn, source-validated parent scene");
+      assert.equal(restoredOffer.solverProjection, null, "retry preserves the saved null solver projection");
+      assert.equal(restoredOffer.figureDrawn, true);
+      assert.equal(restoredOffer.codeLesson, false);
+      assert.equal(restoredOffer.interruptedStep, "The range follows from horizontal motion.");
+      assert.deepEqual(restoredOffer.lessonBoardRows, []);
       let continued: { question: string; options?: HandleQuestionOptions } | undefined;
       handleRef.current = async (nextQuestion, options) => {
         continued = { question: nextQuestion, options };
@@ -433,7 +489,7 @@ async function scenario(mode: Mode, hedgeEnabled = false) {
       control.flushPausedLesson();
       await flush();
       assert.equal(continued?.question, question, "the restored Continue action must still dispatch the paused lecture");
-      assert.equal(continued?.options?.resume, resume, "Continue must retain the board/plan/scene ownership of the original lecture");
+      assert.equal(continued?.options?.resume, restoredOffer, "Continue dispatches the exact restored receipt object with its board/plan/scene ownership");
       control.finishLectureUi(lifecycle.turnGenerationRef.current);
     } else if (mode === "control-eof") {
       content(0, "[STEP][PAUSE:11][/STEP]");

@@ -227,9 +227,12 @@ assert(onStartBody.includes("speakingNarrationRef.current = narration;") &&
   assert(stop.includes("activeResumeRef.current !== null ||") && stop.includes("activeResume: activeResumeRef.current,"),
     "Stop knows a resume is live and snapshots it");
   const flush = slice("const flushPausedLesson = useCallback(", "return {\n    finishLectureUi");
-  assert(flush.indexOf("activeResumeRef.current = { request: resume") >= 0 &&
-    flush.indexOf("activeResumeRef.current = { request: resume") < flush.indexOf("handleQuestionRef.current(resume.lessonQuestion"),
+  assert(flush.includes("const active = { request: resume, pageBefore: boardPageRef.current }") &&
+    flush.indexOf("activeResumeRef.current = active;") >= 0 &&
+    flush.indexOf("activeResumeRef.current = active;") < flush.indexOf("handleQuestionRef.current(resume.lessonQuestion"),
     "Continue marks the resume live before it starts, so an early Stop still finds it");
+  assert(flush.includes("if (activeResumeRef.current !== active) return;"),
+    "a delayed admission acknowledgement may only settle its own resume receipt");
 }
 
 console.log("resume ink verification passed");
