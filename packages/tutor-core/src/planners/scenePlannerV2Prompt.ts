@@ -112,7 +112,7 @@ export function buildSceneDocumentPlannerPrompt(
     ? `\nSELECTED VISUAL INVARIANTS\n${context.planningGuidance.map((item) => `- ${item}`).join("\n")}\n`
     : "";
   const workedExamples = context.workedExamples?.length
-    ? `\nWORKED SCENE EXAMPLES\nPoint coordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
+    ? `\nWORKED SCENE EXAMPLES\nPoint coordinates and engine-only metadata omitted. Reuse structural operators; derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
       `EXAMPLE ${index + 1} (${example.id})\n${example.sourceKind === "curated" && example.question
         ? `QUESTION\n${example.question}`
         : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
@@ -153,15 +153,15 @@ Return complete ${SCENE_DOCUMENT_VERSION} JSON.`;
 
 export const SCENE_DOCUMENT_PLANNER_PROMPT = `scene-document/v2 JSON only:no pixels,tags,prose,raw paths,topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
-Entity:{id,kind,role?,label?,provenance?:{dashed?:boolean,strokeRole?:"construction"}}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
+Entity:{id,kind,role?,label?,provenance?:{dashed?:boolean,strokeRole?:"construction"}}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?,curve?,first?,second?}.
 
 AUTHORITY
 - Faithful visual:scene; else text_only,empty arrays,source/operator reason.
 - Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; derive afterward. Spatial givens:exact plan-backed geometry.
 - Fixed question/plan:exact quantity id/value/unit. No invented measurements,signs,components,topology,assumptions except one symbolic representative. Display lengths prove no physical values.
-- Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. A named class with no stated member (curve,conic,lines,planes,vectors,region) gets one generic nondegenerate member showing each named feature; its normalized world/space literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
+- Symbolic:owner symbols,never stock quantities; missing values alone never justify text_only. Unspecified classes (curve,conic,lines,planes,vectors,region):one generic nondegenerate member showing every feature. Normalized world/space literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
 - Data-seeking claims never block complete symbolic figures. Source overrides invariants/examples.
-- All arrays present; unique IDs,one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
+- Arrays present; IDs unique,one producer/entity,dependency order,reuse IDs. No duplicate geometry/terminal pairs; keep output arity/order.
 - Derive curves,regions,solids,intersections,transforms,normals,rays; never guess. Regions:function_curve + function_region.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
 
@@ -169,21 +169,23 @@ RELATIONS
 - Vectors/angles:world points,proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
 - Ray:surface_contact->normal_at->reflect_direction/refract_direction; stated incidence:reflect_at/refract_at. One representation/ray.
 - Components:symbol/two distinct terminals,no connect/segment or duplicate edges. Series:consecutive terminals; parallel:shared pair. Prove path,sameTerminalPair,pathCount,connected or degree.
-- Closed routes:p0...p(N-1),edge i:p(i)->p(i+1 mod N); split contacts/shared terminal IDs. Overlap/crossing/on/equal coordinates with distinct IDs never prove connectivity. Up/down vertical; left/right horizontal.
+- Closed routes:p0...p(N-1),edge i:p(i)->p(i+1 mod N); contacts share IDs. Distinct IDs never prove connectivity via overlap/crossing/on/equal coordinates. Up/down vertical; left/right horizontal.
 - Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Views:disjoint groups;cross-view connectors require explicit short/bypass.
+- planar angle_between is unsigned; same_direction proves arrow sense:nonzero planar vectors,same-frame world vectors,or two page normals. Never mix those types or use lines.
 - requiredEntityIds:existence; omit exists. Assertions<=6. equal_angle:four paths; angle_between:two,or one space angle mark,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y},no anchor entity; root:[curve],expected:x|{x}.
 
 LABELS AND REVEAL
 - Labels:owners/values,<=16 characters; narrate explanations. No titles,captions,underlines.
-- Owner labels:entity.label|annotation once; narration and endpoint marks are not labels. Angle symbols attach to angle marks. Derived coordinates:numbers/kπ/n,(x,y) or x=/y=; no other arithmetic. Attach to owners; no positioning geometry,helper/junction/terminal labels. Paths:targetIds,never coordinates/CIRCLE_AROUND.
+- Owner labels:entity.label|annotation once; narration/endpoint marks are not labels. Angle symbols own angle marks. Derived coordinates:numbers/kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no positioning geometry/helper/junction/terminal labels. Paths:targetIds,never coordinates/CIRCLE_AROUND.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
+- slope_triangle:{kind:"slope_triangle",targetIds:[curve],curve?,first,second}. Paired source parameters (x/t/theta or quantity IDs) with matching units define exact secant rise/run,not a derivative; never sampled-ink estimates.
 - One group unless staged/separate views. Group/timeline targets:existing entity IDs.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,group.`;
 
 export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable IDs; numbers or quantity IDs.
 - point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
 - segment/connect: {start: point_id, end: point_id}.
-- vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. When direction is present, direction defines orientation; a distinct start/end defines display length, otherwise length or a normalized unit length is used. A pure [0,0,-1] or [0,0,1] direction is the only correct representation for into-page or out-of-page respectively.
+- vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. Planar direction sets orientation; with direction,length overrides endpoint span. Pure [0,0,-1]/[0,0,1] draws cross/dot; length is glyph diameter (default 0.25). Mixed 3D direction needs space_vector.
 - ray/line: {start: point_id, end: point_id} or {start: point_id, direction: [dx,dy]}.
 - circle: {center: point_id, radius}.
 - circle_from_three_points: {a:point_id,b:point_id,c:point_id}. Output one circle computed through three distinct noncollinear points. Degenerate or numerically unverifiable triples fail closed; never guess the circumcenter or radius.
@@ -191,7 +193,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable
 - circle_tangency_points: {circle:circle_id,externalPoint:point_id}. Output two points of contact from a strictly external point, ordered by positive then negative cross product with the centre-to-external-point direction. Inside, on-circle, and numerically ambiguous cases fail closed. Reuse the contacts to draw tangent segments.
 - circle_intersections: {circleA:circle_id,circleB:circle_id,mode:"two"|"tangent"}. Output two points for mode two, ordered positive then negative cross product with the centre-to-centre direction; mode tangent outputs one point. The requested multiplicity must be mathematically correct. Disjoint, concentric, coincident, and ambiguous cases fail closed.
 - arc: {center: point_id, radius, startAngle, endAngle, angleUnit: "degrees"|"radians"}.
-- rectangle: {center: point_id, width, height}.
+- rectangle: {center: point_id, width, height, axis?:"width"|"height"}. Explicit axis selects the rectangle direction for parallel/perpendicular/angle proofs; geometric widths and heights stay exact.
 - polygon/polyline: {points: [point_id,...]}.
 - axes: {xMin, xMax, yMin, yMax, xLabel?:string, yLabel?:string}. Labels name the visible positive-axis endpoints; compact symbols or symbols with units only, never numeric claims or labels on invisible anchors.
 - midpoint: {a: point_id, b: point_id}.
@@ -218,11 +220,11 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable
 - parallel_through/perpendicular_through: {through: point_id, line: line_or_segment_id}.
 - angle_bisector: {vertex: point_id, a: point_id, b: point_id}.
 - angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, radius?, count?:1|2|3}. Each path must meet the vertex at one endpoint. Marks the smaller angle between the two arms. count draws concentric congruence arcs. Bind a measured value with an annotation quantityId or an angle_between assertion; do not invent a degree label.
-- right_angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, size?}. Each path must meet the vertex at one endpoint.
+- right_angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, size?}. Finite arms end at vertex; an infinite line may pass through vertex. Incidence and perpendicularity are verified.
 - tick_mark: {target: line_or_segment_id, at?:0..1, size?, count?:1|2|3, family?:string}. Matching family IDs share the same tick count. count is 1, 2, or 3 congruence marks perpendicular to the target at the parametric location.
 - sign_badge: {target: line_or_segment_or_vector_id, sense:"positive"|"clockwise"|"counterclockwise", at?:0..1}. A compact owned direction or rotation convention mark. Never a teaching-model ARROW.
 - vector_components: {origin: point_id, vector: vector_id|[dx,dy], basis?: line_or_segment_or_vector_id} and exactly two output entity IDs. Without basis, outputs are head-to-tail Cartesian x then y components; y starts at the x component tip, not at origin. With basis, outputs must be [parallel_component_id, perpendicular_component_id]. For an incline or any rotated frame, always provide the physical surface/axis as basis; never label Cartesian components as parallel/perpendicular.
-- dimension: {start: point_id, end: point_id, measurementKind?:"radius"|"diameter"|"height"|"inner_radius", solid?:solid_projection_id}. For planar endpoints omit measurementKind/solid. For solid_anchor endpoints, supply measurementKind and bind both endpoints to that solid's correct section. The engine rejects centre-to-rim diameters, opposite-rim radii, different-body endpoints, different-section diameters, and cone/frustum slant spans labelled as height. inner_radius selects a native hollow solid's actual inner rim; a separate inner projection uses radius.
+- dimension: {start: point_id, end: point_id, measurementKind?:"radius"|"diameter"|"height"|"inner_radius", solid?:solid_projection_id}. For planar endpoints omit measurementKind/solid. For solid_anchor endpoints, supply measurementKind and bind both endpoints to that solid's correct section. The engine rejects centre-to-rim diameters, opposite-rim radii, different-body endpoints, different-section diameters, and cone/frustum slant spans labelled as height. inner_radius selects a native hollow solid's actual inner rim; a separate inner projection uses radius. Direct physical wave_sample endpoints need the same wave, xScale=yScale=1, matching physical length units and no nonmetric metadata; scaled, undeclared/dimensionless, mixed-wave and generic descendants reject.
 - symbol: {symbol,start,end}. Full shape: {symbol:"resistor"|"battery"|"cell"|"capacitor"|"inductor"|"lamp"|"galvanometer"|"ammeter"|"voltmeter"|"ac_source"|"diode"|"zener"|"switch", start: point_id, end: point_id}. The symbol itself connects those terminals. Use connect only between two point IDs for an additional ordinary wire.
 - label: {target: entity_id, text}. The target may be a point or rendered geometry. The output must be one label entity whose compact entity.label matches text. Use this only for a symbol or value that needs a precise constructed anchor; ordinary object labels still belong on their owner entity or in annotations.
 - function_curve: {expression, variable?:"x", xMin, xMax, samples?}. Expressions support numeric literals, x, pi, e, explicit + - * / ^, parentheses, and sin/cos/tan/asin/acos/atan/sqrt/abs/exp/log/ln. Multiplication must be explicit. Omit samples for default65; explicit samples must be odd17..161. Absolute value is abs(x),not |x|. Use only a domain where the function stays finite and continuous; never bridge an asymptote.
@@ -240,7 +242,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable
 - triangle_from_sas: {sideAB, sideCA, angleADeg, origin?:point_id|[0,0], headingDeg?:0, orientation?:-1|1}. Side quantities must use compatible length units. Construct SAS with the included angle at A strictly between 0 and 180 degrees. Output [A,B,C,outline] as points and polygon.
 - triangle_from_asa: {sideAB, angleADeg, angleBDeg, origin?:point_id|[0,0], headingDeg?:0, orientation?:-1|1}. Construct ASA with the given side AB and endpoint angles; both angles are positive and sum to less than180 degrees. Output [A,B,C,outline] as points and polygon. Ambiguous SSA is unsupported.
 - triangle_center: {a:point_id, b:point_id, c:point_id, kind:"centroid"|"incenter"|"circumcenter"|"orthocenter"}. Output one point derived from three non-collinear vertices. Reuse these points for medians, altitudes, incircles, or circumcircles.
-- vector_sum: {vectors:[vector_id,...], origin:point_id|[x,y]}. Output one vector with exact summed components, relocated to the stated origin. 1..32 ordinary verified finite directed vectors; this operator's outputs may be composed. An exact zero is a point marker with no arrow. Physical field, 3D, and analytic curve outputs are excluded.
+- vector_sum: {vectors:[vector_id,...], origin:point_id|[x,y]}. Output one vector with exact summed components at origin. 1..32 ordinary verified finite directed vectors; outputs compose. Exact zero is a point marker. Physical/3D outputs excluded; dimensionless mathematical curve_derivative may compose without reinterpreting physical units.
 - vector_scale: {vector:vector_id, factor, origin:point_id|[x,y]}. Output one vector scaled by a finite dimensionless factor (negative reverses direction, zero gives a zero marker), placed at origin. No inferred display scaling.
 - vector_projection: {vector:vector_id, onto:nonzero_vector_id, origin:point_id|[x,y]}. Output one vector equal to dot(vector,onto)/dot(onto,onto) times onto, at origin. A perpendicular input yields a certified zero marker. Do not supply a projected endpoint.
 - constant_acceleration_trajectory: {initialPosition:[x,y], initialVelocity:[vx,vy], acceleration:[ax,ay], tMin,tMax,samples?:3..513,units?:{length,time}}. Output one polyline from p(t)=p0+v0*t+0.5*a*t^2 on a finite ordered time domain; the initial state is at t=0. Inputs are explicit 2D components, with compatible declared units if source quantities carry units. Never infer gravity or acceleration. A stationary trajectory is an exact point marker.
@@ -253,7 +255,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable
 - phasor_response: {voltage:{real,imaginary}, voltageUnit:"V", convention:"rms", impedance:impedance_id, voltageScale,currentScale, origin?:point_id|[x,y]}. Output [voltage,current] vectors derived by I=V/Z. Scales are explicit positive display factors; zero phasors are point markers. Metadata derives RMS complex power V*conj(I); undefined power factor is null. Labels are engine-derived or matching Z/V/I symbols; never provide a contradictory phase or magnitude label.
 - harmonic_wave: {amplitude,waveNumber,angularFrequency,time,xMin,xMax}. Full shape: {amplitude,waveNumber,angularFrequency,phase,phaseUnit:"rad",time,xMin,xMax,samples?,origin?:point_id|[x,y],xScale?:1,yScale?:1,units?:{position,time,amplitude}}. Output one polyline of y=A*sin(k*x-omega*time+phase) from explicitly supplied physical parameters, with positive display scales. Signed A,k,omega are allowed. Samples are bounded and must provide at least 32 points per spatial cycle; never draw an undersampled oscillation. Preserve physical quantities separately from scaled offsets.
 - wave_superposition: {waves:[wave_id,...],samples?}. Output one polyline with the exact sum of 1..16 compatible verified waves. Domain, time, origin, display scales, and source units must match; flattened harmonics and dependency depth are bounded. No inferred phase or amplitude. A certified zero is a flat baseline, not an invented oscillation.
-- wave_sample: {wave:wave_id,x}. Output one analytically evaluated point at the physical in-domain x. Its label comes from the engine's physical wave value, including when the curve uses display scales. Use its exact parameter for incidence proofs.
+- wave_sample: {wave:wave_id,x}. Output one analytically evaluated point at the physical in-domain x. Its label comes from the engine's physical wave value, including when the curve uses display scales. Use its exact parameter for incidence proofs. A dimension between direct physical samples needs the same wave, xScale=yScale=1, matching physical length units and no nonmetric metadata; undeclared/dimensionless units reject.
 - gaussian_image: {kind,objectDistance,focalLength,objectHeight}. Full shape: {kind:"lens"|"mirror",center:point_id|[x,y],axis:line_id|[dx,dy],objectDistance,focalLength,objectHeight,displayScale,lengthUnit?}. Output [objectBase,objectTip,imageBase,imageTip] as four points using signed Cartesian distances. Lens: v=f*u/(u+f), m=v/u; mirror: v=f*u/(u-f), m=-v/u. Height is signed; displayScale is explicit positive. Source lengths must use a common unit. Infinity or numerically ambiguous cases fail closed. Reuse the anchors for verified segments/rays and draw the optical element with lens_section or spherical_surface; these anchors never invent a surface or ray path.
 - optical_focus: {kind:"lens"|"mirror",center:point_id|[x,y],axis:line_id|[dx,dy],focalLength,displayScale,lengthUnit?}. Lens outputs two focus points at signed distances [-f,+f] in that order; mirror outputs one at f. Preserve the supplied axis direction. Numeric labels and quantity annotations must match computed physical distances, independently of display scale.
 - polytropic_process: {pressureStart,volumeStart,volumeEnd,exponent}. Full shape: {pressureStart,volumeStart,volumeEnd,exponent,pressureUnit:"Pa"|"kPa"|"bar",volumeUnit:"m^3"|"L"|"cm^3",origin?:[x,y],pressureScale,volumeScale,samples?}. Output one P-V path obeying P*V^n=constant with explicit n; n=0 is isobaric, n=1 is isothermal, a gas exponent is used only when supplied. Positive P/V and explicit positive display scales are required. Compression and expansion retain source direction. The engine computes signed work in joules and keeps it separate from diagram area; never infer heat or temperature.
@@ -362,6 +364,12 @@ Every required visible entity must be the output of exactly one construction unl
 // Conditional and multi-output contracts must survive compaction as complete
 // statements; their arity cannot be inferred from the first prose sentence.
 const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
+  vector: "Output 1 vector; pure ±z:cross/dot,length is glyph diameter (default 0.25); mixed 3D:space_vector.",
+  vector_sum: "Output 1 vector; zero:point. Physical/3D excluded; dimensionless mathematical curve_derivative may compose.",
+  rectangle: "Output 1 rectangle; direction proofs require explicit axis.",
+  right_angle_mark: "Output 1 mark; finite arms end at vertex; infinite line may pass through vertex.",
+  dimension: "Output 1 dimension; direct wave_sample pairs: same wave,xScale=yScale=1,matching physical length units,no nonmetric metadata. Undeclared/dimensionless/scaled/mixed/descendant measurements reject.",
+  wave_sample: "Output 1 point.",
   complex_point: "Output 1 point.",
   complex_transform: "Output 1 point.",
   harmonic_motion: "Output 1 polyline.",

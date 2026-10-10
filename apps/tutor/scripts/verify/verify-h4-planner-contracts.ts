@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import {
-  buildSceneDocumentPlannerPrompt, compactSceneExampleDocument,
+  buildSceneDocumentPlannerPrompt, compactSceneExampleDocument, inferSceneCapabilities,
   normalizeSceneDocumentModelOutput, planSceneDocument, repairSceneDocument,
   selectConstructionInputContracts,
 } from "@heytutor/tutor-core";
@@ -98,6 +98,13 @@ for (const detailed of [undefined, []] as const) {
   const contracts = selectConstructionInputContracts(fieldOperators, detailed);
   for (const operator of fieldOperators) check(new RegExp(`^- [a-z_/]*${operator}[a-z_/]*: \\{`, "m").test(contracts), `${operator} has a ${detailed ? "compact" : "full"} input contract`);
 }
+for (const detailed of [undefined, []] as const) {
+  const contracts = selectConstructionInputContracts(["rectangle", "right_angle_mark", "dimension", "wave_sample", "vector"], detailed);
+  check(/- rectangle: \{[^\n]*axis\?:/.test(contracts), "rectangle axis is offered in full and compact contracts");
+  check(contracts.includes("infinite line"), "right-angle incidence semantics survive compaction");
+  check(contracts.includes("same wave") && contracts.includes("xScale=yScale=1"), "wave dimension physical-authority restriction survives compaction");
+  check(contracts.includes("glyph diameter") && contracts.includes("space_vector"), "page-normal and mixed spatial vector cases remain distinct in compact contracts");
+}
 const componentContract = selectConstructionInputContracts(["vector_components"]);
 check(componentContract.includes("head-to-tail"), "optional Cartesian component placement is documented accurately");
 check(selectConstructionInputContracts(["bar_magnet"]).includes("positive moment end is north"), "bar magnet orientation is its moment vector, not an unsupported angle input");
@@ -109,6 +116,67 @@ namedAxes.revealGroups = [{ id: "g", entityIds: ["A"], dependsOn: [], narrationC
 const axesResult = production(namedAxes);
 check(axesResult.valid, "verified axes can name their visible endpoints");
 for (const text of ["Re", "Im"]) check(axesResult.value?.renderScene.primitives.some((mark) => mark.kind === "label" && mark.entityId === "A" && mark.text === text), `${text} label belongs to its actual axes geometry`);
+
+// A slope annotation belongs to its analytic curve; first/second define a
+// secant, not the derivative at either point. Incomplete pairs must reject.
+const secant = document("Show secant rise/run for y=x^2 between x=0.5 and x=2.");
+secant.entities = [{ id: "F", kind: "polyline", role: "source function", label: "f" }];
+secant.constructions = [{ id: "curve", operator: "function_curve", inputs: { expression: "x^2", xMin: 0, xMax: 3, samples: 65 }, outputs: ["F"] }];
+secant.annotations = [{ id: "slope", kind: "slope_triangle", targetIds: ["F"], curve: "F", first: 0.5, second: 2 }];
+secant.requiredEntityIds = ["F"];
+secant.revealGroups = [{ id: "g", entityIds: ["F"], dependsOn: [], narrationCue: "secant rise and run" }];
+check(production(secant).valid, "paired analytic parameters define production secant geometry");
+const unpaired = structuredClone(secant); delete unpaired.annotations[0]!.second;
+check(!production(unpaired).valid, "unpaired slope parameter rejects on production path");
+const wrongOwner = structuredClone(secant);
+wrongOwner.entities.push({ id: "P", kind: "point", role: "source point" });
+wrongOwner.constructions.push({ id: "point", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["P"] });
+wrongOwner.annotations[0]!.targetIds = ["P"];
+check(!production(wrongOwner).valid, "slope annotation cannot substitute a point for its declared analytic curve");
+const wrongParameterUnit = structuredClone(secant);
+wrongParameterUnit.annotations[0]!.first = { value: 0.5, unit: "s" };
+check(!production(wrongParameterUnit).valid, "slope parameters must match the curve's source parameter units");
+
+const pageNormal = document("Show a into-page vector as a cross.");
+pageNormal.entities = [{ id: "O", kind: "point", role: "vector origin" }, { id: "V", kind: "vector", role: "into-page vector", label: "v" }];
+pageNormal.constructions = [
+  { id: "origin", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["O"] },
+  { id: "normal", operator: "vector", inputs: { start: "O", direction: [0, 0, -1], length: 0.25 }, outputs: ["V"] },
+];
+pageNormal.requiredEntityIds = ["V"];
+pageNormal.revealGroups = [{ id: "g", entityIds: ["O", "V"], dependsOn: [], narrationCue: "into-page direction" }];
+const normalResult = production(pageNormal);
+check(normalResult.valid, "pure page-normal direction compiles through production normalization");
+check(normalResult.value?.document.constructions.some((item) => item.operator === "vector" && JSON.stringify(item.inputs.direction) === "[0,0,-1]"), "normalization preserves typed page-normal source direction");
+check(normalResult.value?.renderScene.primitives.some((mark) => mark.entityId === "V" && mark.kind === "polyline"), "page-normal glyph is owned by its vector");
+const mixedDirection = structuredClone(pageNormal); mixedDirection.constructions[1]!.inputs.direction = [1, 0, 1];
+check(!production(mixedDirection).valid, "mixed spatial direction cannot become a planar glyph");
+
+// The directed predicate distinguishes reversed arrows where a supporting
+// line angle cannot. Mathematical derivatives may compose without inheriting
+// a physical field's unit authority.
+const derivative = document("For y=x^2 at x=1, draw its tangent vector and twice that vector in the same direction.");
+derivative.entities = [
+  { id: "F", kind: "polyline", role: "source function", label: "f" },
+  { id: "D", kind: "vector", role: "derivative vector", label: "d" },
+  { id: "R", kind: "vector", role: "twice derivative", label: "r" },
+];
+derivative.constructions = [
+  { id: "curve", operator: "function_curve", inputs: { expression: "x^2", xMin: 0, xMax: 2, samples: 65 }, outputs: ["F"] },
+  { id: "derivative", operator: "curve_derivative", inputs: { curve: "F", at: 1, parameterScale: 1 }, outputs: ["D"] },
+  { id: "scale", operator: "vector_scale", inputs: { vector: "D", factor: 2, origin: [0, 0] }, outputs: ["R"] },
+];
+derivative.assertions = [{ id: "sense", predicate: "same_direction", entities: ["D", "R"], expected: true, severity: "fatal" }];
+derivative.requiredEntityIds = ["F", "D", "R"];
+derivative.revealGroups = [{ id: "g", entityIds: ["F", "D", "R"], dependsOn: [], narrationCue: "derivative vectors" }];
+check(production(derivative).valid, "ordinary mathematical derivative composes on production path");
+const reversedDerivative = structuredClone(derivative); reversedDerivative.constructions[2]!.inputs.factor = -2;
+check(!production(reversedDerivative).valid, "reversed derivative cannot prove same_direction");
+for (const question of ["Resolve a planar vector into components.", "Explain electric dipole field.", "Explain electromagnetic waves."]) {
+  const caps = inferSceneCapabilities(question, { turnPlan: planFor(question) });
+  check(caps.proofPredicates.includes("same_direction"), "existing vector/field families offer directed-sense proof");
+  check(buildSceneDocumentPlannerPrompt(question, caps).includes("same_direction"), "directed-sense proof reaches scoped prompt");
+}
 
 // Mock only the paid transport: production normalization above is real.
 const originalFetch = globalThis.fetch;
@@ -125,6 +193,9 @@ try {
     const content = request.messages.map((message) => message.content).join("\n");
     check(content.length <= (index === 0 ? 24_500 : 27_000), "unchanged transport limit");
     check(content.includes("provenance?:{dashed?:boolean,strokeRole?:\"construction\"}"), "legal dashed intent reaches transport");
+    check(content.includes("same_direction") && content.includes("planar angle_between is unsigned"), "directed-sense semantics survive transport");
+    check(content.includes('slope_triangle:{kind:"slope_triangle",targetIds:[curve],curve?,first,second}'), "exact slope parameter inputs survive transport");
+    check(/- rectangle: \{[^\n]*axis\?:/.test(content), "rectangle proof-axis input survives transport");
     check(/- axes: \{[^\n]*xLabel\?[^\n]*yLabel\?/.test(content), "axis names survive transport");
     check(/- planar_torque: \{[^\n]*origin\?:\[x,y\]/.test(content), "literal torque origin survives compact transport");
     for (const operator of fieldOperators) check(new RegExp(`^- [a-z_/]*${operator}[a-z_/]*: \\{`, "m").test(content), `${operator} survives transport`);

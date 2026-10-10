@@ -166,7 +166,7 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
   wavefront: ["parallel", "perpendicular", "equal_spacing", "equal_angle"],
   aperture: ["inside", "equal_spacing"],
   screen_pattern: ["equal_spacing", "ordered_along"],
-  transverse_field: ["perpendicular", "parallel"],
+  transverse_field: ["perpendicular", "parallel", "same_direction"],
   polarizer: ["angle_between", "perpendicular"],
   contact_body: ["perpendicular", "opposite_direction", "connected", "parallel", "angle_between", "on", "equal_length"],
   circuit_network: ["path", "sameTerminalPair", "pathCount", "degree", "connected", "perpendicular", "angle_between"],
@@ -175,10 +175,10 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
   bounded_region: ["function_value", "root", "between"],
   solid_figure: ["connected", "perpendicular", "equal_length", "same_side"],
   fluid_apparatus: ["connected", "parallel", "distance_ratio"],
-  point_field: ["opposite_direction", "equal_length", "parallel", "perpendicular", "between", "collinear", "distance_ratio", "on"],
+  point_field: ["opposite_direction", "same_direction", "equal_length", "parallel", "perpendicular", "between", "collinear", "distance_ratio", "on"],
   energy_level: ["ordered_along", "parallel", "connected", "distance_ratio"],
   coordinate_figure: ["collinear", "perpendicular", "parallel", "on", "angle_between"],
-  vector_diagram: ["perpendicular", "parallel", "equal_length", "angle_between"],
+  vector_diagram: ["perpendicular", "parallel", "same_direction", "equal_length", "angle_between"],
 };
 
 const CHEMISTRY_GUIDANCE =

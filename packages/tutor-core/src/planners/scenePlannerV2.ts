@@ -178,7 +178,7 @@ export async function repairSceneDocument(
   const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators)}
 
 REPAIR REQUEST
-The previous candidate failed deterministic validation. Return a complete replacement document, not a patch. Rebuild the failing subgraph from the authoritative facts and supported operators.
+Validation failed:complete replacement JSON,not a patch. Rebuild failing geometry from authoritative facts and supported operators.
 
 PREVIOUS STRUCTURE
 ${JSON.stringify(previousStructure)}
@@ -186,17 +186,17 @@ ${JSON.stringify(previousStructure)}
 STRUCTURED VALIDATION ERRORS
 ${JSON.stringify(errors)}
 
-Resolve every fatal error. Preserve correct stable IDs when useful, but delete invalid, duplicate, or unnecessary entities. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
+Resolve every fatal error. Keep useful stable IDs; remove invalid, duplicate or unnecessary entities. Keep consumed helpers out of visible ownership. Label real targets. Preserve authoritative claims/proofs; repair geometry, never weaken assertions. Return replacement JSON only.`;
   const connectivityGuidance = errors.some((error) =>
     (error.code === "assertion_failed" && /connect|path|terminal/i.test(error.message)) ||
     error.code === "turnplan_loop_member_not_proven",
   )
-    ? "\nA failed connectivity or path assertion requires rebuilding the involved structural graph so adjacent paths/components share the exact same endpoint IDs. Visual proximity is not connectivity. Do not keep disconnected geometry and merely rewrite the assertion."
+    ? "\nFailed connectivity/path: rebuild adjacent paths/components with the exact same endpoint IDs. Visual proximity is not connectivity. Rebuild disconnected geometry, never rewrite its assertion."
     : "";
   const closedRouteMembers = [...new Set(errors.flatMap((error) =>
     error.code === "turnplan_loop_member_not_proven" ? error.entityIds ?? [] : []))];
   const closedRouteGuidance = closedRouteMembers.length > 0
-    ? `\nCLOSED-ROUTE REBUILD (mandatory): ${closedRouteMembers.join(", ")} must each be an edge of one non-degenerate closed route. Discard the old route geometry and rebuild it from one cyclic list of shared point IDs p0...pN. Adjacent members must reuse the exact same point ID; do not use duplicate coordinates, crossings, overlaps, on assertions, or a decorative polyline as connectivity. A component symbol replaces its side segment. Preserve the authoritative cardinal directions while choosing the route order.`
+    ? `\nCLOSED-ROUTE REBUILD (mandatory): ${closedRouteMembers.join(", ")} must be edges of one nondegenerate closed route. Replace old geometry with cyclic shared point IDs p0...pN; adjacent members share IDs. Coordinates/crossings/overlaps/on/decorative polylines never prove connectivity. Component symbols replace side segments. Preserve authoritative cardinal directions.`
     : "";
   const bypassedMembers = [...new Set(errors.flatMap((error) =>
     error.code === "turnplan_loop_member_bypassed" ? error.entityIds ?? [] : []))];
@@ -840,7 +840,7 @@ function buildOrderedRouteRepairGuidance(
     const end = index === members.length - 1 ? "p0" : `p${index + 1}`;
     return `${index + 1}. ${member.hint}: p${index} -> ${end} (${member.direction})`;
   }).join("\n");
-  return `\nORDERED CYCLIC ROUTE (mandatory, derived from the authoritative claim):\n${edges}\nCreate exactly these shared cycle terminals and assign each named structural member to its listed terminal pair in this order. Choose point coordinates so every edge points in its stated cardinal direction. A symbol construction is the edge itself. Do not add a full-length segment behind a symbol, do not replace the cycle with a polygon, and do not use coincident duplicate point IDs.`;
+  return `\nORDERED CYCLIC ROUTE (mandatory, derived from the authoritative claim):\n${edges}\nAssign each member its listed terminal pair and shared cycle terminals in order. Coordinates preserve stated cardinal directions. Symbols are sole edges; no full-length segments behind them, polygon replacement or coincident duplicate IDs.`;
 }
 
 function buildWaveOpticsRepairGuidance(
@@ -867,7 +867,7 @@ function buildOpticalInstrumentRepairGuidance(
     "instrument_intermediate_focus_not_proven",
   ].some((code) => codes.has(code))) return "";
   return `
-OPTICAL-INSTRUMENT REBUILD (mandatory): use one optical-axis entity. Build objective and eyepiece elements transverse to it and include fatal perpendicular proofs. Use continuous ray entities through the elements, prove at least two objective rays converge at the intermediate image, and prove the requested incoming/emergent bundles parallel. For normal adjustment, the objective image and eyepiece focal point are the same physical location: represent them with one shared point ID between the two elements. Do not repair this by weakening or deleting the failed assertions.`;
+OPTICAL-INSTRUMENT REBUILD (mandatory): one optical-axis entity; objective/eyepiece transverse with fatal perpendicular proofs. Continuous rays traverse elements; prove two objective rays converge at the intermediate image and requested incoming/emergent bundles parallel. Normal adjustment: objective image and eyepiece focus use one shared point ID between elements. Never weaken/delete failed assertions.`;
 }
 
 function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
