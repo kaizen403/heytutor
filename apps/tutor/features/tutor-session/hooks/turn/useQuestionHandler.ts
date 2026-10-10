@@ -43,8 +43,6 @@ import {
   FIGURE_SOURCES,
   type SceneAssertion,
   synthesizeDsaScene,
-  isChemistryQuestion,
-  isChemistrySceneFamily,
   applySectionFormulaAuthority,
   applySourceQuantityAuthority,
   reconcileTurnPlanWithSolver,
@@ -667,6 +665,7 @@ export function useQuestionHandler(
       tel.meta({
         telemetry_origin: "ask",
         diagram_strategy_assigned: billed.diagramStrategy,
+        diagram_physics_mode: billed.diagramPhysicsMode ?? null,
         ...pageLoadTiming.claimFirstTurnMeta(askOrigin),
       });
       const thinkingSpan = tel.span("thinking");
@@ -751,6 +750,7 @@ export function useQuestionHandler(
         assignedStrategy: billed.diagramStrategy,
         subject: diagramSubject,
         strictSubjects: billed.diagramStrictSubjects,
+        physicsMode: billed.diagramPhysicsMode,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
         dsa: dsaClassification.isDsa,
@@ -949,14 +949,14 @@ export function useQuestionHandler(
         let diagramExamplePickerPromise: Promise<void> | null = null;
         let diagramExamplePickerWaitStartedAt: number | null = null;
         const startDiagramExamplePicker = (plan: TurnPlanV3) => {
-          const capabilities = inferSceneCapabilities(question, { turnPlan: plan });
-          const chemistryLane = capabilities.families.some(isChemistrySceneFamily) ||
-            isChemistryQuestion(question);
+          const gate = deriveProductionSceneGate({ question, turnPlan: plan, problemIR: null });
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
             subject: diagramSubject,
             strictSubjects: billed.diagramStrictSubjects,
-            chemistryLane,
+            physicsMode: billed.diagramPhysicsMode,
+            sceneSignal: { families: gate.families, archetypeId: gate.archetypeId },
+            chemistryLane: gate.chemistryLane,
             codeLesson: false,
             dsa: dsaClassification.isDsa,
             doubt: false,
@@ -1041,7 +1041,7 @@ export function useQuestionHandler(
             timeoutMs: TURN_PLAN_DEADLINE_MS,
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
-            classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0 || billed.diagramPhysicsMode === "hybrid",
           }), isCurrentTurn).catch(closeTurnPlanSpanOnFailure);
           // The turn-plan audit used to run here: a second LLM opinion on the
           // plan, awaited before the scene planner could start. Measured on
@@ -1124,6 +1124,8 @@ export function useQuestionHandler(
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy, subject: diagramSubject,
             strictSubjects: billed.diagramStrictSubjects, chemistryLane: gate.chemistryLane,
+            physicsMode: billed.diagramPhysicsMode,
+            sceneSignal: { families: gate.families, archetypeId: gate.archetypeId },
             codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa, doubt: false,
           });
           const pickedIds = diagramStrategy.usePickedExamples && diagramExamplePickerSettled ? diagramExampleIds : [];
@@ -1292,7 +1294,12 @@ export function useQuestionHandler(
         problemAuthority = planning.authority;
         const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
         diagramStrategyDecision = planning.gate.diagramStrategy;
-        tel.meta({ diagram_strategy: diagramStrategyDecision.strategy });
+        tel.meta({
+          diagram_strategy: diagramStrategyDecision.strategy,
+          diagram_strategy_reason: diagramStrategyDecision.strategyReason,
+          diagram_hybrid_signal: diagramStrategyDecision.hybridSignal,
+          diagram_hybrid_policy: diagramStrategyDecision.policyVersion,
+        });
         const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
         const fastRepresentation = planning.fast;
         if (fastRepresentation) {
@@ -1605,6 +1612,9 @@ export function useQuestionHandler(
         figure_source: figureSource,
         diagram_strategy: diagramStrategyDecision.strategy,
         diagram_strategy_assigned: diagramStrategyDecision.assignedStrategy,
+        diagram_strategy_reason: diagramStrategyDecision.strategyReason,
+        diagram_hybrid_signal: diagramStrategyDecision.hybridSignal,
+        diagram_hybrid_policy: diagramStrategyDecision.policyVersion,
         non_metric: representationNonMetric,
         repaired: sceneV2Repaired,
         validation_issue_count: sceneV2Report?.issues.length ?? null,
@@ -1618,6 +1628,9 @@ export function useQuestionHandler(
         visual_status: sceneVisualStatus,
         repaired: sceneV2Repaired,
         diagram_strategy: diagramStrategyDecision.strategy,
+        diagram_strategy_reason: diagramStrategyDecision.strategyReason,
+        diagram_hybrid_signal: diagramStrategyDecision.hybridSignal,
+        diagram_hybrid_policy: diagramStrategyDecision.policyVersion,
         latency_ms: plannerLatencyMs,
         primitive_count: sceneV2RenderScene?.primitives.length ?? 0,
         issue_codes: sceneV2Report?.issues.map((issue) => issue.code) ?? [],

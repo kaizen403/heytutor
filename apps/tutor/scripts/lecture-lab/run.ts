@@ -32,7 +32,6 @@ import {
   combineDiagramEvalRows,
   evaluationRunFastMode,
   estimateEvaluationCostUsd,
-  evaluationUsesExamples,
   evaluationUsesStandardModelHeader,
   estimateLabCallWorstCaseUsd,
   parseDiagramEvalJsonl,
@@ -59,6 +58,7 @@ import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
+import { productionLabExecutionIdentity, productionLabUsesExamples, productionLabPreflightArm } from "./productionLabProfile";
 
 export interface Options {
   difficulty: string;
@@ -98,6 +98,7 @@ export interface Options {
   visualNeedReplay: string | null;
   exampleExclusions: string | null;
   productionStrictSubjects: readonly DiagramSubject[] | null;
+  productionPhysicsMode: "hybrid" | null;
 }
 
 export interface LabSpendSummary {
@@ -355,9 +356,23 @@ export function parseOptions(argv: string[]): Options {
   const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
-  const productionStrictSubjects = flags.get("production-strict-subjects");
-  if (flags.has("production-strict-subjects") && (productionStrictSubjects !== "maths" || evalFiles.length === 0 || arm !== "planner_examples_strict")) {
-    throw new Error("--production-strict-subjects maths requires a strict maths evaluation");
+  let productionStrictSubjects: readonly DiagramSubject[] | null = null;
+  if (flags.has("production-strict-subjects")) {
+    const entries = flags.get("production-strict-subjects")!.split(",").map(entry => entry.trim());
+    if (evalFiles.length === 0 || (arm !== "current" && arm !== "planner_examples_strict") ||
+      entries.some(entry => !["maths", "physics", "chemistry"].includes(entry)) ||
+      new Set(entries).size !== entries.length) {
+      throw new Error("--production-strict-subjects requires a nonempty maths/physics/chemistry list and a current or planner_examples_strict evaluation");
+    }
+    productionStrictSubjects = entries.map(parseDiagramSubject);
+  }
+  let productionPhysicsMode: "hybrid" | null = null;
+  if (flags.has("production-physics-mode")) {
+    if (flags.get("production-physics-mode") !== "hybrid" || evalFiles.length === 0 ||
+      !productionStrictSubjects || arm !== "planner_examples_strict") {
+      throw new Error("--production-physics-mode hybrid requires a production profile and planner_examples_strict evaluation");
+    }
+    productionPhysicsMode = "hybrid";
   }
   let parsedOrigin: URL;
   try {
@@ -399,7 +414,8 @@ export function parseOptions(argv: string[]): Options {
     sceneDeclinePolicy,
     visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
-    productionStrictSubjects: productionStrictSubjects ? ["maths"] : null,
+    productionStrictSubjects,
+    productionPhysicsMode,
   };
 }
 
@@ -728,7 +744,8 @@ async function main(): Promise<void> {
     ? parseDiagramEvalJsonl(readFileSync(resolve(options.exampleExclusions), "utf8")).map((row) => row.question)
     : [];
   const exampleExclusionFingerprint = labSampleFingerprint(exclusionQuestions);
-  const diagramExamples = evaluationRows && evaluationUsesExamples(options.arm)
+  const usesExamples = productionLabUsesExamples(options.arm, options.productionStrictSubjects);
+  const diagramExamples = evaluationRows && usesExamples
     ? loadDiagramExemplarLibrary(
         resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl"),
         [...evaluationRows.map((row) => row.question), ...exclusionQuestions],
@@ -748,7 +765,7 @@ async function main(): Promise<void> {
       ? loadAskFile(resolve(options.ask))
       : loadProbes(repoRoot, options);
   const preflightEstimateUsd = evaluationRows
-    ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
+    ? estimateEvaluationCostUsd(probes.length, productionLabPreflightArm(options.arm, options.productionStrictSubjects), options.model)
     : null;
   assertUniqueArtifactIds(probes);
   const replayText = options.visualNeedReplay ? readFileSync(resolve(options.visualNeedReplay), "utf8") : null;
@@ -775,8 +792,7 @@ async function main(): Promise<void> {
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
-    ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
-      examplePickerProfile: "live-client-4000ms/v1", subjectClassification: "existing-turn-plan" } : {}),
+    ...productionLabExecutionIdentity(options.productionStrictSubjects, options.productionPhysicsMode),
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
       ...labResponseUsagePricing(providerConfig.deployment),
       plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
@@ -786,7 +802,7 @@ async function main(): Promise<void> {
     console.log(
       `diagram eval: ${probes.length} rows, arm ${options.arm}, provider ${endpoint.provider}, deployment ${endpoint.deployment}, scene planner limit ${options.scenePlannerLimitMs}ms, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
     );
-    if (evaluationUsesExamples(options.arm)) {
+    if (usesExamples) {
       console.log(`diagram eval: ${diagramExamples.length} leak-filtered examples available`);
       console.log(
         `diagram eval: ${diagramExampleCatalogue?.entries.length ?? 0} picker catalogue entries, ` +
@@ -1016,6 +1032,7 @@ async function main(): Promise<void> {
           scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
           subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
           productionStrictSubjects: options.productionStrictSubjects,
+          productionPhysicsMode: options.productionPhysicsMode,
           sceneDeclinePolicy: options.sceneDeclinePolicy,
           traceId,
           visualNeedReplay: visualNeedReplay?.get(probe.id),

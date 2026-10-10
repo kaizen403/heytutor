@@ -4,7 +4,7 @@ import { isBillingErrorCode } from "./errors";
 import { isOutOfCreditsCode } from "./studentCopy";
 import { patchEntitlementSnapshot, setEntitlementSnapshot, type Entitlement } from "./entitlementState";
 import { openRazorpayCheckout, type RazorpayCheckout } from "./razorpayCheckout";
-import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { parsePhysicsDiagramMode, type DiagramStrategy, type PhysicsDiagramMode } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
 export type BillingTurnKind = "lesson" | "doubt" | "resume";
 
@@ -23,6 +23,7 @@ export interface BeginTurnOk {
   ttsCharsRemaining: number;
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
+  diagramPhysicsMode?: PhysicsDiagramMode | null;
 }
 
 export interface BeginTurnErr {
@@ -223,6 +224,7 @@ async function beginTurnOnce(input: {
     planId: typeof payload.planId === "string" ? payload.planId : "free",
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
+    diagramPhysicsMode: parsePhysicsDiagramMode(payload.diagramPhysicsMode),
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

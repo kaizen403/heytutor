@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { parseDiagramStrictSubjects } from "@heytutor/tutor-core";
-import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { parsePhysicsDiagramMode, type DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
 interface StrategyActor {
   userId: string;
@@ -15,6 +15,10 @@ interface StrategyEnvironment {
 /** Independent subject opt-in. Global cohort flags retain their original meaning. */
 export function resolveDiagramStrictSubjects(raw = process.env.DIAGRAM_STRICT_SUBJECTS) {
   return parseDiagramStrictSubjects(raw);
+}
+
+export function resolvePhysicsDiagramMode(raw = process.env.DIAGRAM_PHYSICS_MODE) {
+  return parsePhysicsDiagramMode(raw);
 }
 
 function rolloutPercent(raw: string | undefined): number {

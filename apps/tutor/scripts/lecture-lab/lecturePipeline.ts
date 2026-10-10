@@ -48,7 +48,7 @@ import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
-import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { diagramStrategyAllowsFigureSource, type DiagramStrategyDecision } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -91,7 +91,7 @@ import {
 } from "./diagramExamplePicker";
 import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features/tutor-session/lib/scene/visualNeedClient";
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
-import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
+import { hasProductionLabProfile, labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
 
 export interface LectureStep {
@@ -168,7 +168,7 @@ export interface LectureRun {
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
-  productionStrategy?: { classifiedSubject: DiagramSubject; strategy: "current" | "strict" };
+  productionStrategy?: LectureProductionStrategy;
   diagram: PlannerEvidence & {
     committed: boolean;
     /**
@@ -255,11 +255,12 @@ export interface RunLectureOptions {
   /** Uses the same subject vocabulary as the live semantic planner. */
   subject?: DiagramSubject;
   productionStrictSubjects?: readonly DiagramSubject[] | null;
+  productionPhysicsMode?: "hybrid" | null;
   sceneDeclinePolicy?: SceneDeclinePolicy;
   traceId?: string;
   /** Frozen, identity-checked Jev answer for a lab rerun; undefined calls the live service. */
   visualNeedReplay?: VisualNeedAssessment;
-  /** Leak-filtered library used only by the planner example evaluation arms. */
+  /** Leak-filtered library for example evaluations and live subject profiles. */
   diagramExamples?: readonly DiagramExemplar[];
   /** Built once per round from diagramExamples. */
   diagramExampleCatalogue?: DiagramExampleCatalogue;
@@ -273,6 +274,17 @@ export interface RunLectureOptions {
     givens: TutorSegment[];
     intro: TutorSegment[];
   }) => void;
+}
+
+export interface LectureProductionStrategy {
+  classifiedSubject: DiagramSubject;
+  strategy: DiagramStrategyDecision["strategy"];
+  physicsMode: "hybrid" | null;
+  strategyReason: DiagramStrategyDecision["strategyReason"];
+  hybridSignal: DiagramStrategyDecision["hybridSignal"];
+  policyVersion: DiagramStrategyDecision["policyVersion"];
+  /** Initial no-IR choice remains visible when authority changes the final gate. */
+  pickerDecision?: Omit<LectureProductionStrategy, "pickerDecision">;
 }
 
 /** Structural ink the teaching stream is never allowed to emit. */
@@ -324,6 +336,7 @@ export async function runLecture(
   const startedAt = Date.now();
   const scenePlannerDeadlineMs = options.scenePlannerDeadlineMs ?? SCENE_PLANNER_DEADLINE_MS;
   const dsaClassification = classifyDsaQuestion(question);
+  const productionProfile = hasProductionLabProfile(options.productionStrictSubjects, options.productionPhysicsMode);
 
   const stages: LecturePlanningStages = {
     turnPlanMs: 0,
@@ -433,7 +446,7 @@ export async function runLecture(
       timeoutMs: TURN_PLAN_DEADLINE_MS,
       fastMode,
       traceId,
-      classifySubject: (options.productionStrictSubjects?.length ?? 0) > 0,
+      classifySubject: productionProfile,
     });
     stages.turnPlanMs = Date.now() - turnPlanStartedAt;
     turnPlan = selectBestAvailableTurnPlan(
@@ -477,12 +490,17 @@ export async function runLecture(
     const pickerDecision = labStrategyDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
+      physicsMode: options.productionPhysicsMode, sceneSignal: { families: pickerGate.families, archetypeId: pickerGate.archetypeId },
     }, options.productionStrictSubjects, classifiedSubject);
-    if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
+    const strategyRecord = (decision: DiagramStrategyDecision): Omit<LectureProductionStrategy, "pickerDecision"> => ({
+      classifiedSubject, strategy: decision.strategy, physicsMode: options.productionPhysicsMode ?? null,
+      strategyReason: decision.strategyReason, hybridSignal: decision.hybridSignal, policyVersion: decision.policyVersion,
+    });
+    if (productionProfile) run.productionStrategy = strategyRecord(pickerDecision);
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
-      const picked = options.productionStrictSubjects ? await pickProductionLabExamples(examples, {
+      const picked = productionProfile ? await pickProductionLabExamples(examples, {
         origin: options.origin, question, plan: turnPlan, traceId,
       }) : await pickDiagramExamples(
         examples,
@@ -529,6 +547,7 @@ export async function runLecture(
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
         codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
+        physicsMode: options.productionPhysicsMode, sceneSignal: { families: gate.families, archetypeId: gate.archetypeId },
       }, options.productionStrictSubjects, classifiedSubject);
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
@@ -620,6 +639,9 @@ export async function runLecture(
     });
     turnPlan = planning.turnPlan;
     problemAuthority = planning.authority;
+    if (productionProfile) run.productionStrategy = {
+      ...strategyRecord(planning.gate.diagramStrategy), pickerDecision: strategyRecord(pickerDecision),
+    };
     const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
     const fastRepresentation = planning.fast;
     const result = planning.scene;
