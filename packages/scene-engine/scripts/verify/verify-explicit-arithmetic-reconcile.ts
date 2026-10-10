@@ -28,6 +28,7 @@ interface Quantity {
   unit?: string;
   sign?: "positive" | "negative" | "zero" | "unsigned";
   sourceText?: string;
+  dependsOn?: string[];
   provenance: "given" | "derived";
 }
 
@@ -980,9 +981,127 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
       ...plan([...pull, conflictingGiven], [derived("F_x", 24, "N", "F_x = 30 cos 37° = 24")]),
       question,
     };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(correct);
     check(`${name} cannot override the question: prescribed result stays valid`,
-      reconciliationsOf(correct).length === 0 && validateTurnPlanV3(correct, question).valid,
-      reconcileTurnPlanV3ExplicitArithmetic(correct));
+      close(reconciled(correct, "F_x").value, 24) && validateTurnPlanV3(corrected.plan, question).valid,
+      corrected);
+  }
+  // A named trig quantity must carry the prescribed value into every
+  // dependent calculation, and into the published givens themselves.
+  for (const [identity, trigGiven] of [
+    ["source equality", given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
+    ["trig symbol", given("cosT", 0.6, undefined, { symbol: "cos37°", sourceText: "cosT = 0.6" })],
+  ] as const) {
+    const question = "A 30 N pull acts at 37°. Take cos 37° = 0.8. Find its horizontal component.";
+    const coefficient = given("mu", 0.6, undefined, { sourceText: "mu = 0.6" });
+    const input = {
+      ...plan([...pull, trigGiven, coefficient], [
+        derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+        derived("component", 18, "N", "component = F*cosT = 18"),
+      ]),
+      question,
+    };
+    const rawCodes = validateTurnPlanV3(input, question).issues.map((issue) => issue.code);
+    check(`${identity}: a conflicting trig given is rejected before reconciliation`,
+      rawCodes.includes("given_trig_stipulation_conflict"), rawCodes);
+    const result = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    const correctedGiven = result.givens.find((entry) => entry.id === "cosT");
+    check(`${identity}: the given value and source are canonical`,
+      correctedGiven?.value === 0.8 && correctedGiven.sourceText?.includes("0.8") === true &&
+        !correctedGiven.sourceText.includes("0.6"), correctedGiven);
+    check(`${identity}: the named alias computes 24`, close(reconciled(input, "component").value, 24), result);
+    check(`${identity}: a downstream quantity computes 48`, close(reconciled(input, "double").value, 48), result);
+    check(`${identity}: an unrelated same-valued given remains unchanged`,
+      JSON.stringify(result.givens.find((entry) => entry.id === "mu")) === JSON.stringify(coefficient), result.givens);
+    check(`${identity}: the fully reconciled plan validates`, validateTurnPlanV3(result, question).valid,
+      validateTurnPlanV3(result, question).issues);
+    const correctFigure = {
+      ...plan([...pull, trigGiven], [derived("component", 24, "N", "component = 30 cos 37° = 24")]),
+      question,
+    };
+    check(`${identity}: a correct figure cannot mask a stale given`,
+      !validateTurnPlanV3(correctFigure, question).valid, validateTurnPlanV3(correctFigure, question));
+  }
+  const staleSourceQuestion = "Take cos 37° = 0.8.";
+  const staleSource = {
+    ...plan([given("cosT", 0.8, undefined, { sourceText: "cos 37° = 0.6" })],
+      [derived("c", 0.8, undefined, "c = cosT = 0.8")]),
+    question: staleSourceQuestion,
+  };
+  check("a stale trig source is rejected even when its scalar is correct",
+    !validateTurnPlanV3(staleSource, staleSourceQuestion).valid, validateTurnPlanV3(staleSource, staleSourceQuestion));
+  const refreshedSource = reconcileTurnPlanV3ExplicitArithmetic(staleSource).plan as ReturnType<typeof plan>;
+  check("a source-only correction removes the stale given text",
+    refreshedSource.givens[0]?.sourceText?.includes("0.8") === true &&
+      !refreshedSource.givens[0].sourceText.includes("0.6") &&
+      validateTurnPlanV3(refreshedSource, staleSourceQuestion).valid, refreshedSource);
+  const noPrescription = plan([...pull, given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
+    [derived("component", 18, "N", "component = F*cosT = 18")]);
+  check("an alias without a question prescription is preserved",
+    reconcileTurnPlanV3ExplicitArithmetic(noPrescription).plan === noPrescription && issueCodes(noPrescription).length === 0,
+    reconcileTurnPlanV3ExplicitArithmetic(noPrescription));
+  for (const [sourceText, prescription, stale, expected] of [
+    ["cosT = cos 37° = 0.6", "Take cos 37° = 0.8.", 0.6, 0.8],
+    ["sin 37° = 2/5", "Take sin 37° = 3/5.", 0.4, 0.6],
+    ["cos 143° = 0.8", "Take cos 143° = -0.8.", 0.8, -0.8],
+  ] as const) {
+    const input = {
+      ...plan([given("cosT", stale, undefined, { sourceText, sign: "positive" })],
+        [derived("c", stale, undefined, `c = cosT = ${stale}`)]),
+      question: prescription,
+    };
+    const result = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`${sourceText}: exact identity supplies the given and derived alias`,
+      close(result.givens[0]?.value, expected) && close(result.derived[0]?.value, expected), result);
+    check(`${sourceText}: published source and sign agree`,
+      result.givens[0]?.sourceText?.endsWith(`= ${expected}`) === true &&
+        result.givens[0]?.sign === (expected < 0 ? "negative" : "positive") &&
+        validateTurnPlanV3(result, prescription).valid, result);
+  }
+  const proseGiven = given("mu", 0.6, undefined, { sourceText: "mu = 0.6; a force also uses cos 37°" });
+  const prose = { ...plan([proseGiven], []), question: "Take cos 37° = 0.8." };
+  check("trig mentioned in unrelated provenance does not change the quantity",
+    reconcileTurnPlanV3ExplicitArithmetic(prose).plan === prose && validateTurnPlanV3(prose, prose.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(prose));
+  const askedAlias = { ...noPrescription, question: "Is cos 37° = 0.8?" };
+  check("an asked trig equality cannot replace an alias given",
+    reconcileTurnPlanV3ExplicitArithmetic(askedAlias).plan === askedAlias, reconcileTurnPlanV3ExplicitArithmetic(askedAlias));
+  const radianAliasQuestion = "Take cos 37° = 0.8, then evaluate cos(37 rad).";
+  const radianAlias = {
+    ...plan([given("cosT", Math.cos(37), undefined, { symbol: "cos37°", sourceText: `cos(37 rad) = ${Math.cos(37)}` })],
+      [derived("c", Math.cos(37), undefined, `c = cosT = ${Math.cos(37)}`)]),
+    question: radianAliasQuestion,
+  };
+  check("an explicit-radian trig alias retains its value and source",
+    reconcileTurnPlanV3ExplicitArithmetic(radianAlias).plan === radianAlias &&
+      validateTurnPlanV3(radianAlias, radianAliasQuestion).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(radianAlias));
+  // A standalone function still computes a value; its prescribed answer
+  // must not become a bare restatement that the arithmetic checker ignores.
+  for (const [name, angle, expected] of [
+    ["cos", 37, 0.8], ["sin", 37, 0.6], ["tan", 45, 1], ["cos", 143, -0.8],
+  ] as const) {
+    const question = `Take ${name} ${angle}° = ${expected}. Find the trig ratio.`;
+    for (const expression of [`${name}(${angle})`, `${name} ${angle}`, `${name}(${angle}°)`, `${name}(theta)`]) {
+      const wrongValue = expected === 0.6 ? 0.8 : 0.6;
+      const wrong = {
+        ...plan([given("theta", angle, "deg")], [derived("c", wrongValue, undefined, `c = ${expression} = ${wrongValue}`)]),
+        question,
+      };
+      const label = `standalone ${expression}`;
+      check(`${label}: a wrong answer is rejected`, !validateTurnPlanV3(wrong, question).valid,
+        validateTurnPlanV3(wrong, question).issues);
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(wrong);
+      check(`${label}: a wrong answer reconciles to its prescription`, close(reconciled(wrong, "c").value, expected), corrected);
+      check(`${label}: the corrected plan validates`, validateTurnPlanV3(corrected.plan, question).valid,
+        validateTurnPlanV3(corrected.plan, question).issues);
+      const correct = {
+        ...plan([given("theta", angle, "deg")], [derived("c", expected, undefined, `c = ${expression} = ${expected}`)]),
+        question,
+      };
+      check(`${label}: a correct answer is preserved`, reconcileTurnPlanV3ExplicitArithmetic(correct).plan === correct &&
+        validateTurnPlanV3(correct, question).valid, reconcileTurnPlanV3ExplicitArithmetic(correct));
+    }
   }
   // A prescribed value fixes its angle even when working omits the degree
   // mark. The degree guard must not discard that independent evidence.

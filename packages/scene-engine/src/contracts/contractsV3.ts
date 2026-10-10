@@ -92,9 +92,9 @@ export interface TurnPlanArithmeticReconciliationResult {
 }
 
 /**
- * Reconcile only arithmetic that is independently checkable from numeric
- * expressions written in a derived quantity's own sourceText. Symbolic
- * formulas and ambiguous calculations are deliberately left unchanged.
+ * Reconcile question-prescribed trig givens and independently checkable
+ * arithmetic in a derived quantity's own sourceText. Symbolic formulas and
+ * ambiguous calculations are deliberately left unchanged.
  */
 export function reconcileTurnPlanV3ExplicitArithmetic(
   raw: unknown,
@@ -102,14 +102,27 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
   if (!isRecord(raw) || !Array.isArray(raw.derived)) {
     return { plan: raw, reconciliations: [], declined: [] };
   }
+  const reconciliations: TurnPlanArithmeticReconciliation[] = [];
+  const originalGivens = Array.isArray(raw.givens) ? raw.givens : [];
+  const prescriptions = collectTrigStipulations({ question: raw.question });
+  const givens = originalGivens.map((given) => {
+    const corrected = reconcilePrescribedTrigGiven(given, prescriptions);
+    if (isRecord(given) && isRecord(corrected) && given.value !== corrected.value) {
+      reconciliations.push({
+        quantityId: String(given.id),
+        previousValue: given.value as number,
+        reconciledValue: corrected.value as number,
+      });
+    }
+    return corrected;
+  });
   const knownUnits = collectPlanUnits(raw);
   const bindingMeta: NumericBindingMetaMap = new Map();
   const numericBindings = collectNumericBindings(
-    Array.isArray(raw.givens) ? raw.givens : [],
+    givens,
     bindingMeta,
   );
   attachTrigStipulations(numericBindings, raw);
-  const reconciliations: TurnPlanArithmeticReconciliation[] = [];
   const declined: TurnPlanArithmeticDecline[] = [];
   const derived: unknown[] = [...raw.derived];
   // Evaluate dependencies first so a corrected value reaches every quantity
@@ -172,9 +185,10 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     addNumericBinding(numericBindings, corrected, bindingMeta);
     return corrected;
   }
-  if (reconciliations.length === 0) return { plan: raw, reconciliations, declined };
+  const givensChanged = givens.some((given, index) => given !== originalGivens[index]);
+  if (reconciliations.length === 0 && !givensChanged) return { plan: raw, reconciliations, declined };
   return {
-    plan: { ...raw, derived },
+    plan: { ...raw, ...(givensChanged ? { givens } : {}), derived },
     reconciliations,
     declined,
   };
@@ -266,9 +280,21 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
 
   givens.forEach((value, index) => validateQuantity(value, `givens[${index}]`, "given"));
   derived.forEach((value, index) => validateQuantity(value, `derived[${index}]`, "derived"));
+  const prescriptions = collectTrigStipulations({ question: raw.question });
+  const prescribedGivens = givens.map((given, index) => {
+    const corrected = reconcilePrescribedTrigGiven(given, prescriptions);
+    if (corrected !== given) {
+      issues.push({
+        code: "given_trig_stipulation_conflict",
+        path: `givens[${index}]`,
+        message: "extracted trig quantity disagrees with the original question's prescribed value",
+      });
+    }
+    return corrected;
+  });
   const knownUnits = collectPlanUnits(raw);
   const validationBindingMeta: NumericBindingMetaMap = new Map();
-  const validationBindings = collectNumericBindings(givens, validationBindingMeta);
+  const validationBindings = collectNumericBindings(prescribedGivens, validationBindingMeta);
   attachTrigStipulations(validationBindings, raw);
   derivedEvaluationOrder(derived).forEach((index) => {
     const value = derived[index];
@@ -1637,6 +1663,73 @@ function parseLeadingMeasuredValue(
  */
 const TRIG_STIPULATIONS = new WeakMap<Map<string, number>, Map<string, number>>();
 
+interface WholeTrigIdentity {
+  name: string;
+  angle: number;
+}
+
+/** A whole quantity name, never a trig term embedded in prose or a product. */
+function wholeDegreeTrigIdentity(text: string): WholeTrigIdentity | null {
+  const match = text.replace(/\\/g, "").match(
+    /^\s*(sin|cos|tan)\s*[_({]?\s*(\d+(?:\.\d+)?)\s*(?:°|\^\s*circ|deg(?:rees?)?)?\s*[)}]?\s*$/i,
+  );
+  return match ? { name: match[1]!.toLowerCase(), angle: Number(match[2]) } : null;
+}
+
+function constantEqualityMember(text: string): number | null {
+  const expression = text.replace(/[−–]/g, "-").replace(/\s+/g, "");
+  if (!/[0-9]/.test(expression) || !/^[0-9eE+\-*/^().]+$/.test(expression)) return null;
+  try {
+    const value = evaluateMathExpression(expression, 0);
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Only a quantity identified as the whole trig ratio can inherit a question
+ * prescription. An unrelated given with the same scalar cannot be rewritten.
+ * Preserve explicit radians even when an extracted symbol suggests degrees.
+ */
+function reconcilePrescribedTrigGiven(
+  given: unknown,
+  prescriptions: ReadonlyMap<string, number>,
+): unknown {
+  if (!isRecord(given) || typeof given.value !== "number" || !Number.isFinite(given.value) ||
+    typeof given.id !== "string" || unitScale(given.unit)?.signature !== "") return given;
+  const sourceParts = typeof given.sourceText === "string"
+    ? given.sourceText.split(/=|≈/).map((part) => part.trim()) : [];
+  if (sourceParts.some((part) => /^\s*(?:sin|cos|tan)\s*\(?\s*\d+(?:\.\d+)?\s*(?:rad|radians?)\s*\)?\s*$/i.test(part))) {
+    return given;
+  }
+  const aliases = new Set([given.id, given.symbol].filter((name): name is string => typeof name === "string"));
+  const wholeSourceChain = sourceParts.length >= 2 && sourceParts.every((part) =>
+    wholeDegreeTrigIdentity(part) !== null || aliases.has(part) || constantEqualityMember(part) !== null);
+  const sourceIdentities = wholeSourceChain
+    ? sourceParts.flatMap((part) => { const identity = wholeDegreeTrigIdentity(part); return identity ? [identity] : []; })
+    : [];
+  const identity = sourceIdentities[0] ?? [given.symbol, given.id].flatMap((name) => {
+    const parsed = typeof name === "string" ? wholeDegreeTrigIdentity(name) : null;
+    return parsed ? [parsed] : [];
+  })[0];
+  if (!identity || sourceIdentities.some((other) => other.name !== identity.name || other.angle !== identity.angle)) return given;
+  const value = prescriptions.get(`${identity.name}:${identity.angle}`);
+  if (value === undefined) return given;
+  const sourceConflict = wholeSourceChain && sourceParts.some((part) => {
+    const stated = constantEqualityMember(part);
+    return stated !== null && !approximatelyEqual(stated, value);
+  });
+  const signConflict = given.sign !== undefined && given.sign !== "unsigned" && given.sign !== numericSign(value);
+  if (approximatelyEqual(given.value, value) && !sourceConflict && !signConflict) return given;
+  return {
+    ...given,
+    value,
+    sign: numericSign(value),
+    sourceText: `${identity.name} ${identity.angle}° = ${value}`,
+  };
+}
+
 function collectTrigStipulations(plan: Record<string, unknown>): Map<string, number> {
   const stipulations = new Map<string, number>();
   // [text, whether a stated equality needs prescriptive wording to count]
@@ -1802,7 +1895,9 @@ function guardBareDegreeLikeTrigArguments(
       );
       if (Number.isFinite(value)) {
         const stipulated = stipulatedTrigValue(stipulations, name, `(${value})*pi/180`);
-        if (stipulated !== null) return `(${stipulated})`;
+        // Retain the function as arithmetic evidence. A literal replacement
+        // would make a standalone "c = cos(37) = 0.6" look like restatements.
+        if (stipulated !== null) return `${name}(${value}°)`;
         if (worksInDegrees && Math.abs(value) > 2 * Math.PI) return `${name}(${argument} ?)`;
       }
     } catch {
