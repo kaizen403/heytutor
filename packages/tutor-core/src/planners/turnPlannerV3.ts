@@ -12,6 +12,7 @@ import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws, type OpticsPlanAuditResult } from "./opticsPlanAudit";
 import { subjectFromTurnPlanContent, type DiagramSubject } from "./diagramSubject";
+import { parseTurnPlanJsonObject } from "./turnPlanJson";
 
 export interface TurnPlannerV3Options {
   proxyUrl: string;
@@ -414,14 +415,9 @@ export function parseTurnPlanV3Content(
 }
 
 function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3ParseTrace): TurnPlanV3 | null {
-  let text = content.trim();
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced?.[1]) text = fenced[1].trim();
   try {
-    const firstBrace = text.indexOf("{");
-    const lastBrace = text.lastIndexOf("}");
-    if (firstBrace < 0 || lastBrace <= firstBrace) return null;
-    const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1)) as unknown;
+    const parsed = parseTurnPlanJsonObject(content);
+    if (parsed === null) return null;
     const normalized = normalizePlannerTurnPlan(parsed, question);
     if (trace) trace.normalized = normalized;
     const reconciled = reconcileTurnPlanV3ExplicitArithmetic(normalized);

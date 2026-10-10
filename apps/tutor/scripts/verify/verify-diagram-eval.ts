@@ -140,10 +140,11 @@ const liveQuestionHandler = readFileSync(resolve(
   "features/tutor-session/hooks/turn/useQuestionHandler.ts",
 ), "utf8");
 assert.match(
-  liveQuestionHandler,
+  readFileSync(resolve(process.cwd(), "features/tutor-session/lib/scene/productionSceneSelection.ts"), "utf8"),
   /shouldPlanExactScene = planningTurnPlan\.visualRequirement !== "none" && !chemistryLane/,
-  "the live hook must continue to keep chemistry out of the LLM scene planner",
+  "the shared production gate must continue to keep chemistry out of the LLM scene planner",
 );
+assert(liveQuestionHandler.includes("deriveProductionSceneGate({"), "the live hook must call that shared admission gate");
 assert(
   !liveQuestionHandler.includes("planner_examples_strict"),
   "the evaluation-only strict arm must not enter the live hook",

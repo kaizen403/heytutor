@@ -15,6 +15,9 @@ import { unitIdFromTopicId } from "@/features/admin/lib/probes";
 import { gradeLecture, type LectureGrade } from "./grade";
 import { printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
+import { PRODUCTION_SCENE_SELECTION_VERSION } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { LAB_VISUAL_NEED_POLICY, budgetedVisualNeedFetch, parseVisualNeedReplay, summarizeVisualNeedCalls,
+  type VisualNeedCallAccounting } from "./labVisualNeed";
 import { applyLectureLabHeaders } from "./labAuth";
 import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
@@ -41,7 +44,7 @@ import {
   type DiagramEvalRow,
 } from "./diagramEval";
 import { writeRoundGallery } from "./gallery";
-import { readRoundJudgments } from "./judging";
+import { currentJudgeSummary, priorSubsetJudgeSummary, readRoundJudgments } from "./judging";
 import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
@@ -89,6 +92,7 @@ export interface Options {
   /** Conservative allowance for an interrupted pre-checkpoint run. */
   resumeExtraUsd: number;
   sceneDeclinePolicy: SceneDeclinePolicy;
+  visualNeedReplay: string | null;
   exampleExclusions: string | null;
 }
 
@@ -259,6 +263,9 @@ export function parseOptions(argv: string[]): Options {
     throw new Error("--max-usd must be a positive number");
   }
   const resume = flags.get("resume") === "true";
+  if ((flags.has("visual-need-replay") || flags.has("example-exclusions")) && evalFiles.length === 0) {
+    throw new Error("--visual-need-replay and --example-exclusions are evaluation-only");
+  }
   const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
@@ -288,11 +295,17 @@ export function parseOptions(argv: string[]): Options {
     resume,
     resumeExtraUsd,
     sceneDeclinePolicy,
+    visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
   };
 }
 
 /** Keep the full original evaluation for retrieval exclusions; skip only execution. */
+export function restoredDiagramPng(diagram: { svg?: string | null; png?: string | null }, available: (path: string) => boolean): string | null {
+  const path = diagram.png ?? diagram.svg?.replace(/\.svg$/i, ".png");
+  return path && available(path) ? path : null;
+}
+
 export function selectResumeProbes<T extends { id: string; question: string }>(
   probes: readonly T[],
   saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string }; executionConfig?: Record<string, unknown> }[],
@@ -618,22 +631,30 @@ async function main(): Promise<void> {
     ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
     : null;
   assertUniqueArtifactIds(probes);
+  const replayText = options.visualNeedReplay ? readFileSync(resolve(options.visualNeedReplay), "utf8") : null;
+  const visualNeedReplay = replayText === null ? null : parseVisualNeedReplay(replayText, probes);
   // Verify the server (not just this CLI's environment) before sending any model call.
   const configHeaders = new Headers();
   applyLectureLabHeaders(configHeaders);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
-  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number };
+  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown> };
   if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
     !Number.isFinite(serverConfig.plannerOutputCap) || !Number.isFinite(serverConfig.teachingOutputCap)) {
     throw new Error("server provider/deployment does not match the configured Azure lab");
   }
+  if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
+    throw new Error("server visual-need policy does not match the live-matching lab");
+  }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
+    figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
+    visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
+    visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
   };
   if (preflightEstimateUsd !== null) {
     console.log(
@@ -668,7 +689,7 @@ async function main(): Promise<void> {
   const reviewedIds = new Set(readRoundJudgments(outDir).map((row) => row.id));
   const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown> }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[] }
     : null;
   if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
   if (options.resume && !oldCheckpoint) throw new Error("resume requires a spend checkpoint with proven execution identity");
@@ -682,7 +703,8 @@ async function main(): Promise<void> {
     (oldCheckpoint.exampleExclusionFingerprint ?? labSampleFingerprint([])) !== exampleExclusionFingerprint)) {
     throw new Error("resume requires the identical decline experiment and example exclusions");
   }
-  const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0), 0);
+  const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0)
+    + (run.visualNeed?.origin === "live_service" ? run.visualNeed.accounting?.chargedUsd ?? 0 : 0), 0);
   const priorChargeUsd = restoredLabCharge(storedRowUsd, oldCheckpoint, options.resumeExtraUsd);
   console.log(`resume: ${runs.length} saved, ${pendingProbes.length} pending, prior conservative charge $${priorChargeUsd.toFixed(6)}`);
 
@@ -699,28 +721,39 @@ async function main(): Promise<void> {
   const nativeFetch = globalThis.fetch;
   const spendCap = new LabSpendCap(options.maxUsd);
   spendCap.recordCost(priorChargeUsd);
+  const visualNeedCalls: VisualNeedCallAccounting[] = [...(oldCheckpoint?.visualNeedCalls ?? [])];
+  const visualNeedAccountingByTrace = new Map<string, VisualNeedCallAccounting>();
   const checkpointSpend = () => writeFileSync(checkpointPath, `${JSON.stringify({
     ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
     scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
     sampleFingerprint, executionConfig,
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
+    visualNeedCalls,
   }, null, 1)}\n`);
   checkpointSpend();
   const budgetDeniedTraces = new Set<string>();
   const budgetTerminatedRows: string[] = [];
   const writeSummary = () => {
+    const judgingStatus = {
+      preservedJudgeSummary: Boolean(previousSummary.judge ?? previousSummary.priorSubsetJudgeSummary),
+      reviewedRows: runs.filter((row) => reviewedIds.has(row.probeId)).length,
+      unreviewedRows: runs.filter((row) => !reviewedIds.has(row.probeId)).length,
+    };
     const summary = {
       ...previousSummary, options, providerConfig, executionConfig,
+      judge: currentJudgeSummary({ judge: previousSummary.judge, judgingStatus }),
+      priorSubsetJudgeSummary: priorSubsetJudgeSummary(previousSummary, judgingStatus.unreviewedRows),
       evaluationConfig: evaluationRows ? { ...providerConfig, scenePlannerLimitMs: options.scenePlannerLimitMs,
         sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint } : null,
       preflightEstimateUsd,
+      visualNeed: { ...summarizeVisualNeedCalls(visualNeedCalls),
+        replayedRows: runs.filter((run) => run.visualNeed?.origin === "frozen_replay").length,
+        interruptedUsdUnattributed: oldCheckpoint?.reservedUsd ?? 0 },
       resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },
       ...spendCap.summary(runs.length, probes.length), budgetTerminatedRows,
       evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
       ...summarize(grades, runs),
-      judgingStatus: { preservedJudgeSummary: Boolean(previousSummary.judge),
-        reviewedRows: runs.filter((row) => reviewedIds.has(row.probeId)).length,
-        unreviewedRows: runs.filter((row) => !reviewedIds.has(row.probeId)).length },
+      judgingStatus,
     };
     writeFileSync(`${outDir}/summary.json`, JSON.stringify(summary, null, 1) + "\n");
     return summary;
@@ -744,6 +777,13 @@ async function main(): Promise<void> {
       }
     }
     const traceId = headers.get("x-heytutor-trace-id");
+    if (url === `${options.origin}/api/visual-need`) {
+      return budgetedVisualNeedFetch(input, { ...init, headers }, nativeFetch, {
+        reserve: (usd) => spendCap.reserveCall(usd), beforeDispatch: checkpointSpend, settle: settleSpend,
+        onAccounting: (call) => { visualNeedCalls.push(call); if (traceId) visualNeedAccountingByTrace.set(traceId, call); checkpointSpend(); },
+        onDenied: () => { if (traceId) budgetDeniedTraces.add(traceId); },
+      });
+    }
     const chatRequest = url === `${options.origin}/api/chat` && traceId;
     const plannerRequest = chatRequest && headers.get("x-planner") === "1";
     const directProviderRequest = url === endpoint.url;
@@ -820,10 +860,12 @@ async function main(): Promise<void> {
         subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
         sceneDeclinePolicy: options.sceneDeclinePolicy,
         traceId,
+        visualNeedReplay: visualNeedReplay?.get(probe.id),
         diagramExamples,
         diagramExampleCatalogue,
       });
       run.planner = await usageTracker.finishAsync(traceId);
+      if (run.visualNeed?.origin === "live_service") run.visualNeed.accounting = visualNeedAccountingByTrace.get(traceId);
       if (budgetDeniedTraces.has(traceId)) {
         budgetTerminatedRows.push(probe.id);
         mkdirSync(`${outDir}/interrupted`, { recursive: true });
@@ -877,8 +919,9 @@ async function main(): Promise<void> {
   for (const file of readdirSync(`${outDir}/runs`).filter((name) => name.endsWith(".json"))) {
     const path = `${outDir}/runs/${file}`;
     const row = JSON.parse(readFileSync(path, "utf8"));
-    if (row.diagram.png && !existsSync(resolve(outDir, row.diagram.png))) {
-      row.diagram.png = null;
+    const png = restoredDiagramPng(row.diagram, (candidate) => existsSync(resolve(outDir, candidate)));
+    if (png !== row.diagram.png) {
+      row.diagram.png = png;
       writeFileSync(path, JSON.stringify(row, null, 1) + "\n");
     }
   }

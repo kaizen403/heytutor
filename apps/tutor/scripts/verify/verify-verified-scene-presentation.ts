@@ -627,19 +627,22 @@ if (/reveal-group ids in order/i.test(dsaWalk.diagram.promptAddon)) {
   );
   // Start of the whole representation-selection region, so the block covers the
   // guards that run before `selectVerifiedRepresentation` as well as after it.
-  const selectionAnchor = handlerSource.indexOf("selectRepresentation: {");
+  const selectionSource = readFileSync(
+    resolve(import.meta.dirname, "../../features/tutor-session/lib/scene/productionSceneSelection.ts"), "utf8",
+  );
+  const selectionAnchor = selectionSource.indexOf("export function selectProductionScene(");
   const commitAnchor = handlerSource.indexOf("let activeDiagram:");
   if (selectionAnchor < 0) {
     throw new Error(
-      "this gate cannot find the `selectRepresentation:` block in useQuestionHandler; repoint it at the code that replaced it",
+      "this gate cannot find the shared production selector; repoint it at the code that replaced it",
     );
   }
-  if (commitAnchor <= selectionAnchor) {
+  if (commitAnchor < 0 || !handlerSource.includes("selectProductionScene({")) {
     throw new Error(
       "this gate cannot find the diagram commit in useQuestionHandler; repoint it at the code that replaced it",
     );
   }
-  const selectionBlock = handlerSource.slice(selectionAnchor, commitAnchor);
+  const selectionBlock = selectionSource.slice(selectionAnchor);
   // The test is drawn text, not primitive count: a bare pair of axes has ink
   // and still cannot be read, and nineteen lectures in one sweep narrated one
   // as though it showed the question.
