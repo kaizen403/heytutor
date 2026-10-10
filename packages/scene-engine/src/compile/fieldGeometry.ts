@@ -1,4 +1,5 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
+import { isSymbolicIdentity, isSymbolicRepresentative } from "./symbolicOutputLabels";
 
 export const FIELD_OPERATORS = ["electric_field", "field_components"] as const;
 const MAX_CHARGES = 32;
@@ -392,7 +393,8 @@ export function validateEvaluatedFieldLabels(construction: SceneConstruction, in
     for (const [outputIndex, output] of construction.outputs.entries()) {
       const label = labels[outputIndex];
       const entity = document.entities.find((candidate) => candidate.id === output);
-      if (entity?.label !== undefined && entity.label !== label) add(`field output labels are computed by the engine; expected ${label}`, entity.label);
+      if (entity?.label !== undefined && entity.label !== label
+        && !(isSymbolicRepresentative(document) && isSymbolicIdentity(entity.label))) add(`field output labels are computed by the engine; expected ${label}`, entity.label);
       for (const annotation of document.annotations) {
         if (!annotation.targetIds.includes(output)) continue;
         if (annotation.quantityId !== undefined || annotation.text !== undefined && annotation.text !== label) add("field output annotations cannot supply independent numerical or textual results", annotation);

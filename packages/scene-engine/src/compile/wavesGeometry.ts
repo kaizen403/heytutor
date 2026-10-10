@@ -1,4 +1,5 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
+import { isSymbolicIdentity, isSymbolicRepresentative } from "./symbolicOutputLabels";
 import type { CalculusAnchorDefinition } from "./calculusGeometry";
 
 export const WAVES_OPERATORS = ["harmonic_wave", "wave_superposition", "wave_sample"] as const;
@@ -365,7 +366,8 @@ export function validateEvaluatedWavesLabels(construction: SceneConstruction, in
     for (const [outputIndex, output] of construction.outputs.entries()) {
       const entity = document.entities.find((candidate) => candidate.id === output);
       const label = labels[outputIndex];
-      if (entity?.label !== undefined && entity.label !== label) add(`wave output labels are computed by the engine; expected ${label}`, entity.label);
+      if (entity?.label !== undefined && entity.label !== label
+        && !(isSymbolicRepresentative(document) && isSymbolicIdentity(entity.label))) add(`wave output labels are computed by the engine; expected ${label}`, entity.label);
       for (const annotation of document.annotations) if (annotation.targetIds.includes(output) && (annotation.quantityId !== undefined || annotation.text !== undefined && annotation.text !== label)) add("wave result annotations cannot introduce independent scalar or textual results", annotation);
     }
   } catch (error) { add(error instanceof Error ? error.message : "wave result labels are invalid"); }

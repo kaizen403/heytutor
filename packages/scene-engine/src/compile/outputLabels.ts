@@ -31,6 +31,7 @@ import { rotationGeometryLabel, validateEvaluatedRotationLabels } from "./rotati
 import { combinatoricsGeometryLabel, validateEvaluatedCombinatoricsLabels } from "./combinatoricsGeometry";
 import { elasticityGeometryLabel, validateEvaluatedElasticityLabels } from "./elasticityGeometry";
 import { distributedFieldsConstructionOutputLabels, validateEvaluatedDistributedFieldsLabels } from "./distributedFieldsGeometry";
+import { isSymbolicRepresentative, representativeOutputLabel } from "./symbolicOutputLabels";
 
 interface LabelEvaluationContext {
   number(value: unknown): number;
@@ -228,6 +229,10 @@ export function withEvaluatedOutputLabels(
       return document;
   }
   if (issues.length > issueCount) return document;
+  if (isSymbolicRepresentative(document)) {
+    labels = labels.map((label, outputIndex) => representativeOutputLabel(label,
+      document.entities.find((entity) => entity.id === construction.outputs[outputIndex])?.label, outputs[outputIndex]));
+  }
   construction.outputs.forEach((id) => checkedOutputIds.add(id));
   if (labels.length !== construction.outputs.length) throw new Error("derived labels must match construction output arity");
   const byOutput = new Map(construction.outputs.map((id, outputIndex) => [id, labels[outputIndex]]));

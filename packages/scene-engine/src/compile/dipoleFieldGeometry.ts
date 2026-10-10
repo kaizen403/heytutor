@@ -551,7 +551,7 @@ function dipoleTorque(inputs: Record<string, unknown>, context: DipoleFieldEvalu
  * as the shared page-normal glyph: a ring with a dot (out) or a cross (in).
  * displayLength is the ring diameter.
  */
-function pageNormalGlyph(origin: RenderPoint, displayLength: number, sign: 1 | -1): Array<{ points: RenderPoint[]; directed: false }> {
+export function pageNormalGlyph(origin: RenderPoint, displayLength: number, sign: 1 | -1): Array<{ points: RenderPoint[]; directed: false }> {
   const radius = displayLength / 2;
   const move = (x: number, y: number): RenderPoint => {
     const result = finitePoint({ x: origin.x + x, y: origin.y + y }, "displayLength");
@@ -813,8 +813,9 @@ function isDipoleGeometry(value: unknown): value is DipoleGeometry {
 }
 function compactDipoleNumber(value: number): string {
   if (!Number.isFinite(value)) return "invalid";
-  const rounded = Math.round(value * 1000) / 1000;
-  return Object.is(rounded, -0) ? "0" : String(rounded);
+  if (value === 0) return "0";
+  const rounded = Number(value.toPrecision(4));
+  return Math.abs(rounded) < 1e-3 || Math.abs(rounded) >= 1e6 ? rounded.toExponential() : String(rounded);
 }
 function dipoleLabel(meta: DipoleFieldMetadata, index: number): string {
   if (meta.operator === "coulomb_pair") {
