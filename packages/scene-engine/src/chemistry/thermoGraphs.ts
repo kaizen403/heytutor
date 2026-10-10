@@ -506,7 +506,7 @@ function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuanti
     s.labelled("gibbs_line");
     s.point("t_eq", { x: 5, y: 0 }, "equilibrium temperature", `T = ${fmt(tEq)} K`);
     s.labelled("t_eq");
-    const hLabel = hText.replace(/\s+/g, "");
+    const hLabel = hText.length <= 16 ? hText : hText.replace(/\s+/g, "");
     s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hLabel.length <= 16 ? hLabel : undefined);
     if (hLabel.length <= 16) s.labelled("h_intercept");
     else physicalValueText(c, "h_intercept_value", { x: .4, y: 3 * sign }, `ΔH = ${signed(dH)}`, dgUnit, "enthalpy intercept value");
@@ -525,7 +525,7 @@ function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuanti
   }
   s.curve("gibbs_line", `${num(3 * sign)}*(1+x/8)`, 0, 8, "ΔG line", "ΔG = ΔH − TΔS", 33);
   s.labelled("gibbs_line");
-  const hLabel = hText.replace(/\s+/g, "");
+  const hLabel = hText.length <= 16 ? hText : hText.replace(/\s+/g, "");
   s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hLabel.length <= 16 ? hLabel : undefined);
   if (hLabel.length <= 16) s.labelled("h_intercept");
   else physicalValueText(c, "h_intercept_value", { x: .4, y: 3 * sign }, `ΔH = ${signed(dH)}`, dgUnit, "enthalpy intercept value");

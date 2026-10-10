@@ -131,6 +131,11 @@ for(const entropy of [100,-100])check("Both Gibbs branches retain complete compi
  assert.ok(ink.includes("ΔH=100000kJ/mol"));assert.ok(ink.includes(`ΔG=${expected}.0kJ/mol`));
  assert.ok(result.labels.every(label=>typeof label === "string" && label.length<=16),JSON.stringify(result.labels));
 });
+check("Ordinary short enthalpy label retains exact spacing",()=>{
+ const result=compiled(buildThermoGraphScene("For a reaction ΔH = 40 kJ/mol and ΔS = 100 J K−1 mol−1. Above what temperature will the reaction become spontaneous?",[],false));
+ assert.ok(result.labels.includes("ΔH = 40 kJ/mol"),JSON.stringify(result.labels));
+ near(result.document.quantities.find(q=>q.id==="dH")?.value,40);
+});
 check("One complete molar unit in profile caption",()=>{
  const result=compiled(buildThermoGraphScene("Draw an energy profile: forward activation energy is 60 kJ/mol and ΔH = -20 kJ/mol.",[],false));
  const caption=result.document.annotations.find(a=>a.id==="figure_caption")?.text;assert.ok(caption);
