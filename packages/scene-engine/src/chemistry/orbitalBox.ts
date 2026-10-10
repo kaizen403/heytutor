@@ -25,7 +25,7 @@ export const ORBITAL_FAMILY = "chem_orbital" as const;
 /* Cues                                                                      */
 /* ------------------------------------------------------------------------- */
 
-const BOX_CUES = /electron(?:ic)? configuration|orbital diagram|box diagram|unpaired electron|magnetic moment|spin[ -]?only|hund|aufbau|pauli/;
+const BOX_CUES = /electron(?:ic)? configuration|orbital diagram|box diagram|unpaired electron|magnetic moment|spin[ -]?only|hund|aufbau|\bpauli\b/;
 const SHAPE_CUES = /shapes? of|nodal|\bnodes?\b|lobes?/;
 const QUANTUM_CUES = /quantum number|number of orbitals|how many orbitals|maximum number of electrons|max(?:imum)? electrons|electrons (?:can|that can|which can) (?:be )?(?:accommodated|held|present)/;
 /** A box-diagram cue strong enough to keep an otherwise physics-flavoured stem. */

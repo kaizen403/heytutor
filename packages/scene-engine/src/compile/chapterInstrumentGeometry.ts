@@ -199,7 +199,10 @@ function readCyclotron(inputs: Record<string, unknown>, context: SourceContext):
   if (!(drawn > 1e-6) && speed !== 0) invalid("precision", "a nonzero orbit collapses at the stated display scale");
   const sense = Math.sign(charge) * Math.sign(field);
   const particle = { x: origin.x + drawn, y: origin.y };
-  const velocity = { x: 0, y: sense * speed };
+  // At the +x point of the orbit, q(v x B) must point toward the centre.
+  // For positive qB this requires -y velocity; reversing either q or B
+  // reverses the tangent while preserving inward magnetic force.
+  const velocity = { x: 0, y: -sense * speed };
   const fieldMark = mark("field", { x: 0, y: 0, z: field }, "T", display);
   fieldMark.pageNormal = field > 0 ? "out" : "in";
   const glyphRadius = display * 0.18;
@@ -213,7 +216,7 @@ function readCyclotron(inputs: Record<string, unknown>, context: SourceContext):
     { kind: "path", closed: true, points: dee(origin, drawn, 1), instrument: mark("dee", { x: radius, y: 0 }, "m", display) },
     speed === 0
       ? { kind: "point", point: particle, instrument: mark("velocity", velocity, "m/s", display) }
-      : { kind: "path", directed: true, points: [particle, add2(particle, { x: 0, y: sense * display }, "velocity")], instrument: mark("velocity", velocity, "m/s", display) },
+      : { kind: "path", directed: true, points: [particle, add2(particle, { x: 0, y: -sense * display }, "velocity")], instrument: mark("velocity", velocity, "m/s", display) },
     { kind: "multi_path", paths: [ring], instrument: fieldMark },
   ];
 }
