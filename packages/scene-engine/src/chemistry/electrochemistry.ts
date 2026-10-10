@@ -13,7 +13,7 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, matchedChemistryQuantity, chemistryQuantityCuesValid } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, matchedChemistryQuantity, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
@@ -294,6 +294,8 @@ export interface HalfCell {
   readonly concentrations: Readonly<Record<string, number>>;
   /** Where the potential came from. */
   readonly potentialSource: "stem" | "table" | "unknown";
+  readonly potentialSourceSpan?: ChemistrySpan;
+  readonly potentialSourceText?: string;
   readonly record: CoupleRecord | null;
 }
 
@@ -313,10 +315,11 @@ export interface CellSpec {
   readonly source: "notation" | "named" | "prose" | "half_reactions" | "she";
 }
 
-const E_NAUGHT = String.raw`E(?:°|º|˚|⁰|®|\^\s*(?:0|o|\(0\))|0(?![.\d])|o\b)`;
-const SPECIES = String.raw`[A-Z][a-z]?(?:[A-Za-z0-9]*?)(?:\^?\(?\d*[+-]\)?|\+{2,})?`;
+const E_NAUGHT = String.raw`E(?:°|º|˚|⁰|₀|®|\^\s*(?:0|o|\(0\))|0(?![.\d])|o\b)`;
+const SPECIES = String.raw`[A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]*?)(?:\^?\(?\d*[+-]\)?|\+{2,}|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])?`;
 const COUPLE = String.raw`(${SPECIES})\s*(?:\(\s*(?:aq|s|g|l)\s*\))?\s*[\/|]\s*(${SPECIES})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
 const VALUE = `(${CHEMISTRY_SCALAR_PATTERN})\\s*(?:V|volt|volts)\\b`;
+interface StatedPotential { e0:number; n?:number; sourceSpan:ChemistrySpan; sourceText:string }
 
 /**
  * Standard potentials the stem states, keyed by canonical couple. Reads
@@ -325,36 +328,49 @@ const VALUE = `(${CHEMISTRY_SCALAR_PATTERN})\\s*(?:V|volt|volts)\\b`;
  * "E° of Zn2+/Zn and Cu2+/Cu are -0.76 V and 0.34 V respectively". An
  * "oxidation potential" is negated to a reduction potential.
  */
-function statedPotentials(question: string): Map<string, { e0: number; n?: number }> {
+function statedPotentials(question: string): Map<string, StatedPotential> | null {
   const text = question;
-  const found = new Map<string, { e0: number; n?: number }>();
-  const store = (rawCouple: string, value: number, index: number, n?: number): void => {
+  const found = new Map<string, StatedPotential>();
+  let invalid = false;
+  // Validate each present assignment separately: different electrode roles
+  // may differ, but malformed stated values must never become table data.
+  const assignment = new RegExp(`${E_NAUGHT}\\s*(?:(?:for|of|value\\s+of|_)?\\s*[\\(\\[]?\\s*${COUPLE}\\s*[\\)\\]]?\\s*)?(?:=|is|:)`, "gd");
+  for (const match of text.matchAll(assignment)) {
+    const read = readChemistryQuantity({question:text,after:/^/,within:{start:match.index!+match[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
+    if (!read.ok) return null;
+  }
+  const store = (rawCouple: string, match:RegExpMatchArray, group:number, n?: number): void => {
     const key = coupleKey(rawCouple);
-    if (!key || !Number.isFinite(value)) return;
+    const pair = match.indices?.[group];
+    const read = pair ? readChemistryLiteral({question:text,scalarSpan:{start:pair[0],end:pair[1]},dimension:"potential",targetUnit:"V"}) : null;
+    if (!key || !read?.ok) { invalid = true; return; }
+    const index = match.index!; const value = read.reading.value;
     const before = text.slice(Math.max(0, index - 80), index).toLowerCase();
     const e0 = /oxidation potential/.test(before) ? -value : value;
     const record = findCouple(key);
     const canonical = record ? record.key : key;
-    if (!found.has(canonical)) found.set(canonical, { e0, ...(n !== undefined ? { n } : {}) });
+    const previous = found.get(canonical);
+    if (previous && previous.e0 !== e0) { invalid = true; return; }
+    if (!previous) found.set(canonical, { e0, ...(n !== undefined ? { n } : {}),sourceSpan:read.reading.source.span,sourceText:read.reading.source.text });
   };
   const direct = new RegExp(`${E_NAUGHT}\\s*(?:for|of|value\\s+of|_)?\\s*[\\(\\[]?\\s*${COUPLE}\\s*[\\)\\]]?\\s*(?:=|is|:|as)?\\s*${VALUE}`, "gd");
   for (const match of text.matchAll(direct)) {
-    store(`${match[1]}/${match[2]}`, (matchedChemistryQuantity(text, match, 3, "potential", "V") ?? NaN), match.index ?? 0);
+    store(`${match[1]}/${match[2]}`, match, 3);
   }
   const halfReaction = new RegExp(
-    `(?:^|[^A-Za-z0-9])(?:\\d+\\s*)?(${SPECIES})\\s*(?:\\(\\s*(?:aq|s|g|l)\\s*\\))?\\s*\\+\\s*(\\d*)\\s*e(?:\\^?\\(?-\\)?|\\^-|-)?\\s*(?:->|=|<=>)\\s*(?:\\d+\\s*)?(${SPECIES})(?:\\s*\\(\\s*(?:aq|s|g|l)\\s*\\))?[^\\n]{0,40}?${E_NAUGHT}[^\\n=]{0,12}(?:=|is|:)?\\s*${VALUE}`,
+    `(?:^|[^A-Za-z0-9])(?:\\d+\\s*)?(${SPECIES})\\s*(?:\\(\\s*(?:aq|s|g|l)\\s*\\))?\\s*\\+\\s*(\\d*)\\s*e(?:\\^?\\(?-\\)?|\\^-|-|⁻)?\\s*(?:->|=|<=>|→|⟶|⇌|⇄|↔|⇒)\\s*(?:\\d+\\s*)?(${SPECIES})(?:\\s*\\(\\s*(?:aq|s|g|l)\\s*\\))?[^\\n]{0,40}?${E_NAUGHT}[^\\n=]{0,12}(?:=|is|:)?\\s*${VALUE}`,
     "gd",
   );
   for (const match of text.matchAll(halfReaction)) {
     const electrons = match[2] ? Number(match[2]) : 1;
-    store(`${match[1]}/${match[3]}`, (matchedChemistryQuantity(text, match, 4, "potential", "V") ?? NaN), match.index ?? 0, electrons);
+    store(`${match[1]}/${match[3]}`, match, 4, electrons);
   }
   const list = new RegExp(`(?:${E_NAUGHT}|reduction potentials?|electrode potentials?)[^.\\n]{0,40}?${COUPLE}\\s*(?:,|and)\\s*${COUPLE}[^.\\n]{0,30}?(?:are|=|is|:)\\s*${VALUE}\\s*(?:,|and)\\s*${VALUE}`, "gd");
   for (const match of text.matchAll(list)) {
-    store(`${match[1]}/${match[2]}`, (matchedChemistryQuantity(text, match, 5, "potential", "V") ?? NaN), match.index ?? 0);
-    store(`${match[3]}/${match[4]}`, (matchedChemistryQuantity(text, match, 6, "potential", "V") ?? NaN), match.index ?? 0);
+    store(`${match[1]}/${match[2]}`, match, 5);
+    store(`${match[3]}/${match[4]}`, match, 6);
   }
-  return found;
+  return invalid ? null : found;
 }
 
 const METAL_NAMES: Readonly<Record<string, string>> = {
@@ -470,7 +486,7 @@ function embeddedElectrode(tokens: SpeciesToken[]): string | null {
   return bare ? bare.formula : null;
 }
 
-function resolveHalfCell(electrode: string, tokens: SpeciesToken[], overrides: Map<string, { e0: number; n?: number }>): HalfCell | null {
+function resolveHalfCell(electrode: string, tokens: SpeciesToken[], overrides: Map<string, StatedPotential>): HalfCell | null {
   const formulas = tokens.map((token) => token.formula);
   const inert = electrode === "Pt" || electrode === "C";
   let record: CoupleRecord | null = null;
@@ -563,6 +579,7 @@ function resolveHalfCell(electrode: string, tokens: SpeciesToken[], overrides: M
     ...(coatLabel ? { coat: coatLabel } : {}),
     concentrations,
     potentialSource: override ? "stem" : record ? "table" : "unknown",
+    ...(override ? {potentialSourceSpan:override.sourceSpan,potentialSourceText:override.sourceText} : {}),
     record,
   };
 }
@@ -592,7 +609,7 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } {
   return out;
 }
 
-function halfCellFromCouple(key: string, overrides: Map<string, { e0: number; n?: number }>, concentrations: Record<string, number> = {}): HalfCell | null {
+function halfCellFromCouple(key: string, overrides: Map<string, StatedPotential>, concentrations: Record<string, number> = {}): HalfCell | null {
   const record = findCouple(key);
   const canonical = record ? record.key : key;
   const override = overrides.get(canonical) ?? overrides.get(reverseKey(canonical));
@@ -617,6 +634,7 @@ function halfCellFromCouple(key: string, overrides: Map<string, { e0: number; n?
     ...(coat ? { coat } : {}),
     concentrations,
     potentialSource: override ? "stem" : record ? "table" : "unknown",
+    ...(override ? {potentialSourceSpan:override.sourceSpan,potentialSourceText:override.sourceText} : {}),
     record,
   };
 }
@@ -650,6 +668,7 @@ export function parseCellNotation(text: string): CellSpec | null {
   }
   if (!chemistryQuantityCuesValid(text, [{after: /\bat/, dimensions: ["temperature"]}])) return null;
   const overrides = statedPotentials(source);
+  if (!overrides) return null;
   const extras = {
     nernstFactor: readNernstFactor(source),
     temperatureK: readTemperature(source),
@@ -786,7 +805,7 @@ function commonCouple(symbol: string): CoupleRecord | null {
  * electrode in AgNO3 solution", "copper plate in copper sulphate". Order is
  * as written; the caller decides the anode from the potentials.
  */
-function readProseHalfCells(source: string, overrides: Map<string, { e0: number; n?: number }>): HalfCell[] {
+function readProseHalfCells(source: string, overrides: Map<string, StatedPotential>): HalfCell[] {
   const halves: HalfCell[] = [];
   const seen = new Set<string>();
   const metalWord = Object.keys(METAL_NAMES).join("|");
@@ -837,9 +856,9 @@ function readProseHalfCells(source: string, overrides: Map<string, { e0: number;
 }
 
 /** Cells given as two half reactions with potentials; both must carry a stated E°. */
-function readHalfReactionCells(source: string, overrides: Map<string, { e0: number; n?: number }>): HalfCell[] {
+function readHalfReactionCells(source: string, overrides: Map<string, StatedPotential>): HalfCell[] {
   const halfReaction = new RegExp(
-    `(?:^|[^A-Za-z0-9])(?:\\d+\\s*)?(${SPECIES})\\s*(?:\\(\\s*(?:aq|s|g|l)\\s*\\))?\\s*\\+\\s*(\\d*)\\s*e(?:\\^?\\(?-\\)?|\\^-|-)?\\s*(?:->|=|<=>)\\s*(?:\\d+\\s*)?(${SPECIES})(?:\\s*\\(\\s*(?:aq|s|g|l)\\s*\\))?[^\\n]{0,40}?${E_NAUGHT}[^\\n=]{0,12}(?:=|is|:)?\\s*${VALUE}`,
+    `(?:^|[^A-Za-z0-9])(?:\\d+\\s*)?(${SPECIES})\\s*(?:\\(\\s*(?:aq|s|g|l)\\s*\\))?\\s*\\+\\s*(\\d*)\\s*e(?:\\^?\\(?-\\)?|\\^-|-|⁻)?\\s*(?:->|=|<=>|→|⟶|⇌|⇄|↔|⇒)\\s*(?:\\d+\\s*)?(${SPECIES})(?:\\s*\\(\\s*(?:aq|s|g|l)\\s*\\))?[^\\n]{0,40}?${E_NAUGHT}[^\\n=]{0,12}(?:=|is|:)?\\s*${VALUE}`,
     "gd",
   );
   const halves: HalfCell[] = [];
@@ -1583,6 +1602,7 @@ function buildConductancePlot(question: string): SceneDocument | null {
  */
 export function buildElectrochemScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  if (statedPotentials(question) === null) return null;
   if (!chemistryReferenceConstantValid(question, FARADAY_ASSIGNMENT, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
   if (!isElectrochemStem(question)) return null;
   const lower = chemStem(question);

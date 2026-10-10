@@ -186,6 +186,19 @@ function num(value: number): string {
   return value < 0 ? `(${text})` : text;
 }
 
+/** Keep complete physical values inside the ordinary compact-label grammar.
+ * Whitespace may shrink; a longer value and its unit use two complete rows. */
+function physicalValueText(c: ChemScene, id: string, at: {x:number; y:number}, value: string, unit: string, role: string): void {
+  const full = `${value} ${unit}`;
+  const closed = full.replace(/\s+/g, "");
+  if (full.length <= 16 || closed.length <= 16) {
+    c.text(id, at, full.length <= 16 ? full : closed, role, {preserveText:true});
+  } else {
+    c.text(id, at, value.replace(/\s+/g,""), role, {preserveText:true});
+    c.text(`${id}_unit`, {x:at.x,y:at.y-.8}, unit, `${role} unit`, {preserveText:true});
+  }
+}
+
 /**
  * One hump between two levels as a single continuous expression: a Gaussian
  * bump of the barrier height on the left level, with a very narrow smooth
@@ -224,6 +237,9 @@ interface ProfileSpec {
 
 const EXOTHERMIC = /exothermic|evolution\s+of\s+heat|heat\s+is\s+(?:evolved|released|liberated)|releases?\s+heat|liberates?\s+heat/;
 const ENDOTHERMIC = /endothermic|absorption\s+of\s+heat|heat\s+is\s+absorbed|absorbs?\s+heat/;
+const BACKWARD_ACTIVATION = /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:backward|reverse)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:b|back|backward|rev|reverse)\s*\)?|(?:backward|reverse)\s+activation\s+energy/;
+const FORWARD_ACTIVATION = /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:forward|uncatalys[ez]d)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:f|fwd|forward)\s*\)?|(?:forward|uncatalys[ez]d)\s+activation\s+energy/;
+const GENERIC_ACTIVATION = /(?<!\b(?:forward|backward|reverse|uncatalys[ez]d)\s+)activation\s+energy(?!\s+(?:of|for)\s+(?:the\s+)?(?:forward|backward|reverse|uncatalys[ez]d)\b)|energy\s+of\s+activation|\be_?a\b(?!\s*\(?\s*(?:f|fwd|forward|b|back|backward|rev|reverse)\b)|(?<!\b(?:forward|backward|reverse)\s+)energy\s+barrier/;
 
 /**
  * "A -> B slow; ΔH = +ve", "B -> C fast, ΔH = -ve" in reading order. Display
@@ -272,10 +288,9 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
     };
   }
 
-  const eaBackStem = energyNear(question, /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:backward|reverse)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:b|back|backward|rev|reverse)\s*\)?|backward\s+activation\s+energy|reverse\s+activation\s+energy/);
+  const eaBackStem = energyNear(question, BACKWARD_ACTIVATION);
   const eaForwardStem =
-    energyNear(question, /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:forward|uncatalys[ez]d)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:f|fwd|forward)\s*\)?|forward\s+activation\s+energy/) ??
-    (eaBackStem && /activation\s+energy[^.]{0,40}?backward/.test(stem) ? null : energyNear(question, /activation\s+energy|energy\s+of\s+activation|\be_?a\b|energy\s+barrier/));
+    energyNear(question, FORWARD_ACTIVATION) ?? energyNear(question, GENERIC_ACTIVATION);
   const threshold = energyNear(question, /threshold\s+energy/);
   const energyR = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/);
   const energyP = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/);
@@ -325,10 +340,10 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   const parts: string[] = [];
   if (exact) {
     const back = ea! - dH!;
-    parts.push(`E_a(forward) = ${fmt(ea!)} ${u}/mol and ΔH = ${signed(dH!)} ${u}/mol, so E_a(backward) = E_a(forward) ${MINUS} ΔH = ${fmt(back)} ${u}/mol.`);
+    parts.push(`E_a(forward) = ${fmt(ea!)} ${u} and ΔH = ${signed(dH!)} ${u}, so E_a(backward) = E_a(forward) ${MINUS} ΔH = ${fmt(back)} ${u}.`);
     parts.push(dH! < 0 ? "Exothermic: the products sit below the reactants." : dH! > 0 ? "Endothermic: the products sit above the reactants." : "ΔH = 0: reactants and products at the same level.");
   } else if (ea !== null) {
-    parts.push(`E_a(forward) = ${fmt(ea)} ${u}/mol; the product level is drawn ${sign < 0 ? "below" : "above"} the reactants because the stem calls the reaction ${sign < 0 ? "exothermic" : "endothermic"}, with ΔH not to scale.`);
+    parts.push(`E_a(forward) = ${fmt(ea)} ${u}; the product level is drawn ${sign < 0 ? "below" : "above"} the reactants because the stem calls the reaction ${sign < 0 ? "exothermic" : "endothermic"}, with ΔH not to scale.`);
   } else {
     parts.push(assumed
       ? "Heights are qualitative and the exothermic case is drawn; for an endothermic reaction the product level sits above R."
@@ -336,7 +351,7 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   }
   if (catalyst !== null) {
     parts.push(typeof catalyst === "number"
-      ? `With the catalyst the barrier falls to ${fmt(catalyst)} ${u}/mol; ΔH is unchanged.`
+      ? `With the catalyst the barrier falls to ${fmt(catalyst)} ${u}; ΔH is unchanged.`
       : "The catalyst opens a path with a lower barrier; ΔH and the positions of R and P are unchanged.");
   }
   return { steps: [step], exact, eaKnown: ea !== null, unit: u, catalyst, reactants, products, caption: parts.join(" ") };
@@ -491,15 +506,17 @@ function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuanti
     s.labelled("gibbs_line");
     s.point("t_eq", { x: 5, y: 0 }, "equilibrium temperature", `T = ${fmt(tEq)} K`);
     s.labelled("t_eq");
-    s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText);
-    s.labelled("h_intercept");
+    const hLabel = hText.replace(/\s+/g, "");
+    s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hLabel.length <= 16 ? hLabel : undefined);
+    if (hLabel.length <= 16) s.labelled("h_intercept");
+    else physicalValueText(c, "h_intercept_value", { x: .4, y: 3 * sign }, `ΔH = ${signed(dH)}`, dgUnit, "enthalpy intercept value");
     const spontaneousRight = sign > 0;
     c.text("spont", { x: spontaneousRight ? 7 : 2.4, y: spontaneousRight ? 0.8 : -0.8 }, "spontaneous", "region name");
     c.text("nonspont", { x: spontaneousRight ? 2.4 : 7, y: spontaneousRight ? -0.8 : 0.8 }, "not spontaneous", "region name");
     s.quantity("T_eq", "T_eq", tEq, "K");
     s.quantity("dH", "ΔH", dH, dgUnit);
     s.quantity("dS", "ΔS", dSkJ * 1000, entropyUnit);
-    if (dgText) c.text("dg_at", { x: 4.2, y: 3.15 }, dgText, "calculated Gibbs energy");
+    if (dgAt !== null) physicalValueText(c, "dg_at", { x: 4.2, y: 3.15 }, `ΔG=${dgAt.toFixed(1)}`, dgUnit, "calculated Gibbs energy");
     if (dgAt !== null) s.quantity("dG", "ΔG", dgAt, dgUnit);
     c.text("schematic_l", { x: 1.7, y: 2.7 }, "schematic", "the line is not an energy scale");
     c.text("scale_l", { x: 1.7, y: 1.85 }, "not a kJ scale", "vertical axis is not kJ");
@@ -508,10 +525,12 @@ function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuanti
   }
   s.curve("gibbs_line", `${num(3 * sign)}*(1+x/8)`, 0, 8, "ΔG line", "ΔG = ΔH − TΔS", 33);
   s.labelled("gibbs_line");
-  s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hText);
-  s.labelled("h_intercept");
+  const hLabel = hText.replace(/\s+/g, "");
+  s.point("h_intercept", { x: 0, y: 3 * sign }, "enthalpy intercept", hLabel.length <= 16 ? hLabel : undefined);
+  if (hLabel.length <= 16) s.labelled("h_intercept");
+  else physicalValueText(c, "h_intercept_value", { x: .4, y: 3 * sign }, `ΔH = ${signed(dH)}`, dgUnit, "enthalpy intercept value");
   c.text("region", { x: 4.5, y: sign > 0 ? -0.8 : 0.8 }, sign < 0 ? "ΔG < 0 at all T" : "ΔG > 0 at all T", "region name");
-  if (dgText) c.text("dg_at", { x: 4.2, y: 2.7 }, dgText, "calculated Gibbs energy");
+  if (dgAt !== null) physicalValueText(c, "dg_at", { x: 4.2, y: 2.7 }, `ΔG=${dgAt.toFixed(1)}`, dgUnit, "calculated Gibbs energy");
   if (dgAt !== null) s.quantity("dG", "ΔG", dgAt, dgUnit);
   c.text("schematic_l", { x: 7.1, y: 3.15 }, "schematic", "the line is not an energy scale");
   c.text("scale_l", { x: 7.1, y: 2.35 }, "not a kJ scale", "vertical axis is not kJ");
@@ -759,7 +778,10 @@ function buildMaxwell(question: string, stem: string): SceneDocument {
 /** The figure, or null when the stem does not ground it. */
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
-  if (!chemistryQuantityCuesValid(question, [{after: /activation energy|energy barrier/, dimensions: ["energy", "molar_energy"]}, {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]}])) return null;
+  if (!chemistryQuantityCuesValid(question, [
+    ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(after=>({after,dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
+    {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
+  ])) return null;
   if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);
   const stem = chemStem(question);
   const kind = classifyThermoStem(question);

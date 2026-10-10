@@ -67,6 +67,10 @@ function completeScalarSpan(question: string, span: ChemistrySpan): boolean {
 }
 export function parseChemistryScalar(question: string, span: ChemistrySpan): ChemRead<number> {
   if (!validSpan(question, span) || !completeScalarSpan(question, span)) return fail("malformed", span);
+  return scalarValue(question, span);
+}
+/** Value grammar shared by literals and independently closed expressions. */
+function scalarValue(question: string, span: ChemistrySpan): ChemRead<number> {
   const token = question.slice(span.start, span.end).trim().replace(/−/g, "-");
   if (!SCALAR_FULL.test(token)) return fail("malformed", span);
   const clean = token.replace(/\s/g, "");
@@ -81,6 +85,39 @@ export function parseChemistryScalar(question: string, span: ChemistrySpan): Che
     value = mantissa * 10 ** Number(power[2]); nonzero = mantissa !== 0;
   } else { value = Number(clean); nonzero = /[1-9]/.test(clean.split(/[eE]/)[0]!); }
   return Number.isFinite(value) && !(nonzero && value === 0) ? { ok: true, reading: value } : fail("malformed", span);
+}
+
+export interface ChemistryArrheniusEquation {
+  natural: boolean;
+  coefficient: { value: number; span: ChemistrySpan; text: string };
+  source: { span: ChemistrySpan; text: string };
+}
+/** A coefficient is authority only inside a complete original Arrhenius
+ * expression, never through a relaxed standalone scalar boundary. */
+export function readChemistryArrheniusEquation(question: string): ChemRead<ChemistryArrheniusEquation> {
+  const end = chemistryQuestionSpan(question).end;
+  const patterns = [
+    { pattern: new RegExp(String.raw`\b(ln|log)\s*k\s*=\s*(${SCALAR})\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*T\b`, "gd"), group: 3 },
+    { pattern: new RegExp(String.raw`\be\s*\^?\s*\(\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*T\s*\)`, "gd"), group: 1 },
+    { pattern: new RegExp(String.raw`\be\s*\^?\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*T\b`, "gd"), group: 1 },
+  ];
+  const readings: ChemistryArrheniusEquation[] = [];
+  for (const {pattern, group} of patterns) for (const match of question.slice(0, end).matchAll(pattern)) {
+    const start = match.index!; const stop = start + match[0].length;
+    if (/\w/.test(question[start-1] ?? "") || /[/^×*+−-]\s*$/.test(question.slice(0,start))
+      || /[\w⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉⁺⁻]/.test(question[stop] ?? "")
+      || /^[/^×*+−-]|^\.(?=[\w.])/.test(question.slice(stop).trimStart())) return fail("malformed", {start,end:stop});
+    if (group === 3) {
+      const intercept = match.indices![2]!;
+      if (!scalarValue(question,{start:intercept[0],end:intercept[1]}).ok) return fail("malformed",{start:intercept[0],end:intercept[1]});
+    }
+    const pair = match.indices![group]!; const span = {start:pair[0],end:pair[1]};
+    const value = scalarValue(question,span);
+    if (!value.ok || !(value.reading > 0)) return fail("malformed",span);
+    readings.push({natural:match[1] !== "log",coefficient:{value:value.reading,span,text:question.slice(span.start,span.end)},source:{span:{start,end:stop},text:match[0]}});
+  }
+  if (readings.length !== 1) return fail(readings.length ? "ambiguous" : /\b(?:ln|log)\s*k\s*=|\be\s*\^?\s*\(?\s*[-−]/.test(question.slice(0,end)) ? "malformed" : "missing");
+  return {ok:true,reading:readings[0]!};
 }
 
 interface UnitDefinition { unit: ChemistryUnit; dimensions: readonly ChemistryDimension[]; factor: number; pattern: RegExp; offset?: number }
