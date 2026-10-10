@@ -84,6 +84,37 @@ const geometries = new Map<string, unknown>([
 ]);
 const context = { number: (value: unknown) => Number(value), geometry: (id: unknown) => geometries.get(String(id)) };
 const physical = { frame: "f", origin: "o", mass: 1e-26, charge: 1e-19, velocity: [3e5, 0, 4e5], magneticField: [0, 0, 0.5], turns: 2, displayScale: 1, units: { mass: "kg", charge: "C", velocity: "m/s", magneticField: "T" } };
+// A zero mantissa stays exact zero regardless of exponent digits. Source
+// underflow controls use the same path, including wrappers and quantities.
+for (const token of ["0e-9", "+0.000E+19", "-.0e-1000000"]) {
+  for (const field of ["velocity", "magneticField"] as const) {
+    const values: unknown[] = [...physical[field]]; values[field === "velocity" ? 1 : 0] = token;
+    let direct = false;
+    try { direct = evaluateMagneticHelix({ ...physical, [field]: values }, context).length === 1; } catch { /* counted below */ }
+    check(direct, `exact scientific zero evaluates directly: ${field} ${token}`);
+    for (const representation of ["literal", "wrapper", "quantity"] as const) {
+      const candidate = structuredClone(helix);
+      const unit = field === "velocity" ? "m/s" : "T";
+      if (representation === "quantity") candidate.quantities.push({ id: "zero_component", value: token, unit });
+      const component = representation === "quantity" ? "zero_component" : representation === "wrapper" ? { value: { value: token, unit }, unit } : token;
+      const inputs = candidate.constructions.find(c => c.operator === "magnetic_helix")!.inputs;
+      const components = [...inputs[field] as unknown[]]; components[field === "velocity" ? 1 : 0] = component; inputs[field] = components;
+      check(compile(candidate).ok, `exact scientific zero compiles: ${field} ${representation} ${token}`);
+    }
+  }
+}
+for (const token of ["1e-1000000", "-1e-1000000", ".1E-1000000"]) {
+  let refused = false;
+  try { evaluateMagneticHelix({ ...physical, velocity: [3e5, token, 4e5] }, context); } catch { refused = true; }
+  check(refused, `genuine nonzero component underflow refuses directly: ${token}`);
+  for (const representation of ["literal", "wrapper", "quantity"] as const) {
+    const candidate = structuredClone(helix);
+    if (representation === "quantity") candidate.quantities.push({ id: "tiny_component", value: token, unit: "m/s" });
+    const component = representation === "quantity" ? "tiny_component" : representation === "wrapper" ? { value: token, unit: "m/s" } : token;
+    candidate.constructions.find(c => c.operator === "magnetic_helix")!.inputs.velocity = [3e5, component, 4e5];
+    check(!compile(candidate).ok, `genuine nonzero component underflow refuses: ${representation} ${token}`);
+  }
+}
 const definition = evaluateMagneticHelix(physical, context)[0]!.magneticHelix;
 check(Math.abs(definition.radius - 0.06) < 1e-14, "independent helix radius m*v_perp/(abs(q)*B) is 0.060 m");
 check(Math.abs(definition.pitch - 0.16 * Math.PI) < 1e-14, "independent helix pitch v_parallel*2*pi*m/(abs(q)*B)");

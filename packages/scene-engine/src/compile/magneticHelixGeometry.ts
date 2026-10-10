@@ -21,10 +21,14 @@ const UNITS = { mass: "kg", charge: "C", velocity: "m/s", magneticField: "T" } a
 function record(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function fail(message: string): never { throw new Error(`magnetic_helix: ${message}`); }
 function finite(value: number, name: string): number { if (!Number.isFinite(value)) fail(`${name} must be finite and numerically representable`); return value; }
+function literalUnderflows(value: unknown): boolean {
+  const decimal = typeof value === "string" && /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:[eE][+-]?\d+)?$/.exec(value.trim());
+  return !!decimal && Number(value) === 0 && /[1-9]/.test(decimal[1]!);
+}
 function scalar(value: unknown, name: string, context: Context): number {
   if (typeof value !== "number" && typeof value !== "string" && !record(value)) fail(`${name} must be a numeric literal or quantity reference`);
   const result = finite(context.number(value), name);
-  if (typeof value === "string" && Number(value) === 0 && /[1-9]/.test(value) && result === 0) fail(`${name} must not underflow`);
+  if (literalUnderflows(value) && result === 0) fail(`${name} must not underflow`);
   return result;
 }
 function vector(value: unknown, name: string, context: Context): Vec3 {
@@ -91,7 +95,7 @@ function documentNumber(value: unknown, document: SceneDocument, depth = 0): num
   if (quantity) return documentNumber(quantity.value, document, depth + 1);
   if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return fail("invalid scalar quantity");
   const number = Number(value);
-  if (number === 0 && typeof value === "string" && /[1-9]/.test(value)) fail("scalar must not underflow");
+  if (number === 0 && literalUnderflows(value)) fail("scalar must not underflow");
   return finite(number, "quantity");
 }
 export function validateMagneticHelixConstruction(construction: SceneConstruction, index: number, document: SceneDocument, producers: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
