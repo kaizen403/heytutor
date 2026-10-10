@@ -15,7 +15,7 @@ import {
   type ReplayCue,
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
-import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { pageTurnsEndingAt, storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
 import { notesPdfSectionsFromStoredTurns, notesPdfSlideImages } from "../lib/notes/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
@@ -826,16 +826,18 @@ export function useReplay({
     // supply board images captured this session.
     const storedTurns = storedTurnsRef.current;
     const codeState = codeLessonControllerRef?.current?.getState();
-    const codePlanKey = codeState?.plan ? JSON.stringify(codeState.plan) : null;
+    const codePlan = codeState?.plan;
+    const codePlanKey = codePlan ? JSON.stringify(codePlan) : null;
     const lastVisibleTurnIndex = isReplaying && replayCueRef.current
       ? replayCueRef.current.turnIndex
       : storedTurns.length - 1;
-    const codeTurn = codePlanKey
-      ? storedTurns.slice(0, lastVisibleTurnIndex + 1).reverse().find((turn) =>
-          !storedTurnContinuesBoard(turn) && JSON.stringify(storedCodeLessonPlan(turn.sceneArtifacts)) === codePlanKey)
+    const codeTurn = codePlan && codePlanKey
+      ? pageTurnsEndingAt(storedTurns, lastVisibleTurnIndex).reverse().find((turn) =>
+          storedTurnPageQuestion(turn).trim() === codePlan.question.trim() &&
+          JSON.stringify(storedCodeLessonPlan(turn.sceneArtifacts)) === codePlanKey)
       : null;
-    const capturedCode = codeTurn && codeState?.plan
-      ? { turnId: codeTurn.id, plan: codeState.plan, revealedChars: { ...codeState.revealedChars } }
+    const capturedCode = codeTurn && codeState && codePlan
+      ? { turnId: codeTurn.id, plan: codePlan, revealedChars: { ...codeState.revealedChars } }
       : null;
     const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);
     // DSA turns keep their code in a DOM panel the board snapshot cannot
