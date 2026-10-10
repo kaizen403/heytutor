@@ -4376,7 +4376,7 @@ function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
     ("displayScale" in metadata && "unit" in metadata && "magnitude" in metadata));
 }
 
-/** Only typed samples of the same unscaled, same-length-unit wave are metric.
+/** Only typed samples of the same unscaled, declared-length-unit wave are metric.
  * Generic descendants and independently scaled or mixed-unit plots retain
  * the existing ban on interpreting display coordinates as physical distance. */
 function metricWaveDimension(inputs: Record<string, unknown>, geometry: Map<string, Geometry>): boolean {
@@ -4389,7 +4389,10 @@ function metricWaveDimension(inputs: Record<string, unknown>, geometry: Map<stri
   const owner = geometry.get(a.waveSample.waveId);
   if (owner?.kind !== "path" || !owner.waveDefinition) return false;
   const model = owner.waveDefinition;
-  return model.xScale === 1 && model.yScale === 1 && model.sourceUnits.position === model.sourceUnits.amplitude;
+  const lengthUnit = model.sourceUnits.position;
+  return lengthUnit !== null && ["m", "cm", "mm", "km", "um", "nm"].includes(lengthUnit) &&
+    model.xScale === 1 && model.yScale === 1 && lengthUnit === model.sourceUnits.amplitude &&
+    !isNonmetricGeometry(owner) && !isNonmetricGeometry(a) && !isNonmetricGeometry(b);
 }
 function hasPageNormalGlyph(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => metadata.pageNormal === "out" || metadata.pageNormal === "in");

@@ -58,6 +58,8 @@ const cases: Array<[string, () => void]> = [
     for (const overrides of [{ xScale: 2 }, { yScale: 2 }, { xScale: 2, yScale: 2 }, { units: { position: "m", amplitude: "cm", time: "s" } }]) {
       const changed = structuredClone(document); Object.assign(changed.constructions[0]!.inputs, overrides); reject(changed);
     }
+    const undeclared = structuredClone(document); delete undeclared.constructions[0]!.inputs.units; Object.assign(undeclared.constructions[0]!.inputs, { xScale: 1, yScale: 1 }); reject(undeclared);
+    const schematic = structuredClone(document); Object.assign(schematic.constructions[0]!.inputs, { xScale: 1, yScale: 1, units: { position: "1", amplitude: "1", time: "1" } }); reject(schematic);
     const copied = structuredClone(document);
     copied.entities.push({ id: "copy", kind: "point", role: "derived endpoint" });
     copied.constructions.push({ id: "copy_crest", operator: "midpoint", inputs: { a: "crest", b: "next" }, outputs: ["copy"] });
