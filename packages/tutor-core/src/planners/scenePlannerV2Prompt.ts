@@ -117,7 +117,7 @@ export function buildSceneDocumentPlannerPrompt(
   const listOperators = (contracts: string): string => {
     if (!fullCatalog) return operators.join(",");
     const named = contractLineOperators(contracts);
-    return `Each contract line below names one. Also:${operators.filter((operator) => !named.has(operator)).join(",")}`;
+    return `Contracts name operators; also:${operators.filter((operator) => !named.has(operator)).join(",")}`;
   };
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
 
@@ -128,14 +128,14 @@ OPERATOR INPUT CONTRACTS
 ${contracts}
 
 AVAILABLE PROOF PREDICATES
-${proofPredicates.join(", ")}
+${proofPredicates.join(",")}
 ${capabilityGuidance}
 ${conversation}
 ${workedExamples}
 QUESTION
 ${question}
 
-Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
+Return complete ${SCENE_DOCUMENT_VERSION} JSON.`;
   const prompt = assemble(operatorContracts);
   // Combined semantic families may outgrow the same transport budget as the
   // universal catalog. Keep every contract shape and conditional output order.
@@ -156,7 +156,7 @@ AUTHORITY
 - Faithful visual:scene; else text_only,empty arrays,source/operator reason.
 - Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; derive afterward. Spatial givens:exact plan-backed geometry.
 - Fixed question/plan:exact quantity id/value/unit. No invented measurements,signs,components,topology,assumptions except one symbolic representative. Display lengths prove no physical values.
-- Symbolic:owner symbols,never stock quantities; missing values alone never justify text_only. Unspecified named geometric/physics setups (charge,field,magnet,lens,mirror,circuit,wave) use one nondegenerate case showing all features; an unstated sense or direction is chosen once and derived elsewhere. Normalized literals:shape,not data; symbol/role labels,never invented numbers. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
+- Symbolic:owner symbols,never stock quantities; missing values alone never justify text_only. Unspecified named setups (curve,conic,lines,planes,vectors,region,charge,field,magnet,lens,mirror,circuit,wave) use one nondegenerate case showing all features; an unstated sense or direction is chosen once and derived elsewhere. Normalized literals:shape,not data; symbol/role labels,never invented numbers. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
 - Data-seeking claims never block complete symbolic figures. Source overrides invariants/examples.
 - All arrays present; unique IDs,one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
 - Derive curves,regions,solids,intersections,transforms,normals,rays; never guess. Regions:function_curve + function_region.
@@ -181,7 +181,7 @@ Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector
 export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable IDs; numbers or quantity IDs.
 - point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
 - segment/connect: {start: point_id, end: point_id}.
-- vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. When direction is present, direction defines orientation; a distinct start/end defines display length, otherwise length or a normalized unit length is used. A pure [0,0,-1] or [0,0,1] direction is the only correct representation for into-page or out-of-page respectively.
+- vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. direction or start/end sets orientation; optional length always sets display span. Without length use a distinct endpoint span, otherwise a normalized unit span. A pure [0,0,-1] or [0,0,1] direction is the only correct representation for into-page or out-of-page respectively.
 - ray/line: {start: point_id, end: point_id} or {start: point_id, direction: [dx,dy]}.
 - circle: {center: point_id, radius}.
 - circle_from_three_points: {a:point_id,b:point_id,c:point_id}. Output one circle computed through three distinct noncollinear points. Degenerate or numerically unverifiable triples fail closed; never guess the circumcenter or radius.

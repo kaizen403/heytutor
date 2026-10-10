@@ -15,6 +15,9 @@ for (const detail of [undefined, []] as const) {
   assert(contracts.includes("Output 1 polyline"), "helix output kind stays explicit");
   assert(/parallel\/transverse|parallel\/transverse velocity/.test(contracts), "a true helix needs both velocity components");
 }
+const core = buildSceneDocumentPlannerPrompt(question, caps);
+assert(core.includes("curve,conic,lines,planes,vectors,region,charge,field,magnet,lens,mirror,circuit,wave"), "named geometry and physics classes retain representative permission");
+assert(selectConstructionInputContracts(["vector"]).includes("optional length always sets display span"), "vector display span matches engine length precedence");
 const requests: Array<{ messages: Array<{ content: string }> }> = [];
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (_input, init) => {
