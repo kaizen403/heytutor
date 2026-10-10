@@ -31,7 +31,7 @@ import { rotationGeometryLabel, validateEvaluatedRotationLabels } from "./rotati
 import { combinatoricsGeometryLabel, validateEvaluatedCombinatoricsLabels } from "./combinatoricsGeometry";
 import { elasticityGeometryLabel, validateEvaluatedElasticityLabels } from "./elasticityGeometry";
 import { distributedFieldsConstructionOutputLabels, validateEvaluatedDistributedFieldsLabels } from "./distributedFieldsGeometry";
-import { declaresNormalizedRepresentative, NONMETRIC_VALUE_LABEL_CODE, PHYSICAL_VALUE_LABEL_OPERATORS, representativeOutputLabels } from "./representativeLabels";
+import { guardsRepresentativeValueLabels, NONMETRIC_VALUE_LABEL_CODE, PHYSICAL_VALUE_LABEL_OPERATORS, representativeOutputLabels } from "./representativeLabels";
 
 interface LabelEvaluationContext {
   number(value: unknown): number;
@@ -228,7 +228,7 @@ export function withEvaluatedOutputLabels(
     default:
       return document;
   }
-  if (declaresNormalizedRepresentative(document) && PHYSICAL_VALUE_LABEL_OPERATORS.has(construction.operator)) {
+  if (guardsRepresentativeValueLabels(document) && PHYSICAL_VALUE_LABEL_OPERATORS.has(construction.operator)) {
     const representative = representativeOutputLabels(construction.operator, labels);
     if (representative.leaked !== undefined) {
       issues.push({

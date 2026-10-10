@@ -12,6 +12,19 @@ export function declaresNormalizedRepresentative(document: Pick<SceneDocument, "
   return source?.nonMetric === true || source?.representationTier === "qualitative_verified";
 }
 
+/**
+ * The label guard applies only to a planner-authored representative: a
+ * nonmetric declaration with no stated quantities (the planner contract asks a
+ * representative for quantities:[]). Engine-synthesized families and
+ * archetypes draw from stated values with their own source binding, and a
+ * document carrying quantities states its values, so both keep today's labels.
+ */
+export function guardsRepresentativeValueLabels(document: Pick<SceneDocument, "source" | "quantities">): boolean {
+  const source = document.source as Record<string, unknown> | undefined;
+  return declaresNormalizedRepresentative(document) && source?.synthesizedFamily !== true &&
+    (!Array.isArray(document.quantities) || document.quantities.length === 0);
+}
+
 /** Operators whose result labels can state a value computed from physical inputs. */
 export const PHYSICAL_VALUE_LABEL_OPERATORS: ReadonlySet<string> = new Set([
   "magnetic_force", "magnetic_components",
@@ -66,7 +79,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Documents without the declaration are untouched.
  */
 export function validateRepresentativeValueLabels(construction: SceneConstruction, index: number, document: SceneDocument, issues: SceneIssue[]): void {
-  if (!declaresNormalizedRepresentative(document) || !PHYSICAL_VALUE_LABEL_OPERATORS.has(construction.operator)) return;
+  if (!guardsRepresentativeValueLabels(document) || !PHYSICAL_VALUE_LABEL_OPERATORS.has(construction.operator)) return;
   const outputs = new Set((Array.isArray(construction.outputs) ? construction.outputs : []).filter((id): id is string => typeof id === "string"));
   if (outputs.size === 0) return;
   const refuse = (message: string, entityIds: string[]): void => {

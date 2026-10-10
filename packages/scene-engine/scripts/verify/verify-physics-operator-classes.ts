@@ -92,7 +92,11 @@ refusedByGuard(forceScene(QUALITATIVE, "|F|=24 N"), "the qualitative tier declar
 check(labelOf(compiles(forceScene(NONMETRIC, "F"), "nonmetric symbol force compiles"), "F") === "F", "a nonmetric representative keeps the symbol label");
 const forceQuantity = { quantities: [{ id: "Fq", value: 24, unit: "N" }], annotations: [{ id: "a", kind: "label", targetIds: ["F"], quantityId: "Fq" }] } as Partial<SceneDocument>;
 compiles(forceScene(METRIC, undefined, forceQuantity), "a metric force annotation bound to the matching N value compiles");
-refusedByGuard(forceScene(NONMETRIC, undefined, forceQuantity), "a nonmetric representative refuses a quantity annotation on the force");
+// A document that carries quantities states its values (and the planner's
+// quantity agreement refuses invented ones), so the guard leaves it alone;
+// engine-synthesized figures keep their own value labels too.
+compiles(forceScene(NONMETRIC, undefined, forceQuantity), "a nonmetric document with stated quantities keeps its bound annotation");
+check(labelOf(compiles(forceScene({ ...NONMETRIC, synthesizedFamily: true }, "|F|=24 N"), "an engine-synthesized figure keeps its value label"), "F") === "|F|=24 N", "engine families are outside the representative guard");
 refusedByGuard(forceScene(NONMETRIC, undefined, { annotations: [{ id: "a", kind: "callout", targetIds: ["F"], text: "|F|=24 N" }] }), "a nonmetric representative refuses a numeric annotation text");
 
 // The compile label step fails closed on its own: a value label that reached it
@@ -123,7 +127,7 @@ compiles(focusScene(METRIC, { F2: "F2=10 cm" }), "a metric document accepts the 
 refusedByGuard(focusScene(NONMETRIC, { F2: "F2=10 cm" }), "a nonmetric representative refuses a numeric focal label");
 const focusQuantity = { quantities: [{ id: "f", value: 10, unit: "cm" }], annotations: [{ id: "a", kind: "label", targetIds: ["F2"], quantityId: "f" }] } as Partial<SceneDocument>;
 compiles(focusScene(METRIC, {}, focusQuantity), "a metric focal quantity annotation compiles");
-refusedByGuard(focusScene(NONMETRIC, {}, focusQuantity), "a nonmetric representative refuses a focal quantity annotation");
+compiles(focusScene(NONMETRIC, {}, focusQuantity), "a nonmetric document with a stated focal quantity keeps its bound annotation");
 
 // gaussian_image: u=-30, f=10 gives v=15, m=-0.5 in a metric document; symbols in a representative.
 const imageScene = (source: Record<string, unknown>): SceneDocument => scene(source,
