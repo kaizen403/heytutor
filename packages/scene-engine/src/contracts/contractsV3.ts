@@ -121,6 +121,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
   const numericBindings = collectNumericBindings(
     givens,
     bindingMeta,
+    prescriptions,
   );
   attachTrigStipulations(numericBindings, raw);
   const declined: TurnPlanArithmeticDecline[] = [];
@@ -294,7 +295,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
   });
   const knownUnits = collectPlanUnits(raw);
   const validationBindingMeta: NumericBindingMetaMap = new Map();
-  const validationBindings = collectNumericBindings(prescribedGivens, validationBindingMeta);
+  const validationBindings = collectNumericBindings(prescribedGivens, validationBindingMeta, prescriptions);
   attachTrigStipulations(validationBindings, raw);
   derivedEvaluationOrder(derived).forEach((index) => {
     const value = derived[index];
@@ -1677,6 +1678,12 @@ function wholeDegreeTrigIdentity(text: string): WholeTrigIdentity | null {
 }
 
 function constantEqualityMember(text: string): number | null {
+  const measured = parseMeasuredPart(text);
+  const scale = measured ? unitScale(measured.unit) : null;
+  if (measured && scale?.signature === "") {
+    const value = measured.value * scale.factor;
+    return Number.isFinite(value) ? value : null;
+  }
   const expression = text.replace(/[−–]/g, "-").replace(/\s+/g, "");
   if (!/[0-9]/.test(expression) || !/^[0-9eE+\-*/^().]+$/.test(expression)) return null;
   try {
@@ -1687,17 +1694,30 @@ function constantEqualityMember(text: string): number | null {
   }
 }
 
-/**
- * Only a quantity identified as the whole trig ratio can inherit a question
- * prescription. An unrelated given with the same scalar cannot be rewritten.
- * Preserve explicit radians even when an extracted symbol suggests degrees.
- */
-function reconcilePrescribedTrigGiven(
+interface PrescribedTrigGiven {
+  identity: WholeTrigIdentity;
+  sourceParts: string[];
+  wholeSourceChain: boolean;
+  sourceAlias: string | null;
+  ratio: number;
+  scale: UnitScale;
+}
+
+/** Exact prescriptions permit floating conversion slack, never a unit-sized floor. */
+function samePrescribedRatio(first: number, second: number): boolean {
+  return first === second || Math.abs(first - second) <=
+    16 * Number.EPSILON * Math.max(Math.abs(first), Math.abs(second));
+}
+
+/** Identify a whole dimensionless trig quantity; explicit source radians win. */
+function prescribedTrigGiven(
   given: unknown,
   prescriptions: ReadonlyMap<string, number>,
-): unknown {
+): PrescribedTrigGiven | null {
   if (!isRecord(given) || typeof given.value !== "number" || !Number.isFinite(given.value) ||
-    typeof given.id !== "string" || unitScale(given.unit)?.signature !== "") return given;
+    typeof given.id !== "string") return null;
+  const scale = unitScale(given.unit);
+  if (!scale || scale.signature !== "" || !Number.isFinite(scale.factor) || scale.factor <= 0) return null;
   const sourceParts = typeof given.sourceText === "string"
     ? given.sourceText.split(/[=≈≃≅]/).map((part) => part.trim()) : [];
   // Explicit source units outrank an extracted symbol, even when the
@@ -1705,7 +1725,7 @@ function reconcilePrescribedTrigGiven(
   // glued to a digit or π; words such as "radius" are not radian markers.
   if (sourceParts.some((part) =>
     /(?:^|[^\p{L}\p{N}_]|[0-9π])(?:radians?|rad)(?![\p{L}\p{N}_])/iu.test(part))) {
-    return given;
+    return null;
   }
   const sourceAlias = sourceAssignmentAlias(given.sourceText);
   const aliases = new Set([given.id, given.symbol, sourceAlias].filter((name): name is string => typeof name === "string"));
@@ -1718,20 +1738,35 @@ function reconcilePrescribedTrigGiven(
     const parsed = typeof name === "string" ? wholeDegreeTrigIdentity(name) : null;
     return parsed ? [parsed] : [];
   })[0];
-  if (!identity || sourceIdentities.some((other) => other.name !== identity.name || other.angle !== identity.angle)) return given;
-  const value = prescriptions.get(`${identity.name}:${identity.angle}`);
-  if (value === undefined) return given;
+  if (!identity || sourceIdentities.some((other) => other.name !== identity.name || other.angle !== identity.angle)) return null;
+  const ratio = prescriptions.get(`${identity.name}:${identity.angle}`);
+  if (ratio === undefined || !Number.isFinite(ratio / scale.factor)) return null;
+  return { identity, sourceParts, wholeSourceChain, sourceAlias, ratio, scale };
+}
+
+/**
+ * Keep the declared unit while applying the question's coherent ratio. An
+ * unrelated given with the same scalar cannot inherit the prescription.
+ */
+function reconcilePrescribedTrigGiven(
+  given: unknown,
+  prescriptions: ReadonlyMap<string, number>,
+): unknown {
+  const prescription = prescribedTrigGiven(given, prescriptions);
+  if (!prescription || !isRecord(given) || typeof given.value !== "number") return given;
+  const { identity, sourceParts, wholeSourceChain, sourceAlias, ratio, scale } = prescription;
+  const value = ratio / scale.factor;
   const sourceConflict = wholeSourceChain && sourceParts.some((part) => {
     const stated = constantEqualityMember(part);
-    return stated !== null && !approximatelyEqual(stated, value);
+    return stated !== null && !samePrescribedRatio(stated, ratio);
   });
   const signConflict = given.sign !== undefined && given.sign !== "unsigned" && given.sign !== numericSign(value);
-  if (approximatelyEqual(given.value, value) && !sourceConflict && !signConflict) return given;
+  if (samePrescribedRatio(given.value * scale.factor, ratio) && !sourceConflict && !signConflict) return given;
   return {
     ...given,
     value,
     sign: numericSign(value),
-    sourceText: `${sourceAlias ? `${sourceAlias} = ` : ""}${identity.name} ${identity.angle}° = ${value}`,
+    sourceText: `${sourceAlias ? `${sourceAlias} = ` : ""}${identity.name} ${identity.angle}° = ${ratio}`,
   };
 }
 
@@ -2052,9 +2087,18 @@ type NumericBindingMetaMap = Map<string, NumericBindingMeta>;
 function collectNumericBindings(
   values: unknown[],
   meta?: NumericBindingMetaMap,
+  prescriptions?: ReadonlyMap<string, number>,
 ): Map<string, number> {
   const bindings = new Map<string, number>();
-  values.forEach((value) => addNumericBinding(bindings, value, meta));
+  values.forEach((value) => {
+    const prescribed = prescriptions ? prescribedTrigGiven(value, prescriptions) : null;
+    // The question pins this exact ratio, so an alias denotes the coherent
+    // dimensionless value (80% as 0.8). Its published given keeps its unit.
+    // Other percentages retain the existing mixed-unit evidence rules.
+    const binding = prescribed && isRecord(value)
+      ? { ...value, value: prescribed.ratio, unit: undefined } : value;
+    addNumericBinding(bindings, binding, meta);
+  });
   return bindings;
 }
 

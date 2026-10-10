@@ -1065,6 +1065,183 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
     reconcileTurnPlanV3ExplicitArithmetic(correctSourceAlias).plan === correctSourceAlias &&
       validateTurnPlanV3(correctSourceAlias, correctSourceAlias.question).valid,
     reconcileTurnPlanV3ExplicitArithmetic(correctSourceAlias));
+  const percentRatio = given("ratio", 80, "%", { symbol: "cos37°", sourceText: "k = cos 37° = 0.8" });
+  const correctPercentRatio = {
+    ...plan([given("F", 30, "N"), percentRatio], [
+      derived("component", 24, "N", "component = F*k = 24"),
+      derived("double", 48, "N", "double = 2*component = 48", { dependsOn: ["component"] }),
+    ]),
+    question: "Take cos 37° = 0.8.",
+  };
+  const keptPercentRatio = reconcileTurnPlanV3ExplicitArithmetic(correctPercentRatio).plan as ReturnType<typeof plan>;
+  check("a correct prescribed trig ratio stays 80 percent",
+    JSON.stringify(keptPercentRatio.givens[1]) === JSON.stringify(percentRatio), keptPercentRatio);
+  check("a percent trig alias retains correct component and downstream arithmetic",
+    keptPercentRatio.derived[0]?.value === 24 && keptPercentRatio.derived[1]?.value === 48, keptPercentRatio);
+  check("a correct percent trig ratio validates before and after reconciliation",
+    validateTurnPlanV3(correctPercentRatio, correctPercentRatio.question).valid &&
+      validateTurnPlanV3(keptPercentRatio, correctPercentRatio.question).valid,
+    validateTurnPlanV3(keptPercentRatio, correctPercentRatio.question).issues);
+  const barePercentRatio = {
+    ...plan([given("cosT", 80, "%", { symbol: "cos37°" })],
+      [derived("component", 24, "N", "component = 30*cosT = 24")]),
+    question: "Take cos 37° = 0.8.",
+  };
+  check("a correct percent trig symbol without source text stays untouched and valid",
+    reconcileTurnPlanV3ExplicitArithmetic(barePercentRatio).plan === barePercentRatio &&
+      validateTurnPlanV3(barePercentRatio, barePercentRatio.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(barePercentRatio));
+  const stalePercentRatio = {
+    ...plan([given("F", 30, "N"), given("ratio", 60, "%", { symbol: "cos37°", sourceText: "k = cos 37° = 0.6" })], [
+      derived("component", 18, "N", "component = F*k = 18"),
+      derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+    ]),
+    question: "Take cos 37° = 0.8.",
+  };
+  const fixedPercentRatio = reconcileTurnPlanV3ExplicitArithmetic(stalePercentRatio).plan as ReturnType<typeof plan>;
+  check("a stale percent trig ratio corrects to 80 percent with a coherent source",
+    fixedPercentRatio.givens[1]?.value === 80 && fixedPercentRatio.givens[1].unit === "%" &&
+      fixedPercentRatio.givens[1].sourceText === "k = cos 37° = 0.8", fixedPercentRatio);
+  check("a stale percent trig alias computes 24 and downstream 48",
+    fixedPercentRatio.derived[0]?.value === 24 && fixedPercentRatio.derived[1]?.value === 48, fixedPercentRatio);
+  check("the corrected stale percent trig plan validates",
+    validateTurnPlanV3(fixedPercentRatio, stalePercentRatio.question).valid,
+    validateTurnPlanV3(fixedPercentRatio, stalePercentRatio.question).issues);
+  for (const [unit, correct, stale] of [
+    ["%", 80, 60], ["cm/m", 80, 60], ["m/cm", 0.008, 0.006], ["dimensionless", 0.8, 0.6],
+  ] as const) {
+    const ratio = given("ratio", correct, unit, { symbol: "cos37°", sourceText: "k = cos 37° = 0.8" });
+    const correctInput = {
+      ...plan([given("F", 30, "N"), ratio], [derived("component", 24, "N", "component = F*k = 24")]),
+      question: "Take cos 37° = 0.8.",
+    };
+    const preserved = reconcileTurnPlanV3ExplicitArithmetic(correctInput).plan as ReturnType<typeof plan>;
+    check(`${unit}: a correct equivalent ratio keeps its authored value, unit and source`,
+      JSON.stringify(preserved.givens[1]) === JSON.stringify(ratio) && preserved.derived[0]?.value === 24, preserved);
+    check(`${unit}: the correct equivalent ratio validates`,
+      validateTurnPlanV3(correctInput, correctInput.question).valid &&
+        validateTurnPlanV3(preserved, correctInput.question).valid, validateTurnPlanV3(preserved, correctInput.question).issues);
+    const staleInput = {
+      ...plan([given("F", 30, "N"), { ...ratio, value: stale, sourceText: "k = cos 37° = 0.6" }], [
+        derived("component", 18, "N", "component = F*k = 18"),
+        derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+      ]),
+      question: correctInput.question,
+    };
+    check(`${unit}: a stale equivalent ratio is rejected before reconciliation`,
+      validateTurnPlanV3(staleInput, staleInput.question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+      validateTurnPlanV3(staleInput, staleInput.question).issues);
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(staleInput).plan as ReturnType<typeof plan>;
+    check(`${unit}: correction preserves the declared unit and source alias`,
+      close(corrected.givens[1]?.value, correct) && corrected.givens[1]?.unit === unit &&
+        corrected.givens[1]?.sourceText === "k = cos 37° = 0.8", corrected);
+    check(`${unit}: prescribed alias arithmetic and its downstream quantity are coherent`,
+      corrected.derived[0]?.value === 24 && corrected.derived[1]?.value === 48 &&
+        validateTurnPlanV3(corrected, staleInput.question).valid, corrected);
+  }
+  for (const [value, statedPercent] of [[80, 80], [80, 60], [60, 60], [0.8, 0.8]] as const) {
+    const ratio = given("ratio", value, "%", { symbol: "cos37°", sourceText: `k = cos 37° = ${statedPercent}%` });
+    const input = {
+      ...plan([given("F", 30, "N"), ratio], [
+        derived("component", 18, "N", "component = F*k = 18"),
+        derived("double", 36, "N", "double = 2*component = 36", { dependsOn: ["component"] }),
+      ]),
+      question: "Take cos 37° = 0.8.",
+    };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    const expectedSource = value === 80 && statedPercent === 80 ? ratio.sourceText : "k = cos 37° = 0.8";
+    check(`${value}% with ${statedPercent}% source: quantity, unit and third-name alias remain consistent`,
+      corrected.givens[1]?.value === 80 && corrected.givens[1].unit === "%" &&
+        corrected.givens[1].sourceText === expectedSource, corrected);
+    check(`${value}% with ${statedPercent}% source: component and downstream arithmetic use the ratio`,
+      corrected.derived[0]?.value === 24 && corrected.derived[1]?.value === 48 &&
+        validateTurnPlanV3(corrected, input.question).valid, corrected);
+    check(`${value}% with ${statedPercent}% source: stale source/scalar is rejected independently`,
+      validateTurnPlanV3(input, input.question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict") ===
+        !(value === 80 && statedPercent === 80), validateTurnPlanV3(input, input.question).issues);
+  }
+  const negativePercent = {
+    ...plan([given("ratio", 80, "%", { symbol: "cos143°", sourceText: "k = cos 143° = 80%", sign: "positive" })],
+      [derived("component", 24, "N", "component = 30*k = 24")]),
+    question: "Take cos 143° = -0.8.",
+  };
+  const fixedNegativePercent = reconcileTurnPlanV3ExplicitArithmetic(negativePercent).plan as ReturnType<typeof plan>;
+  check("a negative prescribed percentage keeps its unit and coherent sign",
+    fixedNegativePercent.givens[0]?.value === -80 && fixedNegativePercent.givens[0].unit === "%" &&
+      fixedNegativePercent.givens[0].sign === "negative" && fixedNegativePercent.derived[0]?.value === -24 &&
+      validateTurnPlanV3(fixedNegativePercent, negativePercent.question).valid, fixedNegativePercent);
+  for (const unit of ["N", "rad", "unknown-unit"]) {
+    const ratio = given("ratio", 60, unit, { symbol: "cos37°", sourceText: "k = cos 37° = 0.6" });
+    const input = { ...plan([ratio], []), question: "Take cos 37° = 0.8." };
+    check(`${unit}: a dimensional or unknown unit is never rewritten as a prescribed ratio`,
+      reconcileTurnPlanV3ExplicitArithmetic(input).plan === input &&
+        !validateTurnPlanV3(input, input.question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+      reconcileTurnPlanV3ExplicitArithmetic(input));
+  }
+  const unprescribedPercent = plan([given("F", 30, "N"), given("ratio", 80, "%", { symbol: "cos37°", sourceText: "k = 80%" })],
+    [derived("component", 24, "N", "component = F*k = 24")]);
+  check("a percent alias without a question prescription keeps existing dimensional reading",
+    reconcileTurnPlanV3ExplicitArithmetic(unprescribedPercent).plan === unprescribedPercent &&
+      validateTurnPlanV3(unprescribedPercent, unprescribedPercent.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(unprescribedPercent));
+  const unrelatedPercent = {
+    ...plan([given("F", 30, "N"), given("mu", 80, "%", { sourceText: "mu = 80%" })],
+      [derived("component", 18, "N", "component = F*mu = 18")]),
+    question: "Take cos 37° = 0.8.",
+  };
+  check("an unrelated percent quantity retains the existing unpinned mixed-unit policy",
+    reconcileTurnPlanV3ExplicitArithmetic(unrelatedPercent).plan === unrelatedPercent &&
+      !validateTurnPlanV3(unrelatedPercent, unrelatedPercent.question).valid,
+    reconcileTurnPlanV3ExplicitArithmetic(unrelatedPercent));
+  for (const [unit, correct, wrongValues] of [
+    [undefined, 1e-12, [0, 3e-12]], ["%", 1e-10, [0, 3e-10]],
+  ] as const) {
+    const question = "Take cos 89.99° = 0.000000000001.";
+    const correctInput = {
+      ...plan([given("ratio", correct, unit, { symbol: "cos89.99°", sourceText: "k = cos 89.99° = 0.000000000001" })], []),
+      question,
+    };
+    check(`${unit ?? "factor1"}: the tiny correct prescribed ratio is preserved`,
+      reconcileTurnPlanV3ExplicitArithmetic(correctInput).plan === correctInput &&
+        validateTurnPlanV3(correctInput, question).valid, reconcileTurnPlanV3ExplicitArithmetic(correctInput));
+    for (const value of wrongValues) {
+      const input = { ...correctInput, givens: [given("ratio", value, unit, { symbol: "cos89.99°" })] };
+      check(`${unit ?? "factor1"}: ${value} cannot replace a tiny prescribed ratio`,
+        validateTurnPlanV3(input, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+        validateTurnPlanV3(input, question).issues);
+      const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+      check(`${unit ?? "factor1"}: ${value} corrects to the tiny ratio in its own unit`,
+        typeof corrected.givens[0]?.value === "number" && Math.abs(corrected.givens[0].value - correct) <= 1e-25 &&
+          corrected.givens[0].unit === unit &&
+          validateTurnPlanV3(corrected, question).valid, corrected);
+    }
+    const staleSource = {
+      ...correctInput,
+      givens: [given("ratio", correct, unit, { symbol: "cos89.99°", sourceText: "k = cos 89.99° = 0.000000000003" })],
+    };
+    check(`${unit ?? "factor1"}: a stale tiny source conflicts even when the scalar is correct`,
+      validateTurnPlanV3(staleSource, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict"),
+      validateTurnPlanV3(staleSource, question).issues);
+    const refreshed = reconcileTurnPlanV3ExplicitArithmetic(staleSource).plan as ReturnType<typeof plan>;
+    check(`${unit ?? "factor1"}: a tiny source-only correction preserves the unit and alias`,
+      typeof refreshed.givens[0]?.value === "number" && Math.abs(refreshed.givens[0].value - correct) <= 1e-25 &&
+        refreshed.givens[0].unit === unit &&
+        refreshed.givens[0].sourceText === "k = cos 89.99° = 1e-12" && validateTurnPlanV3(refreshed, question).valid,
+      refreshed);
+  }
+  for (const [unit, wrong] of [[undefined, 1e-12], ["%", 1e-10]] as const) {
+    const question = "Take cos 90° = 0.";
+    const correct = { ...plan([given("ratio", 0, unit, { symbol: "cos90°" })], []), question };
+    check(`${unit ?? "factor1"}: the exact zero prescribed ratio is preserved`,
+      reconcileTurnPlanV3ExplicitArithmetic(correct).plan === correct && validateTurnPlanV3(correct, question).valid,
+      reconcileTurnPlanV3ExplicitArithmetic(correct));
+    const input = { ...plan([given("ratio", wrong, unit, { symbol: "cos90°" })], []), question };
+    const corrected = reconcileTurnPlanV3ExplicitArithmetic(input).plan as ReturnType<typeof plan>;
+    check(`${unit ?? "factor1"}: a nonzero tiny extraction conflicts with an exact zero prescription`,
+      validateTurnPlanV3(input, question).issues.some((issue) => issue.code === "given_trig_stipulation_conflict") &&
+        corrected.givens[0]?.value === 0 && corrected.givens[0].unit === unit &&
+        validateTurnPlanV3(corrected, question).valid, corrected);
+  }
   const noPrescription = plan([...pull, given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
     [derived("component", 18, "N", "component = F*cosT = 18")]);
   check("an alias without a question prescription is preserved",
