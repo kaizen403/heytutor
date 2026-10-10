@@ -604,7 +604,7 @@ function compileSceneDocumentInternal(document: SceneDocument, options: CompileO
         : screenLabelAnchor(entity.id, target, primitives, transform),
       text: useCombinedText ? combinedText : entity.label,
       viewBounds: transformPlan.viewportFor(entity.id),
-      useOwnerBounds: target.kind === "point" || target.kind === "path" || target.kind === "circle" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
+      useOwnerBounds: labelUsesOwnerBounds(target),
       incidentTangents: target.kind === "point" && entity.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
       tetherPx: target.kind === "point" && entity.kind === "point" ? pointLabelTether(entity.label) : undefined,
       allowLeader: entity.kind === "point" ? !isPointIdentifierText(entity.label) : true,
@@ -725,7 +725,7 @@ function compileSceneDocumentInternal(document: SceneDocument, options: CompileO
         text,
         preferredSlot: placementSlot(annotation.placementIntent),
         viewBounds: transformPlan.viewportFor(targetId),
-        useOwnerBounds: target.kind === "point" || target.kind === "path" || target.kind === "circle" || target.kind === "arc" || target.kind === "dimension" ? false : undefined,
+        useOwnerBounds: labelUsesOwnerBounds(target),
         incidentTangents: target.kind === "point" && targetEntity?.kind === "point"
           ? screenIncidentTangents(target.point, geometry, transformPlan.transformFor(targetId))
           : undefined,
@@ -4752,6 +4752,20 @@ function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: 
     viewBounds: { x: viewport.x, y: viewport.y, width: viewport.width, height: viewport.height },
     allowLeader: true, leaderGeometrySafe: true, tetherPx: 120, useOwnerBounds: false,
   };
+}
+
+function labelUsesOwnerBounds(value: Geometry): false | undefined {
+  if (value.kind === "path") {
+    const first = value.points[0];
+    // A finite horizontal or vertical shaft has compass bounds on its ink.
+    // Keep those exterior candidates when nearby pinned text blocks the local
+    // anchor. Diagonal/curved paths and clipped lines need a local stroke anchor.
+    const axisAligned = first && (value.points.every((point) => point.x === first.x)
+      || value.points.every((point) => point.y === first.y));
+    return !value.infinite && axisAligned ? undefined : false;
+  }
+  return value.kind === "point" || value.kind === "circle" || value.kind === "arc" || value.kind === "dimension"
+    ? false : undefined;
 }
 
 function screenLabelAnchor(entityId: string, value: Geometry, primitives: RenderPrimitive[], transform: (point: Point) => RenderPoint): RenderPoint {

@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderSceneSvg } from "../lib/renderSceneSvg";
 import { compileSceneDocument } from "../../src/compile/compiler";
+import { buildThermoGraphScene, THERMO_PROBES } from "../../src/chemistry/thermoGraphs";
+import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { SceneAnnotation, SceneConstruction, SceneDocument, RenderPrimitive } from "../../src/types";
 
 const artifactDirectory = process.env.H4_RENDER_DIR;
@@ -120,6 +122,16 @@ const cases: Array<[string, () => void]> = [
       const primitives = compile(document); const label = primitives.find(p => p.entityId === "name" && p.kind === "label")!;
       assert(label.points[0]!.x >= 410 && label.points[0]!.x <= 1150);
     }
+  }],
+  ["27c finite shafts fit between pinned neighboring names", () => {
+    const probe = THERMO_PROBES.find((candidate) => candidate.question.startsWith("Construct the Born Haber cycle for NaCl"));
+    assert(probe, "The public source regression probe must remain available");
+    const document = buildThermoGraphScene(probe.question, [], false);
+    assert(document);
+    const validated = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>));
+    assert(validated.document, JSON.stringify(validated.report.issues));
+    const primitives = compile(validated.document);
+    assert(primitives.some((primitive) => primitive.entityId === "step_3" && primitive.kind === "label"));
   }],
   ["28 subunit geometry uses its actual span and remains centered", () => {
     const primitives = compile(scene([["small", "segment", "segment", { start: [0, 0], end: [0, 0.2] }]]));
