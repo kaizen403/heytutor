@@ -22,6 +22,8 @@ import { elementBySymbol } from "./elements";
 export const ELECTROCHEM_FAMILY = "chem_electrochem" as const;
 
 const FARADAY = 96500;
+// An assignment names F itself; RT/F and other expression denominators do not.
+const FARADAY_ASSIGNMENT = /(?<![A-Za-z0-9_])(?<![/*+−-]\s*)\bF\s*=|Faraday(?:'s)?\s*(?:constant)?\s*(?:is|=)/i;
 const NERNST_298 = 0.0591;
 
 /* ------------------------------------------------------------------------- */
@@ -641,7 +643,7 @@ function compactNotation(anode: HalfCell, cathode: HalfCell): string {
  */
 export function parseCellNotation(text: string): CellSpec | null {
   const source = text;
-  if (!chemistryReferenceConstantValid(text, /\bF\s*=|Faraday(?:'s)?\s*(?:constant)?\s*(?:is|=)/i, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(text, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
+  if (!chemistryReferenceConstantValid(text, FARADAY_ASSIGNMENT, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(text, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
   if (["concentration", "pressure", "temperature"].some(dimension => !findChemistryQuantities({ question: text, dimension: dimension as "concentration" | "pressure" | "temperature" }).ok)) return null;
   for (const phase of text.matchAll(/\(\s*(aq|g)\s*,[^)]*\)/g)) {
     if (!chemistryQuantityCuesValid(phase[0], [{after: /\b(?:aq|g)\s*,/, dimensions: [phase[1] === "aq" ? "concentration" : "pressure"]}])) return null;
@@ -1581,7 +1583,7 @@ function buildConductancePlot(question: string): SceneDocument | null {
  */
 export function buildElectrochemScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
-  if (!chemistryReferenceConstantValid(question, /\bF\s*=|Faraday(?:'s)?\s*(?:constant)?\s*(?:is|=)/i, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
+  if (!chemistryReferenceConstantValid(question, FARADAY_ASSIGNMENT, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
   if (!isElectrochemStem(question)) return null;
   const lower = chemStem(question);
   if (conductancePlotCue(lower)) return buildConductancePlot(question);

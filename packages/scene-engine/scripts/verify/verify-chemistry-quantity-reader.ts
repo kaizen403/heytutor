@@ -374,5 +374,63 @@ check("both original component identities have complete boundaries", () => {
   const forged=Object.assign([...match],{input:question,index:match.index,indices:match.indices}); forged[2]="A"; forged.indices=[...match.indices!]; forged.indices[2]=[match.indices![2]![0],match.indices![2]![0]+1];
   const start=question.indexOf("Amp"); assert.equal(reader.matchedChemistryComponentAmount(question,forged,1,2,{name:"A",sourceSpan:{start,end:start+1}}),null);
 });
+check("inventory excludes complete unit exponents, retaining original spans", () => {
+  assert.ok(reader);
+  const question="ΔG° = 11.4 kJ mol^-1 at 298 K; R = 8.314 J K^-1 mol^-1.";
+  const temperatures=reader.findChemistryQuantities({question,dimension:"temperature",targetUnit:"K"});
+  assert.ok(temperatures.ok,JSON.stringify(temperatures)); assert.equal(temperatures.reading.length,1);
+  near(temperatures.reading[0]!.value,298); assert.equal(temperatures.reading[0]!.source.text,"298 K");
+  for (const text of ["1e^2 K", "2e+ K", "2^ K", "1e^2 M", "2e+ M", "2^ M"]) {
+    const r=reader.findChemistryQuantities({question:text,dimension:text.endsWith("K")?"temperature":"concentration"});
+    assert.equal(r.ok,false,text);
+  }
+});
+check("inventory excludes complete source ions without rescuing malformed scalars", () => {
+  assert.ok(reader);
+  for (const ion of ["Zn^2+", "Cu^2+", "Zn^(2+)", "Cu²⁺"]) {
+    const question=`${ion} (0.1 M) at 298 K`;
+    const r=reader.findChemistryQuantities({question,dimension:"concentration"}); assert.ok(r.ok,JSON.stringify(r));
+    assert.equal(r.reading.length,1); near(r.reading[0]!.value,.1); assert.equal(r.reading[0]!.source.text,"0.1 M");
+  }
+  for (const text of ["Zn^2+_x at 298 K", "Zn^2+/s at 298 K", "1e^2 K"]) assert.equal(reader.findChemistryQuantities({question:text,dimension:"temperature"}).ok,false,text);
+});
+check("sentence punctuation delimits dimensionless source values", () => {
+  assert.ok(reader);
+  for (const punctuation of [".",";"]) {
+    const question=`K = 10${punctuation} Calculate the equilibrium Gibbs energy at 300 K.`;
+    const r=reader.readChemistryQuantity({question,after:/\bK\s*=/,dimension:"dimensionless"}); assert.ok(r.ok,JSON.stringify(r));
+    near(r.reading.value,10); assert.equal(r.reading.source.text,"10");
+    assert.equal(question.slice(r.reading.source.span.start,r.reading.source.span.end),"10");
+  }
+  assert.equal(reader.readChemistryQuantity({question:"K = 10.5 K",after:/\bK\s*=/,dimension:"dimensionless"}).ok,false);
+});
+check("actual Gibbs unit-exponent and sentence-boundary sources compile", () => {
+  const question="At 300 K, the equilibrium constant K is 10. Calculate the standard Gibbs energy change. R = 8.314 J K^-1 mol^-1.";
+  const doc=buildChemicalThermodynamicsScene(question,[],false); const labels=compiled("equilibrium-punctuation",doc);
+  assert.match(labels,/dGo=-5.743/); assert.match(labels,/kJ\/mol/); assert.match(labels,/K=10.00/);
+  const positive="For a reaction, ΔG° = +11.4 kJ mol^-1 at 298 K. Calculate its equilibrium constant. R = 8.314 J K^-1 mol^-1.";
+  const gs=compiled("equilibrium-inverse-unit",buildChemicalThermodynamicsScene(positive,[],false)); assert.match(gs,/dGo=11.400/); assert.match(gs,/kJ\/mol/); assert.match(gs,/K=0.01/);
+});
+check("actual equilibrium repeated consistent temperature retains both givens", () => {
+  const question="For the reaction N2(g) + 3H2(g) ⇌ 2NH3(g) at 298 K, ΔG° = -32.8 kJ mol^-1. Calculate the equilibrium constant at 298 K. R = 8.314 J K^-1 mol^-1.";
+  const labels=compiled("equilibrium-repeat-temperature",buildChemicalThermodynamicsScene(question,[],false));
+  assert.match(labels,/dGo=-32.800/); assert.match(labels,/kJ\/mol/); assert.match(labels,/K=561724.97/);
+  assert.equal(buildChemicalThermodynamicsScene(question.replace("constant at 298 K","constant at 300 K"),[],false),null);
+});
+check("actual Nernst factor is distinct from standalone Faraday assignment", () => {
+  for (const [anode,cathode,expected] of [[.1,1,1.1295],[1,.01,1.041]] as const) {
+    const question=`Calculate the emf at 298 K of Zn | Zn^2+ (${anode} M) || Cu^2+ (${cathode} M) | Cu. E°(Zn^2+/Zn) = -0.76 V, E°(Cu^2+/Cu) = +0.34 V and 2.303RT/F = 0.059 V.`;
+    const cell=parseCellNotation(question); assert.ok(cell); near(cellEmf(cell)?.e,expected);
+    compiled("nernst-complete-ion-source",buildElectrochemScene(question,[],false));
+    for (const stated of ["F = 96485 C/mol", "F = 2e+ C/mol", "F = 96500 V"]) assert.equal(buildElectrochemScene(`${question} and ${stated}`,[],false),null,stated);
+  }
+});
+check("complete inverse-mole Faraday unit supports actual electrolysis source", () => {
+  for (const notation of ["C mol^-1","C mol⁻¹","C/mol"]) {
+    const r=quantity(`value=96500 ${notation}`,"faraday_constant","C/mol"); assert.ok(r.ok,JSON.stringify(r)); near(r.reading.value,96500);
+  }
+  const question="Aqueous CuSO4 is electrolysed by a 2.0 A current for 30 minutes. Cu = 63.5 g mol^-1 and F = 96500 C mol^-1. Find the mass of copper deposited.";
+  assert.match(compiled("electrolysis-inverse-mole",buildElectrochemScene(question,[],false)),/1.19 g/);
+});
 console.log(JSON.stringify({ passed, failed: failures.length, failures, capturedQA: "unavailable" }, null, 2));
 process.exitCode = failures.length ? 1 : 0;

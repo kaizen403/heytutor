@@ -20,7 +20,7 @@ function fit(text: string): string {
 
 function temperatureKelvin(question: string): number | null {
   const r = findChemistryQuantities({ question, dimension: "temperature", targetUnit: "K" });
-  return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
+  return r.ok && r.reading.length > 0 && r.reading.every(read => read.value === r.reading[0]!.value) ? r.reading[0]!.value : null;
 }
 
 function veto(stem: string): boolean {
@@ -332,8 +332,9 @@ function buildEquilibrium(question: string, _stem: string): SceneDocument | null
   if (k === null || gKj === null || !Number.isFinite(k) || !(k > 0)) return null;
   const c = new ChemScene(question, "standard Gibbs energy and the equilibrium constant", FAMILY);
   const ids = [
-    c.text("g_l", { x: 0, y: 1.2 }, fit(`dGo=${gKj.toFixed(3)} kJ/mol`), "standard Gibbs energy"),
-    c.text("k_l", { x: 0, y: 0.2 }, fit(`K=${k.toFixed(2)}`), "thermodynamic equilibrium constant"),
+    c.text("g_l", { x: 0, y: 1.2 }, fit(`dGo=${gKj.toFixed(3)}`), "standard Gibbs energy", {preserveText:true}),
+    c.text("g_unit", { x: 1.7, y: 1.2 }, "kJ/mol", "Gibbs energy unit"),
+    c.text("k_l", { x: 0, y: 0.2 }, fit(`K=${k.toFixed(2)}`), "thermodynamic equilibrium constant", {preserveText:true}),
     c.text("law_l", { x: 0, y: -0.8 }, "dGo=-RT lnK", "standard relation"),
     c.text("t_l", { x: 0, y: -1.8 }, fit(`T=${temperature} K`), "absolute temperature"),
   ];

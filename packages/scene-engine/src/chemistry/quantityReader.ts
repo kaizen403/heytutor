@@ -1,6 +1,7 @@
 /** SI conversions: NIST SP 330 §4 (https://www.nist.gov/pml/special-publication-330/sp-330-section-4).
  * Chemistry-only physical givens. Original JS spans and unit case are authority. */
 import type { ChemPlanQuantity } from "./sceneKit";
+import { parseFormula } from "./formula";
 
 export interface ChemistrySpan { start: number; end: number }
 export type ChemistryDimension = "dimensionless" | "time" | "temperature" | "temperature_delta"
@@ -34,7 +35,7 @@ export interface ChemistryQuantityInput {
   unitConvention?: { unit: ChemistryUnit; sourceSpan: ChemistrySpan };
 }
 
-const DECIMAL = String.raw`(?:\d+(?:\.\d*)?|\.\d+)`;
+const DECIMAL = String.raw`(?:\d+(?:\.\d+|\.(?!\s+[A-Za-z]))?|\.\d+)`;
 const EXPONENT = String.raw`(?:[+\-−]?\d{1,4}|\(\s*[+\-−]?\d{1,4}\s*\))`;
 const SCALAR = String.raw`[+\-−]?\s*(?:${DECIMAL}\s*/\s*${DECIMAL}(?:st|nd|rd|th)?|(?:${DECIMAL}\s*[x×*]\s*)?10\s*\^\s*${EXPONENT}|${DECIMAL}(?:[eE][+\-−]?\d{1,4})?)`;
 /** One whole token plus two empty compatibility captures; all parsing lives here. */
@@ -112,7 +113,7 @@ unit("L bar/(mol K)", "gas_constant", 100, String.raw`(?:[Ll]\s*bar|bar\s*[Ll])\
 unit("mol/(L atm)", "concentration_pressure", 1, String.raw`mol\s*/\s*\(\s*[Ll]\s*atm\s*\)`);
 unit("mol/(L bar)", "concentration_pressure", 1.01325, String.raw`mol\s*/\s*\(\s*[Ll]\s*bar\s*\)`);
 unit("K kg/mol", "colligative_constant", 1, String.raw`K\s*kg\s*/\s*mol|K\s*kg\s*mol\s*\^?\(?-1\)?`);
-unit("C/mol", "faraday_constant", 1, String.raw`C\s*/\s*mol`);
+unit("C/mol", "faraday_constant", 1, String.raw`C\s*${perMol}`);
 unit("mol^-1", "avogadro_constant", 1, String.raw`mol\s*\^?\(?-1\)?|/\s*mol`);
 unit("kg m/s", "momentum", 1, String.raw`kg\s*m\s*/\s*s`);
 unit("m/s", "speed", 1, String.raw`m\s*/\s*s|m\s*s\s*\^?\(?-1\)?`);
@@ -314,18 +315,47 @@ export function readChemistryQuantity(input: ChemistryQuantityInput): ChemRead<C
   }
   return readings.length === 1 ? { ok: true, reading: readings[0]! } : fail(readings.length ? "ambiguous" : "missing");
 }
+/** Exponent digits in a complete registered unit or parsed atomic charge are
+ * notation, not independent physical scalars. Evidence uses original spans;
+ * damaged or continued expressions receive no exemption. */
+function inventoryNotationSpans(question: string, end: number): ChemistrySpan[] {
+  const spans: ChemistrySpan[] = [];
+  const body = question.slice(0, end);
+  for (const match of body.matchAll(/[A-Za-zÅå°/]/g)) {
+    const start = match.index!;
+    if (/[A-Za-z0-9_]/.test(body[start - 1] ?? "")) continue;
+    const parsed = unitAt(body.slice(start));
+    if (parsed && !continuesUnit(body.slice(start + parsed.text.length))) spans.push({ start, end: start + parsed.text.length });
+  }
+  const ions = /[A-Z][a-z]?(?:\d*[+-]|\^(?:\(\d*[+-]\)|\{\d*[+-]\}|\d*[+-])|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])/g;
+  for (const match of body.matchAll(ions)) {
+    const start = match.index!; const finish = start + match[0].length;
+    if (/[\p{L}\p{N}\p{M}_^+−-]/u.test(body[start - 1] ?? "")) continue;
+    const parsed = parseFormula(match[0]);
+    if (!parsed || parsed.atoms.length !== 1 || parsed.totalAtoms !== 1 || !parsed.charge) continue;
+    const tail = body.slice(finish);
+    // A cell potential may name an independently parsed redox partner.
+    const partner = /^\/([A-Z][a-z]?)(?=[\s,.;:|)\]]|$)/.exec(tail);
+    const cellPair = partner && parseFormula(partner[1]!)?.totalAtoms === 1;
+    const phase = /^\((?:aq|s|l|g)\)(?=[\s,.;:|)\]]|$)/.test(tail);
+    if (!cellPair && !phase && /^[\p{L}\p{N}\p{M}_^+−\-⁺⁻/·*([{}]/u.test(tail)) continue;
+    spans.push({ start, end: finish });
+  }
+  return spans;
+}
 /** Literal inventory for semantic consumers that bind species/clause spans themselves. */
 export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "after">): ChemRead<readonly ChemistryReading[]> {
   const body = chemistryQuestionSpan(input.question); const scope = input.within ?? body;
   if (!validSpan(input.question, scope)) return fail("malformed", scope);
   const end = Math.min(scope.end, body.end);
   const readings: ChemistryReading[] = []; let consumed = -1;
+  const notation = inventoryNotationSpans(input.question, end);
   for (const match of input.question.matchAll(new RegExp(SCALAR, "g"))) {
     const start = match.index! + match[0].length - match[0].trimStart().length;
     const tokenEnd = match.index! + match[0].trimEnd().length;
     if (tokenEnd <= scope.start || start >= end || start < consumed) continue;
     if (start < scope.start || tokenEnd > end) return fail("source_conflict", {start,end:tokenEnd});
-    if (/[A-Za-z0-9_.]/.test(input.question[start-1] ?? "")) continue;
+    if (/[A-Za-z0-9_.]/.test(input.question[start-1] ?? "") || notation.some(span => start > span.start && tokenEnd <= span.end)) continue;
     consumed = tokenEnd;
     const found = literalAt(input, start, end);
     if (found.ok) { readings.push(found.reading); consumed = found.reading.source.span.end; }
