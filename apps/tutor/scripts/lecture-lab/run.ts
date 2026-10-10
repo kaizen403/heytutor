@@ -23,7 +23,7 @@ import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
   LECTURE_LAB_ZERO_RETENTION_HEADER,
 } from "../../lib/billing/flags";
-import { parseDiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import { parseDiagramSubject, type DiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
   assertUniqueArtifactIds,
@@ -97,6 +97,7 @@ export interface Options {
   sceneDeclinePolicy: SceneDeclinePolicy;
   visualNeedReplay: string | null;
   exampleExclusions: string | null;
+  productionStrictSubjects: readonly DiagramSubject[] | null;
 }
 
 export interface LabSpendSummary {
@@ -354,6 +355,20 @@ export function parseOptions(argv: string[]): Options {
   const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
+  const productionStrictSubjects = flags.get("production-strict-subjects");
+  if (flags.has("production-strict-subjects") && (productionStrictSubjects !== "maths" || evalFiles.length === 0 || arm !== "planner_examples_strict")) {
+    throw new Error("--production-strict-subjects maths requires a strict maths evaluation");
+  }
+  let parsedOrigin: URL;
+  try {
+    parsedOrigin = new URL(flags.get("origin") ?? "http://127.0.0.1:3000");
+  } catch {
+    throw new Error("--origin must be an HTTP(S) origin without credentials, a path, query or fragment");
+  }
+  if (!["http:", "https:"].includes(parsedOrigin.protocol) || parsedOrigin.username || parsedOrigin.password ||
+      parsedOrigin.pathname !== "/" || parsedOrigin.search || parsedOrigin.hash) {
+    throw new Error("--origin must be an HTTP(S) origin without credentials, a path, query or fragment");
+  }
   if (spendMode === "response_usage" && resumeExtraUsd > 0) throw new Error("--resume-extra-usd is an unmetered allowance; response_usage requires checkpoint evidence instead");
   return {
     difficulty: flags.get("difficulty") ?? "hard",
@@ -363,7 +378,7 @@ export function parseOptions(argv: string[]): Options {
     limit: number("limit", null),
     concurrency: number("concurrency", 3) ?? 3,
     out: flags.get("out") ?? `.lecture-lab/run-${Date.now()}`,
-    origin: flags.get("origin") ?? "http://127.0.0.1:3000",
+    origin: parsedOrigin.origin,
     familiarity: (flags.get("familiarity") as SubjectFamiliarity) ?? "normal",
     narrationLanguage: flags.get("narration") === "hinglish" ? "hinglish" : "english",
     only: list("only"),
@@ -384,6 +399,7 @@ export function parseOptions(argv: string[]): Options {
     sceneDeclinePolicy,
     visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
+    productionStrictSubjects: productionStrictSubjects ? ["maths"] : null,
   };
 }
 
@@ -759,6 +775,8 @@ async function main(): Promise<void> {
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
+    ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
+      examplePickerProfile: "live-client-4000ms/v1", subjectClassification: "existing-turn-plan" } : {}),
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
       ...labResponseUsagePricing(providerConfig.deployment),
       plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
@@ -997,6 +1015,7 @@ async function main(): Promise<void> {
           fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
           scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
           subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
+          productionStrictSubjects: options.productionStrictSubjects,
           sceneDeclinePolicy: options.sceneDeclinePolicy,
           traceId,
           visualNeedReplay: visualNeedReplay?.get(probe.id),

@@ -256,6 +256,25 @@ keyword-to-figure router is added. Chemistry, code/DSA and doubts/resumes retain
 their exemptions. The older percentage/actor allowlist is independent and still
 assigns global strict when explicitly enabled. Leave all flags off in production.
 
+To measure that production maths opt-in rather than a forced strict eval arm,
+add `--production-strict-subjects maths` to a `planner_examples_strict` run.
+This uses the existing turn planner's actual subject consensus, the live subject
+policy and the live four-second `/api/chat` picker without word fallback. Rows
+classified as unknown or non-maths stay current, recorded in
+`productionStrategy`; corpus subject labels never override that decision.
+Picked IDs must also survive the lab's full-sample exemplar exclusions. The
+picker is pinned to the configured lab origin's `/api/chat`, even if a public
+API origin is set, so it cannot bypass authentication or hard-cap accounting.
+The CLI normalizes HTTP(S) origins once for both transport and accounting,
+including trailing slashes and default ports; credentials, paths, queries and
+fragments are rejected without echoing their contents.
+Picker proxy usage is included in planner accounting, not charged again in its picker
+record. Resume identity binds this profile; omitting the flag preserves the
+existing evaluation behaviour. This option does not set any live environment
+flag. With Jev disabled, use identity-checked unavailable replay evidence on
+both arms: no Jev vote is not an explicit `none`, and turn-planner visual need
+remains authoritative.
+
 Part 15 decline experiment (lab only): `--scene-decline-policy
 qualitative_setup_v1` clarifies faithful nonmetric concept setups, without
 relaxing operator/source/proof gates. Keep `--model configured`, the production
