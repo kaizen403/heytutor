@@ -28,6 +28,7 @@ import {
   serializeSegmentCommands,
   type DrawCommand,
 } from "@heytutor/drawing";
+import { buildSolverAuthorityProjection } from "@heytutor/scene-engine";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { checkpointAttemptPrefix, checkpointAudioKey } from "@/lib/object-store/keys";
@@ -43,7 +44,7 @@ import {
   type TurnStorageReservation,
 } from "@/lib/boards/storageQuota";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
-import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
+import { canonicalizeTurnSceneMetadata, type CanonicalTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import {
   audioPrefixMatchesType,
   validateCheckpointUploadParts,
@@ -146,8 +147,43 @@ function attemptDirName(): string {
   return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
+/** Private checkpoint state; board readers omit this JSON column. */
 function heldRows(turn: Pick<Turn, "submittedSegments"> | null): HeldRow[] {
-  return Array.isArray(turn?.submittedSegments) ? (turn.submittedSegments as unknown as HeldRow[]) : [];
+  const stored = turn?.submittedSegments;
+  if (Array.isArray(stored)) return stored as unknown as HeldRow[];
+  return isRecord(stored) && stored.v === 1 && Array.isArray(stored.rows) ? stored.rows as unknown as HeldRow[] : [];
+}
+
+function heldSceneSeq(turn: Pick<Turn, "submittedSegments" | "checkpointSeq"> | null): number {
+  const stored = turn?.submittedSegments;
+  if (isRecord(stored) && stored.v === 1 && Number.isSafeInteger(stored.sceneSeq) &&
+    (stored.sceneSeq as number) >= 0 && (stored.sceneSeq as number) <= turn!.checkpointSeq) return stored.sceneSeq as number;
+  // Legacy rows do not say whether the last write carried a scene. Never
+  // infer permission to replace their scene from an older request.
+  return turn?.checkpointSeq ?? 0;
+}
+
+function heldCheckpoint(rows: HeldRow[], sceneSeq: number) {
+  return { v: 1, sceneSeq, rows };
+}
+
+function hasNewerCheckpointScene(turn: Turn, input: CheckpointInput): boolean {
+  return !input.tolerateOverlap && input.scene !== "stored" && input.seq > heldSceneSeq(turn);
+}
+
+function stableJson(value: unknown): string | undefined {
+  return JSON.stringify(value, (_key, nested: unknown) => isRecord(nested)
+    ? Object.fromEntries(Object.keys(nested).sort().map(key => [key, nested[key]])) : nested);
+}
+
+/** A delayed scene cannot be paired with a different, newer solver binding. */
+function sceneMatchesResumeAuthority(scene: CanonicalTurnSceneMetadata, resumeState: unknown): boolean {
+  const projection = isRecord(resumeState) && resumeState.v === 1 ? resumeState.solverProjection : null;
+  if (projection == null || scene.visualStatus !== "validated") return true;
+  const artifacts = scene.sceneArtifacts;
+  if (!artifacts?.problemIR || !artifacts.solverResult || !artifacts.solverAuthority) return false;
+  const canonicalProjection = buildSolverAuthorityProjection(artifacts.problemIR, artifacts.solverResult, artifacts.solverAuthority);
+  return stableJson(projection) === stableJson(canonicalProjection);
 }
 
 function hasMissingCheckpointPayload(turn: Turn, input: CheckpointInput, files: Map<number, File>): boolean {
@@ -195,8 +231,9 @@ export function checkpointTurnJson(turn: Turn, segments: Segment[]) {
 function turnBody(turn: TurnWithSegments, extra: Record<string, unknown> = {}) {
   return {
     turn: checkpointTurnJson(turn, turn.segments),
-    serverCount: Array.isArray(turn.submittedSegments) ? turn.submittedSegments.length : null,
+    serverCount: turn.submittedSegments == null ? null : heldRows(turn).length,
     serverSeq: turn.checkpointSeq,
+    serverSceneSeq: heldSceneSeq(turn),
     ...extra,
   };
 }
@@ -262,9 +299,6 @@ function parseCommon(raw: Record<string, unknown>, mode: "put" | "patch"): Parse
     (raw.speedMultiplier !== undefined && (typeof raw.speedMultiplier !== "number" ||
       !Number.isFinite(raw.speedMultiplier) || raw.speedMultiplier < 0.25 || raw.speedMultiplier > 4))) {
     return { ok: false, error: "invalid or oversized turn fields" };
-  }
-  if (mode === "put" && (typeof raw.question !== "string" || typeof raw.rawResponse !== "string")) {
-    return { ok: false, error: "question and rawResponse are required" };
   }
   let resumeState: Prisma.InputJsonValue | null | undefined;
   if (raw.resumeState === null) resumeState = null;
@@ -440,7 +474,7 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   }
   if (!existing && !common.value.question?.trim()) return json({ error: "turn not found" }, 404);
   if (existing && common.value.appendSegments.length === 0) {
-    return closeStatusOnly(auth.userId, params, existing, common.value);
+    return closeStatusOnly(request, auth.userId, params, existing, common.value);
   }
   return applyCheckpoint(request, auth.userId, params, {
     ...common.value,
@@ -454,11 +488,21 @@ async function ownedTraceAllowed(userId: string, boardId: string, traceId: strin
 }
 
 async function closeStatusOnly(
+  request: Request,
   userId: string,
   params: RouteParams,
   existing: Turn,
   input: Omit<CheckpointInput, "scene" | "tolerateOverlap">,
 ): Promise<Response> {
+  // A known scene-less close freezes legacy scene authority before advancing
+  // the header sequence. Use the normal charged checkpoint path to account
+  // for the private receipt envelope as well as preserving the existing rows.
+  if (Array.isArray(existing.submittedSegments)) {
+    return applyCheckpoint(request, userId, params, {
+      ...input, baseCount: heldRows(existing).length, appendSegments: [],
+      scene: "stored", tolerateOverlap: true,
+    }, new Map());
+  }
   const production = process.env.NODE_ENV === "production";
   if (production && !await ownedTraceAllowed(userId, params.boardId, input.traceId ?? existing.traceId ?? undefined)) {
     return json({ error: "an authorized lesson save allowance is required" }, 403);
@@ -496,7 +540,7 @@ async function closeStatusOnly(
 }
 
 type CommitOutcome =
-  | { kind: "saved"; turn: TurnWithSegments }
+  | { kind: "saved"; turn: TurnWithSegments; sceneAccepted: boolean }
   | { kind: "stale"; turn: TurnWithSegments }
   | { kind: "final"; turn: TurnWithSegments }
   | { kind: "retry_stopped" }
@@ -519,6 +563,9 @@ async function applyCheckpoint(
     include: { segments: { orderBy: { orderIndex: "asc" } } },
   });
   if (before && (before.userId !== userId || before.boardId !== boardId)) return json({ error: "not found" }, 404);
+  if (!before && !input.tolerateOverlap && (input.question === undefined || input.rawResponse === undefined)) {
+    return json({ error: "question and rawResponse are required to create a checkpoint" }, 400);
+  }
   const traceId = input.traceId ?? before?.traceId ?? undefined;
   if (before?.traceId && input.traceId && before.traceId !== input.traceId) {
     return json({ error: "trace does not match the saved turn" }, 409);
@@ -547,7 +594,7 @@ async function applyCheckpoint(
   // A metadata close may arrive before an older in-flight row/audio PUT.
   // Recover only missing rows/clips of a stopped turn, never its old header.
   const lateStoppedRows = Boolean(before && beforeStatus === "stopped" && input.seq <= before.checkpointSeq &&
-    hasMissingCheckpointPayload(before, input, files));
+    (hasMissingCheckpointPayload(before, input, files) || hasNewerCheckpointScene(before, input)));
   const tolerateOverlap = input.tolerateOverlap || lateStoppedRows;
   let append = input.appendSegments;
   if (before && input.seq <= before.checkpointSeq && !tolerateOverlap) {
@@ -559,14 +606,14 @@ async function applyCheckpoint(
     // flight) cannot append, but still stops the turn. Its body reports the
     // server's count.
     if (input.tolerateOverlap && before && !overlap) {
-      return closeStatusOnly(userId, { boardId, turnId }, before, input);
+      return closeStatusOnly(request, userId, { boardId, turnId }, before, input);
     }
     if (!overlap) return json({ error: "checkpoint does not continue the saved rows", serverCount: stored.length, serverSeq: before?.checkpointSeq ?? 0 }, 409);
     append = append.filter((row) => row.orderIndex >= stored.length);
   }
   const seq = Math.max(input.seq, before?.checkpointSeq ?? 0);
-  if (before && input.tolerateOverlap && append.length === 0) {
-    return closeStatusOnly(userId, { boardId, turnId }, before, input);
+  if (before && input.tolerateOverlap && append.length === 0 && !Array.isArray(before.submittedSegments)) {
+    return closeStatusOnly(request, userId, { boardId, turnId }, before, input);
   }
 
   // --- What the turn becomes -------------------------------------------------
@@ -575,7 +622,8 @@ async function applyCheckpoint(
   if (!question.trim()) return json({ error: "question is required" }, 400);
   const rawResponse = ownsMetadata ? input.rawResponse ?? before?.rawResponse ?? "" : before!.rawResponse;
   const status = before ? nextTurnStatus(beforeStatus!, input.status) : input.status;
-  const scene = before && !ownsMetadata ? sceneOf(before) : input.scene === "stored" ? sceneOf(before!) : input.scene;
+  let ownsScene = !input.tolerateOverlap && input.scene !== "stored" && (!before || input.seq > heldSceneSeq(before));
+  const scene = before && !ownsScene ? sceneOf(before) : input.scene === "stored" ? sceneOf(before!) : input.scene;
   if (status === "complete" && !rawResponse.trim() &&
     !(scene.visualStatus === "retry_required" && scene.sceneArtifacts != null)) {
     return json({ error: "question and rawResponse required unless persisting a required-diagram failure" }, 400);
@@ -605,7 +653,7 @@ async function applyCheckpoint(
     return json({ error: "turn audio exceeds the total size limit" }, 413);
   }
 
-  const rows = (scene.visualStatus === "validated" ? merged : stripSceneInk(merged))
+  const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" ? merged : stripSceneInk(merged))
     .map((row): CheckpointRow => ({
       orderIndex: row.orderIndex,
       narration: row.narration,
@@ -618,13 +666,24 @@ async function applyCheckpoint(
   if (utf8Bytes({ ...header, segments: merged }) > MAX_TURN_MERGED_METADATA_BYTES) {
     return json({ error: "turn metadata exceeds the size limit" }, 413);
   }
-  const canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: rows });
+  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) });
   if (!canonical.ok) return json({ error: `scene persistence rejected: ${canonical.error}` }, 400);
-  const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
+  const sceneOnlyRepair = before && input.question === undefined && input.rawResponse === undefined && input.resumeState === undefined;
+  if (ownsScene && before && (!ownsMetadata || sceneOnlyRepair) && !sceneMatchesResumeAuthority(canonical.value, resumeState)) {
+    if (ownsMetadata) return json({ error: "scene persistence rejected: scene disagrees with the current resume authority" }, 400);
+    // Keep the rescued payload and newer header, but do not acknowledge this
+    // scene. A surviving producer must submit a fresh, coherent scene.
+    ownsScene = false;
+    const storedScene = sceneOf(before);
+    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) });
+    if (!canonical.ok) return json({ error: `scene persistence rejected: ${canonical.error}` }, 400);
+  }
+  const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
+  const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
   const metadataBytes = utf8Bytes({
     question, rawResponse, ...canonical.value, segments: canonicalRows,
-    submitted: status === "complete" ? null : merged, resumeState,
+    submitted: status === "complete" ? null : heldCheckpoint(merged, sceneSeq), resumeState,
   }) + uploads.size * AUDIO_REF_BYTES * 2;
   const metadataGrowth = before ? Math.max(0, metadataBytes - Number(before.metadataBytes)) : metadataBytes;
   const chargeBytes = metadataGrowth + newAudioBytes;
@@ -698,14 +757,14 @@ async function applyCheckpoint(
               await release();
               // A newer close may have committed while this clip uploaded.
               // Re-read/canonicalize the missing payload under its newer header.
-              return current.status === "stopped" && stoppedRetries < 2 && hasMissingCheckpointPayload(current, input, files)
+              return current.status === "stopped" && stoppedRetries < 2 && (hasMissingCheckpointPayload(current, input, files) || hasNewerCheckpointScene(current, input))
                 ? { kind: "retry_stopped" } : { kind: "stale", turn: current };
             }
             // Anything committed since this request read the turn means the
             // canonical rows above were built on an old state: resend.
-            if (heldRows(current).length !== stored.length || current.checkpointSeq !== (before?.checkpointSeq ?? 0)) {
+            if (heldRows(current).length !== stored.length || current.checkpointSeq !== (before?.checkpointSeq ?? 0) || heldSceneSeq(current) !== heldSceneSeq(before)) {
               await release();
-              if (current.status === "stopped" && stoppedRetries < 2 && hasMissingCheckpointPayload(current, input, files)) {
+              if (current.status === "stopped" && stoppedRetries < 2 && (hasMissingCheckpointPayload(current, input, files) || hasNewerCheckpointScene(current, input))) {
                 return { kind: "retry_stopped" };
               }
               return { kind: "conflict", serverCount: heldRows(current).length, serverSeq: current.checkpointSeq };
@@ -723,7 +782,7 @@ async function applyCheckpoint(
             sceneArtifacts: nullableJson(canonical.value.sceneArtifacts),
             status: finalStatus,
             checkpointSeq: seq,
-            submittedSegments: finalStatus === "complete" ? Prisma.DbNull : (held as unknown as Prisma.InputJsonValue),
+            submittedSegments: finalStatus === "complete" ? Prisma.DbNull : (heldCheckpoint(held, sceneSeq) as unknown as Prisma.InputJsonValue),
             resumeState: nullableJson(resumeState),
           };
           let turn: Turn;
@@ -797,7 +856,7 @@ async function applyCheckpoint(
             ? await tx.segment.createManyAndReturn({ data: segmentValues })
             : [];
           if (reservation) await settleTurnStorage(reservation, false, tx);
-          return { kind: "saved", turn: { ...turn, segments } };
+          return { kind: "saved", turn: { ...turn, segments }, sceneAccepted: ownsScene };
         });
       } catch (error) {
         lastError = error;
@@ -809,8 +868,8 @@ async function applyCheckpoint(
     settled = true;
     switch (outcome.kind) {
       case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId }, input, files, stoppedRetries + 1);
-      case "saved": return json(turnBody(outcome.turn));
-      case "stale": return json(turnBody(outcome.turn, { stale: true }));
+      case "saved": return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
+      case "stale": return json(turnBody(outcome.turn, { stale: true, sceneAccepted: false }));
       case "final": return json(turnBody(outcome.turn, { stale: true, final: true }));
       case "conflict": return json({ error: "checkpoint does not continue the saved rows", serverCount: outcome.serverCount, serverSeq: outcome.serverSeq }, 409);
       case "trace_saved": return json({ error: "this lesson is already saved as another turn", code: "trace_saved", ...turnBody(outcome.turn) }, 409);

@@ -50,7 +50,7 @@ import {
   SAVE_RETRY_DELAYS_MS,
   type LiveTurnMirrorEvent,
 } from "../../features/tutor-session/lib/turn/liveTurnSave";
-import { lessonPageRecord, doubtPageRecord, type BoardPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
+import { lessonPageRecord, doubtPageRecord, textOnlyTurnScene, type BoardPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -837,6 +837,83 @@ async function newerCloseAckOwnsMirror() {
   assert.equal(h.registry.hasUnsentData(), false, "older response does not regress acknowledged stopped state");
 }
 
+async function partialSceneReceiptKeepsRepairObligation() {
+  for (const fallback of [false, true]) {
+    const h = harness(); const mirrors: LiveTurnMirrorEvent[] = [];
+    h.registry.attach(owner, { openBoardId: () => "board-1", mirror: event => mirrors.push(event) });
+    const { page } = begin(h, { generation: 1 });
+    page.turn.scene = { ...validatedScene };
+    h.registry.recordRow(owner, 1, row("opening", false), { intro: false });
+    await h.ack(h.calls[0]!);
+    h.registry.recordRow(owner, 1, row("silent figure beat", false), { intro: true });
+    page.figureDrawn = true; h.registry.figureCommitted(owner, 1);
+    const figure = h.calls[1]!; assert(figure.method === "PUT");
+    assert.equal(page.turn.saved, false, "the previously saved opening cannot acknowledge the newly drawn figure");
+    h.registry.setResumeState(owner, 1, { solver: "newer close" });
+    h.registry.closeOwner(owner); h.registry.pageHideClose();
+    const close = h.calls.find(call => call.method === "PATCH")!;
+    const count = figure.input.baseCount + figure.input.segments.length;
+    const snapshot: StoredTurn = { id: figure.turnId, orderIndex: 0, question: LESSON,
+      rawResponse: "Newer close words.", speedMultiplier: 1.5, traceId: "trace-1", status: "stopped",
+      ...textOnlyTurnScene(), resumeState: { solver: "newer close" }, segments: [] };
+    close.resolve({ ok: true, turn: snapshot, serverCount: count, serverSeq: close.input.seq,
+      serverSceneSeq: 1, stale: false, final: false });
+    await h.settle();
+    if (fallback) { page.turn.scene = textOnlyTurnScene(); page.figureDrawn = false; }
+    figure.resolve({ ok: true, turn: snapshot, serverCount: count, serverSeq: close.input.seq,
+      serverSceneSeq: fallback ? close.input.seq : 1, sceneAccepted: false, stale: false, final: false });
+    await h.settle();
+    assert(h.registry.hasUnsentData(), "rescued silent rows do not acknowledge an unaccepted scene");
+    assert.equal(page.turn.saved, false, "partial receipt cannot advertise a fully saved page");
+    assert.equal(mirrors.filter(event => event.source === "server").length, 0, "partial scene receipt keeps the local figure mirror");
+    const repair = h.calls.at(-1)!; assert(repair.method === "PUT");
+    assert(repair.input.seq > close.input.seq, "repair owns a fresh sequence");
+    assert.equal(repair.input.baseCount, count); assert.deepEqual(repair.input.segments, []);
+    assert.deepEqual(repair.input.lateAudio, [], "payload ACK prevents duplicate voice uploads");
+    assert.equal(repair.input.question, undefined); assert.equal(repair.input.rawResponse, undefined);
+    assert.equal(repair.input.speedMultiplier, undefined); assert.equal(repair.input.resumeState, undefined,
+      "scene-only repair cannot reassert an older solver or narration header");
+    assert.equal(repair.input.scene.visualStatus, fallback ? "text_only" : "validated",
+      "late ACK cannot resurrect a figure after the current context chose fallback");
+    h.registry.pageHideClose();
+    assert.equal(h.calls.filter(call => call.method === "PATCH").length, fallback ? 2 : 1,
+      "pagehide dedupe recognizes scene context changes even with unchanged rows");
+    const accepted: StoredTurn = { ...snapshot, ...repair.input.scene };
+    repair.resolve({ ok: true, turn: accepted, serverCount: count, serverSeq: repair.input.seq,
+      serverSceneSeq: repair.input.seq, sceneAccepted: true, stale: false, final: false });
+    await h.settle();
+    assert.equal(h.registry.hasUnsentData(), false); assert.equal(page.turn.saved, true);
+    assert.equal(mirrors.at(-1)!.source, "server");
+    assert.deepEqual(mirrors.at(-1)!.turn.resumeState, { solver: "newer close" });
+  }
+}
+
+async function lateAcceptedSceneCannotRegressCloseMetadata() {
+  const h = harness(); const mirrors: LiveTurnMirrorEvent[] = [];
+  h.registry.attach(owner, { openBoardId: () => "board-1", mirror: event => mirrors.push(event) });
+  const { page } = begin(h, { generation: 1 }); page.turn.scene = { ...validatedScene };
+  h.registry.recordRow(owner, 1, row("opening", false), { intro: false }); await h.ack(h.calls[0]!);
+  h.registry.recordRow(owner, 1, row("silent intro", false), { intro: true });
+  page.figureDrawn = true; h.registry.figureCommitted(owner, 1);
+  const figure = h.calls[1]!; assert(figure.method === "PUT");
+  h.registry.setResumeState(owner, 1, { solver: "latest" }); h.registry.closeOwner(owner); h.registry.pageHideClose();
+  const close = h.calls.find(call => call.method === "PATCH")!;
+  const count = figure.input.baseCount + figure.input.segments.length;
+  const snapshot: StoredTurn = { id: figure.turnId, orderIndex: 0, question: LESSON, rawResponse: "Current words.",
+    speedMultiplier: 1, traceId: "trace-1", ...textOnlyTurnScene(), ...figure.input.scene, status: "stopped", segments: [] };
+  close.resolve({ ok: true, turn: { ...snapshot, resumeState: { solver: "latest" } }, serverCount: count,
+    serverSeq: close.input.seq, serverSceneSeq: figure.input.seq, stale: false, final: false });
+  await h.settle(); assert(h.registry.hasUnsentData()); assert.equal(page.turn.saved, false);
+  const calls = h.calls.length;
+  figure.resolve({ ok: true, turn: { ...snapshot, status: "live", resumeState: { solver: "older" } }, serverCount: count,
+    serverSeq: figure.input.seq, serverSceneSeq: figure.input.seq, sceneAccepted: true, stale: false, final: false });
+  await h.settle();
+  assert.equal(h.registry.hasUnsentData(), false); assert.equal(page.turn.saved, true,
+    "late independent scene acceptance settles the page despite an older global header receipt");
+  assert.equal(h.calls.length, calls, "a real accepted scene needs no redundant repair");
+  assert.deepEqual(mirrors.at(-1)!.turn.resumeState, { solver: "latest" }, "late scene ACK cannot mirror its older solver header");
+}
+
 async function synchronousShownCutSurvivesRuntimeLoss() {
   const h = harness(); begin(h, { generation: 1, kind: "resume", continuesBoard: true });
   const token = h.registry.prepareSegment(owner, 1, row("prepared shown WRITE", false), { intro: false })!;
@@ -914,11 +991,99 @@ async function pausedHeartbeatUsesAcknowledgedTurn() {
   assert.equal(h.calls.length, count, "stopped owner no longer heartbeats");
 }
 
+async function lostCompletionReceivesCanonicalFinalOnRetry() {
+  const h = harness(); const mirrors: LiveTurnMirrorEvent[] = [];
+  h.registry.attach(owner, { openBoardId: () => "board-1", mirror: event => mirrors.push(event) });
+  const { handle, page } = begin(h, { generation: 1 });
+  page.turn.scene = { ...validatedScene }; page.figureDrawn = true;
+  h.registry.recordRow(owner, 1, row("verified scene narration", false), { intro: false });
+  await h.fail(h.calls[0]!, NETWORK); // no full scene receipt has arrived
+  const completion = handle.complete({ rawResponse: "Finished canonical lesson." });
+  await h.advance(SAVE_RETRY_DELAYS_MS[0]!);
+  const committed = h.calls.at(-1)!; assert(committed.method === "PUT");
+  assert.equal(committed.input.status, "complete");
+  // This complete PUT committed; its HTTP reply was lost. Exercise the actual
+  // timeout/backoff path before the same handle receives the route's final ACK.
+  await h.advance(checkpointTimeoutMs(0) + SAVE_RETRY_DELAYS_MS[1]!);
+  const retry = h.calls.at(-1)!; assert(retry.method === "PUT");
+  assert.equal(retry.turnId, committed.turnId); assert(retry.input.seq > committed.input.seq);
+  assert.equal(committed.input.signal?.aborted, true);
+  const final: StoredTurn = { id: committed.turnId, orderIndex: 0, question: LESSON,
+    rawResponse: "Finished canonical lesson.", speedMultiplier: 1, traceId: "trace-1",
+    ...textOnlyTurnScene(), ...committed.input.scene, status: "complete", persistedStatus: "complete", segments: [] };
+  retry.resolve({ ok: true, turn: final, serverCount: null, serverSeq: committed.input.seq,
+    serverSceneSeq: committed.input.seq, sceneAccepted: false, stale: true, final: true });
+  await h.settle(); assert((await completion).ok);
+  const count = h.calls.length; await h.advance(CHECKPOINT_TIMEOUT_MS + SAVE_RETRY_DELAYS_MS.at(-1)!);
+  assert.equal(h.calls.length, count); assert.equal(h.registry.hasUnsentData(), false); assert.equal(page.turn.saved, true);
+  assert.equal(mirrors.at(-1)!.source, "server", "lost completion retry mirrors the canonical final without a prior scene ACK");
+  assert.equal(mirrors.at(-1)!.turn.visualStatus, "validated");
+}
+
+async function canonicalFinalSurvivesDelayedReceipts() {
+  for (const late of ["close", "put", "failure"] as const) {
+    const h = harness(); const mirrors: LiveTurnMirrorEvent[] = [];
+    h.registry.attach(owner, { openBoardId: () => "board-1", mirror: event => mirrors.push(event) });
+    const { handle, page } = begin(h, { generation: 1 });
+    h.registry.recordRow(owner, 1, row("opening", false), { intro: false }); await h.ack(h.calls[0]!);
+    page.turn.scene = { ...validatedScene }; page.figureDrawn = true;
+    const completion = handle.complete({ rawResponse: "Finished canonical lesson." });
+    const put = h.calls.at(-1)!; assert(put.method === "PUT"); assert.equal(put.input.status, "complete");
+    h.registry.pageHideClose(); const close = h.calls.at(-1)!; assert(close.method === "PATCH");
+    const final: StoredTurn = { id: put.turnId, orderIndex: 0, question: LESSON, rawResponse: "Finished canonical lesson.",
+      speedMultiplier: 1, traceId: "trace-1", ...textOnlyTurnScene(), ...put.input.scene,
+      status: "complete", persistedStatus: "complete", segments: [] };
+    const first = late === "close" ? put : close;
+    first.resolve({ ok: true, turn: final, serverCount: null, serverSeq: close.input.seq,
+      serverSceneSeq: put.input.seq, sceneAccepted: false, stale: true, final: true });
+    await h.settle(); assert((await completion).ok);
+    const count = h.calls.length; const mirrorCount = mirrors.length;
+    const receiver = late === "close" ? close : put;
+    if (late === "failure") receiver.resolve(NETWORK);
+    else receiver.resolve({ ok: true, turn: { ...final, status: "stopped", persistedStatus: "stopped", rawResponse: "Older close." },
+      serverCount: 1, serverSeq: close.input.seq, serverSceneSeq: 1, sceneAccepted: false, stale: false, final: false });
+    await h.settle(); await h.advance(CHECKPOINT_TIMEOUT_MS + SAVE_RETRY_DELAYS_MS.at(-1)!);
+    assert.equal(mirrors.length, mirrorCount, "late non-final or failed delivery cannot replace a final mirror");
+    assert.equal(mirrors.at(-1)!.source, "server"); assert.equal(mirrors.at(-1)!.turn.status, "complete");
+    assert.equal(mirrors.at(-1)!.turn.persistedStatus, "complete");
+    assert.equal(h.registry.statusFor("board-1").kind, "saved");
+    assert.equal(h.registry.hasUnsentData(), false); assert.equal(page.turn.saved, true); assert.equal(h.calls.length, count);
+  }
+}
+
+async function canonicalFinalReceiptMustMirror() {
+  for (const method of ["PUT", "PATCH"] as const) {
+    const h = harness(); const mirrors: LiveTurnMirrorEvent[] = [];
+    h.registry.attach(owner, { openBoardId: () => "board-1", mirror: event => mirrors.push(event) });
+    const { page } = begin(h, { generation: 1 }); page.turn.scene = { ...validatedScene }; page.figureDrawn = true;
+    h.registry.recordRow(owner, 1, row("local figure narration", false), { intro: false });
+    h.registry.closeOwner(owner);
+    if (method === "PATCH") h.registry.pageHideClose();
+    const call = h.calls.find(call => call.method === method)!;
+    const final: StoredTurn = { id: call.turnId, orderIndex: 0, question: LESSON, rawResponse: "Canonical final response.",
+      speedMultiplier: 1, traceId: "trace-1", ...textOnlyTurnScene(), status: "complete", persistedStatus: "complete", segments: [] };
+    const count = h.calls.length;
+    call.resolve({ ok: true, turn: final, serverCount: null, serverSeq: call.input.seq,
+      serverSceneSeq: call.input.seq, sceneAccepted: false, stale: true, final: true });
+    await h.settle();
+    assert.equal(h.registry.hasUnsentData(), false); assert.equal(h.calls.length, count, "canonical final never resends a pending local scene");
+    assert.equal(page.turn.saved, true);
+    assert.equal(mirrors.at(-1)!.source, "server", "canonical final receipt replaces the local stopped mirror despite a different scene");
+    assert.equal(mirrors.at(-1)!.turn.status, "complete");
+    assert.equal(mirrors.at(-1)!.turn.rawResponse, "Canonical final response.");
+  }
+}
+
 async function main() {
+  await canonicalFinalReceiptMustMirror();
+  await lostCompletionReceivesCanonicalFinalOnRetry();
+  await canonicalFinalSurvivesDelayedReceipts();
   await chronologicalOverlayAndFreshFinal();
   await pausedHeartbeatUsesAcknowledgedTurn();
   await synchronousShownCutSurvivesRuntimeLoss();
   await newerCloseAckOwnsMirror();
+  await partialSceneReceiptKeepsRepairObligation();
+  await lateAcceptedSceneCannotRegressCloseMetadata();
   await resumeRevisionSurvivesStaleAck();
   closePrioritizesSolverState();
   await oneInFlightAndCoalescing();

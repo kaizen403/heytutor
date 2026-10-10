@@ -21,11 +21,14 @@ import ts from "typescript";
 import { LiveTurnSaveRegistry, type LiveTurnMirrorEvent } from "../../features/tutor-session/lib/turn/liveTurnSave";
 import { pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import * as drawing from "@heytutor/drawing";
+import * as sceneEngine from "@heytutor/scene-engine";
 import * as requestBody from "../../lib/http/requestBody";
 import * as keys from "../../lib/object-store/keys";
 import * as turnStatus from "../../lib/boards/turnStatus";
 import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as storedSceneSource from "../../lib/scene/storedSceneSource";
+import { canonicalizeTurnSceneMetadata as canonicalizeRealScene } from "../../lib/scene/turnScenePersistence";
+import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -55,6 +58,7 @@ const reservations: Row[] = [];
 let canonicalizeCalls = 0;
 let clock = Date.now();
 let uploadPause: ((key: string) => Promise<void>) | null = null;
+let canonicalPause: (() => Promise<void>) | null = null;
 
 function clean(value: unknown): unknown {
   return value === DB_NULL ? null : value;
@@ -143,6 +147,12 @@ const SERVER_INK = drawing.serializeSegmentCommands(
 
 const canonicalize = async (meta: Row) => {
   canonicalizeCalls += 1;
+  if (meta.sceneArtifacts?.problemIR) {
+    await canonicalPause?.();
+    // Route data crossed a VM realm; replay its JSON boundary before invoking
+    // the real source canonicalizer, whose plain-object check is intentional.
+    return canonicalizeRealScene(JSON.parse(JSON.stringify(meta)));
+  }
   if (String(meta.question).includes("REFUSE") || meta.segments.some((s: Row) => s.narration === "REFUSE")) {
     return { ok: false, error: "refused by the stub" };
   }
@@ -186,6 +196,7 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@prisma/client": { Prisma: { DbNull: DB_NULL, PrismaClientKnownRequestError: KnownRequestError } },
   "next/server": { NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } },
   "@heytutor/drawing": drawing,
+  "@heytutor/scene-engine": sceneEngine,
   "@/lib/auth": { getUserId: async () => userId, ensureUser: async () => {} },
   "@/lib/db/prisma": { prisma },
   "@/lib/object-store/keys": keys,
@@ -462,7 +473,100 @@ async function closeMetadataSequenceOwnership() {
   } finally { release(); uploadPause = null; }
 }
 
+async function firstSceneHasIndependentReceipt() {
+  const fixture = await checkpointSceneFixture();
+  for (const mode of ["dead-tab", "first-create", "silent", "new-fallback", "new-figure", "changed-authority", "legacy"] as const) {
+    const id = crypto.randomUUID();
+    if (mode !== "first-create") await put(id, { question: fixture.question, seq: 1, baseCount: 0, appendSegments: [row(0, "", CLEAR), row(1, "Opening.")] });
+    if (mode === "legacy") stored(id).submittedSegments = stored(id).submittedSegments.rows;
+    const intro = fixture.metadata.segments.map((segment, index) => ({ ...segment, orderIndex: index + 2 }));
+    const voiceIndex = intro.length + 2;
+    const input = { ...fixture.metadata, seq: 2, baseCount: mode === "first-create" ? 0 : 2, rawResponse: "Older figure narration.",
+      resumeState: { solver: "older header" }, appendSegments: [
+        ...(mode === "first-create" ? [row(0, "", CLEAR), row(1, "Opening.")] : []), ...intro, row(voiceIndex, "The sum is five.")
+      ] };
+    let started!: () => void, release!: () => void;
+    const pending = new Promise<void>(resolve => { started = resolve; });
+    const held = new Promise<void>(resolve => { release = resolve; });
+    if (mode === "silent") canonicalPause = async () => { started(); await held; };
+    else uploadPause = async key => { if (key.includes(`/${id}/`)) { started(); await held; } };
+    try {
+      const inFlight = put(id, input, mode === "silent" ? {} : { [voiceIndex]: WAV() }, "board-a", "audio/wav");
+      await Promise.race([pending, inFlight.then(result => assert.fail(`first scene must reach the held operation: ${JSON.stringify(result)}`))]);
+      const latestProjection = structuredClone(fixture.projection) as Row;
+      if (mode === "changed-authority") latestProjection.bindings[0].approximate = 6;
+      if (mode === "new-fallback") {
+        assert.equal((await put(id, { question: fixture.question, seq: 3, baseCount: 2, status: "stopped",
+          visualStatus: "text_only", sceneArtifacts: null, rawResponse: "Explicit newer fallback.",
+          resumeState: { v: 1, solverProjection: latestProjection }, appendSegments: [] })).status, 200);
+      } else if (mode === "new-figure") {
+        const newer = structuredClone(fixture.metadata) as Row;
+        newer.sceneDocument.entities.find((entity: Row) => entity.id === "number_line").role = "newer explicit number line";
+        canonicalPause = null;
+        assert.equal((await put(id, { ...newer, seq: 3, baseCount: 2, status: "stopped", rawResponse: "Explicit newer figure.",
+          resumeState: { v: 1, solverProjection: latestProjection }, appendSegments: [] })).status, 200);
+      } else {
+        assert.equal((await close(id, { question: fixture.question, seq: 3, baseCount: mode === "first-create" ? 0 : 2,
+          ...(mode === "first-create" ? { appendSegments: [row(0, "", CLEAR), row(1, "Opening.")] } : {}),
+          status: "stopped", rawResponse: "Newer close narration.",
+          resumeState: { v: 1, solverProjection: latestProjection } })).status, 200);
+      }
+      canonicalPause = null;
+      release();
+      const recovered = await inFlight;
+      assert.equal(recovered.status, 200, JSON.stringify(recovered.body));
+      assert.equal(recovered.body.serverSeq, 3, "row recovery never regresses newer metadata seq");
+      assert.deepEqual(JSON.parse(JSON.stringify(stored(id).resumeState)), { v: 1, solverProjection: latestProjection });
+      const fresh = (await (await boardRoute.GET(new Request("https://example.test/api/boards/board-a"),
+        { params: Promise.resolve({ boardId: "board-a" }) })).json()).turns.find((turn: Row) => turn.id === id);
+      assert.equal(fresh.persistedStatus, "stopped");
+      assert.equal(fresh.rawResponse, mode === "new-fallback" ? "Explicit newer fallback." : mode === "new-figure" ? "Explicit newer figure." : "Newer close narration.", "old scene recovery preserves newer narration");
+      const accepted = mode === "dead-tab" || mode === "first-create" || mode === "silent" || mode === "legacy";
+      assert.equal(fresh.visualStatus, accepted || mode === "new-figure" ? "validated" : "text_only",
+        "a new tab must retain the first coherent verified scene without a client retry");
+      assert.equal(recovered.body.sceneAccepted, accepted, "payload receipt separately reports scene acceptance");
+      assert.equal(recovered.body.serverSceneSeq, accepted ? 2 : mode === "changed-authority" ? 1 : 3);
+      if (accepted) assert(fresh.segments.some((segment: Row) => drawing.isStoredCommandTrustedGeometry(segment.command)),
+        "fresh GET retains the first figure without any later client request, including silent ink");
+      if (mode === "new-figure") assert.equal(fresh.sceneDocument.entities.find((entity: Row) => entity.id === "number_line").role,
+        "newer explicit number line", "a delayed scene cannot replace a newer explicit scene");
+      if (mode === "changed-authority") {
+        const charged = stored(id).storageBytes;
+        const incoherent = await put(id, { ...fixture.metadata, question: undefined, rawResponse: undefined, seq: 4,
+          baseCount: recovered.body.serverCount, appendSegments: [] });
+        assert.equal(incoherent.status, 400, "a fresh scene-only retry also cannot pair stale geometry with changed solver bindings");
+        assert.equal(stored(id).storageBytes, charged, "refused scene-only repair charges no bytes");
+      }
+      assert.equal(reservations.filter(entry => entry.state === "open").length, 0);
+    } finally { release(); canonicalPause = null; uploadPause = null; }
+  }
+  // The real browser client can repair only its scene, without reasserting an
+  // older solver/narration header; creation still requires both header fields.
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const match = /\/api\/boards\/([^/]+)\/turns\/([^/?]+)/.exec(request.url)!;
+    return handleTurnCheckpoint(request, { boardId: match[1], turnId: match[2] });
+  };
+  try {
+    const id = crypto.randomUUID();
+    await put(id, { question: fixture.question, rawResponse: "Newer header.", speedMultiplier: 1.5,
+      resumeState: { v: 1, solverProjection: fixture.projection }, seq: 3, baseCount: 0, status: "stopped", appendSegments: [row(0, "Opening.")] });
+    const repair = await client.checkpointTurn("board-a", id, { seq: 4, baseCount: 1, status: "stopped",
+      scene: fixture.metadata, segments: [] });
+    assert(repair.ok, JSON.stringify(repair));
+    assert.equal(repair.sceneAccepted, true); assert.equal(repair.serverSceneSeq, 4);
+    assert.equal(repair.turn.rawResponse, "Newer header."); assert.equal(repair.turn.speedMultiplier, 1.5);
+    assert.deepEqual(repair.turn.resumeState, { v: 1, solverProjection: fixture.projection });
+    const missing = await client.checkpointTurn("board-a", crypto.randomUUID(), { seq: 1, baseCount: 0,
+      status: "stopped", scene: fixture.metadata, segments: [] });
+    assert.equal(missing.ok, false); assert.equal(missing.status, 400, "omitted headers never create an unauthored turn");
+  } finally { globalThis.fetch = originalFetch; }
+}
+
 async function main() {
+  await firstSceneHasIndependentReceipt();
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   await failedEarlierCreationKeepsDurableOrder();
   await registryHistoryReceiptsDriveDurableInsertion();
   await closeMetadataSequenceOwnership();
@@ -636,7 +740,7 @@ async function main() {
   assert.equal(rowsOf(figure).some((s) => drawing.isStoredCommandTrustedGeometry(s.command)), false,
     "a text-only save keeps no trusted figure ink");
   assert.deepEqual(rowsOf(figure).map((s) => s.narration), ["", "Read the graph.", "Stopped here."]);
-  assert.equal(stored(figure).submittedSegments.length, 4, "the submitted rows are kept for a later upgrade");
+  assert.equal(stored(figure).submittedSegments.rows.length, 4, "the submitted rows are kept for a later upgrade");
 
   // --- 11. the keepalive close -------------------------------------------------
   const closing = crypto.randomUUID();
@@ -748,4 +852,7 @@ async function main() {
   console.log("verify-turn-checkpoint-route: create, append, idempotency, order, status, trace, ownership, audio refs, close and late audio verified");
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+const completionWatchdog = setTimeout(() => {
+  console.error("checkpoint gate did not complete its asynchronous cases"); process.exitCode = 1;
+}, 15_000);
+main().finally(() => clearTimeout(completionWatchdog)).catch((error) => { console.error(error); process.exitCode = 1; });

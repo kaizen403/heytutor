@@ -17,6 +17,8 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { mock } from "node:test";
+import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
+import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 
 async function main() {
   const input = process.env.SECURITY_TEST_DATABASE_URL;
@@ -298,6 +300,88 @@ async function main() {
       assert.equal((await balance()).reservedBytes, (await prisma.turn.aggregate({ where: { userId }, _sum: { storageBytes: true } }))._sum.storageBytes,
         "rescued voice charges only settled attempt storage after cleanup");
     } finally { release(); uploadPause = null; }
+
+    // --- independent scene authority survives a destroyed producer tab --------
+    const sceneFixture = await checkpointSceneFixture();
+    for (const mode of ["dead-tab", "first-create", "changed-authority", "new-fallback", "legacy"] as const) {
+      const id = randomUUID();
+      if (mode !== "first-create") {
+        assert.equal((await put(id, { question: sceneFixture.question, seq: 1, baseCount: 0,
+          appendSegments: [row(0, "", CLEAR), row(1, "Opening.")] })).status, 200);
+      }
+      if (mode === "legacy") {
+        const legacy = await turnRow(id);
+        const envelope = legacy.submittedSegments as unknown as { rows: unknown[] };
+        await prisma.turn.update({ where: { id }, data: { submittedSegments: envelope.rows as never } });
+      }
+      const intro = sceneFixture.metadata.segments.map((segment, index) => ({ ...segment, orderIndex: index + 2 }));
+      const voiceIndex = intro.length + 2;
+      const old = { ...sceneFixture.metadata, seq: 2, baseCount: mode === "first-create" ? 0 : 2,
+        rawResponse: "Older figure narration.", resumeState: { solver: "older header" },
+        appendSegments: [...(mode === "first-create" ? [row(0, "", CLEAR), row(1, "Opening.")] : []),
+          ...intro, row(voiceIndex, "The sum is five.")] };
+      let began!: () => void, release!: () => void;
+      const beganUpload = new Promise<void>(resolve => { began = resolve; });
+      const held = new Promise<void>(resolve => { release = resolve; });
+      uploadPause = async key => { if (key.includes(`/${id}/`)) { began(); await held; } };
+      try {
+        const wav = WAV();
+        const pending = put(id, old, { [voiceIndex]: wav }, "audio/wav");
+        await Promise.race([beganUpload, pending.then(result => assert.fail(`first scene must reach the held upload: ${JSON.stringify(result)}`))]);
+        const latestProjection = structuredClone(sceneFixture.projection);
+        if (mode === "changed-authority") {
+          assert(Array.isArray(latestProjection.bindings));
+          assert.equal(latestProjection.bindings[0].approximate, 5, "fixture solver binds the sum to five");
+          latestProjection.bindings[0].approximate = 6;
+        }
+        const latestState = { v: 1, solverProjection: latestProjection };
+        if (mode === "new-fallback") {
+          assert.equal((await put(id, { question: sceneFixture.question, seq: 3, baseCount: 2, status: "stopped",
+            visualStatus: "text_only", sceneArtifacts: null, rawResponse: "Explicit newer fallback.",
+            resumeState: latestState, appendSegments: [] })).status, 200);
+        } else {
+          assert.equal((await close(id, { question: sceneFixture.question, seq: 3,
+            baseCount: mode === "first-create" ? 0 : 2, status: "stopped",
+            ...(mode === "first-create" ? { appendSegments: [row(0, "", CLEAR), row(1, "Opening.")] } : {}),
+            rawResponse: "Newer close narration.", resumeState: latestState })).status, 200);
+        }
+        release();
+        const recovered = await pending;
+        assert.equal(recovered.status, 200, JSON.stringify(recovered.body));
+        assert.equal(recovered.body.serverSeq, 3);
+        const accepted = mode === "dead-tab" || mode === "first-create" || mode === "legacy";
+        assert.equal(recovered.body.sceneAccepted, accepted, "real payload receipt reports scene acceptance separately");
+        assert.equal(recovered.body.serverSceneSeq, accepted ? 2 : mode === "changed-authority" ? 1 : 3);
+        // No surviving registry or follow-up request: this GET is all a newly
+        // loaded tab has after the old request finishes on the server.
+        const fresh = (await get()).turns.find(entry => entry.id === id)!;
+        assert.equal(fresh.persistedStatus, "stopped"); assert.deepEqual(fresh.resumeState, latestState);
+        assert.equal(fresh.rawResponse, mode === "new-fallback" ? "Explicit newer fallback." : "Newer close narration.");
+        assert.equal(fresh.visualStatus, accepted ? "validated" : "text_only");
+        const savedRows = fresh.segments as Array<Record<string, unknown>>;
+        assert.equal(savedRows.some(segment => isStoredCommandTrustedGeometry(segment.command)), accepted,
+          "only a scene coherent with current authority survives as trusted geometry");
+        const voiced = savedRows.find(segment => segment.narration === "The sum is five.")!;
+        const key = keyOf(voiced.audioUrl as string)!;
+        assert.equal(voiced.audioFormat, "audio/wav"); assert(key.endsWith(`/${voiceIndex}.wav`));
+        assert.equal(objects.get(key), wav.length);
+        const objectCount = objects.size;
+        await put(id, old, { [voiceIndex]: wav }, "audio/wav");
+        assert.equal(objects.size, objectCount, "late repeated request creates no duplicate voice object");
+        if (mode === "changed-authority") {
+          const charged = (await turnRow(id)).storageBytes;
+          const rejected = await put(id, { ...sceneFixture.metadata, question: undefined, rawResponse: undefined,
+            seq: 4, baseCount: recovered.body.serverCount, appendSegments: [] });
+          assert.equal(rejected.status, 400, "fresh scene-only repair cannot override a different latest solver projection");
+          assert.equal((await turnRow(id)).storageBytes, charged, "rejected figure repair charges no bytes");
+        }
+        await runObjectDeletionBatch({ now: later });
+        assert.ok(objects.has(key), "attempt cleanup retains rescued WAV");
+        assert.equal((await balance()).pendingTurns, 0);
+        assert.equal((await balance()).reservedBytes,
+          (await prisma.turn.aggregate({ where: { userId }, _sum: { storageBytes: true } }))._sum.storageBytes);
+      } finally { release(); uploadPause = null; }
+    }
 
     // --- real unique-index ordering, metadata and raw liveness -----------------
     const prefix = (await get()).turns.map(entry => entry.id);

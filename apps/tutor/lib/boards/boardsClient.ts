@@ -392,12 +392,12 @@ export interface TurnCheckpointInput {
   kind?: TurnKind;
   /** Submitted rows the client believes the server holds. */
   baseCount: number;
-  /** What the turn is saved as (a doubt's title for a doubt). */
-  question: string;
+  /** What the turn is saved as; required on create, omitted for a scene-only update. */
+  question?: string;
   /** The page's lesson question, shown in the board list. Used on create. */
   preview?: string;
-  /** Narration taught so far. May be empty unless status is complete. */
-  rawResponse: string;
+  /** Narration taught so far; omit to preserve an existing newer header. */
+  rawResponse?: string;
   speedMultiplier?: number;
   traceId?: string | null;
   scene: CheckpointSceneFields;
@@ -420,6 +420,10 @@ export type TurnCheckpointResult =
       /** Submitted rows the server holds; null once the turn is complete. */
       serverCount: number | null;
       serverSeq: number;
+      /** Independent scene revision; a metadata-only close does not own it. */
+      serverSceneSeq?: number;
+      /** The submitted full scene passed canonicalization and was committed. */
+      sceneAccepted?: boolean;
       /** The seq was already applied (or the turn is complete): nothing changed. */
       stale: boolean;
       /** The turn is complete; send nothing more for it. */
@@ -440,6 +444,8 @@ function checkpointOutcome(status: number, body: Record<string, unknown> | null)
       turn: sourceCheckedStoredTurn(body.turn as StoredTurn),
       serverCount: typeof body.serverCount === "number" ? body.serverCount : null,
       serverSeq: typeof body.serverSeq === "number" ? body.serverSeq : 0,
+      ...(typeof body.serverSceneSeq === "number" ? { serverSceneSeq: body.serverSceneSeq } : {}),
+      ...(typeof body.sceneAccepted === "boolean" ? { sceneAccepted: body.sceneAccepted } : {}),
       stale: body.stale === true,
       final: body.final === true || (body.turn as StoredTurn).status === "complete",
     };

@@ -201,6 +201,9 @@ interface LiveTurn {
   audioAcked: boolean[];
   ackedCount: number;
   ackedSeq: number;
+  /** The exact local scene snapshot accepted by a full checkpoint. */
+  ackedSceneKey: string | null;
+  ackedSceneSeq: number;
   observedHistoryIds: Set<string>;
   historyAfterId?: string;
   historyBeforeId?: string;
@@ -216,6 +219,7 @@ interface LiveTurn {
   resumeRevision: number;
   ackedResumeRevision: number;
   keepaliveResumeRevision: number;
+  keepaliveSceneKey: string | null;
   inflight: Promise<void> | null;
   /** Submitted rows covered by the last keepalive close, or -1. */
   keepaliveCovered: number;
@@ -362,6 +366,8 @@ export class LiveTurnSaveRegistry {
       audioAcked: [],
       ackedCount: 0,
       ackedSeq: 0,
+      ackedSceneKey: null,
+      ackedSceneSeq: 0,
       observedHistoryIds: new Set(this.observedBoards.get(input.boardId) ?? []),
       historyAfterId: this.observedBoards.get(input.boardId)?.at(-1),
       heartbeatTimer: null,
@@ -376,6 +382,7 @@ export class LiveTurnSaveRegistry {
       resumeRevision: 0,
       ackedResumeRevision: 0,
       keepaliveResumeRevision: -1,
+      keepaliveSceneKey: null,
       inflight: null,
       keepaliveCovered: -1,
       retryTimer: null,
@@ -552,11 +559,13 @@ export class LiveTurnSaveRegistry {
       if (this.abandonIfEmpty(turn)) continue;
       const statusSent = turn.ackedStatus === turn.status ||
         (turn.ackedStatus === "stopped" && turn.status === "complete");
-      if (turn.frozen.length <= turn.ackedCount && statusSent && !turn.inflight && !turn.resumeDirty) continue;
+      if (turn.frozen.length <= turn.ackedCount && statusSent && !turn.inflight && !turn.resumeDirty && !this.scenePending(turn)) continue;
+      const sceneKey = this.sceneKey(turn);
       // Another shell of this tab already sent this close.
-      if (turn.keepaliveCovered === turn.frozen.length && turn.keepaliveResumeRevision === turn.resumeRevision) continue;
+      if (turn.keepaliveCovered === turn.frozen.length && turn.keepaliveResumeRevision === turn.resumeRevision && turn.keepaliveSceneKey === sceneKey) continue;
       turn.keepaliveCovered = turn.frozen.length;
       turn.keepaliveResumeRevision = turn.resumeRevision;
+      turn.keepaliveSceneKey = sceneKey;
       const resumeRevision = turn.resumeRevision;
       const seq = Math.max(turn.seq, 0) + 1;
       turn.seq = seq;
@@ -832,6 +841,24 @@ export class LiveTurnSaveRegistry {
     });
   }
 
+  private sceneKey(turn: LiveTurn): string {
+    return this.sceneReceiptKey(this.sceneFor(turn));
+  }
+
+  private sceneReceiptKey(scene: PersistedTurnScene): string {
+    return JSON.stringify({
+      sceneDocument: scene.sceneDocument ?? null,
+      sceneEngineVersion: scene.sceneEngineVersion ?? null,
+      validationReport: scene.validationReport ?? null,
+      visualStatus: scene.visualStatus ?? null,
+      sceneArtifacts: scene.sceneArtifacts ?? null,
+    });
+  }
+
+  private scenePending(turn: LiveTurn): boolean {
+    return turn.ackedSceneKey !== this.sceneKey(turn);
+  }
+
   private turnHeader(turn: LiveTurn, scene: PersistedTurnScene): Omit<StoredTurn, "segments"> {
     return {
       id: turn.turnId,
@@ -878,7 +905,7 @@ export class LiveTurnSaveRegistry {
     if (turn.inflight || (turn.pendingSegment?.shown && !turn.pendingSegment.intro)) return true;
     const rows = this.previewRows(turn, { includeCut: true });
     if (this.notWorthCreating(turn, rows)) return false;
-    if (rows.length > turn.ackedCount || turn.resumeDirty || turn.heartbeatDirty) return true;
+    if (rows.length > turn.ackedCount || turn.resumeDirty || turn.heartbeatDirty || this.scenePending(turn)) return true;
     if (turn.status !== "live" && turn.ackedStatus !== turn.status) return true;
     return turn.audioAcked.some((acked) => !acked);
   }
@@ -914,7 +941,7 @@ export class LiveTurnSaveRegistry {
     if (this.notWorthCreating(turn, turn.frozen)) return false;
     if (turn.frozen.length > turn.ackedCount) return true;
     if (turn.status !== "live" && turn.ackedStatus !== turn.status) return true;
-    if (turn.resumeDirty || turn.heartbeatDirty) return true;
+    if (turn.resumeDirty || turn.heartbeatDirty || this.scenePending(turn)) return true;
     return turn.audioAcked.some((acked, index) => !acked && index < turn.ackedCount);
   }
 
@@ -992,6 +1019,7 @@ export class LiveTurnSaveRegistry {
   }
 
   private send(turn: LiveTurn): void {
+    const heartbeatDirty = turn.heartbeatDirty;
     turn.heartbeatDirty = false;
     const base = turn.ackedCount;
     const seq = turn.seq + 1;
@@ -1005,18 +1033,22 @@ export class LiveTurnSaveRegistry {
     });
     const resumeDirty = turn.resumeDirty;
     const resumeRevision = turn.resumeRevision;
+    const scene = this.sceneFor(turn);
+    const sceneKey = this.sceneReceiptKey(scene);
+    if (turn.page?.boardId === turn.boardId && this.scenePending(turn)) turn.page.turn.saved = false;
+    const sceneOnly = turn.ackedStatus !== null && rows.length === 0 && late.length === 0 &&
+      !resumeDirty && !heartbeatDirty && turn.ackedStatus === status && this.scenePending(turn);
     const input: TurnCheckpointInput = {
       seq,
       ...(turn.ackedStatus === null ? this.orderingAnchors(turn) : {}),
       status,
       kind: turn.kind,
       baseCount: base,
-      question: turn.question,
+      ...(sceneOnly ? {} : { question: turn.question }),
       preview: turn.preview,
-      rawResponse: status === "complete" ? turn.rawResponse : liveTurnNarration(turn.frozen),
-      speedMultiplier: turn.speedMultiplier,
+      ...(sceneOnly ? {} : { rawResponse: status === "complete" ? turn.rawResponse : liveTurnNarration(turn.frozen), speedMultiplier: turn.speedMultiplier }),
       traceId: turn.traceId,
-      scene: this.sceneFor(turn),
+      scene,
       segments: rows,
       lateAudio: late.map((orderIndex) => ({ orderIndex, audioBytes: turn.frozen[orderIndex]!.audioBytes! })),
       ...(resumeDirty ? { resumeState: turn.resumeState ?? null } : {}),
@@ -1050,19 +1082,31 @@ export class LiveTurnSaveRegistry {
     });
     turn.inflight = request.then((result) => {
       turn.inflight = null;
-      this.onResult(turn, { base, sentCount, status, late, textOnly, resumeRevision: resumeDirty ? resumeRevision : null }, result);
+      this.onResult(turn, { seq, sceneKey, base, sentCount, status, late, textOnly, resumeRevision: resumeDirty ? resumeRevision : null }, result);
     });
     this.emit();
   }
 
   private onResult(
     turn: LiveTurn,
-    sent: { base: number; sentCount: number; status: TurnStatus; late: number[]; textOnly: boolean; resumeRevision: number | null },
+    sent: { seq: number; sceneKey: string; base: number; sentCount: number; status: TurnStatus; late: number[]; textOnly: boolean; resumeRevision: number | null },
     result: TurnCheckpointResult,
   ): void {
+    if (turn.final && (!result.ok || !result.final)) return;
     if (result.ok) {
-      if (result.serverSeq < turn.ackedSeq) { this.pump(turn); return; }
-      turn.ackedSeq = result.serverSeq;
+      // A higher scene revision may be a different explicit fallback/figure.
+      // It never acknowledges this request's snapshot. Legacy same-seq PUT
+      // receipts are usable; a newer global seq with no scene receipt is not.
+      const sceneAccepted = result.sceneAccepted ?? (!result.stale && result.serverSeq === sent.seq);
+      const sceneSeq = result.serverSceneSeq ?? result.serverSeq;
+      if (sceneAccepted && sceneSeq === sent.seq && sceneSeq >= turn.ackedSceneSeq) {
+        turn.ackedSceneKey = sent.sceneKey;
+        turn.ackedSceneSeq = sceneSeq;
+      }
+      const page = turn.page;
+      if (page && page.boardId === turn.boardId) page.turn.saved = turn.final || !this.scenePending(turn);
+      if (result.serverSeq < turn.ackedSeq && !result.final) { this.emit(); this.pump(turn); return; }
+      turn.ackedSeq = Math.max(turn.ackedSeq, result.serverSeq);
       turn.seq = Math.max(turn.seq, result.serverSeq);
       turn.attempt = 0;
       turn.conflicts = 0;
@@ -1085,11 +1129,10 @@ export class LiveTurnSaveRegistry {
       }
       if (turn.final) this.stopHeartbeat(turn);
       else this.startHeartbeat(turn);
-      const page = turn.page;
-      if (page && page.boardId === turn.boardId) page.turn.saved = true;
+      if (page && page.boardId === turn.boardId) page.turn.saved = turn.final || !this.scenePending(turn);
       if (turn.final) this.settleComplete(turn, { ok: true, turn: result.turn });
       // The local mirror is replaced only by an answer that covers everything.
-      if (turn.status !== "live" && sent.status === turn.status && sent.sentCount === this.previewRows(turn, { includeCut: true }).length && !turn.resumeDirty && (turn.resumeState === undefined || JSON.stringify(result.turn.resumeState) === JSON.stringify(turn.resumeState))) {
+      if (turn.final || (turn.status !== "live" && sent.status === turn.status && sent.sentCount === this.previewRows(turn, { includeCut: true }).length && !turn.resumeDirty && !this.scenePending(turn) && (turn.resumeState === undefined || JSON.stringify(result.turn.resumeState) === JSON.stringify(turn.resumeState)))) {
         this.mirrorServer(turn, result.turn);
       }
       this.releaseQueue(turn);
@@ -1149,14 +1192,22 @@ export class LiveTurnSaveRegistry {
   }
 
   private onCloseResult(turn: LiveTurn, result: TurnCheckpointResult, resumeRevision: number): void {
-    if (!result.ok || result.serverSeq < turn.ackedSeq) return;
-    turn.ackedSeq = result.serverSeq;
+    if (turn.final && (!result.ok || !result.final)) return;
+    if (!result.ok || (result.serverSeq < turn.ackedSeq && !result.final)) return;
+    turn.ackedSeq = Math.max(turn.ackedSeq, result.serverSeq);
     if (!result.stale && resumeRevision === turn.resumeRevision && JSON.stringify(result.turn.resumeState) === JSON.stringify(turn.resumeState)) {
       turn.ackedResumeRevision = Math.max(turn.ackedResumeRevision, resumeRevision);
       turn.resumeDirty = false;
     }
     turn.seq = Math.max(turn.seq, result.serverSeq);
     turn.lastAckAt = this.env.now();
+    // A close can prove an unchanged text-only snapshot by content. It never
+    // claims acceptance of a pending verified scene merely from its seq.
+    const currentScene = this.sceneFor(turn);
+    if (currentScene.visualStatus !== "validated" && this.sceneReceiptKey(currentScene) === this.sceneReceiptKey(result.turn)) {
+      turn.ackedSceneKey = this.sceneReceiptKey(currentScene);
+      turn.ackedSceneSeq = Math.max(turn.ackedSceneSeq, result.serverSceneSeq ?? result.serverSeq);
+    }
     if (result.final) {
       turn.final = true;
       turn.ackedStatus = "complete";
@@ -1168,7 +1219,8 @@ export class LiveTurnSaveRegistry {
       turn.ackedStatus = result.turn.status ?? "stopped";
     }
     const page = turn.page;
-    if (page && page.boardId === turn.boardId) page.turn.saved = true;
+    if (page && page.boardId === turn.boardId) page.turn.saved = turn.final || !this.scenePending(turn);
+    if (turn.final) this.mirrorServer(turn, result.turn);
     this.releaseQueue(turn);
     this.emit();
     // The page lived on (bfcache): send the clips the close could not carry.
