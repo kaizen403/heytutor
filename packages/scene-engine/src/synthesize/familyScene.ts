@@ -1256,14 +1256,6 @@ function buildSingleCircuitView(
       : { symbol: "resistor", start: nodes[index]!, end: nodes[index + 1]! },
     outputs: [id],
   }));
-  // Two resistors alone on one node pair close a single series loop, not a
-  // parallel pair; the parallel view shows its port as terminal leads.
-  const leads = topology === "parallel" && count === 2
-    ? [
-        { point: `${idPrefix}t0`, wire: `${idPrefix}w_t0`, node: nodes[0]!, x: -1 },
-        { point: `${idPrefix}t1`, wire: `${idPrefix}w_t1`, node: nodes[1]!, x: count * 2 + 1 },
-      ]
-    : [];
   return baseDocument({
     question,
     reason: `${topology} resistor network from the question wording`,
@@ -1277,19 +1269,8 @@ function buildSingleCircuitView(
         role: "resistor",
         label: compactLabel(resistors[index]?.symbol ?? `R${index + 1}`),
       })),
-      ...leads.flatMap((lead) => [
-        { id: lead.point, kind: "point" as const, role: "terminal" },
-        { id: lead.wire, kind: "connector" as const, role: "terminal lead" },
-      ]),
     ],
-    constructions: [
-      ...nodePoints,
-      ...symbols,
-      ...leads.flatMap((lead) => [
-        pointAt(lead.point, lead.x, originY),
-        { id: `make_${lead.wire}`, operator: "connect" as const, inputs: { start: lead.node, end: lead.point }, outputs: [lead.wire] },
-      ]),
-    ],
+    constructions: [...nodePoints, ...symbols],
     annotations: [{
       id: `${idPrefix}current_sense`,
       kind: "sense",
@@ -1312,7 +1293,7 @@ function buildSingleCircuitView(
         }],
     revealGroups: [{
       id: `${topology}_group`,
-      entityIds: [...nodes, ...resistorIds, ...leads.flatMap((lead) => [lead.point, lead.wire])],
+      entityIds: [...nodes, ...resistorIds],
       dependsOn: [],
       narrationCue: `${topology} circuit`,
     }],

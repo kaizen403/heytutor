@@ -21,7 +21,6 @@ import { STATISTICS_OPERATORS, validateStatisticsConstruction } from "../compile
 import { TRIANGLE_OPERATORS, validateTriangleConstruction } from "../compile/triangleGeometry";
 import { CONIC_OPERATORS, validateConicConstruction } from "../compile/conicGeometry";
 import { SPACE_DERIVATION_OPERATORS, validateSpaceDerivationConstruction } from "../compile/spaceDerivations";
-import { validateMagneticHelixConstruction } from "../compile/magneticHelixGeometry";
 import { PROBABILITY_OPERATORS, validateProbabilityConstruction } from "../compile/probabilityGeometry";
 import { FIELD_OPERATORS, validateFieldConstruction } from "../compile/fieldGeometry";
 import { DIPOLE_FIELD_OPERATORS, validateDipoleFieldConstruction } from "../compile/dipoleFieldGeometry";
@@ -53,7 +52,6 @@ const MECHANICS_DIAGRAM_CONSTRUCTIONS = new Set<string>(MECHANICS_DIAGRAM_OPERAT
 import { CURRENT_FIELD_OPERATORS, validateCurrentFieldConstruction } from "../compile/currentFieldGeometry";
 import { CHAPTER_REMAINDER_OPERATORS, validateChapterRemainderConstruction } from "../compile/chapterRemainderGeometry";
 import { CHAPTER_INSTRUMENT_OPERATORS, validateChapterInstrumentConstruction } from "../compile/chapterInstrumentGeometry";
-import { validateRepresentativeValueLabels } from "../compile/representativeLabels";
 const CURRENT_FIELD_CONSTRUCTIONS = new Set<string>(CURRENT_FIELD_OPERATORS);
 const CHAPTER_REMAINDER_CONSTRUCTIONS = new Set<string>(CHAPTER_REMAINDER_OPERATORS);
 const CHAPTER_INSTRUMENT_CONSTRUCTIONS = new Set<string>(CHAPTER_INSTRUMENT_OPERATORS);
@@ -116,7 +114,7 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   set_select: "label",
   harmonic_motion: "polyline", harmonic_state: "point", gravitational_field: "vector", gravitational_force: "vector",
   complex_point: "point", complex_transform: "point", complex_roots: "point",
-  magnetic_force: "vector", magnetic_components: "vector", magnetic_helix: "polyline",
+  magnetic_force: "vector", magnetic_components: "vector",
   hydrostatic_profile: "polyline", hydrostatic_state: "point", buoyancy: "vector",
   segment: "segment", ray: "ray", line: "line", circle: "circle", arc: "arc",
   rectangle: "polygon", polygon: "polygon", polyline: "polyline", vector: "vector",
@@ -4340,7 +4338,6 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (isRecord(construction.inputs)) {
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
       if (MAGNETIC_CONSTRUCTIONS.has(construction.operator)) validateMagneticConstruction(construction, index, document, constructionByOutput, issues);
-      if (construction.operator === "magnetic_helix") validateMagneticHelixConstruction(construction, index, document, constructionByOutput, issues);
       if (RELATIVE_MOTION_CONSTRUCTIONS.has(construction.operator)) validateRelativeMotionConstruction(construction, index, document, constructionByOutput, issues);
       if (NETWORK_CONSTRUCTIONS.has(construction.operator)) validateNetworkConstruction(construction, index, document, constructionByOutput, issues);
       if (MECHANICS_DIAGRAM_CONSTRUCTIONS.has(construction.operator)) validateMechanicsDiagramConstruction(construction, index, document, constructionByOutput, issues);
@@ -4376,7 +4373,6 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (THERMODYNAMICS_CONSTRUCTIONS.has(construction.operator)) validateThermodynamicsConstruction(construction, index, document, constructionByOutput, issues);
       if (DISTRIBUTED_FIELDS_CONSTRUCTIONS.has(construction.operator)) validateDistributedFieldsConstruction(construction, index, document, constructionByOutput, issues);
     }
-    validateRepresentativeValueLabels(construction, index, document, issues);
     if (construction.operator === "function_curve" && isRecord(construction.inputs)) {
       validateFunctionCurveInputs(construction.inputs, index, document, issues);
       if (!Array.isArray(construction.outputs) || construction.outputs.length !== 1) {

@@ -229,7 +229,6 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "complex_transform",
     "complex_roots",
     "magnetic_force",
-    "magnetic_helix",
     "magnetic_components",
     "velocity_triangle",
     "collinear_velocity_pair",

@@ -70,8 +70,6 @@ import { evaluateHarmonicMotionConstruction, type HarmonicMotionDefinition, type
 import { evaluateGravityConstruction, type GravityFieldDefinition, type GravityForceDefinition } from "./gravityGeometry";
 import { evaluateComplexConstruction, type ComplexNumberDefinition } from "./complexGeometry";
 import { evaluateMagneticConstruction, type MagneticForceDefinition } from "./magneticGeometry";
-import { evaluateMagneticHelix, type MagneticHelixDefinition } from "./magneticHelixGeometry";
-import { validatePhysicsRegionClaims } from "./physicsRegionClaims";
 import { evaluateRelativeMotionConstruction, type RelativeMotionMark } from "./relativeMotionGeometry";
 import { evaluateNetworkConstruction, type NetworkBranchDefinition } from "./networkGeometry";
 import { evaluateMechanicsDiagramConstruction, type MechanicsMark } from "./mechanicsDiagramGeometry";
@@ -150,7 +148,6 @@ type DerivedGeometryMetadata = {
   gravityForce?: GravityForceDefinition;
   complexNumber?: ComplexNumberDefinition;
   magneticForce?: MagneticForceDefinition;
-  magneticHelix?: MagneticHelixDefinition;
   relativeMotion?: RelativeMotionMark;
   networkBranch?: NetworkBranchDefinition;
   mechanics?: MechanicsMark;
@@ -212,15 +209,6 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
-  return compileSceneDocumentInternal(document, options, false);
-}
-
-/** Original declarations must pass source-derived claims before optional text is erased. No scene is admitted by this check. */
-export function validateSceneConstructionClaims(document: SceneDocument): SceneIssue[] {
-  return compileSceneDocumentInternal(document, {}, true).report.issues;
-}
-
-function compileSceneDocumentInternal(document: SceneDocument, options: CompileOptions, constructionClaimsOnly: boolean): CompileResult {
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
@@ -283,11 +271,6 @@ function compileSceneDocumentInternal(document: SceneDocument, options: CompileO
     } catch (error) {
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
-  }
-  if (constructionClaimsOnly) {
-    validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
-    validatePhysicsRegionClaims(document, geometry, value => resolveNumber(value, quantities), issues);
-    return { ok: false, renderScene: null, report: report(document, issues, 0) };
   }
   for (const construction of document.constructions) {
     if (construction.operator !== "connect" || !construction.outputs[0]) continue;
@@ -383,9 +366,6 @@ function compileSceneDocumentInternal(document: SceneDocument, options: CompileO
           coincidentPointAliases.set(entityId, existing);
         }
       }
-      // A direction marker carries information the supporting stroke lacks.
-      // Preserve it before treating coincident line geometry as an alias.
-      else if (overlayId) directionOverlayIds.add(overlayId);
       else if (
         sameRevealGroup &&
         (explicitlyParallelPathAliases(document, existing, existingValue, entityId, value) ||
@@ -396,6 +376,7 @@ function compileSceneDocumentInternal(document: SceneDocument, options: CompileO
       ) {
         coincidentPathAliases.set(entityId, existing);
       }
+      else if (overlayId) directionOverlayIds.add(overlayId);
       else issues.push({ code: "duplicate_geometry", message: `${entityId} duplicates ${existing}`, severity: "fatal", entityIds: [existing, entityId] });
     } else {
       geometrySignatures.set(signature, [...existingIds, entityId]);
@@ -403,7 +384,6 @@ function compileSceneDocumentInternal(document: SceneDocument, options: CompileO
   }
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
-  validatePhysicsRegionClaims(document, geometry, value => resolveNumber(value, quantities), issues);
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
@@ -1340,7 +1320,6 @@ function evaluateConstruction(
     case "complex_point":
     case "complex_transform":
     case "complex_roots": return evaluateComplexConstruction(operator, inputs, constructionContext);
-    case "magnetic_helix": return evaluateMagneticHelix(inputs, constructionContext);
     case "magnetic_force":
     case "magnetic_components": return evaluateMagneticConstruction(operator, inputs, constructionContext);
     case "velocity_triangle":
@@ -1496,10 +1475,9 @@ function evaluateConstruction(
         : explicitDirection
           ? { x: start.x + explicitDirection.x, y: start.y + explicitDirection.y }
           : linePoints(inputs, geometry)[1];
-      const direction = explicitDirection ?? (inputs.length === undefined ? null : { x: endpoint.x - start.x, y: endpoint.y - start.y });
-      const end = direction
+      const end = explicitDirection
         ? (() => {
-            const unit = normalize(direction);
+            const unit = normalize(explicitDirection);
             const referenceSpan = distance(start, endpoint);
             const span = inputs.length === undefined
               ? (referenceSpan < EPSILON ? 1 : referenceSpan)
@@ -1967,18 +1945,6 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         if (worldOpposite !== null) {
           residual = worldOpposite.residual;
           passed = residual < tolerance(assertion) && worldOpposite.opposite;
-          break;
-        }
-        // F = I L x B on opposite sides of a loop in an in-plane field points
-        // out of and into the page: two page-normal glyphs are opposite exactly
-        // when one is out and the other in. An in-plane arrow is perpendicular
-        // to the page normal, so it is never opposite to a glyph.
-        const senses = assertion.entities.slice(0, 2).map((id, index) => pageNormalSense(id, values[index], document));
-        if (senses.some((sense) => sense !== null)) {
-          residual = 0;
-          passed = senses.length === 2 &&
-            senses.every((sense) => sense === "out" || sense === "in") &&
-            senses[0] !== senses[1];
           break;
         }
         const firstLine = asLine(values[0]);
@@ -4352,23 +4318,6 @@ function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
 }
 function hasPageNormalGlyph(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => metadata.pageNormal === "out" || metadata.pageNormal === "in");
-}
-/**
- * The page-normal sense an entity is drawn with: operator metadata (field,
- * force and torque glyphs) or a dot/cross label, including a page-normal
- * `vector` the document validator lowered to one. "mixed" when both appear.
- */
-function pageNormalSense(id: string, value: Geometry | undefined, document: SceneDocument): "out" | "in" | "mixed" | null {
-  const senses = new Set<"out" | "in">();
-  geometryMetadataMatches(value, (metadata) => {
-    if (metadata.pageNormal === "out" || metadata.pageNormal === "in") senses.add(metadata.pageNormal);
-    return false;
-  });
-  const producer = document.constructions.find((construction) => construction.outputs.includes(id));
-  const text = producer?.operator === "label" && typeof producer.inputs.text === "string" ? producer.inputs.text.trim() : "";
-  if (isPageNormalMarker(text)) senses.add(text === "×" || text === "⊗" ? "in" : "out");
-  if (senses.size === 0) return null;
-  return senses.size > 1 ? "mixed" : [...senses][0]!;
 }
 /** Numeric ink on an untyped descendant cannot recover erased physical units/scales. */
 function validateDisplayDescendantClaims(document: SceneDocument, geometry: Map<string, Geometry>, checkedOutputIds: Set<string>, issues: SceneIssue[]): void {

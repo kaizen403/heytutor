@@ -450,7 +450,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
 }
 
 function hasWorldGeometry(value: unknown): boolean {
-  return isRecord(value) && ["space", "spaceFrameId", "spaceFrame", "spaceLine", "spacePlane", "spaceSegment", "spaceAngle", "magneticHelix"].some((key) => value[key] !== undefined);
+  return isRecord(value) && ["space", "spaceFrameId", "spaceFrame", "spaceLine", "spacePlane", "spaceSegment", "spaceAngle"].some((key) => value[key] !== undefined);
 }
 /** A world proof cannot compare screen geometry or different projection frames. */
 export function spaceProofCompatibility(geometries: readonly unknown[]): boolean | null {

@@ -12,7 +12,6 @@ import { validateEvaluatedDerivedValueLabels } from "./derivedValueLabels";
 
 import { complexGeometryLabel, validateEvaluatedComplexLabels } from "./complexGeometry";
 import { magneticConstructionOutputLabels, validateEvaluatedMagneticLabels } from "./magneticGeometry";
-import { validateMagneticHelixLabels } from "./magneticHelixGeometry";
 import { relativeMotionOutputLabels } from "./relativeMotionGeometry";
 import { networkOutputLabels } from "./networkGeometry";
 import { mechanicsOutputLabels } from "./mechanicsDiagramGeometry";
@@ -32,7 +31,6 @@ import { rotationGeometryLabel, validateEvaluatedRotationLabels } from "./rotati
 import { combinatoricsGeometryLabel, validateEvaluatedCombinatoricsLabels } from "./combinatoricsGeometry";
 import { elasticityGeometryLabel, validateEvaluatedElasticityLabels } from "./elasticityGeometry";
 import { distributedFieldsConstructionOutputLabels, validateEvaluatedDistributedFieldsLabels } from "./distributedFieldsGeometry";
-import { guardsRepresentativeValueLabels, NONMETRIC_VALUE_LABEL_CODE, PHYSICAL_VALUE_LABEL_OPERATORS, representativeOutputLabels } from "./representativeLabels";
 
 interface LabelEvaluationContext {
   number(value: unknown): number;
@@ -56,10 +54,6 @@ export function withEvaluatedOutputLabels(
   }
   let labels: readonly (string | null)[];
   switch (construction.operator) {
-    case "magnetic_helix":
-      validateMagneticHelixLabels(construction, document, outputs, issues);
-      labels = construction.outputs.map(id => document.entities.find(entity => entity.id === id)?.label ?? "helix");
-      break;
     case "permutation_cycles":
     case "subset_lattice":
       validateEvaluatedCombinatoricsLabels(construction, index, document, outputs, issues);
@@ -232,19 +226,6 @@ export function withEvaluatedOutputLabels(
       break;
     default:
       return document;
-  }
-  if (guardsRepresentativeValueLabels(document) && PHYSICAL_VALUE_LABEL_OPERATORS.has(construction.operator)) {
-    const representative = representativeOutputLabels(construction.operator, labels);
-    if (representative.leaked !== undefined) {
-      issues.push({
-        code: NONMETRIC_VALUE_LABEL_CODE,
-        severity: "fatal",
-        message: `${construction.operator}: derived label "${representative.leaked}" states a computed value in a nonmetric representative`,
-        path: `constructions[${index}].outputs`,
-        entityIds: construction.outputs,
-      });
-    }
-    labels = representative.labels;
   }
   if (issues.length > issueCount) return document;
   construction.outputs.forEach((id) => checkedOutputIds.add(id));

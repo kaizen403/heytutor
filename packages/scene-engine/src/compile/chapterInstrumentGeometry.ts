@@ -113,15 +113,8 @@ function agreeDeclared(actual: number, supplied: unknown, key: string, dimension
   return actual;
 }
 
-/** Metre bridge with the jockey at l from the left end of a wire of length L.
- * `unknownGap: "right"` (default) puts X in the right gap: X/R = (L-l)/l.
- * `unknownGap: "left"` puts X in the left gap: X/R = l/(L-l). Outputs stay
- * in spatial order [wire, jockey, left gap, right gap]; the gap roles say
- * which one holds the unknown. */
 function readBridge(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): InstrumentGeometry[] {
-  rejectUnknownKeys(inputs, ["knownResistance", "unknownResistance", "balanceFromLeft", "wireLength", "origin", "displayLength", "unknownGap", "units"]);
-  if (inputs.unknownGap !== undefined && inputs.unknownGap !== "left" && inputs.unknownGap !== "right") invalid("unknownGap", "unknownGap must be left or right");
-  const unknownLeft = inputs.unknownGap === "left";
+  rejectUnknownKeys(inputs, ["knownResistance", "unknownResistance", "balanceFromLeft", "wireLength", "origin", "displayLength", "units"]);
   unitOf(inputs, "resistance", OHM, "ohm");
   if (!isRecord(inputs.units)) invalid("units", "length must declare m or cm");
   const lengthUnit = canonicalUnit(inputs.units.length, LENGTH);
@@ -129,14 +122,11 @@ function readBridge(inputs: Record<string, unknown>, context: SourceContext, doc
   const known = positiveDeclared(inputs.knownResistance, "knownResistance", "resistance", "ohm", context, document);
   const wire = positiveDeclared(inputs.wireLength, "wireLength", "length", lengthUnit, context, document);
   if (inputs.unknownResistance === undefined && inputs.balanceFromLeft === undefined) invalid("unknownResistance", "supply the unknown resistance or the balance length");
-  // At balance l/(L-l) equals the left-gap resistance over the right-gap resistance.
-  let balance: number;
-  if (inputs.balanceFromLeft === undefined) {
-    const supplied = positiveDeclared(inputs.unknownResistance, "unknownResistance", "resistance", "ohm", context, document);
-    balance = wire * (unknownLeft ? supplied : known) / (known + supplied);
-  } else balance = positiveDeclared(inputs.balanceFromLeft, "balanceFromLeft", "length", lengthUnit, context, document);
+  const balance = inputs.balanceFromLeft === undefined
+    ? wire * known / (known + positiveDeclared(inputs.unknownResistance, "unknownResistance", "resistance", "ohm", context, document))
+    : positiveDeclared(inputs.balanceFromLeft, "balanceFromLeft", "length", lengthUnit, context, document);
   if (!(balance < wire)) invalid("balanceFromLeft", "the jockey must lie strictly between the wire ends");
-  const unknown = unknownLeft ? known * balance / (wire - balance) : known * (wire - balance) / balance;
+  const unknown = known * (wire - balance) / balance;
   agreeDeclared(unknown, inputs.unknownResistance, "unknownResistance", "resistance", "ohm", context, document);
   const origin = placement(inputs.origin, "origin", context);
   const display = positive(inputs.displayLength, "displayLength", context);
@@ -150,8 +140,8 @@ function readBridge(inputs: Record<string, unknown>, context: SourceContext, doc
   return [
     { kind: "path", points: [origin, end], instrument: mark("wire", { x: wire, y: 0 }, String(inputs.units.length), display) },
     { kind: "point", point: jockey, instrument: mark("jockey", { x: balance, y: unknown }, "ohm", display, unknown) },
-    unknownLeft ? gap(origin, "unknown", unknown) : gap(origin, "known", known),
-    unknownLeft ? gap(end, "known", known) : gap(end, "unknown", unknown),
+    gap(origin, "known", known),
+    gap(end, "unknown", unknown),
   ];
 }
 

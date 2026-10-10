@@ -8,9 +8,8 @@
 import { validateCoordinateDistanceSourceInputs } from "../ir/coordinateDistanceSource";
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
-import { evaluateTopologyAssertion, parallelElementStatus } from "../topology/topology";
+import { evaluateTopologyAssertion } from "../topology/topology";
 import { evaluateMathExpression } from "../math/expression";
-import { validateSceneConstructionClaims } from "../compile/compiler";
 import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "../types";
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
@@ -2595,10 +2594,6 @@ export function pruneUnverifiedSceneAnnotations(
     return withoutLabel;
   });
   if (!changed) return document;
-  // Computed owners may carry stale values in labels, callouts or quantity
-  // annotations. Check those original claims before a plan-based projection
-  // erases them; retaining invalid text lets normal admission reject it.
-  if (validateSceneConstructionClaims(document).some((issue) => issue.severity === "fatal")) return document;
   return {
     ...document,
     entities,
@@ -2630,14 +2625,11 @@ export function validateTurnPlanSceneProofs(
     ...plan.lawIds,
     ...plan.qualitativeClaims.flatMap((claim) => [claim.id, claim.claim]),
   ].join(" ").toLowerCase();
-  const expectedClaims = plan.qualitativeClaims.flatMap((claim) =>
-    typeof claim.expected === "string" ? [claim.expected.toLowerCase()] : []);
   issues.push(...validateSemanticVectorGeometry(document, plan));
   issues.push(...validateClaimedClosedRouteMembers(document, plan));
   issues.push(...validatePoweredCircuitClosure(
     document,
     [plan.question, evidenceText, ...plan.assumptions].join(" ").toLowerCase(),
-    expectedClaims.some(expectedClaimDemandsCurrent),
   ));
   const resistorIds = document.constructions.flatMap((construction) =>
     construction.operator === "symbol" &&
@@ -2648,14 +2640,10 @@ export function validateTurnPlanSceneProofs(
       : [],
   );
   if (resistorIds.length < 2) return issues;
-  // The question states the concept as authoritatively as the plan's laws do:
-  // "Explain resistors connected in parallel" asks for the parallel proof.
-  const conceptText = `${plan.question.toLowerCase()} ${evidenceText}`.replace(/[_-]+/g, " ");
-  const mixedConcept = /\b(?:series\s+(?:and\s+)?parallel|parallel\s+(?:and\s+)?series)\b/.test(conceptText);
   const needsSeries =
-    mixedConcept || /\bseries\s+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?(?:only\s+)?in\s+(?:only\s+)?series\b/.test(conceptText);
+    /\bseries[-_\s]+resistance\b|\bresistors?\s+in\s+series\b/.test(evidenceText);
   const needsParallel =
-    mixedConcept || /\bparallel\s+resistance\b|\bresistors?\s+(?:(?:are|is)\s+)?(?:connected\s+)?(?:only\s+)?in\s+(?:only\s+)?parallel\b/.test(conceptText);
+    /\bparallel[-_\s]+resistance\b|\bresistors?\s+in\s+parallel\b/.test(evidenceText);
   if (!needsSeries && !needsParallel) return issues;
 
   const resistorSet = new Set(resistorIds);
@@ -2673,17 +2661,15 @@ export function validateTurnPlanSceneProofs(
 
   const prove = (concept: "series" | "parallel", predicate: "path" | "sameTerminalPair") => {
     const group = groupFor(concept);
-    const groupMembers = conceptsRequested === 1 && concept === "parallel"
-      ? resistorIds
-      : group?.entityIds.filter((id) => resistorSet.has(id)) ?? [];
-    const mixedTopology = conceptsRequested > 1 && (!group || document.revealGroups.length === 1);
-    const pairsOf = (ids: string[]) => ids.flatMap((first, index) =>
-      ids.slice(index + 1).map((second) => [first, second]));
-    // A mixed series/parallel network can prove each concept with its subset.
-    // A dedicated view must prove every member; a branch pair cannot hide an
-    // extra series element in a view asking only for parallel resistors.
+    const groupMembers = group?.entityIds.filter((id) => resistorSet.has(id)) ?? [];
+    const mixedTopology = conceptsRequested > 1 && !group;
     const candidateSets = mixedTopology
-      ? [resistorIds, ...pairsOf(resistorIds)]
+      ? [
+          resistorIds,
+          ...resistorIds.flatMap((first, index) =>
+            resistorIds.slice(index + 1).map((second) => [first, second]),
+          ),
+        ]
       : [groupMembers];
     const proof = candidateSets.find((members) => {
       if (members.length < 2) return false;
@@ -2700,21 +2686,6 @@ export function validateTurnPlanSceneProofs(
     if (proof) return;
 
     const members = groupMembers.length > 0 ? groupMembers : resistorIds;
-    // Elements that share a terminal pair with nothing else at either node
-    // close one series loop; say which nodes need a connection.
-    const seriesLoop = concept === "parallel"
-      ? candidateSets.map((set) => ({ set, status: parallelElementStatus(document, set) }))
-          .find(({ status }) => status.sharedTerminalPair && status.isolatedLoop.length > 0)
-      : undefined;
-    if (seriesLoop) {
-      issues.push({
-        code: "turnplan_parallel_not_proven",
-        message: `TurnPlanV3 asks for a parallel connection. ${seriesLoop.set.join(" and ")} share one terminal pair, but nothing else connects at ${seriesLoop.status.isolatedLoop.join(" or ")}, so they form one closed series loop with no port. Add the source, another element or a terminal lead at the shared nodes.`,
-        severity: "fatal",
-        entityIds: seriesLoop.set,
-      });
-      return;
-    }
     if (members.length < 2) {
       issues.push({
         code: `turnplan_${concept}_group_missing`,
@@ -3644,72 +3615,11 @@ function claimedCurrentMemberHints(claim: string): string[] {
     match[1]?.trim() ? [match[1].trim()] : []);
 }
 
-/** Circuit apparatus drawn as one operator rather than symbols: each carries a load or meter. */
-const CIRCUIT_APPARATUS_OPERATORS = new Set(["kirchhoff_network", "metre_bridge", "potentiometer", "galvanometer"]);
-const LOAD_OR_METER =
-  /\b(?:resistors?|resistance|lamps?|bulbs?|loads?|appliances?|heaters?|motors?|rheostats?|capacitors?|inductors?|coils?|diodes?|(?:am|volt|galvano|multi)?meters?|galvanometers?)\b/i;
-
-/** A string-valued expectation can deny flow without requiring a closed path. */
-function expectedClaimDemandsCurrent(text: string): boolean {
-  const normalized = text.toLowerCase().replace(/−/g, "-");
-  const zeroValue = "(?:zero\\b|[+-]?(?:0(?:\\.0+)?|\\.0+)(?:e[+-]?\\d+)?(?![\\p{L}\\p{N}_]|[.,][\\p{L}\\p{N}_.]))";
-  const memberWord = "(?!(?:is|are|equals?|remains?|flows?|and|but)\\b)[\\p{L}_][\\p{L}\\p{N}_-]*";
-  const memberScope = `(?:\\s+(?:in|through|along)\\s+${memberWord}(?:\\s+${memberWord}){0,11})?`;
-  const currentBinding = "(?:is|are|equals?|remains?|=)";
-  const zeroPredicate = new RegExp(`\\bcurrents?${memberScope}(?:\\s+[\\p{L}_][\\p{L}\\p{N}_]*)?\\s*${currentBinding}\\s*${zeroValue}`, "gu");
-  // Only literal zero denies flow. Arithmetic after zero (with or without
-  // an ampere unit) must retain the current demand rather than erase a prefix.
-  const arithmeticContinuation = /^\s*(?:(?:[a-zµμ]*a|amperes?|amps?)\b\s*)?(?:[+*/×÷·⋅^=-]|\b(?:plus|minus|times|over|divided)\b)/u;
-  // A later binding of I or an explicitly declared current name can contradict
-  // a zero clause without repeating "current". Check the literal spelling so
-  // tiny values never become zero through a threshold or floating-point underflow.
-  if (/\bcurrents?\b/.test(normalized)) {
-    const literalZero = new RegExp(`^${zeroValue}`, "u");
-    const currentNames = new Set(["i"]);
-    const currentDeclaration = new RegExp(`\\bcurrents?(${memberScope})\\s+([\\p{L}_][\\p{L}\\p{N}_]*)\\s*(${currentBinding})\\s*`, "giu");
-    for (const declaration of text.matchAll(currentDeclaration)) {
-      const [, scope, name, binding] = declaration;
-      // A member phrase ending in "branch is zero" does not declare a
-      // current called branch. An equation, or a visibly symbolic identifier
-      // before a verb binding, distinguishes the explicit name from that noun.
-      const symbolicName = /^(?:[\p{L}_]|[\p{L}_]\p{N}+|.*_.*)$/u.test(name!) &&
-        !/\b(?:the|a|an|each|every|both|either|neither)\s*$/u.test(scope ?? "");
-      if (scope && binding !== "=" && !symbolicName) {
-        // Ambiguous lowercase member nouns remain nouns for an explicitly
-        // unrelated voltage binding. A later numeric binding with ampere,
-        // unknown, or absent units cannot safely hide a current contradiction.
-        const laterBindings = new RegExp(`(?<![\\p{L}\\p{N}_])${name!.toLowerCase()}(?:[\\p{N}_][\\p{L}\\p{N}_]*)?\\s*${currentBinding}\\s*`, "gu");
-        const hasPossibleCurrentBinding = [...normalized.matchAll(laterBindings)].some((later) => {
-          const rhs = normalized.slice(later.index + later[0].length);
-          const numeric = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/u.exec(rhs);
-          return numeric !== null && !/^\s*(?:[munpfµμk]?v|volts?)\b/u.test(rhs.slice(numeric[0].length));
-        });
-        if (!hasPossibleCurrentBinding) continue;
-      }
-      currentNames.add(name!.toLowerCase());
-    }
-    for (const name of currentNames) {
-      const namedBindings = new RegExp(`(?<![\\p{L}\\p{N}_])${name}(?:[\\p{N}_][\\p{L}\\p{N}_]*)?\\s*${currentBinding}\\s*`, "gu");
-      for (const binding of normalized.matchAll(namedBindings)) {
-        const rhs = normalized.slice(binding.index + binding[0].length);
-        const zero = literalZero.exec(rhs);
-        if (!zero || arithmeticContinuation.test(rhs.slice(zero[0].length))) return true;
-      }
-    }
-  }
-  const positiveText = normalized
-    .replace(/\b(?:no|zero)\s+currents?\b|\bno\s+flow\s+of\s+(?:the\s+)?currents?\b|\bcurrents?\s+(?:cannot|can['’]t|does\s+not|will\s+not)\s+flow\b/g, "")
-    .replace(zeroPredicate, (predicate: string, offset: number, currentText: string) =>
-      arithmeticContinuation.test(currentText.slice(offset + predicate.length)) ? predicate : "");
-  return /\bcurrents?\b/.test(positiveText);
-}
-
 function validatePoweredCircuitClosure(
   document: SceneDocument,
   evidenceText: string,
-  expectedCurrent = false,
 ): SceneIssue[] {
-  if (!expectedCurrent && /\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
+  if (/\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
     return [];
   }
   const entityById = new Map(document.entities.map((entity) => [entity.id, entity]));
@@ -3727,18 +3637,6 @@ function validatePoweredCircuitClosure(
     return /\b(?:(?:ac|dc|voltage|current|power)[_ -]?source|battery|cell|supply|generator)\b/i
       .test(semantic);
   });
-  // An unloaded series or parallel combination of cells with free terminals
-  // is a valid two-terminal source: nothing is drawn for its terminals to
-  // drive. Closure is a physical demand only once the figure draws a load or
-  // meter, or the plan claims a current, which needs a closed path.
-  const sourceIds = new Set(sources.map(({ id }) => id));
-  const drawsLoadOrMeter =
-    edges.some(({ id, construction }) => construction.operator === "symbol" && !sourceIds.has(id)) ||
-    document.constructions.some((construction) => CIRCUIT_APPARATUS_OPERATORS.has(construction.operator)) ||
-    document.entities.some((entity) => !sourceIds.has(entity.id) && LOAD_OR_METER.test(
-      `${entity.id} ${entity.role ?? ""} ${entity.label ?? ""}`.replace(/[_-]+/g, " ")));
-  const claimsCurrent = expectedCurrent || /\bcurrents?\b|\bohm['’]?s?\b|\bkirchhoff/.test(evidenceText);
-  if (!drawsLoadOrMeter && !claimsCurrent) return [];
   const issues: SceneIssue[] = [];
   for (const source of sources) {
     const adjacency = new Map<string, string[]>();
