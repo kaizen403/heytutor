@@ -1,0 +1,409 @@
+{
+  "topic_id": "physics|16|optical-fibre",
+  "question": "Unpolarised light in air (n₁ = 1.00) falls on a flat glass surface (n₂ = 1.60) at the polarising (Brewster) angle. Draw the air-glass interface, the normal at the point of incidence O, and the incident, reflected and refracted rays; mark the angles of incidence i, reflection i′ and refraction r, and show that the reflected and refracted rays are perpendicular.",
+  "figure_kind": "ray_optics",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Brewster rays at an air-glass interface"
+    },
+    "source": {
+      "question": "Unpolarised light in air (n₁ = 1.00) falls on a flat glass surface (n₂ = 1.60) at the polarising (Brewster) angle. Draw the air-glass interface, the normal at the point of incidence O, and the incident, reflected and refracted rays; mark the angles of incidence i, reflection i′ and refraction r, and show that the reflected and refracted rays are perpendicular.",
+      "family": "plane_interface"
+    },
+    "quantities": [
+      {
+        "id": "n1",
+        "symbol": "n₁",
+        "value": 1.0,
+        "unit": ""
+      },
+      {
+        "id": "n2",
+        "symbol": "n₂",
+        "value": 1.6,
+        "unit": ""
+      }
+    ],
+    "entities": [
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "interface end"
+      },
+      {
+        "id": "surf",
+        "kind": "line",
+        "role": "air-glass interface"
+      },
+      {
+        "id": "S",
+        "kind": "point",
+        "role": "incident ray tail"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "point of incidence",
+        "label": "O"
+      },
+      {
+        "id": "inc",
+        "kind": "vector",
+        "role": "incident ray"
+      },
+      {
+        "id": "N",
+        "kind": "point",
+        "role": "normal end",
+        "label": "N"
+      },
+      {
+        "id": "N2",
+        "kind": "point",
+        "role": "normal end",
+        "label": "N′"
+      },
+      {
+        "id": "nrm",
+        "kind": "segment",
+        "role": "normal at O"
+      },
+      {
+        "id": "refl",
+        "kind": "ray",
+        "role": "reflected ray"
+      },
+      {
+        "id": "refr",
+        "kind": "ray",
+        "role": "refracted ray"
+      },
+      {
+        "id": "ai",
+        "kind": "angle_mark",
+        "role": "angle of incidence",
+        "label": "i"
+      },
+      {
+        "id": "ai2",
+        "kind": "angle_mark",
+        "role": "angle of reflection",
+        "label": "i′"
+      },
+      {
+        "id": "ar",
+        "kind": "angle_mark",
+        "role": "angle of refraction",
+        "label": "r"
+      },
+      {
+        "id": "rt",
+        "kind": "right_angle_mark",
+        "role": "Brewster right angle"
+      },
+      {
+        "id": "air",
+        "kind": "label",
+        "role": "air medium",
+        "label": "n₁ = 1.00 air"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "pL",
+        "operator": "point",
+        "inputs": {
+          "x": -2.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "c_surf",
+        "operator": "line",
+        "inputs": {
+          "start": "L",
+          "direction": [
+            1,
+            0
+          ]
+        },
+        "outputs": [
+          "surf"
+        ]
+      },
+      {
+        "id": "pS",
+        "operator": "point",
+        "inputs": {
+          "x": -1.76,
+          "y": 1.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "c_hit",
+        "operator": "surface_contact",
+        "inputs": {
+          "origin": "S",
+          "surface": "surf",
+          "direction": [
+            1.6,
+            -1
+          ]
+        },
+        "outputs": [
+          "O",
+          "inc"
+        ]
+      },
+      {
+        "id": "c_un",
+        "operator": "normal_at",
+        "inputs": {
+          "point": "O",
+          "surface": "surf"
+        },
+        "outputs": [
+          "un"
+        ]
+      },
+      {
+        "id": "pN",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "pN2",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "N2"
+        ]
+      },
+      {
+        "id": "c_nrm",
+        "operator": "segment",
+        "inputs": {
+          "start": "N",
+          "end": "N2"
+        },
+        "outputs": [
+          "nrm"
+        ]
+      },
+      {
+        "id": "c_refl",
+        "operator": "reflect_direction",
+        "inputs": {
+          "origin": "O",
+          "incoming": "inc",
+          "normal": "un"
+        },
+        "outputs": [
+          "refl"
+        ]
+      },
+      {
+        "id": "c_refr",
+        "operator": "refract_direction",
+        "inputs": {
+          "origin": "O",
+          "incoming": "inc",
+          "normal": "un",
+          "n1": "n1",
+          "n2": "n2"
+        },
+        "outputs": [
+          "refr"
+        ]
+      },
+      {
+        "id": "c_ai",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "inc",
+          "b": "N",
+          "radius": 0.6
+        },
+        "outputs": [
+          "ai"
+        ]
+      },
+      {
+        "id": "c_ai2",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "N",
+          "b": "refl",
+          "radius": 0.8
+        },
+        "outputs": [
+          "ai2"
+        ]
+      },
+      {
+        "id": "c_ar",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "N2",
+          "b": "refr",
+          "radius": 0.7
+        },
+        "outputs": [
+          "ar"
+        ]
+      },
+      {
+        "id": "c_rt",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "refl",
+          "b": "refr",
+          "size": 0.35
+        },
+        "outputs": [
+          "rt"
+        ]
+      },
+      {
+        "id": "c_air",
+        "operator": "label",
+        "inputs": {
+          "target": "surf",
+          "text": "n₁ = 1.00 air"
+        },
+        "outputs": [
+          "air"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "brewster",
+        "predicate": "perpendicular",
+        "entities": [
+          "refl",
+          "refr"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "normal",
+        "predicate": "perpendicular",
+        "entities": [
+          "nrm",
+          "surf"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "reflection",
+        "predicate": "equal_angle",
+        "entities": [
+          "ai",
+          "ai2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "snell",
+        "predicate": "snells_law",
+        "entities": [
+          "inc",
+          "nrm",
+          "refr"
+        ],
+        "expected": {
+          "n1": 1.0,
+          "n2": 1.6
+        },
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "glass",
+        "kind": "label",
+        "targetIds": [
+          "surf"
+        ],
+        "text": "n₂ = 1.60 glass",
+        "placementIntent": "below"
+      }
+    ],
+    "requiredEntityIds": [
+      "surf",
+      "O",
+      "inc",
+      "N",
+      "N2",
+      "nrm",
+      "refl",
+      "refr",
+      "ai",
+      "ai2",
+      "ar",
+      "rt",
+      "air"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "surf",
+          "O",
+          "inc",
+          "N",
+          "N2",
+          "nrm",
+          "refl",
+          "refr",
+          "ai",
+          "ai2",
+          "ar",
+          "rt",
+          "air"
+        ],
+        "dependsOn": [],
+        "narrationCue": "air over glass, normal NN′, the three rays and their angles"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "air over glass, normal NN′, the three rays and their angles"
+      }
+    ]
+  }
+}

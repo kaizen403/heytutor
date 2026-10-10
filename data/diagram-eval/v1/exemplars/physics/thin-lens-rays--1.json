@@ -34,25 +34,25 @@
     "id": "F2",
     "kind": "point",
     "role": "second focus",
-    "label": "F2"
+    "label": "F₂"
    },
    {
     "id": "F1",
     "kind": "point",
     "role": "first focus",
-    "label": "F1"
+    "label": "F₁"
    },
    {
     "id": "C1",
     "kind": "point",
     "role": "point at 2F1",
-    "label": "2F1"
+    "label": "2F₁"
    },
    {
     "id": "C2",
     "kind": "point",
     "role": "point at 2F2",
-    "label": "2F2"
+    "label": "2F₂"
    },
    {
     "id": "ot",

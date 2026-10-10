@@ -1,0 +1,425 @@
+{
+  "topic_id": "maths|2|argand-plane",
+  "question": "On an Argand diagram, z₁ = x + iy = r(cos θ + i sin θ) and z₂ are non-zero complex numbers, with z₂ not a real multiple of z₁. Plot z₁, z₂ and z₁ + z₂, mark x, y, the modulus r and the argument θ of z₁, and use the triangle with vertices at the origin O, z₁ and z₁ + z₂ to show that |z₁ + z₂| ≤ |z₁| + |z₂|.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "symbolic Argand figure"
+    },
+    "source": {
+      "question": "On an Argand diagram, z₁ = x + iy = r(cos θ + i sin θ) and z₂ are non-zero complex numbers, with z₂ not a real multiple of z₁. Plot z₁, z₂ and z₁ + z₂, mark x, y, the modulus r and the argument θ of z₁, and use the triangle with vertices at the origin O, z₁ and z₁ + z₂ to show that |z₁ + z₂| ≤ |z₁| + |z₂|.",
+      "family": "argand_plane"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "real and imaginary axes"
+      },
+      {
+        "id": "ReP",
+        "kind": "point",
+        "role": "Re axis end anchor"
+      },
+      {
+        "id": "Re",
+        "kind": "label",
+        "role": "real axis name",
+        "label": "Re"
+      },
+      {
+        "id": "ImP",
+        "kind": "point",
+        "role": "Im axis end anchor"
+      },
+      {
+        "id": "Im",
+        "kind": "label",
+        "role": "imaginary axis name",
+        "label": "Im"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "origin",
+        "label": "O"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "z1 = x + iy",
+        "label": "z₁ = x + iy"
+      },
+      {
+        "id": "X",
+        "kind": "point",
+        "role": "foot on real axis"
+      },
+      {
+        "id": "Dx",
+        "kind": "dimension",
+        "role": "real part x",
+        "label": "x"
+      },
+      {
+        "id": "AX",
+        "kind": "segment",
+        "role": "imaginary part y",
+        "label": "y"
+      },
+      {
+        "id": "OA",
+        "kind": "vector",
+        "role": "z1 from origin"
+      },
+      {
+        "id": "r",
+        "kind": "label",
+        "role": "modulus of z1",
+        "label": "r = |z₁|"
+      },
+      {
+        "id": "th",
+        "kind": "angle_mark",
+        "role": "argument from +real axis",
+        "label": "θ"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "z2",
+        "label": "z₂"
+      },
+      {
+        "id": "OB",
+        "kind": "vector",
+        "role": "z2 from origin"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "z1 + z2",
+        "label": "z₁ + z₂"
+      },
+      {
+        "id": "AC",
+        "kind": "vector",
+        "role": "z2 moved to z1"
+      },
+      {
+        "id": "n2",
+        "kind": "label",
+        "role": "side |z2|",
+        "label": "|z₂|"
+      },
+      {
+        "id": "OC",
+        "kind": "vector",
+        "role": "closing side z1 + z2"
+      },
+      {
+        "id": "n3",
+        "kind": "label",
+        "role": "closing side length",
+        "label": "|z₁ + z₂|"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -2.8,
+          "xMax": 6.4,
+          "yMin": -0.8,
+          "yMax": 6
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kReP",
+        "operator": "point",
+        "inputs": {
+          "x": 6.4,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ReP"
+        ]
+      },
+      {
+        "id": "kRe",
+        "operator": "label",
+        "inputs": {
+          "target": "ReP",
+          "text": "Re"
+        },
+        "outputs": [
+          "Re"
+        ]
+      },
+      {
+        "id": "kImP",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ImP"
+        ]
+      },
+      {
+        "id": "kIm",
+        "operator": "label",
+        "inputs": {
+          "target": "ImP",
+          "text": "Im"
+        },
+        "outputs": [
+          "Im"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 5.2,
+          "y": 2.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kX",
+        "operator": "point",
+        "inputs": {
+          "x": 5.2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "X"
+        ]
+      },
+      {
+        "id": "kDx",
+        "operator": "dimension",
+        "inputs": {
+          "start": "O",
+          "end": "X"
+        },
+        "outputs": [
+          "Dx"
+        ]
+      },
+      {
+        "id": "kAX",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "X"
+        },
+        "outputs": [
+          "AX"
+        ]
+      },
+      {
+        "id": "kOA",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "A"
+        },
+        "outputs": [
+          "OA"
+        ]
+      },
+      {
+        "id": "kr",
+        "operator": "label",
+        "inputs": {
+          "target": "OA",
+          "text": "r = |z₁|"
+        },
+        "outputs": [
+          "r"
+        ]
+      },
+      {
+        "id": "kth",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "X",
+          "b": "A",
+          "radius": 1.4
+        },
+        "outputs": [
+          "th"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": -2,
+          "y": 1.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kOB",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "B"
+        },
+        "outputs": [
+          "OB"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "translate",
+        "inputs": {
+          "point": "A",
+          "vector": "OB"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "kAC",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "end": "C"
+        },
+        "outputs": [
+          "AC"
+        ]
+      },
+      {
+        "id": "kn2",
+        "operator": "label",
+        "inputs": {
+          "target": "AC",
+          "text": "|z₂|"
+        },
+        "outputs": [
+          "n2"
+        ]
+      },
+      {
+        "id": "kOC",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "C"
+        },
+        "outputs": [
+          "OC"
+        ]
+      },
+      {
+        "id": "kn3",
+        "operator": "label",
+        "inputs": {
+          "target": "OC",
+          "text": "|z₁ + z₂|"
+        },
+        "outputs": [
+          "n3"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "p1",
+        "predicate": "parallel",
+        "entities": [
+          "OB",
+          "AC"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "p2",
+        "predicate": "equal_length",
+        "entities": [
+          "OB",
+          "AC"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "OA",
+      "th",
+      "B",
+      "OB",
+      "C",
+      "AC",
+      "OC"
+    ],
+    "revealGroups": [
+      {
+        "id": "g",
+        "entityIds": [
+          "ax",
+          "Re",
+          "Im",
+          "O",
+          "A",
+          "X",
+          "Dx",
+          "AX",
+          "OA",
+          "r",
+          "th",
+          "B",
+          "OB",
+          "C",
+          "AC",
+          "n2",
+          "OC",
+          "n3"
+        ],
+        "dependsOn": [],
+        "narrationCue": "z1 by x, y, r, θ; add z2; close triangle"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}

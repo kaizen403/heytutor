@@ -1,0 +1,385 @@
+{
+  "topic_id": "maths|11|angle-between-line-and-plane",
+  "question": "Point P lies off the plane Π: r·n = d through A, and a line through P meets Π at Q. Show the normal n at A, the foot N of the perpendicular from P, the image P' of P in Π, and the angle θ between PQ and Π.",
+  "figure_kind": "solid_3d",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "symbolic point-plane figure"
+    },
+    "source": {
+      "question": "Point P lies off the plane Π: r·n = d through A, and a line through P meets Π at Q. Show the normal n at A, the foot N of the perpendicular from P, the image P' of P in Π, and the angle θ between PQ and Π.",
+      "archetype": "space_point_plane"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "origin",
+        "label": "O"
+      },
+      {
+        "id": "ax",
+        "kind": "polyline",
+        "role": "3D axes"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "point on the plane",
+        "label": "A"
+      },
+      {
+        "id": "pl",
+        "kind": "polygon",
+        "role": "plane through A",
+        "label": "Π: r·n = d"
+      },
+      {
+        "id": "T",
+        "kind": "point",
+        "role": "tip of normal"
+      },
+      {
+        "id": "n",
+        "kind": "vector",
+        "role": "normal to the plane",
+        "label": "n"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "point off the plane",
+        "label": "P"
+      },
+      {
+        "id": "N",
+        "kind": "point",
+        "role": "foot of P on the plane",
+        "label": "N"
+      },
+      {
+        "id": "Pi",
+        "kind": "point",
+        "role": "image of P",
+        "label": "P'"
+      },
+      {
+        "id": "PP",
+        "kind": "segment",
+        "role": "perpendicular PP'"
+      },
+      {
+        "id": "rN",
+        "kind": "right_angle_mark",
+        "role": "right angle at N"
+      },
+      {
+        "id": "l",
+        "kind": "line",
+        "role": "line PQ through P"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "line meets plane",
+        "label": "Q"
+      },
+      {
+        "id": "NQ",
+        "kind": "segment",
+        "role": "projection of PQ"
+      },
+      {
+        "id": "th",
+        "kind": "angle_mark",
+        "role": "line-plane angle",
+        "label": "θ"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kax",
+        "operator": "space_frame",
+        "inputs": {
+          "origin": "O",
+          "axisLength": 1.5
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": -0.5,
+          "y": -3,
+          "z": 3.5
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kpl",
+        "operator": "plane",
+        "inputs": {
+          "frame": "ax",
+          "point": "A",
+          "u": [
+            3,
+            -1,
+            1
+          ],
+          "v": [
+            1,
+            0,
+            -1
+          ],
+          "uSpan": 1.6,
+          "vSpan": 4.6
+        },
+        "outputs": [
+          "pl"
+        ]
+      },
+      {
+        "id": "kT",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": -0.1,
+          "y": -1.4,
+          "z": 3.9
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "kn",
+        "operator": "space_vector",
+        "inputs": {
+          "frame": "ax",
+          "start": "A",
+          "end": "T"
+        },
+        "outputs": [
+          "n"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": -3.05,
+          "y": -0.65,
+          "z": 5.65
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kN",
+        "operator": "space_project",
+        "inputs": {
+          "frame": "ax",
+          "point": "P",
+          "onto": "pl"
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "kPi",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": -4.05,
+          "y": -4.65,
+          "z": 4.65
+        },
+        "outputs": [
+          "Pi"
+        ]
+      },
+      {
+        "id": "kPP",
+        "operator": "space_segment",
+        "inputs": {
+          "frame": "ax",
+          "a": "P",
+          "b": "Pi"
+        },
+        "outputs": [
+          "PP"
+        ]
+      },
+      {
+        "id": "kl",
+        "operator": "space_line",
+        "inputs": {
+          "frame": "ax",
+          "point": "P",
+          "direction": [
+            0.9,
+            -2,
+            -1.9
+          ]
+        },
+        "outputs": [
+          "l"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "space_intersection",
+        "inputs": {
+          "frame": "ax",
+          "first": "l",
+          "second": "pl"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "kNQ",
+        "operator": "space_segment",
+        "inputs": {
+          "frame": "ax",
+          "a": "N",
+          "b": "Q"
+        },
+        "outputs": [
+          "NQ"
+        ]
+      },
+      {
+        "id": "krN",
+        "operator": "space_right_angle_mark",
+        "inputs": {
+          "frame": "ax",
+          "vertex": "N",
+          "a": "P",
+          "b": "Q"
+        },
+        "outputs": [
+          "rN"
+        ]
+      },
+      {
+        "id": "kth",
+        "operator": "space_angle_mark",
+        "inputs": {
+          "frame": "ax",
+          "vertex": "Q",
+          "a": "l",
+          "b": "pl",
+          "radius": 1.0
+        },
+        "outputs": [
+          "th"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "nperp",
+        "predicate": "perpendicular",
+        "entities": [
+          "n",
+          "pl"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "mid",
+        "predicate": "between",
+        "entities": [
+          "N",
+          "P",
+          "Pi"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "img",
+        "predicate": "equal_length",
+        "entities": [
+          "P",
+          "N",
+          "N",
+          "Pi"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "ax",
+      "A",
+      "pl",
+      "T",
+      "n",
+      "P",
+      "N",
+      "Pi",
+      "PP",
+      "rN",
+      "l",
+      "Q",
+      "NQ",
+      "th"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "ax",
+          "A",
+          "pl",
+          "T",
+          "n",
+          "P",
+          "N",
+          "Pi",
+          "PP",
+          "rN",
+          "l",
+          "Q",
+          "NQ",
+          "th"
+        ],
+        "dependsOn": [],
+        "narrationCue": "plane, normal, foot, image, angle θ"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}

@@ -1,0 +1,436 @@
+{
+  "topic_id": "physics|11|dipole-potential-energy-in-field",
+  "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts parallel to a uniform 45 kN/C field and is turned slowly about its centre through a quarter turn until it is perpendicular to the field. In the final position show the forces on the charges and the torque, then find the torque and the external work done.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "dipole couple after a quarter turn"
+    },
+    "source": {
+      "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts parallel to a uniform 45 kN/C field and is turned slowly about its centre through a quarter turn until it is perpendicular to the field. In the final position show the forces on the charges and the torque, then find the torque and the external work done.",
+      "archetype": "dipole_in_field"
+    },
+    "quantities": [
+      {
+        "id": "q",
+        "symbol": "q",
+        "value": 3.2,
+        "unit": "nC"
+      },
+      {
+        "id": "d",
+        "symbol": "d",
+        "value": 7.5,
+        "unit": "mm"
+      },
+      {
+        "id": "E",
+        "symbol": "E",
+        "value": 45,
+        "unit": "kN/C"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "pivot"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "−q",
+        "label": "−q = −3.2 nC"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "+q",
+        "label": "+q = +3.2 nC"
+      },
+      {
+        "id": "A0",
+        "kind": "point",
+        "role": "−q at start"
+      },
+      {
+        "id": "B0",
+        "kind": "point",
+        "role": "+q at start"
+      },
+      {
+        "id": "p",
+        "kind": "vector",
+        "role": "moment, −q to +q",
+        "label": "p, d = 7.5 mm"
+      },
+      {
+        "id": "p0",
+        "kind": "vector",
+        "role": "moment at start",
+        "label": "p parallel to E"
+      },
+      {
+        "id": "E1",
+        "kind": "vector",
+        "role": "field E",
+        "label": "E = 45 kN/C"
+      },
+      {
+        "id": "E2",
+        "kind": "vector",
+        "role": "field E"
+      },
+      {
+        "id": "E3",
+        "kind": "vector",
+        "role": "field E"
+      },
+      {
+        "id": "E4",
+        "kind": "vector",
+        "role": "field E"
+      },
+      {
+        "id": "FB",
+        "kind": "vector",
+        "role": "force on +q",
+        "label": "+qE"
+      },
+      {
+        "id": "FA",
+        "kind": "vector",
+        "role": "force on −q",
+        "label": "−qE"
+      },
+      {
+        "id": "tau",
+        "kind": "polyline",
+        "role": "torque, into page",
+        "label": "tau"
+      },
+      {
+        "id": "ra",
+        "kind": "right_angle_mark",
+        "role": "p ⊥ E mark"
+      },
+      {
+        "id": "turn",
+        "kind": "arc",
+        "role": "rotation",
+        "label": "quarter turn"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "cO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "cA",
+        "operator": "point",
+        "inputs": {
+          "x": 3.75,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "cB",
+        "operator": "point",
+        "inputs": {
+          "x": -3.75,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "cA0",
+        "operator": "rotate",
+        "inputs": {
+          "point": "A",
+          "center": "O",
+          "angle": -90,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "A0"
+        ]
+      },
+      {
+        "id": "cB0",
+        "operator": "rotate",
+        "inputs": {
+          "point": "B",
+          "center": "O",
+          "angle": -90,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "B0"
+        ]
+      },
+      {
+        "id": "cp",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "p"
+        ]
+      },
+      {
+        "id": "cp0",
+        "operator": "vector",
+        "inputs": {
+          "start": "A0",
+          "end": "B0"
+        },
+        "outputs": [
+          "p0"
+        ]
+      },
+      {
+        "id": "cE1",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -9,
+            -5.5
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 11
+        },
+        "outputs": [
+          "E1"
+        ]
+      },
+      {
+        "id": "cE2",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -7,
+            -5.5
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 11
+        },
+        "outputs": [
+          "E2"
+        ]
+      },
+      {
+        "id": "cE3",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            7,
+            -5.5
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 11
+        },
+        "outputs": [
+          "E3"
+        ]
+      },
+      {
+        "id": "cE4",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            9,
+            -5.5
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 11
+        },
+        "outputs": [
+          "E4"
+        ]
+      },
+      {
+        "id": "cFB",
+        "operator": "vector_scale",
+        "inputs": {
+          "vector": "E1",
+          "factor": 0.273,
+          "origin": "B"
+        },
+        "outputs": [
+          "FB"
+        ]
+      },
+      {
+        "id": "cFA",
+        "operator": "vector_scale",
+        "inputs": {
+          "vector": "E1",
+          "factor": -0.273,
+          "origin": "A"
+        },
+        "outputs": [
+          "FA"
+        ]
+      },
+      {
+        "id": "ctau",
+        "operator": "planar_torque",
+        "inputs": {
+          "leverArm": [
+            -7.5,
+            0
+          ],
+          "force": [
+            0,
+            0.000144
+          ],
+          "lengthUnit": "mm",
+          "forceUnit": "N",
+          "displayLength": 1
+        },
+        "outputs": [
+          "tau"
+        ]
+      },
+      {
+        "id": "cra",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "B",
+          "b": "B0",
+          "size": 1.2
+        },
+        "outputs": [
+          "ra"
+        ]
+      },
+      {
+        "id": "cturn",
+        "operator": "arc",
+        "inputs": {
+          "center": "O",
+          "radius": 2.4,
+          "startAngle": 90,
+          "endAngle": 180,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "turn"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "a1",
+        "predicate": "perpendicular",
+        "entities": [
+          "p",
+          "E1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a2",
+        "predicate": "parallel",
+        "entities": [
+          "p0",
+          "E1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a3",
+        "predicate": "opposite_direction",
+        "entities": [
+          "FB",
+          "FA"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "p",
+      "p0",
+      "E1",
+      "FA",
+      "FB",
+      "tau",
+      "ra",
+      "turn"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "A",
+          "B",
+          "A0",
+          "B0",
+          "p",
+          "p0",
+          "E1",
+          "E2",
+          "E3",
+          "E4",
+          "FB",
+          "FA",
+          "tau",
+          "ra",
+          "turn"
+        ],
+        "dependsOn": [],
+        "narrationCue": "field, turn, couple, torque"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "field, turn, couple, torque"
+      }
+    ]
+  }
+}

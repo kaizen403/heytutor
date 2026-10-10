@@ -1,0 +1,439 @@
+{
+  "topic_id": "physics|11|field-on-axis-of-a-charged-ring",
+  "question": "A circular loop of radius R in the xy-plane, centred at O, carries a steady current I anticlockwise as seen from +z. Point P lies on its axis at distance d from O. Using the Biot–Savart law, show the fields dB at P from two diametrically opposite current elements, their cancelling transverse parts, and the resultant fields at P and at O.",
+  "figure_kind": "field_lines",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Biot–Savart pair and B along +z"
+    },
+    "source": {
+      "question": "A circular loop of radius R in the xy-plane, centred at O, carries a steady current I anticlockwise as seen from +z. Point P lies on its axis at distance d from O. Using the Biot–Savart law, show the fields dB at P from two diametrically opposite current elements, their cancelling transverse parts, and the resultant fields at P and at O.",
+      "family": "circular_loop_field"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "loop centre",
+        "label": "O"
+      },
+      {
+        "id": "ax",
+        "kind": "vector",
+        "role": "loop axis, +z",
+        "label": "z"
+      },
+      {
+        "id": "lp",
+        "kind": "polyline",
+        "role": "circular loop, side view"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "element I dl out of page",
+        "label": "I dl ⊙"
+      },
+      {
+        "id": "A2",
+        "kind": "point",
+        "role": "opposite element into page",
+        "label": "I dl ⊗"
+      },
+      {
+        "id": "I",
+        "kind": "vector",
+        "role": "current, anticlockwise from +z",
+        "label": "I"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "axial point",
+        "label": "P, z = d"
+      },
+      {
+        "id": "r1",
+        "kind": "segment",
+        "role": "r from A to P"
+      },
+      {
+        "id": "r2",
+        "kind": "segment",
+        "role": "r from A′ to P"
+      },
+      {
+        "id": "d1",
+        "kind": "vector",
+        "role": "dB from A, normal to r",
+        "label": "dB"
+      },
+      {
+        "id": "d2",
+        "kind": "vector",
+        "role": "dB from A′, normal to r",
+        "label": "dB"
+      },
+      {
+        "id": "t1",
+        "kind": "vector",
+        "role": "transverse part of dB",
+        "label": "dB⊥"
+      },
+      {
+        "id": "t2",
+        "kind": "vector",
+        "role": "transverse part, cancels",
+        "label": "dB⊥"
+      },
+      {
+        "id": "BP",
+        "kind": "vector",
+        "role": "resultant field at P, +z",
+        "label": "B"
+      },
+      {
+        "id": "B0",
+        "kind": "vector",
+        "role": "field at centre, +z",
+        "label": "B₀"
+      },
+      {
+        "id": "R",
+        "kind": "dimension",
+        "role": "loop radius",
+        "label": "R"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kax",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -1.4,
+            0
+          ],
+          "end": [
+            7,
+            0
+          ]
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "klp",
+        "operator": "conic",
+        "inputs": {
+          "kind": "ellipse",
+          "center": "O",
+          "a": 2.4,
+          "b": 0.8,
+          "rotationDeg": 90
+        },
+        "outputs": [
+          "lp"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "lp",
+          "feature": "vertex",
+          "side": 1
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kA2",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "lp",
+          "feature": "vertex",
+          "side": -1
+        },
+        "outputs": [
+          "A2"
+        ]
+      },
+      {
+        "id": "kI",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -0.57,
+            -1.69
+          ],
+          "direction": [
+            0.56,
+            -1.71
+          ],
+          "length": 0.6
+        },
+        "outputs": [
+          "I"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "point",
+        "inputs": {
+          "x": 3.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kr1",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "P"
+        },
+        "outputs": [
+          "r1"
+        ]
+      },
+      {
+        "id": "kr2",
+        "operator": "segment",
+        "inputs": {
+          "start": "A2",
+          "end": "P"
+        },
+        "outputs": [
+          "r2"
+        ]
+      },
+      {
+        "id": "kd1",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            2,
+            3
+          ],
+          "length": 1.8
+        },
+        "outputs": [
+          "d1"
+        ]
+      },
+      {
+        "id": "kd2",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            2,
+            -3
+          ],
+          "length": 1.8
+        },
+        "outputs": [
+          "d2"
+        ]
+      },
+      {
+        "id": "kt1",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.498
+        },
+        "outputs": [
+          "t1"
+        ]
+      },
+      {
+        "id": "kt2",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.498
+        },
+        "outputs": [
+          "t2"
+        ]
+      },
+      {
+        "id": "kBP",
+        "operator": "vector_sum",
+        "inputs": {
+          "vectors": [
+            "d1",
+            "d2"
+          ],
+          "origin": "P"
+        },
+        "outputs": [
+          "BP"
+        ]
+      },
+      {
+        "id": "kB0",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 2.7
+        },
+        "outputs": [
+          "B0"
+        ]
+      },
+      {
+        "id": "kR",
+        "operator": "dimension",
+        "inputs": {
+          "start": "O",
+          "end": "A"
+        },
+        "outputs": [
+          "R"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "s1",
+        "predicate": "perpendicular",
+        "entities": [
+          "d1",
+          "r1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "s2",
+        "predicate": "perpendicular",
+        "entities": [
+          "d2",
+          "r2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "s3",
+        "predicate": "opposite_direction",
+        "entities": [
+          "t1",
+          "t2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "s4",
+        "predicate": "parallel",
+        "entities": [
+          "BP",
+          "ax"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "s5",
+        "predicate": "parallel",
+        "entities": [
+          "B0",
+          "ax"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "ax",
+      "lp",
+      "A",
+      "A2",
+      "I",
+      "P",
+      "r1",
+      "r2",
+      "d1",
+      "d2",
+      "t1",
+      "t2",
+      "BP",
+      "B0",
+      "R"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "ax",
+          "lp",
+          "A",
+          "A2",
+          "I",
+          "P",
+          "r1",
+          "r2",
+          "d1",
+          "d2",
+          "t1",
+          "t2",
+          "BP",
+          "B0",
+          "R"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Biot–Savart pair and B along +z"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Biot–Savart pair and B along +z"
+      }
+    ]
+  }
+}

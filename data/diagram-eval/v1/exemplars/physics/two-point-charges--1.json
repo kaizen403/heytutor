@@ -42,30 +42,27 @@
       {
         "id": "A",
         "kind": "point",
-        "role": "negative point charge",
-        "label": "−1.5 μC"
+        "role": "negative point charge"
       },
       {
         "id": "B",
         "kind": "point",
-        "role": "positive point charge",
-        "label": "+1.5 μC"
+        "role": "positive point charge"
       },
       {
         "id": "P",
         "kind": "point",
-        "role": "axial point beyond the positive charge",
-        "label": "P"
+        "role": "axial point beyond the positive charge"
       },
       {
         "id": "F_A",
         "kind": "vector",
-        "role": "attractive force on A"
+        "role": "force on A by B, toward B"
       },
       {
         "id": "F_B",
         "kind": "vector",
-        "role": "attractive force on B"
+        "role": "force on B by A, toward A"
       },
       {
         "id": "pT",
@@ -80,8 +77,7 @@
       {
         "id": "p",
         "kind": "vector",
-        "role": "dipole moment, negative to positive",
-        "label": "p"
+        "role": "dipole moment, negative to positive"
       },
       {
         "id": "E_A",
@@ -144,24 +140,32 @@
         ]
       },
       {
-        "id": "cF",
-        "operator": "coulomb_pair",
+        "id": "cFA",
+        "operator": "vector",
         "inputs": {
-          "charges": [
-            {
-              "position": "A",
-              "charge": -1.5e-06
-            },
-            {
-              "position": "B",
-              "charge": 1.5e-06
-            }
+          "start": "A",
+          "direction": [
+            1,
+            0
           ],
-          "k": 8990000000.0,
-          "displayLength": 0.2
+          "length": 0.12
         },
         "outputs": [
-          "F_A",
+          "F_A"
+        ]
+      },
+      {
+        "id": "cFB",
+        "operator": "vector",
+        "inputs": {
+          "start": "B",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 0.12
+        },
+        "outputs": [
           "F_B"
         ]
       },
@@ -172,7 +176,7 @@
           "point": "A",
           "vector": [
             0,
-            0.2
+            0.35
           ]
         },
         "outputs": [
@@ -186,7 +190,7 @@
           "point": "B",
           "vector": [
             0,
-            0.2
+            0.35
           ]
         },
         "outputs": [
@@ -206,20 +210,14 @@
       },
       {
         "id": "cEA",
-        "operator": "electric_field",
+        "operator": "vector",
         "inputs": {
-          "charges": [
-            {
-              "position": "A",
-              "charge": "qA"
-            }
+          "start": "P",
+          "direction": [
+            -1,
+            0
           ],
-          "at": "P",
-          "mode": "si",
-          "k": 8990000000.0,
-          "displayLength": 0.18,
-          "lengthUnit": "m",
-          "chargeUnit": "μC"
+          "length": 0.06
         },
         "outputs": [
           "E_A"
@@ -227,20 +225,14 @@
       },
       {
         "id": "cEB",
-        "operator": "electric_field",
+        "operator": "vector",
         "inputs": {
-          "charges": [
-            {
-              "position": "B",
-              "charge": "qB"
-            }
+          "start": "P",
+          "direction": [
+            1,
+            0
           ],
-          "at": "P",
-          "mode": "si",
-          "k": 8990000000.0,
-          "displayLength": 0.3,
-          "lengthUnit": "m",
-          "chargeUnit": "μC"
+          "length": 0.405
         },
         "outputs": [
           "E_B"
@@ -303,7 +295,80 @@
         "severity": "fatal"
       }
     ],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "lA",
+        "kind": "label",
+        "targetIds": [
+          "A"
+        ],
+        "text": "qA=−1.5 μC",
+        "placementIntent": "below"
+      },
+      {
+        "id": "lB",
+        "kind": "label",
+        "targetIds": [
+          "B"
+        ],
+        "text": "qB=+1.5 μC",
+        "placementIntent": "right"
+      },
+      {
+        "id": "lP",
+        "kind": "label",
+        "targetIds": [
+          "P"
+        ],
+        "text": "P",
+        "placementIntent": "below-right"
+      },
+      {
+        "id": "lF_A",
+        "kind": "label",
+        "targetIds": [
+          "F_A"
+        ],
+        "text": "F on A",
+        "placementIntent": "right"
+      },
+      {
+        "id": "lF_B",
+        "kind": "label",
+        "targetIds": [
+          "F_B"
+        ],
+        "text": "F on B",
+        "placementIntent": "left"
+      },
+      {
+        "id": "lE_A",
+        "kind": "label",
+        "targetIds": [
+          "E_A"
+        ],
+        "text": "E_A",
+        "placementIntent": "above"
+      },
+      {
+        "id": "lE_B",
+        "kind": "label",
+        "targetIds": [
+          "E_B"
+        ],
+        "text": "E_B",
+        "placementIntent": "above"
+      },
+      {
+        "id": "lp",
+        "kind": "label",
+        "targetIds": [
+          "p"
+        ],
+        "text": "p",
+        "placementIntent": "above"
+      }
+    ],
     "requiredEntityIds": [
       "A",
       "B",
