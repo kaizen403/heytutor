@@ -15,6 +15,7 @@
  * (a metal, a bracketed complex, an organic chain beyond two carbons) draws
  * nothing.
  */
+import { molecularOverlapRequested } from "./semanticCues";
 import type { SceneDocument } from "../types";
 import { type ElementRecord, isMetal, valenceElectrons } from "./elements";
 import { complexTokens, formulaTokens, parseFormula, type ParsedFormula } from "./formula";
@@ -103,7 +104,6 @@ const LEWIS_CUES: readonly RegExp[] = [
   /resonan(?:ce|t|ting)\s+(?:struct|form|hybrid)|resonating struct|canonical (?:struct|form)|contributing struct/,
   /bond[- ]pair/, /octet/,
   /kossel|electrovalen|electron transfer|ionic bond/,
-  /orbital overlap|head-?on|sideways overlap|end-?on overlap|axial overlap|lateral overlap/,
   /hydrogen bond/,
   /metallic bond|electron sea/,
   /bond length|bond energy|bond enthalpy/,
@@ -122,7 +122,7 @@ const LEWIS_VETOES: readonly RegExp[] = [
 /** True when the stem asks for a Lewis picture and names nothing this family must leave to another lane. */
 export function isLewisStem(question: string): boolean {
   const stem = chemStem(question);
-  if (!LEWIS_CUES.some((cue) => cue.test(stem))) return false;
+  if (!LEWIS_CUES.some((cue) => cue.test(stem)) && !molecularOverlapRequested(stem)) return false;
   if (LEWIS_VETOES.some((veto) => veto.test(stem))) return false;
   if (/\bdimer\b/.test(stem) && !hydrogenBondAsked(stem)) return false;
   if (complexTokens(question).length > 0) return false;

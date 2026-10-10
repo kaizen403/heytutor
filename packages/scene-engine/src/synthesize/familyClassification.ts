@@ -325,13 +325,15 @@ export function inferFamiliesFromQuestion(question: string): SceneVisualFamily[]
 export function applyStemFamilyOverrides(
   stem: string,
   families: Set<SceneVisualFamily>,
-  options?: { preserveFamilies?: readonly SceneVisualFamily[] },
+  options?: { preserveFamilies?: readonly SceneVisualFamily[]; originalQuestion?: string },
 ): void {
   const preserve = new Set<SceneVisualFamily>(options?.preserveFamilies ?? []);
   const drop = (family: SceneVisualFamily): void => {
     if (!preserve.has(family)) families.delete(family);
   };
-  for (const family of inferChemistryFamilies(stem)) families.add(family);
+  // Original chemistry identity retains case and Unicode charge; all nonchem
+  // predicates below continue to use the caller's normalized stem.
+  for (const family of inferChemistryFamilies(options?.originalQuestion ?? stem)) families.add(family);
   if ((isSemiconductorBandStem(stem) || isJunctionSpatialStem(stem)) && !isDeviceCircuitStem(stem)) {
     families.add("energy_level");
     drop("circuit_network");

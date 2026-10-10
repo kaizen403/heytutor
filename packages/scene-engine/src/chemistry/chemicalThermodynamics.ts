@@ -9,6 +9,7 @@
  */
 import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity } from "./quantityReader";
 import type { SceneDocument } from "../types";
+import { chemicalHeatCapacityRequested } from "./semanticCues";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
 const FAMILY = "chem_thermo" as const;
@@ -47,7 +48,7 @@ function claimsFirstLaw(stem: string): boolean {
 }
 
 function claimsHeat(stem: string): boolean {
-  return /heat capacity|molar heat capacity|c_?p|c_?v/.test(stem) && !/rate constant|arrhenius/.test(stem);
+  return chemicalHeatCapacityRequested(stem) && !/rate constant|arrhenius/.test(stem);
 }
 
 function claimsHess(stem: string): boolean {

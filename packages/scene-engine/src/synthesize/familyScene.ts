@@ -399,7 +399,7 @@ function resolveRequestedFamilies(
     ...(requested ?? []).filter(isSceneVisualFamily),
     ...inferFamiliesFromQuestion(question),
   ]);
-  applyStemFamilyOverrides(stem, merged);
+  applyStemFamilyOverrides(stem, merged, { originalQuestion: question });
   // Structure is the live catalog when it exists: the English tables may add
   // coverage but may not revoke a solved family, and solved families keep the
   // leading positions. This mirrors inferSceneCapabilities so the planner and
