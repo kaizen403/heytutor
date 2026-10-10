@@ -23,7 +23,7 @@ for (const [index, item] of cases.entries()) {
  for (const rule of item.guidance) check(prompt.includes(rule), item.question+": "+rule);
  for (const operator of item.operators) {
   check(caps.constructionOperators.includes(operator), item.question+": offer "+operator);
-  check(new RegExp(`^- [a-z_/]*${operator}[a-z_/]*: \{`, "m").test(prompt), item.question+": contract "+operator);
+  check(new RegExp(`^- [a-z_/]*${operator}[a-z_/]*: {`, "m").test(prompt), item.question+": contract "+operator);
  }
  check(prompt.length+800<=24_500, item.question+": initial reserve");
  for (const rule of forbidden) check(!prompt.includes(rule), item.question+": direction treatment is absent: "+rule);
