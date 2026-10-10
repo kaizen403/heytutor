@@ -3655,7 +3655,8 @@ function expectedClaimDemandsCurrent(text: string): boolean {
   const zeroValue = "(?:zero\\b|[+-]?(?:0(?:\\.0+)?|\\.0+)(?:e[+-]?\\d+)?(?![\\p{L}\\p{N}_]|[.,][\\p{L}\\p{N}_.]))";
   const memberWord = "(?!(?:is|are|equals?|remains?|flows?|and|but)\\b)[\\p{L}_][\\p{L}\\p{N}_-]*";
   const memberScope = `(?:\\s+(?:in|through|along)\\s+${memberWord}(?:\\s+${memberWord}){0,11})?`;
-  const zeroPredicate = new RegExp(`\\bcurrents?${memberScope}(?:\\s+[\\p{L}_][\\p{L}\\p{N}_]*)?\\s*(?:is|are|equals?|remains?|=)\\s*${zeroValue}`, "gu");
+  const currentBinding = "(?:is|are|equals?|remains?|=)";
+  const zeroPredicate = new RegExp(`\\bcurrents?${memberScope}(?:\\s+[\\p{L}_][\\p{L}\\p{N}_]*)?\\s*${currentBinding}\\s*${zeroValue}`, "gu");
   // Only literal zero denies flow. Arithmetic after zero (with or without
   // an ampere unit) must retain the current demand rather than erase a prefix.
   const arithmeticContinuation = /^\s*(?:(?:[a-zµμ]*a|amperes?|amps?)\b\s*)?(?:[+*/×÷·⋅^=-]|\b(?:plus|minus|times|over|divided)\b)/u;
@@ -3665,11 +3666,28 @@ function expectedClaimDemandsCurrent(text: string): boolean {
   if (/\bcurrents?\b/.test(normalized)) {
     const literalZero = new RegExp(`^${zeroValue}`, "u");
     const currentNames = new Set(["i"]);
-    for (const declaration of normalized.matchAll(/\bcurrents?\s+([\p{L}_][\p{L}\p{N}_]*)\s*(?:=|is|equals?)\s*/gu)) {
-      currentNames.add(declaration[1]!);
+    const currentDeclaration = new RegExp(`\\bcurrents?(${memberScope})\\s+([\\p{L}_][\\p{L}\\p{N}_]*)\\s*(${currentBinding})\\s*`, "giu");
+    for (const declaration of text.matchAll(currentDeclaration)) {
+      const [, scope, name, binding] = declaration;
+      // A member phrase ending in "branch is zero" does not declare a
+      // current called branch. An equation, or a visibly symbolic identifier
+      // before a verb binding, distinguishes the explicit name from that noun.
+      if (scope && binding !== "=" && !/^(?:[\p{L}_]|.*[\p{N}_].*|.*\p{Lu}.*)$/u.test(name!)) {
+        // Ambiguous lowercase member nouns remain nouns for an explicitly
+        // unrelated voltage binding. A later numeric binding with ampere,
+        // unknown, or absent units cannot safely hide a current contradiction.
+        const laterBindings = new RegExp(`(?<![\\p{L}\\p{N}_])${name!.toLowerCase()}(?:[\\p{N}_][\\p{L}\\p{N}_]*)?\\s*${currentBinding}\\s*`, "gu");
+        const hasPossibleCurrentBinding = [...normalized.matchAll(laterBindings)].some((later) => {
+          const rhs = normalized.slice(later.index + later[0].length);
+          const numeric = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/u.exec(rhs);
+          return numeric !== null && !/^\s*(?:[munpfµμk]?v|volts?)\b/u.test(rhs.slice(numeric[0].length));
+        });
+        if (!hasPossibleCurrentBinding) continue;
+      }
+      currentNames.add(name!.toLowerCase());
     }
     for (const name of currentNames) {
-      const namedBindings = new RegExp(`(?<![\\p{L}\\p{N}_])${name}(?:[\\p{N}_][\\p{L}\\p{N}_]*)?\\s*(?:=|is|equals?)\\s*`, "gu");
+      const namedBindings = new RegExp(`(?<![\\p{L}\\p{N}_])${name}(?:[\\p{N}_][\\p{L}\\p{N}_]*)?\\s*${currentBinding}\\s*`, "gu");
       for (const binding of normalized.matchAll(namedBindings)) {
         const rhs = normalized.slice(binding.index + binding[0].length);
         const zero = literalZero.exec(rhs);
