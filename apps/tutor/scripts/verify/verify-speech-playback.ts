@@ -51,9 +51,13 @@ function load(file: string, mocks: Record<string, unknown> = {}): Record<string,
   return loaded.exports;
 }
 
-async function verifyActualRunner(mode: "paired" | "muted" | "browser-signal" | "stale") {
+async function verifyActualRunner(mode: "paired" | "muted" | "browser-signal" | "stale" | "stale-pause" | "pause-no-start" |
+  "pause-provider-observed-start" | "pause-browser-observed-start") {
+  const pauses = mode.startsWith("pause-");
+  const browserSignal = mode === "browser-signal" || mode === "pause-browser-observed-start";
+  const observedRestart = mode === "pause-provider-observed-start" || mode === "pause-browser-observed-start";
   let clock = 0;
-  const sent: Array<{ events: TurnTelemetryEvent[] }> = [];
+  const sent: Array<{ events: TurnTelemetryEvent[]; traceMetadata?: Record<string, unknown> }> = [];
   const tel = createTurnTelemetry({ originPerf: 0, env: {
     now: () => clock, wallNow: () => Date.UTC(2026, 9, 11) + clock,
     send: async (body) => { sent.push(JSON.parse(body)); }, window: null, document: null,
@@ -61,8 +65,14 @@ async function verifyActualRunner(mode: "paired" | "muted" | "browser-signal" | 
   tel.setTrace(`speech-${mode}`);
   const savedWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const savedPerformance = Object.getOwnPropertyDescriptor(globalThis, "performance");
+  const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
   Object.defineProperty(globalThis, "window", { configurable: true, value: {
-    setTimeout: (fn: () => void, ms?: number) => setTimeout(fn, ms), clearTimeout: (id: number) => clearTimeout(id),
+    setTimeout: (fn: () => void, ms?: number) => {
+      const id = setTimeout(() => { pendingTimers.delete(id); fn(); }, ms);
+      pendingTimers.add(id);
+      return id;
+    },
+    clearTimeout: (id: ReturnType<typeof setTimeout>) => { pendingTimers.delete(id); clearTimeout(id); },
     addEventListener() {}, removeEventListener() {},
   } });
   Object.defineProperty(globalThis, "performance", { configurable: true, value: { now: () => clock } });
@@ -74,9 +84,11 @@ async function verifyActualRunner(mode: "paired" | "muted" | "browser-signal" | 
   let drawStarted = false;
   const ref = <T,>(current: T) => ({ current });
   const generation = ref(1);
+  const paused = ref(false);
   const currentTelemetry = ref(tel);
   const successorEvents: unknown[] = [];
   let turn: Promise<void> | null = null;
+  let controls: ReturnType<typeof import("../../features/tutor-session/hooks/turn/useSegmentRunner").useSegmentRunner> | null = null;
   try {
     const runnerModule = load(path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts"), {
       react: { useRef: ref, useCallback: (callback: unknown) => callback },
@@ -95,12 +107,12 @@ async function verifyActualRunner(mode: "paired" | "muted" | "browser-signal" | 
       prewarm: async () => {}, playAudio: async () => {}, pause() {}, resume() {}, stop() {},
       get isPlaying() { return true; }, getPlaybackPositionMs: () => 1_000,
       setPlaybackRate() {}, getPlaybackRate: () => 1,
-      getLastPlaybackStart: () => mode === "browser-signal" ? { signal: "speech-synthesis-start", leadMs: 0 }
+      getLastPlaybackStart: () => browserSignal ? { signal: "speech-synthesis-start", leadMs: 0 }
         : { signal: "audio-context-scheduled", leadMs: 50 },
       isMuted: () => mode === "muted",
     };
     const params = {
-      sessionId: "speech-board", activeVerifiedDiagramRef: ref(null), cancelRef: ref(false), isPausedRef: ref(false),
+      sessionId: "speech-board", activeVerifiedDiagramRef: ref(null), cancelRef: ref(false), isPausedRef: paused,
       turnActiveRef: ref(true), turnGenerationRef: generation, turnTelemetryRef: currentTelemetry,
       turnStatsRef: ref({ drawMs: 0, ttsChars: 0 }), recordedSegmentsRef: ref([]), narrationSinceEpochRef: ref(""),
       currentTraceIdRef: ref("speech-trace"), narrationDensityRef: ref(0), drawChainRef: ref(Promise.resolve()),
@@ -112,55 +124,106 @@ async function verifyActualRunner(mode: "paired" | "muted" | "browser-signal" | 
       applyTurnPhase() {}, onSpeechStartupStatus() {},
     } as unknown as UseSegmentRunnerParams;
     const runner = runHook(params);
+    controls = runner;
     const segment: TutorSegment = { narration: "PRIVATE SYNTHETIC NARRATION", command: mode === "paired"
       ? { type: "WRITE", text: "PRIVATE SYNTHETIC ROW", params: [80, 150], charPosition: 0, narrationBefore: "" } : null };
     turn = runner.runSegment(segment, 0, [segment], 1);
     await settle();
     assert(options, "the real runner must dispatch its speech callback");
     if (mode === "paired") assert(drawStarted, "the real paired draw must actually be held, not mocked away");
-    clock = 2_500;
-    if (mode === "stale") {
+    if (pauses) {
+      clock = 1_500;
+      runner.pauseFallbackSpeech();
+      paused.current = true;
+      await tel.checkpoint("paused");
+      const interrupted = sent.flatMap((batch) => batch.events).filter((event) => event.name.startsWith("speech-playback-"));
+      assert.equal(interrupted.length, 2, "actual Pause closes the accepted voice interval immediately");
+      assert.equal(interrupted[1]!.metadata?.since_ask_ms, 1_500);
+      assert.equal(interrupted[1]!.metadata?.outcome, "cancelled");
+      assert.equal(interrupted[1]!.metadata?.end_signal, "abandoned");
+      runner.pauseFallbackSpeech();
+      clock = 7_000;
+      paused.current = false;
+      runner.resumeFallbackSpeech();
+      await tel.checkpoint("resumed-without-onset");
+      assert.equal(sent.flatMap((batch) => batch.events).filter((event) => event.name.startsWith("speech-playback-")).length, 2,
+        "Resume without an observed audio onset must not invent a new interval");
+      if (observedRestart) {
+        (options as SpeakSegmentOptions).onStart?.();
+        await tel.checkpoint("observed-resumed-onset");
+        const restarted = sent.flatMap((batch) => batch.events).filter((event) => event.name.startsWith("speech-playback-"));
+        assert.equal(restarted.length, 3, "only an actual accepted resumed onStart opens another interval");
+        assert.equal(restarted[2]!.metadata?.since_ask_ms, browserSignal ? 7_000 : 7_050);
+        assert.equal(restarted[2]!.metadata?.playback_index, 2);
+      }
+    }
+    clock = pauses ? 8_000 : 2_500;
+    if (mode === "stale" || mode === "stale-pause") {
       generation.current++;
       currentTelemetry.current = { ...tel, mark: (...args) => { successorEvents.push(args); } };
+      if (mode === "stale-pause") {
+        runner.pauseFallbackSpeech();
+        runner.resumeFallbackSpeech();
+      }
     }
     (options as SpeakSegmentOptions).onEnd?.();
     speechDone();
     await settle();
     await tel.checkpoint("speech-ended");
     const playback = sent.flatMap((batch) => batch.events).filter((event) => event.name.startsWith("speech-playback-"));
-    assert.equal(playback.length, mode === "stale" ? 1 : 2,
+    const stale = mode === "stale" || mode === "stale-pause";
+    assert.equal(playback.length, stale ? 1 : observedRestart ? 4 : 2,
       "actual callbacks must mark voice start/end; a stale completion cannot report into an old or successor turn");
     assert.equal(playback[0]!.metadata?.muted, mode === "muted");
-    assert.equal(playback[0]!.metadata?.transport, mode === "browser-signal" ? "browser" : "provider");
-    assert.equal(playback[0]!.metadata?.since_ask_ms, mode === "browser-signal" ? 1_000 : 1_050);
-    if (mode !== "stale") {
-      assert.equal(playback[1]!.metadata?.since_ask_ms, 2_500, "voice end cannot wait for paired draw completion");
-      assert.equal(playback[1]!.metadata?.end_signal, "on-end");
-      assert.equal(playback[1]!.metadata?.outcome, "complete");
+    assert.equal(playback[0]!.metadata?.transport, browserSignal ? "browser" : "provider");
+    assert.equal(playback[0]!.metadata?.since_ask_ms, browserSignal ? 1_000 : 1_050);
+    if (!stale) {
+      assert.equal(playback[1]!.metadata?.since_ask_ms, pauses ? 1_500 : 2_500,
+        "voice end cannot wait for paused time or paired draw completion");
+      assert.equal(playback[1]!.metadata?.end_signal, pauses ? "abandoned" : "on-end");
+      assert.equal(playback[1]!.metadata?.outcome, pauses ? "cancelled" : "complete");
+      if (observedRestart) {
+        assert.equal(playback[3]!.metadata?.since_ask_ms, 8_000);
+        assert.equal(playback[3]!.metadata?.outcome, "complete");
+        assert.equal(playback[3]!.metadata?.end_signal, "on-end");
+      }
     }
     if (mode === "paired") assert(!sent.flatMap((batch) => batch.events).some((event) => event.name === "segment-0"),
       "the paired segment span must still be open after voice has ended");
-    clock = 4_000;
+    clock = pauses ? 9_000 : 4_000;
     drawDone();
     await turn;
     await tel.flush();
+    assert.equal(pendingTimers.size, 0, "completed runner releases both timeout/watch timers, including after Pause");
+    assert.equal(sent.filter((batch) => batch.traceMetadata).at(-1)?.traceMetadata?.speech_playback_total_events,
+      stale ? 1 : observedRestart ? 4 : 2, "Pause/restart marks retain exact total-event evidence");
     assert.equal(successorEvents.length, 0, "late callbacks must never write into successor telemetry");
     const wire = JSON.stringify(sent.flatMap((batch) => batch.events).filter((event) => event.name.startsWith("speech-playback-")));
     assert(!wire.includes("PRIVATE SYNTHETIC"), "speech marks may not contain narration, rows or student text");
   } finally {
+    paused.current = false;
+    controls?.resumeFallbackSpeech();
     speechDone(); drawDone();
     await turn?.catch(() => undefined);
+    for (const id of pendingTimers) clearTimeout(id);
     if (savedWindow) Object.defineProperty(globalThis, "window", savedWindow); else Reflect.deleteProperty(globalThis, "window");
     if (savedPerformance) Object.defineProperty(globalThis, "performance", savedPerformance); else Reflect.deleteProperty(globalThis, "performance");
   }
 }
 
 async function main() {
-  for (const mode of ["paired", "muted", "browser-signal", "stale"] as const) await verifyActualRunner(mode);
+  if (process.argv.includes("--pause-only")) {
+    for (const mode of ["pause-no-start", "pause-provider-observed-start", "pause-browser-observed-start"] as const)
+      await verifyActualRunner(mode);
+    console.log("verify-speech-playback: actual runner Pause closes the interval without a fabricated resumed onset");
+    return;
+  }
+  for (const mode of ["paired", "muted", "browser-signal", "stale", "stale-pause", "pause-no-start",
+    "pause-provider-observed-start", "pause-browser-observed-start"] as const) await verifyActualRunner(mode);
   await verifyOwnedRoute();
   await verifyRetention();
   await verifyLifecycleBudget();
-  console.log("verify-speech-playback: voice callbacks, paired draw independence, muted/browser signals and stale ownership");
+  console.log("verify-speech-playback: independent voice end, Pause interruption, observed-only resumed onset, muted/stale ownership and zero timers");
 }
 
 async function verifyRetention() {

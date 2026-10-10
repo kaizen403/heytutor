@@ -69,6 +69,13 @@ export function createSpeechPlaybackTracker(input: {
   const publish = (name: (typeof SPEECH_PLAYBACK_EVENT_NAMES)[number], metadata: Record<string, unknown>) => {
     try { if (input.isCurrent()) input.telemetry?.mark(name, sanitizeSpeechPlaybackMetadata(metadata)); } catch { /* Diagnostics never interrupt teaching. */ }
   };
+  const end = (outcome: SpeechPlaybackOutcome, endSignal: SpeechPlaybackEndSignal) => {
+    if (!active) return;
+    const metadata = active;
+    active = null;
+    const at = elapsed();
+    if (at !== null) publish("speech-playback-end", { ...metadata, since_ask_ms: at, outcome, end_signal: endSignal });
+  };
   return {
     start(info: SpeechPlaybackStart) {
       if (active) return;
@@ -82,12 +89,9 @@ export function createSpeechPlaybackTracker(input: {
       };
       publish("speech-playback-start", { ...active, since_ask_ms: at + leadMs });
     },
-    end(outcome: SpeechPlaybackOutcome, endSignal: SpeechPlaybackEndSignal) {
-      if (!active) return;
-      const metadata = active;
-      active = null;
-      const at = elapsed();
-      if (at !== null) publish("speech-playback-end", { ...metadata, since_ask_ms: at, outcome, end_signal: endSignal });
-    },
+    end,
+    // Pause is an observed interruption, not a completed sentence. Resume
+    // cannot reopen this interval; only another accepted onStart may do so.
+    pause() { end("cancelled", "abandoned"); },
   };
 }

@@ -576,7 +576,12 @@ export function useQuestionHandler(
       // arrives after Stop. Never adopt a successor's mutable trace/ref.
       if (billed.ok) {
         saveExit.telemetry = createTurnTelemetry({ originPerf: askOrigin });
-        saveExit.figure = createFigureOutcomeTracker(saveExit.telemetry);
+        saveExit.figure = createFigureOutcomeTracker(saveExit.telemetry, {
+          // Refusal withdraws scene authority, not already retained canvas
+          // marks. Keep this observer separate from drawable/point/save gates.
+          priorInkRetained: Boolean((doubt || resume) && pageRecord?.boardId === sessionId &&
+            (retainedFigure || pageRecord.figureDiagnostics?.priorInkRetained === true)),
+        });
         saveExit.telemetry.setTrace(turnTraceId, sessionId ?? undefined);
         if (retainedFigure) saveExit.figure.decision(retainedFigure);
       }
@@ -1753,6 +1758,7 @@ export function useQuestionHandler(
         figureSource: figureSnapshot.figure_source,
         representationTier: figureSnapshot.figure_representation_tier,
         primitiveCount: figureSnapshot.figure_primitive_count,
+        priorInkRetained: figureSnapshot.figure_prior_ink_retained,
       });
 
       if (!doubt && !resume) {

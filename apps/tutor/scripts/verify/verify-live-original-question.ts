@@ -10,6 +10,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import Konva from "konva";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { synthesizeFamilyScene, type TurnPlanV3 } from "@heytutor/scene-engine";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
@@ -27,6 +28,7 @@ import { findVerifiedSceneRecovery, forgetVerifiedScene } from "../../features/t
 import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
 import { NeutralPanelPresentationDeclined } from "./fixtures/frozen-neutral-panel-decline";
 import { getSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
+import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
@@ -105,6 +107,7 @@ function fixture(options: { loaded?: boolean; autoQuestion?: string; boardId?: s
   const asked: Array<{ question: string; options?: HandleQuestionOptions }> = [];
   const teachingRequests: string[] = [];
   const verifiedIntros: unknown[][] = [];
+  const telemetryPayloads: Array<{ events?: Array<{ name?: string; metadata?: Record<string, unknown> }> }> = [];
   const runtime = hookRuntime();
   const registry = new LiveTurnSaveRegistry({
     transport: {
@@ -154,7 +157,10 @@ function fixture(options: { loaded?: boolean; autoQuestion?: string; boardId?: s
   } });
   replace("fetch", async (url: string, init?: RequestInit) => {
     if (/\/api\/boards\/[^/]+\?page=0$/.test(url)) return Response.json({ board: { id: params.sessionId, title: "Test", createdAt: 0 }, turns: params.storedTurnsRef.current, nextPage: null });
-    if (url.endsWith("/api/trace/event")) return Response.json({});
+    if (url.endsWith("/api/trace/event")) {
+      telemetryPayloads.push(JSON.parse(String(init?.body ?? "{}")));
+      return Response.json({});
+    }
     if (url.endsWith("/api/visual-need")) return Response.json({ decision: "required" });
     if (url.endsWith("/api/chat") && new Headers(init?.headers).get("x-turn-planner-version") === "3") {
       return Response.json({ choices: [{ message: { content: JSON.stringify(plan) } }] });
@@ -229,7 +235,7 @@ function fixture(options: { loaded?: boolean; autoQuestion?: string; boardId?: s
   const mountHandler = () => runtime.render("handler", () => Handler(params as unknown as UseTurnLifecycleParams, controlPort));
   const mountControl = () => runtime.render("control", () => Control(params as unknown as UseTurnLifecycleParams, handleRef));
   return {
-    params, asked, presentationSources, restorationInputs, errors, runtime, mountHandler, mountControl, teachingRequests, verifiedIntros,
+    params, asked, presentationSources, restorationInputs, errors, runtime, mountHandler, mountControl, teachingRequests, verifiedIntros, telemetryPayloads,
     advance: (milliseconds: number) => { now += milliseconds; },
     async settle() { await flush(); },
     close() {
@@ -369,6 +375,63 @@ async function main() {
       assert.equal(page?.turn.scene?.sceneDocument ?? null, null);
     } finally { f.close(); }
   });
+  for (const refusal of ["source", "suffix"] as const) {
+    await test(`drawn resume ${refusal} refusal retains observed prior ink without scene authority, including a later doubt`, async () => {
+      const { parent, paused, presentation } = cachedResumeFixture(RAW);
+      const f = fixture({ restoreRefused: refusal === "source" });
+      const board = mountTestWhiteboard();
+      try {
+        // One genuinely compiled permanent mark is enough to observe retained
+        // ink. This is not a whole-frame fidelity or save-acceptance oracle.
+        const mark = presentation.diagram.commands.find((command) => command.type === "DRAW_LINE" && command.params.length >= 4);
+        assert(mark, "the actual engine fixture must supply a permanent line");
+        const layer = board.getDrawLayer();
+        assert(layer);
+        layer.add(new Konva.Line({ points: mark.params.slice(0, 4), stroke: "black" }));
+        const retainedInk = JSON.stringify(layer.getChildren().map((node) => node.toObject()));
+        const page = lessonPageRecord(BOARD, QUESTION, RAW);
+        page.figureDrawn = true;
+        page.turnPlan = plan;
+        page.turn.scene = paused.scene;
+        page.figureSubject = "physics";
+        page.figureDiagnostics = { figureSource: "family", representationTier: "qualitative_verified", primitiveCount: null };
+        (f.params.whiteboardRef as { current: unknown }).current = board;
+        (f.params.boardPageRef as { current: unknown }).current = page;
+        (f.params.storedTurnsRef as { current: StoredTurn[] }).current = [parent];
+        (f.params.activeVerifiedDiagramRef as { current: unknown }).current = presentation.diagram;
+        const remainingIntro = structuredClone(presentation.introSegments.slice(-1));
+        if (refusal === "suffix") remainingIntro[0]!.narration += " synthetic noncanonical remainder";
+        const handler = f.mountHandler();
+        await handler.handleQuestion(QUESTION, { resume: { ...paused, remainingIntro } });
+        await f.settle();
+        const terminal = () => f.telemetryPayloads.flatMap((payload) => payload.events ?? [])
+          .filter((event) => event.name === "figure-turn-terminal").at(-1)?.metadata;
+        assert.equal(terminal()?.figure_outcome, "empty");
+        assert.equal(terminal()?.figure_empty_cause, "presentation_refused");
+        assert.equal(terminal()?.figure_prior_ink_retained, true,
+          "refused new authority must not claim the retained board mark vanished");
+        assert.equal(f.params.activeVerifiedDiagramRef.current, null);
+        assert.equal(f.verifiedIntros.flat().length, 0);
+        const refusedPage = f.params.boardPageRef.current as ReturnType<typeof lessonPageRecord> | null;
+        assert.equal(refusedPage?.figureDrawn, false);
+        assert.equal(refusedPage?.turn.scene?.sceneDocument ?? null, null);
+        assert.equal(refusedPage?.figureDiagnostics?.priorInkRetained, true);
+        assert.equal(JSON.stringify(layer.getChildren().map((node) => node.toObject())), retainedInk);
+
+        await handler.handleQuestion("Explain the last step.", { doubt: { prompt: "Explain the last step.",
+          title: "Doubt: last step", lessonQuestion: QUESTION, afterReplay: false } });
+        await f.settle();
+        assert.equal(terminal()?.figure_outcome, "empty", "a visibility observer cannot restore figure authority for a doubt");
+        assert.equal(terminal()?.figure_prior_ink_retained, true,
+          "a later in-tab doubt must carry the observer even after active authority was cleared");
+        assert.equal(f.params.activeVerifiedDiagramRef.current, null);
+        assert.equal(f.verifiedIntros.flat().length, 0);
+        assert.equal(f.teachingRequests.length, 2, "both refused Continue and text-only doubt still teach");
+        assert.equal(f.errors.length, 0);
+        assert.equal(JSON.stringify(layer.getChildren().map((node) => node.toObject())), retainedInk);
+      } finally { unmountTestWhiteboard(board); f.close(); }
+    });
+  }
   await test("a valid cached drawn resume receives fresh canonical authority without redrawing its figure", async () => {
     const { source, parent, paused, presentation } = cachedResumeFixture();
     const f = fixture();

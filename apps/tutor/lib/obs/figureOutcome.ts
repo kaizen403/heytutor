@@ -51,6 +51,8 @@ export interface FigureOutcomeMetadata extends Record<string, unknown> {
   figure_outcome: FigureOutcome;
   figure_empty_cause: FigureEmptyCause | null;
   turn_terminal_outcome: TurnTerminalOutcome | null;
+  /** Old canvas marks may remain after this turn's figure authority is refused. */
+  figure_prior_ink_retained: boolean;
   figure_subject: DiagramSubject | null;
   figure_visual_requirement: VisualRequirement | null;
   figure_source: FigureSource | null;
@@ -87,6 +89,8 @@ export interface FigureDiagnostics {
   figureSource: FigureSource | null;
   representationTier: RepresentationTier | null;
   primitiveCount: number | null;
+  /** Runtime-only visibility observer, never display/point/save authority. */
+  priorInkRetained?: boolean;
 }
 
 const outcomes = ["pending", "selected", "committed", "partially_committed", "inherited", "empty"] as const;
@@ -121,6 +125,9 @@ export function sanitizeFigureOutcomeMetadata(value: unknown): Record<string, un
   if (!record(value)) return {};
   const safe: Record<string, unknown> = {};
   if (value.figure_trace_schema === FIGURE_OUTCOME_SCHEMA) safe.figure_trace_schema = FIGURE_OUTCOME_SCHEMA;
+  if (typeof value.figure_prior_ink_retained === "boolean") {
+    safe.figure_prior_ink_retained = value.figure_prior_ink_retained;
+  }
   for (const [key, allowed, nullable] of [
     ["figure_outcome", outcomes, false], ["figure_empty_cause", FIGURE_EMPTY_CAUSES, true],
     ["turn_terminal_outcome", terminals, true], ["figure_subject", subjects, true],
@@ -146,6 +153,7 @@ export function sanitizeFigureDiagnostics(value: unknown): FigureDiagnostics {
     figureSource: member(item.figureSource, sources) ? item.figureSource : null,
     representationTier: member(item.representationTier, tiers) ? item.representationTier : null,
     primitiveCount: boundedNumber(item.primitiveCount, MAX_COUNT) ? item.primitiveCount : null,
+    ...(typeof item.priorInkRetained === "boolean" ? { priorInkRetained: item.priorInkRetained } : {}),
   };
 }
 
@@ -202,12 +210,16 @@ export function figureOutcomeTrackerFor(telemetry: unknown): FigureOutcomeTracke
   return record(telemetry) ? trackers.get(telemetry) ?? null : null;
 }
 
-export function createFigureOutcomeTracker(telemetry: FigureOutcomeTelemetry): FigureOutcomeTracker {
+export function createFigureOutcomeTracker(
+  telemetry: FigureOutcomeTelemetry,
+  observer?: { priorInkRetained?: boolean },
+): FigureOutcomeTracker {
   const existing = trackers.get(telemetry);
   if (existing) return existing;
   const state: FigureOutcomeMetadata = {
     figure_trace_schema: FIGURE_OUTCOME_SCHEMA, figure_outcome: "pending", figure_empty_cause: null,
     turn_terminal_outcome: null, figure_subject: null, figure_visual_requirement: null,
+    figure_prior_ink_retained: observer?.priorInkRetained === true,
     figure_source: null, figure_representation_tier: null, figure_candidate_count: null,
     figure_fatal_issue_count: null, figure_planner_calls: null, figure_primitive_count: null,
     figure_decision_since_ask_ms: null, figure_ready_since_ask_ms: null, figure_committed_since_ask_ms: null,
@@ -233,6 +245,8 @@ export function createFigureOutcomeTracker(telemetry: FigureOutcomeTelemetry): F
         figure_planner_calls: evidence.plannerCalls, figure_primitive_count: evidence.primitiveCount,
       }));
       state.figure_decision_since_ask_ms = elapsed();
+      // A later refusal withdraws authority, not the already-observed marks.
+      if (evidence.hasSelectedFigure && evidence.inheritedFigure) state.figure_prior_ink_retained = true;
       state.figure_outcome = evidence.hasSelectedFigure ? evidence.inheritedFigure ? "inherited" : "selected" : "empty";
       state.figure_empty_cause = evidence.hasSelectedFigure ? null : classifyFigureEmptyCause(evidence);
       if (evidence.hasSelectedFigure) state.figure_ready_since_ask_ms ??= state.figure_decision_since_ask_ms;

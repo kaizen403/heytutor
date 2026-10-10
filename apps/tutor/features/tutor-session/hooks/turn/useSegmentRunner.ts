@@ -71,6 +71,7 @@ export function useSegmentRunner({
   const speechRateRef = useRef(createSpeechRateState());
   /** The sentence being spoken. Recorded segments omit it until the beat ends. */
   const speakingNarrationRef = useRef("");
+  const speechPlaybackRef = useRef<ReturnType<typeof createSpeechPlaybackTracker> | null>(null);
   const browserSpeechRef = useRef<SpeechSynthesisTTSClient | null>(null);
   const browserFallbackOwnerRef = useRef<symbol | null>(null);
   const fallbackPauseGenerationRef = useRef(0);
@@ -82,6 +83,7 @@ export function useSegmentRunner({
   // Turn controls own both transports. Browser pause() cancels its current
   // utterance; the fallback loop retries that sentence after resume.
   const pauseFallbackSpeech = () => {
+    speechPlaybackRef.current?.pause();
     speechClockRef.current?.pause();
     timingWaitClockRef.current?.pause();
     fallbackPauseGenerationRef.current++;
@@ -299,6 +301,7 @@ export function useSegmentRunner({
 
       const markSpeechComplete = () => {
         playback.end("complete", "on-end");
+        if (speechPlaybackRef.current === playback) speechPlaybackRef.current = null;
         speechComplete = true;
         notifyTimingWaiters();
       };
@@ -616,6 +619,7 @@ export function useSegmentRunner({
           leadMs: startSignal?.signal === "audio-context-scheduled" ? startSignal.leadMs : 0,
           muted: tts.isMuted?.() ?? false,
         });
+        speechPlaybackRef.current = playback;
         recordFirstAudible(tel, {
           segmentIndex: index,
           transport: browserVoice ? "browser" : "provider",
@@ -951,6 +955,7 @@ export function useSegmentRunner({
           // A speech promise ends independently of paired ink. Its terminal
           // cleanup is not a fabricated successful onEnd callback.
           playback.end(isCancelled() ? "cancelled" : speechAborted ? "failed" : "complete", "speech-promise");
+          if (speechPlaybackRef.current === playback) speechPlaybackRef.current = null;
           speechComplete = true;
           notifyTimingWaiters();
         }

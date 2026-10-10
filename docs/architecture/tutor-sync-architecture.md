@@ -34,6 +34,8 @@ Measure both first audible playback and the longest silence after the opening;
 a quick acknowledgement alone is not evidence of quicker substantive teaching.
 `figure-outcome/v1` distinguishes ready/selected figures from committed ink,
 inherited ink and retained partial intros, using closed student-text-free fields.
+If Continue refuses the scene, `figure_prior_ink_retained` separately reports
+old canvas marks that remain; it never restores refused reveal/point/save authority.
 `speech-playback/v1` measures actual speech intervals independently of paired
 writing; its total/dropped/pending counters must prove complete delivery before
 reporting an exact post-opening gap. Neither event proves the first visible pixel.

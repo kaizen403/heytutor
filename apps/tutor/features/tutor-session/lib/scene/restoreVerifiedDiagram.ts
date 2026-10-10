@@ -8,6 +8,7 @@
  */
 import {
   compileSceneDocument,
+  synthesizeFamilyScene,
   validateSceneDocument,
   type SceneDocument,
 } from "@heytutor/scene-engine";
@@ -25,6 +26,34 @@ function isDsaSceneDocument(document: SceneDocument): boolean {
   return (document.source as Record<string, unknown>).synthesizedDsa === true;
 }
 
+/** JSONB may reorder object keys; canonical scene array order remains meaningful. */
+function canonicalSceneJson(document: SceneDocument): string {
+  return JSON.stringify(document, (_key, value) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value).sort(([first], [second]) => first.localeCompare(second)))
+      : value);
+}
+
+/**
+ * Recover optional teaching context, never geometric or save permission.
+ * Saved family strings, plans and ProblemIR are not general source authority.
+ * Reconstruct from the external source alone and require the complete current
+ * engine document to match the already-admitted canonical document. Historical
+ * or custom layouts that cannot be reproduced keep their ordinary geometry but
+ * receive no additional family-specific prompt guidance.
+ */
+function reconstructedSceneFamily(document: SceneDocument, question: string | undefined): string | undefined {
+  if (typeof question !== "string" || !question.trim()) return undefined;
+  try {
+    const reconstructed = synthesizeFamilyScene({ question });
+    if (!reconstructed || canonicalSceneJson(reconstructed.document) !== canonicalSceneJson(document)) return undefined;
+    return reconstructed.family;
+  } catch {
+    // Optional context reconstruction must not mask real presentation failures.
+    return undefined;
+  }
+}
+
 export function restoreVerifiedPresentationFromTurn(
   turn: (Pick<StoredTurn, "sceneDocument"> & Partial<Pick<StoredTurn, "question" | "sceneArtifacts">>) | null | undefined,
 ): ReturnType<typeof buildVerifiedDiagramPresentation> | null {
@@ -40,11 +69,12 @@ export function restoreVerifiedPresentationFromTurn(
     dsa ? { viewport: DSA_DIAGRAM_ZONE } : {},
   );
   if (!compiled.ok || !compiled.renderScene) return null;
+  const figureFamily = dsa ? undefined : reconstructedSceneFamily(document, turn.question);
   let presentation: ReturnType<typeof buildVerifiedDiagramPresentation>;
   try {
     presentation = buildVerifiedDiagramPresentation(
       document, compiled.renderScene,
-      { originalQuestion: turn.question, ...(dsa ? { layout: "code_lesson" as const } : {}) },
+      { originalQuestion: turn.question, ...(figureFamily ? { figureFamily } : {}), ...(dsa ? { layout: "code_lesson" as const } : {}) },
     );
   } catch (error) {
     if (isVisualPresentationRefusal(error)) return null;

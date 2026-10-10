@@ -183,7 +183,39 @@ test("inherited figure visibility is not a new canvas commit", () => {
   tracker.decision({ hasSelectedFigure: true, inheritedFigure: true, visualRequirement: "required" });
   tracker.finish("complete");
   assert.equal(tracker.snapshot().figure_outcome, "inherited");
+  assert.equal(tracker.snapshot().figure_prior_ink_retained, true);
   assert.equal(tracker.snapshot().figure_committed_since_ask_ms, null);
+});
+
+test("a prior-ink observer never grants figure authority and survives scoped refusal", () => {
+  for (const terminal of ["complete", "cancelled", "error"] as const) {
+    const tracker = helpers().createFigureOutcomeTracker(fakeTelemetry().tel, { priorInkRetained: true });
+    assert.equal(tracker.snapshot().figure_outcome, "pending");
+    assert.equal(tracker.snapshot().figure_prior_ink_retained, true);
+    tracker.decision({ hasSelectedFigure: false, presentationRefused: true,
+      figureSource: "text_only", primitiveCount: 0 });
+    tracker.committed();
+    tracker.finish(terminal);
+    assert.equal(tracker.snapshot().figure_outcome, "empty");
+    assert.equal(tracker.snapshot().figure_empty_cause, "presentation_refused");
+    assert.equal(tracker.snapshot().turn_terminal_outcome, terminal);
+    assert.equal(tracker.snapshot().figure_prior_ink_retained, true);
+    assert.equal(tracker.snapshot().figure_committed_since_ask_ms, null);
+  }
+});
+
+test("early failure reports carried prior ink without inventing inherited authority", () => {
+  for (const terminal of ["cancelled", "error"] as const) {
+    const tracker = helpers().createFigureOutcomeTracker(fakeTelemetry().tel, { priorInkRetained: true });
+    tracker.finish(terminal);
+    assert.equal(tracker.snapshot().figure_outcome, "empty");
+    assert.equal(tracker.snapshot().figure_empty_cause, terminal);
+    assert.equal(tracker.snapshot().figure_prior_ink_retained, true);
+    assert.equal(tracker.snapshot().figure_source, null);
+    assert.equal(tracker.snapshot().figure_representation_tier, null);
+  }
+  const fresh = helpers().createFigureOutcomeTracker(fakeTelemetry().tel);
+  assert.equal(fresh.snapshot().figure_prior_ink_retained, false);
 });
 
 test("retained verified ink seeds inherited diagnostics before an early error or Stop", () => {
@@ -231,11 +263,38 @@ test("a later scoped presentation refusal withdraws an early inherited diagnosti
   tracker.finish("complete");
   assert.equal(tracker.snapshot().figure_outcome, "empty");
   assert.equal(tracker.snapshot().figure_empty_cause, "presentation_refused");
+  assert.equal(tracker.snapshot().figure_prior_ink_retained, true);
+});
+
+test("prior-ink observer transport accepts booleans only, never raw source data", async () => {
+  for (const value of ["true", STUDENT_TEXT, 1, { reason: STUDENT_TEXT }, null]) {
+    assert.equal(Object.hasOwn(helpers().sanitizeFigureOutcomeMetadata({ figure_prior_ink_retained: value }),
+      "figure_prior_ink_retained"), false);
+    assert.equal(Object.hasOwn(helpers().sanitizeFigureDiagnostics({ priorInkRetained: value }),
+      "priorInkRetained"), false);
+  }
+  for (const value of [false, true]) {
+    assert.equal(helpers().sanitizeFigureOutcomeMetadata({ figure_prior_ink_retained: value })
+      .figure_prior_ink_retained, value);
+    assert.equal(helpers().sanitizeFigureDiagnostics({ priorInkRetained: value }).priorInkRetained, value);
+  }
+  updates.length = eventBatches.length = 0;
+  const response = await request({ traceMetadata: { figure_prior_ink_retained: true },
+    events: [{ name: "figure-turn-terminal", startTime: stamp, endTime: stamp,
+      metadata: { figure_outcome: "empty", figure_empty_cause: "presentation_refused",
+        figure_prior_ink_retained: true, figure_prior_ink_question: STUDENT_TEXT } }] });
+  assert.equal(response.status, 200);
+  assert.deepEqual(updates[0]!.metadata, { client_telemetry: { figure_prior_ink_retained: true } });
+  const event = (eventBatches[0]!.events as Array<Record<string, unknown>>)[0]!;
+  assert.deepEqual(event.metadata, { figure_outcome: "empty", figure_empty_cause: "presentation_refused",
+    figure_prior_ink_retained: true, client_reported: true });
+  assert.equal(JSON.stringify(eventBatches).includes(STUDENT_TEXT), false);
 });
 
 test("runtime-only figure diagnostics survive live doubt, Stop and Continue without marking new ink", () => {
   const pageHelpers = load(resolve(root, "features/tutor-session/lib/turn/doubtTurn.ts")) as typeof import("../../features/tutor-session/lib/turn/doubtTurn");
-  const diagnostics = { figureSource: "planner" as const, representationTier: "exact_verified" as const, primitiveCount: 7 };
+  const diagnostics = { figureSource: "planner" as const, representationTier: "exact_verified" as const,
+    primitiveCount: 7, priorInkRetained: true };
   const page = pageHelpers.doubtPageRecord({ boardId: "synthetic-board", lessonQuestion: "synthetic question",
     title: "synthetic doubt", continuesBoard: true, figureDrawn: true, turnPlan: null,
     solverProjection: null, figureSubject: "maths", figureDiagnostics: diagnostics });
@@ -249,6 +308,8 @@ test("runtime-only figure diagnostics survive live doubt, Stop and Continue with
   const historic = pageHelpers.resumePageRecord({ boardId: "synthetic-board", lessonQuestion: "synthetic question",
     figureDrawn: true, turnPlan: null, solverProjection: null, scene: null });
   assert.equal(historic.figureSubject, null);
+  assert.equal(historic.figureDiagnostics?.priorInkRetained, undefined,
+    "a historical figure flag alone cannot invent a live retained-ink observer");
 });
 
 test("retained Stop beats are partial, never a completed figure intro", () => {
