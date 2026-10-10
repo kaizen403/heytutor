@@ -959,6 +959,70 @@ function claimPlan(claim: Claim, quantities: Quantity[] = [criticalAngle]) {
   check("a cos 37 = 0.8 the question states keeps F cos θ = 24",
     reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations.length === 0,
     reconcileTurnPlanV3ExplicitArithmetic(stipulatedQuestion).reconciliations);
+  // A model's extracted given cannot replace the question's prescribed
+  // value, whether it arrives as source text or as a named trig quantity.
+  for (const [name, conflictingGiven] of [
+    ["given source text", given("cosT", 0.6, undefined, { sourceText: "cos 37° = 0.6" })],
+    ["given trig symbol", given("cosT", 0.6, undefined, { symbol: "cos37°" })],
+  ] as const) {
+    const question = "A 30 N pull acts at 37°. Take cos 37° = 0.8. Find its horizontal component.";
+    const wrong = {
+      ...plan([...pull, conflictingGiven], [derived("F_x", 18, "N", "F_x = 30 cos 37° = 18")]),
+      question,
+    };
+    const wrongCodes = validateTurnPlanV3(wrong, question).issues.map((issue) => issue.code);
+    check(`${name} cannot override the question: wrong result is rejected`,
+      wrongCodes.includes("source_text_arithmetic_invalid") || wrongCodes.includes("source_text_value_mismatch"),
+      wrongCodes);
+    check(`${name} cannot override the question: wrong result reconciles to 24`,
+      close(reconciled(wrong, "F_x").value, 24), reconciled(wrong, "F_x"));
+    const correct = {
+      ...plan([...pull, conflictingGiven], [derived("F_x", 24, "N", "F_x = 30 cos 37° = 24")]),
+      question,
+    };
+    check(`${name} cannot override the question: prescribed result stays valid`,
+      reconciliationsOf(correct).length === 0 && validateTurnPlanV3(correct, question).valid,
+      reconcileTurnPlanV3ExplicitArithmetic(correct));
+  }
+  // A prescribed value fixes its angle even when working omits the degree
+  // mark. The degree guard must not discard that independent evidence.
+  for (const [name, angle, prescription, expected] of [
+    ["cos", 37, "0.8", 24],
+    ["sin", 37, "0.6", 18],
+    ["tan", 45, "1", 30],
+    ["cos", 143, "-0.8", -24],
+  ] as const) {
+    for (const angleGiven of [true, false]) {
+      const question = `A 30 N force acts at ${angle}°. Take ${name} ${angle} = ${prescription}.`;
+      const givens = [given("F", 30, "N"), ...(angleGiven ? [given("theta", angle, "deg")] : [])];
+      const wrongValue = expected === 18 ? 12 : 18;
+      const wrong = {
+        ...plan(givens, [derived("component", wrongValue, "N", `component = 30 ${name} ${angle} = ${wrongValue}`)]),
+        question,
+      };
+      const wrongCodes = validateTurnPlanV3(wrong, question).issues.map((issue) => issue.code);
+      const label = `prescribed bare ${name} ${angle}${angleGiven ? " with a degree given" : " from the question alone"}`;
+      check(`${label}: wrong result is rejected`,
+        wrongCodes.includes("source_text_arithmetic_invalid") || wrongCodes.includes("source_text_value_mismatch"),
+        wrongCodes);
+      check(`${label}: wrong result reconciles to the prescription`,
+        close(reconciled(wrong, "component").value, expected), reconciled(wrong, "component"));
+      const correct = {
+        ...plan(givens, [derived("component", expected, "N", `component = 30 ${name} ${angle} = ${expected}`)]),
+        question,
+      };
+      check(`${label}: correct result stays valid`,
+        reconciliationsOf(correct).length === 0 && validateTurnPlanV3(correct, question).valid,
+        reconcileTurnPlanV3ExplicitArithmetic(correct));
+    }
+  }
+  const explicitRadiansQuestion = "Take cos 37° = 0.8, then evaluate cos(37 rad).";
+  const explicitRadians = {
+    ...plan([given("theta", 37, "deg")], [derived("c", 0.8, undefined, "c = cos(37 rad) = 0.8")]),
+    question: explicitRadiansQuestion,
+  };
+  check("a degree prescription does not replace an explicit radian argument",
+    close(reconciled(explicitRadians, "c").value, Math.cos(37)), reconciled(explicitRadians, "c"));
   // An equality the student is asked about is not an assumption: 20 sin 30° = 12 stays wrong.
   const askedQuestion = "Is sin 30° = 0.6? Find 20 sin 30°.";
   const askedEquality = {

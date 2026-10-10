@@ -662,9 +662,11 @@ function evaluateExplicitArithmetic(
         tolerance: displayedNumberTolerance(String(options.declaredValue)),
       }
     : null;
-  const readableSource = chainWorksInDegrees(sourceText, expectedUnit, numericBindings)
-    ? guardBareDegreeLikeTrigArguments(sourceText)
-    : sourceText;
+  const readableSource = guardBareDegreeLikeTrigArguments(
+    sourceText,
+    trigStipulations(numericBindings),
+    chainWorksInDegrees(sourceText, expectedUnit, numericBindings),
+  );
   let invalid = false;
   let signConflict = false;
   let mixedUnits = false;
@@ -1639,7 +1641,6 @@ function collectTrigStipulations(plan: Record<string, unknown>): Map<string, num
   const stipulations = new Map<string, number>();
   // [text, whether a stated equality needs prescriptive wording to count]
   const texts: Array<[string, boolean]> = [];
-  if (typeof plan.question === "string") texts.push([plan.question, true]);
   for (const given of Array.isArray(plan.givens) ? plan.givens : []) {
     if (!isRecord(given)) continue;
     if (typeof given.sourceText === "string") texts.push([given.sourceText, false]);
@@ -1652,6 +1653,9 @@ function collectTrigStipulations(plan: Record<string, unknown>): Map<string, num
       if (match) stipulations.set(`${match[1]!.toLowerCase()}:${Number(match[2])}`, given.value);
     }
   }
+  // Extracted givens may be stale or wrong. Read the original question last
+  // so its prescriptions remain authoritative over every model extraction.
+  if (typeof plan.question === "string") texts.push([plan.question, true]);
   for (const [text, needsPrescription] of texts) {
     for (const match of text.matchAll(
       /(?<![A-Za-z])(sin|cos|tan)\s*\(?\s*(\d+(?:\.\d+)?)\s*(?:°|deg(?:rees?)?)?\s*\)?\s*(?:=|≈)\s*([+\-−]?\s*\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/gi,
@@ -1780,10 +1784,15 @@ function mapTrigArguments(
 /**
  * A trig argument that is a bare number above 2π ("sin(60)") in a chain that
  * works in degrees is almost certainly degrees written without the mark.
- * Reading it in radians would be a guess, so that member is made unreadable
- * and is no evidence; the chain's other members still are.
+ * A prescription for that precise angle is independent evidence and applies
+ * before the guard. Otherwise reading it in radians would be a guess, so
+ * that member is made unreadable; the chain's other members still count.
  */
-function guardBareDegreeLikeTrigArguments(sourceText: string): string {
+function guardBareDegreeLikeTrigArguments(
+  sourceText: string,
+  stipulations: ReadonlyMap<string, number>,
+  worksInDegrees: boolean,
+): string {
   return mapTrigArguments(sourceText, (name, argument, original) => {
     if (/[A-Za-zΑ-Ωα-ωπ°]/u.test(argument) || !/\d/.test(argument)) return original;
     try {
@@ -1791,7 +1800,11 @@ function guardBareDegreeLikeTrigArguments(sourceText: string): string {
         argument.replace(/[−–]/g, "-").replace(/[×·⋅]/g, "*").replace(/\s+/g, ""),
         0,
       );
-      if (Number.isFinite(value) && Math.abs(value) > 2 * Math.PI) return `${name}(${argument} ?)`;
+      if (Number.isFinite(value)) {
+        const stipulated = stipulatedTrigValue(stipulations, name, `(${value})*pi/180`);
+        if (stipulated !== null) return `(${stipulated})`;
+        if (worksInDegrees && Math.abs(value) > 2 * Math.PI) return `${name}(${argument} ?)`;
+      }
     } catch {
       // Not a plain number; nothing to judge.
     }
