@@ -74,6 +74,11 @@ export interface ScenePlannerCandidateDiagnostics {
   rejectedCalls: Array<{ constructionId: string | null; operator: string; rawArguments: string; truncated: boolean }>;
 }
 
+function isTextOnlyCandidate(document: SceneDocumentCandidate): boolean {
+  const decision = isPlainObject(document.visualDecision) ? document.visualDecision : null;
+  return decision?.mode === "text_only" || document.visualDecision === "text_only";
+}
+
 /** Private evaluation evidence. Preserve rejected inputs without unbounded records. */
 export function scenePlannerCandidateDiagnostics(
   document: SceneDocumentCandidate,
@@ -448,7 +453,9 @@ export async function planSceneDocumentWithRepair<T>(
       fatal_count: candidateValidation.errors.filter((error) => error.severity === "fatal").length,
     });
     evaluated.push({ response: candidate, validation: candidateValidation, seededRepair: false });
-    if (candidateValidation.valid && firstValidAt === null) firstValidAt = Date.now();
+    // A valid text_only answer is a decline, not a figure: it must not open the
+    // grace window that cancels a sibling lane still able to draw the scene.
+    if (candidateValidation.valid && firstValidAt === null && !isTextOnlyCandidate(candidate.document)) firstValidAt = Date.now();
   };
 
   // Every initial plan settled without a parseable candidate: one serial plan
