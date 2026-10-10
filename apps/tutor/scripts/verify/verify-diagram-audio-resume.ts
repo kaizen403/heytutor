@@ -60,7 +60,13 @@ const intro = intros[0]!;
 const introCommandCount = intros.reduce((total, beat) => total + beat.commands!.length, 0);
 // The body centre is a hidden force anchor. P uses a nearby label without a
 // callout and waits until named; the mass label and all force ink remain.
-assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 8]);
+// The component's stroke-local label now uses a verified construction leader.
+assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 9]);
+assert(!intros.some((beat) => beat.commands!.some((command) => command.type === "LABEL" && command.text === "P")),
+  "the hidden body-centre label still waits until named");
+assert(intros[2]!.commands!.some((command) => command.type === "DRAW_LINE" &&
+  command.semanticRef?.entityId === "weight_along" && command.visualStyle?.labelLeader),
+  "the component leader must join its verified force label in the same beat");
 const lesson: TutorSegment = { narration: "The net force equals mass times acceleration.", command: {
   type: "WRITE", text: "F = ma", params: [80, 150], charPosition: 0, narrationBefore: "The net force equals mass times acceleration.",
 } };

@@ -15,7 +15,7 @@
  * archetype probes and the typed maths corpus this gate asserts:
  *
  *   - the fast measure reproduces, bit for bit, a golden fixture written by
- *     the measure as it stood on origin/main (every glyph, scripts, unknown
+ *     the accepted printed stroke reference (origin/main plus the intentional ∥ glyph change; every glyph, scripts, unknown
  *     glyphs, -0, half steps, huge and non-finite values), so a change to a
  *     helper both routes share cannot move them together unnoticed;
  *   - an uncached compile, a first cached compile and an immediate recompile
@@ -257,7 +257,7 @@ for (const record of golden.records) {
     }
   }
 }
-assert.equal(goldenMismatches, 0, "the ink measure moved off the origin/main golden fixture");
+assert.equal(goldenMismatches, 0, "the ink measure moved off the accepted printed-reference golden fixture");
 
 // 3. The cache cannot carry anything between compiles but exact answers.
 {

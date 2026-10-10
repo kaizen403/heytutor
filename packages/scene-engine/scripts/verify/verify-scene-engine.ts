@@ -949,6 +949,10 @@ if (!positionedLabelCompiled.renderScene.primitives.some((primitive) =>
   throw new Error("positioned label did not produce deterministic label ink");
 }
 const threeDimensionalVectorCandidate = structuredClone(positionedLabelCandidate) as Record<string, any>;
+// This candidate requests native vector ink; the literal label path is tested above.
+const pageNormalEntity = threeDimensionalVectorCandidate.entities.find((entity: Record<string, unknown>) => entity.id === "field_mark");
+pageNormalEntity.kind = "vector";
+delete pageNormalEntity.label;
 threeDimensionalVectorCandidate.constructions = threeDimensionalVectorCandidate.constructions.filter(
   (construction: Record<string, unknown>) =>
     construction.id !== "make_field_anchor" && construction.id !== "make_field_mark",
@@ -1001,12 +1005,14 @@ const currentConstruction = threeDimensionalVectorValidated.document?.constructi
 );
 if (
   !threeDimensionalVectorCompiled?.ok ||
-  fieldConstruction?.operator !== "label" ||
-  fieldConstruction.inputs.text !== "×" ||
+  fieldConstruction?.operator !== "vector" ||
+  JSON.stringify(fieldConstruction.inputs.direction) !== "[0,0,-1]" ||
   currentConstruction?.operator !== "vector" ||
   !Array.isArray(currentConstruction.inputs.direction) ||
   currentConstruction.inputs.direction.length !== 2 ||
-  !threeDimensionalVectorCompiled.renderScene?.primitives.some((primitive) =>
+  threeDimensionalVectorCompiled.renderScene?.primitives.filter((primitive) =>
+    primitive.entityId === "field_mark" && primitive.kind !== "label").length !== 3 ||
+  threeDimensionalVectorCompiled.renderScene?.primitives.some((primitive) =>
     primitive.entityId === "field_mark" && primitive.kind === "label" && primitive.text === "×") ||
   !threeDimensionalVectorCompiled.renderScene.primitives.some((primitive) =>
     primitive.entityId === "current_direction" && primitive.kind === "vector")
