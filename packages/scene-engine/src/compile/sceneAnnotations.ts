@@ -96,7 +96,7 @@ export function appendCompiledAnnotations(
       ? [...new Set(targets.map((target) => target.entityId))].map((id) => targets.filter((target) => target.entityId === id))
       : [targets];
     const extra = targetSets.flatMap((targetSet) => {
-      const marks = geometryFor(annotation, targetSet, slopeAnchors.get(annotation.id));
+      const marks = geometryFor(annotation, targetSet, document, slopeAnchors.get(annotation.id));
       // One arc is the existing verified arc, so count=1 needs no extra ink.
       const existingArc = annotation.kind === "equal_arc" && (annotation.style?.count ?? 1) === 1 && targetSet.some((target) => target.kind === "arc");
       if (marks.length === 0 && !existingArc) {
@@ -144,7 +144,7 @@ function groupFor(annotation: SceneAnnotation, entityToGroup: Map<string, string
   return undefined;
 }
 
-function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], slopeAnchors?: readonly [RenderPoint, RenderPoint]): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
+function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], document: SceneDocument, slopeAnchors?: readonly [RenderPoint, RenderPoint]): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
   const count = congruenceCount(annotation.style?.count ?? 1);
   const ink = targets;
   const points = ink.flatMap((primitive) => primitive.points);
@@ -359,6 +359,24 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], sl
       }));
     }
     case "polarity": {
+      const owner = document.constructions.find((construction) => construction.outputs.includes(annotation.targetIds[0]!));
+      const sourceIndex = owner?.operator === "kirchhoff_network"
+        && Array.isArray(owner.inputs.nodes) && Array.isArray(owner.inputs.branches)
+        ? owner.outputs.indexOf(annotation.targetIds[0]!) - owner.inputs.nodes.length : -1;
+      const branch = sourceIndex >= 0 && Array.isArray(owner?.inputs.branches) ? owner.inputs.branches[sourceIndex] : undefined;
+      const physicalSource = owner?.operator === "symbol" && ["battery", "cell"].includes(String(owner.inputs.symbol).toLowerCase())
+        || typeof branch === "object" && branch !== null && "kind" in branch && branch.kind === "source";
+      if (physicalSource) {
+        const strokes = ink.filter((primitive) => primitive.kind !== "label");
+        const plates = [strokes[1], strokes[2]];
+        if (plates.some((plate) => plate?.points.length !== 2)) return [];
+        const length = (plate: RenderPrimitive): number => Math.hypot(plate.points[1]!.x - plate.points[0]!.x, plate.points[1]!.y - plate.points[0]!.y);
+        const firstPositive = length(plates[0]!) > length(plates[1]!);
+        return plates.map((plate, index) => ({ kind: "label" as const,
+          points: [{ x: (plate!.points[0]!.x + plate!.points[1]!.x) / 2, y: (plate!.points[0]!.y + plate!.points[1]!.y) / 2 }],
+          text: (index === 0) === firstPositive ? "+" : "−", labelPlacement: "automatic",
+          provenance: { annotation: "polarity" } }));
+      }
       const path = lineEnds(ink);
       const start = path?.start ?? points[0];
       const end = path?.end ?? points.at(-1);

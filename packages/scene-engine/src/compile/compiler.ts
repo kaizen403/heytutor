@@ -90,7 +90,7 @@ import { evaluateWavesConstruction, type WaveDefinition, type WaveSampleDefiniti
 import { evaluateGeometricOpticsConstruction, type OpticalImageDefinition, type OpticalFocusDefinition } from "./geometricOpticsGeometry";
 import { evaluateThermodynamicsConstruction, type ThermodynamicProcessDefinition, type ThermodynamicStateDefinition } from "./thermodynamicsGeometry";
 import { evaluateFieldConstruction, type ElectricFieldDefinition } from "./fieldGeometry";
-import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleGeometry } from "./dipoleFieldGeometry";
+import { evaluateDipoleFieldConstruction, pageNormalGlyph, type DipoleFieldMetadata, type DipoleGeometry } from "./dipoleFieldGeometry";
 import { evaluateAnalyticLineConstruction, type AnalyticLineGeometry, type AnalyticLineRecord } from "./analyticLineGeometry";
 import { evaluateRigidMassConstruction, type RigidMassGeometry, type RigidMassRecord } from "./rigidMassGeometry";
 import { evaluateMatrixArrayConstruction, matrixArrayPrimitives, type MatrixArrayGeometry } from "./matrixArrayGeometry";
@@ -129,6 +129,7 @@ type SampledCurve = {
 };
 type DerivedGeometryMetadata = {
   rectangleAxes?: { width: [Point, Point]; height: [Point, Point]; axis?: "width" | "height" };
+  pageNormalVector?: { pageNormal: "out" | "in"; direction: readonly [0, 0, 1 | -1]; displayLength: number };
   combinatoricsGraph?: CombinatoricsGraphDefinition;
   combinatoricsNode?: CombinatoricsNodeDefinition;
   combinatoricsEdge?: CombinatoricsEdgeDefinition;
@@ -1390,7 +1391,7 @@ function evaluateConstruction(
     case "collision":
     case "loop_torque":
     case "galvanometer":
-    case "bar_magnet": return evaluateChapterRemainderConstruction(operator, inputs, constructionContext);
+    case "bar_magnet": return evaluateChapterRemainderConstruction(operator, inputs, constructionContext, document);
     case "metre_bridge":
     case "potentiometer":
     case "incline_friction":
@@ -1510,6 +1511,13 @@ function evaluateConstruction(
     case "ray": return [{ kind: "path", points: linePoints(inputs, geometry), directed: true, infinite: true }];
     case "vector": {
       const start = point(["start", "from", "a", "origin"]);
+      if (Array.isArray(inputs.direction) && inputs.direction.length === 3) {
+        const [x, y, z] = inputs.direction;
+        if (x !== 0 || y !== 0 || (z !== 1 && z !== -1)) throw new Error("A 3D arrow requires space_vector; only pure unit page normals use vector");
+        const displayLength = inputs.length === undefined ? 0.25 : positive(resolveNumber(inputs.length, quantities), "page-normal diameter");
+        return [{ kind: "multi_path", paths: pageNormalGlyph(start, displayLength, z).map((path) => path.points),
+          pageNormalVector: { pageNormal: z > 0 ? "out" : "in", direction: [0, 0, z], displayLength } }];
+      }
       const explicitDirection = inputs.direction === undefined
         ? null
         : resolveVector(inputs.direction, geometry);

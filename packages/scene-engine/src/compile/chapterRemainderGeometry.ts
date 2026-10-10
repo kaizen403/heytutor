@@ -1,6 +1,6 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import {
-  add2, canonicalUnit, compactNumber, hypot2, invalid, isRecord, pair, placement, rejectUnknownKeys,
+  add2, canonicalUnit, compactNumber, hypot2, invalid, isRecord, pair, pairValues, placement, rejectUnknownKeys,
   requireUnits, scale2, scalar, SourceInputError, unit2, validationNumber,
   type SourceContext,
 } from "./sourceScalars";
@@ -308,8 +308,15 @@ function readGalvanometer(inputs: Record<string, unknown>, context: SourceContex
   ];
 }
 
-function readMagnet(inputs: Record<string, unknown>, context: SourceContext): RemainderGeometry[] {
-  rejectUnknownKeys(inputs, ["moment", "origin", "displayScale"]);
+function readMagnet(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): RemainderGeometry[] {
+  rejectUnknownKeys(inputs, ["moment", "origin", "displayScale", "units"]);
+  const momentUnits = { "A m^2": "A m^2", "A*m^2": "A m^2", "A m²": "A m^2" };
+  if (inputs.units !== undefined) {
+    if (!isRecord(inputs.units)) invalid("units", "bar magnet units must declare moment in A m^2");
+    rejectUnknownKeys(inputs.units, ["moment"], "units");
+    if (canonicalUnit(inputs.units.moment, momentUnits) !== "A m^2") invalid("units", "bar magnet moment must use A m^2");
+  }
+  for (const component of pairValues(inputs.moment, "moment")) requireUnits(component, "A m^2", momentUnits, document);
   const moment = pair(inputs.moment, "moment", context);
   if (hypot2(moment) === 0) invalid("moment", "a bar magnet requires a nonzero moment");
   const origin = placement(inputs.origin, "origin", context);
@@ -353,7 +360,7 @@ export function evaluateChapterRemainderConstruction(operator: string, inputs: R
   if (operator === "collision") return readCollision(inputs, context);
   if (operator === "loop_torque") return readTorque(inputs, context);
   if (operator === "galvanometer") return readGalvanometer(inputs, context);
-  return readMagnet(inputs, context);
+  return readMagnet(inputs, context, document);
 }
 
 export function chapterRemainderOutputLabels(operator: string, outputs: readonly unknown[], requested?: readonly unknown[]): string[] {

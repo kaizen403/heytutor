@@ -120,7 +120,7 @@ function currentOf(branch: BranchInput, { voltage, idealCurrent }: NetworkSoluti
   return value === 0 ? 0 : value;
 }
 
-function glyph(kind: BranchInput["kind"], start: RenderPoint, end: RenderPoint, lane: number): RenderPoint[][] {
+function glyph(kind: BranchInput["kind"], start: RenderPoint, end: RenderPoint, lane: number, emf: number): RenderPoint[][] {
   const span = hypot2({ x: end.x - start.x, y: end.y - start.y });
   if (!(span > 1e-6)) invalid("branches", "branch terminals must be distinct");
   const direction = unit2({ x: end.x - start.x, y: end.y - start.y }, "branch");
@@ -130,7 +130,13 @@ function glyph(kind: BranchInput["kind"], start: RenderPoint, end: RenderPoint, 
     y: start.y + direction.y * span * along + normal.y * (span * across + lane),
   });
   if (kind === "wire") return [[at(0), at(1)]];
-  if (kind === "source") return [[at(0), at(0.42)], [at(0.42, -0.16), at(0.42, 0.16)], [at(0.58, -0.08), at(0.58, 0.08)], [at(0.58), at(1)]];
+  if (kind === "source") {
+    // The solver defines V_to - V_from = emf at zero current. The long
+    // positive plate therefore belongs to `to` for a positive emf.
+    const first = emf > 0 ? 0.08 : 0.16;
+    const second = emf > 0 ? 0.16 : 0.08;
+    return [[at(0), at(0.42)], [at(0.42, -first), at(0.42, first)], [at(0.58, -second), at(0.58, second)], [at(0.58), at(1)]];
+  }
   return [[at(0), at(0.18), at(0.28, 0.12), at(0.4, -0.12), at(0.52, 0.12), at(0.64, -0.12), at(0.76, 0.12), at(0.82), at(1)]];
 }
 
@@ -183,7 +189,7 @@ function readNetwork(inputs: Record<string, unknown>, context: SourceContext, do
     const end = byId.get(branch.to)!.at;
     const current = currentOf(branch, solution);
     const definition: NetworkBranchDefinition = { ...branch, current, unit: "A", displayScale: currentScale, zero: current === 0 };
-    return { kind: "compound" as const, paths: glyph(branch.kind, start, end, lane), terminals: [start, end] as [RenderPoint, RenderPoint], networkBranch: definition };
+    return { kind: "compound" as const, paths: glyph(branch.kind, start, end, lane, branch.emf), terminals: [start, end] as [RenderPoint, RenderPoint], networkBranch: definition };
   });
   const currents = glyphs.map((branch) => {
     const definition = branch.networkBranch;
