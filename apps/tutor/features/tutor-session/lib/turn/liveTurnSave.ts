@@ -1267,7 +1267,8 @@ export class LiveTurnSaveRegistry {
     for (const local of this.turns) {
       if (local.boardId !== boardId || local.abandoned || local.ackedStatus !== null || local.historyBeforeId) continue;
       // An earlier unsaved local turn precedes history first observed by a later claim.
-      local.historyBeforeId = ids.find((id) => id !== local.turnId && !local.observedHistoryIds.has(id));
+      local.historyBeforeId = ids.find((id) => id !== local.turnId && !local.observedHistoryIds.has(id) &&
+        !this.turns.some((held) => held.boardId === boardId && held.turnId === id && held.order < local.order));
     }
     this.observedBoards.set(boardId, ids);
   }
@@ -1293,10 +1294,19 @@ export class LiveTurnSaveRegistry {
     }
   }
 
-  private orderingAnchors(turn: LiveTurn): { orderBeforeTurnId?: string; orderAfterTurnId?: string } {
-    const known = this.turns.filter((held) => held !== turn && held.boardId === turn.boardId && held.ackedSeq > 0 && !held.abandoned);
+  private orderingAnchors(turn: LiveTurn, includeLocal = false): { orderBeforeTurnId?: string; orderAfterTurnId?: string } {
+    const known = this.turns.filter((held) => held !== turn && held.boardId === turn.boardId && !held.abandoned &&
+      (held.ackedSeq > 0 || (includeLocal && !this.notWorthCreating(held, this.previewRows(held, { includeCut: true })))));
+    const previous = known.filter((held) => held.order < turn.order).at(-1);
+    const historyAfter = turn.historyAfterId;
+    const historyLocal = this.turns.find((held) => held.boardId === turn.boardId && held.turnId === historyAfter);
+    // A predecessor acknowledged after this turn began can be newer than its
+    // opening GET. Keep a later external history anchor when that predecessor
+    // began before it (for example, failed A, other-tab X, then B).
+    const localAfterHistory = previous && (!historyAfter || previous.observedHistoryIds.has(historyAfter) ||
+      (historyLocal && historyLocal.order < previous.order));
     return {
-      orderAfterTurnId: turn.historyAfterId ?? known.filter((held) => held.order < turn.order).at(-1)?.turnId,
+      orderAfterTurnId: localAfterHistory ? previous.turnId : historyAfter ?? previous?.turnId,
       orderBeforeTurnId: turn.historyBeforeId ?? known.find((held) => held.order > turn.order)?.turnId,
     };
   }
@@ -1306,7 +1316,7 @@ export class LiveTurnSaveRegistry {
     const rows = this.previewRows(turn, { includeCut: true });
     return {
       source: "local",
-      ...this.orderingAnchors(turn),
+      ...this.orderingAnchors(turn, true),
       boardId: turn.boardId,
       turnId: turn.turnId,
       preview: turn.preview,
@@ -1335,7 +1345,7 @@ export class LiveTurnSaveRegistry {
     try {
       hooks.mirror({
         source: "server",
-        ...this.orderingAnchors(turn),
+        ...this.orderingAnchors(turn, true),
         boardId: turn.boardId,
         turnId: turn.turnId,
         preview: turn.preview,
