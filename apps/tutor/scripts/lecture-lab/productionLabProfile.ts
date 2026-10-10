@@ -17,8 +17,12 @@ export function labStrategyDecision(arm: DiagramEvalArm, context: DiagramStrateg
 export async function pickProductionLabExamples(examples: readonly DiagramExemplar[], input: {
   origin: string; question: string; plan: TurnPlanV3; traceId?: string; fetchImpl?: typeof fetch;
 }): Promise<DiagramExamplePickerResult> {
+  // The live client can resolve an absolute public API origin. Lab requests
+  // must use its configured server so auth, provider checks and cap accounting
+  // all cross run.ts's same-origin /api/chat boundary.
+  const labChatUrl = new URL('/api/chat', input.origin);
   const picked = await pickLiveDiagramExampleIds({ ...input,
-    fetchImpl: (url, init) => (input.fetchImpl ?? fetch)(new URL(String(url), input.origin), init) });
+    fetchImpl: (_requestUrl, init) => (input.fetchImpl ?? fetch)(labChatUrl, init) });
   const admitted = picked.ids.flatMap(id => examples.filter(example => example.id === id)).slice(0, 3);
   return { examples: admitted, record: { method: 'model', status: picked.status, model: resolveCheapFireworksModel(),
     elapsedMs: picked.elapsedMs, catalogueEntries: examples.length, catalogueEstimatedTokens: 0,

@@ -207,8 +207,10 @@ This uses the existing turn planner's actual subject consensus, the live subject
 policy and the live four-second `/api/chat` picker without word fallback. Rows
 classified as unknown or non-maths stay current, recorded in
 `productionStrategy`; corpus subject labels never override that decision.
-Picked IDs must also survive the lab's full-sample exemplar exclusions. Picker
-proxy usage is included in planner accounting, not charged again in its picker
+Picked IDs must also survive the lab's full-sample exemplar exclusions. The
+picker is pinned to the configured lab origin's `/api/chat`, even if a public
+API origin is set, so it cannot bypass authentication or hard-cap accounting.
+Picker proxy usage is included in planner accounting, not charged again in its picker
 record. Resume identity binds this profile; omitting the flag preserves the
 existing evaluation behaviour. This option does not set any live environment
 flag. With Jev disabled, use identity-checked unavailable replay evidence on
