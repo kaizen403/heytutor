@@ -154,6 +154,7 @@ AUTHORITY
 - Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions beyond one symbolic representative. Display lengths never establish physical values.
 - Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. A named class with no stated member (curve,conic,lines,planes,vectors,region) gets one generic nondegenerate member showing each named feature; its normalized world/space literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
 - Plan claims requesting data never block that figure. Invariants/examples are advice; source wins. Symbolic scenes must be complete.
+- Preserve every requested state, member and view:one representative per requested state. Narration cannot replace required geometry.
 - All arrays present, even empty. Unique IDs; one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
 - Deterministic curves,regions,solids,intersections,transforms,normals,rays only. Function regions:function_curve + function_region. Never guess.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
