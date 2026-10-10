@@ -32,6 +32,7 @@ function lectureRun(rawText: string): LectureRun {
     plan: null,
     solver: null,
     diagram: {
+      plannerDeclineReason: null, plannerDeclines: [], rejectedOperatorCalls: [],
       committed: true,
       declinedUnreadable: false,
       tier: "qualitative_verified",

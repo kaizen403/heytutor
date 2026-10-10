@@ -1,4 +1,11 @@
-import { isAutumnEnabled, isLectureLabRequest, isProviderMockMode, LECTURE_LAB_HEADER } from "../../lib/billing/flags";
+import {
+  isAutumnEnabled,
+  isLectureLabRequest,
+  isProviderMockMode,
+  LECTURE_LAB_HEADER,
+  LECTURE_LAB_ZERO_RETENTION_HEADER,
+  shouldSuppressLectureLabTrace,
+} from "../../lib/billing/flags";
 import {
   AutumnUnavailableError,
   requireAutumnReady,
@@ -58,6 +65,33 @@ assert(
 const labToken = new Request("http://localhost/api/chat", {
   headers: { [LECTURE_LAB_HEADER]: "lab-secret" },
 });
+const zeroRetentionLab = new Request("http://localhost/api/chat", {
+  headers: {
+    [LECTURE_LAB_HEADER]: "lab-secret",
+    [LECTURE_LAB_ZERO_RETENTION_HEADER]: "1",
+  },
+});
+assert(
+  shouldSuppressLectureLabTrace(
+    zeroRetentionLab,
+    env({ LECTURE_LAB_TOKEN: "lab-secret", NODE_ENV: "development" }),
+  ),
+  "an authenticated evaluation request suppresses retained observability",
+);
+assert(
+  !shouldSuppressLectureLabTrace(
+    zeroRetentionLab,
+    env({ LECTURE_LAB_TOKEN: "wrong", NODE_ENV: "development" }),
+  ),
+  "an unauthenticated request cannot suppress tracing",
+);
+assert(
+  !shouldSuppressLectureLabTrace(
+    labToken,
+    env({ LECTURE_LAB_TOKEN: "lab-secret", NODE_ENV: "development" }),
+  ),
+  "ordinary lecture-lab requests retain their existing tracing behavior",
+);
 assert(
   isLectureLabRequest(labToken, env({ LECTURE_LAB_TOKEN: "lab-secret", NODE_ENV: "production" })),
   "a matching LECTURE_LAB_TOKEN opens the lab gate even in production",

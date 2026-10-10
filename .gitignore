@@ -72,6 +72,10 @@ temp/
 # Lecture lab run artifacts (transcripts + graded runs)
 .lecture-lab/
 
+# Private student reference anchors and their figures
+data/diagram-eval/v1/anchors.jsonl
+data/diagram-eval/v1/anchor-images/
+
 # Local Playwright accessibility dumps
 .playwright-mcp/
 .speech-probe/

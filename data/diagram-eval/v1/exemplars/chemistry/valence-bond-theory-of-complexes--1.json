@@ -1,0 +1,731 @@
+{
+  "topic_id": "chemistry|12|valence-bond-theory-of-complexes",
+  "question": "What is the structure of [Ni(CN)4]2-?",
+  "figure_kind": "molecule",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "structure of [Ni(CN)4]2-"
+    },
+    "source": {
+      "question": "What is the structure of [Ni(CN)4]2-?",
+      "synthesizedFamily": true,
+      "archetype": "chem_coordination",
+      "chemistryFamily": "chem_coordination"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "f0_M",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "Ni",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_s0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "CN",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b0",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_s1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "CN",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b1",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_s2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "CN",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b2",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_s3",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "CN",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_b3",
+        "kind": "segment",
+        "role": "metal ligand bond"
+      },
+      {
+        "id": "f0_sq0",
+        "kind": "segment",
+        "role": "square planar outline",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "f0_sq1",
+        "kind": "segment",
+        "role": "square planar outline",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "f0_sq2",
+        "kind": "segment",
+        "role": "square planar outline",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "f0_sq3",
+        "kind": "segment",
+        "role": "square planar outline",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "f0_q",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "2-",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "f0_M_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s0_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b0_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b0_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b1_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b1_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b2_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b2_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_s3_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b3_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_b3_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq0_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq0_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq1_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq1_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq2_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq2_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq3_a",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_sq3_b",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "f0_q_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_f0_M_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_M_p"
+        ]
+      },
+      {
+        "id": "make_f0_M",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_M_p",
+          "text": "Ni"
+        },
+        "outputs": [
+          "f0_M"
+        ]
+      },
+      {
+        "id": "make_f0_s0_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.22,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s0_p"
+        ]
+      },
+      {
+        "id": "make_f0_s0",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s0_p",
+          "text": "CN"
+        },
+        "outputs": [
+          "f0_s0"
+        ]
+      },
+      {
+        "id": "make_f0_b0_s",
+        "operator": "point",
+        "inputs": {
+          "x": 0.24,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b0_s"
+        ]
+      },
+      {
+        "id": "make_f0_b0_e",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b0_e"
+        ]
+      },
+      {
+        "id": "make_f0_b0",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b0_s",
+          "end": "f0_b0_e"
+        },
+        "outputs": [
+          "f0_b0"
+        ]
+      },
+      {
+        "id": "make_f0_s1_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1.16,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s1_p"
+        ]
+      },
+      {
+        "id": "make_f0_s1",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s1_p",
+          "text": "CN"
+        },
+        "outputs": [
+          "f0_s1"
+        ]
+      },
+      {
+        "id": "make_f0_b1_s",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.24,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b1_s"
+        ]
+      },
+      {
+        "id": "make_f0_b1_e",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b1_e"
+        ]
+      },
+      {
+        "id": "make_f0_b1",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b1_s",
+          "end": "f0_b1_e"
+        },
+        "outputs": [
+          "f0_b1"
+        ]
+      },
+      {
+        "id": "make_f0_s2_p",
+        "operator": "point",
+        "inputs": {
+          "x": -1.22,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s2_p"
+        ]
+      },
+      {
+        "id": "make_f0_s2",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s2_p",
+          "text": "CN"
+        },
+        "outputs": [
+          "f0_s2"
+        ]
+      },
+      {
+        "id": "make_f0_b2_s",
+        "operator": "point",
+        "inputs": {
+          "x": -0.24,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b2_s"
+        ]
+      },
+      {
+        "id": "make_f0_b2_e",
+        "operator": "point",
+        "inputs": {
+          "x": -1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b2_e"
+        ]
+      },
+      {
+        "id": "make_f0_b2",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b2_s",
+          "end": "f0_b2_e"
+        },
+        "outputs": [
+          "f0_b2"
+        ]
+      },
+      {
+        "id": "make_f0_s3_p",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1.16,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_s3_p"
+        ]
+      },
+      {
+        "id": "make_f0_s3",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_s3_p",
+          "text": "CN"
+        },
+        "outputs": [
+          "f0_s3"
+        ]
+      },
+      {
+        "id": "make_f0_b3_s",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -0.24,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b3_s"
+        ]
+      },
+      {
+        "id": "make_f0_b3_e",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_b3_e"
+        ]
+      },
+      {
+        "id": "make_f0_b3",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_b3_s",
+          "end": "f0_b3_e"
+        },
+        "outputs": [
+          "f0_b3"
+        ]
+      },
+      {
+        "id": "make_f0_sq0_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0.8586,
+          "y": 0.1414,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq0_a"
+        ]
+      },
+      {
+        "id": "make_f0_sq0_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.1414,
+          "y": 0.8586,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq0_b"
+        ]
+      },
+      {
+        "id": "make_f0_sq0",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_sq0_a",
+          "end": "f0_sq0_b"
+        },
+        "outputs": [
+          "f0_sq0"
+        ]
+      },
+      {
+        "id": "make_f0_sq1_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.1414,
+          "y": 0.8586,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq1_a"
+        ]
+      },
+      {
+        "id": "make_f0_sq1_b",
+        "operator": "point",
+        "inputs": {
+          "x": -0.8586,
+          "y": 0.1414,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq1_b"
+        ]
+      },
+      {
+        "id": "make_f0_sq1",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_sq1_a",
+          "end": "f0_sq1_b"
+        },
+        "outputs": [
+          "f0_sq1"
+        ]
+      },
+      {
+        "id": "make_f0_sq2_a",
+        "operator": "point",
+        "inputs": {
+          "x": -0.8586,
+          "y": -0.1414,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq2_a"
+        ]
+      },
+      {
+        "id": "make_f0_sq2_b",
+        "operator": "point",
+        "inputs": {
+          "x": -0.1414,
+          "y": -0.8586,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq2_b"
+        ]
+      },
+      {
+        "id": "make_f0_sq2",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_sq2_a",
+          "end": "f0_sq2_b"
+        },
+        "outputs": [
+          "f0_sq2"
+        ]
+      },
+      {
+        "id": "make_f0_sq3_a",
+        "operator": "point",
+        "inputs": {
+          "x": 0.1414,
+          "y": -0.8586,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq3_a"
+        ]
+      },
+      {
+        "id": "make_f0_sq3_b",
+        "operator": "point",
+        "inputs": {
+          "x": 0.8586,
+          "y": -0.1414,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_sq3_b"
+        ]
+      },
+      {
+        "id": "make_f0_sq3",
+        "operator": "segment",
+        "inputs": {
+          "start": "f0_sq3_a",
+          "end": "f0_sq3_b"
+        },
+        "outputs": [
+          "f0_sq3"
+        ]
+      },
+      {
+        "id": "make_f0_q_p",
+        "operator": "point",
+        "inputs": {
+          "x": 1.35,
+          "y": 1.15,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f0_q_p"
+        ]
+      },
+      {
+        "id": "make_f0_q",
+        "operator": "label",
+        "inputs": {
+          "target": "f0_q_p",
+          "text": "2-"
+        },
+        "outputs": [
+          "f0_q"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "label_f0_M",
+        "predicate": "label_attached",
+        "entities": [
+          "f0_M"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "figure_caption",
+        "kind": "callout",
+        "targetIds": [],
+        "text": "[Ni(CN)4]2-: square planar, CN = 4, Ni(II)"
+      }
+    ],
+    "requiredEntityIds": [
+      "f0_M",
+      "f0_s0",
+      "f0_b0",
+      "f0_s1",
+      "f0_b1",
+      "f0_s2",
+      "f0_b2",
+      "f0_s3",
+      "f0_b3",
+      "f0_sq0",
+      "f0_sq1",
+      "f0_sq2",
+      "f0_sq3",
+      "f0_q"
+    ],
+    "revealGroups": [
+      {
+        "id": "figure_0",
+        "entityIds": [
+          "f0_M",
+          "f0_s0",
+          "f0_b0",
+          "f0_s1",
+          "f0_b1",
+          "f0_s2",
+          "f0_b2",
+          "f0_s3",
+          "f0_b3",
+          "f0_sq0",
+          "f0_sq1",
+          "f0_sq2",
+          "f0_sq3",
+          "f0_q"
+        ],
+        "dependsOn": [],
+        "narrationCue": "[Ni(CN)4]2-: square planar around Ni"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_figure_0",
+        "action": "reveal",
+        "targetId": "figure_0",
+        "dependsOn": [],
+        "narrationIntent": "[Ni(CN)4]2-: square planar around Ni"
+      }
+    ]
+  },
+  "engineCommit": "dd7570f8a8cc5c4ceee46a307b77a30870e39dd9",
+  "validatedOn": "2026-10-09"
+}
