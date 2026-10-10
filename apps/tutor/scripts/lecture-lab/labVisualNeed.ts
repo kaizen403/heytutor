@@ -190,8 +190,17 @@ export interface VisualNeedBudgetHooks {
 export async function budgetedVisualNeedFetch(input: RequestInfo | URL, init: RequestInit | undefined,
   fetchImpl: typeof fetch, hooks: VisualNeedBudgetHooks): Promise<Response> {
   const reservedUsd = visualNeedRequestWorstCaseUsd(init);
-  const admission = hooks.reserve(reservedUsd);
-  if (!(typeof admission === "boolean" ? admission : await admission)) {
+  let admitted: boolean;
+  try {
+    const admission = hooks.reserve(reservedUsd);
+    admitted = typeof admission === "boolean" ? admission : await admission;
+  } catch (error) {
+    // A headroom wait can expire before dispatch. The live client catches this
+    // error as unavailable, so mark the row untested before that catch runs.
+    hooks.onDenied();
+    throw error;
+  }
+  if (!admitted) {
     hooks.onDenied();
     throw new Error("visual-need denied before sending: --max-usd reservation exhausted");
   }

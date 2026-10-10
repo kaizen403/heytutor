@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { fetchVisualNeedAssessment } from "../../features/tutor-session/lib/scene/visualNeedClient";
 import { budgetedVisualNeedFetch, visualNeedRequestWorstCaseUsd, summarizeVisualNeedCalls, type VisualNeedCallAccounting } from "../lecture-lab/labVisualNeed";
 import { labProviderConfig } from "../../lib/llm/labProviderConfig";
 import { resolveLlmRates } from "../../lib/obs/usageCost";
@@ -257,6 +258,41 @@ async function verifyPortRegressions(): Promise<void> {
   assert.equal(exceeded.summary(0, 0).unresolvedCalls[0]?.reason, "upstream_attempts_exceed_dispatch_ceiling");
 
   const request = { body: JSON.stringify({ question: "Synthetic question." }) };
+  for (const admission of ["waiting_deadline", "synchronous_failure"] as const) {
+    const deniedVisualCap = new LabSpendCap(0.01, "response_usage");
+    assert.equal(deniedVisualCap.reserveCall(0.009), true);
+    const beforeDenial = deniedVisualCap.summary(0, 0);
+    const deadline = new AbortController();
+    let deniedRows = 0;
+    let providerAttempts = 0;
+    let checkpoints = 0;
+    let accountingCalls = 0;
+    const assessmentPromise = fetchVisualNeedAssessment({ url: "synthetic", question: "Synthetic question.",
+      signal: deadline.signal,
+      fetchImpl: (input, init) => budgetedVisualNeedFetch(input, init, async () => {
+        providerAttempts++;
+        return Response.json({ decision: "none" });
+      }, {
+        reserve: (usd) => {
+          if (admission === "synchronous_failure") throw new Error("synthetic admission failure");
+          return deniedVisualCap.reserveCallAsync(usd, init?.signal);
+        },
+        spendMode: "response_usage",
+        beforeDispatch: () => { checkpoints++; },
+        settle: (reserved, charged, observation) => deniedVisualCap.settleCall(reserved, charged, observation),
+        onAccounting: () => { accountingCalls++; },
+        onDenied: () => { deniedRows++; },
+      }),
+    });
+    if (admission === "waiting_deadline") deadline.abort(new Error("synthetic client deadline"));
+    const assessment = await assessmentPromise;
+    assert.equal(assessment.source, "unavailable");
+    assert.equal(deniedRows, 1, `${admission}: the runner must save an untested_budget row instead of grading the unavailable result`);
+    assert.equal(providerAttempts, 0);
+    assert.equal(checkpoints, 0);
+    assert.equal(accountingCalls, 0);
+    assert.deepEqual(deniedVisualCap.summary(0, 0), beforeDenial, "a request denied before sending creates no usage or unresolved exposure");
+  }
   const visualCap = new LabSpendCap(0.01, "response_usage");
   visualCap.reserveCall(0.009);
   let sent = 0;
