@@ -164,11 +164,51 @@ try {
     assert.equal(correctedEmptyCauseForStoredRun(old), "candidates_invalid");
   });
 
+  check("a selected validated text-only result is a planner decline, not an earlier candidate failure", () => {
+    const run = fixture("validated-decline", false);
+    run.diagram = {
+      ...run.diagram,
+      plannerDeclined: true,
+      candidateCount: 2,
+      candidateErrorCodes: ["construction.invalid_inputs"],
+    };
+    assert.equal(correctedEmptyCauseForStoredRun(run), "planner_declined");
+    assert.deepEqual(run.diagram.candidateErrorCodes, ["construction.invalid_inputs"]);
+  });
+
   check("known zero-call runs remain not attempted", () => {
     assert.equal(correctedEmptyCauseForStoredRun({
       plan: { visualRequirement: "required" }, diagram: { committed: false, primitiveCount: 0, candidateErrorCodes: [] },
       timings: { planMs: 10, stages: { plannerCalls: 0, deadlineRemainingMs: 10_000 } },
     }), "not_attempted");
+  });
+
+  check("historical synthetic-only markers do not invent a decline for a dropped unlabelled scene", () => {
+    const old = fixture("historical-ambiguous-empty", false);
+    old.diagram.candidateErrorCodes = ["planner_declined_required_scene"];
+    assert.equal(correctedEmptyCauseForStoredRun(old), "planner_no_output");
+    assert.deepEqual(old.diagram.candidateErrorCodes, []);
+    assert.equal(old.diagram.plannerDeclined, false);
+    assert.equal(ruleJudgmentForNoFigure("required", old.evaluation.id).verdict, "empty_bad");
+  });
+
+  check("an invalid text-only response is not a validated planner decline", () => {
+    const run = fixture("invalid-decline", false);
+    run.diagram.plannerDeclines = [{
+      phase: "initial", lane: "operator", reason: "Cannot draw this figure.",
+      reasonBytes: 24, truncated: false,
+    }];
+    run.diagram.candidateErrorCodes = ["invalid_id"];
+    assert.equal(correctedEmptyCauseForStoredRun(run), "candidates_invalid");
+    assert.equal(run.diagram.plannerDeclined, false);
+  });
+
+  check("mixed historical decline markers preserve genuine unreadable-label failures", () => {
+    const old = fixture("mixed-decline", false);
+    old.diagram.candidateErrorCodes = ["planner_declined_required_scene", "scene_without_readable_label"];
+    assert.equal(correctedEmptyCauseForStoredRun(old), "candidates_invalid");
+    assert.deepEqual(old.diagram.candidateErrorCodes, ["scene_without_readable_label"]);
+    assert.equal(old.diagram.plannerDeclined, false);
   });
 
   check("strict suppression replaces removed-figure verdicts and refreshes judge exports", () => {

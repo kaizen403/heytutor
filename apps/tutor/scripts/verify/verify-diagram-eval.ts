@@ -781,18 +781,21 @@ const emptyInput = {
   candidateCount: 0,
   candidateErrorCodes: [] as string[],
 };
-assert.equal(classifyDiagramEmptyCause({ ...emptyInput, committed: true }), null);
-assert.equal(classifyDiagramEmptyCause({ ...emptyInput, visualRequirement: "none" }), "not_needed");
+assert.equal(classifyDiagramEmptyCause({ ...emptyInput, committed: true, plannerDeclined: true }), null);
+assert.equal(classifyDiagramEmptyCause({ ...emptyInput, visualRequirement: "none", plannerDeclined: true }), "not_needed");
 assert.equal(
   classifyDiagramEmptyCause({ ...emptyInput, visualRequirement: "optional" }),
   "not_attempted",
 );
 assert.equal(classifyDiagramEmptyCause(emptyInput), "not_attempted");
+assert.equal(classifyDiagramEmptyCause({ ...emptyInput, plannerDeclined: true }), "not_attempted",
+  "a known zero-call run must not be relabelled as a planner decline");
 assert.equal(
   classifyDiagramEmptyCause({
     ...emptyInput,
     fallbackSuppressed: true,
     deadlineRemainingMs: 0,
+    plannerDeclined: true,
   }),
   "fallback_suppressed",
   "a strict-arm suppression must remain visible even when the planner used its deadline",
@@ -812,7 +815,36 @@ assert.deepEqual(supplementCandidateErrorCodes({
   primitiveCount: 0,
   candidateCount: 1,
   candidateErrorCodes: [],
-}), ["planner_declined_required_scene"]);
+}), [], "an empty candidate must not manufacture a validator error");
+for (const visualRequirement of ["required", "optional"] as const) {
+  assert.equal(classifyDiagramEmptyCause({
+    ...emptyInput, visualRequirement, plannerCalls: 2, candidateCount: 1,
+    plannerDeclined: true,
+  }), "planner_declined", "a validated text_only document is a planner decline");
+}
+assert.equal(classifyDiagramEmptyCause({
+  ...emptyInput, plannerCalls: 2, candidateCount: 2,
+  plannerDeclined: true, candidateErrorCodes: ["invalid_id"],
+}), "planner_declined", "earlier rejected attempts must not relabel the final valid decline");
+assert.equal(classifyDiagramEmptyCause({
+  ...emptyInput, plannerCalls: 2, candidateCount: 1,
+  candidateErrorCodes: ["planner_declined_required_scene"],
+}), "planner_no_output", "historical synthetic-only markers cannot distinguish declines from dropped unlabelled scenes");
+assert.equal(classifyDiagramEmptyCause({
+  ...emptyInput, plannerCalls: 2, candidateCount: 1,
+  candidateErrorCodes: ["planner_declined_required_scene", "invalid_id"],
+}), "candidates_invalid", "a legacy marker must not hide a real failure");
+assert.equal(classifyDiagramEmptyCause({
+  ...emptyInput, plannerCalls: 2, candidateCount: 1,
+  candidateErrorCodes: ["scene_without_readable_label"],
+}), "candidates_invalid", "an unreadable-label validation failure is not a planner decline");
+assert.deepEqual(supplementCandidateErrorCodes({
+  ...emptyInput, candidateErrorCodes: ["planner_declined_required_scene", "invalid_id", "invalid_id"],
+}), ["invalid_id"]);
+assert.equal(classifyDiagramEmptyCause({
+  ...emptyInput, plannerCalls: 2, candidateCount: 1, plannerDeclined: true,
+  deadlineRemainingMs: 0,
+}), "deadline", "a censored deadline remains visible");
 assert.equal(
   classifyDiagramEmptyCause({
     ...emptyInput,

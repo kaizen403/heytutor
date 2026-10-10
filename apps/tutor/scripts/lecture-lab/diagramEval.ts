@@ -18,6 +18,7 @@ export type DiagramEmptyCause =
   | "not_needed"
   | "not_attempted"
   | "planner_no_output"
+  | "planner_declined"
   | "candidates_invalid"
   | "declined_unreadable"
   | "fallback_suppressed"
@@ -76,21 +77,27 @@ export function classifyDiagramEmptyCause(input: {
   candidateCount: number;
   candidateErrorCodes: readonly string[];
   fallbackSuppressed?: boolean;
+  /** The selected, validated planner document explicitly chose text_only. */
+  plannerDeclined?: boolean;
 }): DiagramEmptyCause | null {
   if (input.committed) return null;
   if (input.visualRequirement === "none") return "not_needed";
   if (input.fallbackSuppressed) return "fallback_suppressed";
   if (input.deadlineRemainingMs <= 1_000) return "deadline";
   if (input.plannerCalls === 0) return "not_attempted";
-  if (input.candidateCount === 0 && input.candidateErrorCodes.length === 0) {
+  const errors = input.candidateErrorCodes.filter((code) => code !== "planner_declined_required_scene");
+  if (input.plannerDeclined) return "planner_declined";
+  // The old synthetic marker also covered dropped unlabelled scenes. Without
+  // a validated outcome it proves neither a decline nor a validator failure.
+  if (input.candidateCount === 0 && errors.length === 0) {
     return "planner_no_output";
   }
-  if (input.candidateErrorCodes.length > 0) return "candidates_invalid";
+  if (errors.length > 0) return "candidates_invalid";
   if (input.declinedUnreadable && input.primitiveCount > 0) return "declined_unreadable";
   return "planner_no_output";
 }
 
-/** Adds the deterministic refusal code missing from otherwise-valid text_only candidates. */
+/** Preserve real diagnostics, removing the historical synthetic refusal-as-error marker. */
 export function supplementCandidateErrorCodes(input: {
   committed: boolean;
   visualRequirement: "required" | "optional" | "none";
@@ -98,17 +105,7 @@ export function supplementCandidateErrorCodes(input: {
   candidateCount: number;
   candidateErrorCodes: readonly string[];
 }): string[] {
-  const codes = [...new Set(input.candidateErrorCodes)];
-  if (
-    !input.committed &&
-    input.visualRequirement !== "none" &&
-    input.primitiveCount === 0 &&
-    input.candidateCount > 0 &&
-    codes.length === 0
-  ) {
-    codes.push("planner_declined_required_scene");
-  }
-  return codes;
+  return [...new Set(input.candidateErrorCodes)].filter((code) => code !== "planner_declined_required_scene");
 }
 
 function descendingCounts(values: readonly string[]): Record<string, number> {

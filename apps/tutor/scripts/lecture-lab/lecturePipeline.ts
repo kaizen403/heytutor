@@ -195,6 +195,8 @@ export interface LectureRun {
     assertionCount: number;
     candidateErrorCodes: string[];
     candidateCount?: number;
+    /** Only true for the selected, validated text_only document, not an invalid refusal. */
+    plannerDeclined?: boolean;
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
     /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
@@ -650,6 +652,7 @@ export async function runLecture(
     const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
     const value =
       !solverAuthorityBlocked && result?.validation.valid ? result.validation.value : undefined;
+    run.diagram.plannerDeclined = value?.document.visualDecision.mode === "text_only";
     run.diagram.candidateErrorCodes = Array.from(
       new Set(
         result?.candidates.flatMap((candidate) =>
@@ -790,6 +793,7 @@ export async function runLecture(
       candidateCount: result?.candidates.length ?? 0,
       candidateErrorCodes: run.diagram.candidateErrorCodes,
       fallbackSuppressed: run.diagram.suppressedFallback !== null,
+      plannerDeclined: run.diagram.plannerDeclined,
     });
 
     if (options.figureOnly) {
