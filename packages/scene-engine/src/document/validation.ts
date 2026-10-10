@@ -52,6 +52,7 @@ const MECHANICS_DIAGRAM_CONSTRUCTIONS = new Set<string>(MECHANICS_DIAGRAM_OPERAT
 import { CURRENT_FIELD_OPERATORS, validateCurrentFieldConstruction } from "../compile/currentFieldGeometry";
 import { CHAPTER_REMAINDER_OPERATORS, validateChapterRemainderConstruction } from "../compile/chapterRemainderGeometry";
 import { CHAPTER_INSTRUMENT_OPERATORS, validateChapterInstrumentConstruction } from "../compile/chapterInstrumentGeometry";
+import { validateRepresentativeValueLabels } from "../compile/representativeLabels";
 const CURRENT_FIELD_CONSTRUCTIONS = new Set<string>(CURRENT_FIELD_OPERATORS);
 const CHAPTER_REMAINDER_CONSTRUCTIONS = new Set<string>(CHAPTER_REMAINDER_OPERATORS);
 const CHAPTER_INSTRUMENT_CONSTRUCTIONS = new Set<string>(CHAPTER_INSTRUMENT_OPERATORS);
@@ -4373,6 +4374,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (THERMODYNAMICS_CONSTRUCTIONS.has(construction.operator)) validateThermodynamicsConstruction(construction, index, document, constructionByOutput, issues);
       if (DISTRIBUTED_FIELDS_CONSTRUCTIONS.has(construction.operator)) validateDistributedFieldsConstruction(construction, index, document, constructionByOutput, issues);
     }
+    validateRepresentativeValueLabels(construction, index, document, issues);
     if (construction.operator === "function_curve" && isRecord(construction.inputs)) {
       validateFunctionCurveInputs(construction.inputs, index, document, issues);
       if (!Array.isArray(construction.outputs) || construction.outputs.length !== 1) {

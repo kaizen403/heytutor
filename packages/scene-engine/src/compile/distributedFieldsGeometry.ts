@@ -37,18 +37,52 @@ export interface LineChargeFieldDefinition {
   direction: RenderPoint | null;
 }
 
-/** Spherical Gaussian surface cross-section with its enclosed-charge flux. */
-export interface GaussFluxDefinition {
-  model: "spherical";
+interface GaussFluxCommon {
   mode: "schematic" | "si";
   center: RenderPoint;
-  radius: number;
-  enclosedCharge: number;
   epsilon0: number;
   flux: number;
   fluxUnit: "normalized" | "V*m";
   fluxAt: RenderPoint;
 }
+/** Spherical Gaussian surface cross-section with its enclosed-charge flux.
+ * `enclosedCharge` keeps the source value in its declared chargeUnit. */
+export interface SphericalGaussFluxDefinition extends GaussFluxCommon {
+  model: "spherical";
+  radius: number;
+  enclosedCharge: number;
+}
+/** Side view of a coaxial Gaussian cylinder of length L around a uniform
+ * infinite line charge λ. The field is radial, so λL/ε0 crosses the curved
+ * surface and nothing crosses the caps. `enclosedCharge` is λL in coulombs
+ * (si) or normalized units (schematic). */
+export interface CylindricalGaussFluxDefinition extends GaussFluxCommon {
+  model: "cylindrical";
+  axis: RenderPoint;
+  radius: number;
+  length: number;
+  chargeDensity: number;
+  enclosedCharge: number;
+  curvedFlux: number;
+  capFlux: 0;
+}
+/** Side view of a pillbox straddling a uniform infinite sheet σ, caps of
+ * area A parallel to the sheet. The field is normal to the sheet, so σA/ε0
+ * crosses the two caps (half through each) and nothing crosses the curved
+ * side. `capRadius` is √(A/π); `enclosedCharge` is σA in coulombs (si) or
+ * normalized units (schematic). */
+export interface PillboxGaussFluxDefinition extends GaussFluxCommon {
+  model: "pillbox";
+  axis: RenderPoint;
+  capArea: number;
+  capRadius: number;
+  height: number;
+  chargeDensity: number;
+  enclosedCharge: number;
+  capFlux: number;
+  curvedFlux: 0;
+}
+export type GaussFluxDefinition = SphericalGaussFluxDefinition | CylindricalGaussFluxDefinition | PillboxGaussFluxDefinition;
 
 /** Straight-wire Biot-Savart field: planar around a piercing wire, or a
  * page-normal glyph for an in-plane finite segment. Glyph lengths certify
@@ -124,6 +158,7 @@ export type DistributedFieldsGeometry =
   | { kind: "path"; points: RenderPoint[]; directed: true; lineChargeField: LineChargeFieldDefinition }
   | { kind: "circle"; center: RenderPoint; radius: number; gaussFlux: GaussFluxDefinition }
   | { kind: "point"; point: RenderPoint; gaussFlux: GaussFluxDefinition }
+  | { kind: "path"; points: RenderPoint[]; closed?: true; gaussFlux: GaussFluxDefinition }
   | { kind: "point"; point: RenderPoint; wireField: WireFieldDefinition }
   | { kind: "path"; points: RenderPoint[]; directed: true; wireField: WireFieldDefinition }
   | { kind: "multi_path"; paths: RenderPoint[][]; wireField: WireFieldDefinition }
@@ -212,6 +247,14 @@ const CHARGE_UNITS = new Map<string, number>([
 const DENSITY_UNITS = new Map<string, number>([
   ["C/m", 1], ["mC/m", 1e-3], ["uC/m", 1e-6], ["µC/m", 1e-6], ["μC/m", 1e-6], ["nC/m", 1e-9], ["pC/m", 1e-12],
   ["C/cm", 100], ["mC/cm", 0.1],
+]);
+const SURFACE_DENSITY_UNITS = new Map<string, number>([
+  ["C/m^2", 1], ["C/m²", 1], ["mC/m^2", 1e-3], ["mC/m²", 1e-3], ["uC/m^2", 1e-6], ["µC/m^2", 1e-6], ["μC/m^2", 1e-6],
+  ["uC/m²", 1e-6], ["µC/m²", 1e-6], ["μC/m²", 1e-6], ["nC/m^2", 1e-9], ["nC/m²", 1e-9], ["pC/m^2", 1e-12], ["pC/m²", 1e-12],
+  ["C/cm^2", 1e4], ["C/cm²", 1e4],
+]);
+const AREA_UNITS = new Map<string, number>([
+  ["m^2", 1], ["m²", 1], ["cm^2", 1e-4], ["cm²", 1e-4], ["mm^2", 1e-6], ["mm²", 1e-6], ["km^2", 1e6], ["km²", 1e6],
 ]);
 const CURRENT_UNITS = new Map<string, number>([
   ["A", 1], ["ampere", 1], ["amperes", 1], ["mA", 1e-3], ["uA", 1e-6], ["µA", 1e-6], ["μA", 1e-6], ["nA", 1e-9],
@@ -333,32 +376,123 @@ function lineChargeMark(field: LineChargeFieldDefinition): DistributedFieldsGeom
   return { kind: "path", points: [{ ...field.at }, end], directed: true, lineChargeField: field };
 }
 
-/** Gauss's law for an explicit spherical surface: flux = Qenc/eps0. The
- * circle is an honest 2D cross-section, not a 3D rendering; enclosure of a
- * drawn charge is proved with `inside`, never assumed from this operator. */
+/** Gauss's law over an explicit closed surface. Every model states its
+ * source and its constant; nothing about the enclosed charge is inferred.
+ * - spherical: flux = Qenc/eps0. The circle is an honest 2D cross-section;
+ *   enclosure of a drawn charge is proved with `inside`, never assumed.
+ * - cylindrical: coaxial cylinder of length L on a uniform line charge λ.
+ *   Flux λL/eps0 through the curved surface, zero through the caps.
+ * - pillbox: short cylinder across a uniform sheet σ with cap area A.
+ *   Flux σA/eps0 through the two caps, zero through the curved side.
+ * Cylinder and pillbox draw their side view and the source on the axis or
+ * in the mid plane, so the drawn source always matches the flux law. */
+const GAUSS_MODEL_KEYS: Readonly<Record<GaussFluxDefinition["model"], readonly string[]>> = {
+  spherical: ["model", "center", "radius", "enclosedCharge", "epsilon0", "mode", "chargeUnit", "lengthUnit", "epsilonUnit", "fluxAt"],
+  cylindrical: ["model", "center", "axis", "radius", "length", "chargeDensity", "epsilon0", "mode", "densityUnit", "lengthUnit", "epsilonUnit", "fluxAt"],
+  pillbox: ["model", "center", "axis", "capArea", "height", "chargeDensity", "epsilon0", "mode", "densityUnit", "lengthUnit", "epsilonUnit", "fluxAt"],
+};
+function gaussModel(inputs: Record<string, unknown>): GaussFluxDefinition["model"] {
+  if (inputs.model !== "spherical" && inputs.model !== "cylindrical" && inputs.model !== "pillbox") invalid("model", "gauss_flux requires the explicit spherical, cylindrical or pillbox surface model");
+  return inputs.model;
+}
+function gaussAxis(value: unknown, context: DistributedFieldsEvaluationContext): RenderPoint {
+  if (value === undefined) return { x: 1, y: 0 };
+  if (!Array.isArray(value) || value.length !== 2) invalid("axis", "axis must be an inline [dx,dy] direction");
+  const x = scalarValue(value[0], "axis.x", context, MAX_COORDINATE);
+  const y = scalarValue(value[1], "axis.y", context, MAX_COORDINATE);
+  const length = Math.hypot(x, y);
+  if (!Number.isFinite(length) || !(length > 0)) invalid("axis", "axis direction must be nonzero and finite");
+  return { x: x / length, y: y / length };
+}
+function positiveLength(value: unknown, key: string, context: DistributedFieldsEvaluationContext): number {
+  const length = scalarValue(value, key, context);
+  if (!(length > 0)) invalid(key, `${key} must be positive`);
+  return length;
+}
 function gaussFluxDefinition(inputs: Record<string, unknown>, context: DistributedFieldsEvaluationContext): GaussFluxDefinition {
-  inputKeys(inputs, ["model", "center", "radius", "enclosedCharge", "epsilon0", "mode", "chargeUnit", "lengthUnit", "epsilonUnit", "fluxAt"]);
-  if (inputs.model !== "spherical") invalid("model", "gauss_flux requires the explicit spherical surface model");
+  const model = gaussModel(inputs);
+  inputKeys(inputs, GAUSS_MODEL_KEYS[model]);
   const mode = modeValue(inputs);
   checkDeclaredConstantUnit(inputs, "epsilonUnit", PERMITTIVITY_UNITS, mode);
   const center = pointValue(inputs.center, "center", context);
-  const radius = scalarValue(inputs.radius, "radius", context);
-  if (!(radius > 0)) invalid("radius", "gaussian surface radius must be positive");
-  const enclosedCharge = scalarValue(inputs.enclosedCharge, "enclosedCharge", context);
+  if (model === "spherical") {
+    const radius = scalarValue(inputs.radius, "radius", context);
+    if (!(radius > 0)) invalid("radius", "gaussian surface radius must be positive");
+    const enclosedCharge = scalarValue(inputs.enclosedCharge, "enclosedCharge", context);
+    const epsilon0 = scalarValue(inputs.epsilon0, "epsilon0", context);
+    checkSchematicConstant(epsilon0, "epsilon0", mode, 1);
+    declaredFactor(inputs.lengthUnit, "lengthUnit", LENGTH_UNITS, mode === "si");
+    const chargeFactor = declaredFactor(inputs.chargeUnit, "chargeUnit", CHARGE_UNITS, mode === "si");
+    const flux = mode === "si" ? (enclosedCharge * chargeFactor) / epsilon0 : enclosedCharge / epsilon0;
+    if (!Number.isFinite(flux)) invalid("enclosedCharge", "gaussian flux overflows finite numeric authority");
+    if (enclosedCharge !== 0 && flux === 0) invalid("enclosedCharge", "a nonzero enclosed charge cannot certify zero flux");
+    const fluxAt = inputs.fluxAt === undefined ? { ...center } : pointValue(inputs.fluxAt, "fluxAt", context);
+    return { model: "spherical", mode, center, radius, enclosedCharge, epsilon0, flux, fluxUnit: mode === "si" ? "V*m" : "normalized", fluxAt };
+  }
+  if (mode === "schematic" && inputs.lengthUnit !== undefined) invalid("lengthUnit", "lengthUnit must be omitted in schematic mode");
+  if (mode === "schematic" && inputs.densityUnit !== undefined) invalid("densityUnit", "densityUnit must be omitted in schematic mode");
+  const lengthFactor = declaredFactor(inputs.lengthUnit, "lengthUnit", LENGTH_UNITS, mode === "si");
+  const densityFactor = declaredFactor(inputs.densityUnit, "densityUnit", model === "cylindrical" ? DENSITY_UNITS : SURFACE_DENSITY_UNITS, mode === "si");
+  const axis = gaussAxis(inputs.axis, context);
+  const chargeDensity = scalarValue(inputs.chargeDensity, "chargeDensity", context);
   const epsilon0 = scalarValue(inputs.epsilon0, "epsilon0", context);
   checkSchematicConstant(epsilon0, "epsilon0", mode, 1);
-  declaredFactor(inputs.lengthUnit, "lengthUnit", LENGTH_UNITS, mode === "si");
-  const chargeFactor = declaredFactor(inputs.chargeUnit, "chargeUnit", CHARGE_UNITS, mode === "si");
-  const flux = mode === "si" ? (enclosedCharge * chargeFactor) / epsilon0 : enclosedCharge / epsilon0;
-  if (!Number.isFinite(flux)) invalid("enclosedCharge", "gaussian flux overflows finite numeric authority");
-  if (enclosedCharge !== 0 && flux === 0) invalid("enclosedCharge", "a nonzero enclosed charge cannot certify zero flux");
-  const fluxAt = inputs.fluxAt === undefined ? { ...center } : pointValue(inputs.fluxAt, "fluxAt", context);
-  return { model: "spherical", mode, center, radius, enclosedCharge, epsilon0, flux, fluxUnit: mode === "si" ? "V*m" : "normalized", fluxAt };
+  const fluxUnit = mode === "si" ? "V*m" as const : "normalized" as const;
+  const enclosed = (measure: number, measureFactor: number): { enclosedCharge: number; flux: number } => {
+    const enclosedCharge = mode === "si" ? chargeDensity * densityFactor * (measure * measureFactor) : chargeDensity * measure;
+    const flux = enclosedCharge / epsilon0;
+    if (!Number.isFinite(enclosedCharge) || !Number.isFinite(flux)) invalid("chargeDensity", "gaussian flux overflows finite numeric authority");
+    if (chargeDensity !== 0 && (enclosedCharge === 0 || flux === 0)) invalid("chargeDensity", "a nonzero charge density cannot certify zero flux");
+    return { enclosedCharge, flux };
+  };
+  const normal = { x: -axis.y, y: axis.x };
+  if (model === "cylindrical") {
+    const radius = positiveLength(inputs.radius, "radius", context);
+    const length = positiveLength(inputs.length, "length", context);
+    const { enclosedCharge, flux } = enclosed(length, lengthFactor);
+    const fluxAt = inputs.fluxAt === undefined
+      ? finitePoint({ x: center.x + normal.x * radius, y: center.y + normal.y * radius }, "fluxAt")
+      : pointValue(inputs.fluxAt, "fluxAt", context);
+    return { model, mode, center, axis, radius, length, chargeDensity, enclosedCharge, epsilon0, flux, curvedFlux: flux, capFlux: 0, fluxUnit, fluxAt };
+  }
+  const capArea = positiveLength(inputs.capArea, "capArea", context);
+  const height = positiveLength(inputs.height, "height", context);
+  const capRadius = Math.sqrt(capArea / Math.PI);
+  if (!(capRadius > 0) || !Number.isFinite(capRadius)) invalid("capArea", "cap area gives no finite drawable cap");
+  const { enclosedCharge, flux } = enclosed(capArea, lengthFactor * lengthFactor);
+  const fluxAt = inputs.fluxAt === undefined
+    ? finitePoint({ x: center.x + axis.x * height / 2, y: center.y + axis.y * height / 2 }, "fluxAt")
+    : pointValue(inputs.fluxAt, "fluxAt", context);
+  return { model, mode, center, axis, capArea, capRadius, height, chargeDensity, enclosedCharge, epsilon0, flux, capFlux: flux, curvedFlux: 0, fluxUnit, fluxAt };
+}
+/** Side-view rectangle: `along` half extent on the axis, `across` half extent on the normal. */
+function gaussBox(center: RenderPoint, axis: RenderPoint, along: number, across: number): RenderPoint[] {
+  const normal = { x: -axis.y, y: axis.x };
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, n]) => finitePoint({
+    x: center.x + axis.x * along * a! + normal.x * across * n!,
+    y: center.y + axis.y * along * a! + normal.y * across * n!,
+  }, "surface"));
 }
 function gaussFluxMarks(definition: GaussFluxDefinition): DistributedFieldsGeometry[] {
+  if (definition.model === "spherical") {
+    return [
+      { kind: "circle", center: { ...definition.center }, radius: definition.radius, gaussFlux: definition },
+      { kind: "point", point: { ...definition.fluxAt }, gaussFlux: definition },
+    ];
+  }
+  const { center, axis } = definition;
+  const normal = { x: -axis.y, y: axis.x };
+  // The source is infinite; its drawn stretch only has to cross the surface.
+  const source = definition.model === "cylindrical"
+    ? [-0.75 * definition.length, 0.75 * definition.length].map((t) => finitePoint({ x: center.x + axis.x * t, y: center.y + axis.y * t }, "source"))
+    : [-2 * definition.capRadius, 2 * definition.capRadius].map((t) => finitePoint({ x: center.x + normal.x * t, y: center.y + normal.y * t }, "source"));
+  const surface = definition.model === "cylindrical"
+    ? gaussBox(center, axis, definition.length / 2, definition.radius)
+    : gaussBox(center, axis, definition.height / 2, definition.capRadius);
   return [
-    { kind: "circle", center: { ...definition.center }, radius: definition.radius, gaussFlux: definition },
+    { kind: "path", points: surface, closed: true, gaussFlux: definition },
     { kind: "point", point: { ...definition.fluxAt }, gaussFlux: definition },
+    { kind: "path", points: source, gaussFlux: definition },
   ];
 }
 
@@ -745,12 +879,18 @@ function checkLoopGeometry(output: unknown): LoopFieldDefinition {
   return output.loopField as unknown as LoopFieldDefinition;
 }
 function checkGaussGeometries(outputs: readonly unknown[]): GaussFluxDefinition {
-  if (outputs.length !== 2) invalid("outputs", "gauss_flux requires its surface and flux outputs");
-  const [surface, anchor] = outputs;
-  if (!isRecord(surface) || surface.kind !== "circle" || !isRecord(surface.gaussFlux)) invalid("outputs", "gauss surface geometry is malformed");
+  const first = outputs[0];
+  const spherical = !isRecord(first) || !isRecord(first.gaussFlux) || first.gaussFlux.model === "spherical";
+  if (outputs.length !== (spherical ? 2 : 3)) invalid("outputs", spherical ? "gauss_flux requires its surface and flux outputs" : "gauss_flux requires its surface, flux and source outputs");
+  const [surface, anchor, source] = outputs;
+  if (!isRecord(surface) || surface.kind !== (spherical ? "circle" : "path") || !isRecord(surface.gaussFlux)) invalid("outputs", "gauss surface geometry is malformed");
   if (!isRecord(anchor) || anchor.kind !== "point" || !isRecord(anchor.gaussFlux)) invalid("outputs", "gauss flux anchor geometry is malformed");
   if (!same(surface.gaussFlux, anchor.gaussFlux)) invalid("outputs", "gauss surface and flux outputs must share one verified definition");
-  return surface.gaussFlux as unknown as GaussFluxDefinition;
+  if (spherical) return surface.gaussFlux as unknown as GaussFluxDefinition;
+  if (!isRecord(source) || source.kind !== "path" || !isRecord(source.gaussFlux) || !same(surface.gaussFlux, source.gaussFlux)) invalid("outputs", "gauss source geometry must share the verified surface definition");
+  const definition = surface.gaussFlux as unknown as GaussFluxDefinition;
+  if (!same(outputs, gaussFluxMarks(definition))) invalid("outputs", "gauss surface or source geometry contradicts its verified model");
+  return definition;
 }
 function verifiedSinusoidStates(outputs: readonly unknown[]): SinusoidStateDefinition[] {
   if (outputs.length !== 2) invalid("outputs", "sinusoid_state requires ordered flux and emf outputs");
@@ -807,7 +947,8 @@ function gaussLabels(outputs: readonly unknown[]): AllowedLabel[] {
     : definition.flux === 0
       ? { symbol: "Phi=0 schematic", numeric: "Phi=0 schematic" }
       : { symbol: "Phi schematic" };
-  return [{ symbol: "S" }, flux];
+  if (definition.model === "spherical") return [{ symbol: "S" }, flux];
+  return [{ symbol: "S" }, flux, { symbol: definition.model === "cylindrical" ? "λ" : "σ" }];
 }
 function sinusoidLabels(operator: string, outputs: readonly unknown[]): AllowedLabel[] {
   if (operator === "flux_sinusoid") {
@@ -914,8 +1055,29 @@ function checkDocumentSourceUnits(operator: string, inputs: Record<string, unkno
     constantUnits(inputs.k, "k", COULOMB_COEFFICIENT_UNITS);
   } else if (operator === "gauss_flux") {
     coordinates(inputs.center, "center");
-    compare(inputs.radius, "radius", LENGTH_UNITS, declaredLength);
-    compare(inputs.enclosedCharge, "enclosedCharge", CHARGE_UNITS, typeof inputs.chargeUnit === "string" ? inputs.chargeUnit.trim() : undefined);
+    if (inputs.model === "cylindrical" || inputs.model === "pillbox") {
+      const declaredDensity = typeof inputs.densityUnit === "string" ? inputs.densityUnit.trim() : undefined;
+      compare(inputs.chargeDensity, "chargeDensity", inputs.model === "cylindrical" ? DENSITY_UNITS : SURFACE_DENSITY_UNITS, declaredDensity);
+      if (inputs.model === "cylindrical") {
+        compare(inputs.radius, "radius", LENGTH_UNITS, declaredLength);
+        compare(inputs.length, "length", LENGTH_UNITS, declaredLength);
+      } else {
+        compare(inputs.height, "height", LENGTH_UNITS, declaredLength);
+        // An area must be the square of the declared length scale.
+        const lengthFactor = declaredLength === undefined ? undefined : LENGTH_UNITS.get(declaredLength);
+        for (const unit of scalarUnits(inputs.capArea, "capArea", document)) {
+          if (schematic && declaredLength === undefined && DIMENSIONLESS_UNITS.has(unit)) continue;
+          const areaFactor = AREA_UNITS.get(unit);
+          if (lengthFactor === undefined || areaFactor === undefined || Math.abs(areaFactor - lengthFactor * lengthFactor) > 1e-12 * areaFactor) invalid("capArea_unit", "capArea must use the square of the declared length unit; mixed source scales are not silently reinterpreted");
+        }
+      }
+      if (Array.isArray(inputs.axis)) for (const [axisIndex, item] of inputs.axis.entries()) {
+        for (const unit of scalarUnits(item, `axis.${axisIndex}`, document)) if (!DIMENSIONLESS_UNITS.has(unit)) invalid("axis_unit", "axis directions must be dimensionless");
+      }
+    } else {
+      compare(inputs.radius, "radius", LENGTH_UNITS, declaredLength);
+      compare(inputs.enclosedCharge, "enclosedCharge", CHARGE_UNITS, typeof inputs.chargeUnit === "string" ? inputs.chargeUnit.trim() : undefined);
+    }
     constantUnits(inputs.epsilon0, "epsilon0", PERMITTIVITY_UNITS);
     if (typeof inputs.fluxAt === "string") coordinates(inputs.fluxAt, "fluxAt");
   } else if (operator === "wire_field" || operator === "loop_field") {
@@ -987,7 +1149,10 @@ export function validateEvaluatedDistributedFieldsLabels(construction: SceneCons
         return [field.model === "finite_segment" ? field.components.z : field.magnitude];
       }
       if (construction.operator === "loop_field") return [checkLoopGeometry(outputs[0]).axialField];
-      if (construction.operator === "gauss_flux") return [null, checkGaussGeometries(outputs).flux];
+      if (construction.operator === "gauss_flux") {
+        const definition = checkGaussGeometries(outputs);
+        return definition.model === "spherical" ? [null, definition.flux] : [null, definition.flux, null];
+      }
       if (construction.operator === "sinusoid_state") {
         const states = verifiedSinusoidStates(outputs);
         return [states[0]!.fluxSI, states[1]!.emfSI];
@@ -996,7 +1161,7 @@ export function validateEvaluatedDistributedFieldsLabels(construction: SceneCons
     })();
     const expectedUnits: readonly string[][] = construction.operator === "line_charge_field" ? [["N/C"]]
       : construction.operator === "wire_field" || construction.operator === "loop_field" ? [["T"]]
-      : construction.operator === "gauss_flux" ? [[], ["V*m", "mV*m"]]
+      : construction.operator === "gauss_flux" ? [[], ["V*m", "mV*m"], []]
       : construction.operator === "sinusoid_state" ? [["Wb", "mWb"], ["V", "mV"]]
       : [[]];
     for (const [outputIndex, outputId] of construction.outputs.entries()) {
@@ -1035,7 +1200,8 @@ export function validateDistributedFieldsConstruction(construction: SceneConstru
     issues.push({ code: `invalid_${operator}_${key}`, severity: "fatal", message, path: `constructions[${index}].${key === "outputs" || key === "output_kind" || key === "label" ? "outputs" : `inputs.${key}`}`, actual });
   };
   const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
-  const expectedKinds = operator === "gauss_flux" ? ["circle", "label"]
+  const expectedKinds = operator === "gauss_flux"
+    ? isRecord(inputs) && (inputs.model === "cylindrical" || inputs.model === "pillbox") ? ["polygon", "label", "segment"] : ["circle", "label"]
     : operator === "sinusoid_state" ? ["point", "label"]
     : operator === "flux_sinusoid" ? ["polyline"]
     : ["vector"];

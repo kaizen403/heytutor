@@ -15,6 +15,7 @@ import type { SceneDocument } from "../types";
 import { ARCHETYPES, type ArchetypeId } from "./catalog";
 import { metricAssertions } from "./contract";
 import type { SlotSource } from "./slots";
+import { declaresNormalizedRepresentative } from "../compile/representativeLabels";
 
 export type RepresentationTier = "exact_verified" | "qualitative_verified" | "question_representation";
 
@@ -64,7 +65,7 @@ export function tierForForeignDocument(document: SceneDocument, options: { schem
   }
   // Proofs of a normalized representative certify its shape, not physical
   // measurements. A declaration can lower authority, never raise it.
-  if (document.source.nonMetric === true || document.source.representationTier === "qualitative_verified") {
+  if (declaresNormalizedRepresentative(document)) {
     return { tier: "qualitative_verified", nonMetric: true, reason: "declared nonmetric representative; proofs certify display geometry only" };
   }
   const proofs = metricAssertions(document);
