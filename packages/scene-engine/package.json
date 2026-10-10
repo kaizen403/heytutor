@@ -25,7 +25,7 @@
     "verify:startup": "tsx scripts/verify/verify-startup-symbolic-geometry.ts",
     "verify:visual-obligations": "tsx scripts/verify/verify-visual-obligations.ts",
     "verify:coverage-eval": "tsx scripts/verify/verify-coverage-eval-v1.ts",
-    "verify:instrument-authority": "tsx scripts/verify/verify-instrument-source-units.ts --compiled-boundary && tsx scripts/verify/verify-incline-acceleration-basis.ts --compiled-boundary"
+    "verify:instrument-authority": "pnpm build && tsx scripts/verify/verify-instrument-source-units.ts --compiled-boundary && tsx scripts/verify/verify-incline-acceleration-basis.ts --compiled-boundary"
   },
   "dependencies": {
     "@heytutor/drawing": "workspace:*"
