@@ -16,6 +16,7 @@ import { moleculeFromName } from "../../src/chemistry/organic/names";
 import { parseSmiles } from "../../src/chemistry/organic/smiles";
 import { attachedRingCoordinates } from "../../src/chemistry/foundation/attachedRing";
 import { removeCationElectrons } from "../../src/chemistry/foundation/cationRemoval";
+import { requiresConformationProjection } from "../../src/chemistry/foundation/conformationRequest";
 import { checkVisualObligations, deriveVisualObligations, visualObligationRejection } from "../../src/synthesize/visualObligations";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { ProblemIR } from "../../src/ir/problemIR";
@@ -415,6 +416,45 @@ check("printed-core-oracle-rejects-core-hole-count-and-map-mutants", () => {
   assert.throws(() => assert.deepEqual(expandConfigurationText("[Kr] 4d9 4f9"), th36), "same-total wrong occupancy must fail");
   assert.throws(() => expandConfigurationText("[Xe] 4f8 trailing"));
 });
+// A leading projection convention governs the following drawing predicate.
+// These are additional regression controls; all earlier scientific oracles stay literal.
+for (const [index, question] of [
+  "Using Newman projections, show the anti and gauche forms of butane.",
+  "With the Newman projection, draw the anti and gauche forms of butane.",
+  "In sawhorse projections, sketch the staggered and eclipsed forms of ethane.",
+  "Via Newman projections, show the forms of butane.",
+  "Using Newman projections, show C2.",
+  "Show the skeletal structure of ethanol; using Newman projections, depict the anti and gauche forms of butane.",
+  "Using Newman projections, show the anti and gauche forms of butane, but do not draw sawhorse projections.",
+].entries()) check(`preposed-projection-decline-${index}`, () => {
+  assert.equal(requiresConformationProjection(question), true);
+  assert.equal(api.isMoStem(question), false);
+  assert.equal(api.buildMoScene(question, [], false), null);
+  assert.equal(api.isOrganicStem(question), false);
+  assert.equal(api.buildOrganicScene(question, [], false), null, "requested projection cannot become a flat skeleton");
+  assert.equal(synthesizeFamilyScene({ question, families: ["chem_organic", "chem_mo"] }), null);
+});
+for (const [index, question] of [
+  "Without using Newman projections, draw the skeletal structure of butane.",
+  "Using Newman projections as background, draw the skeletal structure of butane.",
+  "Using no Newman projections, draw the skeletal structure of butane.",
+  "Using Newman projections, do not show the anti and gauche forms; draw the skeletal structure of butane.",
+].entries()) check(`preserve-preposed-projection-exclusion-${index}`, () => {
+  assert.equal(api.isOrganicStem(question), true);
+  const document = api.buildOrganicScene(question, [], false);
+  assert.equal(document?.source?.chemistryFamily, "chem_organic");
+  compiled(`preserve-preposed-projection-exclusion-${index}`, document);
+});
+for (const [index, question] of [
+  "Using Newman projections as background, draw the molecular orbital diagram of C2.",
+  "Without using Newman projections, draw the molecular orbital diagram of C2.",
+].entries()) check(`preserve-preposed-MO-other-kind-${index}`, () => {
+  assert.equal(api.isMoStem(question), true);
+  const document = api.buildMoScene(question, [], false);
+  assert.equal(document?.source?.chemistryFamily, "chem_mo");
+  compiled(`preserve-preposed-MO-other-kind-${index}`, document);
+});
+
 let parentComparisonsExecuted = 0;
 let parentComparisonRows = 0;
 let parentComparisonsSkipped = 1;

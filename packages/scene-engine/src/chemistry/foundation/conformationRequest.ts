@@ -21,6 +21,11 @@ const DESCRIPTION = /\b(?:is|are|was|were|background|outside|unnecessary|irrelev
 const CLAUSE_BOUNDARY = new RegExp(
   `[.;!?]|\\b(?:but|however|because|whereas)\\b|(?:,|\\b(?:and|or)\\b)\\s*(?=(?:also\\s+)?(?:${PREDICATE_WORDS}|do\\s+not|don['’]t|not|no|never|ignore|omit|exclude)\\b)|\\s+(?=(?:rather than|instead of|without|excluding)\\b)`,
 );
+const PREPOSED_PROJECTION = new RegExp(
+  `(^|[.;!?]|\\b(?:but|however|because|whereas)\\b)(\\s*(?:using|with|in|via)\\s+(?:(?:a|an|the)\\s+)?(?:newman|sawhorse)\\s+projections?)\\s*,\\s*(?=(?:${PREDICATE_WORDS})\\b)`,
+  "g",
+);
+const PROJECTION_MODIFIER = /^\s*(?:using|with|in|via)\s+(?:(?:a|an|the)\s+)?(?:newman|sawhorse)\s+projections?\s*$/;
 
 /** Keep adjective lists with their object, but scope parenthetical predicates. */
 function requestClauses(text: string): string[] {
@@ -38,7 +43,11 @@ function requestClauses(text: string): string[] {
       return ` ${content} `;
     });
   }
-  return [outside, ...parentheticals].flatMap((part) => part.split(CLAUSE_BOUNDARY));
+  // A leading "Using Newman projections, show ..." is one drawing request.
+  // Keep that explicit convention with its first predicate; background phrases,
+  // excluded styles and sentence-separated requests keep their own boundaries.
+  return [outside, ...parentheticals].flatMap((part) =>
+    part.replace(PREPOSED_PROJECTION, "$1$2 ").split(CLAUSE_BOUNDARY));
 }
 
 function hasProjectionObject(object: string, allowConformation: boolean, requireObject = false): boolean {
@@ -67,8 +76,9 @@ function clauseIntent(clause: string): ClauseIntent {
     const start = predicate.index!;
     if (ATTACHED_NEGATION.test(clause.slice(0, start))) continue;
     const object = clause.slice(start + verb.length, predicates[index + 1]?.index);
+    const preposedProjection = index === 0 && PROJECTION_MODIFIER.test(clause.slice(0, start));
     if (FIGURE_VERBS.has(verb)) {
-      const projection = hasProjectionObject(object, DRAW_VERBS.has(verb));
+      const projection = preposedProjection || hasProjectionObject(object, DRAW_VERBS.has(verb));
       intent.projection ||= projection;
       intent.otherFigure ||= DRAW_VERBS.has(verb) && !projection && OTHER_FIGURE_OBJECT.test(object);
     } else if (EXPLANATION_VERBS.has(verb)) {
