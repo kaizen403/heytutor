@@ -309,6 +309,52 @@ check("Le Chatelier home cue retains subject", () => assert.equal(isChemistryQue
 check("shared gas process retains state plot", () => assert.deepEqual(restrictFamiliesToChemistry("One mole of an ideal gas expands isothermally and reversibly. Find the work and entropy change.", ["state_plot", "circuit_network"]), ["state_plot"]));
 check("bound transition retains shared Bohr ladder", () => assert.deepEqual(restrictFamiliesToChemistry("Hydrogen atoms emit photons in a transition from n = 3 to n = 2.", ["energy_level", "circuit_network"]), ["energy_level"]));
 
+for (const prefix of [
+  "Atoms and ions are not present; ",
+  "Atomic structure and bound electrons are not present; ",
+  "He+ and Li2+ are not present; ",
+  "Hydrogen atoms are not present; ",
+]) check(`post-list not-present context cannot authorize radiation: ${prefix}`, () => {
+  const question = `${prefix}a photon of energy 3 eV falls on a metal of work function 2 eV. Draw the photoelectric energy balance.`;
+  outsideChemistry(question);
+  assert.equal(isAtomicRadiationStem(question), false, "direct radiation cue respects list negation");
+  assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null, "direct family cannot replace an excluded atomic role");
+});
+check("not-present list preserves a separate positive bound-electron role", () => {
+  chemistryFigure("Atoms and ions are not present in the metal; but a bound electron has momentum 1e-23 kg m/s. Draw its de Broglie wavelength.", "chem_orbital");
+});
+for (const question of [
+  "Draw the graph of ln k versus 1/T for activation energy 50 kJ/mol.",
+  "Draw a graph of ln k against 1/T with an activation energy of 50 kJ/mol.",
+]) check(`explicit inverse-temperature axes retain activation-energy kinetics: ${question}`, () => {
+  chemistryFigure(question, "chem_kinetics");
+  const direct = chemistryFamilyBuilder("chem_kinetics")?.(question, [], false);
+  assert.ok(direct?.annotations.some(annotation => /50.*kJ/.test(annotation.text ?? "")), "provided activation energy is retained");
+});
+for (const question of [
+  "Draw the graph of ln k versus 1/T.",
+  "Draw the graph of ln k versus 1/T without activation energy.",
+  "Activation energy is background. Draw the graph of ln k versus 1/T.",
+  "Draw the graph of ln k versus 1/T; activation energy is mentioned separately.",
+]) check(`generic inverse-temperature axes cannot authorize chemical kinetics: ${question}`, () => {
+  assert.equal(isChemistryStem(question), false, "no positive chemical subject evidence");
+  assert.equal(inferChemistryFamilies(question).includes("chem_kinetics"), false);
+  assert.equal(chemistryFamilyBuilder("chem_kinetics")?.(question, [], false), null);
+  assert.notEqual(synthesizeFamilyScene({ question })?.family, "chem_kinetics");
+});
+check("rounded dual photon evidence remains conservatively unsupported", () => {
+  const question = "In an atomic electron model, the photon energy is 3.10 eV and wavelength is 400 nm; work function is 2 eV. Draw the photoelectron energy balance.";
+  assert.equal(isChemistryQuestion(question), true);
+  assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null, "rounded inputs do not relax the strict consistency policy");
+  assert.equal(synthesizeFamilyScene({ question }), null, "no replacement ink for inconsistent complete evidence");
+});
+for (const values of [
+  "photon energy is 3.099604960830006 eV and wavelength is 400 nm",
+  "wavelength is 400 nm",
+]) check(`consistent photon evidence near the rounded case compiles: ${values}`, () => {
+  chemistryFigure(`In an atomic electron model, ${values}; work function is 2 eV. Draw the photoelectron energy balance.`, "chem_orbital");
+});
+
 // The frozen public corpus remains external: fixtures are oracles, never routing inputs.
 const args = process.argv.slice(2);
 const argument = (name: string): string | undefined => {

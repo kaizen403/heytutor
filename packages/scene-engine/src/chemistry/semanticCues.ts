@@ -11,7 +11,10 @@ export function molecularOverlapRequested(stem: string): boolean {
 
 /** Order/half-life alone can describe a differential equation or generic decay. */
 export function chemicalKineticsContext(stem: string): boolean {
-  return /\breactions?\b|\breactants?\b|\bchemical kinetics\b|\bconcentration\b|\brate (?:law|constant)\b|\barrhenius\b|\[(?:a|b)\]/.test(stem);
+  if (/\breactions?\b|\breactants?\b|\bchemical kinetics\b|\bconcentration\b|\brate (?:law|constant)\b|\barrhenius\b|\[(?:a|b)\]/.test(stem)) return true;
+  // Activation energy modifies these rate/temperature axes in one clause.
+  // Bare coordinates or a separate background mention supply no rate role.
+  return /\bln\s*k\b[^.;!?]{0,20}(?:vs\.?|versus|against)\s*1\s*\/\s*t\b\s+(?:for|with)\s+(?:(?:an?|the)\s+)?activation energy\b/.test(stem);
 }
 
 /** A complex is a species with coordination/ligand identity, not a number. */
@@ -42,7 +45,7 @@ type AtomicMention = { start: number; end: number; species?: { symbol: string; c
 // A verb, another subject or a clause boundary cannot connect its members.
 const ATOMIC_LIST_SEPARATOR = /^[\s,]*(?:(?:or|and|nor)\s+)?(?:(?:a|an|the|any)\s+)?$/i;
 const NEGATIVE_ATOMIC_PREFIX = /\b(?:no|not|without|absence of|lack of|lacking|excluding|except(?: for)?)\s+(?:(?:a|an|the|any)\s+)?$/i;
-const ABSENT_ATOMIC_SUFFIX = /^\s+(?:(?:is|are|was|were)\s+)?(?:absent|excluded|irrelevant)\b/i;
+const ABSENT_ATOMIC_SUFFIX = /^\s+(?:(?:is|are|was|were)\s+)?(?:absent|excluded|irrelevant|not\s+present)\b/i;
 
 /** Negation belongs to the complete recognized list, rather than the question. */
 function positiveAtomicMention(question: string, mentions: AtomicMention[], index: number): boolean {
