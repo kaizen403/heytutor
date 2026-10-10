@@ -17,7 +17,8 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { mock } from "node:test";
-import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
+import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands } from "@heytutor/drawing";
+import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 
 async function main() {
@@ -517,6 +518,33 @@ async function main() {
     const deleteForeign = await boardRoute.DELETE(new Request(`https://example.test/api/boards/${foreignBoard}`, { method: "DELETE" }),
       { params: Promise.resolve({ boardId: foreignBoard }) });
     assert.equal(deleteForeign.status, 200, "extra owned fixture board is deleted through the authenticated consumer");
+
+    // --- interrupted code receipt survives actual route/SQL/fresh GET ----------
+    const codeQuestion = "Explain binary search on a sorted array.";
+    const codePlan = getMockCodeLessonPlan(codeQuestion);
+    const codeBlock = codePlan.sections[0]!.blocks[0]!;
+    const codeTurnId = randomUUID();
+    const shownChars = 6;
+    assert(codeBlock.code.length > shownChars);
+    const partialCode = await put(codeTurnId, {
+      question: codeQuestion, seq: 1, baseCount: 0, status: "stopped",
+      visualStatus: "text_only", sceneArtifacts: { codeLesson: codePlan },
+      appendSegments: [{ ...row(0, "Type the function.", {
+        type: "TYPE", params: [], text: codeBlock.code, charPosition: 0,
+        narrationBefore: "", semanticRef: { entityId: codeBlock.id }, shownChars,
+      }), durationMs: null }],
+    });
+    assert.equal(partialCode.status, 200, JSON.stringify(partialCode.body));
+    const savedCode = (await get()).turns.find(entry => entry.id === codeTurnId)!;
+    const savedCodeRows = savedCode.segments as Array<Record<string, unknown>>;
+    const typedCode = savedCodeRows.flatMap(segment => parseStoredSegmentCommands(segment.command))
+      .find(command => command.type === "TYPE");
+    assert(typedCode, "the validated code block survives the real checkpoint route");
+    assert.equal(typedCode.shownChars, shownChars,
+      "real SQL and fresh board GET preserve the shown prefix rather than the full queued block");
+    assert.equal(savedCode.persistedStatus, "stopped");
+    assert.equal(savedCodeRows[0]!.durationMs, null);
+    assert.equal(savedCodeRows[0]!.audioUrl, null);
 
     // --- board delete refunds every charged byte ------------------------------
     const deletedBoard = await boardRoute.DELETE(new Request(`https://example.test/api/boards/${boardId}`, { method: "DELETE" }),
