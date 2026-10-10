@@ -32,6 +32,8 @@ import { loadRazorpayAccess } from "./razorpayPurchases";
 import { reserveRazorpayNote } from "./razorpayNotes";
 import { registerOwnedTrace, assertOwnedTrace } from "../obs/traceOwnership";
 import { readBoundedJson, RequestBodyError } from "../http/requestBody";
+import { resolveDiagramStrategyAssignment } from "../scene/diagramStrategy.server";
+import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 
 function bindRazorpayGrant(grant: TurnGrant, balance: PeriodBalance): void {
   if (usesRazorpay()) grant.billingExpiresAt = balance.nextResetAt;
@@ -50,6 +52,7 @@ export interface BeginTurnSuccess {
   remainingPct: number | null;
   planId: string;
   nextResetAt: number | null;
+  diagramStrategy: DiagramStrategy;
 }
 
 const beginTurnLocks = new Map<string, Promise<void>>();
@@ -106,7 +109,11 @@ export async function beginTurnForActor(
       releaseTurnGrant(actor.userId);
       return billingResponse("no_grant", 0);
     }
-    return result;
+    if (result instanceof Response) return result;
+    return {
+      ...result,
+      diagramStrategy: resolveDiagramStrategyAssignment(actor),
+    };
   });
 }
 
@@ -119,7 +126,7 @@ async function beginTurnLocked(
       ? attachBypassFollowOnTrace(actor.userId, input.traceId, input.parentTraceId)
       : null;
     if (followOn) {
-      return { grant: followOn, remainingPct: null, planId: BILLING_PLANS.pro, nextResetAt: null };
+      return { grant: followOn, remainingPct: null, planId: BILLING_PLANS.pro, nextResetAt: null, diagramStrategy: "current" };
     }
     if (input.kind !== "lesson") return billingResponse("concurrent_limit", 0);
     const minted = createLessonGrant({
@@ -138,6 +145,7 @@ async function beginTurnLocked(
       remainingPct: null,
       planId: BILLING_PLANS.pro,
       nextResetAt: null,
+      diagramStrategy: "current",
     };
   }
 
@@ -179,6 +187,7 @@ async function beginTurnLocked(
       remainingPct,
       planId,
       nextResetAt: balance.nextResetAt,
+      diagramStrategy: "current",
     };
   }
 
@@ -191,6 +200,7 @@ async function beginTurnLocked(
       remainingPct,
       planId,
       nextResetAt: balance.nextResetAt,
+      diagramStrategy: "current",
     };
   }
 
@@ -226,6 +236,7 @@ async function beginTurnLocked(
     remainingPct,
     planId,
     nextResetAt: balance.nextResetAt,
+    diagramStrategy: "current",
   };
 }
 
