@@ -41,6 +41,7 @@ function quantityValue(id: string, document: SceneDocument, seen = new Set<unkno
 export function validatePublicationDerivedClaims(
   construction: SceneConstruction, index: number, document: SceneDocument,
   authorities: readonly PublicationClaimAuthority[], issues: SceneIssue[],
+  scalarUnits: readonly Readonly<Record<string, string>>[] = [],
 ): void {
   construction.outputs.forEach((id, outputIndex) => {
     const authority = new Map(Object.entries(authorities[outputIndex] ?? {}).map(([name, value]) => [key(name), value]));
@@ -53,7 +54,9 @@ export function validatePublicationDerivedClaims(
       const name = match ? key(match[1]!) : "";
       const expected = authority.get(name);
       if (expected === undefined) fail("Numeric label has no supported evaluated meaning");
-      const right = match ? match[3]! : text.trim();
+      let right = match ? match[3]! : text.trim();
+      const unit = Object.entries(scalarUnits[outputIndex] ?? {}).find(([unitName]) => key(unitName) === name)?.[1];
+      if (typeof expected === "number" && unit && right.endsWith(` ${unit}`)) right = right.slice(0, -unit.length).trim();
       const tokens = typeof expected === "number" ? SCALAR.exec(right)?.slice(1) : PAIR.exec(right)?.slice(1);
       if (!tokens || typeof expected !== "number" && (right.startsWith("(") ? !right.endsWith(")") : !right.endsWith("]"))) fail("Numeric label grammar or units are unsupported");
       tokens.forEach((token, component) => compare(token, typeof expected === "number" ? expected : expected[component]!, match?.[2] === "≈"));

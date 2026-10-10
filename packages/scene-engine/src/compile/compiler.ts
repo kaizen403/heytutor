@@ -1411,7 +1411,7 @@ function evaluateConstruction(
     case "dipole_field":
     case "dipole_torque":
     case "equipotential":
-    case "dipole_energy": return evaluateDipoleFieldConstruction(operator, inputs, constructionContext).map(adaptDipoleGeometry);
+    case "dipole_energy": return evaluateDipoleFieldConstruction(operator, inputs, constructionContext, document).map(adaptDipoleGeometry);
     case "coordinate_distance":
     case "section_point":
     case "axis_translation":

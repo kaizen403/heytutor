@@ -1,3 +1,4 @@
+import { prepareDipoleSourceUnits } from "./dipoleSourceUnits";
 import { validatePublicationDerivedClaims, type PublicationClaimAuthority } from "./publicationDerivedClaims";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
@@ -105,7 +106,7 @@ const TOPIC: Record<DipoleOperator, { topicId: string; exams: ExamScope }> = {
 };
 
 const INPUT_KEYS: Record<DipoleOperator, readonly string[]> = {
-  coulomb_pair: ["charges", "k", "displayLength"],
+  coulomb_pair: ["charges", "k", "displayLength", "units"],
   point_charge_field: ["charge", "at", "k", "displayLength"],
   field_lines: ["charges", "starts", "stepLength", "stepCount", "k", "exclusionRadius"],
   dipole_field: ["charges", "at", "mode", "k", "displayLength"],
@@ -288,7 +289,7 @@ function rejectProjectedAngle(inputs: Record<string, unknown>): void {
   }
 }
 
-function coulombPair(inputs: Record<string, unknown>, context: DipoleFieldEvaluationContext): DipoleGeometry[] {
+function coulombPair(inputs: Record<string, unknown>, context: DipoleFieldEvaluationContext, chargeFactor = 1, lengthFactor = 1): DipoleGeometry[] {
   const charges = chargeList(inputs.charges, "charges", context, false, 2);
   const k = coefficient(inputs.k, context);
   const displayLength = displayScale(inputs.displayLength, context);
@@ -296,8 +297,8 @@ function coulombPair(inputs: Record<string, unknown>, context: DipoleFieldEvalua
   const second = charges[1]!;
   const apart = separated(first.position, second.position, "charges");
   const radius = hypot(apart);
-  const factor = k * first.charge * second.charge / (radius * radius * radius);
-  if (!Number.isFinite(factor)) invalid("charges", "Coulomb force overflows finite numeric authority");
+  const factor = k * (first.charge * chargeFactor) * (second.charge * chargeFactor) / (radius * radius * radius * lengthFactor * lengthFactor);
+  if (!Number.isFinite(factor) || factor === 0) invalid("charges", "Nonzero Coulomb force must remain finite and nonzero under numeric authority");
   const onSecond = scale(apart, factor);
   const onFirst = { x: -onSecond.x, y: -onSecond.y };
   const pair: [RenderPoint, RenderPoint] = [onFirst, onSecond];
@@ -763,7 +764,7 @@ function equipotential(inputs: Record<string, unknown>, context: DipoleFieldEval
 }
 
 /** k is an explicit input. Display length never enters E, F, tau, U, or V. */
-export function evaluateDipoleFieldConstruction(operator: string, inputs: Record<string, unknown>, context: DipoleFieldEvaluationContext): DipoleGeometry[] {
+export function evaluateDipoleFieldConstruction(operator: string, inputs: Record<string, unknown>, context: DipoleFieldEvaluationContext, document?: SceneDocument): DipoleGeometry[] {
   if (!isOperator(operator)) invalid("operator", `unsupported dipole-field operator ${operator}`);
   if (!isRecord(inputs)) invalid("fields", "dipole-field inputs must be an object");
   if (TEST_CHARGE_KEYS.some((key) => key in inputs)) invalid("testCharge", "the electric field of a source charge does not accept a test charge");
@@ -771,7 +772,9 @@ export function evaluateDipoleFieldConstruction(operator: string, inputs: Record
   rejectDensityClaim(inputs);
   if (GRADIENT_KEYS.some((key) => key in inputs)) rejectNonuniform(inputs);
   rejectKeys(inputs, INPUT_KEYS[operator]);
-  if (operator === "coulomb_pair") return coulombPair(inputs, context);
+  const prepared = prepareDipoleSourceUnits(operator, inputs, document);
+  inputs = prepared.inputs;
+  if (operator === "coulomb_pair") return coulombPair(inputs, context, prepared.chargeFactor, prepared.lengthFactor);
   if (operator === "point_charge_field") return pointChargeField(inputs, context);
   if (operator === "field_lines") return fieldLines(inputs, context);
   if (operator === "dipole_field") return dipoleField(inputs, context);
@@ -820,7 +823,7 @@ function compactDipoleNumber(value: number): string {
 function dipoleLabel(meta: DipoleFieldMetadata, index: number): string {
   if (meta.operator === "coulomb_pair") {
     const force = meta.forces?.[index];
-    return force ? `F=${compactDipoleNumber(Math.hypot(force.x, force.y))}` : "F";
+    return force ? `F=${compactDipoleNumber(Math.hypot(force.x, force.y))} N` : "F";
   }
   if (meta.operator === "point_charge_field" || meta.operator === "dipole_field") {
     return meta.magnitude === undefined ? "E" : `E=${compactDipoleNumber(meta.magnitude)}`;
@@ -881,7 +884,7 @@ export function validateDipoleFieldConstruction(
     },
   };
   try {
-    evaluateDipoleFieldConstruction(operator, inputs, context);
+    evaluateDipoleFieldConstruction(operator, inputs, context, document);
   } catch (error) {
     if (error instanceof DeferredDipolePoint) return;
     add(error instanceof DipoleFieldInputError ? error.key : "fields", error instanceof Error ? error.message : "dipole-field inputs are invalid");
@@ -903,7 +906,10 @@ export function validateEvaluatedDipoleLabels(construction: SceneConstruction, i
     // Field-line density and scaled arrow length carry no quantitative authority.
     return values;
     });
-    validatePublicationDerivedClaims(construction, index, document, authorities, issues);
+    validatePublicationDerivedClaims(construction, index, document, authorities, issues, outputs.map((output): Readonly<Record<string, string>> => {
+      if (isDipoleGeometry(output) && output.dipoleField.operator === "coulomb_pair") return { F: "N", "|F|": "N", magnitude: "N", Fx: "N", Fy: "N" };
+      return {};
+    }));
   } catch (error) {
     issues.push({ code: "invalid_publication_derived_label", severity: "fatal", message: error instanceof Error ? error.message : "Invalid typed label authority", path: `constructions[${index}].outputs` });
   }
