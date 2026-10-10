@@ -3,6 +3,8 @@
  * This pass infers compact labels from roles, conventional IDs, and the
  * question, then keeps those points in the visible reveal contract.
  */
+const ANGLE_MARK_OPERATORS = new Set(["angle_mark", "right_angle_mark", "space_angle_mark", "space_right_angle_mark"]);
+
 /** Keep angle vertices visible before dead-entity pruning. */
 export function promoteAngleMarkVertices(raw: Record<string, unknown>): Record<string, unknown> {
   if (!Array.isArray(raw.constructions) || !Array.isArray(raw.requiredEntityIds) || !Array.isArray(raw.revealGroups)) {
@@ -10,7 +12,7 @@ export function promoteAngleMarkVertices(raw: Record<string, unknown>): Record<s
   }
   const vertices = raw.constructions.flatMap((construction) => {
     if (!isRecord(construction)) return [];
-    if (construction.operator !== "angle_mark" && construction.operator !== "right_angle_mark") return [];
+    if (!ANGLE_MARK_OPERATORS.has(String(construction.operator))) return [];
     if (!isRecord(construction.inputs) || typeof construction.inputs.vertex !== "string") return [];
     return [construction.inputs.vertex];
   });
@@ -59,7 +61,7 @@ export function ensureStudentFacingPointMarks(raw: Record<string, unknown>): Rec
       : []);
   const angleVertices = (Array.isArray(raw.constructions) ? raw.constructions : []).flatMap((construction) => {
     if (!isRecord(construction)) return [];
-    if (construction.operator !== "angle_mark" && construction.operator !== "right_angle_mark") return [];
+    if (!ANGLE_MARK_OPERATORS.has(String(construction.operator))) return [];
     if (!isRecord(construction.inputs) || typeof construction.inputs.vertex !== "string") return [];
     return constructed.has(construction.inputs.vertex) ? [construction.inputs.vertex] : [];
   });

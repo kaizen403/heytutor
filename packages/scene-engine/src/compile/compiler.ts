@@ -105,8 +105,12 @@ import {
   spaceProofCompatibility,
   spaceDirectionResidual,
   spaceIncidenceResidual,
+  spaceMarkedAngle,
   spaceMetricLength,
+  spaceOppositeDirection,
   spacePointDistance,
+  type SpaceAngleDefinition,
+  type SpaceCrossDefinition,
   type SpaceLineDefinition,
   type SpacePlaneDefinition,
   type SpaceSegmentDefinition,
@@ -179,8 +183,8 @@ type DerivedGeometryMetadata = {
 };
 
 type Geometry =
-  | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
-  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition } & DerivedGeometryMetadata)
+  | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; spaceCross?: SpaceCrossDefinition; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
+  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
   | ({
       kind: "multi_path";
       paths: Point[][];
@@ -1436,7 +1440,11 @@ function evaluateConstruction(
     case "space_project":
     case "space_intersection":
     case "space_closest_points":
-    case "space_segment": return evaluateSpaceDerivationConstruction(operator, inputs, constructionContext);
+    case "space_segment":
+    case "space_vector":
+    case "space_cross":
+    case "space_angle_mark":
+    case "space_right_angle_mark": return evaluateSpaceDerivationConstruction(operator, inputs, constructionContext);
     case "point": return [{ kind: "point", point: { x: number(["x"]), y: number(["y"]) } }];
     case "label": return [{
       kind: "point",
@@ -1578,7 +1586,7 @@ function evaluateConstruction(
     }
     case "vector_components": {
       const origin = point(["origin", "start"]); const vector = resolveVector(first(inputs, ["vector"]), geometry);
-      const basisReference = first(inputs, ["basis", "parallelTo", "reference"]);
+      const basisReference = ["basis", "parallelTo", "reference"].map(name => inputs[name]).find(value => value !== undefined);
       if (basisReference !== undefined) {
         const [basisStart, basisEnd] = resolveLine(basisReference, geometry);
         const basis = normalize({ x: basisEnd.x - basisStart.x, y: basisEnd.y - basisStart.y });
@@ -1736,7 +1744,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
   if (!["exists", "entity_count", "label_attached"].includes(predicate)) {
     const worldCompatibility = spaceProofCompatibility(values);
     if (worldCompatibility !== null && (worldCompatibility === false ||
-      !["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_length", "equal_angle", "angle_between", "distance_ratio"].includes(predicate))) {
+      !["on", "incident", "between", "parallel", "perpendicular", "collinear", "equal_length", "equal_angle", "angle_between", "distance_ratio", "opposite_direction"].includes(predicate))) {
       issues.push({ code: "invalid_world_assertion", message: "World-space assertions require compatible world operands and an implemented world predicate", severity: "fatal", entityIds: assertion.entities });
       return;
     }
@@ -1835,6 +1843,13 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         break;
       }
       case "angle_between": {
+        // A world angle mark carries the angle it draws, so it can be proved alone.
+        const markedWorldAngle = values.length === 1 ? spaceMarkedAngle(values[0]) : null;
+        if (markedWorldAngle !== null) {
+          residual = Math.abs(markedWorldAngle - expectedAngleRadians(assertion.expected));
+          passed = residual < angularTolerance(assertion);
+          break;
+        }
         if (values.length !== 2) break;
         const expectedAngle = expectedAngleRadians(assertion.expected);
         residual = Math.abs((spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]))) - expectedAngle);
@@ -1926,6 +1941,12 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         break;
       }
       case "opposite_direction": {
+        const worldOpposite = spaceOppositeDirection(values[0], values[1]);
+        if (worldOpposite !== null) {
+          residual = worldOpposite.residual;
+          passed = residual < tolerance(assertion) && worldOpposite.opposite;
+          break;
+        }
         const firstLine = asLine(values[0]);
         const secondLine = asLine(values[1]);
         const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
@@ -2145,7 +2166,8 @@ function shouldSplitPlotAxes(
 
 function planarRings(values: Geometry[]): Point[][] {
   return values.flatMap((value) => {
-    if (value.kind !== "path" || value.points.length < 3) return [];
+    // A world angle mark is a mark, not a region; its own operator rejects an edge-on view.
+    if (value.kind !== "path" || value.points.length < 3 || value.spaceAngle) return [];
     const first = value.points[0]!;
     const last = value.points.at(-1)!;
     const closed = value.closed === true || distance(first, last) < EPSILON;

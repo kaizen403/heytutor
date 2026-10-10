@@ -1,13 +1,17 @@
 import { isometricProject, planeFromCartesian, vec3Add, vec3Length, vec3Scale, type SpaceFrame, type Vec3 } from "../math/space";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
-export const SPACE_DERIVATION_OPERATORS = ["space_project", "space_intersection", "space_closest_points", "space_segment"] as const;
+export const SPACE_DERIVATION_OPERATORS = ["space_project", "space_intersection", "space_closest_points", "space_segment", "space_vector", "space_cross", "space_angle_mark", "space_right_angle_mark"] as const;
 export interface SpaceLineDefinition { frameId: string; point: Vec3; direction: Vec3 }
 export interface SpacePlaneDefinition { frameId: string; point: Vec3; normal: Vec3 }
 export interface SpaceSegmentDefinition { frameId: string; a: Vec3; b: Vec3; length: number }
+/** World arms of a drawn angle: unit directions from the vertex and the angle between them. */
+export interface SpaceAngleDefinition { frameId: string; vertex: Vec3; u: Vec3; v: Vec3; radians: number; right: boolean }
+/** The engine's own a×b; a zero product is a certified point marker, never an arrow. */
+export interface SpaceCrossDefinition { frameId: string; a: Vec3; b: Vec3; product: Vec3; scale: number; zero: boolean }
 export type SpaceDerivationGeometry =
-  | { kind: "point"; point: RenderPoint; space: Vec3; spaceFrameId: string }
-  | { kind: "path"; points: RenderPoint[]; infinite?: boolean; spaceLine?: SpaceLineDefinition; spaceSegment?: SpaceSegmentDefinition };
+  | { kind: "point"; point: RenderPoint; space: Vec3; spaceFrameId: string; spaceCross?: SpaceCrossDefinition }
+  | { kind: "path"; points: RenderPoint[]; infinite?: boolean; directed?: boolean; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition };
 export interface SpaceDerivationEvaluationContext {
   number(value: unknown): number;
   point(value: unknown): RenderPoint;
@@ -18,6 +22,11 @@ const MAX_WORLD = 1e9;
 const MAX_RENDER = 1e12;
 const MIN_VECTOR = 1e-9;
 const MIN_SINE = 1e-8;
+/** A right-angle mark is a proof: |cos| of the world angle must vanish to this tolerance. */
+const RIGHT_ANGLE_COSINE = 1e-6;
+/** Below this sine between the projected in-plane axes, an angle mark collapses to a stroke. */
+const MIN_PROJECTED_SINE = 0.05;
+const ARC_STEP = Math.PI / 36;
 class SpaceInputError extends Error {
   constructor(readonly key: string, message: string) { super(message); }
 }
@@ -103,6 +112,205 @@ function projectedPath(a: Vec3, b: Vec3, frameId: string, frame: SpaceFrame): Re
 function inputKeys(inputs: Record<string, unknown>, allowed: string[]): void {
   const extra = Object.keys(inputs).filter((key) => !allowed.includes(key));
   if (extra.length) invalid("fields", `unsupported space derivation inputs: ${extra.join(", ")}`);
+}
+
+/**
+ * One arm of a world angle. A ray has a fixed sense (a point, or a segment or
+ * vector that starts or ends at the vertex). A line has no sense of its own
+ * (an infinite line, or a segment through the vertex). A plane arm only gains
+ * a direction from its partner.
+ */
+type RayArm = { kind: "ray"; direction: Vec3; reach: number };
+type LineArm = { kind: "line"; direction: Vec3; forward: number; backward: number };
+type PlaneArm = { kind: "plane"; normal: Vec3; anchor: Vec3 };
+type SpaceArm = RayArm | LineArm | PlaneArm;
+interface ArmSide { direction: Vec3; reach: number }
+
+/**
+ * How close two world points must be to count as one: a part per million of
+ * the figure's own local length (an arm, a segment, the distance to a line's
+ * point), never below the rounding of coordinates this far from the origin.
+ * Translating a figure moves only that rounding floor, so it keeps its
+ * verdict wherever it sits.
+ */
+function localTolerance(localLength: number, ...points: Vec3[]): number {
+  const magnitude = Math.max(0, ...points.map(vec3Length));
+  return Math.max(1e-6 * Math.max(1, localLength), 64 * Number.EPSILON * magnitude);
+}
+function isScreenPoint(value: unknown): value is RenderPoint {
+  return isRecord(value) && typeof value.x === "number" && typeof value.y === "number" && Number.isFinite(value.x) && Number.isFinite(value.y);
+}
+/** Screen image of a world direction; the frame origin cancels out. */
+function screenDirection(direction: Vec3, frame: SpaceFrame): RenderPoint {
+  const base = isometricProject({ x: 0, y: 0, z: 0 }, frame);
+  const tip = isometricProject(direction, frame);
+  return { x: tip.x - base.x, y: tip.y - base.y };
+}
+/** World length drawn on each side of the vertex, read back from the line's own projected extent. */
+function lineReach(geometry: Record<string, unknown>, line: SpaceLineDefinition, vertex: Vec3, frame: SpaceFrame): { forward: number; backward: number } {
+  const length = vec3Length(line.direction);
+  const along = dot(sub(vertex, line.point), line.direction) / (length * length);
+  const base = isometricProject(line.point, frame);
+  const screen = screenDirection(line.direction, frame);
+  const screenSquared = screen.x * screen.x + screen.y * screen.y;
+  const points = Array.isArray(geometry.points) ? geometry.points.filter(isScreenPoint) : [];
+  if (!(screenSquared > 0) || points.length < 2) return { forward: length, backward: length };
+  const parameters = points.map((point) => ((point.x - base.x) * screen.x + (point.y - base.y) * screen.y) / screenSquared);
+  return {
+    forward: Math.max(0, (Math.max(...parameters) - along) * length),
+    backward: Math.max(0, (along - Math.min(...parameters)) * length),
+  };
+}
+/**
+ * A cross product operand: a world segment or vector, or the certified zero
+ * marker of an earlier space_cross, which is the zero vector at its origin.
+ */
+function crossOperand(geometry: Record<string, unknown>, key: string, frameId: string): { start: Vec3; vector: Vec3; length: number } {
+  if (geometry.kind === "point" && isRecord(geometry.spaceCross) && geometry.spaceCross.zero === true) {
+    sameFrame(geometry.spaceCross.frameId, frameId, key);
+    return { start: finiteVector(geometry.space, key), vector: { x: 0, y: 0, z: 0 }, length: 0 };
+  }
+  const segment = segmentInput(geometry, key, frameId);
+  return { start: segment.a, vector: sub(segment.b, segment.a), length: segment.length };
+}
+function segmentInput(geometry: Record<string, unknown>, key: string, frameId: string): SpaceSegmentDefinition {
+  let segment: SpaceSegmentDefinition;
+  try { segment = segmentDefinition(geometry); } catch { return invalid(key, `${key} must reference a world space_segment or space_vector`); }
+  sameFrame(segment.frameId, frameId, key);
+  return segment;
+}
+function resolveArm(value: unknown, key: string, vertex: Vec3, frameId: string, frame: SpaceFrame, context: SpaceDerivationEvaluationContext): SpaceArm {
+  const geometry = reference(value, key, context);
+  if (geometry.kind === "point") {
+    const point = spacePoint(value, key, frameId, context);
+    const delta = sub(point, vertex);
+    const reach = vec3Length(delta);
+    if (!(reach > localTolerance(0, vertex, point))) return invalid(key, `${key} point arm must differ from the vertex`);
+    return { kind: "ray", direction: vec3Scale(delta, 1 / reach), reach };
+  }
+  if (geometry.spacePlane !== undefined) {
+    const plane = planeDefinition(geometry, key);
+    sameFrame(plane.frameId, frameId, key);
+    const normal = unit(plane.normal, key);
+    if (Math.abs(dot(sub(vertex, plane.point), normal)) > localTolerance(0, vertex, plane.point)) return invalid(key, `the vertex must lie on plane arm ${key}`);
+    return { kind: "plane", normal, anchor: plane.point };
+  }
+  if (geometry.spaceLine !== undefined) {
+    const line = lineDefinition(geometry, key);
+    sameFrame(line.frameId, frameId, key);
+    const direction = unit(line.direction, key);
+    const offLine = vec3Length(cross(sub(vertex, line.point), direction));
+    if (offLine > localTolerance(vec3Length(sub(vertex, line.point)), vertex, line.point)) return invalid(key, `the vertex must lie on line arm ${key}`);
+    return { kind: "line", direction, ...lineReach(geometry, line, vertex, frame) };
+  }
+  if (geometry.spaceSegment !== undefined) {
+    const segment = segmentInput(geometry, key, frameId);
+    const tolerance = localTolerance(segment.length, vertex, segment.a, segment.b);
+    const direction = vec3Scale(sub(segment.b, segment.a), 1 / segment.length);
+    const along = dot(sub(vertex, segment.a), direction);
+    const offset = vec3Length(sub(vertex, vec3Add(segment.a, vec3Scale(direction, along))));
+    if (offset > tolerance || along < -tolerance || along > segment.length + tolerance) return invalid(key, `the vertex must lie on segment arm ${key}`);
+    // A segment or vector that ends at the vertex points away from it.
+    if (along <= tolerance) return { kind: "ray", direction, reach: segment.length };
+    if (along >= segment.length - tolerance) return { kind: "ray", direction: vec3Scale(direction, -1), reach: segment.length };
+    return { kind: "line", direction, forward: segment.length - along, backward: along };
+  }
+  return invalid(key, `${key} must reference a space point, space line, segment, vector, or plane`);
+}
+function longerSide(arm: LineArm): ArmSide {
+  return arm.forward >= arm.backward
+    ? { direction: arm.direction, reach: arm.forward }
+    : { direction: vec3Scale(arm.direction, -1), reach: arm.backward };
+}
+/** An unsensed arm takes the side that makes the marked angle acute, the textbook angle between lines; a tie keeps the longer drawn side. */
+function acuteSide(arm: LineArm, against: Vec3, acute: boolean): ArmSide {
+  const cosine = dot(arm.direction, against);
+  const side = !acute || Math.abs(cosine) <= RIGHT_ANGLE_COSINE
+    ? longerSide(arm)
+    : cosine > 0 ? { direction: arm.direction, reach: arm.forward } : { direction: vec3Scale(arm.direction, -1), reach: arm.backward };
+  return { direction: side.direction, reach: side.reach > MIN_VECTOR ? side.reach : Math.max(arm.forward, arm.backward) };
+}
+/** Points a unit direction toward an anchor; an anchor on the edge line leaves it as is. */
+function toward(direction: Vec3, vertex: Vec3, anchor: Vec3): Vec3 {
+  const offset = sub(anchor, vertex);
+  return dot(direction, offset) < -localTolerance(vec3Length(offset), vertex, anchor) ? vec3Scale(direction, -1) : direction;
+}
+interface ResolvedSpaceAngle { vertex: Vec3; u: Vec3; v: Vec3; radians: number; reaches: number[] }
+/**
+ * Two arms from one world vertex. Two planes give the dihedral angle in the
+ * plane normal to their common line; a plane with a line gives the line's
+ * inclination, measured to its own projection in the plane.
+ */
+function resolveSpaceAngle(inputs: Record<string, unknown>, context: SpaceDerivationEvaluationContext, right: boolean, frameId: string, frame: SpaceFrame): ResolvedSpaceAngle {
+  const vertex = spacePoint(inputs.vertex, "vertex", frameId, context);
+  const first = resolveArm(inputs.a, "a", vertex, frameId, frame, context);
+  const second = resolveArm(inputs.b, "b", vertex, frameId, frame, context);
+  const reaches: number[] = [];
+  let u: Vec3;
+  let v: Vec3;
+  if (first.kind === "plane" && second.kind === "plane") {
+    const edge = cross(first.normal, second.normal);
+    if (!(vec3Length(edge) > MIN_SINE)) return invalid("b", "parallel or coincident planes define no dihedral angle");
+    const axis = unit(edge, "b");
+    u = toward(unit(cross(axis, first.normal), "a"), vertex, first.anchor);
+    const across = unit(cross(axis, second.normal), "b");
+    const cosine = dot(u, across);
+    v = !right && Math.abs(cosine) > RIGHT_ANGLE_COSINE
+      ? cosine > 0 ? across : vec3Scale(across, -1)
+      : toward(across, vertex, second.anchor);
+  } else if (first.kind === "plane" || second.kind === "plane") {
+    const plane = (first.kind === "plane" ? first : second) as PlaneArm;
+    const lineArm = (first.kind === "plane" ? second : first) as RayArm | LineArm;
+    const side = lineArm.kind === "ray" ? { direction: lineArm.direction, reach: lineArm.reach } : longerSide(lineArm);
+    reaches.push(side.reach);
+    const inPlane = sub(side.direction, vec3Scale(plane.normal, dot(side.direction, plane.normal)));
+    if (!(vec3Length(inPlane) > MIN_SINE)) return invalid(first.kind === "plane" ? "b" : "a", "a line perpendicular to the plane has no projection in it; mark the angle against a line in the plane");
+    const projection = unit(inPlane, "geometry");
+    [u, v] = first.kind === "plane" ? [projection, side.direction] : [side.direction, projection];
+  } else {
+    const firstSide = first.kind === "ray"
+      ? { direction: first.direction, reach: first.reach }
+      : second.kind === "ray" ? acuteSide(first, second.direction, !right) : longerSide(first);
+    const secondSide = second.kind === "ray" ? { direction: second.direction, reach: second.reach } : acuteSide(second, firstSide.direction, !right);
+    u = firstSide.direction;
+    v = secondSide.direction;
+    reaches.push(firstSide.reach, secondSide.reach);
+  }
+  const sine = vec3Length(cross(u, v));
+  const cosine = dot(u, v);
+  if (!(sine > MIN_SINE)) return invalid("b", "parallel or antiparallel arms define no angle");
+  const radians = Math.atan2(sine, cosine);
+  if (right && Math.abs(cosine) > RIGHT_ANGLE_COSINE) return invalid("b", `space_right_angle_mark arms meet at ${(radians * 180 / Math.PI).toFixed(4)} degrees in world space, not 90`);
+  return { vertex, u, v, radians, reaches };
+}
+function markSize(value: unknown, key: string, reaches: number[], fraction: number, fallback: number, context: SpaceDerivationEvaluationContext): number {
+  if (value !== undefined) {
+    const size = numberInput(value, key, context);
+    if (!(size > 0)) invalid(key, `${key} must be a positive world length`);
+    return size;
+  }
+  const finite = reaches.filter((reach) => Number.isFinite(reach) && reach > MIN_VECTOR);
+  return finite.length ? fraction * Math.min(...finite) : fallback;
+}
+/** Sample the mark in the world plane of its arms, then project it like every other world mark. */
+function spaceAngleMark(angle: ResolvedSpaceAngle, size: number, right: boolean, frameId: string, frame: SpaceFrame): SpaceDerivationGeometry {
+  const { vertex, u, v, radians } = angle;
+  const w = unit(sub(v, vec3Scale(u, dot(v, u))), "geometry");
+  const pu = screenDirection(u, frame);
+  const pw = screenDirection(w, frame);
+  const projectedSine = Math.abs(pu.x * pw.y - pu.y * pw.x) / (Math.hypot(pu.x, pu.y) * Math.hypot(pw.x, pw.y));
+  if (!(projectedSine >= MIN_PROJECTED_SINE)) invalid("geometry", "the angle's world plane is edge-on in this projection, so its mark would collapse to a stroke");
+  const steps = Math.max(8, Math.ceil(radians / ARC_STEP));
+  const world = right
+    ? [vec3Add(vertex, vec3Scale(u, size)), vec3Add(vertex, vec3Scale(vec3Add(u, v), size)), vec3Add(vertex, vec3Scale(v, size))]
+    : Array.from({ length: steps + 1 }, (_, index) => {
+        const phi = radians * index / steps;
+        return vec3Add(vertex, vec3Add(vec3Scale(u, size * Math.cos(phi)), vec3Scale(w, size * Math.sin(phi))));
+      });
+  const points = world.map((point) => projectedPoint(point, frameId, frame).point);
+  // Store the measured angle: a right mark is accepted within RIGHT_ANGLE_COSINE
+  // of 90 degrees, and its proof recomputes the angle from the same arms.
+  return { kind: "path", points, markedAngleRadians: radians, spaceAngle: { frameId, vertex, u, v, radians, right } };
 }
 
 /** All derivations use world vectors; the isometric projection is a presentation step. */
@@ -192,11 +400,57 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     if (!(length > MIN_VECTOR)) invalid("b", "space_segment endpoints must be distinct world points");
     return [{ kind: "path", points: projectedPath(a, b, frameId, frame), spaceSegment: { frameId, a, b, length } }];
   }
+  if (operator === "space_vector") {
+    inputKeys(inputs, ["frame", "start", "end"]);
+    const a = spacePoint(inputs.start, "start", frameId, context);
+    const b = spacePoint(inputs.end, "end", frameId, context);
+    const length = bounded(vec3Length(sub(b, a)), "geometry");
+    if (!(length > MIN_VECTOR)) invalid("end", "space_vector start and end must be distinct world points");
+    return [{ kind: "path", points: projectedPath(a, b, frameId, frame), directed: true, spaceSegment: { frameId, a, b, length } }];
+  }
+  if (operator === "space_cross") {
+    inputKeys(inputs, ["frame", "a", "b", "origin", "scale"]);
+    const first = crossOperand(reference(inputs.a, "a", context), "a", frameId);
+    const second = crossOperand(reference(inputs.b, "b", context), "b", frameId);
+    const scale = inputs.scale === undefined ? 1 : numberInput(inputs.scale, "scale", context);
+    if (!(scale > 0)) invalid("scale", "space_cross scale must be a positive finite number");
+    let origin: Vec3;
+    if (inputs.origin === undefined) {
+      const span = Math.max(first.length, second.length);
+      if (vec3Length(sub(first.start, second.start)) > localTolerance(span, first.start, second.start)) invalid("origin", "a and b do not start at one world point; supply origin");
+      origin = first.start;
+    } else origin = spacePoint(inputs.origin, "origin", frameId, context);
+    const a = first.vector;
+    const b = second.vector;
+    const raw = cross(a, b);
+    // Only an exactly zero product is certified zero. A product within the
+    // rounding of a·b's magnitudes cannot be told from zero, so it is refused
+    // rather than drawn or zeroed; any larger product is drawn at its scale.
+    if (raw.x === 0 && raw.y === 0 && raw.z === 0) {
+      return [{ ...projectedPoint(origin, frameId, frame), spaceCross: { frameId, a, b, product: { x: 0, y: 0, z: 0 }, scale, zero: true } }];
+    }
+    if (!(vec3Length(raw) > 8 * Number.EPSILON * vec3Length(a) * vec3Length(b))) {
+      invalid("b", "a×b is within floating rounding of zero; the inputs cannot certify parallel or not, so state exact components");
+    }
+    const product = finiteVector(vec3Scale(raw, scale), "geometry");
+    const end = vec3Add(origin, product);
+    const length = bounded(vec3Length(product), "geometry");
+    if (!(length > MIN_VECTOR)) invalid("scale", "scale*(a×b) is too short to draw; raise scale");
+    return [{ kind: "path", points: projectedPath(origin, end, frameId, frame), directed: true, spaceSegment: { frameId, a: origin, b: end, length }, spaceCross: { frameId, a, b, product, scale, zero: false } }];
+  }
+  if (operator === "space_angle_mark" || operator === "space_right_angle_mark") {
+    const right = operator === "space_right_angle_mark";
+    const sizeKey = right ? "size" : "radius";
+    inputKeys(inputs, ["frame", "vertex", "a", "b", sizeKey]);
+    const angle = resolveSpaceAngle(inputs, context, right, frameId, frame);
+    const size = markSize(inputs[sizeKey], sizeKey, angle.reaches, right ? 0.16 : 0.25, right ? 0.3 : 0.6, context);
+    return [spaceAngleMark(angle, size, right, frameId, frame)];
+  }
   return invalid("operator", `unsupported space derivation operator ${operator}`);
 }
 
 function hasWorldGeometry(value: unknown): boolean {
-  return isRecord(value) && ["space", "spaceFrameId", "spaceFrame", "spaceLine", "spacePlane", "spaceSegment"].some((key) => value[key] !== undefined);
+  return isRecord(value) && ["space", "spaceFrameId", "spaceFrame", "spaceLine", "spacePlane", "spaceSegment", "spaceAngle"].some((key) => value[key] !== undefined);
 }
 /** A world proof cannot compare screen geometry or different projection frames. */
 export function spaceProofCompatibility(geometries: readonly unknown[]): boolean | null {
@@ -204,12 +458,37 @@ export function spaceProofCompatibility(geometries: readonly unknown[]): boolean
   try {
     const frames = geometries.map((geometry) => {
       if (!hasWorldGeometry(geometry)) return invalid("geometry", "world proofs require world metadata on every operand");
-      return isRecord(geometry) && geometry.kind === "point"
-        ? proofPoint(geometry).frameId
-        : proofDirection(geometry).frameId;
+      if (isRecord(geometry) && geometry.kind === "point") return proofPoint(geometry).frameId;
+      if (isRecord(geometry) && geometry.spaceAngle !== undefined) return angleDefinition(geometry).frameId;
+      return proofDirection(geometry).frameId;
     });
     return frames.length > 0 && frames.every((frame) => frame === frames[0]);
   } catch { return false; }
+}
+function angleDefinition(value: unknown): SpaceAngleDefinition {
+  if (!isRecord(value) || value.kind !== "path" || !isRecord(value.spaceAngle) || typeof value.spaceAngle.frameId !== "string") return invalid("geometry", "proof requires a world angle mark");
+  const angle = value.spaceAngle;
+  const u = finiteVector(angle.u, "geometry");
+  const v = finiteVector(angle.v, "geometry");
+  if (Math.abs(vec3Length(u) - 1) > 1e-9 || Math.abs(vec3Length(v) - 1) > 1e-9 || typeof angle.radians !== "number") return invalid("geometry", "world angle arms must be unit directions");
+  const measured = Math.atan2(vec3Length(cross(u, v)), dot(u, v));
+  if (!(Math.abs(measured - angle.radians) < 1e-9)) invalid("geometry", "world angle metadata is inconsistent with its arms");
+  return { frameId: String(angle.frameId), vertex: finiteVector(angle.vertex, "geometry"), u, v, radians: measured, right: angle.right === true };
+}
+/** The world angle a space mark draws, recomputed from its arms; null leaves 2D marks with their own authority. */
+export function spaceMarkedAngle(value: unknown): number | null {
+  if (!hasWorldGeometry(value)) return null;
+  try { return angleDefinition(value).radians; } catch { return Infinity; }
+}
+/** Sensed world directions only: segments and vectors, never unsensed lines or planes. */
+export function spaceOppositeDirection(first: unknown, second: unknown): { residual: number; opposite: boolean } | null {
+  if (!hasWorldGeometry(first) && !hasWorldGeometry(second)) return null;
+  try {
+    const a = segmentDefinition(first); const b = segmentDefinition(second);
+    sameFrame(a.frameId, b.frameId, "geometry");
+    const u = unit(sub(a.b, a.a), "geometry"); const v = unit(sub(b.b, b.a), "geometry");
+    return { residual: vec3Length(cross(u, v)), opposite: dot(u, v) < 0 };
+  } catch { return { residual: Infinity, opposite: false }; }
 }
 
 /** Distance from the middle point to the finite world segment, including its endpoints. */
@@ -286,12 +565,23 @@ export function spaceDirectionResidual(first: unknown, second: unknown, predicat
     return useDot ? Math.abs(dot(a.direction, b.direction)) : vec3Length(cross(a.direction, b.direction));
   } catch { return Infinity; }
 }
-/** Acute angle in radians; a line-plane angle measures the inclination to the plane. */
+/** A space_vector or space_cross output: a world segment with a sense. */
+function isDirectedWorldVector(value: unknown): boolean {
+  return isRecord(value) && value.kind === "path" && value.directed === true && value.spaceSegment !== undefined;
+}
+/**
+ * Angle in radians. Two directed vectors keep their sense (0 to 180 degrees);
+ * lines and planes have none, so they use the acute angle, and a line-plane
+ * angle measures the inclination to the plane.
+ */
 export function spaceAcuteAngle(first: unknown, second: unknown): number | null {
   if (!hasWorldGeometry(first) && !hasWorldGeometry(second)) return null;
   try {
     const a = proofDirection(first); const b = proofDirection(second);
     sameFrame(a.frameId, b.frameId, "geometry");
+    if (isDirectedWorldVector(first) && isDirectedWorldVector(second)) {
+      return Math.acos(Math.min(1, Math.max(-1, dot(a.direction, b.direction))));
+    }
     const cosine = Math.min(1, Math.max(0, Math.abs(dot(a.direction, b.direction))));
     return a.plane !== b.plane ? Math.asin(cosine) : Math.acos(cosine);
   } catch { return Infinity; }
@@ -331,6 +621,15 @@ function validationNumber(value: unknown, document: SceneDocument, seen = new Se
   if (!quantity) return bounded(Number(value), "number");
   seen.add(value);
   return validationNumber(quantity.value, document, seen, depth + 1);
+}
+
+/** A zero cross product is a point marker, so its entity may be declared as the vector it stands for. */
+function outputEntityKinds(operator: string, result: SpaceDerivationGeometry): string[] {
+  if (operator === "space_angle_mark") return ["angle_mark"];
+  if (operator === "space_right_angle_mark") return ["right_angle_mark"];
+  if (operator === "space_vector") return ["vector"];
+  if (operator === "space_cross") return result.kind === "point" ? ["vector", "point"] : ["vector"];
+  return [result.kind === "point" ? "point" : result.spaceLine ? "line" : "segment"];
 }
 
 /** Re-evaluate the dependency graph in world units, including derived references, before any ink is committed. */
@@ -418,9 +717,9 @@ export function validateSpaceDerivationConstruction(construction: SceneConstruct
   try {
     const results = evaluateSpaceDerivationConstruction(construction.operator, construction.inputs, context);
     for (const [outputIndex, result] of results.entries()) {
-      const expectedKind = result.kind === "point" ? "point" : result.spaceLine ? "line" : "segment";
+      const expectedKinds = outputEntityKinds(construction.operator, result);
       const entity = document.entities.find((entity) => entity.id === outputs[outputIndex]);
-      if (!entity || entity.kind !== expectedKind) add("output_kind", `${construction.operator} output ${outputIndex + 1} requires entity kind ${expectedKind}`, entity?.kind);
+      if (!entity || !expectedKinds.includes(entity.kind)) add("output_kind", `${construction.operator} output ${outputIndex + 1} requires entity kind ${expectedKinds.join(" or ")}`, entity?.kind);
     }
   } catch (error) {
     const key = error instanceof SpaceInputError ? error.key : "inputs";
