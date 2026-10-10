@@ -181,7 +181,13 @@ type DerivedGeometryMetadata = {
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
   | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition } & DerivedGeometryMetadata)
-  | ({ kind: "multi_path"; paths: Point[][] } & DerivedGeometryMetadata)
+  | ({
+      kind: "multi_path";
+      paths: Point[][];
+      /** Per-path arrow semantics retained by operators that return several
+       * independent curves. Undefined means every path is ordinary ink. */
+      pathDirections?: boolean[];
+    } & DerivedGeometryMetadata)
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
@@ -1269,7 +1275,12 @@ function adaptDipoleGeometry(value: DipoleGeometry): Geometry {
   if (value.kind === "point") return { kind: "point", point: value.point, dipoleField };
   if (value.kind === "path") return { kind: "path", points: value.points, directed: true, dipoleField };
   if (value.kind === "circle") return { kind: "circle", center: value.center, radius: value.radius, dipoleField };
-  return { kind: "multi_path", paths: value.paths.map((path) => path.points), dipoleField };
+  return {
+    kind: "multi_path",
+    paths: value.paths.map((path) => path.points),
+    pathDirections: value.paths.map((path) => path.directed),
+    dipoleField,
+  };
 }
 
 function evaluateConstruction(
@@ -2280,7 +2291,7 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
       id: `primitive_${entityId}_${index}`,
       entityId,
       groupId,
-      kind: "polyline",
+      kind: value.pathDirections?.[index] === true ? "vector" : "polyline",
       points: path.map(transform),
       provenance,
     }));

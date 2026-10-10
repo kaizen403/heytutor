@@ -14,7 +14,7 @@ export const CURRENT_FIELD_OPERATORS = [
 ] as const;
 
 export interface CurrentFieldMark {
-  role: "field" | "force";
+  role: "field" | "force" | "wire";
   components: { x: number; y: number; z: number };
   magnitude: number;
   unit: string;
@@ -153,19 +153,24 @@ function readParallel(inputs: Record<string, unknown>, context: SourceContext, d
   requireUnits(inputs.currents[0], "A", AMP, document);
   requireUnits(inputs.separation, "m", METRE, document);
   const perLength = mu0 * currents[0]! * currents[1]! / (2 * Math.PI * separation);
+  const forceMagnitude = Math.abs(perLength);
   const attract = currents[0]! * currents[1]! >= 0;
   const origin = placement(inputs.origin, "origin", context);
   const drawn = separation * displayScale;
   const left = { x: origin.x - drawn / 2, y: origin.y };
   const right = { x: origin.x + drawn / 2, y: origin.y };
   const half = length * displayScale / 2;
-  const wire = (at: RenderPoint): CurrentFieldGeometry => ({
+  const wire = (at: RenderPoint, current: number): CurrentFieldGeometry => ({
     kind: "path",
     points: [{ x: at.x, y: at.y - half }, { x: at.x, y: at.y + half }],
-    currentField: mark("field", { x: 0, y: length, z: 0 }, "m", displayScale),
+    // A source conductor is apparatus, not a magnetic-field mark. Preserve
+    // its signed current as authoritative metadata without allowing it to be
+    // labelled as B by the shared derived-output label boundary.
+    currentField: mark("wire", { x: 0, y: current, z: 0 }, "A", displayScale),
   });
-  const force = (at: RenderPoint, sign: number): CurrentFieldGeometry => glyph(at, mark("force", { x: sign * perLength, y: 0, z: 0 }, "N/m", forceScale));
-  return [wire(left), wire(right), force(left, attract ? 1 : -1), force(right, attract ? -1 : 1)];
+  // The attract sign alone sets the direction, so the force uses |perLength|.
+  const force = (at: RenderPoint, sign: number): CurrentFieldGeometry => glyph(at, mark("force", { x: sign * forceMagnitude, y: 0, z: 0 }, "N/m", forceScale));
+  return [wire(left, currents[0]!), wire(right, currents[1]!), force(left, attract ? 1 : -1), force(right, attract ? -1 : 1)];
 }
 
 function readDipole(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): CurrentFieldGeometry[] {
@@ -221,6 +226,18 @@ export function currentFieldOutputLabels(operator: string, outputs: readonly unk
   if (outputs.length !== count) invalid("outputs", "current-field labels require every ordered output");
   return outputs.map((output, index) => {
     const metadata = fieldOf(output);
+    if (metadata.role === "wire") {
+      const symbol = `I${index + 1}`;
+      const signedCurrent = metadata.components.y;
+      const numeric = `${symbol}=${compactNumber(signedCurrent)} ${metadata.unit}`;
+      const requestedText = requested?.[index];
+      if (requestedText !== undefined && requestedText !== "" && requestedText !== symbol && requestedText !== numeric) {
+        invalid("label", "wire labels must use their current identity or verified signed current");
+      }
+      // The signed-current arrow is a separate required mark in the magnetic
+      // family, so an unlabeled apparatus line remains unlabeled here.
+      return typeof requestedText === "string" ? requestedText : "";
+    }
     const symbol = metadata.role === "force" ? "F" : "B";
     const glyphText = metadata.pageNormal === "out" ? " ⊙" : metadata.pageNormal === "in" ? " ⊗" : "";
     const numeric = `${symbol}=${compactNumber(metadata.pageNormal ? metadata.components.z : metadata.magnitude)} ${metadata.unit}${glyphText}`;
