@@ -439,9 +439,10 @@ export function useLectureExport({
 
     void (async () => {
       try {
-        // Let the control paint before the capture and jsPDF hold the thread.
-        await nextPaint();
+        // Freeze shown board/code at the click, then let the control paint
+        // before jsPDF holds the thread. Teaching may continue during that yield.
         const images = await collectNotesSlides();
+        await nextPaint();
         if (!current()) return;
         if (images.length === 0) {
           dispatch({ type: "error", generation, message: NOTHING_YET });

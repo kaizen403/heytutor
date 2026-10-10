@@ -825,10 +825,22 @@ export function useReplay({
     // ref, so the click needs no round trip and works offline. Epochs only
     // supply board images captured this session.
     const storedTurns = storedTurnsRef.current;
+    const codeState = codeLessonControllerRef?.current?.getState();
+    const codePlanKey = codeState?.plan ? JSON.stringify(codeState.plan) : null;
+    const lastVisibleTurnIndex = isReplaying && replayCueRef.current
+      ? replayCueRef.current.turnIndex
+      : storedTurns.length - 1;
+    const codeTurn = codePlanKey
+      ? storedTurns.slice(0, lastVisibleTurnIndex + 1).reverse().find((turn) =>
+          !storedTurnContinuesBoard(turn) && JSON.stringify(storedCodeLessonPlan(turn.sceneArtifacts)) === codePlanKey)
+      : null;
+    const capturedCode = codeTurn && codeState?.plan
+      ? { turnId: codeTurn.id, plan: codeState.plan, revealedChars: { ...codeState.revealedChars } }
+      : null;
     const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);
     // DSA turns keep their code in a DOM panel the board snapshot cannot
     // see; render each section's code as its own notes page.
-    appendCodeLessonNotesImages(sections, storedTurns);
+    appendCodeLessonNotesImages(sections, storedTurns, capturedCode);
     return notesPdfSlideImages(sections);
   }, [
     whiteboardRef,
@@ -836,6 +848,9 @@ export function useReplay({
     narrationSinceEpochRef,
     liveQuestionRef,
     storedTurnsRef,
+    codeLessonControllerRef,
+    isReplaying,
+    replayCueRef,
   ]);
 
   const downloadNotesPdf = useCallback(() => {

@@ -430,7 +430,7 @@ export function codeLessonLineBoardSpan(
 
 /** Revealed text of one section, in block order. */
 export function revealedSectionText(
-  state: CodeLessonState,
+  state: Pick<CodeLessonState, "plan" | "revealedChars">,
   sectionIndex: number,
 ): string {
   const section = state.plan?.sections[sectionIndex];

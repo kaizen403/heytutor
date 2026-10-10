@@ -42,7 +42,8 @@ const QUESTION_LINE_HEIGHT_PX = 28;
 const QUESTION_FIELD_MAX_HEIGHT_PX = 480;
 
 export interface InputBarProps {
-  onSubmit: (question: string) => void;
+  /** An async Ask settles when ownership/read admission succeeds, before teaching finishes. */
+  onSubmit: (question: string) => void | Promise<boolean>;
   onAskDoubt?: (question: string) => void;
   onImageSelect?: (file: File) => void;
   disabled?: boolean;
@@ -178,6 +179,9 @@ export function InputBar({
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extractLatencyMs, setExtractLatencyMs] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const submitPendingRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const extractGenerationRef = useRef(0);
@@ -212,30 +216,50 @@ export function InputBar({
    * stays live with an empty box as long as something is marked.
    */
   const marksCarryTheQuestion = markingArmed && markCount > 0;
-  const buttonDisabled = inputLocked || (trimmed.length === 0 && !marksCarryTheQuestion);
-  const nextQuestionDisabled = inputLocked;
+  const buttonDisabled = inputLocked || isSubmitting || (trimmed.length === 0 && !marksCarryTheQuestion);
+  const nextQuestionDisabled = inputLocked || isSubmitting;
 
-  const finishInput = useCallback(() => {
+  const finishInput = useCallback((submittedQuestion?: string) => {
     onUserInteractionChange?.(true);
-    setQuestion("");
+    setQuestion((current) => submittedQuestion === undefined || current === submittedQuestion ? "" : current);
     setExtractLatencyMs(null);
     setExtractError(null);
+    setSubmitError(null);
   }, [onUserInteractionChange]);
+
+  const runAsk = useCallback(() => {
+    if (submitPendingRef.current) return;
+    submitPendingRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    const settle = (admitted: boolean) => {
+      submitPendingRef.current = false;
+      setIsSubmitting(false);
+      if (admitted) finishInput(question);
+      else setSubmitError("Your lesson could not start. Try again — your question is still here.");
+    };
+    try {
+      const admission = onSubmit(trimmed);
+      if (admission) void admission.then(settle, () => settle(false));
+      else settle(true); // Synchronous next-board navigation retains the question in its route.
+    } catch {
+      settle(false);
+    }
+  }, [finishInput, onSubmit, question, trimmed]);
 
   const runSubmit = useCallback(() => {
     if (isDoubt || canInterruptWithDoubt) {
       onAskDoubt?.(trimmed);
+      finishInput();
     } else {
-      onSubmit(trimmed);
+      runAsk();
     }
-    finishInput();
-  }, [canInterruptWithDoubt, finishInput, isDoubt, onAskDoubt, onSubmit, trimmed]);
+  }, [canInterruptWithDoubt, finishInput, isDoubt, onAskDoubt, runAsk, trimmed]);
 
   const runNextQuestion = useCallback(() => {
     if (nextQuestionDisabled) return;
-    onSubmit(trimmed);
-    finishInput();
-  }, [finishInput, nextQuestionDisabled, onSubmit, trimmed]);
+    runAsk();
+  }, [nextQuestionDisabled, runAsk]);
 
   const submitQuestion = useCallback(() => {
     if (buttonDisabled) return;
@@ -638,6 +662,7 @@ export function InputBar({
           rows={1}
           value={question}
           onChange={(event) => {
+            setSubmitError(null);
             setExtractError(null);
             setExtractLatencyMs(null);
             setQuestion(event.target.value);
@@ -931,6 +956,11 @@ export function InputBar({
           </div>
         )}
       </form>
+      {submitError && (
+        <p role="alert" className="px-3 text-center text-xs" style={{ color: "var(--text-soft)" }}>
+          {submitError}
+        </p>
+      )}
       {extractLatencyMs != null && !extractError && (
         <p className="px-3 text-center text-[0.6875rem]" style={{ color: "var(--text-soft)" }}>
           Read in {(extractLatencyMs / 1000).toFixed(1)}s. Press Ask to start teaching.

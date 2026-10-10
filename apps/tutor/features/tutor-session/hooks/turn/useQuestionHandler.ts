@@ -2699,7 +2699,12 @@ export function useQuestionHandler(
             try { await commitDraftBoard(); } catch { return false; }
           }
           const detail = await fetchBoardDetail(sessionId).catch(() => null);
-          if (!detail) return false;
+          if (!detail) {
+            if (admissionBoardRef.current === sessionId && turnGenerationRef.current === generation) {
+              emitError({ message: "The lesson could not start. Check your connection and try again.", question: rawQuestion });
+            }
+            return false;
+          }
           const saved = detail.turns;
           liveTurnSave().observeBoard(sessionId, saved);
           if (!options?.resume) return true;
@@ -2719,7 +2724,7 @@ export function useQuestionHandler(
       void receipt.admitted.then((admitted) => options?.onAdmission?.(admitted));
       return receipt.finished;
     },
-    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, pendingSegmentCountRef, whiteboardRef],
+    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, pendingSegmentCountRef, whiteboardRef, emitError],
   );
 
   useEffect(() => {

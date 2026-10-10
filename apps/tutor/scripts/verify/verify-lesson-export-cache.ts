@@ -204,9 +204,76 @@ async function main() {
       "cache-hit notice matches missing-voice evidence of original file",
     );
   }
+  await actualPartialCodePdf();
   console.log(
     "verify-lesson-export-cache: actual Download cache hit retains no-voice/some-missing notices and complete-voice control",
   );
+}
+async function actualPartialCodePdf() {
+  requireApp("./lib/code-render/codeLessonNotesImages");
+  const { CODE_RENDER_METRICS } = requireApp("./lib/code-render/renderCodeToCanvas");
+  const core = requireApp("@heytutor/tutor-core");
+  const plan = core.getMockCodeLessonPlan("Explain binary search on a sorted array.");
+  const { CodeLessonController } = requireApp("./features/tutor-session/lib/code-lesson/codeLessonController");
+  const controller = new CodeLessonController(); controller.commit(plan);
+  const first = plan.sections[0].blocks[0]; const prefix = first.code.slice(0, 5);
+  controller.getState().revealedChars[first.id] = prefix.length;
+  const turn: StoredTurn = {
+    id: "partial-code", orderIndex: 0, question: plan.question, rawResponse: "shown so far",
+    speedMultiplier: 1, traceId: null, status: "stopped", persistedStatus: "stopped",
+    sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only",
+    sceneArtifacts: { codeLesson: plan }, segments: [],
+  };
+  const original = { window: globalThis.window, document: globalThis.document, requestAnimationFrame: globalThis.requestAnimationFrame };
+  const paints: Array<() => void> = []; const deliveries: string[][] = []; let captured = 0;
+  const ref = (current: unknown) => ({ current });
+  const react = { useRef: ref, useCallback: (fn: unknown) => fn, useEffect() {}, useState: (initial: unknown) => [initial, () => {}] };
+  const load = (relative: string, overrides: Record<string, unknown>) => {
+    const filename = path.join(app, relative);
+    const source = relative.endsWith("useLectureExport.ts") ? process.env.LESSON_EXPORT_HOOK_TEST_SOURCE ?? filename : filename;
+    const js = ts.transpileModule(readFileSync(source, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    const mod = { exports: {} as Record<string, (...args: unknown[]) => unknown> };
+    new Function("require", "module", "exports", js)((id: string) => id === "react" ? react : id in overrides ? overrides[id] : requireApp(id.startsWith(".") ? path.resolve(path.dirname(filename), id) : id), mod, mod.exports);
+    return mod.exports;
+  };
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { setTimeout: (fn: () => void) => { fn(); return 0; } } });
+  Object.defineProperty(globalThis, "requestAnimationFrame", { configurable: true, value: (fn: () => void) => { paints.push(fn); return paints.length; } });
+  Object.defineProperty(globalThis, "document", { configurable: true, value: { createElement: () => {
+    const texts: string[] = [];
+    const canvas = { width: 0, height: 0 };
+    const ctx = new Proxy({ fillText: (text: string, x: number, y: number) => {
+      if (x >= CODE_RENDER_METRICS.gutterWidth + CODE_RENDER_METRICS.codeLeftPadding && y > CODE_RENDER_METRICS.sectionBarHeight && y < canvas.height / 2 - CODE_RENDER_METRICS.statusBarHeight) texts.push(text);
+    }, measureText: (text: string) => ({ width: text.length * 8 }) }, {
+      get: (target, key) => key in target ? target[key as keyof typeof target] : () => {}, set: () => true,
+    });
+    return Object.assign(canvas, { getContext: () => ctx, toDataURL: () => texts.join("") });
+  } } });
+  try {
+    const replayModule = load("features/tutor-session/hooks/useReplay.ts", {});
+    const replay = replayModule.useReplay({
+      whiteboardRef: ref({ captureSnapshot: () => { captured++; return "board-at-click"; } }),
+      notesEpochsRef: ref([]), narrationSinceEpochRef: ref("shown so far"), liveQuestionRef: ref(plan.question),
+      storedTurnsRef: ref([turn]), codeLessonControllerRef: ref(controller), replayCueRef: ref(null), phaseRef: ref("teaching"),
+    }) as { collectNotesSlides: () => Promise<string[]> };
+    const exportModule = load("features/tutor-session/hooks/useLectureExport.ts", {
+      "./useBoardLayout": { useBoardLayout: () => ({ boardLayoutRef: ref({ rects: [] }), notesEpochsRef: ref([]), narrationSinceEpochRef: ref(""), forceSequentialWorkLayoutRef: ref(false), resetBoardLayout() {}, forgetErasedTextRects() {}, resolveTextPlacement() {} }) },
+      "./useCancelControl": { useCancelControl: () => ({ raceWithCancel: <T>(p: Promise<T>) => p, clearCancelTimers() {} }) },
+      "./useCommandExecution": { useCommandExecution: () => ({ executeCommandWithCancel() {} }) },
+      "@/lib/client/exportNotesPdf": { notesPdfBlob: (images: string[]) => { deliveries.push(images); return new Blob(["pdf"]); } },
+      "@/lib/lecture-export/downloadBlob": { downloadBlob() {} },
+    });
+    const download = exportModule.useLectureExport({ storedTurnsRef: ref([turn]), storedTurnsCount: 1, phase: "teaching", sessionId: "board", collectNotesSlides: replay.collectNotesSlides }) as { downloadNotesPdf: () => void };
+    download.downloadNotesPdf();
+    assert.equal(captured, 1, "actual PDF hook freezes board/code before the first paint yield");
+    controller.getState().revealedChars[first.id] = first.code.length;
+    for (let i = 0; i < 30; i++) { paints.shift()?.(); await Promise.resolve(); }
+    assert.equal(deliveries.length, 1, "actual PDF consumer produces a file");
+    assert.equal(deliveries[0]!.length, 2, "partial code contributes one shown section plus the board");
+    assert(deliveries[0]![1]!.includes(prefix), "actual replay collector passes the captured visible prefix");
+    assert(!deliveries[0]![1]!.includes(first.code.slice(5, 15)), "typing after the click cannot enter the partial PDF");
+  } finally {
+    for (const [key, value] of Object.entries(original)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  }
 }
 const watchdog = setTimeout(() => {
   throw Error("cache consumer did not settle");

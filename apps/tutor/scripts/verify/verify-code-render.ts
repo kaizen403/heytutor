@@ -28,6 +28,8 @@ import {
 } from "../../features/tutor-session/lib/code-lesson/solarizedEditor";
 import { DSA_EDITOR_METRICS } from "../../features/tutor-session/constants";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import ts from "typescript";
 import { resolve } from "node:path";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -155,6 +157,64 @@ function main(): void {
       };
     }),
   };
+
+  // Exercise the actual notes consumer and actual canvas renderer, replacing only
+  // the browser canvas platform. A partial reveal must never print planned code.
+  const requireApp = createRequire(resolve(tutorRoot, "package.json"));
+  const helperFile = resolve(tutorRoot, "lib/code-render/codeLessonNotesImages.ts");
+  const helperJs = ts.transpileModule(readFileSync(process.env.CODE_NOTES_TEST_SOURCE ?? helperFile, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const helper = { exports: {} as { appendCodeLessonNotesImages: (...args: unknown[]) => void } };
+  new Function("require", "module", "exports", helperJs)((id: string) => requireApp(id.startsWith(".") ? resolve(tutorRoot, "lib/code-render", id) : id), helper, helper.exports);
+  const canvases: Array<{ texts: string[] }> = [];
+  const originalDocument = globalThis.document;
+  Object.defineProperty(globalThis, "document", { configurable: true, value: {
+    createElement: () => {
+      const texts: string[] = []; canvases.push({ texts });
+      const canvas = { width: 0, height: 0 };
+      const ctx = new Proxy({ fillText: (text: string, x: number, y: number) => {
+        if (x >= CODE_RENDER_METRICS.gutterWidth + CODE_RENDER_METRICS.codeLeftPadding && y > CODE_RENDER_METRICS.sectionBarHeight && y < canvas.height / 2 - CODE_RENDER_METRICS.statusBarHeight) texts.push(text);
+      }, measureText: (text: string) => ({ width: text.length * 8 }) }, {
+        get: (target, key) => key in target ? target[key as keyof typeof target] : () => {}, set: () => true,
+      });
+      return Object.assign(canvas, { getContext: () => ctx, toDataURL: () => JSON.stringify(texts) });
+    },
+  } });
+  try {
+    const first = plan.sections[0]!.blocks[0]!;
+    const prefix = first.code.slice(0, 5);
+    const sections = [{ question, images: [], workLines: [], narration: "", planFacts: [], interrupted: true }];
+    helper.exports.appendCodeLessonNotesImages(sections, [turn], {
+      turnId: turn.id, plan, revealedChars: { [first.id]: prefix.length },
+    });
+    assert(sections[0]!.images.length === 1, "only a section with visible code gets a notes page");
+    const painted = canvases[0]!.texts.join("");
+    assert(painted.includes(prefix), "partial PDF renders the code already revealed");
+    assert(!painted.includes(first.code.slice(5, 15)), "partial PDF must not render the next planned characters");
+    // No live controller receipt: only completed TYPE rows can supply code;
+    // silence-only interrupted rows and unexecuted plan sections stay hidden.
+    const recorded = { ...turn, status: "stopped", segments: [turn.segments[0]!, { ...turn.segments[1]!, durationMs: null }] };
+    const historical = [{ question, images: [], workLines: [], narration: "", planFacts: [], interrupted: true }];
+    helper.exports.appendCodeLessonNotesImages(historical, [recorded]);
+    assert(historical[0]!.images.length === 1, "historical notes include only sections proven by completed typing rows");
+    const historicalPaint = canvases.at(-1)!.texts.join("");
+    assert(!historicalPaint.includes(plan.sections.flatMap(section => section.blocks)[1]!.code.slice(0, 12)), "an interrupted TYPE row does not reveal the rest of its block");
+    const empty = [{ question, images: [], workLines: [], narration: "", planFacts: [], interrupted: true }];
+    helper.exports.appendCodeLessonNotesImages(empty, [{ ...turn, segments: [] }]);
+    assert(empty[0]!.images.length === 0, "a code plan without shown typing is not a notes page");
+    const finished = [{ question, images: [], workLines: [], narration: "", planFacts: [], interrupted: false }];
+    helper.exports.appendCodeLessonNotesImages(finished, [turn]);
+    assert(finished[0]!.images.length === plan.sections.length, "completed recorded typing preserves every taught section");
+    const noMedia = [{ question, images: [], workLines: [], narration: "", planFacts: [], interrupted: false }];
+    helper.exports.appendCodeLessonNotesImages(noMedia, [{ ...turn, status: "complete", persistedStatus: "complete", segments: turn.segments.map(segment => ({ ...segment, durationMs: null })) }]);
+    assert(noMedia[0]!.images.length === plan.sections.length, "completed TYPE rows do not require audio or media durations");
+    const legacy = [{ question, images: [], workLines: [], narration: "", planFacts: [], interrupted: false }];
+    helper.exports.appendCodeLessonNotesImages(legacy, [{ ...turn, segments: turn.segments.map(segment => ({ ...segment, durationMs: null })) }]);
+    assert(legacy[0]!.images.length === plan.sections.length, "legacy complete turns retain recorded untimed TYPE rows");
+  } finally {
+    Object.defineProperty(globalThis, "document", { configurable: true, value: originalDocument });
+  }
 
   const timeline = buildReplayTimeline([turn]);
   const track = buildCodeLessonExportTrack(turn, timeline.cues);

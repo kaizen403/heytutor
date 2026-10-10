@@ -35,11 +35,14 @@ function loadHook(
     ? (process.env.LESSON_HANDLER_TEST_SOURCE ?? filename)
     : file.endsWith("useTurnControl.ts")
       ? (process.env.LESSON_CONTROL_TEST_SOURCE ?? filename)
+    : file.endsWith("InputBar.tsx")
+      ? (process.env.LESSON_INPUT_TEST_SOURCE ?? filename)
     : filename;
   const js = ts.transpileModule(readFileSync(sourceFile, "utf8"), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
     },
   }).outputText;
   const hookModule = { exports: {} as Record<string, unknown> };
@@ -873,7 +876,96 @@ async function restoreReadBoardSwitch() {
     globalThis.setTimeout = nativeSet; globalThis.clearTimeout = nativeClear;
   }
 }
+type Element = { type: unknown; props: Record<string, unknown> };
+function findElement(tree: unknown, predicate: (element: Element) => boolean): Element | undefined {
+  if (Array.isArray(tree)) {
+    for (const child of tree) { const found = findElement(child, predicate); if (found) return found; }
+  } else if (tree && typeof tree === "object" && "props" in tree) {
+    const element = tree as Element;
+    if (predicate(element)) return element;
+    return findElement(element.props.children, predicate);
+  }
+}
+function actualAskCaller(handleQuestion: (q: string, o?: HandleQuestionOptions) => Promise<void>, storedTurnsCount = 0) {
+  const filename = path.join(app, "features/tutor-session/TutorSessionShell.tsx");
+  const file = ts.createSourceFile(filename, readFileSync(process.env.LESSON_CALLER_TEST_SOURCE ?? filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let callback = "";
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === "submitQuestionAndDropMarks" && node.initializer && ts.isCallExpression(node.initializer)) {
+      callback = node.initializer.arguments[0]!.getText(file);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  assert(callback, "extract the actual Ask caller, not a copied bridge");
+  const js = ts.transpileModule(`module.exports = ${callback}`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const mod = { exports: undefined as unknown };
+  let nextQuestion = "";
+  new Function("module", "handleQuestion", "ensureTTSClient", "marking", "storedTurnsCount", "startNextQuestion", js)(
+    mod, handleQuestion, () => ({ unlockAudio() {} }), { disarm() {} }, storedTurnsCount, (q: string) => { nextQuestion = q; },
+  );
+  return { submit: mod.exports as (q: string) => void | Promise<boolean>, nextQuestion: () => nextQuestion };
+}
+function inputFixture(submit: (q: string) => void | Promise<boolean>) {
+  const slots: unknown[] = []; let cursor = 0;
+  const react = {
+    useState: (initial: unknown) => { const index = cursor++; if (!(index in slots)) slots[index] = initial; return [slots[index], (value: unknown) => { slots[index] = typeof value === "function" ? (value as (previous: unknown) => unknown)(slots[index]) : value; }]; },
+    useRef: (initial: unknown) => { const index = cursor++; return slots[index] ?? (slots[index] = { current: initial }); },
+    useCallback: (fn: unknown) => fn,
+    useEffect() {}, useLayoutEffect() {}, useSyncExternalStore: () => false,
+  };
+  const jsx = (type: unknown, props: Record<string, unknown>) => ({ type, props });
+  const hook = loadHook("features/tutor-session/components/InputBar.tsx", {
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "lucide-react": { Highlighter: "icon", Settings: "icon" },
+    "@/features/tutor-session/hooks/useVoiceInput": { useVoiceInput: () => ({ available: false }) },
+    "@/features/tutor-session/components/FamiliarityPicker": { FamiliarityPicker: "picker" },
+    "@/features/tutor-session/components/VoiceLevelBars": { VoiceLevelBars: "levels" },
+    "@/components/ui/spinner": { Spinner: "spinner" },
+    "@/lib/utils": { cn: () => "" },
+  }, react);
+  const render = () => { cursor = 0; return (hook.InputBar as (p: unknown) => Element)({ onSubmit: submit }); };
+  const field = () => findElement(render(), (e) => e.type === "textarea")!;
+  const type = (text: string) => (field().props.onChange as (e: unknown) => void)({ target: { value: text } });
+  const ask = () => (findElement(render(), (e) => e.type === "form")!.props.onSubmit as (e: unknown) => void)({ preventDefault() {} });
+  return { render, field, type, ask };
+}
+async function actualInputRetention() {
+  const shell = handlerFixture({ acquire: async () => ({ release() {} }), probe: async () => "inactive" });
+  shell.setFetched(null);
+  const errors: Array<{ message: string; question: string }> = [];
+  shell.values.onError = (error: { message: string; question: string }) => errors.push(error);
+  const actualCaller = actualAskCaller(shell.render().handleQuestion);
+  const input = inputFixture(actualCaller.submit);
+  input.type("Find acceleration"); input.ask();
+  assert.equal(input.field().props.value, "Find acceleration", "actual InputBar must retain submitted question while authenticated admission is pending");
+  await tick();
+  assert.equal(input.field().props.value, "Find acceleration", "failed read leaves the original question available for retry");
+  assert(findElement(input.render(), (e) => e.props.role === "alert"), "failed Ask admission has visible retry feedback");
+  assert.equal(errors[0]?.question, "Find acceleration", "actual handler reports the failed authenticated read with its submitted question");
+  assert.equal(shell.titles, 0); assert.equal(shell.bills, 0);
+  shell.setFetched([]); input.ask(); await tick();
+  assert.equal(input.field().props.value, "", "successful admission clears the submitted question before teaching finishes");
+  assert.equal(shell.titles, 1); assert.equal(shell.bills, 1);
+  shell.finish(); await tick();
+  const pending = defer<boolean>(); let submits = 0;
+  const editing = inputFixture(() => { submits++; return pending.promise; });
+  editing.type("old question"); editing.ask(); editing.ask();
+  assert.equal(submits, 1, "pending admission cannot submit twice");
+  editing.type("new question"); pending.resolve(true); await tick();
+  assert.equal(editing.field().props.value, "new question", "late success must not erase edits made after the click");
+  const rejection = inputFixture(() => Promise.reject(Error("offline")));
+  rejection.type("retry this"); rejection.ask(); await tick();
+  assert.equal(rejection.field().props.value, "retry this");
+  assert(findElement(rejection.render(), (e) => e.props.role === "alert"), "rejected admission promise has retry feedback");
+  const legacy = actualAskCaller(async () => {}, 1);
+  const navigating = inputFixture(legacy.submit);
+  navigating.type("next board"); navigating.ask();
+  assert.equal(legacy.nextQuestion(), "next board", "next-board navigation retains the submitted question in its actual caller");
+  assert.equal(navigating.field().props.value, "", "synchronous accepted navigation remains compatible");
+}
 async function main() {
+  await actualInputRetention();
   await nativeAndLifetime();
   await actualHandlerAdmissions();
   await staleIntegratedAdmissions();

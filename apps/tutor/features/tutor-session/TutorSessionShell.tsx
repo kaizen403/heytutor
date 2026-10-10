@@ -1335,7 +1335,9 @@ export function TutorSessionShell({
         startNextQuestion(question);
         return;
       }
-      void handleQuestion(question);
+      return new Promise<boolean>((resolve) => {
+        void handleQuestion(question, { onAdmission: resolve }).catch(() => resolve(false));
+      });
     },
     [ensureTTSClient, handleQuestion, marking, startNextQuestion, storedTurnsCount],
   );
@@ -1785,7 +1787,7 @@ export function TutorSessionShell({
                         ? undefined
                         : () => loadHomeSuggestions(undefined, true)
                     }
-                    onSubmit={(question) => void handleQuestion(question)}
+                    onSubmit={submitQuestionAndDropMarks}
                     onOpenSettings={() => setSettingsOpen(true)}
                     familiarity={settings.familiarity}
                     onFamiliarityChange={(familiarity) =>

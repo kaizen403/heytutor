@@ -1,5 +1,5 @@
 import type { BillingFailure } from "@/lib/billing/billingClient";
-import { InputBar } from "@/features/tutor-session/components/InputBar";
+import { InputBar, type InputBarProps } from "@/features/tutor-session/components/InputBar";
 import { MarkedDoubtBar } from "@/features/tutor-session/components/MarkedDoubtBar";
 import { PausedLectureBar } from "@/features/tutor-session/components/PausedLectureBar";
 import type { SubjectFamiliarity } from "@heytutor/tutor-core";
@@ -12,7 +12,7 @@ interface SessionInputChromeProps {
   phase: TutorPhase;
   isPaused: boolean;
   inputSubmitMode: "ask" | "doubt" | "follow-up";
-  onSubmit: (question: string) => void;
+  onSubmit: InputBarProps["onSubmit"];
   onAskDoubt: (question: string) => void;
   onPauseToggle: (source?: "control" | "doubt-composer") => void;
   onCancel: () => void;
