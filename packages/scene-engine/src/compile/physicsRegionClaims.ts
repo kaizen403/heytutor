@@ -1,6 +1,7 @@
 import type { RenderPoint, SceneDocument, SceneIssue } from "../types";
 import type { MagneticHelixDefinition } from "./magneticHelixGeometry";
 import type { Vec3 } from "../math/space";
+import { spaceProofCompatibility } from "./spaceDerivations";
 
 function record(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function point(value: unknown): value is RenderPoint { return record(value) && typeof value.x === "number" && typeof value.y === "number"; }
@@ -86,10 +87,12 @@ export function validatePhysicsRegionClaims(document: SceneDocument, geometry: R
   };
   for (const regionId of zeroRegions) {
     const region = geometry.get(regionId), polygon = path(region);
-    if (!record(region) || region.closed !== true || !polygon || polygon.length < 3) continue;
+    if (!record(region) || region.closed !== true || !polygon || polygon.length < 3 || spaceProofCompatibility([region]) !== null) continue;
     for (const [id, value] of geometry) {
       const points = path(value);
-      if (id === regionId || !points || !record(value) || value.directed !== true || !isElectricField(id)) continue;
+      // This is a planar interior test. A world vector can project through a
+      // region while lying outside its plane, so screen overlap proves nothing.
+      if (id === regionId || !points || !record(value) || value.directed !== true || !isElectricField(id) || spaceProofCompatibility([value]) !== null) continue;
       if (points.slice(1).some((p, i) => intersectsInterior(points[i]!, p, polygon))) {
         issues.push({ code: "field_in_zero_region", message: "A nonzero electric-field arrow crosses the interior of a region explicitly labelled E = 0; place it in the nonzero-field region", severity: "fatal", entityIds: [regionId, id] });
       }

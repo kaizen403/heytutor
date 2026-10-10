@@ -137,6 +137,15 @@ for (const angle of [0, Math.PI / 5, Math.PI / 2]) {
   field.inputs = { start: transform([-3, 0.5]), end: transform([3, 0.5]) };
   check(compile(rotated).ok, `translated/rotated boundary at angle ${angle} remains valid`);
 }
+const worldOverlapIssues: SceneIssue[] = [];
+validatePhysicsRegionClaims(slab, new Map<string, unknown>([
+  ["slab", { kind: "path", closed: true, points: [{ x: -2, y: -0.5 }, { x: 2, y: -0.5 }, { x: 2, y: 0.5 }, { x: -2, y: 0.5 }] }],
+  ["field", { kind: "path", directed: true, points: [{ x: -3, y: 0 }, { x: 3, y: 0 }], spaceSegment: { frameId: "f", a: { x: -3, y: 0, z: 100 }, b: { x: 3, y: 0, z: 100 }, length: 6 } }],
+]), () => 0, worldOverlapIssues);
+check(!worldOverlapIssues.some(i => i.code === "field_in_zero_region"), "a 3D vector outside the region's plane is not refused for projected screen overlap");
+const droppedWorld = structuredClone(helix);
+add(droppedWorld, "screenVector", "vector", "vector", { start: "origin", direction: "trajectory", length: 1 }, "direction");
+check(!compile(droppedWorld).ok, "a screen vector cannot discard the helix's world geometry metadata");
 
 // Retained planner documents are regression oracles, not runtime templates.
 const saved = JSON.parse(readFileSync(new URL("./fixtures/physics-safety-candidates.json", import.meta.url), "utf8")) as Record<string, SceneDocument>;
