@@ -1868,7 +1868,9 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
     }
     if (isRecord(inputs)) {
       for (const [key, value] of Object.entries(inputs)) {
-        if (key === "origin" && typeof operator === "string" && MATRIX_ARRAY_CONSTRUCTIONS.has(operator)) continue;
+        // These operators own literal display coordinates, not point references.
+        if (key === "origin" && typeof operator === "string" &&
+          (MATRIX_ARRAY_CONSTRUCTIONS.has(operator) || ROTATION_CONSTRUCTIONS.has(operator))) continue;
         const inlinePoint = isInlineCoordinatePoint(value)
           ? value
           : inlinePointInputKeys.has(key) &&

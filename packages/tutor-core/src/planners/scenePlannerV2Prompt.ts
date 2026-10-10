@@ -38,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Removes engine metadata and literal point coordinates from few-shot prompts. */
+/** Keeps structural input schemas and safe display intent, omitting point coordinates and engine metadata. */
 export function compactSceneExampleDocument(document: Record<string, unknown>): Record<string, unknown> {
   const compactEntities = Array.isArray(document.entities)
     ? document.entities.flatMap((entity) => {
@@ -46,6 +46,12 @@ export function compactSceneExampleDocument(document: Record<string, unknown>): 
         const compact = Object.fromEntries(
           ["id", "kind", "role", "label"].flatMap((key) => entity[key] === undefined ? [] : [[key, entity[key]]]),
         );
+        const provenance = isRecord(entity.provenance) ? entity.provenance : {};
+        const displayIntent = {
+          ...(provenance.dashed === true ? { dashed: true } : {}),
+          ...(provenance.strokeRole === "construction" ? { strokeRole: "construction" } : {}),
+        };
+        if (Object.keys(displayIntent).length > 0) compact.provenance = displayIntent;
         return [compact];
       })
     : [];
@@ -57,7 +63,8 @@ export function compactSceneExampleDocument(document: Record<string, unknown>): 
           delete inputs.x;
           delete inputs.y;
         }
-        if (Array.isArray(inputs.origin) && inputs.origin.every((value) => typeof value === "number")) {
+        if (construction.operator !== "planar_torque" && construction.operator !== "rotational_motion" &&
+          Array.isArray(inputs.origin) && inputs.origin.every((value) => typeof value === "number")) {
           delete inputs.origin;
         }
         return [{
@@ -105,7 +112,7 @@ export function buildSceneDocumentPlannerPrompt(
     ? `\nSELECTED VISUAL INVARIANTS\n${context.planningGuidance.map((item) => `- ${item}`).join("\n")}\n`
     : "";
   const workedExamples = context.workedExamples?.length
-    ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
+    ? `\nWORKED SCENE EXAMPLES\nPoint coordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
       `EXAMPLE ${index + 1} (${example.id})\n${example.sourceKind === "curated" && example.question
         ? `QUESTION\n${example.question}`
         : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
@@ -117,7 +124,7 @@ export function buildSceneDocumentPlannerPrompt(
   const listOperators = (contracts: string): string => {
     if (!fullCatalog) return operators.join(",");
     const named = contractLineOperators(contracts);
-    return `Each contract line below names one. Also:${operators.filter((operator) => !named.has(operator)).join(",")}`;
+    return `Contracts name operators; also:${operators.filter((operator) => !named.has(operator)).join(",")}`;
   };
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
 
@@ -128,14 +135,14 @@ OPERATOR INPUT CONTRACTS
 ${contracts}
 
 AVAILABLE PROOF PREDICATES
-${proofPredicates.join(", ")}
+${proofPredicates.join(",")}
 ${capabilityGuidance}
 ${conversation}
 ${workedExamples}
 QUESTION
 ${question}
 
-Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
+Return complete ${SCENE_DOCUMENT_VERSION} JSON.`;
   const prompt = assemble(operatorContracts);
   // Combined semantic families may outgrow the same transport budget as the
   // universal catalog. Keep every contract shape and conditional output order.
@@ -144,36 +151,36 @@ Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
     : prompt;
 }
 
-export const SCENE_DOCUMENT_PLANNER_PROMPT = `Return complete scene-document/v2 JSON only: no pixels,tags,prose,raw paths or topic templates.
+export const SCENE_DOCUMENT_PLANNER_PROMPT = `scene-document/v2 JSON only:no pixels,tags,prose,raw paths,topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
-Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
+Entity:{id,kind,role?,label?,provenance?:{dashed?:boolean,strokeRole?:"construction"}}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
 
 AUTHORITY
 - Faithful visual:scene; else text_only,empty arrays,source/operator reason.
-- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Stated spatial givens need exact plan-backed geometry.
-- Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions beyond one symbolic representative. Display lengths never establish physical values.
+- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; derive afterward. Spatial givens:exact plan-backed geometry.
+- Fixed question/plan:exact quantity id/value/unit. No invented measurements,signs,components,topology,assumptions except one symbolic representative. Display lengths prove no physical values.
 - Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. A named class with no stated member (curve,conic,lines,planes,vectors,region) gets one generic nondegenerate member showing each named feature; its normalized world/space literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
-- Plan claims requesting data never block that figure. Invariants/examples are advice; source wins. Symbolic scenes must be complete.
-- All arrays present, even empty. Unique IDs; one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
-- Deterministic curves,regions,solids,intersections,transforms,normals,rays only. Function regions:function_curve + function_region. Never guess.
+- Data-seeking claims never block complete symbolic figures. Source overrides invariants/examples.
+- All arrays present; unique IDs,one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
+- Derive curves,regions,solids,intersections,transforms,normals,rays; never guess. Regions:function_curve + function_region.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
 
 RELATIONS
-- Physical vectors/angles:world points,named proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
-- Incoming ray:surface_contact -> normal_at -> reflect_direction/refract_direction. Given contact incidence:reflect_at/refract_at. One representation per ray.
-- Circuit components use symbol,two distinct terminals; never connect/segment or duplicate its edge. Series shares consecutive terminals; parallel shares a pair. Prove path,sameTerminalPair,pathCount,connected or degree.
-- Closed routes:shared p0...p(N-1),edge i:p(i)->p(i+1 mod N). Split contacts at shared IDs. Overlap,crossing,on or equal coordinates with distinct IDs never prove connectivity. Named sides use shared terminals. Up/down vertical; left/right horizontal.
-- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Separate views:disjoint reveal groups;cross-view connectors need explicit short/bypass.
-- requiredEntityIds:existence; omit exists. At most6 assertions. equal_angle:four paths; angle_between:two,or one space angle mark,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y},no anchor entity; root:[curve],expected:x|{x}.
+- Vectors/angles:world points,proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
+- Ray:surface_contact->normal_at->reflect_direction/refract_direction; stated incidence:reflect_at/refract_at. One representation/ray.
+- Components:symbol/two distinct terminals,no connect/segment or duplicate edges. Series:consecutive terminals; parallel:shared pair. Prove path,sameTerminalPair,pathCount,connected or degree.
+- Closed routes:p0...p(N-1),edge i:p(i)->p(i+1 mod N); split contacts/shared terminal IDs. Overlap/crossing/on/equal coordinates with distinct IDs never prove connectivity. Up/down vertical; left/right horizontal.
+- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Views:disjoint groups;cross-view connectors require explicit short/bypass.
+- requiredEntityIds:existence; omit exists. Assertions<=6. equal_angle:four paths; angle_between:two,or one space angle mark,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y},no anchor entity; root:[curve],expected:x|{x}.
 
 LABELS AND REVEAL
-- Labels:owners/values,at most16 characters. Narrate explanations. No figure titles,captions or underlines.
-- Label each named owner once:entity.label or annotation,never both. Angle symbols label an angle mark. Derived coordinate labels:numbers or kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no positioning geometry or helper/junction/wire-terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
+- Labels:owners/values,<=16 characters; narrate explanations. No titles,captions,underlines.
+- Owner labels:entity.label|annotation once; narration and endpoint marks are not labels. Angle symbols attach to angle marks. Derived coordinates:numbers/kπ/n,(x,y) or x=/y=; no other arithmetic. Attach to owners; no positioning geometry,helper/junction/terminal labels. Paths:targetIds,never coordinates/CIRCLE_AROUND.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
-- One group unless staged/separate views. revealGroups.entityIds:entity IDs; timeline acts on existing targets.
+- One group unless staged/separate views. Group/timeline targets:existing entity IDs.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,group.`;
 
-export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity references:stable IDs. Numeric inputs:numbers or quantity IDs.
+export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable IDs; numbers or quantity IDs.
 - point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
 - segment/connect: {start: point_id, end: point_id}.
 - vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. When direction is present, direction defines orientation; a distinct start/end defines display length, otherwise length or a normalized unit length is used. A pure [0,0,-1] or [0,0,1] direction is the only correct representation for into-page or out-of-page respectively.
@@ -186,7 +193,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - arc: {center: point_id, radius, startAngle, endAngle, angleUnit: "degrees"|"radians"}.
 - rectangle: {center: point_id, width, height}.
 - polygon/polyline: {points: [point_id,...]}.
-- axes: {xMin, xMax, yMin, yMax}.
+- axes: {xMin, xMax, yMin, yMax, xLabel?:string, yLabel?:string}. Labels name the visible positive-axis endpoints; compact symbols or symbols with units only, never numeric claims or labels on invisible anchors.
 - midpoint: {a: point_id, b: point_id}.
 - intersection: {first: line_or_segment_id, second: line_or_segment_id}.
 - surface_intersection: {origin,surface}. Full shape: {origin: point_id, surface: line_or_circle_or_arc_id, direction?:vector_id|[dx,dy], through?:point_id, parallelTo?:path_id, which?:"nearest_forward"|"farthest_forward"}. Supply exactly one of direction, through, or parallelTo; prefer through/parallelTo when the relationship is known.
@@ -214,7 +221,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - right_angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, size?}. Each path must meet the vertex at one endpoint.
 - tick_mark: {target: line_or_segment_id, at?:0..1, size?, count?:1|2|3, family?:string}. Matching family IDs share the same tick count. count is 1, 2, or 3 congruence marks perpendicular to the target at the parametric location.
 - sign_badge: {target: line_or_segment_or_vector_id, sense:"positive"|"clockwise"|"counterclockwise", at?:0..1}. A compact owned direction or rotation convention mark. Never a teaching-model ARROW.
-- vector_components: {origin: point_id, vector: vector_id|[dx,dy], basis?: line_or_segment_or_vector_id} and exactly two output entity IDs. Without basis, outputs are Cartesian x then y components. With basis, outputs must be [parallel_component_id, perpendicular_component_id]. For an incline or any rotated frame, always provide the physical surface/axis as basis; never label Cartesian components as parallel/perpendicular.
+- vector_components: {origin: point_id, vector: vector_id|[dx,dy], basis?: line_or_segment_or_vector_id} and exactly two output entity IDs. Without basis, outputs are head-to-tail Cartesian x then y components; y starts at the x component tip, not at origin. With basis, outputs must be [parallel_component_id, perpendicular_component_id]. For an incline or any rotated frame, always provide the physical surface/axis as basis; never label Cartesian components as parallel/perpendicular.
 - dimension: {start: point_id, end: point_id, measurementKind?:"radius"|"diameter"|"height"|"inner_radius", solid?:solid_projection_id}. For planar endpoints omit measurementKind/solid. For solid_anchor endpoints, supply measurementKind and bind both endpoints to that solid's correct section. The engine rejects centre-to-rim diameters, opposite-rim radii, different-body endpoints, different-section diameters, and cone/frustum slant spans labelled as height. inner_radius selects a native hollow solid's actual inner rim; a separate inner projection uses radius.
 - symbol: {symbol,start,end}. Full shape: {symbol:"resistor"|"battery"|"cell"|"capacitor"|"inductor"|"lamp"|"galvanometer"|"ammeter"|"voltmeter"|"ac_source"|"diode"|"zener"|"switch", start: point_id, end: point_id}. The symbol itself connects those terminals. Use connect only between two point IDs for an additional ordinary wire.
 - label: {target: entity_id, text}. The target may be a point or rendered geometry. The output must be one label entity whose compact entity.label matches text. Use this only for a symbol or value that needs a precise constructed anchor; ordinary object labels still belong on their owner entity or in annotations.
@@ -284,6 +291,12 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - electric_field: {charges:[{position:point_id,charge},...], at:point_id, mode:"schematic"|"si", k, displayLength, lengthUnit?,chargeUnit?}. Compute the Coulomb superposition at an explicitly supplied observation point. Schematic requires k=1 and gives normalized direction without SI claims. SI requires explicit positive k in N*m^2/C^2 and common declared position/charge units; the engine converts to SI. Output one vector, or a point marker for a certified zero field. displayLength is a positive display length, never field magnitude. Labels are engine-derived; omit entity.label. Singular or unverifiable cancellation cases fail closed. Never invent charges or assume a generic dipole.
 - Dipole packet, k explicit, displayLength is arrow length only: coulomb_pair outputs two force vectors; point_charge_field, dipole_field, dipole_torque, and dipole_energy output one vector (dipole_torque draws a page-normal ⊙/⊗ glyph, a point at zero); field_lines outputs one polyline; equipotential outputs a circle when source is point_charge and a polyline when source is dipole. dipole_field mode is finite or ideal, and ideal requires separation large enough for the far-field check. Reject coincident charges, zero distance, a test charge, nonuniform torque, and a numeric field-line density. Rings, Gauss surfaces, and capacitors are not these operators.
 - field_components: {field:electric_field_id}. Output two vector entities [x_component,y_component] from the same computed field and display scale; zero components are point markers. Engine-derived labels retain physical values and units. Do not compute components from the drawn arrow's length or attach guessed numerical labels.
+- coulomb_pair: {charges:[{position,charge}x2],k,displayLength}. Output 2 force vectors. One acts on each charge; position is point_id|[x,y]; k is explicit (k=1 for a schematic representative); displayLength is arrow length only. Coincident charges fail closed.
+- point_charge_field: {charge:{position,charge},at,k,displayLength}. Output 1 vector. It is that charge's field at at; zero distance fails closed.
+- dipole_field: {charges:[{position,charge}x2],at,mode:"finite"|"ideal",k,displayLength}. Output 1 vector. ideal requires separation large enough for the far-field check.
+- dipole_torque/dipole_energy: {p:[px,py],E:[Ex,Ey],at,displayLength,zeroConvention?}. Output 1 vector or glyph. Torque draws a page-normal glyph, a point at zero; energy needs zeroConvention:"perpendicular" (U=0 when p is perpendicular to E); uniform fields only.
+- field_lines: {charges:[{id,position,charge},...],starts:[point,...],stepLength,stepCount,k,exclusionRadius?}. Output 1 polyline. Lines are traced from 1 to 16 starts; line density is never a numeric claim; rings, Gauss surfaces and capacitors are other operators.
+- equipotential: {source:"point_charge"|"dipole",charge?,charges?,V,k,samples?,sampleDomain?:{min,max}}. Output 1 circle or polyline. A point charge gives a circle (V and q of one sign); a dipole gives the V=0 bisector inside sampleDomain. charge is {position,charge}; charges is two of them.
 - line_charge_field: {start,end,at,chargeDensity,mode,k}. Output one vector, or a point for certified zero density. start, end, and at are point ids; displayLength is a positive display length. mode is "schematic"|"si". Analytic uniform finite line; stay off the segment; near-axis fails unless exactly axial. SI needs k in N*m^2/C^2 plus lengthUnit and densityUnit; schematic uses k=1 and omits units. Draw the line on the same endpoints; never invent density.
 - gauss_flux: {center,radius,enclosedCharge,epsilon0,mode}. Outputs [surface circle,flux label anchor]. model is "spherical"; center is a point id; optional fluxAt is [x,y]. mode is "schematic"|"si". Flux is Qenc/eps0; the circle is a cross-section and the charge must be proved inside. SI needs eps0 in F/m plus chargeUnit and lengthUnit; schematic uses eps0=1 and omits units. Never invent enclosed charge.
 - wire_field: {model,wire?,start?,end?,at,current,mu0}. Output one vector, page-normal glyph, or zero point. model is "infinite_wire"|"finite_segment". wire, start, end, and at are point ids; displayLength is a positive display length. mode is "schematic"|"si" with optional currentUnit, lengthUnit, muUnit. Infinite wire pierces at wire, +current out of page, azimuthal B. Finite segment is in-plane, +current start to end, page-normal B. SI needs mu0 in H/m and common units; schematic uses mu0=1 and omits units. On-segment points fail; axial off-segment points are certified zero. Never invent current or geometry.
@@ -339,7 +352,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - collision: {mass1,mass2,velocity1,velocity2,restitution,displayScale}. Full shape: {mass1,mass2,velocity1,velocity2,restitution,axis?,origin?,displayScale,units:{mass:"kg",speed:"m/s"}}. Gives [u1,u2,v1,v2]. Restitution is 0 to 1. Scalars are along the impact axis, default +x. The rear velocity must exceed the front velocity.
 - loop_torque: {current,area,magneticField,displayLength}. Full shape: {current,area:[Ax,Ay,Az],magneticField:[Bx,By,Bz],origin?,displayLength,units:{current:"A",area:"m^2",field:"T"}}. Gives one torque from I(A cross B), a zero point, or a page-normal glyph. Mixed planar and normal torque fails closed.
 - galvanometer: {current,turns,area,field,springConstant,displayScale}. Full shape: {current,turns,area,field,springConstant,origin?,displayScale,units:{current:"A",area:"m^2",field:"T",spring:"N m/rad"}}. Gives [coil,needle]. Deflection is N I A B / k in a radial field and must stay within a right angle of the zero.
-- bar_magnet: {moment,displayScale}. Full shape: {moment:[mx,my],origin?,displayScale,units:{moment:"A m^2"}}. Gives [bar, four dipole field lines]. Field lines follow r proportional to sin^2 of the polar angle about the moment axis.
+- bar_magnet: {moment,displayScale}. Full shape: {moment:[mx,my],origin?,displayScale,units:{moment:"A m^2"}}. Gives [bar, four dipole field lines]. The moment vector sets orientation; its positive moment end is north. Field lines follow r proportional to sin^2 of the polar angle about the moment axis.
 - metre_bridge: {known,wireLength,displayLength}. Full shape: {knownResistance,unknownResistance?,balanceFromLeft?,wireLength,origin?,displayLength,units:{resistance:"ohm",length:"m"|"cm"}}. Gives [wire,jockey,left gap,right gap]. Unknown is in the right gap. X/R=(L-l)/l. A supplied pair must agree.
 - potentiometer: {driverEmf,cellEmf,wireLength,displayLength}. Full shape: {driverEmf,cellEmf,wireLength,balanceLength?,origin?,displayLength,units:{emf:"V",length:"m"|"cm"}}. Gives [wire,jockey]. l/L=cell/driver. No null point when the cell exceeds the driver.
 - incline_friction: {mass,gravity,angleDeg,mu,motion}. Full shape: {mass,gravity,angleDeg,mu,motion:"rest"|"down"|"up",origin?,displayScale,forceScale,accelScale,units:{mass:"kg",gravity:"m/s^2"}}. Gives [incline,body,weight,normal,friction,acceleration]. Rest requires tan(angle)<=mu. Downhill slide requires a nonnegative acceleration.
@@ -392,7 +405,7 @@ const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
   sinusoid_state: "Outputs [flux point,emf label anchor].",
   gaussian_image: "Outputs [objectBase point,objectTip point,imageBase point,imageTip point].",
   conic_asymptotes: "Outputs 1 polyline with 2 separate asymptote paths.",
-  vector_components: "Outputs [x_component,y_component] without basis; [parallel_component,perpendicular_component] with basis.",
+  vector_components: "Outputs [x_component,y_component] without basis (head-to-tail); [parallel_component,perpendicular_component] with basis.",
   optical_train: "Outputs [incoming_upper,incoming_lower,internal_upper,internal_lower,outgoing_upper,outgoing_lower] rays.",
   relative_velocity: "Outputs [vA,vB,vA-vB].",
   motion_graph: "Output 1 polyline.",
@@ -404,7 +417,7 @@ const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
   collision: "Outputs [u1,u2,v1,v2].",
   loop_torque: "Output 1 glyph; zero:point.",
   galvanometer: "Outputs [coil,needle].",
-  bar_magnet: "Outputs [bar,4 field lines].",
+  bar_magnet: "Outputs [bar,4 field lines]; positive moment end is north.",
   metre_bridge: "Outputs [wire,jockey,left gap,right gap].",
   potentiometer: "Outputs [wire,jockey].",
   incline_friction: "Outputs [incline,body,weight,normal,friction,acceleration].",
