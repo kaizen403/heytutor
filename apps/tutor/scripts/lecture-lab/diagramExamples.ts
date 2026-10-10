@@ -170,9 +170,9 @@ export function buildDiagramExampleCatalogue(
     // This only shortlists examples for the semantic picker, never selects or
     // authors geometry. Source questions and evaluation labels are not used.
     const query = new Set(diagramQuestionTokens(`${context.question ?? ""} ${diagramPlanRetrievalText(context.plan)}`));
-    const relevance = (entry: DiagramExampleCatalogueEntry) =>
-      diagramQuestionTokens(entry.depicts).filter(token => query.has(token)).length;
-    candidates.sort((left, right) => relevance(right) - relevance(left) ||
+    const relevance = new Map(candidates.map(entry => [entry,
+      diagramQuestionTokens(entry.depicts).filter(token => query.has(token)).length]));
+    candidates.sort((left, right) => (relevance.get(right) ?? 0) - (relevance.get(left) ?? 0) ||
       Number(right.curated) - Number(left.curated) || left.id.localeCompare(right.id));
   }
   const entries: DiagramExampleCatalogueEntry[] = [];
