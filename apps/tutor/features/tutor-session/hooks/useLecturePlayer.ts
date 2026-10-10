@@ -21,7 +21,7 @@ import type { InkPace } from "@heytutor/tutor-core";
 import { applyHtmlAudioPlaybackRate } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { pageTurnsEndingAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
 import {
@@ -544,6 +544,7 @@ export function useLecturePlayer({
             cue,
             nextCue: cues[index + 1],
             turn: storedTurnsRef.current[cue.turnIndex],
+            pageTurns: pageTurnsEndingAt(storedTurnsRef.current, cue.turnIndex),
             diagram: diagramRef.current,
             executeCommand: executePlayerCommand,
             shouldCancel: () => !current(),
@@ -576,6 +577,7 @@ export function useLecturePlayer({
         shouldCancel: () => !stillOurs(),
         startCueIndex: plan.targetCueIndex,
         getTurn: (turnIndex) => storedTurnsRef.current[turnIndex],
+        getPageTurns: (turnIndex) => pageTurnsEndingAt(storedTurnsRef.current, turnIndex),
         getDiagram: () => diagramRef.current,
         onCueStart: (cue, index) => {
           if (cue.turnIndex !== lastSyncedTurnRef.current) syncTurn(cue.turnIndex);

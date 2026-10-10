@@ -140,6 +140,14 @@ const nextTurn = cue("t1-a", 1, 200, "next turn");
     assert(executed.length === 0, "a doubt turn flushed the lesson's withheld marks");
   }
 
+  // A stopped/live saved turn has never reached the live completion flush.
+  // Playing its last captured cue must keep its partial figure partial.
+  for (const status of ["stopped", "live"] as const) {
+    const { executed, executeCommand } = recorder();
+    await completeReplayDiagramTurn({ cue: last, turn: { ...turn(), status }, diagram: withheldDiagram(), executeCommand, shouldCancel: () => false });
+    assert(executed.length === 0, `${status} replay revealed engine marks the live turn never completed`);
+  }
+
   // Code lessons own their board split; cancelled replays draw nothing.
   {
     const { executed, executeCommand } = recorder();

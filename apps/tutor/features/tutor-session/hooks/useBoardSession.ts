@@ -42,6 +42,7 @@ import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCom
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
+import { completeStoredTurnDiagram } from "../lib/replay/completeReplayDiagram";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { overlayLiveTurnEvent, liveTurnSave, type LiveTurnMirrorEvent, type LiveTurnSnapshot } from "../lib/turn/liveTurnSave";
@@ -642,8 +643,9 @@ export function useBoardSession({
         let restoredInk = false;
         let restoredCodePlanKey: string | null = null;
         let restoredCodeComplete = false;
+        let turnDiagram: VerifiedDiagram | null = null;
         const inkStale = () => isStale() || ink.cancelled;
-        for (const turn of turns) {
+        for (const [turnIndex, turn] of turns.entries()) {
           if (inkStale()) return;
           const continuesPage = storedTurnContinuesBoard(turn);
           if (restoredInk && !continuesPage) {
@@ -677,6 +679,7 @@ export function useBoardSession({
             const diagram =
               controller?.frames.current()?.presentation.diagram
               ?? restoreVerifiedDiagramFromTurn(turn);
+            turnDiagram = diagram;
             if (activeVerifiedDiagramRef) {
               activeVerifiedDiagramRef.current = diagram;
             }
@@ -710,6 +713,18 @@ export function useBoardSession({
               }
             }
           }
+
+          // Intro + FOCUS reproduce the reveal up to the final teaching beat.
+          // Completed live turns then flush every unnamed engine mark; that
+          // flush is not a stored teaching segment, so reopen must do it too.
+          await completeStoredTurnDiagram({
+            turn,
+            diagram: turnDiagram,
+            pageTurns: pageTurnsEndingAt(turns, turnIndex),
+            executeCommand: executeCommandRef.current,
+            shouldCancel: () => inkStale() || cancelRef.current,
+            durationScale: 0,
+          });
 
           if (codeLesson && storedTurnStatus(turn) === "complete") {
             restoredCodeComplete = true;
