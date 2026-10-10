@@ -1,7 +1,7 @@
 {
   "name": "Accelute",
   "short_name": "Accelute",
-  "description": "Accelute is an AI whiteboard tutor that draws the diagram, writes the notes, and explains each step out loud, in sync.",
+  "description": "Ask a question or upload a photo. Accelute teaches maths, physics, chemistry and coding with voice, a live whiteboard, lesson replay and downloadable notes.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
