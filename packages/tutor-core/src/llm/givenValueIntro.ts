@@ -400,6 +400,14 @@ function writtenWithPlus(text: string, start: number): boolean {
   let begin = end;
   while (begin > 0 && /[A-Za-z]/.test(text[begin - 1]!)) begin--;
   const word = text.slice(begin, end + 1);
+  // A one-letter "a" is an article in a prose noun phrase ("a +2 C
+  // charge"), but stays a variable in bare or equation-context addition.
+  const beforeWord = text.slice(0, begin).trimEnd();
+  const afterNumber = text.slice(start).replace(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/, "");
+  const article = /^a$/i.test(word) && /\s/.test(text[end + 1] ?? "") &&
+    (!beforeWord || /[.!?,:;]$|(?:^|\s)[A-Za-z]{2,}$/.test(beforeWord)) &&
+    /^\s+(?:[A-Za-z][^\s]*\s+)*[A-Za-z]{2,}\b/.test(afterNumber);
+  if (article) return true;
   // A word of two or more letters is prose ("state", "is"); a lone letter,
   // number or closing bracket is a term being added to.
   return /^[A-Za-z]{2,}$/.test(word) && !/[\w)\]}]/.test(text[begin - 1] ?? "");

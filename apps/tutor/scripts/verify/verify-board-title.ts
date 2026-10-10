@@ -144,10 +144,26 @@ assert(
 );
 
 // Single-word acronyms, formulas and symbols keep their written case.
-for (const written of ["CO", "NO", "DNA", "SHM", "AC", "IUPAC", "H2O", "Na+", "Ca", "M", "M+"]) {
+for (const written of ["CO", "NO", "DNA", "SHM", "AC", "IUPAC", "H2O", "HCHO", "HCOOH", "Na+", "Ca", "M", "M+"]) {
   const title = deriveBoardTitleFromQuestion(`WHAT IS ${written}?`);
   assert(title === written, `single-word notation: "${written}" became "${title}"`);
 }
+
+for (const formula of ["HCHO", "HCOOH"]) {
+  assert(finalizeBoardTitle("Explain the compound", formula) === formula, "formula LLM title: " + formula);
+}
+assert(
+  deriveBoardTitleFromQuestion("HCHO REACTIONS") === "HCHO reactions",
+  "all-caps prose should sentence case words while retaining formula notation",
+);
+assert(
+  deriveBoardTitleFromQuestion("WHAT IS PHYSICS?") === "PHYSICS",
+  "an ambiguous valid element-symbol sequence retains written case",
+);
+assert(
+  deriveBoardTitleFromQuestion("WHAT IS PRESSURE?") === "Pressure",
+  "an ordinary all-caps word with invalid atom symbols is sentence cased",
+);
 
 // A sentence still ends after a number; only a decimal point is protected.
 const afterNumber = deriveBoardTitleFromQuestion("A sample has pH 5. Explain its acidity.");

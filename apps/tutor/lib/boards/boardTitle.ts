@@ -121,6 +121,18 @@ function keepsWrittenCase(word: string): boolean {
   return !WORD_LIKE_SYMBOLS.has(core) || /^[A-Z][a-z]?[+\-−]/.test(word);
 }
 
+/** Preserve complete element-symbol sequences as notation, including HCHO. */
+function keepsFormulaCase(word: string): boolean {
+  const core = word.replace(/[^A-Za-z]/g, "");
+  const symbols = core.match(/[A-Z][a-z]?/g) ?? [];
+  // The new protection covers long tokens that sentence casing now changes.
+  // Keep legacy short-token prose/acronym handling (WHY, IS, OF) unchanged.
+  // Some ordinary words are also valid atom sequences (PHYSICS). Ambiguous
+  // sequences retain written case rather than corrupting a possible formula.
+  return core.length > 3 && symbols.length > 1 && symbols.join("") === core &&
+    symbols.every((symbol) => ELEMENT_SYMBOLS.has(symbol));
+}
+
 function formatBoardTitle(raw: string): string {
   let title = raw.trim().replace(/^["']|["']$/g, "").trim();
   title = title.replace(/[.!?]+$/, "").trim();
@@ -148,7 +160,7 @@ function formatBoardTitle(raw: string): string {
   );
   const kept = (word: string) =>
     shouting
-      ? /\d/.test(word) || SYLLABUS_ACRONYMS.has(word.replace(/[^A-Za-z]/g, ""))
+      ? /\d/.test(word) || SYLLABUS_ACRONYMS.has(word.replace(/[^A-Za-z]/g, "")) || keepsFormulaCase(word)
       : keepsWrittenCase(word);
   title = words
     .map((word, index) => {

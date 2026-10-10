@@ -342,11 +342,19 @@ for (const [sourceText, value, board] of [
   ["+1.0", 1, "q = +1"],
   ["+1.00", 1, "q = +1"],
   ["state +1", 1, "q = +1"],
+  ["a +2 C charge", 2, "q = +2"],
+  ["A +2 V potential", 2, "q = +2"],
+  ["the body has a +2 C charge", 2, "q = +2"],
   ["= +2", 2, "q = +2"],
   ["1", 1, "q = 1"],
   ["5 + 2", 2, "q = 2"],
   ["5 +2", 2, "q = 2"],
   ["x +2", 2, "q = 2"],
+  ["a +2", 2, "q = 2"],
+  ["a + 2", 2, "q = 2"],
+  ["a+2", 2, "q = 2"],
+  ["x +2 C charge", 2, "q = 2"],
+  ["b = a +2 C charge", 2, "q = 2"],
   ["(a) + 2", 2, "q = 2"],
   ["is +2", 2, "q = +2"],
   ["+2", 0.002, "q = +0.002"],
@@ -361,4 +369,9 @@ for (const [sourceText, value, board] of [
   });
   assert(givens.some((given) => given.board === board), `"${sourceText}" should give "${board}", got ${givens.map((given) => given.board).join(", ") || "nothing"}`);
 }
+const articleCharge = collectQuestionGivens("A particle has a +2 C charge. Find the force.", {
+  givens: [{ id: "q", symbol: "q", value: 2, unit: "C", provenance: "given", sourceText: "a +2 C charge" }],
+});
+assert(articleCharge.some((given) => given.board === "q = +2 C"), "an article before a signed charge keeps the written plus and unit");
+
 console.log("given value intro verification passed");
