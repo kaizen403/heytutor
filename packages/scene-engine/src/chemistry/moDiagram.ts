@@ -21,6 +21,8 @@ import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKi
 import { complexTokens, normalizeChemistryText, ocrSuspectToken } from "./formula";
 import { elementBySymbol } from "./elements";
 
+import { requiresConformationProjection } from "./foundation/conformationRequest";
+
 export const MO_FAMILY = "chem_mo" as const;
 
 /* ------------------------------------------------------------------------- */
@@ -242,7 +244,7 @@ function mixingOff(stem: string): boolean {
 /** True for an MO theory stem that names at least one diatomic in the table. */
 export function isMoStem(question: string): boolean {
   const stem = chemStem(question);
-  if (MO_VETO.test(stem)) return false;
+  if (MO_VETO.test(stem) || requiresConformationProjection(question)) return false;
   if (METAL_BRACKET.test(normalizeChemistryText(question))) return false;
   if (complexTokens(question).length > 0) return false;
   if (/->|<=>/.test(normalizeChemistryText(question))) return false;

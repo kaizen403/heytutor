@@ -15,9 +15,9 @@
  *
  * Conventions (NCERT / JEE answer keys):
  *   CN 6 octahedral, t2g at 0.4Δo below and eg at 0.6Δo above the barycentre.
- *   CN 4 tetrahedral (e below t2, always high spin) unless the metal is d8
- *   with a strong ligand or is Pt(II)/Pd(II)/Au(III), or Cu(II) with N donors:
- *   then square planar (dsp2).
+ *   CN 4 tetrahedral (e below t2, always high spin), with the supported
+ *   planar exceptions: d8 4d/5d metals, Ni(II) with CN/dmg donor sets,
+ *   or Cu(II) with NH3/en donor sets. A highest ligand rank is not geometry.
  *   Strong field: ligands from bipy/phen up (CN, CO, NO, NO2, PPh3, H, CH3);
  *   Co(III) pairs with everything above the halides ([Co(ox)3]3- and
  *   [Co(H2O)6]3+ are diamagnetic in the keys); 4d/5d metals always pair.
@@ -191,15 +191,17 @@ export function crystalFieldAnalysis(complexText: string): CftResult | null {
   if (![2, 4, 6].includes(cn)) return null;
 
   const ranked = [...complex.ligands].sort((a, b) => b.spec.fieldRank - a.spec.fieldRank);
-  const topRank = ranked[0]?.spec.fieldRank ?? 0;
   let geometry: CftGeometry;
   if (cn === 6) geometry = "octahedral";
   else if (cn === 2) geometry = "linear";
   else {
-    const nDonor = complex.ligands.some((ligand) => ["NH3", "en", "CN", "bipy", "phen", "py", "dmg"].includes(ligand.spec.key));
+    // Ligand strength alone does not establish CN4 geometry. Match the
+    // independently supported ligand sets also used by coordination.ts.
+    const nickelPlanarSet = complex.ligands.every((ligand) => ["CN", "dmg"].includes(ligand.spec.key));
+    const copperPlanarSet = complex.ligands.every((ligand) => ["NH3", "en"].includes(ligand.spec.key));
     const squarePlanar =
-      (dCount === 8 && (SQUARE_PLANAR_D8_METALS.has(metal.symbol) || topRank >= 14 || complex.ligands.some((ligand) => ligand.spec.key === "dmg"))) ||
-      (dCount === 9 && metal.symbol === "Cu" && nDonor);
+      (dCount === 8 && (SQUARE_PLANAR_D8_METALS.has(metal.symbol) || (metal.symbol === "Ni" && oxidationState === 2 && nickelPlanarSet))) ||
+      (dCount === 9 && metal.symbol === "Cu" && oxidationState === 2 && copperPlanarSet);
     geometry = squarePlanar ? "square_planar" : "tetrahedral";
   }
 
