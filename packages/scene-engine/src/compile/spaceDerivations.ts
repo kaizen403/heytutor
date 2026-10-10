@@ -126,7 +126,17 @@ type PlaneArm = { kind: "plane"; normal: Vec3; anchor: Vec3 };
 type SpaceArm = RayArm | LineArm | PlaneArm;
 interface ArmSide { direction: Vec3; reach: number }
 
-function vertexTolerance(vertex: Vec3): number { return 1e-6 * Math.max(1, vec3Length(vertex)); }
+/**
+ * How close two world points must be to count as one: a part per million of
+ * the figure's own local length (an arm, a segment, the distance to a line's
+ * point), never below the rounding of coordinates this far from the origin.
+ * Translating a figure moves only that rounding floor, so it keeps its
+ * verdict wherever it sits.
+ */
+function localTolerance(localLength: number, ...points: Vec3[]): number {
+  const magnitude = Math.max(0, ...points.map(vec3Length));
+  return Math.max(1e-6 * Math.max(1, localLength), 64 * Number.EPSILON * magnitude);
+}
 function isScreenPoint(value: unknown): value is RenderPoint {
   return isRecord(value) && typeof value.x === "number" && typeof value.y === "number" && Number.isFinite(value.x) && Number.isFinite(value.y);
 }
@@ -159,29 +169,31 @@ function segmentInput(geometry: Record<string, unknown>, key: string, frameId: s
 }
 function resolveArm(value: unknown, key: string, vertex: Vec3, frameId: string, frame: SpaceFrame, context: SpaceDerivationEvaluationContext): SpaceArm {
   const geometry = reference(value, key, context);
-  const tolerance = vertexTolerance(vertex);
   if (geometry.kind === "point") {
-    const delta = sub(spacePoint(value, key, frameId, context), vertex);
+    const point = spacePoint(value, key, frameId, context);
+    const delta = sub(point, vertex);
     const reach = vec3Length(delta);
-    if (!(reach > tolerance)) return invalid(key, `${key} point arm must differ from the vertex`);
+    if (!(reach > localTolerance(0, vertex, point))) return invalid(key, `${key} point arm must differ from the vertex`);
     return { kind: "ray", direction: vec3Scale(delta, 1 / reach), reach };
   }
   if (geometry.spacePlane !== undefined) {
     const plane = planeDefinition(geometry, key);
     sameFrame(plane.frameId, frameId, key);
     const normal = unit(plane.normal, key);
-    if (Math.abs(dot(sub(vertex, plane.point), normal)) > tolerance) return invalid(key, `the vertex must lie on plane arm ${key}`);
+    if (Math.abs(dot(sub(vertex, plane.point), normal)) > localTolerance(0, vertex, plane.point)) return invalid(key, `the vertex must lie on plane arm ${key}`);
     return { kind: "plane", normal, anchor: plane.point };
   }
   if (geometry.spaceLine !== undefined) {
     const line = lineDefinition(geometry, key);
     sameFrame(line.frameId, frameId, key);
     const direction = unit(line.direction, key);
-    if (vec3Length(cross(sub(vertex, line.point), direction)) > tolerance) return invalid(key, `the vertex must lie on line arm ${key}`);
+    const offLine = vec3Length(cross(sub(vertex, line.point), direction));
+    if (offLine > localTolerance(vec3Length(sub(vertex, line.point)), vertex, line.point)) return invalid(key, `the vertex must lie on line arm ${key}`);
     return { kind: "line", direction, ...lineReach(geometry, line, vertex, frame) };
   }
   if (geometry.spaceSegment !== undefined) {
     const segment = segmentInput(geometry, key, frameId);
+    const tolerance = localTolerance(segment.length, vertex, segment.a, segment.b);
     const direction = vec3Scale(sub(segment.b, segment.a), 1 / segment.length);
     const along = dot(sub(vertex, segment.a), direction);
     const offset = vec3Length(sub(vertex, vec3Add(segment.a, vec3Scale(direction, along))));
@@ -206,8 +218,10 @@ function acuteSide(arm: LineArm, against: Vec3, acute: boolean): ArmSide {
     : cosine > 0 ? { direction: arm.direction, reach: arm.forward } : { direction: vec3Scale(arm.direction, -1), reach: arm.backward };
   return { direction: side.direction, reach: side.reach > MIN_VECTOR ? side.reach : Math.max(arm.forward, arm.backward) };
 }
-function toward(direction: Vec3, offset: Vec3, tolerance: number): Vec3 {
-  return dot(direction, offset) < -tolerance ? vec3Scale(direction, -1) : direction;
+/** Points a unit direction toward an anchor; an anchor on the edge line leaves it as is. */
+function toward(direction: Vec3, vertex: Vec3, anchor: Vec3): Vec3 {
+  const offset = sub(anchor, vertex);
+  return dot(direction, offset) < -localTolerance(vec3Length(offset), vertex, anchor) ? vec3Scale(direction, -1) : direction;
 }
 interface ResolvedSpaceAngle { vertex: Vec3; u: Vec3; v: Vec3; radians: number; reaches: number[] }
 /**
@@ -219,7 +233,6 @@ function resolveSpaceAngle(inputs: Record<string, unknown>, context: SpaceDeriva
   const vertex = spacePoint(inputs.vertex, "vertex", frameId, context);
   const first = resolveArm(inputs.a, "a", vertex, frameId, frame, context);
   const second = resolveArm(inputs.b, "b", vertex, frameId, frame, context);
-  const tolerance = vertexTolerance(vertex);
   const reaches: number[] = [];
   let u: Vec3;
   let v: Vec3;
@@ -227,12 +240,12 @@ function resolveSpaceAngle(inputs: Record<string, unknown>, context: SpaceDeriva
     const edge = cross(first.normal, second.normal);
     if (!(vec3Length(edge) > MIN_SINE)) return invalid("b", "parallel or coincident planes define no dihedral angle");
     const axis = unit(edge, "b");
-    u = toward(unit(cross(axis, first.normal), "a"), sub(first.anchor, vertex), tolerance);
+    u = toward(unit(cross(axis, first.normal), "a"), vertex, first.anchor);
     const across = unit(cross(axis, second.normal), "b");
     const cosine = dot(u, across);
     v = !right && Math.abs(cosine) > RIGHT_ANGLE_COSINE
       ? cosine > 0 ? across : vec3Scale(across, -1)
-      : toward(across, sub(second.anchor, vertex), tolerance);
+      : toward(across, vertex, second.anchor);
   } else if (first.kind === "plane" || second.kind === "plane") {
     const plane = (first.kind === "plane" ? first : second) as PlaneArm;
     const lineArm = (first.kind === "plane" ? second : first) as RayArm | LineArm;
@@ -391,7 +404,8 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     if (!(scale > 0)) invalid("scale", "space_cross scale must be a positive finite number");
     let origin: Vec3;
     if (inputs.origin === undefined) {
-      if (vec3Length(sub(first.a, second.a)) > vertexTolerance(first.a)) invalid("origin", "a and b do not start at one world point; supply origin");
+      const span = Math.max(first.length, second.length);
+      if (vec3Length(sub(first.a, second.a)) > localTolerance(span, first.a, second.a)) invalid("origin", "a and b do not start at one world point; supply origin");
       origin = first.a;
     } else origin = spacePoint(inputs.origin, "origin", frameId, context);
     const a = sub(first.b, first.a);
