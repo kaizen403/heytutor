@@ -25,6 +25,15 @@ export function validateCircleSourceBinding(document: SceneDocument): SceneIssue
     }
     try { return checkedPoint(inlinePoint(value), "source"); } catch { return null; }
   };
+  // Reads a world point without recording unit refusals, so scanning many
+  // candidates cannot fail a document for an unrelated point.
+  const peekPoint = (id: string): RenderPoint | null => {
+    const producer = producers.get(id);
+    if (producer?.operator !== "point" || producer.inputs.coordinateSpace !== undefined && producer.inputs.coordinateSpace !== "world") return null;
+    const x = validationNumber(producer.inputs.x, document);
+    const y = validationNumber(producer.inputs.y, document);
+    return x === null || y === null ? null : { x, y };
+  };
   const samePoint = (actual: RenderPoint | null, expected: RenderPoint): boolean => actual !== null && (source.kind === "point" ? actual.x === expected.x && actual.y === expected.y : Math.hypot(actual.x - expected.x, actual.y - expected.y) <= 1e-8 * Math.max(1, source.radius));
   const circles = document.constructions.filter((construction) => construction.operator === "circle");
   if (binding === undefined) {
@@ -97,9 +106,10 @@ export function validateCircleSourceBinding(document: SceneDocument): SceneIssue
     // Roles and labels describe presentation, not source identity. A unique
     // point in world coordinates is the witness; wrong coordinates, canvas
     // coordinates and duplicate witnesses still fail closed.
-    const members = document.constructions.filter((construction) => construction.operator === "point" && construction.outputs.length === 1 && samePoint(point(construction.outputs[0]), source.member!));
+    const members = document.constructions.filter((construction) => construction.operator === "point" && construction.outputs.length === 1 && samePoint(peekPoint(construction.outputs[0]!), source.member!));
     if (members.length !== 1) fail("The explicit membership point has missing or ambiguous ownership");
-    else for (const id of members[0]!.outputs) roots.add(id);
+    // The unit refusal still applies to the one witness that is used.
+    else if (samePoint(point(members[0]!.outputs[0]), source.member)) for (const id of members[0]!.outputs) roots.add(id);
   }
   const witnessed = (id: unknown, seen = new Set<string>()): boolean => {
     if (typeof id !== "string") return false;

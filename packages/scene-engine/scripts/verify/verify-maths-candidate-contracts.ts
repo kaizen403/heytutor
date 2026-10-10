@@ -37,6 +37,18 @@ for (const [x, y, radius] of [[3, 4, 5], [5, 12, 13], [8, 15, 17]]) {
     const wrongRadius = structuredClone(scene);
     wrongRadius.constructions[2]!.inputs.radius = radius + 1;
     assert(validateCircleSourceBinding(wrongRadius).length > 0, "wrong circle still rejected");
+    // Scanning for the witness reads points without side effects: an
+    // unrelated unit-bearing point does not fail the document, while a
+    // unit-bearing witness keeps the plain Cartesian refusal.
+    const unrelated = structuredClone(scene);
+    unrelated.quantities = [{ id: "qx", symbol: "d", value: 2, unit: "m", provenance: "given" }];
+    unrelated.entities.push({ id: "q", kind: "point", role: "marker" });
+    unrelated.constructions.push({ id: "q_make", operator: "point", inputs: { x: "qx", y: 0, coordinateSpace: "world" }, outputs: ["q"] });
+    assert.deepEqual(validateCircleSourceBinding(unrelated), [], "unrelated unit-bearing point must not fail membership");
+    const unitWitness = structuredClone(scene);
+    unitWitness.quantities = [{ id: "qx", symbol: "x", value: x, unit: "m", provenance: "given" }];
+    unitWitness.constructions[1]!.inputs.x = "qx";
+    assert(validateCircleSourceBinding(unitWitness).some(i => i.code === "circle_source_mismatch"), "unit-bearing witness still rejected");
   }
 }
 
@@ -71,4 +83,33 @@ for (const [dx, dy] of [[3, 4], [-2, 5], [7, -3]]) {
     assert(!compileSceneDocument(invalid).ok, "invalid explicit basis must not fall back");
   }
 }
-console.log("maths candidate contracts: source membership and optional Cartesian basis pass; false/ambiguous witnesses reject");
+// Curve-anchor labels: kπ/n is read exactly inside coordinate claims, and a
+// value within floating evaluation error of zero at the stated x is zero.
+function sineScene(anchors: Array<[number, string]>): SceneDocument {
+  const scene = document();
+  scene.source.question = "Sketch the graph of y = sin x for 0 <= x <= 2π and mark its zeros and turning points.";
+  scene.entities = [{ id: "curve", kind: "polyline", role: "graph" }, ...anchors.map((_, index) => ({ id: `p${index}`, kind: "point" as const, role: "anchor" }))];
+  scene.constructions = [
+    { id: "curve_make", operator: "function_curve", inputs: { expression: "sin(x)", xMin: 0, xMax: 2 * Math.PI }, outputs: ["curve"] },
+    ...anchors.map(([at], index) => ({ id: `p${index}_make`, operator: "curve_anchor", inputs: { curve: "curve", at }, outputs: [`p${index}`] })),
+  ];
+  scene.annotations = anchors.map(([, text], index) => ({ id: `l${index}`, kind: "label", targetIds: [`p${index}`], text }));
+  scene.requiredEntityIds = ["curve"];
+  scene.revealGroups = [{ id: "scene", entityIds: scene.entities.map((entity) => entity.id), dependsOn: [], narrationCue: "graph" }];
+  scene.teachingTimeline = [{ id: "reveal", action: "reveal", targetId: "scene", dependsOn: [], narrationIntent: "graph" }];
+  return scene;
+}
+const compiles = (scene: SceneDocument): boolean => {
+  const validated = validateSceneDocument(scene);
+  return validated.document !== null && compileSceneDocument(validated.document).ok;
+};
+assert(compiles(sineScene([[Math.PI, "(π, 0)"], [Math.PI / 2, "(π/2, 1)"], [3 * Math.PI / 2, "(3π/2, −1)"], [2 * Math.PI, "(2π, 0)"]])), "exact sine anchors with π labels compile");
+assert(compiles(sineScene([[Math.PI, "≈(3.14, 0)"]])), "sin π is certified zero at its stated x");
+for (const [at, text, reason] of [
+  [Math.PI, "(π, 1)", "wrong value at π"],
+  [Math.PI / 2, "(π/2, 0.9)", "wrong turning value"],
+  [Math.PI, "(π, 0.000001)", "a nonzero claim at a certified zero"],
+  [3, "(3, 0)", "sin 3 is not zero"],
+  [Math.PI / 2, "(π, 1)", "wrong coordinate"],
+] as Array<[number, string, string]>) assert(!compiles(sineScene([[at, text]])), `label must reject: ${reason}`);
+console.log("maths candidate contracts: source membership, optional Cartesian basis and exact curve-anchor labels pass; false/ambiguous witnesses reject");

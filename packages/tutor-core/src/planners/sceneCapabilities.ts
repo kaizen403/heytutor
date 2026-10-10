@@ -387,7 +387,7 @@ export function inferSceneCapabilities(
   // operator requires measurements. Keep numeric and chemistry contracts
   // scoped to their selected representations.
   if (hints.turnPlan?.givens?.length === 0 && !orderedFamilies.some((family) => family.startsWith("chem_"))) {
-    ["circle", "function_curve", "curve_anchor"].forEach((operator) => operators.add(operator));
+    ["circle", "circle_tangent_at", "function_curve", "curve_anchor"].forEach((operator) => operators.add(operator));
   }
   // An explicit visual without a recognized representation still reaches the
   // universal construction language. Do not add chapter keyword routers to

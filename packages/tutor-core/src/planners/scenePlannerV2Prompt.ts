@@ -112,10 +112,17 @@ export function buildSceneDocumentPlannerPrompt(
     ).join("\n")}\n`
     : "";
 
+  // The universal catalog names most operators in its contract lines; list
+  // only the rest so each name is sent once. Grouped compact lines drop names.
+  const listOperators = (contracts: string): string => {
+    if (!fullCatalog) return operators.join(",");
+    const named = contractLineOperators(contracts);
+    return `Each contract line below names one. Also:${operators.filter((operator) => !named.has(operator)).join(",")}`;
+  };
   const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
 
 AVAILABLE CONSTRUCTION OPERATORS
-${fullCatalog && detailedOperators !== undefined ? "Use the operator names in the complete input contracts below." : operators.join(",")}
+${listOperators(contracts)}
 
 OPERATOR INPUT CONTRACTS
 ${contracts}
@@ -143,11 +150,10 @@ Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Assert
 
 AUTHORITY
 - Faithful visual:scene; else text_only,empty arrays,source/operator reason.
-- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Spatial targets need exact plan-backed geometry.
-- Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions. Display lengths never establish physical values.
-- Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. Dimensionless normalized world geometry/curves prove shape,not physical values. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
-- Invariants/examples are advice; source wins. Symbolic scenes must be complete.
-- World points prove shape; normalized world/layout literals are not physical values. Quantities are evidence.
+- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Stated spatial givens need exact plan-backed geometry.
+- Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions beyond one symbolic representative. Display lengths never establish physical values.
+- Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. A named class with no stated member (curve,conic,lines,planes,vectors,region) gets one generic nondegenerate member showing each named feature; its normalized world/space literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
+- Plan claims requesting data never block that figure. Invariants/examples are advice; source wins. Symbolic scenes must be complete.
 - All arrays present, even empty. Unique IDs; one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
 - Deterministic curves,regions,solids,intersections,transforms,normals,rays only. Function regions:function_curve + function_region. Never guess.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
@@ -162,7 +168,7 @@ RELATIONS
 
 LABELS AND REVEAL
 - Labels:owners/values,at most16 characters. Narrate explanations. No figure titles,captions or underlines.
-- One label per owner:entity.label or annotation,never both. Derived coordinate labels:numeric-literal (x,y) or checked x=/y=,no symbolic arithmetic. Attach to owners; no positioning geometry or helper/junction/wire-terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
+- Label each named owner once:entity.label or annotation,never both. Angle symbols label an angle mark. Derived coordinate labels:numbers or kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no positioning geometry or helper/junction/wire-terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
 - One group unless staged/separate views. revealGroups.entityIds:entity IDs; timeline acts on existing targets.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,group.`;
@@ -218,7 +224,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - parametric_curve: {xExpression, yExpression, parameter?:"t", tMin, tMax, samples?}. Both expressions use t and the same safe expression language as function_curve. The finite continuous parameter domain and odd sample count are mandatory.
 - polar_curve: {radiusExpression, parameter?:"theta", thetaMin, thetaMax, samples?}. Angles are radians. radiusExpression uses theta and the same safe expression language as function_curve.
 - implicit_curve: {expression, xMin, xMax, yMin, yMax, xSamples?, ySamples?}. expression is F(x,y), with the visible contour defined by F(x,y)=0. It uses the safe function_curve expression language plus y. xSamples and ySamples default to 65 and must each be integers from 17 to 161. Bounds must be finite and ordered. The compiler fails closed on discontinuities, unresolved multiple edge crossings, empty contours, or excessive contour complexity; narrow the domain or increase the grid instead of inventing a trace.
-- conic: {kind:"ellipse"|"hyperbola"|"parabola", center?:point_id, vertex?:point_id, rotationDeg?:0, a?, b?, p?, tMin?, tMax?, samples?}. Ellipse and hyperbola use center and positive a,b (ellipse a>=b); parabola uses vertex and signed nonzero p for local y^2=4px. Hyperbola and parabola require finite ordered tMin,tMax; ellipse uses a complete revolution. samples defaults to129 and is an integer17..513. Output one polyline. Use explicit parameters only when supplied or authoritatively derived; otherwise use the stated implicit equation.
+- conic: {kind:"ellipse"|"hyperbola"|"parabola", center?:point_id, vertex?:point_id, rotationDeg?:0, a?, b?, p?, tMin?, tMax?, samples?}. Ellipse and hyperbola use center and positive a,b (ellipse a>=b); parabola uses vertex and signed nonzero p for local y^2=4px. Hyperbola and parabola require finite ordered tMin,tMax; ellipse uses a complete revolution. samples defaults to129 and is an integer17..513. Output one polyline. Supplied or derived parameters are exact; a stated noncanonical equation uses implicit_curve. With no stated conic, use normalized a,b,p as a symbolic representative and derive foci,vertices,directrices,latus rectum with conic_anchor/conic_directrix, labelled in symbols.
 - conic_anchor: {conic:conic_id, feature:"center"|"vertex"|"co_vertex"|"focus"|"latus_rectum_endpoint"|"curve_point", side?:-1|1, transverseSide?:-1|1, at?, branch?:-1|1}. Output one point computed from that conic. Paired features require side. Parabola has no center/co_vertex and its unique vertex/focus omit side. Latus rectum endpoints require transverseSide. curve_point uses at (ellipse angle in radians, hyperbola parameter, or parabola parameter); hyperbola also requires branch. Never guess foci or vertices with point.
 - conic_directrix: {conic:conic_id, side?:-1|1, span:positive_number}. Output one line; ellipse/hyperbola require side, parabola omits it. A circle has no finite directrix.
 - conic_asymptotes: {conic:hyperbola_id, span:positive_number}. Output one polyline containing two separate derived asymptote paths.
@@ -268,7 +274,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - gravitational_force: {field:gravitational_field_id,testMass,massUnit:"kg"|"g"|"mg",displayLength?:positive,origin?:point_id|[x,y]}. Output one force vector F=m*g,or a point for explicitly zero test mass/field. Field reference retains source/SI metadata, mass nonnegative and explicitly declared. Default F label; physical N values never derive from drawn length.
 - complex_point: {real,imaginary,origin?:point_id|[x,y],displayScale:positive}. Output one complex point with dimensionless source values; the engine owns magnitude/argument and numerical labels. Display coordinates never become complex components.
 - complex_transform: {source:complex_point_id,multiplier:{real,imaginary},addend:{real,imaginary},origin?:point_id|[x,y],displayScale:positive}. Output one point from exact complex multiplication and addition m*z+b. Source points or roots must retain verified complex metadata; uncertifiable cancellation fails closed.
-- complex_roots: {source:complex_point_id,degree:integer_2_to_12,origin?:point_id|[x,y],displayScale:positive}. Outputs degree point anchors in increasing k order with theta=(arg(z)+2*pi*k)/degree, arg(z) in (-pi,pi]. The source must be nonzero. All roots retain computed complex metadata and compose with transforms.
+- complex_roots: {source:complex_point_id,degree:integer_2_to_12,origin?:point_id|[x,y],displayScale:positive}. Outputs degree point anchors in increasing k order with theta=(arg(z)+2*pi*k)/degree, arg(z) in (-pi,pi]. The source must be nonzero. All roots retain computed complex metadata and compose with transforms. In one Argand view reuse the source's origin and displayScale, with axes and the root circle; never redraw the source at a second origin.
 - magnetic_force: {charge,velocity,magneticField,displayLength}. Full shape: {charge,velocity:[vx,vy,vz],magneticField:[Bx,By,Bz],units:{charge:"C",velocity:"m/s",magneticField:"T"},origin?:point_id|[x,y],displayLength:positive}. Output one vector from q*(v cross B), a point for certified zero, or an engine-owned normal glyph (out-of-page dot/in-to-page cross). Mixed planar plus normal force is unsupported and fails closed. Labels are physical N values, independent of displayLength.
 - magnetic_components: {force:magnetic_force_id,displayLength?:positive}. Outputs [Fx vector,Fy vector,Fz vector]; zero components are point markers and pure page-normal components use the verified glyph. No physical values may be inferred from drawn lengths.
 - hydrostatic_profile: {p0,rho,g,depth}. Full shape: {surfacePressure,density,gravity,depthMin,depthMax,pressureUnit:"Pa"|"kPa"|"bar",densityUnit:"kg/m^3"|"g/cm^3"|"kg/L",gravityUnit:"m/s^2"|"cm/s^2",depthUnit:"m"|"cm"|"mm"|"km",origin?:[x,y],depthScale:positive,pressureScale:positive,samples?:17}. Output one exact sampled profile p=p0+rho*g*d. Density/gravity positive, pressure/depth nonnegative, depthMax>depthMin. Physical inputs and units must be explicit. Display scales cannot change physical pressure or gradient.
@@ -289,7 +295,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - solid_anchor: {solid:solid_projection_id, at:number, radialFraction?:number, angleDeg?:number}. Output one point derived from that solid's circular section. at is 0..1 (base to top); a sphere's equator is at=0.5. radialFraction is 0..1, default 0 (centre); 1 selects the rim. angleDeg defaults to 0. A radius joins centre to rim on the same section. A diameter joins rim points at opposite angles, e.g. 0 and 180 degrees, on the same section. Reuse these exact anchors as dimension endpoints; never guess detached measurement points.
 - solid_projection: {kind:"polyhedron",center,base,height}. Full shape: {kind:"polyhedron",center:point_id,base:{kind:"rectangle",length,width}|{kind:"regular_polygon",sides:3..32,side}|{kind:"polygon",vertices:[[x,z],...]},height,topScale?:0..1}. Source-defined convex base; positive perpendicular height. topScale=1 prism,0 pyramid,0..1 frustum. Regularity must be given. Engine isometric projection: never infer 3D metrics from 2D. Output polyline, role "polyhedral solid".
 - solid_cross_section: {solid:solid_projection_id,at:0..1,plane?:"transverse"}. at strictly inside (0,1). Derives a closed section, including the inner hole or tapered base. Output polyline, role "solid cross section".
-- space_frame: {origin:point_id, scale?:positive_number, axisLength?:positive_number}. Places a shared isometric 3D frame at a 2D origin and draws the XYZ axes. Later space_point, space_line, and plane constructions must reference this frame id. Output one polyline entity.
+- space_frame: {origin:point_id, scale?:positive_number, axisLength?:positive_number}. Places a shared isometric 3D frame at a 2D origin and draws the XYZ axes. World y is drawn vertical; x and z recede. Later space_point, space_line, and plane constructions must reference this frame id. Output one polyline entity.
 - space_point: {frame:space_frame_id, x, y, z}. Projects a world (x,y,z) point through the frame. Output one point. Use typed space operators to preserve world distances and frame identity; generic 2D producers cannot consume these points. space_line/plane may reuse it as a 3D anchor.
 - space_line: {frame:space_frame_id, point:space_point_id|[x,y,z], direction:[dx,dy,dz], tMin?:number, tMax?:number}. Draws the parametric line r = point + t direction on tMin<t<tMax (defaults -1.5 to 1.5). Direction must be nonzero. Output one line entity.
 - plane: {frame,a,b,c}. Full shape: {frame:space_frame_id, a, b, c, d?:number, span?:positive_number} or {frame, point:space_point_id|[x,y,z], u:[ux,uy,uz], v:[vx,vy,vz], uSpan?:positive_number, vSpan?:positive_number}. Renders a parallelogram patch of the plane ax+by+cz=d (or the span of u,v at point). The normal or the spanning pair must be nonzero/independent. Output one polygon entity.
@@ -400,6 +406,13 @@ const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
   incline_friction: "Outputs [incline,body,weight,normal,friction,acceleration].",
   cyclotron: "Outputs [orbit,left dee,right dee,velocity,field].",
 };
+
+/** Operators named at the head of a contract line ("- a/b: {"). */
+export function contractLineOperators(contracts: string): Set<string> {
+  return new Set(contracts.split("\n")
+    .filter((line) => /^- [a-z_/ ]+: \{/.test(line))
+    .flatMap((line) => line.slice(2).split(":", 1)[0]!.split("/").map((name) => name.trim())));
+}
 
 export function selectConstructionInputContracts(operators: readonly string[], detailedOperators?: readonly string[]): string {
   const selected = new Set(operators);
