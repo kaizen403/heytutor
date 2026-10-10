@@ -44,6 +44,7 @@ const row: RecordedSegmentPayload = {
 };
 function harness() {
   let id = 0;
+  let online = true;
   const calls: Array<{
     method: string;
     metadata: Record<string, unknown>;
@@ -52,6 +53,7 @@ function harness() {
     reject: (e: Error) => void;
   }> = [];
   const timers = new Map<number, () => void>();
+  const timerDelays = new Map<number, number>();
   globalThis.fetch = async (_url, init) => {
     const body = init?.body;
     const metadata =
@@ -77,15 +79,17 @@ function harness() {
   const registry = new LiveTurnSaveRegistry({
     transport: { checkpoint: checkpointTurn, close: closeTurnKeepalive },
     now: () => 1000,
-    isOnline: () => true,
+    isOnline: () => online,
     mintId: () => `turn-${++id}`,
-    setTimer: (callback) => {
+    setTimer: (callback, delay) => {
       const key = ++id;
       timers.set(key, callback);
+      timerDelays.set(key, delay);
       return key;
     },
     clearTimer: (key) => {
       timers.delete(Number(key));
+      timerDelays.delete(Number(key));
     },
   });
   const handle = registry.begin({
@@ -131,7 +135,26 @@ function harness() {
     );
     await tick();
   };
-  return { calls, registry, handle, ack, timers };
+  const fireTimer = async (delay: number) => {
+    const key = [...timerDelays].find(([, ms]) => ms === delay)?.[0];
+    assert(key !== undefined, `expected a scheduled ${delay}ms timer`);
+    const callback = timers.get(key)!;
+    timers.delete(key);
+    timerDelays.delete(key);
+    callback();
+    await tick();
+  };
+  return {
+    calls,
+    registry,
+    handle,
+    ack,
+    timers,
+    fireTimer,
+    setOnline: (value: boolean) => {
+      online = value;
+    },
+  };
 }
 
 async function machineCodeClassification() {
@@ -400,6 +423,122 @@ async function verificationWarningRetriesAndClears() {
   await h.ack(1);
   assert.equal(h.registry.statusFor("board-1").kind, "saved");
 }
+async function scheduledRetryRecoversFailedClose() {
+  const h = harness();
+  h.registry.recordRow(owner, 1, row, { intro: false });
+  await tick();
+  h.calls[0]!.answer(
+    Response.json({ error: "Temporary save failure" }, { status: 500 }),
+  );
+  await tick();
+  h.registry.pageHideClose();
+  await tick();
+  assert.equal(h.calls[1]!.method, "PATCH");
+  h.calls[1]!.answer(quota());
+  await tick();
+  assert.equal(h.registry.statusFor("board-1").kind, "failed");
+  assert(h.registry.hasUnsentData());
+
+  // Fire the real scheduled retry, without manual retry or reopening the board.
+  await h.fireTimer(1000);
+  assert.equal(
+    h.calls.length,
+    3,
+    "scheduled PUT retry must recover a later failed pagehide close",
+  );
+  assert.equal(h.calls[2]!.method, "PUT");
+  assert.equal(h.calls[2]!.metadata.status, "stopped");
+  assert.deepEqual(
+    h.calls[2]!.metadata.appendSegments,
+    h.calls[0]!.metadata.appendSegments,
+  );
+  assert.deepEqual(h.calls[2]!.audioSizes, [row.audioBytes!.length]);
+  assert.equal(
+    h.registry.statusFor("board-1").kind,
+    "failed",
+    "automatic retry must retain the close warning until success",
+  );
+
+  h.registry.setResumeState(owner, 1, { checkpoint: "newer failed close" });
+  h.registry.pageHideClose();
+  await tick();
+  h.calls[3]!.answer(quota());
+  await tick();
+  await h.ack(2);
+  assert.equal(
+    h.registry.statusFor("board-1").kind,
+    "failed",
+    "older retry receipt cannot erase a newer close failure",
+  );
+  assert.equal(
+    h.calls[4]!.method,
+    "PUT",
+    "older retry success continues recovery of newer unsaved state",
+  );
+  assert.deepEqual(h.calls[4]!.metadata.resumeState, {
+    checkpoint: "newer failed close",
+  });
+  await h.ack(4);
+  assert.equal(h.registry.statusFor("board-1").kind, "saved");
+  assert.equal(h.registry.hasUnsentData(), false);
+}
+async function comingOnlineRecoversFailedClose() {
+  const h = harness();
+  h.setOnline(false);
+  h.registry.recordRow(owner, 1, row, { intro: false });
+  await tick();
+  h.calls[0]!.reject(new Error("offline fixture"));
+  await tick();
+  assert.equal(h.registry.statusFor("board-1").kind, "offline");
+  h.registry.pageHideClose();
+  await tick();
+  assert.equal(h.calls[1]!.method, "PATCH");
+  h.calls[1]!.reject(new Error("offline close fixture"));
+  await tick();
+  assert.equal(h.registry.statusFor("board-1").kind, "failed");
+  assert(h.registry.hasUnsentData());
+
+  // Coming online must resume the waiting PUT even after a close also failed.
+  h.setOnline(true);
+  h.registry.online();
+  await tick();
+  assert.equal(
+    h.calls.length,
+    3,
+    "coming online must recover a failed pagehide close",
+  );
+  assert.equal(h.calls[2]!.method, "PUT");
+  assert.equal(h.calls[2]!.metadata.status, "stopped");
+  assert.deepEqual(
+    h.calls[2]!.metadata.appendSegments,
+    h.calls[0]!.metadata.appendSegments,
+  );
+  assert.deepEqual(h.calls[2]!.audioSizes, [row.audioBytes!.length]);
+  assert.equal(
+    h.registry.statusFor("board-1").kind,
+    "failed",
+    "reconnect must retain the close warning until success",
+  );
+
+  h.registry.setResumeState(owner, 1, { checkpoint: "newer reconnect close" });
+  h.registry.pageHideClose();
+  await tick();
+  h.calls[3]!.answer(quota());
+  await tick();
+  await h.ack(2);
+  assert.equal(
+    h.registry.statusFor("board-1").kind,
+    "failed",
+    "older reconnect receipt cannot erase a newer close failure",
+  );
+  assert.equal(h.calls[4]!.method, "PUT");
+  assert.deepEqual(h.calls[4]!.metadata.resumeState, {
+    checkpoint: "newer reconnect close",
+  });
+  await h.ack(4);
+  assert.equal(h.registry.statusFor("board-1").kind, "saved");
+  assert.equal(h.registry.hasUnsentData(), false);
+}
 async function main() {
   const failures: string[] = [];
   for (const test of [
@@ -410,6 +549,8 @@ async function main() {
     successfulCloseRecoversOnlyCoveredFailure,
     closeNetworkFailure,
     verificationWarningRetriesAndClears,
+    scheduledRetryRecoversFailedClose,
+    comingOnlineRecoversFailedClose,
   ]) {
     try {
       await test();
@@ -422,7 +563,7 @@ async function main() {
   globalThis.fetch = originalFetch;
   assert.equal(failures.length, 0, failures.join("\n"));
   console.log(
-    "verify-storage-save-client: 7 actual-client and consumer groups passed",
+    "verify-storage-save-client: 9 actual-client and consumer groups passed",
   );
 }
 void main().catch((error: unknown) => {

@@ -728,7 +728,12 @@ async function applyCheckpoint(
     status, kind: before?.kind ?? input.kind, segments: expectedSegments,
     submittedSegments: status === "complete" ? null : heldCheckpoint(expectedHeld, sceneSeq), resumeState,
   });
-  const metadataGrowth = before ? Math.max(0, metadataBytes - Number(before.metadataBytes)) : metadataBytes;
+  // Admission may normalize a historical high-water receipt after this read.
+  // Budget from the smaller logical baseline before uploading, so that repair
+  // cannot turn an affordable checkpoint into unreserved growth at commit.
+  const metadataBaseline = before ? Math.min(Number(before.metadataBytes),
+    turnMetadataStorageBytes(before as unknown as Record<string, unknown>)) : 0;
+  const metadataGrowth = Math.max(0, metadataBytes - metadataBaseline);
   const chargeBytes = metadataGrowth + newAudioBytes;
 
   // --- Reserve, upload, commit ---------------------------------------------
@@ -747,6 +752,14 @@ async function applyCheckpoint(
   let settled = false;
   const uploadSignal = AbortSignal.any([request.signal, AbortSignal.timeout(10 * 60_000)]);
   try {
+    if (before) {
+      const measured = await prisma.turn.findFirst({ where: { id: turnId, userId, boardId }, select: { storageBytes: true, metadataBytes: true } });
+      if (measured && measured.storageBytes - measured.metadataBytes + BigInt(newAudioBytes) > BigInt(MAX_TURN_AUDIO_TOTAL_BYTES)) {
+        if (reservation) await settleTurnStorage(reservation, true);
+        settled = true;
+        return reject("turn_audio_oversized", "turn audio exceeds the total size limit", 413);
+      }
+    }
     const uploaded = new Map<number, { url: string | null; format: string }>();
     for (const [index, file] of [...uploads].sort((a, b) => a[0] - b[0])) {
       if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
@@ -839,6 +852,9 @@ async function applyCheckpoint(
             submittedSegments: finalStatus === "complete" ? null : heldCheckpoint(held, sceneSeq),
           });
           const retainedGrowth = Math.max(0, retainedMetadataBytes - Number(current?.metadataBytes ?? 0n)) + newAudioBytes;
+          if (current && current.storageBytes - current.metadataBytes + BigInt(newAudioBytes) > BigInt(MAX_TURN_AUDIO_TOTAL_BYTES)) {
+            throw new StorageQuotaError("turn audio exceeds the total size limit", 413, "turn_audio_oversized");
+          }
           if (retainedGrowth > (reservation?.bytes ?? 0)) throw new StorageQuotaError("storage accounting changed; try saving again", 409);
           let turn: Turn;
           if (!current) {

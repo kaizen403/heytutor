@@ -74,10 +74,10 @@ export function storageAccountingFingerprint(snapshot: StorageAccountingSnapshot
     typeof value === "bigint" ? value.toString() : value)).digest("hex");
 }
 
-/** This is a migration baseline only, never a new admission or deletion charge. */
-function priorTurnCharge(turn: StoredTurn): bigint {
+/** Historical reservation ownership, never a measured size or new admission. */
+export function historicalTurnStorageCharge(turn: { storageBytes: bigint; audioReferences: number }): bigint {
   if (turn.storageBytes > 0n) return turn.storageBytes;
-  return 262144n + BigInt(turn.segments.filter(segment => segment.audioUrl !== null).length) * 8388608n;
+  return 262144n + BigInt(turn.audioReferences) * 8388608n;
 }
 
 function retainedAudioUrls(turn: StoredTurn): string[] {
@@ -165,7 +165,9 @@ export async function measureStorageAccounting(snapshot: StorageAccountingSnapsh
         if ((await headObjectSize(job.prefix, signal)).status === "missing") expiredEmptyJobs.push(job.id);
       }
     }
-    const previousTurns = snapshot.turns.reduce((sum, turn) => sum + priorTurnCharge(turn), 0n);
+    const previousTurns = snapshot.turns.reduce((sum, turn) => sum + historicalTurnStorageCharge({
+      storageBytes: turn.storageBytes, audioReferences: turn.segments.filter(segment => segment.audioUrl !== null).length,
+    }), 0n);
     const notes = snapshot.notes.reduce((sum, note) => sum + note.storageBytes, 0n);
     const noteUpdates = snapshot.notes.filter(note => note.storageBytes === 0n).map(note => ({ id: note.id,
       storageBytes: BigInt(Buffer.byteLength(note.content, "utf8") + (note.tag == null ? 0 : Buffer.byteLength(JSON.stringify(note.tag), "utf8")))

@@ -561,7 +561,7 @@ export class LiveTurnSaveRegistry {
     for (const turn of [...this.turns]) {
       if (!turn.waitingOnline) continue;
       turn.waitingOnline = false;
-      this.pump(turn);
+      this.pump(turn, true);
     }
     this.emit();
   }
@@ -1216,7 +1216,9 @@ export class LiveTurnSaveRegistry {
         turn.retryTimer = this.env.setTimer(() => {
           turn.hasRetryTimer = false;
           turn.retryTimer = null;
-          this.pump(turn);
+          // A pagehide close can fail after this PUT scheduled its retry.
+          // Keep that warning visible while the independent PUT recovers it.
+          this.pump(turn, true);
           this.emit();
         }, delay);
         this.emit();

@@ -167,10 +167,12 @@ export async function deletePrefix(prefix: string): Promise<void> {
       }),
       { abortSignal: signal },
     );
+    if (typeof listed.IsTruncated !== "boolean") throw new Error("object deletion inventory completion is unverified");
     const objects = (listed.Contents ?? [])
-      .map((entry) => entry.Key)
-      .filter((key): key is string => Boolean(key))
-      .map((Key) => ({ Key }));
+      .map(({ Key }) => {
+        if (typeof Key !== "string" || !Key) throw new Error("object deletion inventory returned an invalid key");
+        return { Key };
+      });
     if (objects.length > 0) {
       if (objects.some(({ Key }) => !Key.startsWith(prefix))) throw new Error("object deletion escaped its prefix");
       await deleteKeys(objects);

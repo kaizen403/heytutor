@@ -115,7 +115,13 @@ mock.module(file("lib/billing/gate.ts"), { namedExports: {
   isSpendActor: (value: unknown) => !(value instanceof Response),
 } });
 const db = {
-  $queryRaw: async () => userExists ? [{ id: actor.userId }] : [],
+  $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    const sql = strings.join("?");
+    if (/FROM boards/i.test(sql)) return userExists && boardExists && values[0] === "lifecycle-board" && values[1] === actor.userId
+      ? [{ id: "lifecycle-board" }] : [];
+    if (/FROM object_deletion_jobs/i.test(sql)) return deletionJobs.filter(job => job.userId === values[0]).map(job => ({ id: job.id }));
+    return userExists ? [{ id: actor.userId }] : [];
+  },
   user: { findUnique: async () => {
     if (failUserReadAfterReservation && receiptAmounts.size) throw new Error("fake account lookup failure");
     return userExists ? { id: actor.userId, planId: "free" } : null;
@@ -137,7 +143,7 @@ const db = {
   boardChatMessage: {
     count: async ({ where }: { where?: { storageBytes?: number } } = {}) => where?.storageBytes === 0
       ? chatRows.filter(row => row.storageBytes === 0n && row.content !== "").length : chatRows.length,
-    findMany: async ({ take }: { take: number }) => chatRows.slice(-take).reverse(),
+    findMany: async ({ take }: { take?: number }) => take === undefined ? [...chatRows] : chatRows.slice(-take).reverse(),
     aggregate: async () => ({ _sum: { storageBytes: storedChatBytes() } }),
     create: async ({ data }: { data: Omit<ChatRow, "id" | "createdAt"> }) => {
       if (data.role === "assistant") { assistantStarted?.release(); await assistantWait?.promise; }
@@ -149,6 +155,10 @@ const db = {
   objectDeletionJob: {
     // This notes/WS fixture creates deletion receipts, never expired upload intents.
     findFirst: async () => null,
+    aggregate: async ({ where }: { where: { userId: string } }) => {
+      const jobs = deletionJobs.filter(job => job.userId === where.userId);
+      return { _sum: { bytes: jobs.length ? jobs.reduce((sum, job) => sum + job.bytes, 0n) : null, pendingTurns: 0 } };
+    },
     create: async ({ data }: { data: typeof deletionJobs[number] }) => { deletionJobs.push(data); return data; },
   },
 };

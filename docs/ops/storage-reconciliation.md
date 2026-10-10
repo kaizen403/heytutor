@@ -65,6 +65,14 @@ remain charged. A stale job is released only when its entire owned prefix is
 confirmed empty and its receipt is unchanged; the job and its charge are then
 removed together. No active upload or worker lease is bypassed.
 
+Board deletion remains available when storage measurement fails. Recorded
+charges and recognizable historical reservations transfer to a durable cleanup
+job; no capacity is refunded until object deletion is confirmed. An absent
+ledger receives a conservative migration baseline. A smaller inconsistent ledger
+retains ambiguous residual charges and protects the recorded lower floor.
+Existing upload jobs retain their separate charges. Historical estimates here
+recover ownership of former reservations; new save admission uses stored bytes.
+
 ## Apply only after owner approval
 
 The write mode has **not been run as part of this fix**. The owner reviews the

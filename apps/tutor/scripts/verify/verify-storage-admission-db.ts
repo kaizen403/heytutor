@@ -18,17 +18,19 @@ async function main() {
   const root = resolve(import.meta.dirname, "../..");
   const load = createRequire(import.meta.url);
   const objects = new Map<string, number>();
-  let unavailable = false, nullUpload = false, uploads = 0;
+  let unavailable = false, nullUpload = false, uploads = 0, metadataReads = 0;
   let currentUser = "";
   mock.module(resolve(root, "lib/auth.ts"), { namedExports: {
     getUserId: async () => currentUser, ensureUser: async () => {},
   } });
   mock.module(resolve(root, "lib/object-store/s3.ts"), { namedExports: {
     headObjectSize: async (key: string) => {
+      metadataReads++;
       if (unavailable) throw new Error("fixture metadata unavailable");
       return objects.has(key) ? { status: "found", bytes: objects.get(key)! } : { status: "missing" };
     },
     listObjectSizes: async (prefix: string) => {
+      metadataReads++;
       if (unavailable) throw new Error("fixture metadata unavailable");
       return [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, bytes]) => ({ key, bytes }));
     },
@@ -58,11 +60,11 @@ async function main() {
   };
   const mp3 = new Uint8Array(1024); mp3.set([73, 68, 51]);
   const segment = { orderIndex: 0, narration: "Five.", spokenText: "Five.", command: { type: "WRITE", params: [90, 145, 28], text: "2 + 3 = 5", charPosition: 0, narrationBefore: "" }, durationMs: 800 };
-  const put = async (account: { userId: string; boardId: string }, turnId: string, traceId: string, extra: Record<string, unknown> = {}, withAudio = true) => {
+  const put = async (account: { userId: string; boardId: string }, turnId: string, traceId: string, extra: Record<string, unknown> = {}, withAudio = true, audioIndex = 0) => {
     currentUser = account.userId;
     const form = new FormData();
     form.append("metadata", JSON.stringify({ seq: 1, baseCount: 0, status: "complete", kind: "lesson", question: "What is 2 + 3?", rawResponse: "[STEP] Five.", visualStatus: "text_only", appendSegments: [segment], traceId, ...extra }));
-    if (withAudio) form.append("audio-0", new Blob([mp3], { type: "audio/mpeg" }));
+    if (withAudio) form.append(`audio-${audioIndex}`, new Blob([mp3], { type: "audio/mpeg" }));
     const response = await checkpoint.handleTurnCheckpoint(new Request(`https://example.test/api/boards/${account.boardId}/turns/${turnId}`, { method: "PUT", body: form }), { boardId: account.boardId, turnId });
     return { status: response.status, body: await response.json() as Record<string, unknown> };
   };
@@ -190,6 +192,133 @@ async function main() {
     assert.equal(slotsAfter.pendingTurns, 1); assert.equal(slotsAfter.reservedBytes, 99n * exactMetadata + 30n);
     console.log("PASS expired confirmed-empty attempt releases a stale final turn slot below the byte cap before new admission");
 
+    const reviewFailures: string[] = [];
+    const reviewCheck = async (name: string, run: () => Promise<void>) => {
+      try { await run(); console.log(`PASS ${name}`); }
+      catch (error) { reviewFailures.push(name); console.error(`FAIL ${name}`, error); }
+      finally { unavailable = false; }
+    };
+    await reviewCheck("affordable cap-crossing checkpoint corrects high-water metadata before one upload and settles exact bytes", async () => {
+      const growthAccount = await createAccount(), growthId = randomUUID(), growthTrace = await traceFor(growthAccount.userId);
+      const initial = await put(growthAccount, growthId, growthTrace, { status: "live" });
+      assert.equal(initial.status, 200, JSON.stringify(initial.body));
+      const initialTurn = await prisma.turn.findUniqueOrThrow({ where: { id: growthId } });
+      const inflatedStorage = initialTurn.storageBytes + 32768n;
+      await prisma.turn.update({ where: { id: growthId }, data: { storageBytes: inflatedStorage, metadataBytes: initialTurn.metadataBytes + 32768n } });
+      const initialBalance = BigInt(quota.MAX_ACCOUNT_STORAGE_BYTES) - 512n;
+      const protectedResidual = initialBalance - inflatedStorage;
+      await prisma.userStorage.update({ where: { userId: growthAccount.userId }, data: { reservedBytes: initialBalance } });
+      const uploadsBefore = uploads, readsBefore = metadataReads;
+      const grown = await put(growthAccount, growthId, growthTrace, { seq: 2, baseCount: 1, status: "live",
+        appendSegments: [{ ...segment, orderIndex: 1, narration: "The answer is five.", spokenText: "The answer is five." }] }, true, 1);
+      assert.equal(grown.status, 200, JSON.stringify(grown.body));
+      assert.equal(uploads - uploadsBefore, 1, "the first affordable checkpoint uploads only once");
+      assert(metadataReads > readsBefore, "crossing the cap measured and lowered the old high-water receipt");
+      const grownTurn = await prisma.turn.findUniqueOrThrow({ where: { id: growthId }, include: { segments: true } });
+      assert.equal(grownTurn.checkpointSeq, 2);
+      assert.equal(grownTurn.metadataBytes, BigInt(accounting.turnMetadataStorageBytes(grownTurn as unknown as Record<string, unknown>)));
+      assert.equal(grownTurn.storageBytes, grownTurn.metadataBytes + 2048n);
+      const grownBalance = await prisma.userStorage.findUniqueOrThrow({ where: { userId: growthAccount.userId } });
+      assert.equal(grownBalance.reservedBytes, grownTurn.storageBytes + protectedResidual);
+      assert.equal(grownBalance.pendingTurns, 0);
+      assert.equal(await prisma.objectDeletionJob.count({ where: { userId: growthAccount.userId } }), 0, "successful first save leaves no orphan cleanup charge");
+    });
+    await reviewCheck("cap-triggered inventory rechecks physical orphan audio before uploading and keeps the per-turn bound", async () => {
+      const growthAccount = await createAccount(), growthId = randomUUID(), growthTrace = await traceFor(growthAccount.userId);
+      const initial = await put(growthAccount, growthId, growthTrace, { status: "live" });
+      assert.equal(initial.status, 200, JSON.stringify(initial.body));
+      const initialTurn = await prisma.turn.findUniqueOrThrow({ where: { id: growthId }, include: { segments: true } });
+      const { MAX_TURN_AUDIO_TOTAL_BYTES } = load(resolve(root, "lib/scene/turnUploadLimits.ts")) as typeof import("../../lib/scene/turnUploadLimits");
+      const knownAudio = BigInt(MAX_TURN_AUDIO_TOTAL_BYTES) - 2048n;
+      const key = new URL(initialTurn.segments[0].audioUrl!, "https://example.test").searchParams.get("key")!;
+      objects.set(key, Number(knownAudio));
+      objects.set(`lectures/${growthAccount.boardId}/${growthId}/orphan123456/1.mp3`, 4096);
+      const inflatedStorage = initialTurn.metadataBytes + 32768n + knownAudio;
+      await prisma.turn.update({ where: { id: growthId }, data: { storageBytes: inflatedStorage, metadataBytes: initialTurn.metadataBytes + 32768n } });
+      const initialBalance = BigInt(quota.MAX_ACCOUNT_STORAGE_BYTES) - 512n, protectedResidual = initialBalance - inflatedStorage;
+      await prisma.userStorage.update({ where: { userId: growthAccount.userId }, data: { reservedBytes: initialBalance } });
+      const uploadsBefore = uploads, readsBefore = metadataReads;
+      const refused = await put(growthAccount, growthId, growthTrace, { seq: 2, baseCount: 1, status: "live",
+        appendSegments: [{ ...segment, orderIndex: 1 }] }, true, 1);
+      assert.equal(refused.status, 413, JSON.stringify(refused.body));
+      assert.equal(refused.body.code, "turn_audio_oversized");
+      assert.equal(uploads, uploadsBefore, "new physical audio beyond the per-turn bound is rejected before upload");
+      assert(metadataReads > readsBefore);
+      const retained = await prisma.turn.findUniqueOrThrow({ where: { id: growthId } });
+      assert.equal(retained.checkpointSeq, 1);
+      assert.equal(retained.storageBytes, retained.metadataBytes + knownAudio + 4096n);
+      assert.equal((await prisma.userStorage.findUniqueOrThrow({ where: { userId: growthAccount.userId } })).reservedBytes,
+        retained.storageBytes + protectedResidual, "the unused pre-upload reservation is fully settled");
+      assert.equal(await prisma.objectDeletionJob.count({ where: { userId: growthAccount.userId } }), 0);
+    });
+    await reviewCheck("board deletion during metadata outage ignores unreadable other lessons and retains historical/residual/attempt charges", async () => {
+      const deleting = await createAccount(), deletedTurnId = randomUUID(), otherBoardId = randomUUID(), otherTurnId = randomUUID();
+      await prisma.board.create({ data: { id: otherBoardId, userId: deleting.userId } });
+      await prisma.turn.create({ data: { id: deletedTurnId, boardId: deleting.boardId, userId: deleting.userId, orderIndex: 0, question: "Delete this", rawResponse: "Old lesson" } });
+      await prisma.segment.create({ data: { turnId: deletedTurnId, orderIndex: 0, audioUrl: `/api/media?key=${encodeURIComponent(`lectures/${deleting.boardId}/${deletedTurnId}/0.mp3`)}` } });
+      await prisma.turn.create({ data: { id: otherTurnId, boardId: otherBoardId, userId: deleting.userId, orderIndex: 0, question: "Keep this", rawResponse: "Other old lesson" } });
+      await prisma.segment.create({ data: { turnId: otherTurnId, orderIndex: 0, audioUrl: "https://unreadable.example.test/old.mp3" } });
+      const historicalBoardCharge = 262144n + 8388608n, attemptBytes = 777n, photoBytes = BigInt(quota.MAX_ACCOUNT_STORAGE_BYTES);
+      const attempt = await prisma.objectDeletionJob.create({ data: { id: randomUUID(), userId: deleting.userId,
+        prefix: `lectures/${deleting.boardId}/${deletedTurnId}/attempt12345/`, bytes: attemptBytes,
+        attempts: 1, nextAttemptAt: new Date(Date.now() + 60_000) } });
+      const deletingBalance = 2n * historicalBoardCharge + attemptBytes + photoBytes;
+      await prisma.userStorage.create({ data: { userId: deleting.userId, reservedBytes: deletingBalance } });
+      const readsBefore = metadataReads;
+      unavailable = true;
+      const response = await boardRoute.DELETE(new Request("https://example.test/delete", { method: "DELETE" }), { params: Promise.resolve({ boardId: deleting.boardId }) });
+      assert.equal(response.status, 200, JSON.stringify(await response.json()));
+      assert.equal(metadataReads, readsBefore, "deletion does not depend on any object-store metadata");
+      assert.equal(await prisma.board.findUnique({ where: { id: deleting.boardId } }), null);
+      assert(await prisma.board.findUnique({ where: { id: otherBoardId } }));
+      assert.equal((await prisma.userStorage.findUniqueOrThrow({ where: { userId: deleting.userId } })).reservedBytes, deletingBalance, "nothing is refunded before confirmed cleanup");
+      assert.equal((await prisma.objectDeletionJob.findUniqueOrThrow({ where: { prefix: `lectures/${deleting.boardId}/` } })).bytes, historicalBoardCharge);
+      assert.equal((await prisma.objectDeletionJob.findUniqueOrThrow({ where: { id: attempt.id } })).bytes, attemptBytes, "the existing attempt owns its separate refund");
+    });
+    await reviewCheck("uninitialized legacy deletion transfers conservative held charge without object reads or freeing unknown content", async () => {
+      const deleting = await createAccount(), turnId = randomUUID();
+      await prisma.turn.create({ data: { id: turnId, boardId: deleting.boardId, userId: deleting.userId, orderIndex: 0, question: "Old fixture", rawResponse: "Old fixture" } });
+      await prisma.segment.create({ data: { turnId, orderIndex: 0, audioUrl: `/api/media?key=${encodeURIComponent(`lectures/${deleting.boardId}/${turnId}/0.mp3`)}` } });
+      const readsBefore = metadataReads;
+      unavailable = true;
+      const response = await boardRoute.DELETE(new Request("https://example.test/delete", { method: "DELETE" }), { params: Promise.resolve({ boardId: deleting.boardId }) });
+      assert.equal(response.status, 200, JSON.stringify(await response.json()));
+      assert.equal(metadataReads, readsBefore);
+      const job = await prisma.objectDeletionJob.findUniqueOrThrow({ where: { prefix: `lectures/${deleting.boardId}/` } });
+      const held = await prisma.userStorage.findUniqueOrThrow({ where: { userId: deleting.userId } });
+      assert.equal(job.bytes, 262144n + 8388608n);
+      assert.equal(held.reservedBytes, job.bytes, "unknown old content remains charged by the durable cleanup receipt");
+    });
+    await reviewCheck("inconsistent legacy cache preserves ambiguous residual and protects other recorded receipts and job charges", async () => {
+      for (const cachedBytes of [500n, 5000n]) {
+        const deleting = await createAccount(), otherBoardId = randomUUID();
+        await prisma.board.create({ data: { id: otherBoardId, userId: deleting.userId } });
+        await prisma.turn.create({ data: { boardId: deleting.boardId, userId: deleting.userId, orderIndex: 0,
+          question: "Recorded fixture", rawResponse: "Recorded fixture", storageBytes: 1000n, metadataBytes: 1000n } });
+        const legacyId = randomUUID();
+        await prisma.turn.create({ data: { id: legacyId, boardId: deleting.boardId, userId: deleting.userId, orderIndex: 1,
+          question: "Legacy fixture", rawResponse: "Legacy fixture" } });
+        await prisma.segment.create({ data: { turnId: legacyId, orderIndex: 0, audioUrl: "https://unreadable.example.test/old.mp3" } });
+        await prisma.turn.create({ data: { boardId: otherBoardId, userId: deleting.userId, orderIndex: 0,
+          question: "Kept fixture", rawResponse: "Kept fixture", storageBytes: 2000n, metadataBytes: 2000n } });
+        const keptJob = await prisma.objectDeletionJob.create({ data: { id: randomUUID(), userId: deleting.userId,
+          prefix: `lectures/${otherBoardId}/${randomUUID()}/`, bytes: 400n, pendingTurns: 1,
+          nextAttemptAt: new Date(Date.now() + 60_000) } });
+        await prisma.userStorage.create({ data: { userId: deleting.userId, reservedBytes: cachedBytes, pendingTurns: 1 } });
+        const readsBefore = metadataReads;
+        unavailable = true;
+        const response = await boardRoute.DELETE(new Request("https://example.test/delete", { method: "DELETE" }), { params: Promise.resolve({ boardId: deleting.boardId }) });
+        assert.equal(response.status, 200, JSON.stringify(await response.json()));
+        assert.equal(metadataReads, readsBefore);
+        const held = await prisma.userStorage.findUniqueOrThrow({ where: { userId: deleting.userId } });
+        assert.equal(held.reservedBytes, cachedBytes < 3400n ? 3400n : cachedBytes, "only a known recorded floor can raise an inconsistent cache");
+        assert.equal(held.pendingTurns, 1);
+        assert.equal((await prisma.objectDeletionJob.findUniqueOrThrow({ where: { prefix: `lectures/${deleting.boardId}/` } })).bytes, 1000n,
+          "ambiguous legacy charge is never assigned an invented refund");
+        assert.equal((await prisma.objectDeletionJob.findUniqueOrThrow({ where: { id: keptJob.id } })).bytes, 400n);
+      }
+    });
+
     currentUser = account.userId;
     const ownedBytes = (await prisma.turn.aggregate({ where: { boardId: account.boardId }, _sum: { storageBytes: true } }))._sum.storageBytes! +
       (await prisma.boardChatMessage.aggregate({ where: { boardId: account.boardId }, _sum: { storageBytes: true } }))._sum.storageBytes!;
@@ -198,6 +327,7 @@ async function main() {
     const deletion = await prisma.objectDeletionJob.findUniqueOrThrow({ where: { prefix: `lectures/${account.boardId}/` } });
     assert.equal(deletion.bytes, ownedBytes);
     console.log("PASS board deletion queues only corrected measured receipts, preserving existing cleanup fencing");
+    assert.equal(reviewFailures.length, 0, `storage review regressions: ${reviewFailures.join(", ")}`);
   } finally {
     await prisma.objectDeletionJob.deleteMany({ where: { userId: { in: users } } });
     await prisma.user.deleteMany({ where: { id: { in: users } } });

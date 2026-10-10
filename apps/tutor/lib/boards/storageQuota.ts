@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import {
   applyStorageAccountingPlan,
+  historicalTurnStorageCharge,
   measureStorageAccounting,
   readStorageAccountingSnapshot,
   StorageVerificationError,
@@ -18,7 +19,7 @@ export const BOARD_PAGE_SIZE = 100;
 
 export class StorageQuotaError extends Error {
   constructor(message: string, public readonly status: 400 | 403 | 404 | 409 | 413 | 429 | 503 = 413,
-    public readonly code?: "storage_verification_failed" | "turn_storage_limit_reached") {
+    public readonly code?: "storage_verification_failed" | "turn_storage_limit_reached" | "turn_audio_oversized") {
     super(message);
     this.name = "StorageQuotaError";
   }
@@ -84,19 +85,43 @@ async function withMeasuredStorageLock<T>(userId: string, incomingBytes: number,
   throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
 }
 
-/** Used before loading a turn for growth, or before measured board deletion. */
+/** Used before loading a turn for growth. Deletion never requires provider reads. */
 export async function prepareStorageAccounting(userId: string): Promise<void> {
   await withMeasuredStorageLock(userId, 0, async () => {});
 }
 
-export async function ensureStorageAccounting(tx: Prisma.TransactionClient, userId: string): Promise<void> {
-  await storageRow(tx, userId);
-}
-
-export async function boardStorageBytes(tx: Prisma.TransactionClient, boardId: string): Promise<bigint> {
-  const turns = await tx.turn.aggregate({ where: { boardId }, _sum: { storageBytes: true } });
-  const notes = await tx.boardChatMessage.aggregate({ where: { boardId }, _sum: { storageBytes: true } });
-  return (turns._sum.storageBytes ?? 0n) + (notes._sum.storageBytes ?? 0n);
+/**
+ * Transfer a removed board's already-held allocation to its cleanup receipt.
+ * Caller holds account and board locks; no provider read or refund occurs here.
+ * A historical allocation can be transferred only when the whole old baseline
+ * is covered. An inconsistent smaller cache keeps its unknown residual, while
+ * recorded receipts and other cleanup jobs always impose a lower floor.
+ */
+export async function boardDeletionStorageBytes(tx: Prisma.TransactionClient, userId: string, boardId: string): Promise<bigint> {
+  await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE user_id = ${userId} FOR UPDATE`;
+  const [storage, turns, notes, jobs] = await Promise.all([
+    tx.userStorage.findUnique({ where: { userId } }),
+    tx.turn.findMany({ where: { userId }, select: { boardId: true, storageBytes: true,
+      _count: { select: { segments: { where: { audioUrl: { not: null } } } } } } }),
+    tx.boardChatMessage.findMany({ where: { userId }, select: { boardId: true, storageBytes: true } }),
+    tx.objectDeletionJob.aggregate({ where: { userId }, _sum: { bytes: true, pendingTurns: true } }),
+  ]);
+  const noteBytes = notes.reduce((sum, note) => sum + note.storageBytes, 0n);
+  const jobBytes = jobs._sum.bytes ?? 0n;
+  const recorded = turns.reduce((sum, turn) => sum + turn.storageBytes, 0n) + noteBytes + jobBytes;
+  const historicalCharge = (turn: typeof turns[number]) => historicalTurnStorageCharge({
+    storageBytes: turn.storageBytes, audioReferences: turn._count.segments,
+  });
+  const historical = turns.reduce((sum, turn) => sum + historicalCharge(turn), 0n) + noteBytes + jobBytes;
+  const coveredHistorical = !storage || storage.reservedBytes >= historical;
+  if (!storage) {
+    await tx.userStorage.create({ data: { userId, reservedBytes: historical, pendingTurns: jobs._sum.pendingTurns ?? 0 } });
+  } else if (storage.reservedBytes < recorded) {
+    await tx.userStorage.update({ where: { userId }, data: { reservedBytes: recorded } });
+  }
+  return turns.filter(turn => turn.boardId === boardId).reduce((sum, turn) =>
+    sum + (coveredHistorical ? historicalCharge(turn) : turn.storageBytes), 0n) +
+    notes.filter(note => note.boardId === boardId).reduce((sum, note) => sum + note.storageBytes, 0n);
 }
 
 function checkBytes(current: bigint, incoming: number): void {
