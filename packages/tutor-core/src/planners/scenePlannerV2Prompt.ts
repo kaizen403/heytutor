@@ -148,36 +148,37 @@ Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
     : prompt;
 }
 
-export const SCENE_DOCUMENT_PLANNER_PROMPT = `Return complete scene-document/v2 JSON only: no pixels,tags,prose,raw paths or topic templates.
+export const SCENE_DOCUMENT_PLANNER_PROMPT = `scene-document/v2 JSON only:no pixels,tags,prose,raw paths,topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
 Entity:{id,kind,role?,label?}; Construction:{id,operator,inputs,outputs}; Assertion:{id,predicate,entities,expected,severity}; Annotation:{id,kind,targetIds,text?,placementIntent?,quantityId?,style?}.
 
 AUTHORITY
 - Faithful visual:scene; else text_only,empty arrays,source/operator reason.
-- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Stated spatial givens need exact plan-backed geometry.
-- Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions beyond one symbolic representative. Display lengths prove no physical values.
-- Symbolic:owner symbols,never stock quantities; missing values alone never justify text_only. A named class or setup with no stated member (curve,conic,lines,planes,vectors,region,charge,field,magnet,lens,mirror,circuit,wave) gets one standard nondegenerate case showing each named feature; an unstated sense or direction is chosen once and derived elsewhere. Normalized literals prove shape,not data; labels are symbols or role names,never invented numbers. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
-- Plan claims requesting data never block that figure. Invariants/examples are advice; source wins. Symbolic scenes must be complete.
-- All arrays present, even empty. Unique IDs; one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
-- Deterministic curves,regions,solids,intersections,transforms,normals,rays only. Function regions:function_curve + function_region. Never guess.
+- Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; derive afterward. Spatial givens:exact plan-backed geometry.
+- Fixed question/plan:exact quantity id/value/unit. No invented measurements,signs,components,topology,assumptions except one symbolic representative. Display lengths prove no physical values.
+- Symbolic:owner symbols,never stock quantities; missing values alone never justify text_only. Unspecified named geometric/physics setups (charge,field,magnet,lens,mirror,circuit,wave) use one nondegenerate case showing all features; an unstated sense or direction is chosen once and derived elsewhere. Normalized literals:shape,not data; symbol/role labels,never invented numbers. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
+- Data-seeking claims never block complete symbolic figures. Source overrides invariants/examples.
+- All arrays present; unique IDs,one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
+- Derive curves,regions,solids,intersections,transforms,normals,rays; never guess. Regions:function_curve + function_region.
 - refract_direction is the visible outgoing ray. Do not output a direction helper or wrap the result in ray/vector.
 
 RELATIONS
-- Physical vectors/angles:world points,named proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
-- Incoming ray:surface_contact -> normal_at -> reflect_direction/refract_direction. Given contact incidence:reflect_at/refract_at. One representation per ray.
-- Circuit components use symbol,two distinct terminals; never connect/segment or duplicate its edge. Series shares consecutive terminals; parallel shares a pair. Prove path,sameTerminalPair,pathCount,connected or degree.
-- Closed routes:shared p0...p(N-1),edge i:p(i)->p(i+1 mod N). Split contacts at shared IDs. Overlap,crossing,on or equal coordinates with distinct IDs never prove connectivity. Named sides use shared terminals. Up/down vertical; left/right horizontal.
-- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Separate views:disjoint reveal groups;cross-view connectors need explicit short/bypass.
-- requiredEntityIds:existence; omit exists. At most6 assertions. equal_angle:four paths; angle_between:two,or one space angle mark,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y},no anchor entity; root:[curve],expected:x|{x}.
+- Vectors/angles:world points,proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
+- Ray:surface_contact->normal_at->reflect_direction/refract_direction; stated incidence:reflect_at/refract_at. One representation/ray.
+- Components:symbol/two distinct terminals,no connect/segment or duplicate edges. Series:consecutive terminals; parallel:shared pair. Prove path,sameTerminalPair,pathCount,connected or degree.
+- Closed routes:p0...p(N-1),edge i:p(i)->p(i+1 mod N); split contacts/shared terminal IDs. Overlap/crossing/on/equal coordinates with distinct IDs never prove connectivity. Up/down vertical; left/right horizontal.
+- Input-only:literal direction arrays; never declare a helper vector as physical ink. Hidden helpers need operator support.
+- Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Views:disjoint groups;cross-view connectors require explicit short/bypass.
+- requiredEntityIds:existence; omit exists. Assertions<=6. equal_angle:four paths; angle_between:two,or one space angle mark,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y},no anchor entity; root:[curve],expected:x|{x}.
 
 LABELS AND REVEAL
-- Labels:owners/values,at most16 characters. Narrate explanations. No figure titles,captions or underlines.
-- Label each named owner once:entity.label or annotation,never both; narration and endpoint marks are not labels. Angle symbols label an angle mark. Derived coordinate labels:numbers or kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no positioning geometry or helper/junction/wire-terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
+- Labels:owners/values,<=16 characters; narrate explanations. No titles,captions,underlines.
+- Owner labels:entity.label|annotation once; narration and endpoint marks are not labels. Angle symbols attach to angle marks. Derived coordinates:numbers/kπ/n,(x,y) or x=/y=; no other arithmetic. Attach to owners; no positioning geometry,helper/junction/terminal labels. Paths:targetIds,never coordinates/CIRCLE_AROUND.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
-- One group unless staged/separate views. revealGroups.entityIds:entity IDs; timeline acts on existing targets.
+- One group unless staged/separate views. Group/timeline targets:existing entity IDs.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,group.`;
 
-export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity references:stable IDs. Numeric inputs:numbers or quantity IDs.
+export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys; references:stable IDs; numbers or quantity IDs.
 - point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
 - segment/connect: {start: point_id, end: point_id}.
 - vector: {start: point_id, end: point_id, direction?: vector_id|[dx,dy]|[dx,dy,dz], length?:positive_number}. When direction is present, direction defines orientation; a distinct start/end defines display length, otherwise length or a normalized unit length is used. A pure [0,0,-1] or [0,0,1] direction is the only correct representation for into-page or out-of-page respectively.
@@ -314,6 +315,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - space_segment: {frame:space_frame_id, a:space_point_id, b:space_point_id}. Output one segment retaining true3D endpoint distance. All points use the same frame. Zero-length or invisible projected connectors fail closed. Use this for derived3D lengths rather than measuring the2D sketch.
 - space_vector: {frame:space_frame_id, start:space_point_id, end:space_point_id}. Output 1 vector. World proofs work as on space_segment; use it for every 3D arrow; vector, vector_sum and 2D marks reject space points.
 - space_cross: {frame:space_frame_id, a:space_vector_id, b:space_vector_id, origin?:space_point_id, scale?:positive_number}. Output 1 vector. It is scale*(a×b) from origin, default the shared start of a,b; zero:point. a,b may be space_segments. The engine derives the components and the right-hand sense; never type a×b as a point.
+- magnetic_helix: {frame:space_frame_id,origin:space_point_id,mass,charge,velocity:[vx,vy,vz],magneticField:[Bx,By,Bz],turns,displayScale?:positive_number,units:{mass:"kg",charge:"C",velocity:"m/s",magneticField:"T"}}. Output 1 polyline. Nonzero charge/field and both parallel/transverse velocity are required; turns is positive and at most 12, displayScale defaults to 1. The engine derives radius=m*|v_perp|/(|q|*|B|), signed pitch=v_parallel*2*pi*m/(|q|*|B|), and rotation from q*(v cross B); never supply radius, pitch or guessed helix points. Origin and frame must match. Numeric radius/pitch labels must equal the derived SI values; symbolic representatives use role labels only.
 - space_angle_mark: {frame:space_frame_id, vertex:space_point_id, a:arm_id, b:arm_id, radius?:positive_number}. Output 1 angle_mark. An arm is a space_point/space_line/space_segment/space_vector/plane through vertex. Line+plane marks the inclination, plane+plane the dihedral, two lines the acute angle, points and vectors as rays. Parallel arms or a vertex off an arm fail closed. Prove with angle_between:[mark].
 - space_right_angle_mark: {frame:space_frame_id, vertex:space_point_id, a:arm_id, b:arm_id, size?:positive_number}. Output 1 right_angle_mark. Arms are as for space_angle_mark and the world angle must be 90. A line normal to a plane needs a line in the plane as its other arm.
 - wavefront_family: {origin:point_id, direction:path_id|[dx,dy], shape:"plane"|"circular", count:1..12, spacing:positive_number, span:positive_number}. Derives fronts perpendicular to direction; plane is parallel and circular is point-source. For Huygens, derive rays with reflect_at/refract_at and use those ray IDs for direction; never guess front segments.
@@ -358,6 +360,7 @@ Every required visible entity must be the output of exactly one construction unl
 // Conditional and multi-output contracts must survive compaction as complete
 // statements; their arity cannot be inferred from the first prose sentence.
 const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
+  magnetic_helix: "Output 1 polyline; nonzero charge/field,parallel/transverse velocity; 0<turns<=12.",
   complex_point: "Output 1 point.",
   complex_transform: "Output 1 point.",
   harmonic_motion: "Output 1 polyline.",
