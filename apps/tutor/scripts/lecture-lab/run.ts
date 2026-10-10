@@ -271,7 +271,7 @@ export function parseOptions(argv: string[]): Options {
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
   const productionStrictSubjects = flags.get("production-strict-subjects");
-  if (productionStrictSubjects && (productionStrictSubjects !== "maths" || evalFiles.length === 0 || arm !== "planner_examples_strict")) {
+  if (flags.has("production-strict-subjects") && (productionStrictSubjects !== "maths" || evalFiles.length === 0 || arm !== "planner_examples_strict")) {
     throw new Error("--production-strict-subjects maths requires a strict maths evaluation");
   }
   let parsedOrigin: URL;

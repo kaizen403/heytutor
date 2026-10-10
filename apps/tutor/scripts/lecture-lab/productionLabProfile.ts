@@ -24,7 +24,8 @@ export async function pickProductionLabExamples(examples: readonly DiagramExempl
   const picked = await pickLiveDiagramExampleIds({ ...input,
     fetchImpl: (_requestUrl, init) => (input.fetchImpl ?? fetch)(labChatUrl, init) });
   const admitted = picked.ids.flatMap(id => examples.filter(example => example.id === id)).slice(0, 3);
-  return { examples: admitted, record: { method: 'model', status: picked.status, model: resolveCheapFireworksModel(),
+  const status = picked.status === 'picked' && admitted.length === 0 ? 'none' : picked.status;
+  return { examples: admitted, record: { method: 'model', status, model: resolveCheapFireworksModel(),
     elapsedMs: picked.elapsedMs, catalogueEntries: examples.length, catalogueEstimatedTokens: 0,
     ids: admitted.map(example => example.id), attempts: input.plan.visualRequirement === 'none' ? 0 : 1,
     usageKnown: false, usageKnownCalls: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0,

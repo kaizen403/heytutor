@@ -63,6 +63,9 @@ for (const origin of ['invalid', 'file:///tmp/', 'https://example.invalid/path',
 assert.deepEqual(parseOptions(args).productionStrictSubjects, ['maths']);
 assert.equal(parseOptions(['--eval', 'sample.jsonl', '--max-usd', '30']).productionStrictSubjects, null);
 assert.throws(() => parseOptions([...args, '--production-strict-subjects', 'physics']), /maths/);
+assert.throws(() => parseOptions([...args, '--production-strict-subjects=']), /maths/,
+  'an explicitly empty production profile must fail rather than silently force the eval arm');
+assert.throws(() => parseOptions([...args, '--production-strict-subjects']), /maths/);
 assert.throws(() => parseOptions([...args, '--arm', 'current']), /strict maths evaluation/);
 assert.throws(() => parseOptions(['--production-strict-subjects', 'maths', '--max-usd', '30']), /strict maths evaluation/);
 const context = { chemistryLane: false, codeLesson: false, dsa: false, doubt: false };
@@ -91,6 +94,7 @@ const picked = await pickProductionLabExamples([], { origin: 'http://127.0.0.1:3
 assert.equal(calls, 1);
 assert.deepEqual(picked.examples, []); // Unknown/leak-filtered IDs are never injected.
 assert.deepEqual(picked.record.ids, []);
+assert.equal(picked.record.status, 'none', 'a response with only rejected IDs must not claim examples were picked');
 assert.equal(picked.record.method, 'model');
 const permitted: DiagramExemplar = { id: 'permitted', sourceKind: 'synthesized', question: null,
   depicts: 'A generic triangle', figureKind: 'geometry', family: null, archetype: null, document: {} };
