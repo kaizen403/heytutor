@@ -852,7 +852,7 @@ function buildWaveOpticsRepairGuidance(
     /refract|total internal reflection|snell/i.test(`${error.code} ${error.message}`));
   if (!needsWavefrontRepair && !hasRefractionFailure) return "";
   return `
-WAVE-OPTICS REBUILD (mandatory): choose one constructed contact point on the surface. For a stated incidence angle, use exactly one reflect_at or refract_at to produce [incident_ray, normal, outgoing_ray]; remove guessed duplicate rays and normals. Build every plane front with wavefront_family and set direction to the corresponding verified ray ID. Angle marks must use the same contact vertex. If the givens are wave speeds v1 and v2, refract_at needs the equivalent index ratio n1/n2 = v2/v1, so its numeric n1:n2 inputs must be v2:v1. Never swap this ratio or invent refractive indices.`;
+WAVE-OPTICS REBUILD (mandatory): one constructed surface contact. Stated incidence: exactly one reflect_at/refract_at produces [incident_ray, normal, outgoing_ray]; remove guessed duplicates. Plane fronts:wavefront_family direction=corresponding verified ray ID. Angle marks share contact vertex. Speeds v1,v2 require n1/n2 = v2/v1 and numeric inputs n1:n2=v2:v1; never swap the ratio or invent indices.`;
 }
 
 function buildOpticalInstrumentRepairGuidance(
