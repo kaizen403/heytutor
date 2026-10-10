@@ -1,6 +1,11 @@
 import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import type { FigureSource } from "@heytutor/scene-engine";
+import {
+  diagramStrategyAllowsFigureSource,
+  evaluationDiagramStrategyDecision,
+  type DiagramStrategyContext,
+} from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { resolveCheapFireworksModel, resolveFireworksModel } from "../../lib/llm/fireworksModels";
 
 export type DiagramEvalArm =
@@ -340,34 +345,54 @@ export function evaluationUsesStandardModelHeader(
 }
 
 export function evaluationSelectionOrder(arm: DiagramEvalArm): "current" | "planner_first" {
-  return arm === "current" ? "current" : "planner_first";
+  return evaluationDiagramStrategyDecision(arm, EVALUATION_DEFAULT_CONTEXT).selectionOrder;
 }
 
 export function evaluationUsesExamples(arm: DiagramEvalArm): boolean {
-  return arm === "planner_examples" || arm === "planner_examples_strict";
+  return evaluationDiagramStrategyDecision(arm, EVALUATION_DEFAULT_CONTEXT).usePickedExamples;
 }
 
-/** Evaluation-only exception: production chemistry continues to skip the LLM scene planner. */
-export function evaluationPlansChemistry(arm: DiagramEvalArm): boolean {
-  return arm === "planner_examples_strict";
+const EVALUATION_DEFAULT_CONTEXT: DiagramStrategyContext = {
+  chemistryLane: false,
+  codeLesson: false,
+  dsa: false,
+  doubt: false,
+};
+
+export function evaluationDecision(
+  arm: DiagramEvalArm,
+  context: DiagramStrategyContext = EVALUATION_DEFAULT_CONTEXT,
+) {
+  return evaluationDiagramStrategyDecision(arm, context);
+}
+
+/** Chemistry is exempt from strict and always keeps the production lane. */
+export function evaluationPlansChemistry(
+  arm: DiagramEvalArm,
+  context: DiagramStrategyContext = EVALUATION_DEFAULT_CONTEXT,
+): boolean {
+  return evaluationDiagramStrategyDecision(arm, context).strategy === "strict" && !context.chemistryLane;
 }
 
 /** The strict arm keeps only the engine's deterministic chemistry fallback. */
 export function evaluationAllowsFallback(
   arm: DiagramEvalArm,
   figureSource: FigureSource,
+  context: DiagramStrategyContext = EVALUATION_DEFAULT_CONTEXT,
 ): boolean {
-  return arm !== "planner_examples_strict" || figureSource === "chemistry_family";
+  return diagramStrategyAllowsFigureSource(
+    evaluationDiagramStrategyDecision(arm, context),
+    figureSource,
+  );
 }
 
 /** Strict evaluation renders the selected scene only when it is planner-owned or the chemistry fallback. */
 export function evaluationSuppressesSelectedSource(
   arm: DiagramEvalArm,
   figureSource: FigureSource,
+  context: DiagramStrategyContext = EVALUATION_DEFAULT_CONTEXT,
 ): boolean {
-  return arm === "planner_examples_strict" &&
-    figureSource !== "planner" &&
-    !evaluationAllowsFallback(arm, figureSource);
+  return !evaluationAllowsFallback(arm, figureSource, context);
 }
 
 export function assertEvaluationCostAllowed(estimatedUsd: number, confirmed: boolean): void {
