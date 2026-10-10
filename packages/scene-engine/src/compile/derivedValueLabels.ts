@@ -94,11 +94,24 @@ function sourceCurve(construction: SceneConstruction, document: SceneDocument): 
  * A stated x such as π reaches the engine as the nearest double x̂, with
  * |x̂ - x| <= ε|x|/2, and evaluating f adds a few ulps. So |f(x̂)| at or below
  * 8ε·max(1,|x|)·max(1,|f'(x̂)|) cannot be told apart from an exact zero at the
- * stated x (sin π evaluates to 1.2e-16). Only explicit function curves with an
- * analytic derivative qualify; anything larger keeps the exact comparison.
+ * stated x (sin π evaluates to 1.2e-16). This applies only where x̂ rounds a
+ * nonzero kπ/n and the curve is an explicit function with an analytic
+ * derivative; a small value at a representable x is kept exactly.
  */
+/** True when x is the double nearest a nonzero kπ/n, so the stated x itself is irrational. */
+function roundedPiMultiple(x: number): boolean {
+  if (!(Number.isFinite(x)) || x === 0) return false;
+  for (let n = 1; n <= 12; n += 1) {
+    const k = Math.round(x * n / Math.PI);
+    if (k !== 0 && Math.abs(k) <= 48 && Math.abs(x - k * Math.PI / n) <= 2 * Number.EPSILON * Math.abs(x)) return true;
+  }
+  return false;
+}
 function certifiedZero(producer: SceneConstruction | undefined, x: number, y: number): boolean {
   if (y === 0 || producer?.operator !== "function_curve" || typeof producer.inputs.expression !== "string") return false;
+  // Rounding only hides an exact zero when the stated x cannot be represented:
+  // a nonzero multiple of π. At a representable x a small value is real.
+  if (!roundedPiMultiple(x)) return false;
   try {
     const slope = Math.abs(parseMathExpression(producer.inputs.expression).derivative(x));
     if (!Number.isFinite(slope)) return false;

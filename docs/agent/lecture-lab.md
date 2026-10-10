@@ -46,8 +46,22 @@ The lab now also applies production's source-program gate, matrix-source
 validation, solver block and save-admission guard; its old duplicated path did
 not. Chemistry remains production-exempt from model scene planning in every
 arm. Historical results are not rewritten. Execution identity records
-`production-scene-selection/v1`, so old divergent-admission rounds cannot be
-silently resumed with this policy.
+`production-scene-selection/v2`, so old divergent-admission or pre-readable-label
+rounds cannot be silently resumed with this policy. Scene-mode candidates for a
+requested figure must carry readable label or dimension text before ranking;
+valid text-only declines remain a separate outcome.
+
+Specific catalogue role guidance requires detection score at least 3. Weaker
+matches still admit planning; family guidance and operators remain available.
+This is a confidence filter, not proof of semantic fit. Strong incorrect cues
+and the picker's weak archetype hint remain outside this narrow correction.
+
+New runs persist `diagram.plannerDeclined` only for a selected, validated
+`text_only` document. Earlier rejected-attempt errors remain diagnostics. The
+old synthetic `planner_declined_required_scene` marker also covered dropped
+unlabelled scenes: without validated outcome evidence, historical marker-only
+empties are `planner_no_output` (outcome unknown), not proven declines. Required
+no-figure grading remains `empty_bad` regardless of the cause label.
 
 `pnpm --filter @heytutor/tutor verify:production-selection` checks the shared
 decision and the original six live/save figures plus both edited forgeries.
@@ -168,11 +182,52 @@ and a positive `--max-usd` on every run. All planner, ProblemIR, teaching, and
 example-picker calls use the configured deployment. Azure fallback to Fireworks
 is rejected before dispatch. Preflight and measured usage price `gpt-6-1-sol`
 at US$2 input, US$0.10 cached input, and US$10 output per million tokens.
-Unknown usage is charged conservatively with Azure reasoning headroom included.
+By default (`--spend-mode conservative`), unknown usage is charged conservatively
+with Azure reasoning headroom included.
 Every summary and row records provider and deployment; every completed planner
 call retains its actual model and measured usage. `--model standard` remains a
 compatibility alias for the configured provider. The offline picker has a 15 s
 bound so Azure reasoning can finish.
+
+For provider-metric reconciled experiments, opt into `--spend-mode response_usage
+--max-usd 10`. This is a cap on the known response-usage subtotal, priced at the
+configured rates, not proof of a hard cap on the provider bill when usage is
+missing. Planner JSON, final teaching SSE usage chunks and every direct picker
+attempt settle measured tokens, including cached input and output reasoning.
+The existing lab visual-need meter follows the selected mode too. Known service
+usage is priced by its existing token/reported-cost evidence; missing-key and
+circuit-open answers prove zero dispatch. Other missing usage stays unresolved.
+Response-mode visual-need admission waits for occupied headroom, while the
+conservative default and frozen replay behavior stay unchanged.
+
+Earlier proxy retries without usage remain unresolved; unused retry slots never
+become measured spend. Missing or incomplete usage is unknown, not measured zero.
+Dispatch still reserves the full concurrent in-flight ceilings (including proxy
+retry limits); callers wait for existing responses to settle when they need
+headroom. No dispatch occurs when known settled cost plus those ceilings would
+exceed the allowance. A cap can stop with a small unused balance because the
+next call needs its full ceiling. Unresolved historical calls release dispatch
+headroom while their estimated exposure remains visible, so they can put the
+actual bill above the known-usage cap. Reconcile Azure ProcessedPromptTokens and
+GeneratedTokens before and after each controlled phase, stop to investigate
+unresolved usage, and give separate rounds only the remaining aggregate budget.
+
+In this mode, `chargedUsd` and `knownUsageUsd` are the measured subtotal;
+`reservedUsd`/`inFlightCalls` are temporary dispatch headroom.
+`unresolvedCalls[]` identifies trace, lane, model, attempt count, reason and
+`allowanceUsd`; `unresolvedAllowanceUsd` is their total estimated exposure, not
+paid cost. Per proxy `modelCalls[]` records `measuredCostUsd: null` when unknown,
+plus unresolved attempts/allowance. Picker rows record `knownUsageUsd`,
+`unresolvedUsageCalls` and `unresolvedAllowanceUsd`. Thus the known subtotal plus
+unresolved allowances describes the accounting range, subject to the request
+ceiling estimates; provider metrics remain the independent evidence. Checkpoints
+and row execution identities carry the mode, response pricing and server caps. Legacy checkpoints are conservative
+and cross-mode resume is rejected. In-flight calls from an interrupted
+response-usage checkpoint become explicit unresolved checkpoint evidence on
+resume, never measured charges; its `attempts` counts interrupted requests whose
+upstream attempt counts are unknown. `--resume-extra-usd` cannot add an unmetered
+allowance to this mode. The offline gate uses zero network/model calls and is included in the retained
+lab checks: `pnpm --filter @heytutor/tutor verify:lab`.
 
 The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`.
 Synthesized entries are keyed by `depicts`: plain family/archetype language,
@@ -200,20 +255,6 @@ same `maths` / `physics` / `chemistry` vocabulary. No new classifier call or
 keyword-to-figure router is added. Chemistry, code/DSA and doubts/resumes retain
 their exemptions. The older percentage/actor allowlist is independent and still
 assigns global strict when explicitly enabled. Leave all flags off in production.
-
-To measure that production maths opt-in rather than a forced strict eval arm,
-add `--production-strict-subjects maths` to a `planner_examples_strict` run.
-This uses the existing turn planner's actual subject consensus, the live subject
-policy and the live four-second `/api/chat` picker without word fallback. Rows
-classified as unknown or non-maths stay current, recorded in
-`productionStrategy`; corpus subject labels never override that decision.
-Picked IDs must also survive the lab's full-sample exemplar exclusions. Picker
-proxy usage is included in planner accounting, not charged again in its picker
-record. Resume identity binds this profile; omitting the flag preserves the
-existing evaluation behaviour. This option does not set any live environment
-flag. With Jev disabled, use identity-checked unavailable replay evidence on
-both arms: no Jev vote is not an explicit `none`, and turn-planner visual need
-remains authoritative.
 
 Part 15 decline experiment (lab only): `--scene-decline-policy
 qualitative_setup_v1` clarifies faithful nonmetric concept setups, without

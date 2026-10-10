@@ -13,6 +13,7 @@
     "verify": "node scripts/verify/verify-hero-localization.ts && node scripts/verify/verify-hero-voice-policy.ts && node scripts/verify/verify-hero-voice.ts && node scripts/verify/verify-hero-lesson.ts && node scripts/verify/verify-hero-audio-clock.ts && node scripts/verify/verify-seo.ts && node scripts/verify/verify-use-case-demo.ts && node scripts/generate-use-case-lesson.mjs --check && node scripts/verify/verify-region.ts",
     "record:hero": "node scripts/record-hero-lesson.mjs",
     "encode:hero": "node scripts/encode-hero-video.mjs",
+    "gen:share-assets": "node scripts/generate-share-assets.mjs",
     "gen:hero-voice": "node scripts/generate-hero-voice.mjs",
     "gen:use-case-lesson": "node scripts/generate-use-case-lesson.mjs"
   },

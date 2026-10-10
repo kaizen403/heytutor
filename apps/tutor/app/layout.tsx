@@ -5,6 +5,7 @@ import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
   SITE_NAME,
+  SITE_PREVIEW,
   SITE_TAGLINE,
   siteMetadataBase,
 } from "@/lib/site";
@@ -70,15 +71,15 @@ export const metadata: Metadata = {
   },
   icons: {
     // SVG first so Chromium picks the crisp homepage mark, not the ICO.
-    // ?v=2 busts the old gradient tile that was cached as the tab icon.
+    // ?v=3 busts older marks that were cached as the tab icon.
     icon: [
-      { url: "/favicon.svg?v=2", type: "image/svg+xml" },
-      { url: "/favicon-32x32.png?v=2", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16x16.png?v=2", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.svg?v=3", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png?v=3", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=3", sizes: "16x16", type: "image/png" },
     ],
     // iOS ignores an SVG apple-touch-icon, so this one has to be a PNG.
-    apple: [{ url: "/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" }],
-    shortcut: ["/favicon.ico?v=2"],
+    apple: [{ url: "/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico?v=3"],
   },
   manifest: "/site.webmanifest",
   openGraph: {
@@ -88,12 +89,28 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: `${SITE_NAME} | ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
+    images: [{
+      url: SITE_PREVIEW.image,
+      width: SITE_PREVIEW.width,
+      height: SITE_PREVIEW.height,
+      type: "image/png",
+      alt: SITE_PREVIEW.imageAlt,
+    }],
+    videos: [{
+      url: new URL(SITE_PREVIEW.video, siteMetadataBase).href,
+      secureUrl: new URL(SITE_PREVIEW.video, siteMetadataBase).href,
+      width: SITE_PREVIEW.width,
+      height: SITE_PREVIEW.height,
+      type: "video/mp4",
+    }],
   },
   twitter: {
     card: "summary_large_image",
     title: `${SITE_NAME} | ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
+    images: [{ url: SITE_PREVIEW.image, alt: SITE_PREVIEW.imageAlt }],
   },
+  other: { "og:video:alt": SITE_PREVIEW.videoAlt },
   robots: {
     index: true,
     follow: true,
@@ -102,6 +119,7 @@ export const metadata: Metadata = {
       follow: true,
       "max-image-preview": "large",
       "max-snippet": -1,
+      "max-video-preview": -1,
     },
   },
   alternates: {
@@ -116,9 +134,22 @@ const structuredData = {
   applicationCategory: "EducationalApplication",
   operatingSystem: "Web",
   url: siteMetadataBase.origin,
-  image: `${siteMetadataBase.origin}/og-image.png`,
+  image: new URL(SITE_PREVIEW.image, siteMetadataBase).href,
+  screenshot: new URL(SITE_PREVIEW.image, siteMetadataBase).href,
   description: SITE_DESCRIPTION,
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  isAccessibleForFree: true,
+  featureList: [
+    "Live AI whiteboard",
+    "Voice narration in sync with writing",
+    "Verified diagrams",
+    "Questions from text or photos",
+    "Doubts answered on the same board",
+    "Lesson replay",
+    "Downloadable notes",
+    "Physics, maths, chemistry, coding, and more",
+    "English and Hinglish lessons",
+  ],
   publisher: {
     "@type": "Organization",
     name: SITE_NAME,

@@ -1,4 +1,5 @@
 /** Live-matching visual-need evidence, replay identity and pre-dispatch accounting. */
+import type { LabSpendMode, LabUsageObservation } from "./labSpend";
 import { createHash } from "node:crypto";
 import { inferSceneCapabilities, normalizeTutorQuestion, questionRequiresVisual } from "@heytutor/tutor-core";
 import type { VisualRequirement } from "@heytutor/scene-engine";
@@ -173,12 +174,15 @@ export interface VisualNeedCallAccounting {
   inputTokens: number;
   outputTokens: number;
   unavailableReason: string | null;
+  measuredCostUsd?: number | null;
+  unresolvedAllowanceUsd?: number;
 }
 
 export interface VisualNeedBudgetHooks {
-  reserve: (usd: number) => boolean;
+  reserve: (usd: number) => boolean | Promise<boolean>;
+  spendMode?: LabSpendMode;
   beforeDispatch: () => void;
-  settle: (reservedUsd: number, chargedUsd: number) => void;
+  settle: (reservedUsd: number, chargedUsd: number, observation?: LabUsageObservation) => void;
   onAccounting: (record: VisualNeedCallAccounting) => void;
   onDenied: () => void;
 }
@@ -186,15 +190,32 @@ export interface VisualNeedBudgetHooks {
 export async function budgetedVisualNeedFetch(input: RequestInfo | URL, init: RequestInit | undefined,
   fetchImpl: typeof fetch, hooks: VisualNeedBudgetHooks): Promise<Response> {
   const reservedUsd = visualNeedRequestWorstCaseUsd(init);
-  if (!hooks.reserve(reservedUsd)) {
+  let admitted: boolean;
+  try {
+    const admission = hooks.reserve(reservedUsd);
+    admitted = typeof admission === "boolean" ? admission : await admission;
+  } catch (error) {
+    // A headroom wait can expire before dispatch. The live client catches this
+    // error as unavailable, so mark the row untested before that catch runs.
+    hooks.onDenied();
+    throw error;
+  }
+  if (!admitted) {
     hooks.onDenied();
     throw new Error("visual-need denied before sending: --max-usd reservation exhausted");
   }
   let settled = false;
-  const account = (entry: Omit<VisualNeedCallAccounting, "reservedUsd">) => {
-    hooks.settle(reservedUsd, entry.chargedUsd);
+  const account = (entry: Omit<VisualNeedCallAccounting, "reservedUsd">, measuredUsd: number | null = null) => {
+    const chargedUsd = hooks.spendMode === "response_usage" ? measuredUsd ?? 0 : entry.chargedUsd;
+    // Mark once before callbacks so a failing checkpoint cannot settle twice.
     settled = true;
-    hooks.onAccounting({ ...entry, reservedUsd });
+    hooks.settle(reservedUsd, chargedUsd, {
+      model: JEV_GATEWAY_MODEL, measuredUsd, unresolvedAttempts: measuredUsd === null ? 1 : 0,
+      unresolvedAllowanceUsd: measuredUsd === null ? reservedUsd : 0,
+      reason: measuredUsd === null ? "visual_need_usage_missing_or_interrupted" : null,
+    });
+    hooks.onAccounting({ ...entry, chargedUsd, reservedUsd, ...(hooks.spendMode === "response_usage"
+      ? { measuredCostUsd: measuredUsd, unresolvedAllowanceUsd: measuredUsd === null ? reservedUsd : 0 } : {}) });
   };
   try {
     hooks.beforeDispatch();
@@ -210,7 +231,7 @@ export async function budgetedVisualNeedFetch(input: RequestInfo | URL, init: Re
       : provedNoDispatch ? 0 : reservedUsd;
     account({ chargedUsd, knownUsage, httpStatus: response.status, inputTokens: knownUsage ? assessment!.usage!.inputTokens : 0,
       outputTokens: knownUsage ? assessment!.usage!.outputTokens : 0,
-      unavailableReason: response.ok ? assessment?.unavailableReason ?? null : `http_${response.status}` });
+      unavailableReason: response.ok ? assessment?.unavailableReason ?? null : `http_${response.status}` }, knownUsage || provedNoDispatch ? chargedUsd : null);
     return response;
   } catch (error) {
     if (!settled) account({ chargedUsd: reservedUsd, knownUsage: false, httpStatus: null, inputTokens: 0, outputTokens: 0, unavailableReason: "transport" });
@@ -223,7 +244,7 @@ export function summarizeVisualNeedCalls(calls: readonly VisualNeedCallAccountin
   for (const call of calls) if (call.unavailableReason) unavailableCounts[call.unavailableReason] = (unavailableCounts[call.unavailableReason] ?? 0) + 1;
   return { provider: "vercel_ai_gateway", ...LAB_VISUAL_NEED_POLICY, calls: calls.length,
     knownUsageCalls: calls.filter((call) => call.knownUsage).length,
-    unknownUsageCalls: calls.filter((call) => !call.knownUsage && call.chargedUsd > 0).length,
+    unknownUsageCalls: calls.filter((call) => !call.knownUsage && (call.chargedUsd > 0 || (call.unresolvedAllowanceUsd ?? 0) > 0)).length,
     chargedUsd: calls.reduce((sum, call) => sum + call.chargedUsd, 0),
     inputTokens: calls.reduce((sum, call) => sum + call.inputTokens, 0),
     outputTokens: calls.reduce((sum, call) => sum + call.outputTokens, 0), unavailableCounts };
