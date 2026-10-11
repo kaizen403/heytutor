@@ -576,7 +576,7 @@ function resolveHalfCell(electrode: string, tokens: SpeciesToken[], overrides: M
   })();
   const concentrations: Record<string, number> = {};
   for (const token of tokens) {
-    const activity = token.concentration ?? token.pressure;
+    const activity = token.pressure ?? token.concentration;
     if (activity !== null) {
       const previous = concentrations[token.formula];
       if (previous !== undefined && !chemistryCanonicalValuesAgree(previous, activity)) return null;
