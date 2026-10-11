@@ -1,4 +1,4 @@
-/** Frozen full public coordinator/lane wording oracles. Source-only packet: root owns execution. */
+/** Same 218 frozen literal wordings; explicit serialized-scene/lowercase-temperature/notation oracle correction child of08c. */
 import assert from "node:assert/strict";
 import { kineticsFromStem, solveKinetics, buildKineticsScene } from "../../src/chemistry/kinetics";
 import { buildSolutionsGraphScene } from "../../src/chemistry/solutionsGraphs";
@@ -470,8 +470,11 @@ const cases: Case[] = [
   {
     "id": "P1-t1t2",
     "question": "The rate constant of a reaction doubles between t1 = 300 K and t2 = 310 K. Calculate the activation energy.",
-    "require": false,
-    "kind": "refuse-kinetics"
+    "require": true,
+    "kind": "temperature",
+    "first": 300,
+    "last": 310,
+    "ratio": 2
   },
   {
     "id": "P1-t60",
@@ -1307,14 +1310,14 @@ const cases: Case[] = [
     "id": "OWN-factor-mass-request",
     "kind": "apparent",
     "question": "A solute has true molar mass 60 g/mol and i = 1.5. Find its apparent molar mass.",
-    "label": "Mapp=40 g/mol",
+    "label": "M'=40 g/mol",
     "require": true
   },
   {
     "id": "OWN-factor-association",
     "kind": "apparent",
     "question": "A solute has true molar mass 60 g/mol and degree of association 0.8 with 2 monomers. Find the apparent molar mass.",
-    "label": "Mapp=100 g/mol",
+    "label": "M'=100 g/mol",
     "require": true
   },
   {
@@ -1669,23 +1672,27 @@ function near(actual:unknown, expected:number):void {
   assert.ok(typeof actual === "number" && Number.isFinite(actual));
   assert.ok(Math.abs(actual-expected)<=Math.max(Math.abs(expected)*1e-10,1e-14),`${actual} != ${expected}`);
 }
+function sceneNear(actual:unknown,expected:number):void {
+  assert.ok(typeof actual === "number" && Number.isFinite(actual));
+  assert.equal(actual,Number(expected.toFixed(6)),`${actual} != serialized ${expected}`);
+}
 function compiled(document:SceneDocument) {
   const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));
   assert.ok(valid.document,JSON.stringify(valid.report.issues));
   const out=compileSceneDocument(valid.document);
   assert.ok(out.ok && out.renderScene,JSON.stringify(out.report.issues));
-  return out.renderScene.primitives.filter(p=>p.kind==="label").map(p=>p.text);
+  return out.renderScene.primitives.filter(p=>p.kind==="label" && typeof p.text === "string").map(p=>p.text!);
 }
 function checkDocument(c:Case,document:SceneDocument):void {
   const labels=compiled(document),caption=document.annotations.find(a=>a.id==="figure_caption")?.text??"";
   assert.ok(!/NaN|Infinity|undefined/.test(labels.join(" ")+caption));
   if(c.kind==="temperature") {
-    near(document.quantities.find(q=>q.id==="T1")?.value,c.first!);
-    near(document.quantities.find(q=>q.id==="T2")?.value,c.last!);
-    near(document.quantities.find(q=>q.id==="Ea")?.value,8.314*Math.log(c.ratio!)/(1/c.first!-1/c.last!));
+    sceneNear(document.quantities.find(q=>q.id==="T1")?.value,c.first!);
+    sceneNear(document.quantities.find(q=>q.id==="T2")?.value,c.last!);
+    sceneNear(document.quantities.find(q=>q.id==="Ea")?.value,8.314*Math.log(c.ratio!)/(1/c.first!-1/c.last!));
     if(c.caption) { assert.ok(caption.includes(`${c.first} K`),caption);assert.ok(caption.includes(`${c.last} K`),caption); }
-  } else if(c.kind==="half") near(document.quantities.find(q=>q.id==="t_half")?.value,c.half!);
-  else if(c.kind==="energy") near(document.quantities.find(q=>q.id==="Ea")?.value,c.energy!);
+  } else if(c.kind==="half") sceneNear(document.quantities.find(q=>q.id==="t_half")?.value,c.half!);
+  else if(c.kind==="energy") sceneNear(document.quantities.find(q=>q.id==="Ea")?.value,c.energy!);
   else if(c.kind==="titration") {
     // The exact source pK must reach the compiled half-equivalence label and full caption.
     const m=/(?:pKa|pKb) = ([0-9.]+)/.exec(caption);assert.ok(m,caption);

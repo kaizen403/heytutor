@@ -404,12 +404,19 @@ function readTemperatureInputs(stem: string): TemperatureInputs | null {
   // leave the later absolute temperature as a replacement for that delta.
   if (!rise.ok && /\d\s*(?:degree\w*|kelvin\w*)\s+(?:rise|increase|change)\b/i.test(stem)) return null;
   const delta = rise.ok ? rise.reading : null;
-  const absolute = temps.reading.filter(r => !delta || r.source.span.start !== delta.source.span.start).map(r => r.value);
+  const absoluteReadings = temps.reading.filter(r => !delta || r.source.span.start !== delta.source.span.start);
+  const absolute = absoluteReadings.map(r => r.value);
   // Preserve the adapter's ordinary-temperature safety boundary. A stated
   // low absolute T is a refusal, not a value to silently filter away.
   if (absolute.some(t => t < 100) || absolute.length > 2) return null;
   if (rise.ok) {
     if (!(rise.reading.value > 0) || absolute.length === 0) return null;
+    // A rise after an already stated pair may be a second heating step, not
+    // a restatement of that pair's difference. Equal numbers do not give the
+    // extra step the same source role as the first one.
+    const lastAbsolute = absoluteReadings[1];
+    if (lastAbsolute && delta && delta.source.span.start > lastAbsolute.source.span.end
+      && /\b(?:then|afterwards?|subsequently|further|additional(?:ly)?|another|more|followed)\b/i.test(stem.slice(lastAbsolute.source.span.end,delta.source.span.end+30))) return null;
     if (absolute[1] !== undefined && absolute[1] !== absolute[0]! + rise.reading.value) return null;
   }
   return {absolute,rise:rise.ok?rise.reading.value:null};
@@ -703,22 +710,23 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
   const k = relative ? Math.LN2 : solution.k;
   const tHalf = relative ? 1 : solution.tHalf;
   if (k === null || tHalf === null) return null;
-  const marks: Array<{ t: number; label: string; ytick: string | null }> = [];
+  const marks: Array<{ t: number; label: string; ytick: string | null; reference: boolean }> = [];
   const same = (a: number, b: number) => Math.abs(a - b) < 1e-6 * Math.max(1, a, b);
-  const place = (t: number, label: string, ytick: string | null, replace: boolean) => {
+  const place = (t: number, label: string, ytick: string | null, replace: boolean, reference = false) => {
     const existing = marks.find((m) => same(m.t, t));
     if (existing) {
       if (replace) existing.label = label;
       if (existing.ytick === null) existing.ytick = ytick;
+      if (!reference) existing.reference = false;
       return;
     }
-    marks.push({ t, label, ytick });
+    marks.push({ t, label, ytick, reference });
   };
   const multiple = (t: number) => fitLabel("", `${fmt(t, 3)} ${unit}`).replace(/^ ?= ?/, "");
   const at = (prefix: string, t: number) => relative ? fitLabel(prefix, `${fmt(t, 3)} ${unit}`) : timeLabel(prefix, t, unit);
   void multiple;
-  place(tHalf, relative ? "t_1/2" : timeLabel("t_1/2", tHalf, unit), "1/2", false);
-  place(2 * tHalf, relative ? "2t_1/2" : timeLabel("2t_1/2", 2 * tHalf, unit), "1/4", false);
+  place(tHalf, relative ? "t_1/2" : timeLabel("t_1/2", tHalf, unit), "1/2", false, true);
+  place(2 * tHalf, relative ? "2t_1/2" : timeLabel("2t_1/2", 2 * tHalf, unit), "1/4", false, true);
   const completions = relative
     ? spec.fractionsAsked.map((fraction) => ({ fraction, time: Math.log2(1 / (1 - fraction)) }))
     : solution.timesForFractions;
@@ -734,16 +742,20 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
   marks.sort((a, b) => a.t - b.t);
   const tMax = Math.max(3.4 * tHalf, 1.12 * marks[marks.length - 1]!.t);
   const sx = X_SPAN / tMax;
+  // Requested instants retain their exact source values. An illustrative
+  // half-life reference too close to one is omitted from the ink, rather
+  // than merging the distinct numbers or placing overlapping tick labels.
+  const visibleMarks = marks.filter(mark => !mark.reference || !marks.some(other => !other.reference && Math.abs(other.t-mark.t)*sx < 0.5));
   const K = Number((k / sx).toFixed(6));
   const curve = c.scene.curve("curve", `${Y_SPAN}*exp(-${K}*x)`, 0, X_SPAN, "[A]/[A]_0 against t", undefined, 97);
   panel.ids.push(curve);
   panel.ids.push(c.text("one", { x: -0.35, y: Y_SPAN }, "1", "tick"));
   const usedTicks = new Set<string>();
-  marks.forEach((mark, index) => {
+  visibleMarks.forEach((mark, index) => {
     const x = Number((mark.t * sx).toFixed(6));
     const y = Number((Y_SPAN * Math.exp(-K * x)).toFixed(6));
     const id = `m${index + 1}`;
-    panel.ids.push(dot(c, id, { x, y }, index === 0 ? "half life" : "marked instant", mark.label));
+    panel.ids.push(dot(c, id, { x, y }, same(mark.t,tHalf) ? "half life" : "marked instant", mark.label));
     c.scene.assert(`${id}_on_curve`, "function_value", [curve], { x, y });
     dropLinks(c, id, 0, x, y, panel, y > 0.35, true);
     if (mark.ytick && y > 0.35 && !usedTicks.has(mark.ytick)) {

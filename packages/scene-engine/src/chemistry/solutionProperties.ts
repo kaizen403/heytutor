@@ -27,6 +27,18 @@ function shown(value: number): string {
   return String(Number(value.toFixed(3)));
 }
 
+/** Keep each physical value and unit complete within the compact-label limit. */
+function physicalResultLabels(symbol: string, value: number, unit: string): string[] {
+  let number = shown(value);
+  if (`${symbol}=${number}`.length > 16) {
+    const [mantissa, exponent] = value.toExponential(3).split("e");
+    number = `${Number(mantissa)}e${Number(exponent)}`;
+  }
+  const physicalValue = `${symbol}=${number}`;
+  const full = `${physicalValue} ${unit}`;
+  return full.length <= 16 ? [full] : [physicalValue,unit];
+}
+
 function take(match: RegExpMatchArray | null, group = 1): number | null {
   if (!match) return null;
   if (match[group] === undefined) group = match.findIndex((part, index) => index > 0 && part !== undefined);
@@ -52,8 +64,17 @@ function diagramCue(stem: string): boolean {
   return /(?:elevation (?:in|of) (?:the )?boiling point|boiling point elevation|depression (?:in|of) (?:the )?freezing point|freezing point depression|ebullioscop|cryoscop).{0,200}(?:graph|diagram|curve|plot|vapou?r pressure)|(?:graph|diagram|curve|plot|vapou?r pressure).{0,200}(?:elevation (?:in|of) (?:the )?boiling point|boiling point elevation|depression (?:in|of) (?:the )?freezing point|freezing point depression)/.test(stem);
 }
 
+function claimsHenry(stem: string): boolean {
+  if (/henry/.test(stem)) return true;
+  // The declared relation and dissolved-gas quantity roles establish the
+  // intent even when the question does not name the law.
+  return /(?:p\s*=\s*k_?h\s*\*?\s*x\b|c\s*=\s*k_?h\s*\*?\s*p\b)/.test(stem)
+    && /\bk_?h\s*=/.test(stem)
+    && /dissolv|partial pressure|mole fraction/.test(stem);
+}
+
 function twoVolatilePlot(stem: string): boolean {
-  if (/non\s*-?\s*volatile|henry|relative lowering/.test(stem)) return false;
+  if (/non\s*-?\s*volatile|relative lowering/.test(stem) || claimsHenry(stem)) return false;
   return /raoult|positive deviation|negative deviation|deviations? from (?:the )?ideal|ideal solution.{0,120}(?:graph|plot|curve|deviation)|(?:graph|plot|curve).{0,120}ideal solution|vapou?r pressure.{0,160}(?:mole fraction|composition|plot|graph|deviation)|(?:mole fraction|composition|plot|graph).{0,160}vapou?r pressure/.test(stem);
 }
 
@@ -63,7 +84,7 @@ export function claimsSolutionLesson(question: string): boolean {
   if (/titr|thiosulph|thiosulf|redox|buffer|shown (?:in|below)|following (?:figure|graph)/.test(stem)) return false;
   if (diagramCue(stem) || twoVolatilePlot(stem)) return false;
   return claimsConcentration(stem)
-    || /henry/.test(stem)
+    || claimsHenry(stem)
     || /non\s*-?\s*volatile/.test(stem)
     || /relative lowering|lowering of vapou?r pressure/.test(stem)
     || /osmotic pressure|van'?t hoff|vant hoff|degree of dissociation|degree of association|molar mass|molecular mass/.test(stem)
@@ -383,9 +404,9 @@ function molarMassScene(question: string, stem: string): SceneDocument | null {
     const apparent = trueMass / factor;
     return panel(question, "apparent molar mass from the van't Hoff factor", [
       `i=${shown(factor)}`,
-      `Mapp=${shown(apparent)} g/mol`,
-      factor > 1 ? "Mapp < M" : factor < 1 ? "Mapp > M" : "Mapp = M",
-      `M=${trueMass} g/mol`,
+      ...physicalResultLabels("M'",apparent,"g/mol"),
+      factor > 1 ? "M' < M" : factor < 1 ? "M' > M" : "M' = M",
+      ...physicalResultLabels("M",trueMass,"g/mol"),
     ], `M_apparent = M_true / i = ${trueMass} / ${factor} = ${apparent} g/mol. ${factor > 1 ? "Dissociation raises i, so the apparent molar mass is smaller than the true mass." : factor < 1 ? "Association lowers i, so the apparent molar mass is larger than the true mass." : "i = 1, so the apparent and true molar masses agree."}`);
   }
 
@@ -419,10 +440,11 @@ export function buildSolutionLessonScene(
   if (!chemistryPlanBindingsValid(question, planQuantities)) return null;
   const stem = chemStem(question);
   const concentration = claimsConcentration(stem)
+    && !claimsHenry(stem)
     && !/henry|osmotic|boiling point|freezing point|non\s*-?\s*volatile|relative lowering|van'?t hoff|vant hoff/.test(stem)
     && !(/molar mass|molecular mass/.test(stem) && !/density/.test(stem));
   if (concentration) return concentrationScene(question, stem);
-  if (/henry/.test(stem)) return henryScene(question, stem);
+  if (claimsHenry(stem)) return henryScene(question, stem);
   const molarMassAsk = /(?:apparent|true)\s+(?:molar|molecular) mass|(?:find|calculate|determine|what is)\b[^.;?]{0,45}\b(?:molar|molecular) mass|degree of dissociation|degree of association/.test(stem);
   if (molarMassAsk && !/density/.test(stem)) {
     return molarMassScene(question, stem);
