@@ -310,11 +310,14 @@ function readSpeciesMentions(stem: string): { withVolume: ReadSpecies[]; without
   return { withVolume, withoutVolume };
 }
 
-interface SuppliedAcidBaseConstants { a: number | null; b: number | null; supplied: boolean }
+interface SuppliedAcidBaseConstants {
+  a: number | null; b: number | null; supplied: boolean;
+  namedOwners: Array<{species:SpeciesEntry;sourceSpan:ChemistrySpan}>;
+}
 /** A mentioned constant either binds completely in the source or refuses the
  * titration. Missing is the only state that permits the species table. */
 function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants | null {
-  const result: SuppliedAcidBaseConstants = {a:null,b:null,supplied:false};
+  const result: SuppliedAcidBaseConstants = {a:null,b:null,supplied:false,namedOwners:[]};
   const names = String.raw`(?:CH3COOH|HCOOH|NH4OH|NH3|HCN|HF|acetic acid|ethanoic acid|formic acid|methanoic acid|ammonia|ammonium hydroxide|the acid|the base)`;
   // Unqualified named constants do not identify which conjugate species owns
   // the value. Refuse instead of borrowing a table value for the analyte.
@@ -324,11 +327,28 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
     for (const logarithmic of [true,false]) {
       const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!p)"}k\s*_?\s*(?:\{\s*${which}\s*\}|${which})(?![a-z])`;
       const word = !logarithmic ? String.raw`|\b${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation) constant\b` : "";
-      const mention = new RegExp(`(?:${symbol}${word})`,"i");
-      if (!mention.test(question)) continue;
+      const mention = new RegExp(`(?:${symbol}${word})`,"ig");
+      const declarations = [...question.matchAll(mention)];
+      if (declarations.length === 0) continue;
+      // Repeated declarations remain a conservative refusal. In particular,
+      // a readable later value cannot mask an earlier explicit unknown owner.
+      if (declarations.length !== 1) return null;
       result.supplied = true;
-      const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\([^)]*\)|\s+(?:of|for)\s+${names})?\s*(?:value)?`,"i");
-      const read = readChemistryQuantity({question,after:cue,dimension:"dimensionless"});
+      const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\(([^)]*)\)|\s+(?:of|for)\s+(${names})(?![a-z0-9]))?\s*(?:value)?`,"igd");
+      const owners = [...question.matchAll(cue)];
+      if (owners.length !== 1) return null;
+      const owner = owners[0]!;
+      const namedGroup = owner[1] !== undefined ? 1 : owner[2] !== undefined ? 2 : null;
+      if (namedGroup !== null) {
+        const named = owner[namedGroup]!.trim();
+        const species = SPECIES.find(entry => new RegExp(`^(?:${entry.pattern.source})$`,"i").test(named));
+        const span = owner.indices?.[namedGroup];
+        if (!species || !span) return null;
+        result.namedOwners.push({species,sourceSpan:{start:span[0],end:span[1]}});
+      }
+      // Anchor the read after this one source declaration. Missing is fatal
+      // here, rather than silently skipped by a whole-question cue scan.
+      const read = readChemistryQuantity({question,after:/^/,within:{start:owner.index!+owner[0].length,end:question.length},dimension:"dimensionless"});
       const limit = logarithmic ? 14 : 1;
       if (!read.ok || !(read.reading.value > 0 && read.reading.value < limit)) return null;
       if (logarithmic) pK = read.reading.value; else k = read.reading.value;
@@ -384,6 +404,10 @@ function readTitration(stem: string, quantities: readonly ChemPlanQuantity[]): T
   const which = analyte.entry.kind === "acid" ? "a" : "b";
   // A supplied constant for another conjugate role is not an analyte constant.
   if (supplied.supplied && (supplied[which] === null || supplied[which === "a" ? "b" : "a"] !== null)) return null;
+  // Acid/base kind is insufficient: HF and CH3COOH own different constants.
+  // Formula and ordinary-name aliases resolve through the existing species
+  // identity, with the declared owner span retained from the original source.
+  if (supplied.namedOwners.some(owner => owner.species !== analyte.entry)) return null;
   const analyteSpecies = toSpecies(analyte, supplied[which]);
   const titrantSpecies = toSpecies(titrant, null);
   if (!analyteSpecies || !titrantSpecies) return null;
