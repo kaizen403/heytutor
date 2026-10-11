@@ -39,11 +39,15 @@ for (const hc of ["4e- eV nm", "1e999 eV nm", "unknown", "-1240 eV nm", "0 eV nm
   check("supplied damaged hc never becomes a fixed product: " + hc, () => {
     const question = `Light of wavelength 300 nm falls on a metal. Its work function is 2.0 eV. Take hc=${hc}. Find photoelectron kinetic energy.`;
     assert.equal(buildAtomicRadiationScene(question, [], false), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+    assert.equal(synthesizeFamilyScene({ question }), null);
   });
 for (const declaration of ["hc=unknown; hc=1240 eV nm", "hc=1240 eV nm; hc=unknown", "hc=; hc=1240 eV nm", "hc=1240 eV nm; hc=", "hc=1240 eV nm; hc=1240 eV nm"])
   check("each explicit hc owner must be resolved: " + declaration, () => {
     const question = `For the photoelectric effect wavelength is 300 nm and work function is 2 eV. ${declaration}. Find kinetic energy.`;
     assert.equal(buildAtomicRadiationScene(question, [], false), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+    assert.equal(synthesizeFamilyScene({ question }), null);
   });
 for (const [wavelength, expected] of [[300, "K=2.00 eV"], [400, "K=1.00 eV"]] as const)
   check("source hc changes the computed number: " + wavelength, () => {
@@ -60,7 +64,17 @@ check("SI source hc converts value and unit together", () => {
 check("hc is not allowed to contradict explicitly stated h", () => {
   const question = "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. h=6.62607015e-34 J s and hc=1240 eV nm. Find kinetic energy.";
   assert.equal(buildAtomicRadiationScene(question, [], false), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
 });
+for (const suffix of ["Options: (a) hc=unknown (b) hc=1240 eV nm", "Options: (a) h=0 J s (b) c=1 m/s", "Options: (a) hc=1200 eV nm (b) hc=1240 eV nm"])
+  check("option-only constants cannot change body authority: " + suffix, () => {
+    const defaultBody = "For the photoelectric effect wavelength is 300 nm and work function is 2 eV. Find kinetic energy. " + suffix;
+    assert.ok(labels(buildAtomicRadiationScene(defaultBody, [], false)).includes("K=2.13 eV"));
+    assert.ok(labels(synthesizeFamilyScene({ question: defaultBody })?.document ?? null).includes("K=2.13 eV"));
+    const sourceBody = "For the photoelectric effect wavelength is 300 nm and work function is 2 eV. hc=1200 eV nm. Find kinetic energy. " + suffix;
+    assert.ok(labels(buildAtomicRadiationScene(sourceBody, [], false)).includes("K=2.00 eV"));
+    assert.ok(labels(synthesizeFamilyScene({ question: sourceBody })?.document ?? null).includes("K=2.00 eV"));
+  });
 for (const subject of ["a metal", "the metal", "sodium", "the sodium", "potassium"])
   check("whole work-function owner: " + subject, () => {
     const question = `In the photoelectric effect the work function of ${subject} is 4.0 eV. Photons of energy 2.0 eV are incident. Are electrons emitted?`;
@@ -95,6 +109,7 @@ for (const value of ["4e- kJ", "1e999 kJ", "unknown", "20 kg", "20 kJ/mol"])
   check("step-owned invalid enthalpy cannot bypass validation: " + value, () => {
     const question = `Using Hess's law, step 1 has ΔH=-394 kJ. Step 2 has ΔH=${value} and is reversed. Draw the enthalpy sum.`;
     assert.equal(buildThermoGraphScene(question, [], false), null);
+    assert.equal(synthesizeFamilyScene({ question }), null);
   });
 const atomicLaneRows = [
   {

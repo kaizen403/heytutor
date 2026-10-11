@@ -289,8 +289,9 @@ export function buildAtomicRadiationScene(
   if (!isAtomicRadiationStem(question) || !chemistryPlanBindingsValid(question, quantities)) return null;
   const photoelectric = isPhotoelectricStem(question);
   const hcCue = /\bhc\s*(?:=|is\b)/i;
+  const sourceBody = question.slice(0, chemistryQuestionSpan(question).end);
   let hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / JOULE_PER_EV * 1e9;
-  if (photoelectric && hcCue.test(question)) {
+  if (photoelectric && hcCue.test(sourceBody)) {
     // The wavelength law may use a declared hc, including a rounded textbook
     // product. This is a source parameter, not a tolerance change to h or c.
     const hcOwners = [...question.matchAll(new RegExp(hcCue.source, "gi"))]
@@ -300,7 +301,7 @@ export function buildAtomicRadiationScene(
     if (hcOwners.length !== 1) return null;
     const hc = readChemistryQuantity({ question, after: hcCue, dimension: "energy_length", targetUnit: "eV nm" });
     if (!hc.ok || !(hc.reading.value > 0)) return null;
-    if (/\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)|\bc\s*=|speed of light\s*(?:is|=)/i.test(question)
+    if (/\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)|\bc\s*=|speed of light\s*(?:is|=)/i.test(sourceBody)
       && !chemistryCanonicalValuesAgree(hc.reading.value, hcEvNm)) return null;
     hcEvNm = hc.reading.value;
   } else if (!chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)) return null;
