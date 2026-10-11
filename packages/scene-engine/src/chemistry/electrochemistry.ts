@@ -442,8 +442,9 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
   };
   // Validate each original owner before an aggregate reader can skip a missing
   // declaration and retain a later good one. Electron coefficients are not activities.
-  const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d.]|unknown|unreadable)`, "gu");
-  for (const declared of source.matchAll(declaration)) {
+  const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d]|\\.(?=\\d)|unknown|unreadable)`, "gu");
+  const explicitDeclaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)\\s*`, "gu");
+  for (const declared of [...source.matchAll(explicitDeclaration), ...source.matchAll(declaration)]) {
     if (!isActivitySpecies(declared[1]!)) {
       if (/[⁺⁻+−-]/.test(declared[1]!)) return null;
       continue;
@@ -457,12 +458,18 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
     const unitStart = raw.index! + raw[0].lastIndexOf(/M\b/.test(raw[0]) ? "M" : "mol");
     if (!found.reading.some(reading => unitStart >= reading.source.span.start && unitStart < reading.source.span.end)) return null;
   }
-  const activityPhase = new RegExp(`(${SPECIES})\\s*\\(\\s*(?:aq\\s*,\\s*)?(?=[+−\\-\\d.]|unknown|unreadable)`, "g");
+  const activityPhase = new RegExp(`(${SPECIES})\\s*\\(`, "g");
   for (const phase of source.matchAll(activityPhase)) {
     const species = canonicalSpecies(phase[1]!);
     if (!species || (!parseFormula(species)?.charge && !saltCationCharge(species))) continue;
-    const read = readChemistryQuantity({question: source, after: /^/, within: {start: phase.index! + phase[0].length, end: source.length}, dimension: "concentration", targetUnit: "mol/L"});
-    if (!read.ok) return null;
+    const open = phase.index! + phase[0].lastIndexOf("("); const close = originalPhaseClose(source, open);
+    if (close === null || !/^(?:[\s,.;:|)\]]|$)/.test(source.slice(close + 1))) return null;
+    const inside = source.slice(open + 1, close);
+    if (/^\s*(?:aq|g|s|l)\s*$/.test(inside)) continue;
+    const qualifier = /^\s*aq\s*,\s*/.exec(inside);
+    const start = open + 1 + (qualifier?.[0].length ?? /^\s*/.exec(inside)![0].length);
+    const read = readChemistryQuantity({question: source, after: /^/, within: {start, end: close}, dimension: "concentration", targetUnit: "mol/L"});
+    if (!read.ok || !/^\s*$/.test(source.slice(read.reading.source.span.end, close))) return null;
   }
   const forward = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?${SPECIES}[\\]]?)\\s*(?:\\(\\s*(?:aq\\s*,?\\s*)?|(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*))$`, "u");
   const reverse = new RegExp(`^\\s*(?:of\\s+)?([\\[]?${SPECIES}[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])`, "u");
@@ -505,6 +512,16 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
   return assignments;
 }
 
+/** A physical phase owns its balanced original parentheses, including scalar exponents. */
+function originalPhaseClose(source: string, open: number): number | null {
+  let depth = 1;
+  for (let index = open + 1; index < source.length; index += 1) {
+    if (source[index] === "(") depth += 1;
+    if (source[index] === ")" && --depth === 0) return index;
+  }
+  return null;
+}
+
 /** Split on commas that are not inside parentheses: "Zn2+ (aq, 0.1 M), Fe3+" gives two parts. */
 function splitTopLevel(text: string): string[] {
   const parts: string[] = [];
@@ -532,6 +549,11 @@ function completeSpeciesToken(part: string, match: RegExpMatchArray): boolean {
   const start = match.index!; const stop = start + match[1]!.length;
   if (/[\p{L}\p{N}\p{M}_^⁺⁻]$/u.test(part.slice(0, start))
     || /^[\p{L}\p{N}\p{M}_^⁺⁻+−/-]/u.test(part.slice(stop))) return false;
+  const phase = /^\s*\(/.exec(part.slice(stop));
+  if (phase) {
+    const close = originalPhaseClose(part, stop + phase[0].length - 1);
+    if (close === null || !/^(?:[\s,.;:|)\]]|$)/.test(part.slice(close + 1))) return false;
+  }
   const raw = match[1]!;
   // Explicit charge parentheses must close in the original source, and a
   // superscript zero or repeated sign is not a supported ion charge.
@@ -750,11 +772,17 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
     if (!read.ok || (out.e0 !== undefined && !chemistryCanonicalValuesAgree(out.e0, read.reading.value))) return null;
     out.e0 = read.reading.value;
   }
-  let declared = false;
   const role = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
   for (const match of text.matchAll(role)) {
     // Requested emf followed by a concentration declaration is not voltage.
     const owner = match[1] ?? "";
+    const start = match.index! + match[0].length;
+    if (/:$/.test(match[0]) && !owner.includes("|")
+      && /^\s*[A-Z][a-z]?(?:\(\s*s\s*\))?\s*[|¦‖]/.test(text.slice(start))) continue;
+    const ionOwner = !owner.includes("|") && new RegExp(`(?:^|[\\s,;])([\\[]?${SPECIES}[\\]]?)\\s*$`, "u").exec(owner)?.[1];
+    const ion = ionOwner && canonicalSpecies(ionOwner.replace(/^\[|\]$/g, ""));
+    if (ion && (parseFormula(ion)?.charge || saltCationCharge(ion))
+      && readChemistryQuantity({question: text, after: /^/, within: {start, end: text.length}, dimension: "concentration", targetUnit: "mol/L"}).ok) continue;
     // The requested emf may be followed by an independently stated electrode
     // or standard-cell potential. That assignment never declares observed E.
     if (new RegExp(E_NAUGHT, "i").test(owner) || /\bstandard\s+(?:emf|cell\s+potential|electrode\s+potential)\b/i.test(owner)) continue;
@@ -765,14 +793,19 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
     const read = readChemistryQuantity({question:text,after:/^/,within:{start:match.index!+match[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
     if (!read.ok || (out[kind] !== undefined && !chemistryCanonicalValuesAgree(out[kind]!, read.reading.value))) return null;
     out[kind] = read.reading.value;
-    declared = true;
   }
-  // Retain the legacy implicit-voltage form only when no explicit owner was read.
-  if (!declared) {
-    const observed = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "id").exec(text)
-      ?? new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
-    if (observed && !new RegExp(`${E_NAUGHT}|/`, "i").test(observed[0])) {
-      out.e = (matchedChemistryQuantity(text, observed, 1, "potential", "V") ?? NaN);
+  // Implicit observed voltage retains its own role even beside an independent E°cell.
+  if (out.e === undefined) {
+    const implicit = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "gid");
+    const bare = new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
+    for (const observed of [...text.matchAll(implicit), ...(bare ? [bare] : [])]) {
+      if (new RegExp(`${E_NAUGHT}|/`, "i").test(observed[0])
+        || /\bstandard\s+(?:emf|cell\s+potential|electrode\s+potential)\b/i.test(observed[0])
+        || /\bstandard\s+(?:electrode\s+)?$/i.test(text.slice(0, observed.index!))
+        || /\bstandard\s+(?:emf|cell\s+potential)(?:\s+of\s+(?:the\s+)?cell)?\s*$/i.test(text.slice(0, observed.index!))) continue;
+      const value = matchedChemistryQuantity(text, observed, 1, "potential", "V");
+      if (value === null || (out.e !== undefined && !chemistryCanonicalValuesAgree(out.e, value))) return null;
+      out.e = value;
     }
   }
   return out;
@@ -935,9 +968,7 @@ export function parseCellNotation(text: string): CellSpec | null {
 
   const lower = source.toLowerCase();
   if (/\bdaniel?l\b/.test(lower)) {
-    const zinc = readNamedConcentration(source, "zn"); const copper = readNamedConcentration(source, "cu");
-    if (!zinc || !copper) return null;
-    const daniell = finish(halfCellFromCouple("Zn2+/Zn", overrides, zinc), halfCellFromCouple("Cu2+/Cu", overrides, copper), "named");
+    const daniell = finish(halfCellFromCouple("Zn2+/Zn", overrides), halfCellFromCouple("Cu2+/Cu", overrides), "named");
     if (daniell) return daniell;
   }
 
@@ -973,21 +1004,6 @@ export function parseCellNotation(text: string): CellSpec | null {
     }
   }
   return null;
-}
-
-function readNamedConcentration(source: string, metal: string): Record<string, number> | null {
-  const charged = String.raw`${metal}\s*(?:2\+|\^\(2\+\)|\+\+|²⁺|SO4)`;
-  const ion = String.raw`(?:\[${charged}\]|${charged})`;
-  const cue = new RegExp(String.raw`(?<![A-Za-z])${ion}\s*(?:(?:ion|ions)\s*)?(?:concentration\s*)?(?:\(\s*|(?=[=:]|\bis\b|\bare\b|[+−\-\d.]))`,"i");
-  const declared = new RegExp(String.raw`(?<![A-Za-z])(${charged})(\]?)\s*(?:(?:ion|ions)\s*)?(?:concentration\s*)?(?=\(|[=:]|\bis\b|\bare\b|[+−\-\d.])`,"gid");
-  for (const match of source.matchAll(declared)) {
-    const start=match.indices![1]![0]; const end=match.indices![1]![1];
-    const left=source[start-1] === "["; const right=source[end] === "]";
-    if (left !== right || (left && source[start-2] === "[") || (right && source[end+1] === "]")) return null;
-  }
-  if (!cue.test(source)) return declared.test(source) ? null : {};
-  const read = readChemistryQuantity({question:source,after:cue,dimension:"concentration",targetUnit:"mol/L"});
-  return read.ok && read.reading.value > 0 ? { [metal === "zn" ? "Zn2+" : "Cu2+"]: read.reading.value } : null;
 }
 
 const SALT_NAMES: Readonly<Record<string, string>> = {
