@@ -27,6 +27,9 @@ export function useBoardViewport(
 
     const container = containerRef.current;
     if (!container) return;
+    // The deck stays mounted even while empty. Its natural-size transport or
+    // code panel shares the container with the fitted paper.
+    const deck = container.querySelector<HTMLElement>("[data-board-deck]");
 
     let rafId = 0;
     let timeoutId = 0;
@@ -46,6 +49,7 @@ export function useBoardViewport(
      */
     const lastBox = { width: 0, height: 0 };
     let lastScale = 0;
+    let lastDeckHeight = 0;
     let measured = false;
 
     const updateScale = () => {
@@ -78,6 +82,8 @@ export function useBoardViewport(
       );
 
       const availWidth = Math.max(width - framePadding, 1);
+      const deckHeight = deck?.getBoundingClientRect().height ?? 0;
+      height = Math.max(height - deckHeight, 1);
       const availHeight = Math.max(height - framePadding, 1);
 
       const widthScale = availWidth / BOARD_WIDTH;
@@ -90,13 +96,20 @@ export function useBoardViewport(
         ? Math.max(0, Math.round(window.innerHeight - (visual.offsetTop + visual.height)))
         : 0;
       // Avoid sub-pixel thrash from ResizeObserver feedback.
-      if (measured && Math.abs(lastScale - nextScale) < 0.001) return;
+      if (measured && Math.abs(lastScale - nextScale) < 0.001) {
+        // A width-limited portrait board can keep its scale when the deck
+        // appears. Still remember that growth so a later keyboard resize
+        // cannot mistake the same deck for newly mounted controls.
+        lastDeckHeight = deckHeight;
+        return;
+      }
       // Keyboard and tiny height wobble must not rescale a live lecture.
       // The composer docking under the board is a real layout shrink and
       // must refit, or the paper keeps the empty-landing size.
       if (
         measured &&
         lastBox.width > 0 &&
+        deckHeight === lastDeckHeight &&
         shouldLockBoardScale({
           widthDelta: width - lastBox.width,
           heightDelta: height - lastBox.height,
@@ -109,6 +122,7 @@ export function useBoardViewport(
       lastBox.width = width;
       lastBox.height = height;
       lastScale = nextScale;
+      lastDeckHeight = deckHeight;
       measured = true;
       setViewport({ scale: nextScale, offsetX: 0, offsetY: 0, measured: true });
     };
@@ -116,6 +130,7 @@ export function useBoardViewport(
     updateScale();
     const observer = new ResizeObserver(updateScale);
     observer.observe(container);
+    if (deck) observer.observe(deck);
 
     const media = window.matchMedia(BOARD_FRAME_MOBILE_MQ);
     media.addEventListener("change", updateScale);
