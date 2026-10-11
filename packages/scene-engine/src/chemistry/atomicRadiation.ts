@@ -31,12 +31,14 @@ function fit(text: string): string {
   return text;
 }
 
+const WORK_FUNCTION_CUE = /work function(?:\s+of\s+(?:the\s+)?[a-z]+)?/;
+const PHOTON_ENERGY_CUE = /photon energy|photons? of energy|energy of (?:the )?photons?/;
 function workFunctionEv(question: string): number | null {
-  const value = numberAfter(question, /work function/, "energy", "eV");
+  const value = numberAfter(question, WORK_FUNCTION_CUE, "energy", "eV");
   return value !== null && value > 0 ? value : null;
 }
 function photonEnergyEv(question: string): number | null {
-  const stated = numberAfter(question, /photon energy|photons? of energy|energy of (?:the )?photons?/, "energy", "eV");
+  const stated = numberAfter(question, PHOTON_ENERGY_CUE, "energy", "eV");
   if (stated !== null && stated > 0) return stated;
   const hertz = numberAfter(question, /frequency/, "frequency", "Hz");
   if (hertz !== null && hertz > 0) return PLANCK_J_S * hertz / JOULE_PER_EV;
@@ -289,7 +291,8 @@ export function buildAtomicRadiationScene(
     || !chemistryReferenceConstantValid(question, /\bhc\s*=/i, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)
     || !chemistryReferenceConstantValid(question, /\bc\s*=|speed of light\s*(?:is|=)/i, "speed", "m/s", LIGHT_M_PER_S)) return null;
   if (!chemistryQuantityCuesValid(question, [
-    {after: /work function|photon energy|photons? of energy/, dimensions: ["energy"]},
+    {after: WORK_FUNCTION_CUE, dimensions: ["energy"]},
+    {after: PHOTON_ENERGY_CUE, dimensions: ["energy"]},
     {after: /frequency/, dimensions: ["frequency"]}, {after: /wavelength/, dimensions: ["length"]},
   ])) return null;
   const stem = chemStem(question);

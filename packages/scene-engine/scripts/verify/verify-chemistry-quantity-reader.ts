@@ -71,7 +71,11 @@ check("source binding origin and conflict", () => {
   const given = { id: "Ea", symbol: "Ea", value: 50, unit: "kJ/mol", origin: "given", sourceText: "50 kJ/mol" };
   near(reader.resolveChemistryGiven({ ...base, quantities: [{ ...given, origin: "derived", value: 99 }] }).reading?.value, 50);
   near(reader.resolveChemistryGiven({ ...base, quantities: [given] }).reading?.value, 50);
-  for (const bad of [{ ...given, value: 99 }, { ...given, unit: "K" }, { ...given, sourceText: "50 kJ/mol elsewhere" }]) assert.equal(reader.resolveChemistryGiven({ ...base, quantities: [bad] }).ok, false);
+  for (const bad of [{ ...given, value: 99 }, { ...given, unit: "K" }]) assert.equal(reader.resolveChemistryGiven({ ...base, quantities: [bad] }).ok, false);
+  // Owner-approved policy supersedes the old refusal of unbound planner prose.
+  const unbound = reader.resolveChemistryGiven({ ...base, quantities: [{ ...given, sourceText: "50 kJ/mol elsewhere" }] });
+  assert.ok(unbound.ok); near(unbound.reading.value, 50); assert.equal(unbound.reading.source.kind, "stem_given");
+  assert.equal(unbound.reading.source.planQuantityId, undefined);
   assert.equal(reader.resolveChemistryGiven({ ...base, question: "Plot an energy profile.", quantities: [{ ...given, origin: "derived" }] }).ok, false);
   assert.equal(reader.resolveChemistryGiven({ ...base, question: "Plot an energy profile.", quantities: [{ ...given, origin: undefined }] }).ok, false);
 });
@@ -432,5 +436,55 @@ check("complete inverse-mole Faraday unit supports actual electrolysis source", 
   const question="Aqueous CuSO4 is electrolysed by a 2.0 A current for 30 minutes. Cu = 63.5 g mol^-1 and F = 96500 C mol^-1. Find the mass of copper deposited.";
   assert.match(compiled("electrolysis-inverse-mole",buildElectrochemScene(question,[],false)),/1.19 g/);
 });
+
+// PR137 caller-review additions; one old no-span refusal is superseded above.
+check("Unbound alias values are ignored without plan provenance",()=>{
+ assert.ok(reader);
+ const question="Activation energy is 50 kJ/mol. Plot the energy profile.";
+ const base={question,aliases:["Ea"],after:/activation energy/,dimension:"molar_energy",targetUnit:"kJ/mol"};
+ for(const sourceText of [undefined,"Ea = 50","50 kJ/mol elsewhere"]){
+  const given={id:"Ea",symbol:"Ea",value:Infinity,unit:"nonsense",origin:"given",sourceText};
+  assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+  const read=reader.resolveChemistryGiven({...base,quantities:[given]});assert.ok(read.ok);near(read.reading.value,50);
+  assert.equal(read.reading.source.kind,"stem_given");assert.equal(read.reading.source.planQuantityId,undefined);
+ }
+ const ignored={id:"Ea",symbol:"Ea",value:99,unit:"K",origin:"given",sourceText:"Ea = 99"};
+ const bound={id:"Ea-real",symbol:"Ea",value:50,unit:"kJ/mol",origin:"given",sourceText:"50 kJ/mol"};
+ const result=reader.resolveChemistryGiven({...base,quantities:[ignored,bound]});assert.ok(result.ok);assert.equal(result.reading.source.planQuantityId,"Ea-real");
+});
+check("Explicit damaged binding and genuinely bound conflict are distinct from free text",()=>{
+ assert.ok(reader);const question="Activation energy is 50 kJ/mol. Plot the energy profile.";const start=question.indexOf("50");
+ const base={question,aliases:["Ea"],after:/activation energy/,dimension:"molar_energy",targetUnit:"kJ/mol"};
+ const good={id:"Ea",symbol:"Ea",value:50,unit:"kJ/mol",origin:"given",sourceText:"50 kJ/mol",sourceSpan:{start,end:start+9}};
+ for(const bad of [{...good,value:Infinity},{...good,value:51},{...good,unit:"K"},{...good,unit:"nonsense"},{...good,sourceSpan:{start:-1,end:3}},{...good,sourceSpan:{start,end:question.length+1}},{...good,sourceText:"Ea = 50"}]){
+  assert.equal(reader.chemistryPlanBindingsValid(question,[bad]),false,JSON.stringify(bad));
+  assert.equal(reader.resolveChemistryGiven({...base,quantities:[bad]}).ok,false,JSON.stringify(bad));
+ }
+ const valid=reader.resolveChemistryGiven({...base,quantities:[good]});assert.ok(valid.ok);assert.equal(valid.reading.source.kind,"plan_given");
+});
+check("Inventory cannot rescue suffix digits from damaged joined literals",()=>{
+ assert.ok(reader);
+ for(const [question,dimension] of [["96,500 C/mol","faraday_constant"],["1,000 J","energy"],["0,5 M","concentration"],["9.65 X 10^4 C/mol","faraday_constant"],["9.65·10^4 C/mol","faraday_constant"]] as const){
+  const result=reader.findChemistryQuantities({question,dimension});assert.equal(result.ok,false,JSON.stringify(result));
+ }
+});
+check("Bounded conventional unit spellings retain dimensions and original spans",()=>{
+ for(const [literal,dimension,unit,expected] of [["1.13 Volt","potential","V",1.13],["2 Volts","potential","V",2],["25 ºC","temperature","K",298.15],["25 oC","temperature","K",298.15],["2 amp","current","A",2],["75 percent","dimensionless","1",.75],[".2 mol kg-1","molality","mol/kg",.2],["1 dm3","volume","L",1],["2 g/cc","density","g/cm^3",2],["40 KPa","pressure","kPa",40],["760 mm of Hg","pressure","atm",1],["2 kg mol^-1","molar_mass","g/mol",2000],["1.86 °C kg/mol","colligative_constant","K kg/mol",1.86],["2 s-1","frequency","Hz",2]] as const){
+  const result=quantity("value="+literal,dimension,unit);assert.ok(result.ok,JSON.stringify(result));near(result.reading.value,expected);assert.equal(result.reading.source.text,literal);
+ }
+ for(const literal of ["1 Voltgarbage","2 amps/m","25 oCJunk","2 g/cc/s"])assert.equal(quantity("value="+literal,"potential").ok,false,literal);
+});
+
+
+check("Sensitive semantic symbol cue is opt-in and default word parity is retained",()=>{
+ assert.ok(reader);const input={question:"K=4 s^-1",after:/k/,dimension:"rate_constant_first"};
+ const old=reader.readChemistryQuantity(input);assert.ok(old.ok);near(old.reading.value,4);
+ const explicit=reader.readChemistryQuantity({...input,cueCaseSensitive:false});assert.deepEqual(explicit,old);
+ assert.equal(reader.readChemistryQuantity({...input,cueCaseSensitive:true}).ok,false);
+ const lower=reader.readChemistryQuantity({...input,question:"k=4 s^-1",cueCaseSensitive:true});assert.ok(lower.ok);near(lower.reading.value,4);
+ assert.equal(reader.chemistryQuantityCuesValid("K=4",[{after:/k/,dimensions:["rate_constant_first"],cueCaseSensitive:true}]),true);
+ assert.equal(reader.chemistryQuantityCuesValid("k=4",[{after:/k/,dimensions:["rate_constant_first"],cueCaseSensitive:true}]),false);
+});
+
 console.log(JSON.stringify({ passed, failed: failures.length, failures, capturedQA: "unavailable" }, null, 2));
 process.exitCode = failures.length ? 1 : 0;

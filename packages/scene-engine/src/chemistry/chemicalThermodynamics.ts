@@ -334,7 +334,7 @@ function buildEquilibrium(question: string, _stem: string): SceneDocument | null
   const ids = [
     c.text("g_l", { x: 0, y: 1.2 }, fit(`dGo=${gKj.toFixed(3)}`), "standard Gibbs energy", {preserveText:true}),
     c.text("g_unit", { x: 1.7, y: 1.2 }, "kJ/mol", "Gibbs energy unit"),
-    c.text("k_l", { x: 0, y: 0.2 }, fit(`K=${k.toFixed(2)}`), "thermodynamic equilibrium constant", {preserveText:true}),
+    c.text("k_l", { x: 0, y: 0.2 }, fit(`K=${Math.abs(k) < .01 || Math.abs(k) >= 1e6 ? k.toExponential(3).replace(/0+e/, "e").replace(/\.e/, "e") : k.toFixed(2)}`), "thermodynamic equilibrium constant", {preserveText:true}),
     c.text("law_l", { x: 0, y: -0.8 }, "dGo=-RT lnK", "standard relation"),
     c.text("t_l", { x: 0, y: -1.8 }, fit(`T=${temperature} K`), "absolute temperature"),
   ];

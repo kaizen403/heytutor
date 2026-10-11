@@ -100,7 +100,7 @@ interface Energy {
 
 /** Share the bounded original role cue between literal validation and reading. */
 function energyCueAfter(phrase: RegExp): RegExp {
-  return new RegExp(`(?:${phrase.source})(?:\\s+(?:of|for)\\b[^=,;]{0,45}?(?:is|=|:))?`, "i");
+  return new RegExp(`(?:${phrase.source})(?:\\s+(?:of|for)\\b[^=,;]{0,45}?(?:\\bis\\b|=|:))?`, "i");
 }
 /** Physical energy units are always read from original question text. */
 function energyNear(question: string, phrase: RegExp, _window = 70): Energy | null {
@@ -114,8 +114,8 @@ function energyNear(question: string, phrase: RegExp, _window = 70): Energy | nu
 }
 function toKj(energy: Energy): number { return energy.value; }
 
-const DELTA_H_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*h(?:°|º)?\b|\b[ad]h(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|(?:enthalpy|heat)\s+(?:change\s+)?(?:of|for)\s+(?:the\s+)?reaction|enthalpy\s+change|heat\s+of\s+reaction|reaction\s+enthalpy/;
-const DELTA_S_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*s(?:°|º)?\b|\b[ad]s(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|entropy\s+change|change\s+in\s+entropy|reaction\s+entropy/;
+const DELTA_H_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*h\b(?:°|º)?|\b[ad]h(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|(?:enthalpy|heat)\s+(?:change\s+)?(?:of|for)\s+(?:the\s+)?reaction|enthalpy\s+change|heat\s+of\s+reaction|reaction\s+enthalpy/;
+const DELTA_S_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*s\b(?:°|º)?|\b[ad]s(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|entropy\s+change|change\s+in\s+entropy|reaction\s+entropy/;
 
 function readEnthalpyChange(stem: string): Energy | null {
   const direct = energyNear(stem, DELTA_H_SYMBOL, 40);
@@ -439,7 +439,9 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
     const step = spec.steps[0]!;
     const foot = s.helper("ea_foot", { x: peakX(0), y: yR }, "barrier foot helper");
     const top = s.helper("ea_top", { x: peakX(0), y: y(peaks[0]!) }, "barrier top helper");
-    s.dimension("ea_dim", foot, top, "activation energy", spec.eaKnown ? `E_a = ${fmt(step.ea)} ${u}` : "E_a");
+    const eaText = spec.eaKnown ? `E_a = ${fmt(step.ea)} ${u}` : "E_a";
+    s.dimension("ea_dim", foot, top, "activation energy", eaText.length <= 16 ? eaText : "E_a");
+    if (eaText.length > 16) physicalValueText(c, "ea_value", {x:1.6,y:-1.2}, `E_a=${fmt(step.ea)}`, u, "complete activation energy");
     s.labelled("ea_dim");
     barrierIds.push("ea_dim");
     if (spec.eaKnown) s.quantity("Ea_forward", "E_a", step.ea, u);
@@ -452,7 +454,9 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
       proveOnCurve(c, "catalysed_peak", "catalysed", peakX(0), peakCat);
       const catTop = s.helper("ea_cat_top", { x: peakX(0), y: peakCat }, "catalysed top helper");
       const catFoot = s.helper("ea_cat_foot", { x: peakX(0), y: yR }, "catalysed foot helper");
-      s.dimension("ea_cat_dim", catFoot, catTop, "catalysed activation energy", typeof spec.catalyst === "number" ? `E_a = ${fmt(eaCat)} ${u}` : "E_a (catalyst)");
+      const catText = typeof spec.catalyst === "number" ? `E_a = ${fmt(eaCat)} ${u}` : "E_a (catalyst)";
+      s.dimension("ea_cat_dim", catFoot, catTop, "catalysed activation energy", catText.length <= 16 ? catText : "E_a (catalyst)");
+      if (catText.length > 16) physicalValueText(c, "ea_cat_value", {x:5,y:-1.2}, `E_a(cat)=${fmt(eaCat)}`, u, "complete catalysed activation energy");
       s.labelled("ea_cat_dim");
       barrierIds.push("catalysed", "ea_cat_dim");
       if (typeof spec.catalyst === "number") s.quantity("Ea_catalysed", "E_a(cat)", eaCat, u);
@@ -468,7 +472,9 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
     const a = s.helper("dh_a", { x, y: yR }, "enthalpy reference helper");
     const b = s.helper("dh_b", { x, y: yP }, "enthalpy product helper");
     const net = levels[n]!;
-    s.dimension("dh_dim", a, b, "enthalpy change", spec.exact ? `ΔH = ${signed(net)} ${u}` : "ΔH");
+    const dhText = spec.exact ? `ΔH = ${signed(net)} ${u}` : "ΔH";
+    s.dimension("dh_dim", a, b, "enthalpy change", dhText.length <= 16 ? dhText : "ΔH");
+    if (dhText.length > 16) physicalValueText(c, "dh_value", {x:x+1.6,y:(yR+yP)/2}, `ΔH=${signed(net)}`, u, "complete enthalpy change");
     s.labelled("dh_dim");
     s.group("enthalpy", ["dh_dim"], "ΔH is the gap between the product and reactant levels");
     if (spec.exact) {
@@ -679,7 +685,9 @@ function buildBornHaber(question: string, stem: string, _quantities: ChemPlanQua
     c.text(`${id}_name`, { x: x0 + stepWidth / 2, y: y(energies[index]!) + 0.3 }, names[index]!, "species name");
     levelIds.push(id);
     const arrowX = x0 + stepWidth;
-    c.arrow(`step_${index + 1}`, { x: arrowX, y: y(energies[index]!) }, { x: arrowX, y: y(energies[index + 1]!) }, `step ${index + 1}: ${stepNames[index]}`, stepNames[index]);
+    const stepText = stepNames[index]!;
+    c.arrow(`step_${index + 1}`, { x: arrowX, y: y(energies[index]!) }, { x: arrowX, y: y(energies[index + 1]!) }, `step ${index + 1}: ${stepText}`, stepText.length <= 16 ? stepText : stepText.split("=")[0]!.trim());
+    if (stepText.length > 16) physicalValueText(c, `step_${index+1}_value`, {x:x0+stepWidth/2,y:-1.2}, stepText.replace(/\s+kJ\/mol$/, ""), "kJ/mol", "complete Born Haber step energy");
     s.labelled(`step_${index + 1}`);
   }
   c.level("level_5", { x: 2.5 * stepWidth, y: y(energies[5]!) }, 5 * stepWidth, `${names[5]} level`);

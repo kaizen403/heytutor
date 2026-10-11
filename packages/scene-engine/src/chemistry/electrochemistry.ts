@@ -601,7 +601,7 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } {
   const standard = new RegExp(`${E_NAUGHT}\\s*_?\\s*\\(?\\s*cell\\s*\\)?\\s*(?:=|is|:|of)?\\s*(?:the\\s+cell\\s+)?(?:=|is)?\\s*${VALUE}`, "id").exec(text)
     ?? new RegExp(`standard\\s+(?:emf|cell\\s+potential|electrode\\s+potential\\s+of\\s+the\\s+cell)[^.\\n]{0,30}?(?:=|is|:)\\s*${VALUE}`, "id").exec(text);
   if (standard) out.e0 = (matchedChemistryQuantity(text, standard, 1, "potential", "V") ?? NaN);
-  const observed = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)[^.\n]{0,110}?(?:is|=|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "id").exec(text)
+  const observed = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "id").exec(text)
     ?? new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
   if (observed && !new RegExp(`${E_NAUGHT}|/`).test(observed[0])) {
     out.e = (matchedChemistryQuantity(text, observed, 1, "potential", "V") ?? NaN);
@@ -667,12 +667,23 @@ export function parseCellNotation(text: string): CellSpec | null {
     if (!chemistryQuantityCuesValid(phase[0], [{after: /\b(?:aq|g)\s*,/, dimensions: [phase[1] === "aq" ? "concentration" : "pressure"]}])) return null;
   }
   if (!chemistryQuantityCuesValid(text, [{after: /\bat/, dimensions: ["temperature"]}])) return null;
+  const observedRole = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
+  for (const match of source.matchAll(observedRole)) {
+    // A question asking for emf may later declare an ion concentration.
+    // That declaration belongs to the ion, not to the cell voltage.
+    const owner = match[1] ?? "";
+    if (!owner.includes("|") && /\b(?:when|which|concentration|ions?)\b/i.test(owner)) continue;
+    const read = readChemistryQuantity({question:source,after:/^/,within:{start:match.index!+match[0].length,end:source.length},dimension:"potential",targetUnit:"V"});
+    if (!read.ok) return null;
+  }
   const overrides = statedPotentials(source);
   if (!overrides) return null;
+  const statedCell = readStatedCellPotentials(source);
+  if (Object.values(statedCell).some(value => !Number.isFinite(value))) return null;
   const extras = {
     nernstFactor: readNernstFactor(source),
     temperatureK: readTemperature(source),
-    ...readStatedCellPotentials(source),
+    ...statedCell,
   };
   const finish = (anode: HalfCell | null, cathode: HalfCell | null, kind: CellSpec["source"]): CellSpec | null => {
     if (!anode || !cathode) return null;
@@ -744,7 +755,9 @@ export function parseCellNotation(text: string): CellSpec | null {
 
   const lower = source.toLowerCase();
   if (/\bdaniel?l\b/.test(lower)) {
-    const daniell = finish(halfCellFromCouple("Zn2+/Zn", overrides, readNamedConcentration(source, "zn")), halfCellFromCouple("Cu2+/Cu", overrides, readNamedConcentration(source, "cu")), "named");
+    const zinc = readNamedConcentration(source, "zn"); const copper = readNamedConcentration(source, "cu");
+    if (!zinc || !copper) return null;
+    const daniell = finish(halfCellFromCouple("Zn2+/Zn", overrides, zinc), halfCellFromCouple("Cu2+/Cu", overrides, copper), "named");
     if (daniell) return daniell;
   }
 
@@ -782,9 +795,19 @@ export function parseCellNotation(text: string): CellSpec | null {
   return null;
 }
 
-function readNamedConcentration(source: string, metal: string): Record<string, number> {
-  const value = numberAfter(source, new RegExp(`${metal}\\s*(?:2\\+|\\^\\(2\\+\\)|\\+\\+|SO4)?\\s*\\(?`), "concentration", "mol/L");
-  return value === null ? {} : { [metal === "zn" ? "Zn2+" : "Cu2+"]: value };
+function readNamedConcentration(source: string, metal: string): Record<string, number> | null {
+  const charged = String.raw`${metal}\s*(?:2\+|\^\(2\+\)|\+\+|²⁺|SO4)`;
+  const ion = String.raw`(?:\[${charged}\]|${charged})`;
+  const cue = new RegExp(String.raw`(?<![A-Za-z])${ion}\s*(?:(?:ion|ions)\s*)?(?:concentration\s*)?(?:\(\s*|(?=[=:]|\bis\b|\bare\b|[+−\-\d.]))`,"i");
+  const declared = new RegExp(String.raw`(?<![A-Za-z])(${charged})(\]?)\s*(?:(?:ion|ions)\s*)?(?:concentration\s*)?(?=\(|[=:]|\bis\b|\bare\b|[+−\-\d.])`,"gid");
+  for (const match of source.matchAll(declared)) {
+    const start=match.indices![1]![0]; const end=match.indices![1]![1];
+    const left=source[start-1] === "["; const right=source[end] === "]";
+    if (left !== right || (left && source[start-2] === "[") || (right && source[end+1] === "]")) return null;
+  }
+  if (!cue.test(source)) return declared.test(source) ? null : {};
+  const read = readChemistryQuantity({question:source,after:cue,dimension:"concentration",targetUnit:"mol/L"});
+  return read.ok && read.reading.value > 0 ? { [metal === "zn" ? "Zn2+" : "Cu2+"]: read.reading.value } : null;
 }
 
 const SALT_NAMES: Readonly<Record<string, string>> = {

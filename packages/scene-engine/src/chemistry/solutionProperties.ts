@@ -222,7 +222,7 @@ function henryScene(question: string, stem: string): SceneDocument | null {
       `p=${partial} ${unit}`,
       "c=kH*p",
       "T fixed",
-    ], `The declared convention is c = k_H p. At partial pressure ${partial} ${unit}, c = ${kH} × ${partial} = ${concentration}. Temperature is the stated fixed temperature, and the pressure is the gas partial pressure.`);
+    ], `The declared convention is c = k_H p. At partial pressure ${partial} ${unit}, c = ${shown(kH)} × ${shown(partial)} = ${shown(concentration)}. Temperature is the stated fixed temperature, and the pressure is the gas partial pressure.`);
   }
   const zero = /zero partial pressure|partial pressure is zero|\bp\s*=\s*0\b/.test(stem);
   const mole = take(new RegExp(String.raw`mole fraction(?:\s+of(?:\s+the)?\s+dissolved gas)?(?:\s+is)?\s*(${CHEMISTRY_SCALAR_PATTERN})|x\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
@@ -240,7 +240,7 @@ function henryScene(question: string, stem: string): SceneDocument | null {
   c.text("x_l", { x: 0.05, y: -0.95 }, fit(x === 0 ? "x=0" : `x=${shown(x)}`), "dissolved mole fraction");
   c.text("temp_l", { x: 0.05, y: -1.3 }, "T fixed", "temperature held fixed");
   c.text("scale_l", { x: 0.55, y: -1.3 }, "display scaled", "axis height is not the pressure unit");
-  return c.build({ caption: `Henry's law in the declared form p = k_H x gives p = ${kH} × ${x} = ${pressure} ${unit}. The line is display-scaled. k_H applies at the stated fixed temperature in the dilute range, and p is the gas partial pressure.` });
+  return c.build({ caption: `Henry's law in the declared form p = k_H x gives p = ${shown(kH)} × ${x} = ${shown(pressure)} ${unit}. The line is display-scaled. k_H applies at the stated fixed temperature in the dilute range, and p is the gas partial pressure.` });
 }
 
 function nonvolatileScene(question: string, stem: string): SceneDocument | null {
@@ -262,7 +262,7 @@ function nonvolatileScene(question: string, stem: string): SceneDocument | null 
   c.text("zero_l", { x: 0.05, y: -0.55 }, "solute p=0", "nonvolatile solute");
   c.text("x_l", { x: 0.05, y: -0.95 }, fit(`xsolv=${shown(solvent)}`), "solvent mole fraction");
   c.text("scale_l", { x: 0.05, y: -1.3 }, "display scaled", "axis height is not the pressure unit");
-  return c.build({ caption: `The nonvolatile solute adds no vapour pressure. p = x_solvent p° = ${solvent} × ${pure} = ${pressure} ${unit}. The line is display-scaled and is not a second volatile component.` });
+  return c.build({ caption: `The nonvolatile solute adds no vapour pressure. p = x_solvent p° = ${solvent} × ${shown(pure)} = ${shown(pressure)} ${unit}. The line is display-scaled and is not a second volatile component.` });
 }
 
 function colligativeScene(question: string, stem: string): SceneDocument | null {
@@ -306,9 +306,9 @@ function colligativeScene(question: string, stem: string): SceneDocument | null 
     return panel(question, "relative vapour-pressure lowering for a nonvolatile solute", [
       `xsol=${solute}`,
       `dp/p=${solute}`,
-      fit(`p=${pressure} ${unit}`),
+      fit(`p=${shown(pressure)} ${unit}`),
       "nonvolatile",
-    ], `For a dilute solution of a nonvolatile solute, (p° − p)/p° = x_solute = ${solute}. With p° = ${pure} ${unit}, p = ${pressure} ${unit}.`);
+    ], `For a dilute solution of a nonvolatile solute, (p° − p)/p° = x_solute = ${solute}. With p° = ${shown(pure)} ${unit}, p = ${shown(pressure)} ${unit}.`);
   }
 
   const molality = literal(question, "molality", "mol/kg");
@@ -409,7 +409,8 @@ export function buildSolutionLessonScene(
     && !(/molar mass|molecular mass/.test(stem) && !/density/.test(stem));
   if (concentration) return concentrationScene(question, stem);
   if (/henry/.test(stem)) return henryScene(question, stem);
-  if (/molar mass|molecular mass|van'?t hoff|vant hoff|degree of dissociation|degree of association/.test(stem) && !/density/.test(stem)) {
+  const molarMassAsk = /(?:apparent|true)\s+(?:molar|molecular) mass|(?:find|calculate|determine|what is)\b[^.;?]{0,45}\b(?:molar|molecular) mass|van'?t hoff|vant hoff|degree of dissociation|degree of association/.test(stem);
+  if (molarMassAsk && !/density/.test(stem)) {
     return molarMassScene(question, stem);
   }
   if (/osmotic pressure|relative lowering|lowering of vapou?r pressure|boiling point|freezing point/.test(stem) && !/non\s*-?\s*volatile/.test(stem)) {

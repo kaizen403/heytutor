@@ -222,7 +222,7 @@ function drawVoidMark(c: ChemScene, id: string, at: Vec2, role: string, label?: 
 
 /* ----------------------------------------------------------- readers */
 
-const EDGE_CUE = /edge(?:\s*length)?|cell edge|axial distance|lattice (?:parameter|constant)|side of (?:the )?(?:cube|cell|unit cell)|\ba\s*(?:=|is)/;
+const EDGE_CUE = /(?:edge(?:\s*length)?|cell edge|axial distance|lattice (?:parameter|constant))(?:\s+of\s+(?:(?:an?|the)\s+)?(?:(?:fcc|bcc|simple cubic|face[ -]?centred|body[ -]?centred)\s+)?(?:unit\s+)?cell)?|side of (?:the )?(?:cube|cell|unit cell)|\ba\s*(?:=|is)/;
 const RADIUS_CUE = /(?:atomic|metallic|ionic|covalent)?\s*radius(?!\s*ratio)(?:\s+of\s+(?:the\s+)?(?:atom|metal|element|[a-z]+))?|\br\s*(?:=|is)/;
 
 /** Three significant figures, keeping a trailing zero (11.0, 6.23). */
@@ -613,7 +613,10 @@ function drawLatticeCell(c: ChemScene, slot: Slot, lattice: Exclude<Lattice, "hc
   captionBits.push(`${LATTICE_NAME[lattice]}: Z = ${facts.atomsPerCell}, CN = ${facts.coordinationNumber}, packing ${facts.packingEfficiency}%, ${facts.radiusRelation}`);
   if (options.voids && lattice === "fcc") captionBits.push(`${facts.voids.octahedral} oct. and ${facts.voids.tetrahedral} tet. voids per cell`);
   c.scene.quantity(`${slot.prefix}_Z`, "Z", facts.atomsPerCell);
-  if (numbers.edgePm !== null) c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+  if (numbers.edgePm !== null) {
+    c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+    captionBits.push(`a = ${fmtPm(numbers.edgePm)} pm as given`);
+  }
   if (computedEdge !== null) { captionBits.push(`a = ${fmtPm(computedEdge)} pm`); c.scene.quantity(`${slot.prefix}_a`, "a", computedEdge, "pm"); }
   if (computedRadius !== null) { captionBits.push(`r = ${fmtPm(computedRadius)} pm`); c.scene.quantity(`${slot.prefix}_r`, "r", computedRadius, "pm"); }
   if (edgePm !== null && numbers.molarMass !== null && numbers.densityGiven === null) {
@@ -669,7 +672,9 @@ function drawIonicCell(c: ChemScene, slot: Slot, key: IonicKey, labels: { cation
     else if (key !== "nacl") slot.ids.push(drawDiagonal(c, `${slot.prefix}_diag`, project([0, 0, 0], slot.origin), project([0.5, 0.5, 0.5], slot.origin), "quarter body diagonal", template.relation));
   }
   c.scene.quantity(`${slot.prefix}_Z`, "Z", template.z);
-  if (numbers.edgePm !== null) c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+  if (numbers.edgePm !== null) {
+    c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+  }
   const name = labels.cation === template.cation ? template.name : `${plainSpecies(labels.cation)}${plainSpecies(labels.anion)} (${template.typeName} type)`;
   const sitesText = template.sites.replace("{cation}", plainSpecies(labels.cation)).replace("{anion}", plainSpecies(labels.anion));
   const bits = [`${name}: ${sitesText}`, `Z = ${template.z}, CN ${template.cn}, ${template.relation}`];

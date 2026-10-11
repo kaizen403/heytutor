@@ -25,7 +25,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantity, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
 import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
@@ -614,26 +614,32 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   // "vapour pressures of pure A and B are 200 torr and 100 torr"
   const pair = new RegExp(`vapou?r pressures? of ${COMPONENT_FILLER}${name}\\s+and\\s+${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:are|is|=|:|,)?\\s*${number}\\s*${PRESSURE_UNIT}?\\s*(?:and|,)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(pair)) {
-    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, match[4] ?? match[6]), unit: "torr" });
-    bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, match[6] ?? match[4]), unit: "torr" });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, match[4] ?? match[6]), unit: normaliseUnit(match[4] ?? match[6]) || "torr" });
+    bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, match[6] ?? match[4]), unit: normaliseUnit(match[6] ?? match[4]) || "torr" });
   }
   // "vapour pressure of pure A is 200 torr", "that of pure B is 100 torr"
   const single = new RegExp(`(?:vapou?r pressure|that) of ${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:is|=|:|are)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(single)) {
     if (/^(?:the|pure|liquid|solution|solvent|mixture|water)$/.test(match[1]!) && !/^water$/.test(match[1]!)) continue;
-    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: "torr" });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: normaliseUnit(match[3]) || "torr" });
   }
   // "p°A = 200 torr", "p_A^0 = 200"
   const symbolic = new RegExp(`\\bp\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*_?\\s*([a-z])\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*(?:=|is|:)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(symbolic)) {
-    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: "torr" });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: normaliseUnit(match[3]) || "torr" });
   }
   if (new Set(bindings.map(binding => binding.name)).size !== bindings.length) return null;
   const distinct = bindings;
   if (distinct.length !== 2) return null;
   const [first, second] = distinct as [typeof distinct[number], typeof distinct[number]];
   if (!(first.value > 0) || !(second.value > 0)) return null;
-  const unit = first.unit || second.unit;
+  // Preserve a common declared pressure unit; mixed-unit inputs retain the
+  // canonical torr display. Values and axes are converted together.
+  const unit = first.unit === second.unit ? first.unit : "torr";
+  const a = convertChemistryValue(first.value, "torr", unit as ChemistryUnit, "pressure");
+  const b = convertChemistryValue(second.value, "torr", unit as ChemistryUnit, "pressure");
+  if (!a.ok || !b.ok) return null;
+  first.value = a.reading; second.value = b.reading;
   const names: [string, string] = [first.name, second.name];
   let xA: number | null = null;
   const fraction = `(${CHEMISTRY_SCALAR_PATTERN})`;
@@ -897,6 +903,19 @@ export function buildSolutionsGraphScene(
   if (FIGURE_PRESENT.test(stem)) return null;
   if (claimsSolutionLesson(question)) return buildSolutionLessonScene(question, quantities, schematic);
   if (titrationCue(stem)) {
+    // A stated acid/base constant is not permission to fall back to a table
+    // or qualitative stock curve after a failed/duplicate literal.
+    for (const which of ["a", "b"]) {
+      let suppliedPK: number | null = null; let suppliedK: number | null = null;
+      for (const [role,limit] of [[`pk_?${which}`,14],[`(?<![a-z])k_?${which}`,1]] as const) {
+        const cue = new RegExp(`(?<![a-z])${role}\\b\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`,"i");
+        if (!cue.test(question)) continue;
+        const read = readChemistryQuantity({question,after:cue,dimension:"dimensionless"});
+        if (!read.ok || !(read.reading.value > 0 && read.reading.value < limit)) return null;
+        if (limit === 14) suppliedPK = read.reading.value; else suppliedK = read.reading.value;
+      }
+      if (suppliedPK !== null && suppliedK !== null && !chemistryCanonicalValuesAgree(suppliedPK,-Math.log10(suppliedK))) return null;
+    }
     const mentions = readSpeciesMentions(question);
     if ([...mentions.withVolume, ...mentions.withoutVolume].some(m => !Number.isFinite(m.concentration) || m.concentration <= 0 || (m.volume !== undefined && (!Number.isFinite(m.volume) || m.volume <= 0)))) return null;
     const numeric = readTitration(question, quantities);

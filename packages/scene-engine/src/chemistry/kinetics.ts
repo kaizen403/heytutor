@@ -263,15 +263,18 @@ function readOrders(stem: string): ReactionOrder[] {
   return orders;
 }
 
+const HALF_LIFE_CUE = /(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)\b(?:\s+(?:of|for)\b[^=,;.\n]{0,70}?\bis\b)?/;
+const ACTIVATION_CUE = /(?:activation energy|\be_?a\b)(?:\s+(?:of|for)\s+(?:the|this|a)\s+reaction)?/;
 function readHalfLife(stem: string): Reading | null {
-  const base = String.raw`(?:half[ -]?life(?:\s*period)?|t\s*1\s*/\s*2|t½|t_?\(?1/2\)?|t_half)\b`;
-  return readAfter(stem, new RegExp(`${base}(?:[^.;]{0,100}?(?:is|=|:))?`, "id"), true);
+  return readAfter(stem, HALF_LIFE_CUE, true);
 }
 
-const RATE_CUE = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:for|of)?\s*(?:the |this |a )?(?:reaction|it)?/;
+/** Words ignore case, but the rate symbol k differs from equilibrium K. */
+const caseWord = (word: string): string => word.replace(/[a-z]/g, letter => `[${letter}${letter.toUpperCase()}]`);
+const RATE_CUE = new RegExp(String.raw`(?:${caseWord("rate constant")}|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:${caseWord("for")}|${caseWord("of")})?\s*(?:${caseWord("the ")}|${caseWord("this ")}|${caseWord("a ")})?(?:${caseWord("reaction")}|${caseWord("it")})?`);
 function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null {
   const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
-  const read = readChemistryQuantity({question: stem, after: RATE_CUE, dimension});
+  const read = readChemistryQuantity({question: stem, after: RATE_CUE, dimension, cueCaseSensitive:true});
   if (!read.ok) return null;
   const raw = read.reading.rawUnit ?? "";
   const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
@@ -378,7 +381,7 @@ function readConcentrationsAsked(stem: string): number[] {
   const second = matchedChemistryQuantity(stem, match, 2, "concentration");
   return first !== null && second !== null ? [first, second] : [];
 }
-const TEMPERATURE_RISE_CUE = /(?:ris(?:e[sd]?|ing)|raised|increase[sd]?|increasing|raising)\b[^.;]{0,40}?\bby/;
+const TEMPERATURE_RISE_CUE = new RegExp(String.raw`(?:ris(?:e[sd]?|ing)|raised|increase[sd]?|increasing|raising)\b[^.;]{0,40}?\bby|\b(?:for|by)\s+(?:an?\s+)?(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:rise|increase)\b(?:\s+in\s+temperature)?)`, "i");
 function readTemperatures(stem: string): number[] {
   const temps = findChemistryQuantities({question: stem, dimension: "temperature"});
   const rise = readChemistryQuantity({question:stem,after:TEMPERATURE_RISE_CUE,dimension:"temperature_delta"});
@@ -387,7 +390,7 @@ function readTemperatures(stem: string): number[] {
 function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null {
   const lower = chemStem(stem);
   if (!/arrhenius|activation energy|e_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k|rate constant/.test(lower)) return null;
-  const Ea = numberAfter(stem, /activation energy|\be_?a\b/, "molar_energy", "J/mol");
+  const Ea = numberAfter(stem, ACTIVATION_CUE, "molar_energy", "J/mol");
   const A = numberAfter(stem, /frequency factor|pre[ -]?exponential factor/, "rate_constant_first", "s^-1");
   const equation = readChemistryArrheniusEquation(stem);
   if (!equation.ok && equation.code !== "missing") return null;
@@ -401,7 +404,7 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     T2 = final;
   }
   let ratio = numberAfter(stem, /(?:ratio|k_?2\s*\/\s*k_?1)/);
-  const near = /\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved|two|three|four|five|ten)\b/i.exec(stem);
+  const near = /\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved)\b/i.exec(stem);
   if (near && /temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm/i.test(stem)) {
     const word = near[1]!.toLowerCase();
     ratio = /^doubl|twice|two/.test(word) ? 2 : /^tripl|three/.test(word) ? 3 : /^quadrupl|four/.test(word) ? 4 : word === "halved" ? .5 : word === "five" ? 5 : 10;
@@ -440,6 +443,9 @@ const EQUILIBRIUM_PLOT = /(?:variation (?:of|in) (?:the )?concentrations?[^.]{0,
 /** Everything the stem (and the plan) says about the kinetics, or null when nothing is readable. */
 export function kineticsFromStem(question: string, quantities: readonly ChemPlanQuantity[] = []): KineticsSpec | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  // This adapter does not yet bind plural constants to their corresponding
+  // temperatures. Refuse that scope rather than treating "two" as a ratio.
+  if (/rate constants\b[^.;]{0,100}\b(?:two|2) temperatures\b/i.test(question)) return null;
   const equation = readChemistryArrheniusEquation(question);
   if (!equation.ok && equation.code !== "missing") return null;
   const rise = readChemistryQuantity({question,after:TEMPERATURE_RISE_CUE,dimension:"temperature_delta"});
@@ -449,9 +455,9 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   }
   if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", GAS_CONSTANT)) return null;
   if (!chemistryQuantityCuesValid(question, [
-    {after: /half[ -]?life(?:\s+period)?(?:[^.;]{0,100}?(?:is|=|:))?/, dimensions: ["time"]},
-    {after: RATE_CUE, dimensions: ["rate_constant_first", "rate_constant_zero", "rate_constant_second"]},
-    {after: /activation energy|\be_?a\b/, dimensions: ["molar_energy"]},
+    {after: HALF_LIFE_CUE, dimensions: ["time"]},
+    {after: RATE_CUE, dimensions: ["rate_constant_first", "rate_constant_zero", "rate_constant_second"], cueCaseSensitive:true},
+    {after: ACTIVATION_CUE, dimensions: ["molar_energy"]},
     {after: TEMPERATURE_RISE_CUE, dimensions: ["temperature_delta"]},
     {after: /initial concentration/, dimensions: ["concentration"]},
   ])) return null;
@@ -544,7 +550,7 @@ function figureAbsent(stem: string): boolean {
 }
 
 function hasRateTemperatureNumbers(stem: string): boolean {
-  return readTemperatures(stem).length > 0 && /\b(?:rate constant|\bk\b|doubl|tripl|times|fold|kj|j mol|kcal)/.test(stem);
+  return readTemperatures(stem).length > 0 && /\b(?:rate constant|\bk\b|doubl|tripl|times|fold|kj|j mol|kcal)/i.test(stem);
 }
 
 /** True when the kinetics family should draw for this stem. */
@@ -944,8 +950,8 @@ function buildArrhenius(question: string, spec: KineticsSpec, solution: Kinetics
   void hot;
   const p1y = Number((m * x1 + b).toFixed(6));
   const p2y = Number((m * x2 + b).toFixed(6));
-  panel.ids.push(dot(c, "p1", { x: x1, y: p1y }, "measured point", fitLabel("T_1", `${fmt(T1!, 4)} K`)));
-  panel.ids.push(dot(c, "p2", { x: x2, y: p2y }, "measured point", fitLabel("T_2", `${fmt(T2!, 4)} K`)));
+  panel.ids.push(dot(c, "p1", { x: x1, y: p1y }, "measured point", fitLabel("T_1", `${Number(T1!.toFixed(2))} K`)));
+  panel.ids.push(dot(c, "p2", { x: x2, y: p2y }, "measured point", fitLabel("T_2", `${Number(T2!.toFixed(2))} K`)));
   c.scene.assert("p1_on_line", "function_value", [line], { x: x1, y: p1y });
   c.scene.assert("p2_on_line", "function_value", [line], { x: x2, y: p2y });
   panel.ids.push(c.link("p1_dx", { x: x1, y: 0 }, { x: x1, y: p1y }, "drop to the 1/T axis"));

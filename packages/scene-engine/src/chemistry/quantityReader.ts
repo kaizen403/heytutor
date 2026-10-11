@@ -31,6 +31,8 @@ export interface ChemistryReading {
 }
 export interface ChemistryQuantityInput {
   question: string; after: RegExp; within?: ChemistrySpan;
+  /** Opt-in semantic symbol case; numeric/unit grammar and ordinary cues are unchanged. */
+  cueCaseSensitive?: boolean;
   dimension: ChemistryDimension; targetUnit?: ChemistryUnit;
   unitConvention?: { unit: ChemistryUnit; sourceSpan: ChemistrySpan };
 }
@@ -137,19 +139,19 @@ for (const [symbol, factor] of [["kJ", 1000], ["J", 1], ["kcal", 4184], ["cal", 
 }
 unit("eV", "energy", 1.602176634e-19, "eV");
 unit("g/mol", "molar_mass", 1, String.raw`g\s*(?:/\s*mol|mol\s*\^?\(?-1\)?)|amu|u`);
-unit("kg/mol", "molar_mass", 1000, String.raw`kg\s*/\s*mol`);
-unit("g/cm^3", "density", 1, String.raw`g\s*(?:/\s*(?:cm\s*\^?3|mL)|cm\s*\^?\(?-3\)?)`);
+unit("kg/mol", "molar_mass", 1000, String.raw`kg\s*(?:/\s*mol|mol\s*\^?\(?-1\)?)`);
+unit("g/cm^3", "density", 1, String.raw`g\s*(?:/\s*(?:cm\s*\^?3|mL|cc)|cm\s*\^?\(?-3\)?)`);
 unit("kg/m^3", "density", .001, String.raw`kg\s*(?:/\s*m\s*\^?3|m\s*\^?\(?-3\)?)`);
 unit("mol/L", "concentration", 1, String.raw`M|molar|mol\s*(?:/\s*[Ll]|[Ll]\s*\^?\(?-1\)?|dm\s*\^?\(?-3\)?|/\s*dm\s*\^?3|per litre)`);
 unit("eq/L", "normality", 1, "N|normal|eq/L");
-unit("mol/kg", "molality", 1, String.raw`mol\s*/\s*kg`);
+unit("mol/kg", "molality", 1, String.raw`mol\s*(?:/\s*kg|kg\s*\^?\(?-1\)?)`);
 unit("mol/(L s)", "rate_constant_zero", 1, String.raw`(?:M|mol\s*/\s*[Ll])\s*(?:s\s*\^?\(?-1\)?|/\s*s)`);
 unit("L/(mol s)", "rate_constant_second", 1, String.raw`(?:[Ll]\s*mol\s*\^?\(?-1\)?\s*s\s*\^?\(?-1\)?|[Ll]\s*/\s*\(\s*mol\s*s\s*\)|M\s*\^?\(?-1\)?\s*s\s*\^?\(?-1\)?)`);
 unit("L atm/(mol K)", "gas_constant", 101.325, String.raw`(?:[Ll]\s*atm|atm\s*[Ll])\s*${thermalMol}`);
 unit("L bar/(mol K)", "gas_constant", 100, String.raw`(?:[Ll]\s*bar|bar\s*[Ll])\s*${thermalMol}`);
 unit("mol/(L atm)", "concentration_pressure", 1, String.raw`mol\s*/\s*\(\s*[Ll]\s*atm\s*\)`);
 unit("mol/(L bar)", "concentration_pressure", 1.01325, String.raw`mol\s*/\s*\(\s*[Ll]\s*bar\s*\)`);
-unit("K kg/mol", "colligative_constant", 1, String.raw`K\s*kg\s*/\s*mol|K\s*kg\s*mol\s*\^?\(?-1\)?`);
+unit("K kg/mol", "colligative_constant", 1, String.raw`(?:K|°\s*C)\s*kg\s*/\s*mol|(?:K|°\s*C)\s*kg\s*mol\s*\^?\(?-1\)?`);
 unit("C/mol", "faraday_constant", 1, String.raw`C\s*${perMol}`);
 unit("mol^-1", "avogadro_constant", 1, String.raw`mol\s*\^?\(?-1\)?|/\s*mol`);
 unit("kg m/s", "momentum", 1, String.raw`kg\s*m\s*/\s*s`);
@@ -159,23 +161,23 @@ unit("eV s", "action", 1.602176634e-19, String.raw`eV\s+s`);
 unit("J m", "energy_length", 1, String.raw`J\s+m`);
 unit("eV nm", "energy_length", 1.602176634e-28, String.raw`eV\s+nm`);
 for (const [symbol, factor, pattern] of [["s", 1, "s|sec(?:ond)?s?"], ["min", 60, "min(?:ute)?s?"], ["h", 3600, "h|hrs?|hours?"], ["days", 86400, "d|days?"], ["yr", 31557600, "yrs?|years?"]] as const) {
-  unit(`${symbol}^-1` as ChemistryUnit, "rate_constant_first", 1/factor, `(?:${pattern})\\s*(?:\\^\\s*\\(?-1\\)?|-1|⁻¹)`);
-  unit(`${symbol}^-1` as ChemistryUnit, "rate_constant_first", 1/factor, `(?:per|/)\\s*(?:${pattern})`);
+  unit(`${symbol}^-1` as ChemistryUnit, symbol === "s" ? ["rate_constant_first", "frequency"] : "rate_constant_first", 1/factor, `(?:${pattern})\\s*(?:\\^\\s*\\(?-1\\)?|-1|⁻¹)`);
+  unit(`${symbol}^-1` as ChemistryUnit, symbol === "s" ? ["rate_constant_first", "frequency"] : "rate_constant_first", 1/factor, `(?:per|/)\\s*(?:${pattern})`);
   unit("mol/(L s)", "rate_constant_zero", 1/factor, `(?:M|mol\\s*(?:/\\s*[Ll]|[Ll]\\s*\\^?\\(?[-−]1\\)?))\\s*(?:${pattern})\\s*(?:\\^?\\(?[-−]1\\)?|⁻¹)`);
   unit("L/(mol s)", "rate_constant_second", 1/factor, `(?:[Ll]\\s*mol\\s*\\^?\\(?[-−]1\\)?|M\\s*\\^?\\(?[-−]1\\)?)\\s*(?:${pattern})\\s*(?:\\^?\\(?[-−]1\\)?|⁻¹)`);
   unit(symbol, "time", factor, pattern);
 }
 unit("K", ["temperature", "temperature_delta"], 1, "K|kelvin");
-unit("°C", ["temperature", "temperature_delta"], 1, String.raw`°\s*C|deg(?:rees?)?\s*(?:C|Celsius|celsius)|[Cc]elsius`, 273.15);
+unit("°C", ["temperature", "temperature_delta"], 1, String.raw`(?:°|º|o)\s*C|deg(?:rees?)?\s*(?:C|Celsius|celsius)|[Cc]elsius`, 273.15);
 for (const [symbol, factor, pattern] of [["m", 1, "m|met(?:er|re)s?"], ["cm", .01, "cm"], ["nm", 1e-9, "nm"], ["pm", 1e-12, "pm"], ["Å", 1e-10, "Å|å|angstroms?|[Aa]°"]] as const) unit(symbol, symbol === "m" ? ["length", "molality"] : "length", factor, pattern);
 unit("mL", "volume", .001, String.raw`mL|ml|cm\s*\^?3|cc`);
-unit("L", "volume", 1, "L|l|lit(?:er|re)s?");
+unit("L", "volume", 1, String.raw`L|l|lit(?:er|re)s?|dm\s*\^?3`);
 unit("kg", "mass", 1, "kg"); unit("g", "mass", .001, "g");
 unit("mol", "amount", 1, "mol(?:e|es)?");
-for (const [symbol, factor, pattern] of [["Pa", 1, "Pa"], ["kPa", 1000, "kPa"], ["bar", 1e5, "bar"], ["atm", 101325, "atm"], ["torr", 101325/760, "torr|mm\\s*Hg"]] as const) unit(symbol, "pressure", factor, pattern);
-unit("Hz", "frequency", 1, "Hz|hertz"); unit("V", "potential", 1, "V|volts?");
-unit("mA", "current", .001, "mA"); unit("A", "current", 1, "A|amperes?"); unit("C", "charge", 1, "C|coulombs?");
-unit("%", "dimensionless", .01, "%"); unit("1", "dimensionless", 1, "1");
+for (const [symbol, factor, pattern] of [["Pa", 1, "Pa"], ["kPa", 1000, "[kK]Pa"], ["bar", 1e5, "bar"], ["atm", 101325, "atm"], ["torr", 101325/760, "torr|mm\\s*(?:of\\s+)?Hg"]] as const) unit(symbol, "pressure", factor, pattern);
+unit("Hz", "frequency", 1, "Hz|hertz"); unit("V", "potential", 1, "V|[Vv]olts?");
+unit("mA", "current", .001, "mA"); unit("A", "current", 1, "A|amp(?:ere)?s?"); unit("C", "charge", 1, "C|coulombs?");
+unit("%", "dimensionless", .01, "%|percent"); unit("1", "dimensionless", 1, "1");
 const canonical: Record<ChemistryDimension, ChemistryUnit> = {
   dimensionless: "1", time: "s", temperature: "K", temperature_delta: "K", length: "m", volume: "L", mass: "kg", amount: "mol", molar_mass: "g/mol", density: "g/cm^3", concentration: "mol/L", normality: "eq/L", molality: "mol/kg", pressure: "Pa", energy: "J", molar_energy: "J/mol", entropy: "J/K", molar_entropy: "J/(mol K)", heat_capacity: "J/K", molar_heat_capacity: "J/(mol K)", frequency: "Hz", speed: "m/s", momentum: "kg m/s", action: "J s", energy_length: "J m", potential: "V", current: "A", charge: "C", faraday_constant: "C/mol", avogadro_constant: "mol^-1", gas_constant: "J/(mol K)", rate_constant_first: "s^-1", rate_constant_zero: "mol/(L s)", rate_constant_second: "L/(mol s)", colligative_constant: "K kg/mol", concentration_pressure: "mol/(L atm)",
 };
@@ -206,7 +208,7 @@ function unitAt(text: string): { def: UnitDefinition; text: string } | null {
 // Internal compound factors and aliases come from the same finite registry.
 const unitFactors = new Set(units.flatMap(def => [
   ...(def.unit.match(/[A-Za-zÅ°]+/g) ?? []),
-  ...(def.pattern.source.match(/(?<!\\)[A-Za-zÅå°]+/g) ?? []),
+  ...(def.pattern.source.match(/(?<!\\)[A-Za-zÅå°]+/g) ?? []).filter(factor => factor !== "of"),
 ]));
 function continuesUnit(tail: string): boolean {
   const rest = tail.trimStart();
@@ -342,7 +344,7 @@ export function readChemistryQuantity(input: ChemistryQuantityInput): ChemRead<C
   if (!validSpan(input.question, scope)) return fail("malformed", scope);
   const end = Math.min(body.end, scope.end); const segment = input.question.slice(scope.start, end);
   const flags = input.after.flags.replace(/[gy]/g, "");
-  const cue = new RegExp(input.after.source, flags + (flags.includes("i") ? "g" : "ig"));
+  const cue = new RegExp(input.after.source, flags + (flags.includes("i") || input.cueCaseSensitive ? "g" : "ig"));
   const readings: ChemistryReading[] = [];
   for (const match of segment.matchAll(cue)) {
     const cueEnd = scope.start + match.index! + match[0].length;
@@ -393,6 +395,12 @@ export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "aft
     if (tokenEnd <= scope.start || start >= end || start < consumed) continue;
     if (start < scope.start || tokenEnd > end) return fail("source_conflict", {start,end:tokenEnd});
     if (/[A-Za-z0-9_.]/.test(input.question[start-1] ?? "") || notation.some(span => start > span.start && tokenEnd <= span.end)) continue;
+    // A failed joined token is atomic: never restart at digits following a
+    // thousands/decimal comma or an unsupported multiplication separator.
+    const prefix = input.question.slice(scope.start, start);
+    const suffix = input.question.slice(tokenEnd, end);
+    if (/\d\s*,\s*$|\d(?:\.\d+)?\s*[Xx×·⋅*]\s*$/.test(prefix)
+      || /^\s*,\s*\d|^\s*[X·⋅]\s*10/.test(suffix)) return fail("malformed", {start,end:tokenEnd});
     consumed = tokenEnd;
     const found = literalAt(input, start, end);
     if (found.ok) { readings.push(found.reading); consumed = found.reading.source.span.end; }
@@ -430,9 +438,14 @@ export function chemistryReferenceConstantValid(question: string, after: RegExp,
 export function resolveChemistryGiven(input: ChemistryQuantityInput & { quantities: readonly ChemPlanQuantity[]; aliases: readonly string[] }): ChemRead<ChemistryReading> {
   const stem = readChemistryQuantity(input);
   const givens = input.quantities.filter(q => q.origin === "given" && input.aliases.some(a => key(a) === key(q.id) || key(a) === key(q.symbol)));
+  const boundGivens: ChemPlanQuantity[] = [];
   for (const given of givens) {
     const bound = bindingSpan(input.question, given);
-    if (!bound || !stem.ok || stem.reading.source.span.start < bound.start || stem.reading.source.span.end > bound.end || !Number.isFinite(given.value) || !given.unit) return fail("source_conflict", bound ?? undefined);
+    // Planner prose is not a source citation. An explicit invalid span is a
+    // damaged authority claim; absent/nonliteral free text has no authority.
+    if (!bound) { if (given.sourceSpan) return fail("source_conflict"); continue; }
+    boundGivens.push(given);
+    if (!stem.ok || stem.reading.source.span.start < bound.start || stem.reading.source.span.end > bound.end || !Number.isFinite(given.value) || !given.unit) return fail("source_conflict", bound ?? undefined);
     const statedUnit = unitAt(given.unit.trim());
     if (!statedUnit || statedUnit.text !== given.unit.trim() || !statedUnit.def.dimensions.includes(input.dimension)) return fail("source_conflict", bound);
     const value = canonicalValue(given.value, statedUnit.def, input.dimension);
@@ -441,22 +454,25 @@ export function resolveChemistryGiven(input: ChemistryQuantityInput & { quantiti
     const converted = convertChemistryReading(plan, stem.reading.canonicalUnit);
     if (!converted.ok || !valuesAgree(converted.reading.value, stem.reading.value)) return fail("source_conflict", bound);
   }
-  if (!stem.ok || !givens.length) return stem;
-  return { ok: true, reading: { ...stem.reading, source: { ...stem.reading.source, kind: "plan_given", planQuantityId: givens[0]!.id } } };
+  if (!stem.ok || !boundGivens.length) return stem;
+  return { ok: true, reading: { ...stem.reading, source: { ...stem.reading.source, kind: "plan_given", planQuantityId: boundGivens[0]!.id } } };
 }
 /** Family-local semantic expectations: a present damaged or incompatible literal is never omitted. */
-export function chemistryQuantityCuesValid(question: string, cues: readonly {after: RegExp; dimensions: readonly ChemistryDimension[]}[]): boolean {
+export function chemistryQuantityCuesValid(question: string, cues: readonly {after: RegExp; dimensions: readonly ChemistryDimension[]; cueCaseSensitive?: boolean}[]): boolean {
   return cues.every(cue => {
-    const reads = cue.dimensions.map(dimension => readChemistryQuantity({question, after: cue.after, dimension}));
+    const reads = cue.dimensions.map(dimension => readChemistryQuantity({question, after: cue.after, dimension, cueCaseSensitive:cue.cueCaseSensitive}));
     return reads.some(r => r.ok) || reads.every(r => !r.ok && r.code === "missing");
   });
 }
 /** Reject contradictory supported physical givens before a legacy adapter can mask a failed binding. */
 export function chemistryPlanBindingsValid(question: string, quantities: readonly ChemPlanQuantity[]): boolean {
   return quantities.every(q => {
-    if (q.origin !== "given" || !q.unit) return true;
+    if (q.origin !== "given") return true;
+    const span = bindingSpan(question, q);
+    if (!span) return !q.sourceSpan;
+    if (!Number.isFinite(q.value)) return false;
+    if (!q.unit) return true;
     const parsedUnit = unitAt(q.unit.trim()); if (!parsedUnit || parsedUnit.text !== q.unit.trim()) return false;
-    const span = bindingSpan(question, q); if (!span) return false;
     const dimension = parsedUnit.def.dimensions[0]!;
     const literals = findChemistryQuantities({question, within: span, dimension});
     const expected = canonicalValue(q.value, parsedUnit.def, dimension);
