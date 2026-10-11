@@ -1,6 +1,7 @@
 /** Real-source regressions for coordinator #137 re-review; no model calls. */
 import assert from "node:assert/strict";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
+import { buildChemicalThermodynamicsScene } from "../../src/chemistry/chemicalThermodynamics";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { inferChemistryFamilies } from "../../src/chemistry/router";
@@ -164,6 +165,130 @@ for (const row of atomicLaneRows) check("coordinator atomic lane: " + row.id, ()
   const document = buildAtomicRadiationScene(row.question, [], false);
   if (row.expectedK) assert.ok(labels(document).includes(row.expectedK));
   else assert.equal(document, null, row.reason);
+});
+const thermoLaneRows = [
+  {
+    "id": "M9",
+    "question": "The equilibrium constant of a reaction at 298 K is 1.8 × 10^-5. Calculate ΔG°."
+  },
+  {
+    "id": "M9b",
+    "question": "The equilibrium constant of a reaction at 300 K is 2.5 × 10^8. Calculate ΔG°."
+  },
+  {
+    "id": "M9c",
+    "question": "The equilibrium constant of a reaction at 298 K is 0.0045. Calculate ΔG°."
+  },
+  {
+    "id": "M10",
+    "question": "Draw the energy profile for a reaction with ΔH = −92.4 kJ/mol and Ea = 150 kJ/mol."
+  },
+  {
+    "id": "M10b",
+    "question": "Construct the Born Haber cycle for NaCl. Enthalpy of sublimation of Na = 108 kJ/mol, ionisation enthalpy of Na = 496 kJ/mol, bond dissociation enthalpy of Cl2 = 242 kJ/mol, electron gain enthalpy of Cl = −349 kJ/mol and enthalpy of formation of NaCl = −411 kJ/mol. Calculate the lattice enthalpy of NaCl."
+  },
+  {
+    "id": "M10c",
+    "question": "Construct the Born Haber cycle for MgO. Enthalpy of sublimation of Mg = 148 kJ/mol, ionisation enthalpy of Mg = 2189 kJ/mol, bond dissociation enthalpy of O2 = 498 kJ/mol, electron gain enthalpy of O = 657 kJ/mol and enthalpy of formation of MgO = −602 kJ/mol. Calculate the lattice enthalpy of MgO."
+  },
+  {
+    "id": "M10d",
+    "question": "For a reaction ΔH = 100000 kJ/mol and ΔS = 100 J K−1 mol−1. Draw ΔG vs T and find the temperature where ΔG = 0."
+  },
+  {
+    "id": "M11",
+    "question": "ΔH° = -92 kJ/mol and ΔS° = -199 J/(mol K). Draw ΔG vs T."
+  },
+  {
+    "id": "M11b",
+    "question": "For the reaction ΔH° = -92 kJ/mol and ΔS° = -199 J/(mol K). Draw ΔG vs T."
+  },
+  {
+    "id": "M11c",
+    "question": "Draw the energy profile for an exothermic reaction with Ea = 60 kJ/mol and ΔH° = −20 kJ/mol."
+  },
+  {
+    "id": "M11d",
+    "question": "For a reaction ΔH = 40 kJ/mol and ΔS = 100 J K−1 mol−1. Above what temperature will the reaction become spontaneous?"
+  },
+  {
+    "id": "M17a",
+    "question": "The activation energy for the reaction 2HI(g) → H2(g) + I2(g) is 209.5 kJ mol^-1 at 581 K. Calculate the fraction of molecules of reactants having energy equal to or greater than activation energy."
+  },
+  {
+    "id": "M9-tiny",
+    "question": "The equilibrium constant of a reaction at 298 K is 1.0 × 10^-30. Calculate ΔG°."
+  },
+  {
+    "id": "M9-dg",
+    "question": "The standard Gibbs energy change ΔG° = 10 kJ/mol at 300 K. Calculate the equilibrium constant."
+  },
+  {
+    "id": "M9-dg-big",
+    "question": "The standard Gibbs energy change ΔG° = 120 kJ/mol at 300 K. Calculate the equilibrium constant."
+  },
+  {
+    "id": "M14-ea-this",
+    "question": "The activation energy for this reaction is 75 kJ/mol and ΔH = -25 kJ/mol. Draw the energy profile diagram."
+  },
+  {
+    "id": "M14-two-ea",
+    "question": "Draw the energy profile. The activation energy without catalyst is 100 kJ/mol and with catalyst is 60 kJ/mol, ΔH = -20 kJ/mol."
+  }
+] as const;
+const gibbsOracle: Record<string, { K: number; T: number; G: number }> = {
+  M9: { K: 1.8e-5, T: 298, G: -8.314 * 298 * Math.log(1.8e-5) / 1000 },
+  M9b: { K: 2.5e8, T: 300, G: -8.314 * 300 * Math.log(2.5e8) / 1000 },
+  M9c: { K: 0.0045, T: 298, G: -8.314 * 298 * Math.log(0.0045) / 1000 },
+  "M9-tiny": { K: 1e-30, T: 298, G: -8.314 * 298 * Math.log(1e-30) / 1000 },
+  "M9-dg": { K: Math.exp(-10000 / (8.314 * 300)), T: 300, G: 10 },
+  "M9-dg-big": { K: Math.exp(-120000 / (8.314 * 300)), T: 300, G: 120 },
+};
+const thermoQuantities: Record<string, Array<[string, number, string]>> = {
+  M10: [["dH", -92.4, "kJ/mol"], ["Ea_forward", 150, "kJ/mol"]],
+  M10b: [["lattice_enthalpy", -787, "kJ/mol"], ["formation_enthalpy", -411, "kJ/mol"]],
+  M10d: [["dH", 100000, "kJ/mol"], ["dS", 100, "J/(mol K)"], ["T_eq", 1000000, "K"]],
+  M11: [["dH", -92, "kJ/mol"], ["dS", -199, "J/(mol K)"], ["T_eq", 92000 / 199, "K"]],
+  M11b: [["dH", -92, "kJ/mol"], ["dS", -199, "J/(mol K)"], ["T_eq", 92000 / 199, "K"]],
+  M11c: [["dH", -20, "kJ/mol"], ["Ea_forward", 60, "kJ/mol"]],
+  M11d: [["dH", 40, "kJ/mol"], ["dS", 100, "J/(mol K)"], ["T_eq", 400, "K"]],
+  "M14-ea-this": [["dH", -25, "kJ/mol"], ["Ea_forward", 75, "kJ/mol"]],
+};
+for (const row of thermoLaneRows) check("coordinator thermochemistry lane: " + row.id, () => {
+  if (["M10c", "M17a", "M14-two-ea"].includes(row.id)) {
+    // MgO is outside the alkali-halide cycle; a Boltzmann fraction is not an
+    // energy-profile ask; the implicit second catalyst role is unsupported.
+    assert.equal(buildThermoGraphScene(row.question, [], false), null);
+    assert.equal(synthesizeFamilyScene({ question: row.question }), null);
+    return;
+  }
+  const direct = gibbsOracle[row.id]
+    ? buildChemicalThermodynamicsScene(row.question, [], false)
+    : buildThermoGraphScene(row.question, [], false);
+  assert.ok(direct);
+  const ordinary = synthesizeFamilyScene({ question: row.question });
+  assert.ok(ordinary);
+  for (const document of [direct, ordinary.document]) {
+    const text = labels(document);
+    const eq = gibbsOracle[row.id];
+    if (eq) {
+      const kLabel = text.find(label => label.startsWith("K="));
+      const gLabel = text.find(label => label.startsWith("dGo="));
+      assert.ok(kLabel && gLabel && text.includes("kJ/mol"));
+      const k = Number(kLabel.slice(2));
+      assert.ok(k > 0 && Math.abs(k / eq.K - 1) <= 0.001);
+      assert.ok(Math.abs(Number(gLabel.slice(4)) - eq.G) <= 0.00051);
+      assert.ok(text.includes(`T=${eq.T} K`));
+    } else {
+      for (const [id, value, unit] of thermoQuantities[row.id] ?? []) {
+        const quantity = document.quantities.find(q => q.id === id);
+        assert.ok(quantity, id);
+        assert.ok(Math.abs(quantity.value - value) <= 1e-8 * Math.max(1, Math.abs(value)), id);
+        assert.equal(quantity.unit, unit);
+      }
+      assert.ok((thermoQuantities[row.id]?.length ?? 0) > 0, "every row must have an independent value oracle");
+    }
+  }
 });
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
