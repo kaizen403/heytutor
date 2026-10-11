@@ -62,6 +62,10 @@ const tx = {
     },
   },
   objectDeletionJob: {
+    findFirst: async () => [...deletionJobs.values()].find(job => job.attempts === 0 &&
+      job.createdAt instanceof Date && job.createdAt.getTime() <= Date.now() - 30 * 60_000 &&
+      job.nextAttemptAt instanceof Date && job.nextAttemptAt.getTime() <= Date.now()) ?? null,
+    findMany: async () => [...deletionJobs.values()],
     findUnique: async ({ where }: { where: { prefix?: string; id?: string } }) => where.prefix ? deletionJobs.get(where.prefix) ?? null : [...deletionJobs.values()].find(job => job.id === where.id) ?? null,
     create: async ({ data }: { data: Record<string, unknown> & { prefix: string } }) => { const job = { attempts: 0, ...data }; deletionJobs.set(data.prefix, job); return job; },
     update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
@@ -84,7 +88,9 @@ const tx = {
       const turn = where.id ? committedTurns.get(where.id) : undefined;
       return turn && Object.entries(where).every(([key, value]) => turn[key] === value) ? turn : null;
     },
-    count: async () => scenario === "turn-limit" ? 4_000_000 : scenario === "near-turn-limit" ? 99 + createdTurns : createdTurns,
+    count: async ({ where }: { where?: { storageBytes?: number } } = {}) => where?.storageBytes === 0
+      ? [...committedTurns.values()].filter(turn => turn.storageBytes === 0n).length
+      : scenario === "turn-limit" ? 4_000_000 : scenario === "near-turn-limit" ? 99 + createdTurns : createdTurns,
     findMany: async ({ take, skip = 0 }: { take?: number; skip?: number } = {}) => scenario === "list" ? boardRows.slice(skip, take === undefined ? undefined : skip + take) : [],
     aggregate: async () => ({ _sum: { storageBytes: quotaRow().reservedBytes } }),
     create: async ({ data }: { data: Record<string, unknown> }) => {
@@ -97,7 +103,9 @@ const tx = {
   segment: {
     createManyAndReturn: async ({ data }: { data: object[] }) => data.map((value, index) => ({ ...value, id: `segment-${index}` })),
   },
-  boardChatMessage: { findMany: async ({ take }: { take?: number } = {}) => boardRows.slice(0, take), aggregate: async () => ({ _sum: { storageBytes: 0n } }) },
+  boardChatMessage: { count: async () => 0,
+    findMany: async ({ take }: { take?: number } = {}) => take === undefined ? [] : boardRows.slice(0, take),
+    aggregate: async () => ({ _sum: { storageBytes: 0n } }) },
 };
 let lockTail = Promise.resolve();
 const prisma = {

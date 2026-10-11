@@ -65,7 +65,7 @@ import { runFrameWalkBeat, runTypedBlockBeat, walkSpokenStops, frameWalkPlan } f
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import type { IntroLayoutCheckpoint } from "../lib/board/introLayoutCheckpoint";
 import { commitWorkRowInk, isInDiagramZone, registerBoardAnchor, resolveVisibleEmphasisRow, workColumnMaxWidth } from "../lib/board/boardLayout";
-import { wrapWorkRow } from "./useBoardLayout";
+import { fitRecordedWorkRow } from "../lib/board/workTextPresentation";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
 import {
@@ -355,7 +355,7 @@ export function useCommandExecution({
         shouldCancel: commandCancelled,
       });
 
-      const command = rawCommand;
+      let command = rawCommand;
       const activeDiagram = activeVerifiedDiagramRef.current;
       const trustedDiagramGeometry = options.trustedDiagramGeometry === true;
       if (!activeDiagram && !trustedDiagramGeometry && isUnsafeUncompiledDiagramCommand(command)) {
@@ -653,7 +653,8 @@ export function useCommandExecution({
         }
         case "WRITE":
         case "LABEL": {
-          const [x, y, maybeFontSize] = command.params;
+          const [x, y, requestedFontSize] = command.params;
+          let maybeFontSize = requestedFontSize;
           if (
             command.type === "WRITE" &&
             !options.textPlacementReserved &&
@@ -665,7 +666,7 @@ export function useCommandExecution({
               boardLayoutRef.current,
               fbdPhaseStartedRef.current,
             );
-            const { fontSize: wrappedSize, lines } = wrapWorkRow(command.text, columnWidth);
+            const { fontSize: wrappedSize, lines } = fitRecordedWorkRow(command.text, columnWidth, requestedFontSize);
             if (lines.length > 1) {
               for (const [index, line] of lines.entries()) {
                 if (commandCancelled()) return;
@@ -681,6 +682,10 @@ export function useCommandExecution({
               }
               break;
             }
+            // A captured one-line row needs the same column fit as a wrapped
+            // row. Use it for both registered layout bounds and permanent ink.
+            maybeFontSize = wrappedSize;
+            command = { ...command, params: [x, y, wrappedSize] };
           }
           if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
             // Every size that reaches the pen is a step on the board's scale.

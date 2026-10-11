@@ -22,7 +22,6 @@ import {
   getSegmentCommands,
   isBlockedVerifiedDiagramCommand,
   isStoredCommandTrustedGeometry,
-  fitWorkTextCommand,
   parseStoredSegmentCommands,
   serializeSegmentCommands,
   type DrawCommand,
@@ -32,6 +31,7 @@ import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
+import { canonicalRecordedWorkWrite } from "@/features/tutor-session/lib/board/workTextPresentation";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
@@ -666,7 +666,7 @@ function canonicalizeTeachingCommands(
       }
 
       const checked = canonicalTeachingCommand(command);
-      const safeCommands = checked?.type === "WRITE" ? fitWorkTextCommand(checked) : checked ? [checked] : [];
+      const safeCommands = checked?.type === "WRITE" ? canonicalRecordedWorkWrite(checked) : checked ? [checked] : [];
       // A FOCUS that names an id absent from the committed diagram is a
       // teaching mismatch, not untrusted ink: filter the gesture and keep the
       // rest of the segment, mirroring the live prepareVerifiedLessonSegments

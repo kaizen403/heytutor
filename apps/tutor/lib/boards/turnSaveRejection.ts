@@ -9,6 +9,7 @@ export type SaveRejectionCode =
   | "save_allowance_used" | "upload_parts_invalid" | "turn_not_persistable"
   | "scene_persistence_rejected" | "segment_fields_invalid"
   | "audio_format_mismatch" | "storage_admission_rejected" | "storage_commit_rejected"
+  | "storage_verification_failed" | "storage_accounting_changed" | "turn_storage_limit_reached"
   | "turn_id_invalid" | "close_body_invalid" | "turn_not_found"
   | "trace_mismatch" | "trace_saved" | "checkpoint_rows_conflict"
   | "turn_segments_oversized" | "audio_segment_missing" | "turn_audio_oversized"

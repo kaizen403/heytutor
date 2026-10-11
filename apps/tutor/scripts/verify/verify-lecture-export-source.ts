@@ -144,7 +144,7 @@ async function main(): Promise<void> {
     assert.equal(storedTurnContinuesBoard(tail), false);
     assert.equal(tail.segments.length, 3, "the epoch CLEAR plus both finished steps");
     assert.deepEqual(tail.segments.map((s) => s.orderIndex), [0, 1, 2]);
-    assert.equal("status" in tail, false, "the export turn is a plain stored turn");
+    assert.equal(tail.status, "live", "the export snapshot preserves partial completion authority");
 
     // The clip is read from memory; a step with none is silence for its length.
     const timeline = buildReplayTimeline(source.turns);
