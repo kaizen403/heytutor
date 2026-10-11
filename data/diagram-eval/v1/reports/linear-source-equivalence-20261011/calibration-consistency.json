@@ -1,0 +1,41 @@
+{
+  "schema": "linear-calibration-consistency/v1",
+  "meaning": "Consistency with 24 preregistered synthetic reference verdicts, not human accuracy; scored only after all final first-grade streams froze. No selection, rewrite, feedback or image review by root.",
+  "goldSha256": "756e460f38a0d4555f5886daa20df97d3091712381013c0ea93b9fcb2f040e66",
+  "n": 24,
+  "judges": {
+    "a": {
+      "matched": 24,
+      "total": 24,
+      "sha256": "add098f92d0a754bfb7b81b20ed68b6e05708b3cd265258d540fd1cff557c2bd",
+      "confusion": {
+        "right->right": 8,
+        "partial->partial": 8,
+        "wrong->wrong": 8
+      },
+      "mismatches": []
+    },
+    "b": {
+      "matched": 24,
+      "total": 24,
+      "sha256": "c82b867eb5c8193dbeb1e9e2a68f65acabf1d17c0e0d8bc295803b18f85ef0f3",
+      "confusion": {
+        "right->right": 8,
+        "partial->partial": 8,
+        "wrong->wrong": 8
+      },
+      "mismatches": []
+    },
+    "c": {
+      "matched": 24,
+      "total": 24,
+      "sha256": "b762c18691c51344320f3cdbf66fa733f07bd014493db55579c38841364e59cb",
+      "confusion": {
+        "right->right": 8,
+        "partial->partial": 8,
+        "wrong->wrong": 8
+      },
+      "mismatches": []
+    }
+  }
+}

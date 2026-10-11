@@ -2,6 +2,8 @@
 
 Integration owner: Harness 3 (`provo`), 11 October 2026. Work remains local; PR #143 was closed at the user's instruction. No PR opening/reopening, push, merge or production change is authorized for this repair. Topic acceptance counters remain unchanged.
 
+**Final status: not ready.** [The measured result](H3R7-SOURCE-EQUIVALENCE-RESULTS-20261011.md) records the complete first pair: consensus right 0→18, wrong 18→1, required empty 1→4 and drawn 39→36. Coverage fails. The second candidate stopped at37/40 under the frozen conservative budget guard and remains ungraded. The two-repeat primary experiment is incomplete. Incremental Azure token estimate $8.391410, cumulative $25.351880/$30; native agent billing is unexposed. No new PR, push, merge or production change.
+
 ## Scope and strengthened gate
 
 The user rejected the prior H3R6 coverage collapse and requested complete rejection messages, equivalent-inequality matching and operator contracts, followed by two repeats on the original frozen40 rows. Readiness now requires each repeat to improve right, keep wrong near zero (preregistered interpretation: at most1/40 and no rise against main), and keep required empty no higher than main. All40 required rows remain in every denominator. Independent first judges A/B and consensus must each pass; pooling cannot rescue a failure.
@@ -26,7 +28,7 @@ Detailed owned evidence is in `.context/h3r7/source-equivalence/`: source worker
 
 New incremental hard allowance is$13.00 with$12.50 admission stop; prior Azure token estimate was$16.96047 against the reinstated$30 total cap. Every actual request reserves exposure before dispatch. Fresh exclusive-deployment metrics and response usage are overlapping estimates and are never added as independent charges. Eight new unchanged observations with zero in-flight requests reconcile exposure between candidate repeats. Unknown usage is separately retained as allowance, not labeled measured spend. Native agent billing is not exposed.
 
-Measurement has not started. This log is not a readiness claim. Results and final spend will be appended after both complete candidate repeats, frozen independent grades and final accounting settlement.
+The preceding preparation was written before measurement. The final result above supersedes that preparation status: one candidate repeat completed; the second stopped under budget and was retained without a retry. Final grades of the separately frozen complete first pair and settled accounting are recorded in the linked results report.
 
 ## Final nonpaid repair checks
 

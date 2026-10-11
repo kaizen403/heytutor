@@ -1,0 +1,12 @@
+{
+  "judge": "b",
+  "sourceNaive": true,
+  "agentIdentity": "/root/h3r7_judge_b",
+  "referenceConsistencyReportedAs": "consistency, not human accuracy",
+  "noQualityFeedbackBeforeFinalFreeze": true,
+  "calibration": {
+    "packetPath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/packets/calibration-neutral",
+    "packetFreezeSha256": "504d170ea97c14a479740f6467c9670af6495ee31b3e430ca0342a1d1666dd9b",
+    "firstGradeFreezeSha256": "65a79c0d9ef70507ef354524e973b5a04e691262439f170fa7cc1606e7fd562b"
+  }
+}

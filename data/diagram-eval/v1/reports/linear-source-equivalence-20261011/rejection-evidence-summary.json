@@ -1,0 +1,77 @@
+{
+  "schema": "linear-rejection-evidence-summary/v1",
+  "newCandidateRows": 77,
+  "completeFirstRepeat": 40,
+  "abortedSecondPrefix": 37,
+  "secondPrefixUngraded": true,
+  "rawCaptureSha256": "7233da5beea2683637116fb17bb393d12ed4209586011c297d105a3b50bf6a0e",
+  "portableProjection": "rejection-diagnostics.jsonl",
+  "projectionNote": "Full candidate rejection records and operator arguments preserved; excludes raw planner responses/render bodies. Original raw JSONs remain hash-bound in local context. Original absolute paths are provenance, not recount dependencies.",
+  "recordTruncationTotals": {
+    "candidateRecords": 0,
+    "candidateIssues": 0,
+    "operatorRecords": 0
+  },
+  "trueFieldTruncationFlags": {},
+  "omissionCountSums": {
+    "omittedIssueCount": 0,
+    "omittedErrorCount": 0
+  },
+  "issueOccurrencesNotDistinctRows": {
+    "1": {
+      "linear_source_mismatch": 50,
+      "derived_role_operator_mismatch": 4,
+      "untrusted_linear_claim": 31,
+      "untrusted_linear_annotation": 9,
+      "invalid_linear_region": 8,
+      "empty_required_scene": 3
+    },
+    "2": {
+      "linear_source_mismatch": 47,
+      "derived_role_operator_mismatch": 6,
+      "invalid_linear_region": 11,
+      "untrusted_linear_claim": 22,
+      "untrusted_linear_annotation": 6,
+      "duplicate_id": 1,
+      "empty_required_scene": 2,
+      "invalid_derived_value_label": 4
+    }
+  },
+  "selectedCommittedOperators": {
+    "1": {
+      "n": 40,
+      "counts": {
+        "linear_half_plane": 7,
+        "empty": 4,
+        "linear_feasible_region": 10,
+        "number_line_set": 10,
+        "generic": 8,
+        "linear_system": 1
+      },
+      "prefixUngraded": false,
+      "meaning": "Chosen raw committed planner operator names; not independent figure-quality grades"
+    },
+    "2": {
+      "n": 37,
+      "counts": {
+        "linear_half_plane": 9,
+        "empty": 3,
+        "linear_feasible_region": 10,
+        "number_line_set": 9,
+        "generic": 6
+      },
+      "prefixUngraded": true,
+      "meaning": "Chosen raw committed planner operator names; not independent figure-quality grades"
+    }
+  },
+  "secondPrefixStructuralCountsNotGrades": {
+    "n": 37,
+    "drawn": 34,
+    "requiredEmpty": 3,
+    "graded": false
+  },
+  "solverDiagnosticLimitation": "Captured solver contradictions retain status/code/projection only; full audit message, request/quantity ID and actual value are absent. No invented full solver explanation.",
+  "candidateRejectionRecords": 157,
+  "candidateRejectionErrors": 204,
+  "rejectedOperatorCalls": 447
+}

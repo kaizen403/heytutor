@@ -1,0 +1,294 @@
+{
+  "schema": "shaded-regions-spend/v1",
+  "job": "h3r7-source-equivalence",
+  "preregistrationSha256": "071a6c9d731768b28d2d536463a470b29ba4fc434779cb948471e0dbd408d266",
+  "freshBaselineSha256": "80aeb526d7aa0ebfb02faed39765b1d9107348e6951c9c06e0b2ba485b38bd2f",
+  "settlementSha256": "cdc1ec359601ae9cc2a832be95d1836e31055467ce9cc3b002df28485aa92fb4",
+  "realCapUsd": 13.0,
+  "stopAtUsd": 12.5,
+  "AzureTokenEstimate": {
+    "promptTokens": 2214635.0,
+    "generatedTokens": 396214.0,
+    "usd": 8.39141
+  },
+  "rates": {
+    "inputPerMillion": 2,
+    "outputPerMillion": 10,
+    "cachePricedAsUncached": true
+  },
+  "previousJobAzureEstimateUsd": 16.96047,
+  "cumulativeAzureEstimateUsd": 25.35188,
+  "hardIncrementWithinBudget": true,
+  "cumulativeWithin30": true,
+  "responseUsage": {
+    "knownUsageUsd": 7.470119,
+    "unresolvedAllowanceUsd": 7.411516,
+    "checkpointReservedUsd": 1.145732,
+    "checkpointInFlightCalls": 5,
+    "ledgers": [
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/live-outputs/r1-candidate/spend-checkpoint.json",
+        "sha256": "9ac0f121c4e885563d52ab9db0795786a0a5be98b6fca579d4523cec3451b174",
+        "knownUsageUsd": 3.792206,
+        "unresolvedAllowanceUsd": 3.928444,
+        "reservedUsd": 0,
+        "inFlightCalls": 0,
+        "unresolvedCalls": [
+          {
+            "traceId": "c276224d-e023-4547-a985-3c8068d505ad",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.237484,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "c276224d-e023-4547-a985-3c8068d505ad",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.23764,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "790c78e0-ba68-452a-b4c5-b0b7ba89719f",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.26738,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "58fd068e-44fc-4459-b414-6f7395e01d80",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.259612,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "58fd068e-44fc-4459-b414-6f7395e01d80",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.259768,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "a75b55b4-e6c1-40d0-b3ab-43f302e78890",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.251804,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "91f60567-2ac8-43aa-8d55-5619e6aa2d0c",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.256048,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "0204f1a2-550a-4e7c-9791-428b3866174e",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.242332,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "4f8299ed-14f4-4bfc-b29f-75d996ae1c27",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.240756,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "53834c38-dccb-4810-aadd-ab3db97c77e7",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.233156,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "8d090f01-b559-40d2-a6de-b99a5ca606fd",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.243264,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "a057a1d1-a6a1-44ec-9aae-91e0c954974a",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.238604,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "fa7b2ca9-17f2-4226-ae2c-3adc21094011",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.239688,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "9ebcc15a-8056-45c3-a421-fbe41787b4f9",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.240412,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "9ebcc15a-8056-45c3-a421-fbe41787b4f9",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.240568,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e6b58944-2744-44ab-a73b-7f50d738d092",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.239928,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      },
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/live-outputs/r2-candidate/spend-checkpoint.json",
+        "sha256": "ec114666013542c117e470431430792b2a40f3f396900c2cb91c7b0fd6d779f9",
+        "knownUsageUsd": 3.677913,
+        "unresolvedAllowanceUsd": 3.483072,
+        "reservedUsd": 1.145732,
+        "inFlightCalls": 5,
+        "unresolvedCalls": [
+          {
+            "traceId": "d67b1402-7d93-4b5f-b40c-c0b37bcd4aa4",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.236048,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "bb63f3f6-c7be-4e03-92da-6f2300dd1049",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.254268,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "86b1c152-b8ef-4236-951b-5b947eecdddf",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.257392,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "41d8fe6a-7830-415a-a583-6bb75a5a2343",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.236736,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "c80ecdf2-8d83-40b4-be2c-15299e4b7563",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.25186,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "2cfb1785-5d46-4a6a-937a-3768370605fb",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.264888,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "a0bc4e89-1f03-479c-b612-5fbccd79879b",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.251284,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "4abd7b6a-222c-411f-96b8-c9d76df9792b",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.264936,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "28295afd-ee21-401e-8ce5-82769e27d561",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.241436,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "75b8fc95-e162-4cf1-a3e7-8a06710c987b",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.240268,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "3c4b83a0-8777-4688-a7ff-546a27b6160a",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.248472,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "3c4b83a0-8777-4688-a7ff-546a27b6160a",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.248628,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "054a804a-8e00-44d8-b006-d07be32f7634",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.24496,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "60d5261f-b38f-42dd-b4b7-cce448e246ce",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.241896,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      }
+    ],
+    "missingCheckpoints": [],
+    "scope": "all live-output ledgers, including aborted prefixes, plus explicitly supplied diagnostic/development ledgers"
+  },
+  "note": "Response and deployment estimates describe the same calls and are not summed. Missing usage is unknown. Azure tokens include every exclusive-deployment call since this fresh baseline; not an invoice. Native agent/CLI billing is unexposed."
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "secondary-first-repeat-after-abort/v1",
+  "originalPreregistrationSha256": "071a6c9d731768b28d2d536463a470b29ba4fc434779cb948471e0dbd408d266",
+  "abortSha256": "562876e8b674302b564f9ea5e1242c59a85e5349a3c5d0f57bb7acfd4b7d5722",
+  "completedArmsSha256": "428a6f508001bb60f50aba345823f98585337d41e564d1c5d061fd1436f5ebe1",
+  "packetGeneratorSha256": "a51c3b03b9f95f30055297130f829f345d16598116ef8e097cb156f0f308966c",
+  "all40FirstRepeatRowsBothArms": true,
+  "secondRepeatPrefixUngraded": true,
+  "primaryExperimentComplete": false,
+  "ready": false,
+  "newPaidDispatch": false,
+  "firstGradesNotRead": true,
+  "sourceTuning": false,
+  "frozenAssetsAndOriginalHelpersUnchanged": true,
+  "reason": "Finite-budget guard stopped second candidate at 37/40. Grade the entire complete first pair without selecting rows; retain the ungraded failed prefix and its spend. Never claim two complete repeats or primary readiness."
+}

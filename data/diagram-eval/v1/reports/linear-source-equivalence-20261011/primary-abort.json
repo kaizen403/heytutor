@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-11T03:38:20.576083Z",
+  "rep": 2,
+  "arm": "candidate",
+  "prefix": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/live-outputs/r2-candidate",
+  "reason": "Whole-arm incomplete/transport/budget failure",
+  "sourceTuning": false,
+  "selectiveRetry": false
+}

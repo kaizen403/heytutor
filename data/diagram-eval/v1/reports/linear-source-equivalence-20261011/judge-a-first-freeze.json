@@ -1,0 +1,21 @@
+{
+  "judge": "a",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "count": 75,
+  "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/judging/neutral-a/grades.jsonl",
+  "gradeSha256": "df8b34902e9308dea1df6d8e7b37e8923a448e47d072b363fa70f47292483757",
+  "queueSha256": "9f764a74c8f07fcdc93e6e05463f4bf339f64a01087bd39d6ad1d3c861286092",
+  "imageHashesPassed": true,
+  "schemaPassed": true,
+  "qualityUnblinded": false,
+  "recoveries": 0,
+  "identityPath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/judging/final-a-identity.json",
+  "identitySha256": "b7b8a55ff21e4a34772f9da6796977ca02e56b67f83b32681fc2721513f3f340",
+  "agentIdentity": "/root/h3r7_judge_a",
+  "calibration": {
+    "packetPath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/packets/calibration-neutral",
+    "packetFreezeSha256": "504d170ea97c14a479740f6467c9670af6495ee31b3e430ca0342a1d1666dd9b",
+    "firstGradeFreezeSha256": "1f0b8217338076acb8762ceece75583a54363770a4f462f36c852cad6e3bc969"
+  },
+  "frozenAt": "2026-10-11T12:41:41.601608Z"
+}

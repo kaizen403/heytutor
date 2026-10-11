@@ -1,0 +1,165 @@
+{
+  "schema": "linear-source-secondary-evidence-manifest/v1",
+  "runtimeCandidate": "054cdbad0ad0109e88947c4f886ce7d906f2ccb2",
+  "runtimeMain": "216450fcf7e5a88d41341a9e79871e1b9d198c72",
+  "primaryComplete": false,
+  "ready": false,
+  "onlyCompletedFirstPairGraded": true,
+  "originalPrefixRetainedUngraded": true,
+  "evalSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+  "copiedArtifacts": {
+    "results.json": {
+      "original": ".context/h3r7/source-equivalence/secondary-results.json",
+      "sha256": "56b0361d7d7ab43bc6074dda31e16cd679a6943ba6f9ac41b1022c16b3785671"
+    },
+    "spend.json": {
+      "original": ".context/h3r7/source-equivalence/spend.json",
+      "sha256": "fbe495ca4bfb078abccc35e6efc9207273e67362b8db7338e0aca1245fd02b7f"
+    },
+    "calibration-consistency.json": {
+      "original": ".context/h3r7/source-equivalence/calibration-consistency.json",
+      "sha256": "bcc578a73b38daa64658c87368a65fcc4571bc9195241d05e43361e8bde16d2d"
+    },
+    "primary-abort.json": {
+      "original": ".context/h3r7/source-equivalence/whole-arm-abort.json",
+      "sha256": "562876e8b674302b564f9ea5e1242c59a85e5349a3c5d0f57bb7acfd4b7d5722"
+    },
+    "secondary-analysis-freeze.json": {
+      "original": ".context/h3r7/source-equivalence/SECONDARY-ANALYSIS-FREEZE.json",
+      "sha256": "7d014d7ddc9808fb8d98a9d743f33c4dd51880de34d2358c03e4dd44ce21e3df"
+    },
+    "packet-freeze.json": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/freeze.json",
+      "sha256": "9ca4d2d01264ef208a5c483dd5d88fd09c62e43fe1272b87f9d54c225b4ca98b"
+    },
+    "outcomes.jsonl": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/parent/outcomes.jsonl",
+      "sha256": "84d74ec1f546078dc41b140d5bae9521dd697f22e3ee48be9d50c1137da97f18"
+    },
+    "image-map.jsonl": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/parent/image-map.jsonl",
+      "sha256": "d676110fd447f79b783d8d042fffbd69fa0f8faa90c40c2707143e2f97d71b4a"
+    },
+    "grades-a.jsonl": {
+      "original": ".context/h3r7/source-equivalence/judging/neutral-a/grades.jsonl",
+      "sha256": "df8b34902e9308dea1df6d8e7b37e8923a448e47d072b363fa70f47292483757"
+    },
+    "grades-b.jsonl": {
+      "original": ".context/h3r7/source-equivalence/judging/neutral-b/grades.jsonl",
+      "sha256": "a946d1958683525246c31138bca16a4d51d7817988a69cd18810cb026f7ccbec"
+    },
+    "grades-c.jsonl": {
+      "original": ".context/h3r7/source-equivalence/judging/neutral-c/grades.jsonl",
+      "sha256": "277f1b0ad02f05ff8fddc66b261d9708ec159af3db2472d70fe5390916664475"
+    },
+    "grades-consensus.jsonl": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/consensus/consensus-final.jsonl",
+      "sha256": "574f54ffe9fc505e06b516fe106ef821244d4d1d4f71eeb85576b4fc4554120d"
+    },
+    "consensus-freeze.json": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/consensus/consensus-freeze.json",
+      "sha256": "84c788a92bb62c69e9faf91e8b29bec1411d59aeb6342d8a376cf8c5d5580f2d"
+    },
+    "judge-a-first-freeze.json": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/judge-a-first-freeze.json",
+      "sha256": "a740e6ba2b17a09cfeb8ee556667ef49ec365955e75ae727588d95d7f1612220"
+    },
+    "judge-b-first-freeze.json": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/judge-b-first-freeze.json",
+      "sha256": "ed8527785034f7b4edf9baefc2eb8020e9f7bf813d3df21ed97cf13491d08c5b"
+    },
+    "judge-c-first-freeze.json": {
+      "original": ".context/h3r7/source-equivalence/packets/secondary-first-repeat/judge-c-first-freeze.json",
+      "sha256": "45173f0b9c2a37d75b6144de91a0c9a47cbd165c2072306a095cdeabdc4f28f9"
+    },
+    "selected-operator-adoption.jsonl": {
+      "original": ".context/h3r7/source-equivalence/selected-operator-adoption.jsonl",
+      "sha256": "fea047ac8ef85a02421f4a812545052aa5c7232d503b660c3b5a8f98621caff2"
+    },
+    "financial-abort-audit.md": {
+      "original": ".context/h3r7/source-equivalence/review/FINANCIAL-ABORT-AUDIT.md",
+      "sha256": "ae7fa3057cfe3b92ff55ce8f63380fbd4dc5bca61c0041d3cca3adaa8e2abd51"
+    },
+    "remaining-rejections.md": {
+      "original": ".context/h3r7/source-equivalence/REMAINING-REJECTIONS.md",
+      "sha256": "41e6716ddd49357a10fa4ebbf8de1269a3672e7e0ac7698739697ceba4558ff5"
+    },
+    "judge-a-identity.json": {
+      "original": ".context/h3r7/source-equivalence/judging/final-a-identity.json",
+      "sha256": "b7b8a55ff21e4a34772f9da6796977ca02e56b67f83b32681fc2721513f3f340"
+    },
+    "calibration-grades-a.jsonl": {
+      "original": ".context/h3r7/source-equivalence/judging/cal-a/grades.jsonl",
+      "sha256": "add098f92d0a754bfb7b81b20ed68b6e05708b3cd265258d540fd1cff557c2bd"
+    },
+    "judge-b-identity.json": {
+      "original": ".context/h3r7/source-equivalence/judging/final-b-identity.json",
+      "sha256": "da68cb47d43baa77ac77c39f07b5e0cc98abba09d25e5f90111a6559d33505be"
+    },
+    "calibration-grades-b.jsonl": {
+      "original": ".context/h3r7/source-equivalence/judging/cal-b/grades.jsonl",
+      "sha256": "c82b867eb5c8193dbeb1e9e2a68f65acabf1d17c0e0d8bc295803b18f85ef0f3"
+    },
+    "judge-c-identity.json": {
+      "original": ".context/h3r7/source-equivalence/judging/final-c-identity.json",
+      "sha256": "095b91838487f648a275c6ec166755137bdb949a300847b8d3c21b4e69b4c438"
+    },
+    "calibration-grades-c.jsonl": {
+      "original": ".context/h3r7/source-equivalence/judging/cal-c/grades.jsonl",
+      "sha256": "b762c18691c51344320f3cdbf66fa733f07bd014493db55579c38841364e59cb"
+    },
+    "calibration-reference-grades.jsonl": {
+      "original": ".context/h3r6/shaded-regions/calibration/parent-reference-grades.jsonl",
+      "sha256": "756e460f38a0d4555f5886daa20df97d3091712381013c0ea93b9fcb2f040e66"
+    },
+    "result-report-review.md": {
+      "original": ".context/h3r7/source-equivalence/review/RESULT-REPORT-REVIEW.md",
+      "sha256": "ef8c61297b0744fc609a325c3c0b81b1e1cdf1c4158b0c275540b65b586444cc"
+    }
+  },
+  "rawRejections": {
+    "path": ".context/h3r7/source-equivalence/all-new-rejection-diagnostics.jsonl",
+    "sha256": "7233da5beea2683637116fb17bb393d12ed4209586011c297d105a3b50bf6a0e"
+  },
+  "files": {
+    "README.md": "316956fd8551921620ddd48ddeb53893df7339bec0a575dcf2670e5e06210825",
+    "calibration-consistency.json": "bcc578a73b38daa64658c87368a65fcc4571bc9195241d05e43361e8bde16d2d",
+    "calibration-grades-a.jsonl": "add098f92d0a754bfb7b81b20ed68b6e05708b3cd265258d540fd1cff557c2bd",
+    "calibration-grades-b.jsonl": "c82b867eb5c8193dbeb1e9e2a68f65acabf1d17c0e0d8bc295803b18f85ef0f3",
+    "calibration-grades-c.jsonl": "b762c18691c51344320f3cdbf66fa733f07bd014493db55579c38841364e59cb",
+    "calibration-reference-grades.jsonl": "756e460f38a0d4555f5886daa20df97d3091712381013c0ea93b9fcb2f040e66",
+    "consensus-freeze.json": "84c788a92bb62c69e9faf91e8b29bec1411d59aeb6342d8a376cf8c5d5580f2d",
+    "financial-abort-audit.md": "ae7fa3057cfe3b92ff55ce8f63380fbd4dc5bca61c0041d3cca3adaa8e2abd51",
+    "grades-a.jsonl": "df8b34902e9308dea1df6d8e7b37e8923a448e47d072b363fa70f47292483757",
+    "grades-b.jsonl": "a946d1958683525246c31138bca16a4d51d7817988a69cd18810cb026f7ccbec",
+    "grades-c.jsonl": "277f1b0ad02f05ff8fddc66b261d9708ec159af3db2472d70fe5390916664475",
+    "grades-consensus.jsonl": "574f54ffe9fc505e06b516fe106ef821244d4d1d4f71eeb85576b4fc4554120d",
+    "image-map.jsonl": "d676110fd447f79b783d8d042fffbd69fa0f8faa90c40c2707143e2f97d71b4a",
+    "judge-a-first-freeze.json": "a740e6ba2b17a09cfeb8ee556667ef49ec365955e75ae727588d95d7f1612220",
+    "judge-a-identity.json": "b7b8a55ff21e4a34772f9da6796977ca02e56b67f83b32681fc2721513f3f340",
+    "judge-b-first-freeze.json": "ed8527785034f7b4edf9baefc2eb8020e9f7bf813d3df21ed97cf13491d08c5b",
+    "judge-b-identity.json": "da68cb47d43baa77ac77c39f07b5e0cc98abba09d25e5f90111a6559d33505be",
+    "judge-c-first-freeze.json": "45173f0b9c2a37d75b6144de91a0c9a47cbd165c2072306a095cdeabdc4f28f9",
+    "judge-c-identity.json": "095b91838487f648a275c6ec166755137bdb949a300847b8d3c21b4e69b4c438",
+    "outcomes.jsonl": "84d74ec1f546078dc41b140d5bae9521dd697f22e3ee48be9d50c1137da97f18",
+    "packet-freeze.json": "9ca4d2d01264ef208a5c483dd5d88fd09c62e43fe1272b87f9d54c225b4ca98b",
+    "primary-abort.json": "562876e8b674302b564f9ea5e1242c59a85e5349a3c5d0f57bb7acfd4b7d5722",
+    "recount.py": "ed72a620ef62848e82dd89c62d71520cf026d04559894d63b72fe1d1f92af353",
+    "rejection-diagnostics.jsonl": "4d557d60ad0d35b91e3afb7ccb3f0d426d115381ac45396653196f16ca43b2bd",
+    "rejection-evidence-summary.json": "a517cf9e9e1091bac367f63685737bf4ce7a921ee7b7d344065835c5f77b648c",
+    "remaining-rejections.md": "41e6716ddd49357a10fa4ebbf8de1269a3672e7e0ac7698739697ceba4558ff5",
+    "result-report-review.md": "ef8c61297b0744fc609a325c3c0b81b1e1cdf1c4158b0c275540b65b586444cc",
+    "results.json": "56b0361d7d7ab43bc6074dda31e16cd679a6943ba6f9ac41b1022c16b3785671",
+    "reviewed-input-manifest.json": "ee409d43fd4b7a51052d17e0e8f7695a9507692522f6ffaf58872334e33bf550",
+    "secondary-analysis-freeze.json": "7d014d7ddc9808fb8d98a9d743f33c4dd51880de34d2358c03e4dd44ce21e3df",
+    "selected-operator-adoption.jsonl": "fea047ac8ef85a02421f4a812545052aa5c7232d503b660c3b5a8f98621caff2",
+    "spend.json": "fbe495ca4bfb078abccc35e6efc9207273e67362b8db7338e0aca1245fd02b7f"
+  },
+  "reportingReview": {
+    "artifact": "result-report-review.md",
+    "sha256": "ef8c61297b0744fc609a325c3c0b81b1e1cdf1c4158b0c275540b65b586444cc",
+    "reviewedInputManifest": "reviewed-input-manifest.json",
+    "reviewedInputManifestSha256": "ee409d43fd4b7a51052d17e0e8f7695a9507692522f6ffaf58872334e33bf550",
+    "verdict": "PASS for reporting fidelity; NOT a readiness pass"
+  }
+}

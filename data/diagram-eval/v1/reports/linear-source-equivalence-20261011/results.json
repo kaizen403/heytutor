@@ -1,0 +1,347 @@
+{
+  "schema": "secondary-first-repeat-results/v1",
+  "preregistrationSha256": "071a6c9d731768b28d2d536463a470b29ba4fc434779cb948471e0dbd408d266",
+  "nPerArm": 40,
+  "allRowOutcomes": 80,
+  "noClassificationFiltering": true,
+  "graders": {
+    "a": [
+      {
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 1,
+            "partial": 22,
+            "wrong": 16,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 1,
+            "tierCounts": {
+              "qualitative_verified": 23,
+              "exact_verified": 16,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 37,
+              "wrong_items": 16,
+              "missing_geometry": 14,
+              "missing_boundary_semantics": 10,
+              "missing_corner_labels": 8,
+              "missing_objective_values": 6
+            }
+          },
+          "candidate": {
+            "n": 40,
+            "drawn": 36,
+            "right": 18,
+            "partial": 17,
+            "wrong": 1,
+            "empty_bad": 4,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 36,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 18,
+            "tierCounts": {
+              "qualitative_verified": 30,
+              "none": 4,
+              "exact_verified": 6
+            },
+            "sourceCounts": {
+              "planner": 36,
+              "text_only": 4
+            },
+            "omissionRows": {
+              "missing": 13,
+              "wrong_items": 1,
+              "missing_geometry": 7,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 6,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 17,
+        "wrongDelta": -15,
+        "requiredEmptyDelta": 3,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 1,
+          "partial->empty_bad": 1,
+          "partial->partial": 13,
+          "partial->right": 7,
+          "partial->wrong": 1,
+          "right->right": 1,
+          "wrong->empty_bad": 2,
+          "wrong->partial": 4,
+          "wrong->right": 10
+        },
+        "newlyWrong": [
+          {
+            "rowId": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+            "mainVerdict": "partial",
+            "candidateCardId": "figure-a51693191043162c2f1c581d",
+            "reason": "The detached line crosses below the origin instead of positive y-intercept 2; required equation and coordinate labels are absent."
+          }
+        ]
+      }
+    ],
+    "b": [
+      {
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 0,
+            "partial": 21,
+            "wrong": 18,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 23,
+              "exact_verified": 16,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 37,
+              "wrong_items": 18,
+              "missing_geometry": 13,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 8,
+              "missing_objective_values": 6
+            }
+          },
+          "candidate": {
+            "n": 40,
+            "drawn": 36,
+            "right": 17,
+            "partial": 18,
+            "wrong": 1,
+            "empty_bad": 4,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 36,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 17,
+            "tierCounts": {
+              "qualitative_verified": 30,
+              "none": 4,
+              "exact_verified": 6
+            },
+            "sourceCounts": {
+              "planner": 36,
+              "text_only": 4
+            },
+            "omissionRows": {
+              "missing": 19,
+              "wrong_items": 1,
+              "missing_geometry": 8,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 7,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 17,
+        "wrongDelta": -17,
+        "requiredEmptyDelta": 3,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 1,
+          "partial->empty_bad": 1,
+          "partial->partial": 13,
+          "partial->right": 6,
+          "partial->wrong": 1,
+          "wrong->empty_bad": 2,
+          "wrong->partial": 5,
+          "wrong->right": 11
+        },
+        "newlyWrong": [
+          {
+            "rowId": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+            "mainVerdict": "partial",
+            "candidateCardId": "figure-a51693191043162c2f1c581d",
+            "reason": "The common line is detached below the coordinate origin, contradicting the required positive y-intercept and negative x-intercept."
+          }
+        ]
+      }
+    ],
+    "consensus": [
+      {
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 0,
+            "partial": 21,
+            "wrong": 18,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 23,
+              "exact_verified": 16,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 37,
+              "wrong_items": 18,
+              "missing_geometry": 14,
+              "missing_boundary_semantics": 10,
+              "missing_corner_labels": 8,
+              "missing_objective_values": 6
+            }
+          },
+          "candidate": {
+            "n": 40,
+            "drawn": 36,
+            "right": 18,
+            "partial": 17,
+            "wrong": 1,
+            "empty_bad": 4,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 36,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 18,
+            "tierCounts": {
+              "qualitative_verified": 30,
+              "none": 4,
+              "exact_verified": 6
+            },
+            "sourceCounts": {
+              "planner": 36,
+              "text_only": 4
+            },
+            "omissionRows": {
+              "missing": 13,
+              "wrong_items": 1,
+              "missing_geometry": 7,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 6,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 18,
+        "wrongDelta": -17,
+        "requiredEmptyDelta": 3,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 1,
+          "partial->empty_bad": 1,
+          "partial->partial": 13,
+          "partial->right": 6,
+          "partial->wrong": 1,
+          "wrong->empty_bad": 2,
+          "wrong->partial": 4,
+          "wrong->right": 12
+        },
+        "newlyWrong": [
+          {
+            "rowId": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+            "mainVerdict": "partial",
+            "candidateCardId": "figure-a51693191043162c2f1c581d",
+            "reason": "The detached line crosses below the origin instead of positive y-intercept 2; required equation and coordinate labels are absent."
+          }
+        ]
+      }
+    ]
+  },
+  "ready": false,
+  "primaryExperimentComplete": false,
+  "firstRepeatOnly": true,
+  "consensusFreeze": {
+    "schema": "shaded-regions-consensus-freeze/v1",
+    "gradeSchema": "shaded-region-first-grade/v1",
+    "queueSha256": "9f764a74c8f07fcdc93e6e05463f4bf339f64a01087bd39d6ad1d3c861286092",
+    "count": 75,
+    "firstInputs": {
+      "a": {
+        "freezeSha256": "a740e6ba2b17a09cfeb8ee556667ef49ec365955e75ae727588d95d7f1612220",
+        "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/judging/neutral-a/grades.jsonl",
+        "gradeSha256": "df8b34902e9308dea1df6d8e7b37e8923a448e47d072b363fa70f47292483757",
+        "agentIdentity": "/root/h3r7_judge_a"
+      },
+      "b": {
+        "freezeSha256": "ed8527785034f7b4edf9baefc2eb8020e9f7bf813d3df21ed97cf13491d08c5b",
+        "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/judging/neutral-b/grades.jsonl",
+        "gradeSha256": "a946d1958683525246c31138bca16a4d51d7817988a69cd18810cb026f7ccbec",
+        "agentIdentity": "/root/h3r7_judge_b"
+      },
+      "c": {
+        "freezeSha256": "45173f0b9c2a37d75b6144de91a0c9a47cbd165c2072306a095cdeabdc4f28f9",
+        "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/judging/neutral-c/grades.jsonl",
+        "gradeSha256": "277f1b0ad02f05ff8fddc66b261d9708ec159af3db2472d70fe5390916664475",
+        "agentIdentity": "/root/h3r7_judge_c"
+      }
+    },
+    "consensusSha256": "574f54ffe9fc505e06b516fe106ef821244d4d1d4f71eeb85576b4fc4554120d",
+    "agreed": 72,
+    "discordant": 3,
+    "threeWayConservativeWrong": 0,
+    "armMapsRead": false,
+    "rule": "A/B agreement stands; complete blind C resolves disagreement; three different verdicts are wrong"
+  },
+  "criterion": {
+    "all40RequiredRowsEachRepeat": true,
+    "eachIndependentFirstJudgeAndConsensus": true,
+    "candidateRightGreaterThanMain": true,
+    "candidateRequiredEmptyNoHigherThanMain": true,
+    "candidateWrongAtMost": 1,
+    "candidateWrongNoHigherThanMain": true,
+    "noPooledRescue": true,
+    "wrongNearZeroInterpretation": "at most 1 of 40 each repeat under each first judge and consensus"
+  },
+  "noPoolingFailedRepeat": true,
+  "rootImageViews": 0,
+  "limitation": "Figure-only blind model judgments; no human-gold, full lecture, persistence/replay or syllabus acceptance claim",
+  "newCandidateOutcomes": 40,
+  "reusedMainOutcomes": 40,
+  "abortedSecondCandidateSavedRows": 37,
+  "abortedSecondCandidateGraded": false,
+  "repeatedDevelopmentRows": true,
+  "freshHeldoutClaim": false,
+  "baselineReuseSha256": "11784e86c9f36cff55660d425099ea733cfdd8cc16276e16446dbcd2cb2e7341"
+}

@@ -1,0 +1,31 @@
+{
+  "schema": "shaded-regions-opaque-packet/v1",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "createdAt": "2026-10-11T03:42:01.677Z",
+  "preregistrationSha256": "071a6c9d731768b28d2d536463a470b29ba4fc434779cb948471e0dbd408d266",
+  "n": 40,
+  "outcomes": 80,
+  "cards": 75,
+  "queueSha256": "9f764a74c8f07fcdc93e6e05463f4bf339f64a01087bd39d6ad1d3c861286092",
+  "outcomesSha256": "84d74ec1f546078dc41b140d5bae9521dd697f22e3ee48be9d50c1137da97f18",
+  "imageMapSha256": "d676110fd447f79b783d8d042fffbd69fa0f8faa90c40c2707143e2f97d71b4a",
+  "crop": {
+    "left": 400,
+    "top": 0,
+    "width": 760,
+    "height": 700
+  },
+  "rejectionDiagnosticsSha256": "1d74ce286b7b376e32b5b824c9fdcd1488dd6cb04f7f8bfb2bffe7ccdf8afe74",
+  "newCandidateOutcomes": 40,
+  "reusedMainOutcomes": 40,
+  "analysisKind": "secondary_complete_first_repeat_after_budget_abort",
+  "primaryExperimentComplete": false,
+  "readinessClaimPermitted": false,
+  "abortedPrefixUngraded": true,
+  "abortSha256": "562876e8b674302b564f9ea5e1242c59a85e5349a3c5d0f57bb7acfd4b7d5722",
+  "completedArmsSha256": "428a6f508001bb60f50aba345823f98585337d41e564d1c5d061fd1436f5ebe1",
+  "packetGeneratorSha256": "a51c3b03b9f95f30055297130f829f345d16598116ef8e097cb156f0f308966c",
+  "identityReuse": "complete semantic rubric plus exact native PNG",
+  "rootImageViews": 0,
+  "qualityUnblinded": false
+}
