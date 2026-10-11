@@ -453,7 +453,7 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
   for (const reaction of source.matchAll(reactions)) {
     // A complete original coefficient/unknown token cannot be discarded while
     // retrying at a later species or integer suffix.
-    if (/(?:^|[\s:])(?:[+−/.\-]|\d[\d.eE+−/\-]*|unknown|unreadable)\s*$/i.test(source.slice(0, reaction.index))) continue;
+    if (/(?:^|[\s:])(?:[+−/.-]|\d[\d.eE+−/-]*|unknown|unreadable)\s*$/i.test(source.slice(0, reaction.index))) continue;
     const terms = [...reaction[0].matchAll(new RegExp(`${term}(?=\\s*(?:\\+|${arrow}|$))`, "gu"))];
     if (!terms.every(part => new RegExp(`^${electron}$`, "u").test(part[1]!)
       || Boolean(parseFormula(canonicalSpecies(part[1]!) ?? "")))) continue;
