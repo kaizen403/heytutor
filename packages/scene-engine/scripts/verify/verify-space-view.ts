@@ -15,6 +15,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileSceneDocument, synthesizeFamilyScene, validateSceneDocument, type RenderPoint, type RenderPrimitive, type RenderScene, type SceneAssertion, type SceneConstruction, type SceneDocument, type SceneEntity } from "../../src/index";
+import { planePatchCorners } from "../../src/math/space";
 import { EVALUATION_COMPILE_PROBES } from "../probes/evaluationCompileProbes";
 import { PHYSICS_EVALUATION_COMPILE_PROBES } from "../probes/evaluationPhysicsProbes";
 
@@ -603,6 +604,37 @@ if (process.argv.includes("--record-byte-identity")) {
   console.log(`recorded ${documents.size} byte identity hashes at ${baseCommit}`);
   process.exit(0);
 }
+
+gate("G26 a near-horizontal tilted plane is drawn in its own surface", () => {
+  if (!spaceView) return "planSpaceView absent";
+  // 0.1x + z = 0 has |n̂_z| about 0.995; world x and y are not in it.
+  const document = spaceDocument("a slightly tilted plane", [part("plane", "polygon", "plane", { a: 0.1, b: 0, c: 1, d: 0 }), sp("P", v3(10, 0, -1), "P")]);
+  const drawing = spaceView.planSpaceView(document)?.planes.get("plane");
+  if (!drawing) return "no plane drawing";
+  const corners = drawing.kind === "triangle"
+    ? drawing.vertices
+    : planePatchCorners(drawing.center, drawing.u, drawing.v, drawing.uSpan, drawing.vSpan);
+  const worst = Math.max(...corners.map((corner) => Math.abs(0.1 * corner.x + corner.z)));
+  return worst > 1e-9 ? `a drawn corner is ${worst.toFixed(3)} off the plane 0.1x + z = 0` : null;
+});
+
+gate("G27 a line reaches a computed vector tip that lies on it", () => {
+  // Planes x = 0 and z = 0 meet along the y axis; 5·(e_x × e_z) from O ends at (0, -5, 0) on that line.
+  const document = spaceDocument("a cross product tip on a line of intersection", [
+    part("p1", "polygon", "plane", { a: 1, b: 0, c: 0, d: 0 }),
+    part("p2", "polygon", "plane", { a: 0, b: 0, c: 1, d: 0 }),
+    part("L", "line", "space_intersection", { first: "p1", second: "p2", tMin: -1, tMax: 1 }, "L"),
+    sp("O", v3(0, 0, 0), "O"), sp("A", v3(1, 0, 0)), sp("C", v3(0, 0, 1)),
+    part("a", "vector", "space_vector", { start: "O", end: "A" }),
+    part("c", "vector", "space_vector", { start: "O", end: "C" }),
+    part("w", "vector", "space_cross", { a: "a", b: "c", scale: 5 }, "w"),
+  ], { axisLength: 2 });
+  const render = rendered(document);
+  const tip = worldToCanvas(render, document)(v3(0, -5, 0));
+  const line = primitive(render, "primitive_L").points;
+  const gap = Math.min(...line.slice(1).map((point, index) => segmentDistance(tip, line[index]!, point)));
+  return gap > 2 ? `the cross product tip is ${gap.toFixed(1)} px from the drawn line` : null;
+});
 
 gate("G15 byte identity of documents without a space_frame", () => {
   const fixture = JSON.parse(readFileSync(identityFixture, "utf8")) as IdentityFixture;

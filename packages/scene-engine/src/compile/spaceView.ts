@@ -365,7 +365,9 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
     if (!(length > 0) || !Number.isFinite(length)) continue;
     const unitDirection = scale(line.direction, 1 / length);
     const parameters: number[] = [];
-    for (const point of marked(line.frameId)) {
+    // Marked points and segment or vector ends (a computed cross product tip, for example).
+    const ends = world.endpoints.filter((item) => item.frameId === line.frameId).map((item) => item.point);
+    for (const point of [...marked(line.frameId), ...ends]) {
       const offset = sub(point, line.point);
       if (norm(cross(offset, unitDirection)) <= frame.tolerance) parameters.push(dot(offset, line.direction) / (length * length));
     }
@@ -716,8 +718,11 @@ function planeDrawing(plane: PlaneInfo, frame: FrameInfo, extent: number, candid
     origin = plane.anchor;
   } else {
     if (Math.abs(unitNormal.z) > 0.98) {
-      e1 = AXES[0]!;
-      e2 = AXES[1]!;
+      // Near-horizontal: world x and y projected into the plane, so a slightly tilted plane is
+      // still drawn in its own surface (exactly x and y when the plane is horizontal).
+      e1 = unitOf(sub(AXES[0]!, scale(unitNormal, dot(AXES[0]!, unitNormal))));
+      e2 = cross(unitNormal, e1);
+      if (dot(e2, AXES[1]!) < 0) e2 = scale(e2, -1);
     } else {
       e1 = unitOf(cross(unitNormal, AXES[2]!));
       e2 = cross(unitNormal, e1);
