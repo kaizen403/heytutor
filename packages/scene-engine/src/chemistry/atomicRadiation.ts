@@ -4,7 +4,7 @@
  * and the read-only Bohr authorities. A missing work function, a nonpositive
  * momentum, an impossible level or a reversed emission draws nothing.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
@@ -31,19 +31,19 @@ function fit(text: string): string {
   return text;
 }
 
-const WORK_FUNCTION_CUE = /work function(?:\s+of\s+(?:the\s+)?[a-z]+)?/;
+const WORK_FUNCTION_CUE = /work function(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/;
 const PHOTON_ENERGY_CUE = /photon energy|photons? of energy|energy of (?:the )?photons?/;
 function workFunctionEv(question: string): number | null {
   const value = numberAfter(question, WORK_FUNCTION_CUE, "energy", "eV");
   return value !== null && value > 0 ? value : null;
 }
-function photonEnergyEv(question: string): number | null {
+function photonEnergyEv(question: string, hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / JOULE_PER_EV * 1e9): number | null {
   const stated = numberAfter(question, PHOTON_ENERGY_CUE, "energy", "eV");
   if (stated !== null && stated > 0) return stated;
   const hertz = numberAfter(question, /frequency/, "frequency", "Hz");
   if (hertz !== null && hertz > 0) return PLANCK_J_S * hertz / JOULE_PER_EV;
   const metres = numberAfter(question, /wavelength/, "length", "m");
-  return metres !== null && metres > 0 ? PLANCK_J_S * LIGHT_M_PER_S / metres / JOULE_PER_EV : null;
+  return metres !== null && metres > 0 ? hcEvNm / (metres * 1e9) : null;
 }
 
 function isPhotoelectricStem(question: string): boolean {
@@ -89,9 +89,9 @@ function evText(symbol: string, value: number): string {
   return fit(`${symbol}=${value.toFixed(digits)} eV`);
 }
 
-function buildPhotoelectric(question: string, _stem: string): SceneDocument | null {
+function buildPhotoelectric(question: string, _stem: string, hcEvNm: number): SceneDocument | null {
   const phi = workFunctionEv(question);
-  const energy = photonEnergyEv(question);
+  const energy = photonEnergyEv(question, hcEvNm);
   if (phi === null || energy === null) return null;
   const above = energy + 1e-9 >= phi;
   const kinetic = above ? energy - phi : null;
@@ -287,8 +287,19 @@ export function buildAtomicRadiationScene(
   _schematic: boolean,
 ): SceneDocument | null {
   if (!isAtomicRadiationStem(question) || !chemistryPlanBindingsValid(question, quantities)) return null;
+  const photoelectric = isPhotoelectricStem(question);
+  const hcCue = /\bhc\s*(?:=|is\b)/i;
+  let hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / JOULE_PER_EV * 1e9;
+  if (photoelectric && hcCue.test(question)) {
+    // The wavelength law may use a declared hc, including a rounded textbook
+    // product. This is a source parameter, not a tolerance change to h or c.
+    const hc = readChemistryQuantity({ question, after: hcCue, dimension: "energy_length", targetUnit: "eV nm" });
+    if (!hc.ok || !(hc.reading.value > 0)) return null;
+    if (/\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)|\bc\s*=|speed of light\s*(?:is|=)/i.test(question)
+      && Math.abs(hc.reading.value - hcEvNm) > 1e-9) return null;
+    hcEvNm = hc.reading.value;
+  } else if (!chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)) return null;
   if (!chemistryReferenceConstantValid(question, /\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)/i, "action", "J s", PLANCK_J_S)
-    || !chemistryReferenceConstantValid(question, /\bhc\s*=/i, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)
     || !chemistryReferenceConstantValid(question, /\bc\s*=|speed of light\s*(?:is|=)/i, "speed", "m/s", LIGHT_M_PER_S)) return null;
   if (!chemistryQuantityCuesValid(question, [
     {after: WORK_FUNCTION_CUE, dimensions: ["energy"]},
@@ -296,7 +307,7 @@ export function buildAtomicRadiationScene(
     {after: /frequency/, dimensions: ["frequency"]}, {after: /wavelength/, dimensions: ["length"]},
   ])) return null;
   const stem = chemStem(question);
-  if (isPhotoelectricStem(question)) return buildPhotoelectric(question, stem);
+  if (photoelectric) return buildPhotoelectric(question, stem, hcEvNm);
   if (isDebroglieStem(stem)) return buildDebroglie(question, stem);
   if (isUncertaintyStem(stem)) return buildUncertainty(question, stem);
   if (isBohrModelStem(stem)) return buildBohr(question, stem);

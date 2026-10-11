@@ -797,11 +797,13 @@ function buildMaxwell(question: string, stem: string): SceneDocument {
 /** The figure, or null when the stem does not ground it. */
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  // The chapter validates each source owner independently (for example each
+  // Hess step). A global profile inventory cannot merge those distinct givens.
+  if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);
   if (!chemistryQuantityCuesValid(question, [
     ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
     {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
   ])) return null;
-  if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);
   const stem = chemStem(question);
   const kind = classifyThermoStem(question);
   if (!kind) return null;
