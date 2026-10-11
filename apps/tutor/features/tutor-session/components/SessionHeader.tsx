@@ -45,6 +45,8 @@ interface SessionHeaderProps {
   overlay?: boolean;
   /** The student has been still through a running lesson: withdraw. */
   chromeHidden?: boolean;
+  /** A docked full-screen player supplies its own exit and transport. */
+  chromeInert?: boolean;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
   onReplay: () => void;
@@ -90,6 +92,7 @@ export function SessionHeader({
   onToggleNotes,
   overlay = false,
   chromeHidden = false,
+  chromeInert = false,
   isFullscreen = false,
   onToggleFullscreen,
   onReplay,
@@ -120,6 +123,8 @@ export function SessionHeader({
           : "glass relative z-40 mb-1.5 shrink-0 rounded-2xl px-3 py-2 sm:mb-3 sm:px-4 sm:py-2.5"
       }
       data-hidden={overlay && chromeHidden ? "true" : undefined}
+      inert={chromeInert || undefined}
+      aria-hidden={chromeInert || undefined}
       style={
         overlay
           ? {

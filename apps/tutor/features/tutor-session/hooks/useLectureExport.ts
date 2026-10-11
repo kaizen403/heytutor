@@ -10,7 +10,8 @@ import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { InkPace } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
+import { storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
+import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { lecturePageCacheKey } from "@/lib/lecture-export/canExportLectureMp4";
 import {
   buildLectureExportSource,
@@ -50,6 +51,8 @@ import {
 import { useBoardLayout } from "./useBoardLayout";
 import { useCancelControl } from "./useCancelControl";
 import { useCommandExecution } from "./useCommandExecution";
+import { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 
 const UNSUPPORTED_BROWSER = "This browser cannot make a video. Try Chrome or Edge.";
 const BOARD_NOT_READY = "The video board did not get ready. Try again.";
@@ -144,6 +147,10 @@ export function useLectureExport({
   const fbdMarkedRef = useRef(false);
   const fbdStartedRef = useRef(false);
   const diagramRef = useRef<VerifiedDiagram | null>(null);
+  const codeLessonControllerRef = useRef<CodeLessonController | null>(null);
+  if (codeLessonControllerRef.current === null) {
+    codeLessonControllerRef.current = new CodeLessonController();
+  }
   const telemetryRef = useRef<TurnTelemetry | null>(null);
   const inkPaceRef = useRef<InkPace>("follow");
   const adaptiveFactorRef = useRef(1);
@@ -236,6 +243,7 @@ export function useLectureExport({
     raceWithCancel,
     inkPaceRef,
     adaptiveFactorRef,
+    codeLessonControllerRef,
     nowMs: exportNowMs,
   });
 
@@ -326,6 +334,8 @@ export function useLectureExport({
     const name = fileTitle(turns);
 
     exportCancelRef.current = false;
+    codeLessonControllerRef.current?.reset();
+    diagramRef.current = null;
     exportQuestionRef.current = storedTurnPageQuestion(lastTurn);
     const cacheKey = lecturePageCacheKey(turns, lectureFileType);
     const current = () => machineRef.current.generation === generation;
@@ -370,19 +380,38 @@ export function useLectureExport({
 
         const clock = createVirtualWhiteboardClock(0);
         clockRef.current = clock;
+        let hasStartedTurn = false;
 
         const result = await exportLectureMp4({
           turn: lastTurn,
           pageTurns: turns,
           whiteboard: exportBoardRef.current,
-          executeCommand: executeCommandWithCancel,
+          // The compositor types from lecture time. The controller only
+          // settles TYPE state, as it does in the finished lecture player;
+          // waiting on its wall clock would strand the virtual export clock.
+          executeCommand: (command, options) => executeCommandWithCancel(
+            command,
+            command.type === "TYPE" ? { ...options, durationScale: 0 } : options,
+          ),
           clock,
           shouldCancel,
           resetBoardLayout,
+          getDiagram: () => diagramRef.current,
           onTurnStart: (turn, diagram) => {
             exportQuestionRef.current = storedTurnPageQuestion(turn);
-            diagramRef.current = diagram;
-            fbdStartedRef.current = Boolean(diagram);
+            // FRAME needs the same persisted walk-through replay uses. A doubt
+            // or Continue keeps its page's current frame; a new question starts
+            // its own controller and verified figure.
+            if (!hasStartedTurn || !storedTurnContinuesBoard(turn)) {
+              const controller = codeLessonControllerRef.current!;
+              const plan = storedCodeLessonPlan(turn.sceneArtifacts);
+              if (plan) controller.commit(plan);
+              else controller.reset();
+              restoreDsaFrames(controller, turn, plan);
+              diagramRef.current = controller.frames.current()?.presentation.diagram ?? diagram;
+            }
+            hasStartedTurn = true;
+            fbdStartedRef.current = Boolean(diagramRef.current);
           },
           cueBytes: lectureExportCueBytes(source),
           shouldYield: () => phaseRef.current !== "idle",

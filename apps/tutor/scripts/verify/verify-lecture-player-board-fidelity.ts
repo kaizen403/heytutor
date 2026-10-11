@@ -364,6 +364,45 @@ async function verifyLecturePlayerBoardFidelity() {
       console.log("✓ continued-page playback and end seek preserve the original figure");
     } finally { continued.destroy(); }
 
+    // A complete resume owns the final marks only through its original page.
+    // Normal playback and seek catch-up are separate production consumers.
+    const interrupted: StoredTurn = { ...horizontal, status: "stopped" };
+    const resume: StoredTurn = { ...doubt, id: "compatible-resume", kind: "resume", question: horizontal.question };
+    const afterResume: StoredTurn = { ...doubt, id: "after-resume-doubt", orderIndex: 2 };
+    const resumed = player([interrupted, resume]);
+    try {
+      await resumed.ready();
+      assert(resumed.api.playFromStart());
+      await resumed.until(() => resumed.api.store.getSnapshot().status === "ended" && JSON.stringify(ink(resumed.board)) === JSON.stringify(horizontalInk), "compatible completed resume releases the opening figure at normal playback end", true);
+      assert.deepEqual(ink(resumed.board), horizontalInk, "normal resume playback uses opening-page lineage for final figure marks");
+      console.log("✓ compatible completed resume playback releases original final marks");
+    } finally { resumed.destroy(); }
+
+    // Seek past the resume into a narration-only doubt. The resume's terminal
+    // cue is now catch-up, so the target timeline cannot hide missing lineage.
+    const resumedSeek = player([interrupted, resume, afterResume]);
+    try {
+      await resumedSeek.ready();
+      await resumedSeek.seek(resumedSeek.api.store.getSnapshot().durationMs);
+      assert.deepEqual(ink(resumedSeek.board), horizontalInk, "resume seek catch-up uses the page lineage before a later doubt");
+      console.log("✓ resume seek catch-up retains final marks before a subsequent doubt");
+    } finally { resumedSeek.destroy(); }
+
+    for (const mode of ["play", "seek"] as const) {
+      const wrongResume: StoredTurn = { ...resume, sceneArtifacts: boardContinuationArtifacts("Another question") };
+      const wrong = player([interrupted, wrongResume, afterResume]);
+      try {
+        await wrong.ready();
+        if (mode === "play") {
+          assert(wrong.api.playFromStart());
+          await wrong.until(() => wrong.api.store.getSnapshot().status === "ended", "incompatible resume reaches audio end", true);
+          for (let index = 0; index < 20; index++) await wrong.step(true);
+        } else await wrong.seek(wrong.api.store.getSnapshot().durationMs);
+        assert(ink(wrong.board).length > 0 && ink(wrong.board).length < horizontalInk.length, `${mode}: incompatible resume must preserve only stopped opening marks`);
+      } finally { wrong.destroy(); }
+    }
+    console.log("✓ incompatible resume playback and seek cannot acquire unearned final marks");
+
     const stopped = player([{ ...horizontal, status: "stopped" }]);
     try {
       await stopped.ready();
@@ -402,7 +441,7 @@ async function verifyLecturePlayerBoardFidelity() {
       assert.equal(cancelled.api.store.getSnapshot().active, false);
       console.log("✓ close cancels late seek and final diagram completion");
     } finally { cancelled.destroy(); }
-    console.log("lecture player board fidelity: 7 consumer groups passed");
+    console.log("lecture player board fidelity: 11 consumer groups passed");
   } finally { restoreGlobals(); }
 }
 
