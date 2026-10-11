@@ -12,6 +12,12 @@ import { createLecturePlayerStore } from "../../lib/replay/lecturePlayer";
 import type { LecturePlayerBarProps } from "../../features/tutor-session/components/LecturePlayerBar";
 import type { TutorSessionShellProps } from "../../features/tutor-session/TutorSessionShell";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
+// Transitive TSX leaves loaded by tsx use the repository's classic JSX mode.
+// The subjects themselves are compiled with automatic JSX by load().
+Object.defineProperty(globalThis, "React", {
+  value: React,
+  configurable: true,
+});
 const appRoot = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(
   new URL("../../package.json", import.meta.url),
@@ -55,6 +61,7 @@ const bar = load(barFile, process.env.SHORT_BAR_SOURCE ?? barFile)
 class ShellMount {
   slots: unknown[] = [];
   cursor = 0;
+  effects: Array<{ run: () => unknown; deps?: readonly unknown[] }> = [];
   react = {
     ...React,
     useState: <T>(initial: T | (() => T)) => {
@@ -76,7 +83,9 @@ class ShellMount {
       this.react.useState(() => ({ current: initial }))[0],
     useMemo: <T>(make: () => T) => make(),
     useCallback: <T>(fn: T) => fn,
-    useEffect: () => {},
+    useEffect: (effect: () => unknown, deps?: readonly unknown[]) => {
+      this.effects.push({ run: effect, deps });
+    },
     useLayoutEffect: () => {},
     useSyncExternalStore: (_subscribe: unknown, read: () => unknown) => read(),
   };
@@ -84,6 +93,14 @@ class ShellMount {
 function renderShell(
   options: {
     reviewing?: boolean;
+    navigation?: boolean;
+    actualLanding?: boolean;
+    width?: number;
+    inputInteracted?: boolean;
+    boardTitle?: string;
+    onNewBoard?: () => void;
+    onSelectBoard?: (id: string) => void;
+    boardContainerRef?: { current: unknown };
     veryShort?: boolean;
     short?: boolean;
     keyboardInset?: number;
@@ -163,7 +180,8 @@ function renderShell(
     },
     "@/lib/client/useMediaQuery": {
       useIsMobile: () => options.mobile,
-      useIsCompactNav: () => options.mobile,
+      useIsCompactNav: () =>
+        options.width == null ? options.mobile : options.width <= 1023,
       useMediaQuery: (query: string) =>
         query.includes("300px")
           ? options.veryShort === true
@@ -191,7 +209,7 @@ function renderShell(
     "./hooks/useCancelControl": { useCancelControl: () => ({}) },
     "./hooks/useBoardLayout": {
       useBoardLayout: () => ({
-        boardContainerRef: { current: null },
+        boardContainerRef: options.boardContainerRef ?? { current: null },
         boardViewport: { scale: 0.2, offsetX: 0, offsetY: 0, measured: true },
         boardLayoutRef: { current: {} },
         notesEpochsRef: { current: [] },
@@ -202,11 +220,24 @@ function renderShell(
     "./hooks/useCommandExecution": { useCommandExecution: () => ({}) },
     "./hooks/useBoardSession": {
       useBoardSession: () => ({
-        boards: [{ id: "recorded-board", title: "Saved lesson", preview: "" }],
+        boards: [
+          {
+            id: "recorded-board",
+            title: options.boardTitle ?? "Saved lesson",
+            preview: "",
+          },
+          {
+            id: "older-board",
+            title: "Older lesson",
+            preview: "Stored lesson",
+          },
+        ],
         boardLoaded: true,
         storedTurnsRef: { current: turns },
         storedTurnsCount: turns.length,
-        inputInteracted: true,
+        inputInteracted: options.inputInteracted ?? true,
+        createNewBoard: options.onNewBoard ?? noop,
+        switchBoard: options.onSelectBoard ?? noop,
         saveStatus: options.saveFailed
           ? { kind: "failed", message: "Try again" }
           : { kind: "saved" },
@@ -358,6 +389,153 @@ function renderShell(
     SessionInputChrome: () =>
       createElement("textarea", { defaultValue: "Retained composer" }),
   };
+  if (options.navigation) {
+    // Render the actual navigation consumers. Only the Sheet portal, service
+    // hooks and React reconciliation are controlled; no replacement drawer
+    // or reconstructed navigation handlers stand in for BoardHistory.
+    const historyFile = path.join(
+      appRoot,
+      "features/tutor-session/components/BoardHistory.tsx",
+    );
+    const historyMount = new ShellMount();
+    const passthrough = ({ children }: { children?: React.ReactNode }) =>
+      children;
+    const historyModule = load(
+      historyFile,
+      process.env.SHORT_HISTORY_SOURCE ?? historyFile,
+      historyMount.react,
+      {
+        "next/link": { default: passthrough },
+        "next/navigation": { usePathname: () => "/c/recorded-board" },
+        "next-auth/react": {
+          signOut: () => {
+            throw new Error("sign out is outside the navigation gate");
+          },
+        },
+        "@/components/ui/sheet": {
+          Sheet: passthrough,
+          SheetContent: passthrough,
+          SheetTitle: passthrough,
+        },
+        "@/lib/billing/useEntitlement": {
+          useEntitlement: () => ({ entitlement: null }),
+        },
+      },
+    );
+    const actualHistory = historyModule.BoardHistory as (
+      props: Record<string, unknown>,
+    ) => React.ReactElement<Record<string, unknown>>;
+    const boardHistory = (props: Record<string, unknown>) => {
+      historyMount.cursor = 0;
+      const tree = actualHistory(props);
+      if (props.variant === "drawer" && !props.open) return null;
+      const content = find(
+        tree,
+        (node) =>
+          typeof node.type === "function" &&
+          node.type.name === "BoardHistoryContent",
+      );
+      assert.ok(
+        content,
+        "actual BoardHistory supplies its own content consumer",
+      );
+      const contentTree = (
+        content.type as (props: Record<string, unknown>) => React.ReactElement
+      )(content.props);
+      return createElement(
+        "section",
+        {
+          "data-actual-board-history": String(props.variant ?? "sidebar"),
+          "data-actual-sidebar-collapsed": String(props.collapsed),
+          "data-actual-history-width": (
+            tree.props.style as React.CSSProperties | undefined
+          )?.width,
+        },
+        contentTree,
+      );
+    };
+    const appFile = path.join(appRoot, "features/app-shell/AppShell.tsx");
+    const appMount = new ShellMount();
+    const app = load(
+      appFile,
+      process.env.SHORT_APP_SHELL_SOURCE ?? appFile,
+      appMount.react,
+      {
+        "next/navigation": { useRouter: () => ({ push: noop }) },
+        "@/features/tutor-session/components/BoardHistory": {
+          ...historyModule,
+          BoardHistory: boardHistory,
+        },
+      },
+    ).AppShell as ComponentType<Record<string, unknown>>;
+    overrides["@/features/app-shell/AppShell"] = {
+      AppShell: (props: Record<string, unknown>) => {
+        appMount.cursor = 0;
+        return (app as (props: Record<string, unknown>) => React.ReactNode)(
+          props,
+        );
+      },
+    };
+    const headerFile = path.join(
+      appRoot,
+      "features/tutor-session/components/SessionHeader.tsx",
+    );
+    overrides["./components/SessionHeader"] = load(
+      headerFile,
+      headerFile,
+      undefined,
+      {
+        "@/features/tutor-session/components/LessonActions": {
+          LessonActions: leaf,
+        },
+        "@/features/tutor-session/components/SaveStatusChip": {
+          SaveStatusChip: leaf,
+        },
+      },
+    );
+    const settingsFile = path.join(
+      appRoot,
+      "features/tutor-session/components/SettingsDrawer.tsx",
+    );
+    overrides["@/features/tutor-session/components/SettingsDrawer"] = load(
+      settingsFile,
+      process.env.SHORT_SETTINGS_SOURCE ?? settingsFile,
+      undefined,
+      {
+        "@/components/ui/sheet": {
+          Sheet: passthrough,
+          SheetContent: passthrough,
+          SheetHeader: passthrough,
+          SheetTitle: passthrough,
+          SheetDescription: passthrough,
+        },
+      },
+    );
+  }
+  if (options.actualLanding) {
+    // Execute the actual landing consumer, retaining its actual InputBar
+    // element. Native coverage mounts the InputBar and tests its touch/submit
+    // path; this gate checks the real form's containing scroll boundary.
+    const landingFile = path.join(
+      appRoot,
+      "features/tutor-session/components/CanvasLanding.tsx",
+    );
+    const landingMount = new ShellMount();
+    const landingModule = load(landingFile, landingFile, landingMount.react, {
+      "@/lib/client/useMediaQuery": { useIsMobile: () => options.mobile },
+    });
+    const actualLanding = landingModule.CanvasLanding as (
+      props: Record<string, unknown>,
+    ) => React.ReactNode;
+    overrides["@/features/tutor-session/components/CanvasLanding"] = {
+      ...landingModule,
+      CanvasLanding: (props: Record<string, unknown>) => {
+        landingMount.cursor = 0;
+        return actualLanding(props);
+      },
+      CanvasLandingDoodles: leaf,
+    };
+  }
   const shell = load(
     shellFile,
     process.env.SHORT_SHELL_SOURCE ?? shellFile,
@@ -366,6 +544,7 @@ function renderShell(
   ).TutorSessionShell as ComponentType<TutorSessionShellProps>;
   if (mount) {
     mount.cursor = 0;
+    mount.effects = [];
     return (shell as (props: TutorSessionShellProps) => React.ReactElement)({
       sessionId: "recorded-board",
     });
@@ -395,6 +574,84 @@ function find(
     find(node.props.children as React.ReactNode, predicate) ??
     find(node.props.auxiliaryControls as React.ReactNode, predicate)
   );
+}
+
+function expandNavigation(node: React.ReactNode): React.ReactNode {
+  if (Array.isArray(node)) return node.map(expandNavigation);
+  if (!React.isValidElement<Record<string, unknown>>(node)) return node;
+  // The actual transport's auxiliary buttons are part of the Shell tree;
+  // its media subscription is exercised by the existing transport gate.
+  if (
+    typeof node.type === "function" &&
+    node.type.name !== "LecturePlayerBar" &&
+    node.type.name !== "SettingsDrawer" &&
+    node.type.name !== "InputBar"
+  ) {
+    return expandNavigation(
+      (node.type as (props: Record<string, unknown>) => React.ReactNode)(
+        node.props,
+      ),
+    );
+  }
+  return React.cloneElement(
+    node,
+    undefined,
+    expandNavigation(node.props.children as React.ReactNode),
+    expandNavigation(node.props.auxiliaryControls as React.ReactNode),
+  );
+}
+function ancestorsOf(
+  node: React.ReactNode,
+  predicate: (element: React.ReactElement<Record<string, unknown>>) => boolean,
+  ancestors: React.ReactElement<Record<string, unknown>>[] = [],
+): React.ReactElement<Record<string, unknown>>[] | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = ancestorsOf(child, predicate, ancestors);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!React.isValidElement<Record<string, unknown>>(node)) return null;
+  const next = [...ancestors, node];
+  if (predicate(node)) return next;
+  return ancestorsOf(node.props.children as React.ReactNode, predicate, next);
+}
+function visibleControl(tree: React.ReactNode, label: string, width: number) {
+  const ancestry = ancestorsOf(
+    tree,
+    (node) => node.type === "button" && node.props["aria-label"] === label,
+  );
+  assert.ok(ancestry, `actual consumer renders ${label}`);
+  assert.ok(
+    ancestry.every((node) => {
+      const classes = String(node.props.className ?? "").split(/\s+/);
+      return (
+        !node.props.inert &&
+        !node.props["aria-hidden"] &&
+        (node.props.style as React.CSSProperties | undefined)?.display !==
+          "none" &&
+        !classes.includes("invisible") &&
+        !classes.includes("pointer-events-none") &&
+        !(width >= 768 && classes.includes("md:hidden"))
+      );
+    }),
+    `${label} must escape every hidden, inert and pointer-disabled ancestor at ${width}px`,
+  );
+  return ancestry.at(-1)!;
+}
+function textContent(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textContent).join("");
+  return React.isValidElement<Record<string, unknown>>(node)
+    ? textContent(node.props.children as React.ReactNode)
+    : "";
+}
+function clickControl(node: React.ReactElement<Record<string, unknown>>) {
+  assert.notEqual(node.props.disabled, true, "actual control is enabled");
+  (node.props.onClick as (event: { currentTarget: unknown }) => void)({
+    currentTarget: {},
+  });
 }
 
 const short = shellMarkup({
@@ -532,7 +789,9 @@ const panelClosed = find(
   (node) => node.props["data-short-code-panel"] === "true",
 );
 assert.equal((panelClosed?.props.style as React.CSSProperties).display, "none");
-(codeToggle.props.onClick as (event: { currentTarget: unknown }) => void)({ currentTarget: {} });
+(codeToggle.props.onClick as (event: { currentTarget: unknown }) => void)({
+  currentTarget: {},
+});
 mountedTree = renderShell(mountOptions, mounted) as React.ReactElement;
 const panelOpened = find(
   mountedTree,
@@ -552,7 +811,9 @@ const composerToggle = find(
   (node) =>
     node.type === "button" && node.props["aria-label"] === "Question composer",
 );
-(composerToggle?.props.onClick as (event: { currentTarget: unknown }) => void)({ currentTarget: {} });
+(composerToggle?.props.onClick as (event: { currentTarget: unknown }) => void)({
+  currentTarget: {},
+});
 mountedTree = renderShell(mountOptions, mounted) as React.ReactElement;
 const panelAfter = find(
   mountedTree,
@@ -693,3 +954,509 @@ try {
     else Reflect.deleteProperty(globalThis, key);
   }
 }
+
+const navigationFailures: string[] = [];
+function navigationCheck(name: string, run: () => void) {
+  if (process.env.SHORT_NAV_CASE && process.env.SHORT_NAV_CASE !== name) return;
+  try {
+    run();
+    console.log(`PASS ${name}`);
+  } catch (error) {
+    if (!(error instanceof assert.AssertionError)) throw error;
+    navigationFailures.push(name);
+    console.error(
+      `FAIL ${name}:`,
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+navigationCheck("covered-board-controls", () => {
+  for (const boardTitle of ["New board", "Lesson that did not save"]) {
+    const state = new ShellMount();
+    const options = {
+      navigation: true,
+      mobile: true,
+      width: 390,
+      short: true,
+      veryShort: true,
+      recorded: false,
+      inputInteracted: false,
+      boardTitle,
+    };
+    let tree = expandNavigation(renderShell(options, state));
+    clickControl(visibleControl(tree, "Board controls", 390));
+    tree = expandNavigation(renderShell(options, state));
+    clickControl(visibleControl(tree, "Open navigation", 390));
+    const shellTree = renderShell(options, state) as React.ReactElement<
+      Record<string, unknown>
+    >;
+    assert.equal(
+      shellTree.props.mobileNavOpen,
+      true,
+      "covered board's actual header opens AppShell's drawer",
+    );
+    tree = expandNavigation(shellTree);
+    assert.ok(
+      find(
+        tree,
+        (node) => node.props["data-actual-board-history"] === "drawer",
+      ),
+      "real BoardHistory renders its open drawer content",
+    );
+    assert.ok(
+      !find(
+        tree,
+        (node) =>
+          node.type === "button" &&
+          node.props["aria-label"] === "Question composer",
+      ),
+      "landing owns its mounted composer, not a phantom footer toggle",
+    );
+  }
+});
+navigationCheck("compact-tablet-history", () => {
+  for (const width of [768, 844, 1023]) {
+    for (const collapsedPreference of [false, true]) {
+      const state = new ShellMount();
+      let created = 0;
+      const selected: string[] = [];
+      const desktopOptions = {
+        navigation: true,
+        mobile: false,
+        width: 1440,
+        short: false,
+        onNewBoard: () => created++,
+        onSelectBoard: (id: string) => selected.push(id),
+      };
+      if (collapsedPreference) {
+        const desktop = expandNavigation(renderShell(desktopOptions, state));
+        clickControl(visibleControl(desktop, "Collapse sidebar", 1440));
+      }
+      const options = { ...desktopOptions, width, short: true };
+      let shellTree = renderShell(options, state) as React.ReactElement<
+        Record<string, unknown>
+      >;
+      assert.equal(
+        shellTree.props.sidebarCollapsed,
+        true,
+        "compact layout folds the rail without changing the underlying choice",
+      );
+      let tree = expandNavigation(shellTree);
+      clickControl(visibleControl(tree, "Board controls", width));
+      tree = expandNavigation(renderShell(options, state));
+      clickControl(visibleControl(tree, "Open navigation", width));
+      shellTree = renderShell(options, state) as React.ReactElement<
+        Record<string, unknown>
+      >;
+      assert.equal(
+        shellTree.props.mobileNavOpen,
+        true,
+        "actual compact-tablet header opens the actual AppShell drawer",
+      );
+      tree = expandNavigation(shellTree);
+      const header = find(tree, (node) =>
+        Object.hasOwn(node.props, "data-short-header"),
+      );
+      assert.equal(
+        header?.props.inert,
+        true,
+        "header cannot obscure or compete with the open history drawer",
+      );
+      assert.equal(
+        (header?.props.style as React.CSSProperties).display,
+        "none",
+      );
+      const drawer = find(
+        tree,
+        (node) => node.props["data-actual-board-history"] === "drawer",
+      );
+      assert.ok(drawer, "actual AppShell invokes the actual drawer consumer");
+      const newBoard = find(
+        drawer,
+        (node) =>
+          node.type === "button" && textContent(node).trim() === "New board",
+      );
+      assert.ok(newBoard);
+      clickControl(newBoard);
+      assert.equal(
+        created,
+        1,
+        "actual BoardHistory New forwards the service-boundary action exactly once",
+      );
+      shellTree = renderShell(options, state) as React.ReactElement<
+        Record<string, unknown>
+      >;
+      assert.equal(
+        shellTree.props.mobileNavOpen,
+        false,
+        "actual BoardHistory New closes the drawer",
+      );
+      tree = expandNavigation(shellTree);
+      clickControl(visibleControl(tree, "Open navigation", width));
+      tree = expandNavigation(renderShell(options, state));
+      const reopened = find(
+        tree,
+        (node) => node.props["data-actual-board-history"] === "drawer",
+      );
+      const older = find(
+        reopened,
+        (node) =>
+          node.type === "button" && textContent(node).includes("Older lesson"),
+      );
+      assert.ok(older);
+      clickControl(older);
+      assert.deepEqual(
+        selected,
+        ["older-board"],
+        "actual history selection preserves the chosen board id",
+      );
+      assert.equal(
+        (
+          renderShell(options, state) as React.ReactElement<
+            Record<string, unknown>
+          >
+        ).props.mobileNavOpen,
+        false,
+        "select closes the actual drawer",
+      );
+      assert.equal(
+        (
+          renderShell(desktopOptions, state) as React.ReactElement<
+            Record<string, unknown>
+          >
+        ).props.sidebarCollapsed,
+        collapsedPreference,
+        "returning to desktop restores the student's existing collapsed choice",
+      );
+    }
+  }
+});
+navigationCheck("compact-modal-focus", () => {
+  const frameDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "requestAnimationFrame",
+  );
+  const cancelDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "cancelAnimationFrame",
+  );
+  let nextFrame = 0;
+  const frames = new Map<number, FrameRequestCallback>();
+  Object.defineProperty(globalThis, "requestAnimationFrame", {
+    configurable: true,
+    value: (callback: FrameRequestCallback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    },
+  });
+  Object.defineProperty(globalThis, "cancelAnimationFrame", {
+    configurable: true,
+    value: (id: number) => frames.delete(id),
+  });
+  const state = new ShellMount();
+  let previousDeps: readonly unknown[] | undefined;
+  let cleanupFocus: (() => void) | undefined;
+  let focused = 0;
+  let originalToggleDetached = false;
+  const trigger = {
+    focus() {
+      focused++;
+    },
+    closest() {
+      if (originalToggleDetached) return null;
+      return {
+        querySelector() {
+          return {
+            querySelector() {
+              return {
+                focus() {
+                  focused++;
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+  const stableContainer = { current: null as unknown };
+  const options = {
+    navigation: true,
+    mobile: false,
+    width: 844,
+    short: true,
+    boardContainerRef: stableContainer,
+  };
+  const render = () => {
+    const tree = renderShell(options, state) as React.ReactElement<
+      Record<string, unknown>
+    >;
+    const effect = state.effects.find((effect) =>
+      effect.run.toString().includes("[data-short-header]"),
+    );
+    assert.ok(effect, "actual compact focus effect is mounted");
+    if (
+      !previousDeps ||
+      effect.deps?.length !== previousDeps.length ||
+      effect.deps?.some(
+        (value, index) => !Object.is(value, previousDeps?.[index]),
+      )
+    ) {
+      cleanupFocus?.();
+      const cleanup = effect.run();
+      cleanupFocus =
+        typeof cleanup === "function" ? (cleanup as () => void) : undefined;
+      previousDeps = effect.deps?.slice();
+    }
+    return tree;
+  };
+  const paint = () => {
+    for (const [id, callback] of frames) {
+      frames.delete(id);
+      callback(0);
+    }
+  };
+  try {
+    let tree = expandNavigation(render());
+    const toggle = visibleControl(tree, "Board controls", 844);
+    (toggle.props.onClick as (event: unknown) => void)({
+      currentTarget: trigger,
+    });
+    tree = expandNavigation(render());
+    assert.equal(frames.size, 1);
+    paint();
+    assert.equal(focused, 1);
+    clickControl(visibleControl(tree, "Open navigation", 844));
+    let shell = render();
+    assert.equal(
+      frames.size,
+      0,
+      "pending header focus is cancelled while history owns focus",
+    );
+    // Invoke actual Shell callbacks supplied to the actual AppShell consumer.
+    (shell.props.onMobileNavOpenChange as (open: boolean) => void)(false);
+    (shell.props.onOpenLessonSettings as () => void)();
+    shell = render();
+    assert.equal(
+      frames.size,
+      0,
+      "settings handoff must not refocus the underlying header",
+    );
+    assert.equal(focused, 1);
+    const settings = find(
+      shell,
+      (node) =>
+        Object.hasOwn(node.props, "settings") &&
+        typeof node.props.onOpenChange === "function",
+    );
+    assert.ok(settings);
+    assert.equal(settings.props.open, true);
+    (settings.props.onOpenChange as (open: boolean) => void)(false);
+    shell = render();
+    assert.equal(
+      frames.size,
+      1,
+      "closing settings reruns the actual focus effect",
+    );
+    paint();
+    assert.equal(
+      focused,
+      2,
+      "settings close restores the visible compact header target",
+    );
+    const container = find(
+      shell,
+      (node) =>
+        Boolean(node.props.ref) &&
+        String(node.props.className).includes(
+          "flex-1 items-center justify-center",
+        ),
+    );
+    assert.ok(container, "actual board container owns a stable mounted ref");
+    let targetHidden = false;
+    let targetInert = false;
+    const target = {
+      isConnected: true,
+      getClientRects: () => (targetHidden ? [] : [{}]),
+      closest: () => (targetInert ? {} : null),
+      focus() {
+        focused++;
+      },
+    };
+    (container.props.ref as { current: unknown }).current = {
+      closest: () => ({
+        querySelector: (selector: string) =>
+          selector === "[data-short-header]"
+            ? { querySelector: () => target }
+            : target,
+      }),
+    };
+    const closedSettings = find(
+      shell,
+      (node) =>
+        Object.hasOwn(node.props, "settings") &&
+        typeof node.props.onOpenChange === "function",
+    );
+    assert.ok(closedSettings);
+    const actualDrawerTree = (
+      closedSettings.type as (
+        props: Record<string, unknown>,
+      ) => React.ReactElement
+    )(closedSettings.props);
+    const content = find(
+      actualDrawerTree,
+      (node) => node.props.side === "right",
+    );
+    assert.ok(
+      content,
+      "actual SettingsDrawer renders the actual SheetContent boundary",
+    );
+    assert.equal(
+      typeof content.props.onCloseAutoFocus,
+      "function",
+      "actual SettingsDrawer forwards compact close focus ownership",
+    );
+    let prevented = 0;
+    (content.props.onCloseAutoFocus as (event: unknown) => void)({
+      preventDefault() {
+        prevented++;
+      },
+    });
+    assert.equal(prevented, 1);
+    assert.equal(focused, 3);
+    target.isConnected = false;
+    (content.props.onCloseAutoFocus as (event: unknown) => void)({
+      preventDefault() {
+        prevented++;
+      },
+    });
+    assert.equal(
+      prevented,
+      1,
+      "missing trigger preserves Radix default close restoration",
+    );
+    assert.equal(focused, 3);
+    target.isConnected = true;
+    targetHidden = true;
+    (content.props.onCloseAutoFocus as (event: unknown) => void)({
+      preventDefault() {
+        prevented++;
+      },
+    });
+    targetHidden = false;
+    targetInert = true;
+    (content.props.onCloseAutoFocus as (event: unknown) => void)({
+      preventDefault() {
+        prevented++;
+      },
+    });
+    assert.equal(
+      prevented,
+      1,
+      "hidden or inert trigger preserves default restoration",
+    );
+    assert.equal(focused, 3);
+    targetInert = false;
+    originalToggleDetached = true;
+    (shell.props.onMobileNavOpenChange as (open: boolean) => void)(true);
+    render();
+    (shell.props.onMobileNavOpenChange as (open: boolean) => void)(false);
+    render();
+    paint();
+    assert.equal(
+      focused,
+      4,
+      "new/switch keeps a stable root after the old row trigger disappears",
+    );
+    const desktop = renderShell(
+      { navigation: true, mobile: false, width: 1440 },
+      new ShellMount(),
+    );
+    const desktopSettings = find(
+      desktop,
+      (node) =>
+        Object.hasOwn(node.props, "settings") &&
+        typeof node.props.onOpenChange === "function",
+    );
+    assert.ok(desktopSettings);
+    assert.equal(
+      desktopSettings.props.onCloseAutoFocus,
+      undefined,
+      "ordinary desktop retains default Radix restoration",
+    );
+  } finally {
+    cleanupFocus?.();
+    if (frameDescriptor)
+      Object.defineProperty(
+        globalThis,
+        "requestAnimationFrame",
+        frameDescriptor,
+      );
+    else Reflect.deleteProperty(globalThis, "requestAnimationFrame");
+    if (cancelDescriptor)
+      Object.defineProperty(
+        globalThis,
+        "cancelAnimationFrame",
+        cancelDescriptor,
+      );
+    else Reflect.deleteProperty(globalThis, "cancelAnimationFrame");
+  }
+});
+navigationCheck("compact-empty-landing-scroll", () => {
+  for (const posture of [
+    { mobile: true, width: 390, short: true, veryShort: true, compact: true },
+    { mobile: true, width: 390, short: false, compact: false },
+    { mobile: false, width: 1440, short: false, compact: false },
+    { mobile: true, width: 390, short: true, fullscreen: true, compact: false },
+  ]) {
+    const tree = expandNavigation(
+      renderShell(
+        {
+          ...posture,
+          actualLanding: true,
+          recorded: false,
+          inputInteracted: false,
+          boardTitle: "New board",
+        },
+        new ShellMount(),
+      ),
+    );
+    const form = find(
+      tree,
+      (node) => node.type === "section" &&
+        String(node.props.className).includes("ac-landing"),
+    );
+    assert.ok(form, "actual CanvasLanding is executed");
+    const input = find(
+      form,
+      (node) => typeof node.type === "function" &&
+        node.type.name === "InputBar",
+    );
+    assert.ok(input, "actual landing retains the actual InputBar consumer");
+    assert.equal(input.props.placeholder, "Ask a question or paste a photo");
+    assert.equal(typeof input.props.onSubmit, "function");
+    const ancestry = ancestorsOf(tree, (node) => node === form);
+    assert.ok(ancestry);
+    const pane = ancestry.find((node) =>
+      String(node.props.className).includes("glass-deep"),
+    );
+    assert.ok(pane, "actual form lives in Shell's landing pane");
+    if (posture.compact) {
+      assert.match(String(pane.props.className), /overflow-y-auto/,
+        "compact actual landing must scroll to its form actions");
+      assert.equal(pane.props.role, "region");
+      assert.equal(pane.props["aria-label"], "New lesson");
+      assert.equal(pane.props.tabIndex, 0);
+    } else {
+      assert.match(String(pane.props.className), /overflow-hidden/,
+        "ordinary portrait, desktop and fullscreen keep existing landing");
+      assert.equal(pane.props.role, undefined);
+      assert.equal(pane.props.tabIndex, undefined);
+    }
+  }
+});
+assert.equal(
+  navigationFailures.length,
+  0,
+  `navigation consumer failures: ${navigationFailures.join(", ")}`,
+);

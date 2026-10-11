@@ -490,21 +490,6 @@ export function TutorSessionShell({
     !isHeadless && can.appChrome && shortScreen && !boardFullscreen;
   const scrollBoard = compactBoardChrome && veryShortScreen;
   const shortPanelTriggerRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (!compactBoardChrome) return;
-    const trigger = shortPanelTriggerRef.current;
-    if (!shortPanel) {
-      trigger?.focus();
-      return;
-    }
-    const selector = shortPanel === "header" ? "[data-short-header]" : shortPanel === "composer" ? "[data-short-composer]" : "[data-short-code-panel]";
-    const root = trigger?.closest("[data-short-board-chrome]");
-    const frame = requestAnimationFrame(() => {
-      const panel = root?.querySelector(selector);
-      (panel?.querySelector(shortPanel === "composer" ? "textarea" : "button:not([disabled]), [contenteditable=true], [tabindex='0']") as HTMLElement | null)?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [compactBoardChrome, shortPanel]);
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
   // Written by the session hooks; nothing reads it since the transport went.
@@ -801,6 +786,23 @@ export function TutorSessionShell({
         ? "readable-scroll"
         : "fit",
   });
+  useEffect(() => {
+    // A Sheet owns focus while open; the header returns it on close.
+    if (!compactBoardChrome || mobileNavOpen || settingsOpen) return;
+    const trigger = shortPanelTriggerRef.current;
+    if (!shortPanel) {
+      trigger?.focus();
+      return;
+    }
+    const selector = shortPanel === "header" ? "[data-short-header]" : shortPanel === "composer" ? "[data-short-composer]" : "[data-short-code-panel]";
+    // New/switch can replace the original toggle; the board container stays.
+    const root = boardContainerRef.current?.closest("[data-short-board-chrome]") ?? trigger?.closest("[data-short-board-chrome]");
+    const frame = requestAnimationFrame(() => {
+      const panel = root?.querySelector(selector);
+      (panel?.querySelector(shortPanel === "composer" ? "textarea" : "button:not([disabled]), [contenteditable=true], [tabindex='0']") as HTMLElement | null)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [compactBoardChrome, shortPanel, mobileNavOpen, settingsOpen, boardContainerRef]);
 
   // Adaptive drawing speed: polls audio lag + queue depth + narration density
   // and pushes a dynamic animation-speed factor to the whiteboard. Pedagogical
@@ -1801,7 +1803,7 @@ export function TutorSessionShell({
       >
         ☰
       </button>
-      {can.askQuestions ? (
+      {can.askQuestions && !isInputOverlay ? (
         <button
           type="button"
           aria-label="Question composer"
@@ -1952,9 +1954,9 @@ export function TutorSessionShell({
         {can.appChrome ? (
           <div
             data-short-header
-            inert={(compactBoardChrome && shortPanel !== "header") || undefined}
+            inert={(compactBoardChrome && (shortPanel !== "header" || mobileNavOpen)) || undefined}
             aria-hidden={
-              (compactBoardChrome && shortPanel !== "header") || undefined
+              (compactBoardChrome && (shortPanel !== "header" || mobileNavOpen)) || undefined
             }
             style={
               compactBoardChrome
@@ -1966,7 +1968,7 @@ export function TutorSessionShell({
                     zIndex: 60,
                     maxHeight: "calc(100% - 56px)",
                     overflowY: "auto",
-                    display: shortPanel === "header" ? "block" : "none",
+                    display: shortPanel === "header" && !mobileNavOpen ? "block" : "none",
                   }
                 : { display: "contents" }
             }
@@ -1975,9 +1977,9 @@ export function TutorSessionShell({
             // Full screen is a board, not a page: the boards rail is gone and
             // the way back to it is the way out of full screen.
             showNavButton={!boardFullscreen}
-            navButtonClassName={sidebarCollapsed ? undefined : "md:hidden"}
+            navButtonClassName={sidebarCollapsed || compactBoardChrome ? undefined : "md:hidden"}
             onExpandSidebar={() => {
-              if (isMobile) {
+              if (isMobile || compactBoardChrome) {
                 setMobileNavOpen(true);
                 return;
               }
@@ -2024,7 +2026,12 @@ export function TutorSessionShell({
             }}
           >
             {fullBleedLanding && (
-              <div className="glass-deep absolute inset-0 z-20 flex flex-col overflow-hidden rounded-2xl">
+              <div
+                role={compactBoardChrome ? "region" : undefined}
+                aria-label={compactBoardChrome ? "New lesson" : undefined}
+                tabIndex={compactBoardChrome ? 0 : undefined}
+                className={`glass-deep absolute inset-0 z-20 flex flex-col rounded-2xl ${compactBoardChrome ? "overflow-x-hidden overflow-y-auto" : "overflow-hidden"}`}
+              >
                 <LandingPixelField />
                 <div className="relative z-10 flex min-h-full w-full flex-col [justify-content:safe_center] px-3 py-3 sm:px-8 sm:py-5">
                   <CanvasLanding
@@ -2311,7 +2318,7 @@ export function TutorSessionShell({
                     activityTargetRef={boardContainerRef}
                   />
                 ) : null}
-                {compactBoardChrome && !showDockedPlayer ? (
+                {compactBoardChrome && !showDockedPlayer && !boardCovered ? (
                   <div
                     className="flex h-11 items-center justify-end"
                     aria-label="Board controls row"
@@ -2401,6 +2408,15 @@ export function TutorSessionShell({
           </div>
         </main>
 
+        {compactBoardChrome && boardCovered ? (
+          <div
+            className="relative z-40 flex h-11 shrink-0 items-center justify-end"
+            aria-label="Board controls row"
+          >
+            {shortChromeControls}
+          </div>
+        ) : null}
+
         {can.askQuestions && !isInputOverlay && (
           <footer
             data-short-composer={compactBoardChrome ? "true" : undefined}
@@ -2463,6 +2479,13 @@ export function TutorSessionShell({
           <SettingsDrawer
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
+            onCloseAutoFocus={compactBoardChrome ? (event) => {
+              const root = boardContainerRef.current?.closest("[data-short-board-chrome]");
+              const target = root?.querySelector<HTMLElement>(shortPanel === "header" ? '[data-short-header] button[aria-label="Open navigation"]' : 'button[aria-label="Board controls"]');
+              if (!target || !target.isConnected || !target.getClientRects().length || target.closest("[inert]")) return;
+              event.preventDefault();
+              target.focus();
+            } : undefined}
             settings={settings}
             onSettingsChange={setSettings}
             hinglishAvailable={hinglishAvailable}
