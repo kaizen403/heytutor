@@ -14,6 +14,7 @@ import type { HandleQuestionOptions, TurnControlApi } from "../../features/tutor
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import type { TutorSegment } from "@heytutor/drawing";
+import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 
 Object.defineProperty(globalThis, "React", { value: React, configurable: true });
 const app = fileURLToPath(new URL("../../", import.meta.url));
@@ -52,7 +53,7 @@ function reactSlots() {
   return { api, render<T>(fn: () => T): T { cursor = 0; const value = fn(); const ready = effects; effects = []; ready.forEach((run) => run()); return value; } };
 }
 
-function mount() {
+function mount(codeLesson = false) {
   const slots = reactSlots();
   const speaking = ref(opening.narration);
   const page = ref<BoardPageRecord>({ ...lessonPageRecord("restart-board", question), earlyOpeningStarted: true });
@@ -66,7 +67,9 @@ function mount() {
     turnGenerationRef: ref(1), turnAbortRef: ref(null), segmentChainRef: ref(Promise.resolve()), drawChainRef: ref(Promise.resolve()),
     collectedSegmentsRef: ref([opening]), recordedSegmentsRef: ref([opening]), narrationSinceEpochRef: ref(opening.narration),
     storedTurnsRef: ref<StoredTurn[]>([]),
-    activeVerifiedDiagramRef: ref(null), codeLessonControllerRef: ref(null), fbdPhaseMarkedRef: ref(false), fbdPhaseStartedRef: ref(false),
+    activeVerifiedDiagramRef: ref(null), codeLessonControllerRef: ref(codeLesson
+      ? { getActivePlan: () => getMockCodeLessonPlan("Explain LeetCode 20 Valid Parentheses") }
+      : null), fbdPhaseMarkedRef: ref(false), fbdPhaseStartedRef: ref(false),
     setActiveVerifiedDiagram: noop, segmentPlanStatsRef: ref({}), stopTurnRef: ref(null), replayGenerationRef: ref(0),
     replayCueRef: ref(null), turnTelemetryRef: ref(null), setPhase: noop, setIsPaused: noop, setNarrationText: noop,
     setCurrentSegmentText: noop, setInputInteracted: noop, setLastError: noop, setIsReplaying: noop,
@@ -198,6 +201,78 @@ async function main() {
     const idle = shell.render(); assert.equal(idle.pausedLessonOffer, false);
     restartButton(idle)(); assert.equal(shell.asked[1]!.question, question);
     assert.deepEqual(shell.params.boardLayoutRef.current, before, "offering/clicking never erases saved doubt ink");
+  }
+  // Interrupting a doubt cannot turn the original unplanned lesson into a
+  // null-authority Continue. Substantive and code lessons keep Continue.
+  for (const progress of ["substantive", "code-lesson", "opening-only"] as const) {
+    const shell = mount(progress === "code-lesson");
+    if (progress === "substantive") {
+      shell.params.recordedSegmentsRef.current = [opening, { narration: "The horizontal speed stays constant.", command: null }];
+    }
+    if (progress === "code-lesson") shell.params.boardPageRef.current.earlyOpeningStarted = false;
+    shell.control.stopTurn();
+    const stopped = shell.render();
+    assert.equal(stopped.earlyLessonRestartOffer, progress === "opening-only");
+    assert.equal(stopped.pausedLessonOffer, progress !== "opening-only");
+    stopped.handleAskDoubt("What does this symbol mean?");
+    assert.equal(shell.asked.length, 1);
+    assert.equal(shell.asked[0]!.options?.doubt?.lessonQuestion, question);
+
+    // Admit the first doubt as the real handler does: a new generation and
+    // doubt page, without copying the opening-only lesson's runtime marker.
+    shell.params.turnGenerationRef.current += 1;
+    shell.params.cancelRef.current = false;
+    shell.params.turnActiveRef.current = true;
+    shell.params.phaseRef.current = "speaking";
+    shell.params.boardPageRef.current = doubtPageRecord({ boardId: "restart-board", lessonQuestion: question,
+      title: "Clarify the symbols", continuesBoard: true, figureDrawn: false, turnPlan: null, solverProjection: null });
+    const firstDoubtSegment: TutorSegment = { narration: "The symbol denotes launch speed.", command: null };
+    shell.params.recordedSegmentsRef.current = [firstDoubtSegment];
+    shell.speaking.current = firstDoubtSegment.narration;
+    assert.equal(shell.params.boardPageRef.current.earlyOpeningStarted, undefined);
+    const firstGeneration = shell.params.turnGenerationRef.current;
+    shell.render().handleAskDoubt("Which direction is positive?");
+    assert.equal(shell.params.turnGenerationRef.current, firstGeneration + 1,
+      "nested doubt invalidates the interrupted first doubt's generation");
+    assert.equal(shell.asked.length, 2, "the nested doubt dispatches once after the interrupted doubt stops");
+    assert.equal(shell.asked[1]!.options?.doubt?.lessonQuestion, question);
+
+    // Complete the second admitted doubt and publish the ordinary follow-up.
+    shell.params.turnGenerationRef.current += 1;
+    shell.params.cancelRef.current = false;
+    shell.params.boardPageRef.current = doubtPageRecord({ boardId: "restart-board", lessonQuestion: question,
+      title: "Clarify the direction", continuesBoard: true, figureDrawn: false, turnPlan: null, solverProjection: null });
+    shell.params.recordedSegmentsRef.current = [{ narration: "Choose the positive direction consistently.", command: null }];
+    const original = progress === "substantive"
+      ? { ...savedLesson, segments: [{ ...savedLesson.segments[1]!, narration: "The horizontal speed stays constant." }] }
+      : progress === "code-lesson"
+        ? { ...savedLesson, resumeState: null, sceneArtifacts: { codeLesson: getMockCodeLessonPlan("Explain LeetCode 20 Valid Parentheses") } }
+        : savedLesson;
+    shell.params.storedTurnsRef.current = [original,
+      { ...savedDoubt, status: "stopped", persistedStatus: "stopped" },
+      { ...savedDoubt, id: "second-doubt", orderIndex: 2, question: "Clarify the direction" }];
+    const savedBefore = structuredClone(shell.params.storedTurnsRef.current);
+    const boardBefore = structuredClone(shell.params.boardLayoutRef.current);
+    idleRuntime(shell);
+    shell.render().offerPausedLessonResume();
+    const completed = shell.render();
+    assert.equal(completed.pausedLessonOffer, progress !== "opening-only",
+      `${progress}: a nested doubt never invents Continue for an unfinished original lesson`);
+    assert.equal(completed.earlyLessonRestartOffer, progress === "opening-only",
+      `${progress}: completion preserves the original recovery action`);
+    if (progress === "opening-only") {
+      assert.equal(completed.earlyLessonRestartReason, "doubt");
+      const click = restartButton(completed);
+      click(); click();
+      assert.equal(shell.asked.length, 3, "Teach it again after nested doubts is still single-flight");
+      assert.equal(shell.asked[2]!.question, question, "restart retains the full original multiline question, not either doubt");
+      assert.equal(shell.asked[2]!.options?.resume, undefined);
+      assert.equal(shell.asked[2]!.options?.doubt, undefined);
+    }
+    assert.deepEqual(shell.params.storedTurnsRef.current, savedBefore,
+      "nested recovery does not rewrite the saved opening or doubt chain");
+    assert.deepEqual(shell.params.boardLayoutRef.current, boardBefore,
+      "nested recovery leaves the visible doubt work intact");
   }
   // The same saved chain recovers on reload, under the existing ownership checks.
   {

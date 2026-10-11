@@ -1305,7 +1305,12 @@ export function useTurnControl(
       // request it started from; otherwise the page it is teaching on.
       const resumeNotStarted = activeResume !== null &&
         (!interruptedTurnId || boardPageRef.current === resumePageBefore || boardPageRef.current?.turn.kind === "doubt");
-      const snapshot = resumeNotStarted
+      // A doubt page does not carry the opening-only lesson's marker. Its
+      // text-only snapshot must not turn that original fresh restart into a
+      // null-plan Continue when another doubt interrupts it.
+      const nestedOpeningDoubt = earlyLessonRestartRef.current?.boardId === sessionId &&
+        boardPageRef.current?.boardId === sessionId && boardPageRef.current.turn.kind === "doubt";
+      const snapshot = nestedOpeningDoubt ? null : resumeNotStarted
         ? { ...activeResume.request, reason: "doubt" as const }
         : pausedLessonFromLive({
             record: boardPageRef.current,
