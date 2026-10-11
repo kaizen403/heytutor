@@ -1,0 +1,26 @@
+{
+  "schema": "linear-regions-spend-summary/v1",
+  "AzureTokenEstimate": {
+    "promptTokens": 4225995.0,
+    "generatedTokens": 850848.0,
+    "usd": 16.96047
+  },
+  "rates": {
+    "inputPerMillion": 2,
+    "outputPerMillion": 10,
+    "cachePricedAsUncached": true
+  },
+  "knownResponseUsageUsd": 14.512332,
+  "incompleteUsageEntries": 89,
+  "incompleteUsageUniqueTraceIds": 77,
+  "unresolvedAllowanceUsd": 21.364592000000002,
+  "inFlightCalls": 0,
+  "reservedUsd": 0.0,
+  "missingCheckpoints": [],
+  "realCapUsd": null,
+  "nativeAgentBilling": "unexposed/unmeasured",
+  "note": "Response and deployment estimates describe the same calls and are not summed. Missing usage is unknown. Azure tokens include every exclusive-deployment call since this fresh baseline; not an invoice. Native agent/CLI billing is unexposed.",
+  "originalSpendSha256": "e196f35ead17fd66aced154e97a0b73d0ce97e23c9e41ccaecc2e5a6dcb950e4",
+  "freshBaselineSha256": "75937f7ba3b4a002975bf84aca79d37c7b8b081b1c56c2fd862c737f4d657fa3",
+  "settlementSha256": "b03786a32a845e601450c273ee03e72b6d372e4900f9696818dc5d30974575a6"
+}

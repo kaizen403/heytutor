@@ -30,4 +30,4 @@ Two independent first judges and a complete third blind pass see only neutral qu
 
 The user removed the brief’s budget cap. A fresh stable deployment metric baseline and response-usage ledger report attributable model spend without adding the two estimates. Native agent billing is not exposed. No merge or production changes are authorized. Harness 4 received generic independent examples; it owns library additions and none are included in this operator experiment.
 
-Final quantitative outcomes and readiness are supplied in the final report after frozen grading; this implementation log itself does not claim readiness or topic acceptance.
+Final quantitative outcomes are in [the frozen result report](H3R6-SHADED-REGIONS-RESULTS-20261011.md). Both repeats pass right-up/wrong-nonrise under A, B and consensus, but drawn coverage falls from 39/40 to 13/40 and 15/40, with 27 and 25 required empties. No paid selected document uses the new system operator. The single draft PR exposes this integration limitation; this is not a topic acceptance claim. All post-measurement commits change report evidence/docs only.
