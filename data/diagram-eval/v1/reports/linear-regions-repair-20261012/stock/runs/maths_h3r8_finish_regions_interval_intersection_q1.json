@@ -1,0 +1,983 @@
+{
+ "probeId": "maths|h3r8-finish-regions|interval-intersection|q1",
+ "topicId": "maths|h3r8-finish-regions|interval-intersection",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "medium",
+ "question": "For real x, let I = {x : 5 - 2x <= x + 1} and J = {x : 3x - 7 < 2}. Draw the number line of K = I intersect J, with both boundary values labelled. Label A = 4/3, B = 5/2, C = 3, and D = 1, and classify their membership in K. Intersection means that both defining inequalities must hold.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:05:29.168Z",
+ "timings": {
+  "planMs": 22247,
+  "teachMs": 0,
+  "totalMs": 22247,
+  "figureCommitMs": 22247,
+  "stages": {
+   "turnPlanMs": 7501,
+   "problemIrMs": 6741,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 7704,
+   "deadlineRemainingMs": 38048,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [],
+  "unknowns": [
+   {
+    "id": "lower",
+    "symbol": "lower boundary of K"
+   },
+   {
+    "id": "upper",
+    "symbol": "upper boundary of K"
+   },
+   {
+    "id": "K",
+    "symbol": "K"
+   }
+  ],
+  "derived": [
+   {
+    "id": "lower",
+    "symbol": "lower boundary of K",
+    "value": 1.3333333333333333
+   },
+   {
+    "id": "upper",
+    "symbol": "upper boundary of K",
+    "value": 3
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "interval",
+    "expected": "K=[4/3, 3). On the number line, label 4/3 with a closed endpoint and 3 with an open endpoint; mark the segment between them."
+   },
+   {
+    "id": "A",
+    "expected": "A=4/3 belongs to K; it is the included lower boundary."
+   },
+   {
+    "id": "B",
+    "expected": "B=5/2 belongs to K because 4/3≤5/2<3."
+   },
+   {
+    "id": "C",
+    "expected": "C=3 does not belong to K; the upper boundary is excluded."
+   },
+   {
+    "id": "D",
+    "expected": "D=1 does not belong to K because 1<4/3."
+   }
+  ],
+  "lawIds": [
+   "addition-property-of-inequalities",
+   "positive-division-preserves-inequality",
+   "intersection-of-sets",
+   "interval-endpoint-conventions"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "047f5183bedb384aee4c63af6b79b8b7a684f0c580323d945663fc0902213e30",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x, let I = {x : 5 - 2x <= x + 1} and J = {x : 3x - 7 < 2}. Draw the number line of K = I intersect J, with both boundary values labelled. Label A = 4/3, B = 5/2, C = 3, and D = 1, and classify their membership in K. Intersection means that both defining inequalities must hold.",
+    "visualRequirement": "required",
+    "givens": [],
+    "unknowns": [
+     {
+      "id": "lower",
+      "symbol": "lower boundary of K"
+     },
+     {
+      "id": "upper",
+      "symbol": "upper boundary of K"
+     },
+     {
+      "id": "K",
+      "symbol": "K"
+     }
+    ],
+    "derived": [
+     {
+      "id": "lower",
+      "symbol": "lower boundary of K",
+      "value": 1.3333333333333333,
+      "sourceText": "5−2x≤x+1 gives x≥4/3 (exact).",
+      "provenance": "derived",
+      "dependsOn": []
+     },
+     {
+      "id": "upper",
+      "symbol": "upper boundary of K",
+      "value": 3,
+      "sourceText": "3x−7<2 gives x<3.",
+      "provenance": "derived",
+      "dependsOn": []
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "interval",
+      "claim": "Solution set",
+      "expected": "K=[4/3, 3). On the number line, label 4/3 with a closed endpoint and 3 with an open endpoint; mark the segment between them.",
+      "relatedQuantityIds": [
+       "K",
+       "lower",
+       "upper"
+      ]
+     },
+     {
+      "id": "A",
+      "claim": "Membership of A",
+      "expected": "A=4/3 belongs to K; it is the included lower boundary.",
+      "relatedQuantityIds": [
+       "K",
+       "lower"
+      ]
+     },
+     {
+      "id": "B",
+      "claim": "Membership of B",
+      "expected": "B=5/2 belongs to K because 4/3≤5/2<3.",
+      "relatedQuantityIds": [
+       "K"
+      ]
+     },
+     {
+      "id": "C",
+      "claim": "Membership of C",
+      "expected": "C=3 does not belong to K; the upper boundary is excluded.",
+      "relatedQuantityIds": [
+       "K",
+       "upper"
+      ]
+     },
+     {
+      "id": "D",
+      "claim": "Membership of D",
+      "expected": "D=1 does not belong to K because 1<4/3.",
+      "relatedQuantityIds": [
+       "K",
+       "lower"
+      ]
+     }
+    ],
+    "lawIds": [
+     "addition-property-of-inequalities",
+     "positive-division-preserves-inequality",
+     "intersection-of-sets",
+     "interval-endpoint-conventions"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x, let I = {x : 5 - 2x <= x + 1} and J = {x : 3x - 7 < 2}. Draw the number line of K = I intersect J, with both boundary values labelled. Label A = 4/3, B = 5/2, C = 3, and D = 1, and classify their membership in K. Intersection means that both defining inequalities must hold.",
+    "facts": [
+     {
+      "id": "fReal",
+      "kind": "given",
+      "statement": "x is real",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 10,
+       "quote": "For real x"
+      }
+     },
+     {
+      "id": "fI",
+      "kind": "given",
+      "statement": "I satisfies its defining inequality",
+      "evidence": {
+       "source": "question",
+       "start": 16,
+       "end": 41,
+       "quote": "I = {x : 5 - 2x <= x + 1}"
+      }
+     },
+     {
+      "id": "fJ",
+      "kind": "given",
+      "statement": "J satisfies its defining inequality",
+      "evidence": {
+       "source": "question",
+       "start": 46,
+       "end": 66,
+       "quote": "J = {x : 3x - 7 < 2}"
+      }
+     },
+     {
+      "id": "fK",
+      "kind": "given",
+      "statement": "K is the intersection of I and J",
+      "evidence": {
+       "source": "question",
+       "start": 92,
+       "end": 109,
+       "quote": "K = I intersect J"
+      }
+     },
+     {
+      "id": "fDraw",
+      "kind": "requested",
+      "statement": "Draw K with both boundary values labelled",
+      "evidence": {
+       "source": "question",
+       "start": 68,
+       "end": 146,
+       "quote": "Draw the number line of K = I intersect J, with both boundary values labelled."
+      }
+     },
+     {
+      "id": "fA",
+      "kind": "given",
+      "statement": "A equals four thirds",
+      "evidence": {
+       "source": "question",
+       "start": 153,
+       "end": 160,
+       "quote": "A = 4/3"
+      }
+     },
+     {
+      "id": "fB",
+      "kind": "given",
+      "statement": "B equals five halves",
+      "evidence": {
+       "source": "question",
+       "start": 162,
+       "end": 169,
+       "quote": "B = 5/2"
+      }
+     },
+     {
+      "id": "fC",
+      "kind": "given",
+      "statement": "C equals three",
+      "evidence": {
+       "source": "question",
+       "start": 171,
+       "end": 176,
+       "quote": "C = 3"
+      }
+     },
+     {
+      "id": "fD",
+      "kind": "given",
+      "statement": "D equals one",
+      "evidence": {
+       "source": "question",
+       "start": 182,
+       "end": 187,
+       "quote": "D = 1"
+      }
+     },
+     {
+      "id": "fMembership",
+      "kind": "requested",
+      "statement": "Classify labelled points' membership in K",
+      "evidence": {
+       "source": "question",
+       "start": 193,
+       "end": 223,
+       "quote": "classify their membership in K"
+      }
+     },
+     {
+      "id": "fBoth",
+      "kind": "given",
+      "statement": "Intersection requires both inequalities",
+      "evidence": {
+       "source": "question",
+       "start": 225,
+       "end": 286,
+       "quote": "Intersection means that both defining inequalities must hold."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fDraw"
+      ]
+     },
+     {
+      "id": "setI",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fI"
+      ]
+     },
+     {
+      "id": "setJ",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fJ"
+      ]
+     },
+     {
+      "id": "setK",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fK"
+      ]
+     },
+     {
+      "id": "pointA",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+       "fA"
+      ]
+     },
+     {
+      "id": "pointB",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+       "fB"
+      ]
+     },
+     {
+      "id": "pointC",
+      "kind": "point",
+      "label": "C",
+      "evidenceFactIds": [
+       "fC"
+      ]
+     },
+     {
+      "id": "pointD",
+      "kind": "point",
+      "label": "D",
+      "evidenceFactIds": [
+       "fD"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "iLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 5
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fI"
+      ]
+     },
+     {
+      "id": "iRight",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "variable",
+        "name": "x"
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "evidenceFactIds": [
+       "fI"
+      ]
+     },
+     {
+      "id": "jLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 7
+       }
+      },
+      "evidenceFactIds": [
+       "fJ"
+      ]
+     },
+     {
+      "id": "jRight",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 2
+      },
+      "evidenceFactIds": [
+       "fJ"
+      ]
+     },
+     {
+      "id": "lowerEq",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 5
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "variable",
+          "name": "x"
+         }
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "variable",
+         "name": "x"
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fI",
+       "fDraw"
+      ]
+     },
+     {
+      "id": "upperEq",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "variable",
+          "name": "x"
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 7
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fJ",
+       "fDraw"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cI",
+      "kind": "inequality",
+      "leftExpressionId": "iLeft",
+      "rightExpressionId": "iRight",
+      "relation": "<=",
+      "evidenceFactIds": [
+       "fI"
+      ]
+     },
+     {
+      "id": "cJ",
+      "kind": "inequality",
+      "leftExpressionId": "jLeft",
+      "rightExpressionId": "jRight",
+      "relation": "<",
+      "evidenceFactIds": [
+       "fJ"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iSets",
+      "kind": "bounded_region",
+      "entityIds": [
+       "setI",
+       "setJ",
+       "setK"
+      ],
+      "evidenceFactIds": [
+       "fI",
+       "fJ",
+       "fK",
+       "fBoth"
+      ]
+     },
+     {
+      "id": "iLine",
+      "kind": "graph",
+      "entityIds": [
+       "numberLine",
+       "setK",
+       "pointA",
+       "pointB",
+       "pointC",
+       "pointD"
+      ],
+      "evidenceFactIds": [
+       "fDraw",
+       "fA",
+       "fB",
+       "fC",
+       "fD",
+       "fMembership"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 13684,
+  "outputTokens": 3771,
+  "totalTokens": 17455,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.062139,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 690,
+    "outputTokens": 883,
+    "totalTokens": 1573,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01021,
+    "measuredCostUsd": 0.01021,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 751,
+    "outputTokens": 892,
+    "totalTokens": 1643,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010422,
+    "measuredCostUsd": 0.010422,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5533,
+    "outputTokens": 10,
+    "totalTokens": 5543,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011166,
+    "measuredCostUsd": 0.011166,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2166,
+    "outputTokens": 1102,
+    "totalTokens": 3268,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.012413,
+    "measuredCostUsd": 0.012413,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4544,
+    "outputTokens": 884,
+    "totalTokens": 5428,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.017928,
+    "measuredCostUsd": 0.017928,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.241788
+   }
+  ],
+  "knownUsageUsd": 0.062139
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "4/3",
+   "3",
+   "A=4/3 included",
+   "B=5/2 included",
+   "C=3 excluded",
+   "D=1 excluded",
+   "Solution: [4/3, 3)"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 16,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 17108,
+    "elapsedMs": 6678,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 17097,
+    "elapsedMs": 7704,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_interval_intersection_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_interval_intersection_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"For real x, let I = {x : 5 - 2x <= x + 1} and J = {x : 3x - 7 < 2}. Draw the number line of K = I intersect J, with both boundary values labelled. Label A = 4/3, B = 5/2, C = 3, and D = 1, and classify their membership in K. Intersection means that both defining inequalities must hold.\"\n  },\n  \"quantities\": [\n    {\n      \"id\": \"lower\",\n      \"symbol\": \"lower boundary of K\",\n      \"value\": 1.3333333333333333\n    },\n    {\n      \"id\": \"upper\",\n      \"symbol\": \"upper boundary of K\",\n      \"value\": 3\n    }\n  ],\n  \"entities\": [\n    {\n      \"id\": \"k_region\",\n      \"kind\": \"linear_region\",\n      \"role\": \"intersection\",\n      \"label\": \"K\"\n    }\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"construct_k\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\n              \"inequality\": \"5 - 2x <= x + 1\"\n            },\n            {\n              \"inequality\": \"3x - 7 < 2\"\n            }\n          ]\n        }\n      },\n      \"outputs\": [\n        \"k_region\"\n      ]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\n    \"k_region\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": []\n    },\n    {\n      \"id\": \"intersection\",\n      \"entityIds\": [\n        \"k_region\"\n      ]\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"revealGroupId\": \"setup\",\n      \"narration\": \"Find the real x-values for which both defining inequalities hold.\"\n    },\n    {\n      \"revealGroupId\": \"intersection\",\n      \"narration\": \"K = [4/3, 3): the boundary 4/3 is included and the boundary 3 is excluded. A = 4/3 and B = 5/2 belong to K; C = 3 and D = 1 do not.\"\n    }\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "047f5183bedb384aee4c63af6b79b8b7a684f0c580323d945663fc0902213e30",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002099,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1887,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|interval-intersection|q1",
+  "topic_id": "maths|h3r8-finish-regions|interval-intersection",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "For real x, let I = {x : 5 - 2x <= x + 1} and J = {x : 3x - 7 < 2}. Draw the number line of K = I intersect J, with both boundary values labelled. Label A = 4/3, B = 5/2, C = 3, and D = 1, and classify their membership in K. Intersection means that both defining inequalities must hold.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "number_line",
+  "must_show": [
+   "Exactly [4/3, 3) shaded.",
+   "Closed endpoint at 4/3 and open endpoint at 3.",
+   "A and B belong to K; C and D do not."
+  ],
+  "must_label": [
+   "x",
+   "K",
+   "4/3",
+   "3",
+   "A = 4/3",
+   "B = 5/2",
+   "C = 3",
+   "D = 1"
+  ],
+  "must_not_show": [
+   "Union of I and J substituted for their intersection.",
+   "3 included.",
+   "4/3 excluded."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "I = [4/3, infinity)",
+   "J = (-infinity, 3)",
+   "K = [4/3, 3)",
+   "A: true; B: true; C: false; D: false"
+  ],
+  "notes": "CBSE class 11 inequalities; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

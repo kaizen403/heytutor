@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_interval_intersection_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_interval_intersection_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "fc11947bce4f7de0b1986673dd4c06f58e5ebd1bad53fe4c30762dbe9916b2a8",
+  "pngSha256": "c7103ebd7d5f8d36e354df4338e3e5664f80439ab731c2d90900812d59317f60"
+}

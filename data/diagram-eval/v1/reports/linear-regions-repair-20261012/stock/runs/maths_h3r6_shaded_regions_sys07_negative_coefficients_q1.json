@@ -1,0 +1,925 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|sys07-negative-coefficients|q1",
+ "topicId": "maths|h3r6-shaded-regions|sys07-negative-coefficients",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:04:55.521Z",
+ "timings": {
+  "planMs": 19654,
+  "teachMs": 0,
+  "totalMs": 19655,
+  "figureCommitMs": 19655,
+  "stages": {
+   "turnPlanMs": 5141,
+   "problemIrMs": 5323,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 9031,
+   "deadlineRemainingMs": 40502,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a1",
+    "symbol": "x coefficient, first line",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "2x - y = 5"
+   },
+   {
+    "id": "b1",
+    "symbol": "y coefficient, first line",
+    "value": -1,
+    "provenance": "given",
+    "sourceText": "2x - y = 5"
+   },
+   {
+    "id": "c1",
+    "symbol": "constant, first line",
+    "value": 5,
+    "provenance": "given",
+    "sourceText": "2x - y = 5"
+   },
+   {
+    "id": "a2",
+    "symbol": "x coefficient, second line",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "-3x + 2y = -4"
+   },
+   {
+    "id": "b2",
+    "symbol": "y coefficient, second line",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "-3x + 2y = -4"
+   },
+   {
+    "id": "c2",
+    "symbol": "constant, second line",
+    "value": -4,
+    "provenance": "given",
+    "sourceText": "-3x + 2y = -4"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "px",
+    "symbol": "x_P"
+   },
+   {
+    "id": "py",
+    "symbol": "y_P"
+   }
+  ],
+  "derived": [
+   {
+    "id": "px",
+    "symbol": "x_P",
+    "value": 6
+   },
+   {
+    "id": "py",
+    "symbol": "y_P",
+    "value": 7
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "intersection",
+    "expected": "The x-coordinate of P is 6."
+   }
+  ],
+  "lawIds": [
+   "substitution method for simultaneous linear equations"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "2cd7ad4eacfbfa24623a0f6d25bac6f8d66ab119603bc669f51a703bdc5cd82b",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown px has no explicit solver binding",
+      "quantityId": "px"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sY",
+      "quantityId": "py",
+      "symbol": "y_P",
+      "approximate": 7,
+      "exact": {
+       "kind": "integer",
+       "value": "7"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a1",
+      "symbol": "x coefficient, first line",
+      "value": 2,
+      "sourceText": "2x - y = 5",
+      "provenance": "given"
+     },
+     {
+      "id": "b1",
+      "symbol": "y coefficient, first line",
+      "value": -1,
+      "sourceText": "2x - y = 5",
+      "provenance": "given"
+     },
+     {
+      "id": "c1",
+      "symbol": "constant, first line",
+      "value": 5,
+      "sourceText": "2x - y = 5",
+      "provenance": "given"
+     },
+     {
+      "id": "a2",
+      "symbol": "x coefficient, second line",
+      "value": -3,
+      "sourceText": "-3x + 2y = -4",
+      "provenance": "given"
+     },
+     {
+      "id": "b2",
+      "symbol": "y coefficient, second line",
+      "value": 2,
+      "sourceText": "-3x + 2y = -4",
+      "provenance": "given"
+     },
+     {
+      "id": "c2",
+      "symbol": "constant, second line",
+      "value": -4,
+      "sourceText": "-3x + 2y = -4",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "px",
+      "symbol": "x_P"
+     },
+     {
+      "id": "py",
+      "symbol": "y_P"
+     }
+    ],
+    "derived": [
+     {
+      "id": "px",
+      "symbol": "x_P",
+      "value": 6,
+      "sourceText": "y=2x−5; −3x+2(2x−5)=−4 gives x=6.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a1",
+       "b1",
+       "c1",
+       "a2",
+       "b2",
+       "c2"
+      ]
+     },
+     {
+      "id": "py",
+      "symbol": "y_P",
+      "value": 7,
+      "sourceText": "y=2(6)−5=7.",
+      "provenance": "derived",
+      "dependsOn": [
+       "px",
+       "a1",
+       "b1",
+       "c1"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "intersection",
+      "claim": "Graph both given lines on the same Cartesian axes and label their intersection P=(6, 7).",
+      "expected": "The x-coordinate of P is 6.",
+      "relatedQuantityIds": [
+       "px",
+       "py"
+      ],
+      "relatedEntityHints": [
+       "first line",
+       "second line",
+       "P"
+      ]
+     }
+    ],
+    "lawIds": [
+     "substitution method for simultaneous linear equations"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.",
+    "facts": [
+     {
+      "id": "fLine1",
+      "kind": "given",
+      "statement": "First line has equation 2x - y = 5",
+      "evidence": {
+       "source": "question",
+       "start": 10,
+       "end": 20,
+       "quote": "2x - y = 5"
+      }
+     },
+     {
+      "id": "fLine2",
+      "kind": "given",
+      "statement": "Second line has equation -3x + 2y = -4",
+      "evidence": {
+       "source": "question",
+       "start": 25,
+       "end": 38,
+       "quote": "-3x + 2y = -4"
+      }
+     },
+     {
+      "id": "fMeet",
+      "kind": "given",
+      "statement": "The lines meet at P",
+      "evidence": {
+       "source": "question",
+       "start": 39,
+       "end": 48,
+       "quote": "meet at P"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph both lines and label P",
+      "evidence": {
+       "source": "question",
+       "start": 50,
+       "end": 75,
+       "quote": "Graph both lines, label P"
+      }
+     },
+     {
+      "id": "fX",
+      "kind": "requested",
+      "statement": "Find the x-coordinate of P",
+      "evidence": {
+       "source": "question",
+       "start": 81,
+       "end": 102,
+       "quote": "find its x-coordinate"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "line1",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine1"
+      ]
+     },
+     {
+      "id": "line2",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine2"
+      ]
+     },
+     {
+      "id": "pointP",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fMeet"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eLine1",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 5
+       }
+      },
+      "evidenceFactIds": [
+       "fLine1"
+      ]
+     },
+     {
+      "id": "eLine2",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "variable",
+          "name": "x"
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 4
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fLine2"
+      ]
+     },
+     {
+      "id": "eY",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+           "kind": "unary",
+           "operator": "-",
+           "operand": {
+            "kind": "number",
+            "value": 4
+           }
+          },
+          "right": {
+           "kind": "binary",
+           "operator": "*",
+           "left": {
+            "kind": "number",
+            "value": 2
+           },
+           "right": {
+            "kind": "number",
+            "value": 5
+           }
+          }
+         },
+         "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+           "kind": "unary",
+           "operator": "-",
+           "operand": {
+            "kind": "number",
+            "value": 3
+           }
+          },
+          "right": {
+           "kind": "binary",
+           "operator": "*",
+           "left": {
+            "kind": "number",
+            "value": 2
+           },
+           "right": {
+            "kind": "number",
+            "value": 2
+           }
+          }
+         }
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 5
+       }
+      },
+      "evidenceFactIds": [
+       "fLine1",
+       "fLine2"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cMeet",
+      "kind": "incident",
+      "entityIds": [
+       "pointP",
+       "line1",
+       "line2"
+      ],
+      "evidenceFactIds": [
+       "fMeet"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "line1",
+       "line2",
+       "pointP"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fMeet"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sY",
+      "kind": "evaluate",
+      "expressionId": "eY",
+      "resultBinding": {
+       "turnPlanQuantityId": "py",
+       "symbol": "y_P",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sY",
+      "requestId": "sY",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "7"
+      },
+      "approximate": 7,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sY",
+      "requestId": "sY",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eY"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 14432,
+  "outputTokens": 3191,
+  "totalTokens": 17623,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.057835,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 631,
+    "outputTokens": 648,
+    "totalTokens": 1279,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007742,
+    "measuredCostUsd": 0.007742,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 692,
+    "outputTokens": 653,
+    "totalTokens": 1345,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007914,
+    "measuredCostUsd": 0.007914,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5464,
+    "outputTokens": 45,
+    "totalTokens": 5509,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011378,
+    "measuredCostUsd": 0.011378,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2110,
+    "outputTokens": 627,
+    "totalTokens": 2737,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.007551,
+    "measuredCostUsd": 0.007551,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5535,
+    "outputTokens": 1218,
+    "totalTokens": 6753,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02325,
+    "measuredCostUsd": 0.02325,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.256376
+   }
+  ],
+  "knownUsageUsd": 0.057835
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_system",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "2x - y=5",
+   "-3x + 2y=-4",
+   "(6, 7)",
+   "One solution"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 11,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19798,
+    "elapsedMs": 8217,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 19809,
+    "elapsedMs": 9029,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Both given lines can be constructed exactly, and their intersection can be found from the constructed lines.\"\n  },\n  \"source\": {\n    \"question\": \"The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"value\": 2},\n    {\"id\": \"b1\", \"value\": -1},\n    {\"id\": \"c1\", \"value\": 5},\n    {\"id\": \"a2\", \"value\": -3},\n    {\"id\": \"b2\", \"value\": 2},\n    {\"id\": \"c2\", \"value\": -4},\n    {\"id\": \"px\", \"value\": 6},\n    {\"id\": \"py\", \"value\": 7}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"Cartesian axes\"},\n    {\"id\": \"q1\", \"kind\": \"point\", \"role\": \"point on first line\"},\n    {\"id\": \"q2\", \"kind\": \"point\", \"role\": \"point on second line\"},\n    {\"id\": \"l1\", \"kind\": \"line\", \"role\": \"first given line\"},\n    {\"id\": \"l2\", \"kind\": \"line\", \"role\": \"second given line\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"intersection\", \"label\": \"P\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"c_axes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 8, \"yMin\": -6, \"yMax\": 9}, \"outputs\": [\"axes\"]},\n    {\"id\": \"c_q1\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -5, \"coordinateSpace\": \"world\"}, \"outputs\": [\"q1\"]},\n    {\"id\": \"c_q2\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -2, \"coordinateSpace\": \"world\"}, \"outputs\": [\"q2\"]},\n    {\"id\": \"c_l1\", \"operator\": \"line\", \"inputs\": {\"start\": \"q1\", \"direction\": [1, 2]}, \"outputs\": [\"l1\"]},\n    {\"id\": \"c_l2\", \"operator\": \"line\", \"inputs\": {\"start\": \"q2\", \"direction\": [2, 3]}, \"outputs\": [\"l2\"]},\n    {\"id\": \"c_P\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"l1\", \"second\": \"l2\"}, \"outputs\": [\"P\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"P_on_l1\", \"predicate\": \"on\", \"entities\": [\"P\", \"l1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"P_on_l2\", \"predicate\": \"on\", \"entities\": [\"P\", \"l2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"eq1\", \"kind\": \"label\", \"targetIds\": [\"l1\"], \"text\": \"2x−y=5\"},\n    {\"id\": \"eq2\", \"kind\": \"label\", \"targetIds\": [\"l2\"], \"text\": \"−3x+2y=−4\"},\n    {\"id\": \"result\", \"kind\": \"label\", \"targetIds\": [\"P\"], \"text\": \"x=6\", \"quantityId\": \"px\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"l1\", \"l2\", \"P\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"q1\", \"q2\", \"l1\", \"l2\", \"P\"], \"dependsOn\": []}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"show_setup\", \"revealGroupId\": \"setup\", \"annotationIds\": [\"eq1\", \"eq2\"]},\n    {\"id\": \"show_result\", \"annotationIds\": [\"result\"]}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "2cd7ad4eacfbfa24623a0f6d25bac6f8d66ab119603bc669f51a703bdc5cd82b",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1417,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|sys07-negative-coefficients|q1",
+  "topic_id": "maths|h3r6-shaded-regions|sys07-negative-coefficients",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "two distinct solid rising lines for the given equations",
+   "their unique crossing P at (6, 7) marked"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "2x - y = 5",
+   "-3x + 2y = -4",
+   "P (6, 7)"
+  ],
+  "must_not_show": [
+   "a falling line obtained by losing a coefficient sign",
+   "an intersection at (7, 6)",
+   "parallel lines"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "P = (6, 7).",
+   "The requested x-coordinate is 6.",
+   "2(6) - 7 = 5 and -3(6) + 2(7) = -4."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=sys07; exam_scope=SAT;CBSE10; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

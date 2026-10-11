@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "518d8ea268c55c5eb18ac609ee1c178886848559d06e855d92beb8ddc499de53",
+  "pngSha256": "c1a194b37eafc71604de15c0fb86cf3570f9eedc34ed6cdbe46aa46a68e17907"
+}

@@ -1,0 +1,728 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+ "topicId": "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "easy",
+ "question": "Help me graph -5y < 10 as a half-plane, with the correct boundary style.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:02:17.969Z",
+ "timings": {
+  "planMs": 13324,
+  "teachMs": 0,
+  "totalMs": 13325,
+  "figureCommitMs": 13325,
+  "stages": {
+   "turnPlanMs": 3649,
+   "problemIrMs": 4531,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 5069,
+   "deadlineRemainingMs": 46749,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "coefficient of y",
+    "value": -5,
+    "provenance": "given",
+    "sourceText": "-5y < 10"
+   },
+   {
+    "id": "g2",
+    "symbol": "right-hand side",
+    "value": 10,
+    "provenance": "given",
+    "sourceText": "-5y < 10"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "boundary y-value"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u1",
+    "symbol": "boundary y-value",
+    "value": -2
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "y > -2; dividing by a negative reverses the inequality."
+   },
+   {
+    "id": "c2",
+    "expected": "Draw the horizontal line y = -2 dashed because the inequality is strict, then shade above it."
+   }
+  ],
+  "lawIds": [
+   "Dividing an inequality by a negative reverses its direction",
+   "A strict inequality excludes its boundary"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eBoundary",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 10
+      },
+      "right": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 5
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fInequality"
+     ]
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iGraph",
+     "kind": "graph",
+     "entityIds": [
+      "boundary",
+      "solution"
+     ],
+     "evidenceFactIds": [
+      "fInequality",
+      "fGraph",
+      "fStyle"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sBoundary",
+     "quantityId": "u1",
+     "symbol": "boundary y-value",
+     "approximate": -2,
+     "exact": {
+      "kind": "integer",
+      "value": "-2"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "66292a60091fdf2b2f31b154223a1111e6c35c17f1ac14ed09bafb22eb318289",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sBoundary",
+      "quantityId": "u1",
+      "symbol": "boundary y-value",
+      "approximate": -2,
+      "exact": {
+       "kind": "integer",
+       "value": "-2"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Help me graph -5y < 10 as a half-plane, with the correct boundary style.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "coefficient of y",
+      "value": -5,
+      "sourceText": "-5y < 10",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "right-hand side",
+      "value": 10,
+      "sourceText": "-5y < 10",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "boundary y-value"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "boundary y-value",
+      "value": -2,
+      "sourceText": "10 ÷ (-5) = -2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Solution inequality",
+      "expected": "y > -2; dividing by a negative reverses the inequality.",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Boundary style and half-plane",
+      "expected": "Draw the horizontal line y = -2 dashed because the inequality is strict, then shade above it.",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Dividing an inequality by a negative reverses its direction",
+     "A strict inequality excludes its boundary"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Help me graph -5y < 10 as a half-plane, with the correct boundary style.",
+    "facts": [
+     {
+      "id": "fInequality",
+      "kind": "given",
+      "statement": "The inequality is -5y < 10.",
+      "evidence": {
+       "source": "question",
+       "start": 14,
+       "end": 22,
+       "quote": "-5y < 10"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph the solution as a half-plane.",
+      "evidence": {
+       "source": "question",
+       "start": 8,
+       "end": 38,
+       "quote": "graph -5y < 10 as a half-plane"
+      }
+     },
+     {
+      "id": "fStyle",
+      "kind": "requested",
+      "statement": "Show the correct boundary style.",
+      "evidence": {
+       "source": "question",
+       "start": 49,
+       "end": 71,
+       "quote": "correct boundary style"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "boundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fInequality",
+       "fStyle"
+      ]
+     },
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fInequality",
+       "fGraph"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eBoundary",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 10
+       },
+       "right": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 5
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fInequality"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "boundary",
+       "solution"
+      ],
+      "evidenceFactIds": [
+       "fInequality",
+       "fGraph",
+       "fStyle"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sBoundary",
+      "kind": "evaluate",
+      "expressionId": "eBoundary",
+      "resultBinding": {
+       "turnPlanQuantityId": "u1",
+       "symbol": "boundary y-value",
+       "evidenceFactIds": [
+        "fInequality",
+        "fGraph"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sBoundary",
+      "requestId": "sBoundary",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-2"
+      },
+      "approximate": -2,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sBoundary",
+      "requestId": "sBoundary",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eBoundary"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 12742,
+  "outputTokens": 1560,
+  "totalTokens": 14302,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.038145,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 613,
+    "outputTokens": 353,
+    "totalTokens": 966,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.004756,
+    "measuredCostUsd": 0.004756,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 674,
+    "outputTokens": 359,
+    "totalTokens": 1033,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.004938,
+    "measuredCostUsd": 0.004938,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5363,
+    "outputTokens": 63,
+    "totalTokens": 5426,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011356,
+    "measuredCostUsd": 0.011356,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1871,
+    "outputTokens": 351,
+    "totalTokens": 2222,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.004313,
+    "measuredCostUsd": 0.004313,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4221,
+    "outputTokens": 434,
+    "totalTokens": 4655,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012782,
+    "measuredCostUsd": 0.012782,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.237504
+   }
+  ],
+  "knownUsageUsd": 0.038145
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "-5y=10",
+   "-5y<10",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 9,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 16083,
+    "elapsedMs": 4213,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 16094,
+    "elapsedMs": 5067,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Help me graph -5y < 10 as a half-plane, with the correct boundary style.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"coefficient of y\", \"value\": -5, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"right-hand side\", \"value\": 10, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"boundary y-value\", \"value\": -2, \"provenance\": \"derived\", \"dependsOn\": [\"g1\", \"g2\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"half_plane\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\n        \"inequality\": \"-5y < 10\"\n      },\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"graph\", \"entityIds\": [\"solution\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "66292a60091fdf2b2f31b154223a1111e6c35c17f1ac14ed09bafb22eb318289",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2764,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+  "topic_id": "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "topic_ask",
+  "question": "Help me graph -5y < 10 as a half-plane, with the correct boundary style.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "a dashed horizontal boundary at y = -2",
+   "the half-plane above y = -2 shaded"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "y = -2"
+  ],
+  "must_not_show": [
+   "a vertical boundary",
+   "a solid boundary",
+   "the half-plane below y = -2 shaded"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "y > -2",
+   "The boundary y = -2 is excluded.",
+   "x is unrestricted."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=hp04; exam_scope=CBSE11-formative;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

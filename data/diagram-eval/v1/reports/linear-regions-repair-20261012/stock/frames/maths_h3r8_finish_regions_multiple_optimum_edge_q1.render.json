@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_multiple_optimum_edge_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_multiple_optimum_edge_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "a8455e8272faa3bde9147f3e4b02f95b4f02c09db0fe3efdd3c3a465d6399ae8",
+  "pngSha256": "ac1b437dbd6870b801ea2ef4cc2aaf6a4793c998d0b407d928ffb284995f88c6"
+}

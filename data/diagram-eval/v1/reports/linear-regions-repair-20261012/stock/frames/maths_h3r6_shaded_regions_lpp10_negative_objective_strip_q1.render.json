@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "a400dc8970d113d66f831849dfbd208dff13244e5e5460ca5ae1fe39943f60e3",
+  "pngSha256": "a03df5ee13e62509aeb5107567f21ebfb3a157e05a6952557a29ea6625ced528"
+}

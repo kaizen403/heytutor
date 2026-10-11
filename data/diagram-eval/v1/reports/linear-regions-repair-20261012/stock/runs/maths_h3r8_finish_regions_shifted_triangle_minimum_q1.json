@@ -1,0 +1,2571 @@
+{
+ "probeId": "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+ "topicId": "maths|h3r8-finish-regions|shifted-triangle-minimum",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "hard",
+ "question": "Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:07:38.210Z",
+ "timings": {
+  "planMs": 47117,
+  "teachMs": 0,
+  "totalMs": 47118,
+  "figureCommitMs": null,
+  "stages": {
+   "turnPlanMs": 11154,
+   "problemIrMs": 9253,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 26699,
+   "deadlineRemainingMs": 12889,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "zx",
+    "symbol": "coefficient of x in Z",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "zx = 2"
+   },
+   {
+    "id": "zy",
+    "symbol": "coefficient of y in Z",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "zy = 3"
+   },
+   {
+    "id": "xb",
+    "symbol": "lower bound on x",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "xb = 1"
+   },
+   {
+    "id": "yb",
+    "symbol": "lower bound on y",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "yb = 1"
+   },
+   {
+    "id": "lc",
+    "symbol": "lower bound on x+2y",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "lc = 6"
+   },
+   {
+    "id": "uc",
+    "symbol": "upper bound on 2x+y",
+    "value": 9,
+    "provenance": "given",
+    "sourceText": "uc = 9"
+   },
+   {
+    "id": "ax",
+    "symbol": "A_x",
+    "value": 2,
+    "sourceText": "A = (2,2)",
+    "provenance": "given"
+   },
+   {
+    "id": "ay",
+    "symbol": "A_y",
+    "value": 2,
+    "sourceText": "A = (2,2)",
+    "provenance": "given"
+   },
+   {
+    "id": "bx",
+    "symbol": "B_x",
+    "value": 1,
+    "sourceText": "B = (1,2)",
+    "provenance": "given"
+   },
+   {
+    "id": "by",
+    "symbol": "B_y",
+    "value": 2,
+    "sourceText": "B = (1,2)",
+    "provenance": "given"
+   },
+   {
+    "id": "cx",
+    "symbol": "C_x",
+    "value": 1,
+    "sourceText": "C = (1,5/2)",
+    "provenance": "given"
+   },
+   {
+    "id": "cy",
+    "symbol": "C_y",
+    "value": 2.5,
+    "sourceText": "C_y = 5/2",
+    "provenance": "given"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "yt",
+    "symbol": "y at upper-left corner"
+   },
+   {
+    "id": "xr",
+    "symbol": "x at right corner"
+   },
+   {
+    "id": "z1",
+    "symbol": "Z at (1,5/2)"
+   },
+   {
+    "id": "z2",
+    "symbol": "Z at (1,7)"
+   },
+   {
+    "id": "z3",
+    "symbol": "Z at (4,1)"
+   },
+   {
+    "id": "zm",
+    "symbol": "minimum Z"
+   }
+  ],
+  "derived": [
+   {
+    "id": "yt",
+    "symbol": "y at upper-left corner",
+    "value": 7
+   },
+   {
+    "id": "xr",
+    "symbol": "x at right corner",
+    "value": 4
+   },
+   {
+    "id": "z1",
+    "symbol": "Z at (1,5/2)",
+    "value": 9.5
+   },
+   {
+    "id": "z2",
+    "symbol": "Z at (1,7)",
+    "value": 23
+   },
+   {
+    "id": "z3",
+    "symbol": "Z at (4,1)",
+    "value": 11
+   },
+   {
+    "id": "zm",
+    "symbol": "minimum Z",
+    "value": 9.5
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "region",
+    "expected": "Closed triangle (1,5/2)–(1,7)–(4,1)–(1,5/2)."
+   },
+   {
+    "id": "corners",
+    "expected": "(1,5/2): Z=19/2; (1,7): Z=23; (4,1): Z=11."
+   },
+   {
+    "id": "minimum",
+    "expected": "The singleton {(1,5/2)}; no other feasible point attains Z=19/2."
+   },
+   {
+    "id": "points",
+    "expected": "A=(2,2) is feasible; B=(1,2) is infeasible because x+2y=5<6; C=(1,5/2) is feasible and is the unique minimiser."
+   }
+  ],
+  "lawIds": [
+   "intersection-of-boundary-lines",
+   "substitution-into-linear-objective",
+   "linear-programming-vertex-optimum",
+   "convexity-of-linear-objective",
+   "inequality-feasibility-test"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eYt",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "-",
+      "left": {
+       "kind": "number",
+       "value": 9
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fX",
+      "fUpper"
+     ]
+    },
+    {
+     "id": "eXr",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "-",
+      "left": {
+       "kind": "number",
+       "value": 6
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fY",
+      "fLower"
+     ]
+    },
+    {
+     "id": "eZ1",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 5
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fC"
+     ]
+    },
+    {
+     "id": "eZ2",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 9
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "number",
+          "value": 1
+         }
+        }
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fX",
+      "fUpper"
+     ]
+    },
+    {
+     "id": "eZ3",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 6
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "number",
+          "value": 1
+         }
+        }
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fY",
+      "fLower"
+     ]
+    },
+    {
+     "id": "eZm",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 5
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fX",
+      "fY",
+      "fLower",
+      "fUpper"
+     ]
+    }
+   ],
+   "constraints": [
+    {
+     "id": "cLeft",
+     "kind": "incident",
+     "entityIds": [
+      "pointC",
+      "leftEdge"
+     ],
+     "evidenceFactIds": [
+      "fC",
+      "fX"
+     ]
+    },
+    {
+     "id": "cLower",
+     "kind": "incident",
+     "entityIds": [
+      "pointC",
+      "lowerEdge"
+     ],
+     "evidenceFactIds": [
+      "fC",
+      "fLower"
+     ]
+    },
+    {
+     "id": "cUpperLeft",
+     "kind": "incident",
+     "entityIds": [
+      "upperLeft",
+      "leftEdge",
+      "upperEdge"
+     ],
+     "evidenceFactIds": [
+      "fX",
+      "fUpper"
+     ]
+    },
+    {
+     "id": "cRight",
+     "kind": "incident",
+     "entityIds": [
+      "rightCorner",
+      "lowerEdge",
+      "upperEdge"
+     ],
+     "evidenceFactIds": [
+      "fLower",
+      "fUpper"
+     ]
+    }
+   ],
+   "representationIntents": [
+    {
+     "id": "iRegion",
+     "kind": "bounded_region",
+     "entityIds": [
+      "feasible",
+      "lowerEdge",
+      "upperEdge",
+      "leftEdge",
+      "pointC",
+      "upperLeft",
+      "rightCorner"
+     ],
+     "evidenceFactIds": [
+      "fGraph",
+      "fX",
+      "fY",
+      "fLower",
+      "fUpper"
+     ]
+    },
+    {
+     "id": "iPoints",
+     "kind": "graph",
+     "entityIds": [
+      "pointA",
+      "pointB",
+      "pointC",
+      "feasible"
+     ],
+     "evidenceFactIds": [
+      "fA",
+      "fB",
+      "fC",
+      "fClass",
+      "fSet"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sYt",
+     "quantityId": "yt",
+     "symbol": "y at upper-left corner",
+     "approximate": 7,
+     "exact": {
+      "kind": "integer",
+      "value": "7"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sXr",
+     "quantityId": "xr",
+     "symbol": "x at right corner",
+     "approximate": 4,
+     "exact": {
+      "kind": "integer",
+      "value": "4"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sZ1",
+     "quantityId": "z1",
+     "symbol": "Z at (1,5/2)",
+     "approximate": 9.5,
+     "exact": {
+      "kind": "rational",
+      "value": "19/2"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sZ2",
+     "quantityId": "z2",
+     "symbol": "Z at (1,7)",
+     "approximate": 23,
+     "exact": {
+      "kind": "integer",
+      "value": "23"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sZ3",
+     "quantityId": "z3",
+     "symbol": "Z at (4,1)",
+     "approximate": 11,
+     "exact": {
+      "kind": "integer",
+      "value": "11"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sZm",
+     "quantityId": "zm",
+     "symbol": "minimum Z",
+     "approximate": 9.5,
+     "exact": {
+      "kind": "rational",
+      "value": "19/2"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "ea9db2d602610a2e8baf21c3010441aea81884b0f4bdd521d13abf455558b71c",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sYt",
+      "quantityId": "yt",
+      "symbol": "y at upper-left corner",
+      "approximate": 7,
+      "exact": {
+       "kind": "integer",
+       "value": "7"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sXr",
+      "quantityId": "xr",
+      "symbol": "x at right corner",
+      "approximate": 4,
+      "exact": {
+       "kind": "integer",
+       "value": "4"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sZ1",
+      "quantityId": "z1",
+      "symbol": "Z at (1,5/2)",
+      "approximate": 9.5,
+      "exact": {
+       "kind": "rational",
+       "value": "19/2"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sZ2",
+      "quantityId": "z2",
+      "symbol": "Z at (1,7)",
+      "approximate": 23,
+      "exact": {
+       "kind": "integer",
+       "value": "23"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sZ3",
+      "quantityId": "z3",
+      "symbol": "Z at (4,1)",
+      "approximate": 11,
+      "exact": {
+       "kind": "integer",
+       "value": "11"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sZm",
+      "quantityId": "zm",
+      "symbol": "minimum Z",
+      "approximate": 9.5,
+      "exact": {
+       "kind": "rational",
+       "value": "19/2"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "zx",
+      "symbol": "coefficient of x in Z",
+      "value": 2,
+      "sourceText": "zx = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "zy",
+      "symbol": "coefficient of y in Z",
+      "value": 3,
+      "sourceText": "zy = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "xb",
+      "symbol": "lower bound on x",
+      "value": 1,
+      "sourceText": "xb = 1",
+      "provenance": "given"
+     },
+     {
+      "id": "yb",
+      "symbol": "lower bound on y",
+      "value": 1,
+      "sourceText": "yb = 1",
+      "provenance": "given"
+     },
+     {
+      "id": "lc",
+      "symbol": "lower bound on x+2y",
+      "value": 6,
+      "sourceText": "lc = 6",
+      "provenance": "given"
+     },
+     {
+      "id": "uc",
+      "symbol": "upper bound on 2x+y",
+      "value": 9,
+      "sourceText": "uc = 9",
+      "provenance": "given"
+     },
+     {
+      "id": "ax",
+      "symbol": "A_x",
+      "value": 2,
+      "sourceText": "A = (2,2)",
+      "provenance": "given"
+     },
+     {
+      "id": "ay",
+      "symbol": "A_y",
+      "value": 2,
+      "sourceText": "A = (2,2)",
+      "provenance": "given"
+     },
+     {
+      "id": "bx",
+      "symbol": "B_x",
+      "value": 1,
+      "sourceText": "B = (1,2)",
+      "provenance": "given"
+     },
+     {
+      "id": "by",
+      "symbol": "B_y",
+      "value": 2,
+      "sourceText": "B = (1,2)",
+      "provenance": "given"
+     },
+     {
+      "id": "cx",
+      "symbol": "C_x",
+      "value": 1,
+      "sourceText": "C = (1,5/2)",
+      "provenance": "given"
+     },
+     {
+      "id": "cy",
+      "symbol": "C_y",
+      "value": 2.5,
+      "sourceText": "C_y = 5/2",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "yt",
+      "symbol": "y at upper-left corner"
+     },
+     {
+      "id": "xr",
+      "symbol": "x at right corner"
+     },
+     {
+      "id": "z1",
+      "symbol": "Z at (1,5/2)"
+     },
+     {
+      "id": "z2",
+      "symbol": "Z at (1,7)"
+     },
+     {
+      "id": "z3",
+      "symbol": "Z at (4,1)"
+     },
+     {
+      "id": "zm",
+      "symbol": "minimum Z"
+     }
+    ],
+    "derived": [
+     {
+      "id": "yt",
+      "symbol": "y at upper-left corner",
+      "value": 7,
+      "sourceText": "At x=1, 2x+y=9 gives y=7.",
+      "provenance": "derived",
+      "dependsOn": [
+       "xb",
+       "uc"
+      ]
+     },
+     {
+      "id": "xr",
+      "symbol": "x at right corner",
+      "value": 4,
+      "sourceText": "At y=1, x+2y=6 and 2x+y=9 both give x=4.",
+      "provenance": "derived",
+      "dependsOn": [
+       "yb",
+       "lc",
+       "uc"
+      ]
+     },
+     {
+      "id": "z1",
+      "symbol": "Z at (1,5/2)",
+      "value": 9.5,
+      "sourceText": "2(1)+3(5/2)=19/2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "zx",
+       "zy",
+       "cx",
+       "cy"
+      ]
+     },
+     {
+      "id": "z2",
+      "symbol": "Z at (1,7)",
+      "value": 23,
+      "sourceText": "2(1)+3(7)=23.",
+      "provenance": "derived",
+      "dependsOn": [
+       "zx",
+       "zy",
+       "xb",
+       "yt"
+      ]
+     },
+     {
+      "id": "z3",
+      "symbol": "Z at (4,1)",
+      "value": 11,
+      "sourceText": "2(4)+3(1)=11.",
+      "provenance": "derived",
+      "dependsOn": [
+       "zx",
+       "zy",
+       "xr",
+       "yb"
+      ]
+     },
+     {
+      "id": "zm",
+      "symbol": "minimum Z",
+      "value": 9.5,
+      "sourceText": "min(19/2,23,11)=19/2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "z1",
+       "z2",
+       "z3"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "region",
+      "claim": "Graph the feasible region with solid boundary segments joining the corners in order.",
+      "expected": "Closed triangle (1,5/2)–(1,7)–(4,1)–(1,5/2).",
+      "relatedQuantityIds": [
+       "cy",
+       "yt",
+       "xr"
+      ]
+     },
+     {
+      "id": "corners",
+      "claim": "Label every corner with its objective value.",
+      "expected": "(1,5/2): Z=19/2; (1,7): Z=23; (4,1): Z=11.",
+      "relatedQuantityIds": [
+       "z1",
+       "z2",
+       "z3"
+      ]
+     },
+     {
+      "id": "minimum",
+      "claim": "Mark the complete minimum set.",
+      "expected": "The singleton {(1,5/2)}; no other feasible point attains Z=19/2.",
+      "relatedQuantityIds": [
+       "zm",
+       "z1",
+       "z2",
+       "z3"
+      ]
+     },
+     {
+      "id": "points",
+      "claim": "Mark and classify the stated points.",
+      "expected": "A=(2,2) is feasible; B=(1,2) is infeasible because x+2y=5<6; C=(1,5/2) is feasible and is the unique minimiser.",
+      "relatedQuantityIds": [
+       "ax",
+       "ay",
+       "bx",
+       "by",
+       "cx",
+       "cy",
+       "lc"
+      ]
+     }
+    ],
+    "lawIds": [
+     "intersection-of-boundary-lines",
+     "substitution-into-linear-objective",
+     "linear-programming-vertex-optimum",
+     "convexity-of-linear-objective",
+     "inequality-feasibility-test"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.",
+    "facts": [
+     {
+      "id": "fObjective",
+      "kind": "given",
+      "statement": "Z equals 2x plus 3y",
+      "evidence": {
+       "source": "question",
+       "start": 9,
+       "end": 20,
+       "quote": "Z = 2x + 3y"
+      }
+     },
+     {
+      "id": "fX",
+      "kind": "given",
+      "statement": "x is at least 1",
+      "evidence": {
+       "source": "question",
+       "start": 48,
+       "end": 54,
+       "quote": "x >= 1"
+      }
+     },
+     {
+      "id": "fY",
+      "kind": "given",
+      "statement": "y is at least 1",
+      "evidence": {
+       "source": "question",
+       "start": 56,
+       "end": 62,
+       "quote": "y >= 1"
+      }
+     },
+     {
+      "id": "fLower",
+      "kind": "given",
+      "statement": "x plus 2y is at least 6",
+      "evidence": {
+       "source": "question",
+       "start": 64,
+       "end": 75,
+       "quote": "x + 2y >= 6"
+      }
+     },
+     {
+      "id": "fUpper",
+      "kind": "given",
+      "statement": "2x plus y is at most 9",
+      "evidence": {
+       "source": "question",
+       "start": 81,
+       "end": 92,
+       "quote": "2x + y <= 9"
+      }
+     },
+     {
+      "id": "fA",
+      "kind": "given",
+      "statement": "A is at (2,2)",
+      "evidence": {
+       "source": "question",
+       "start": 219,
+       "end": 228,
+       "quote": "A = (2,2)"
+      }
+     },
+     {
+      "id": "fB",
+      "kind": "given",
+      "statement": "B is at (1,2)",
+      "evidence": {
+       "source": "question",
+       "start": 230,
+       "end": 239,
+       "quote": "B = (1,2)"
+      }
+     },
+     {
+      "id": "fC",
+      "kind": "given",
+      "statement": "C is at (1,5/2)",
+      "evidence": {
+       "source": "question",
+       "start": 241,
+       "end": 252,
+       "quote": "C = (1,5/2)"
+      }
+     },
+     {
+      "id": "fMin",
+      "kind": "requested",
+      "statement": "Minimise Z over real feasible pairs",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 36,
+       "quote": "Minimise Z = 2x + 3y over real pairs"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph and label every feasible corner",
+      "evidence": {
+       "source": "question",
+       "start": 94,
+       "end": 182,
+       "quote": "Graph the exact feasible region and label every corner with its coordinates and Z value."
+      }
+     },
+     {
+      "id": "fSet",
+      "kind": "requested",
+      "statement": "Mark the complete minimum set",
+      "evidence": {
+       "source": "question",
+       "start": 183,
+       "end": 213,
+       "quote": "Mark the complete minimum set."
+      }
+     },
+     {
+      "id": "fClass",
+      "kind": "requested",
+      "statement": "Classify feasibility of A, B and C",
+      "evidence": {
+       "source": "question",
+       "start": 258,
+       "end": 279,
+       "quote": "classify feasibility."
+      }
+     },
+     {
+      "id": "fReal",
+      "kind": "given",
+      "statement": "No integer restriction applies",
+      "evidence": {
+       "source": "question",
+       "start": 280,
+       "end": 317,
+       "quote": "Do not impose an integer restriction."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "feasible",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fX",
+       "fY",
+       "fLower",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "lowerEdge",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLower"
+      ]
+     },
+     {
+      "id": "upperEdge",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fUpper"
+      ]
+     },
+     {
+      "id": "leftEdge",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fX"
+      ]
+     },
+     {
+      "id": "pointA",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+       "fA"
+      ]
+     },
+     {
+      "id": "pointB",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+       "fB"
+      ]
+     },
+     {
+      "id": "pointC",
+      "kind": "point",
+      "label": "C",
+      "evidenceFactIds": [
+       "fC"
+      ]
+     },
+     {
+      "id": "upperLeft",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fX",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "rightCorner",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fY",
+       "fLower",
+       "fUpper"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eYt",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 9
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fX",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "eXr",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 6
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fY",
+       "fLower"
+      ]
+     },
+     {
+      "id": "eZ1",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 5
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fC"
+      ]
+     },
+     {
+      "id": "eZ2",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "-",
+         "left": {
+          "kind": "number",
+          "value": 9
+         },
+         "right": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+           "kind": "number",
+           "value": 2
+          },
+          "right": {
+           "kind": "number",
+           "value": 1
+          }
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fX",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "eZ3",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "-",
+         "left": {
+          "kind": "number",
+          "value": 6
+         },
+         "right": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+           "kind": "number",
+           "value": 2
+          },
+          "right": {
+           "kind": "number",
+           "value": 1
+          }
+         }
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fY",
+       "fLower"
+      ]
+     },
+     {
+      "id": "eZm",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 5
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fX",
+       "fY",
+       "fLower",
+       "fUpper"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cLeft",
+      "kind": "incident",
+      "entityIds": [
+       "pointC",
+       "leftEdge"
+      ],
+      "evidenceFactIds": [
+       "fC",
+       "fX"
+      ]
+     },
+     {
+      "id": "cLower",
+      "kind": "incident",
+      "entityIds": [
+       "pointC",
+       "lowerEdge"
+      ],
+      "evidenceFactIds": [
+       "fC",
+       "fLower"
+      ]
+     },
+     {
+      "id": "cUpperLeft",
+      "kind": "incident",
+      "entityIds": [
+       "upperLeft",
+       "leftEdge",
+       "upperEdge"
+      ],
+      "evidenceFactIds": [
+       "fX",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "cRight",
+      "kind": "incident",
+      "entityIds": [
+       "rightCorner",
+       "lowerEdge",
+       "upperEdge"
+      ],
+      "evidenceFactIds": [
+       "fLower",
+       "fUpper"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "feasible",
+       "lowerEdge",
+       "upperEdge",
+       "leftEdge",
+       "pointC",
+       "upperLeft",
+       "rightCorner"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fX",
+       "fY",
+       "fLower",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "iPoints",
+      "kind": "graph",
+      "entityIds": [
+       "pointA",
+       "pointB",
+       "pointC",
+       "feasible"
+      ],
+      "evidenceFactIds": [
+       "fA",
+       "fB",
+       "fC",
+       "fClass",
+       "fSet"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sYt",
+      "kind": "evaluate",
+      "expressionId": "eYt",
+      "resultBinding": {
+       "turnPlanQuantityId": "yt",
+       "symbol": "y at upper-left corner",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     },
+     {
+      "id": "sXr",
+      "kind": "evaluate",
+      "expressionId": "eXr",
+      "resultBinding": {
+       "turnPlanQuantityId": "xr",
+       "symbol": "x at right corner",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     },
+     {
+      "id": "sZ1",
+      "kind": "evaluate",
+      "expressionId": "eZ1",
+      "resultBinding": {
+       "turnPlanQuantityId": "z1",
+       "symbol": "Z at (1,5/2)",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     },
+     {
+      "id": "sZ2",
+      "kind": "evaluate",
+      "expressionId": "eZ2",
+      "resultBinding": {
+       "turnPlanQuantityId": "z2",
+       "symbol": "Z at (1,7)",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     },
+     {
+      "id": "sZ3",
+      "kind": "evaluate",
+      "expressionId": "eZ3",
+      "resultBinding": {
+       "turnPlanQuantityId": "z3",
+       "symbol": "Z at (4,1)",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     },
+     {
+      "id": "sZm",
+      "kind": "evaluate",
+      "expressionId": "eZm",
+      "resultBinding": {
+       "turnPlanQuantityId": "zm",
+       "symbol": "minimum Z",
+       "evidenceFactIds": [
+        "fMin",
+        "fSet"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sYt",
+      "requestId": "sYt",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "7"
+      },
+      "approximate": 7,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sXr",
+      "requestId": "sXr",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "4"
+      },
+      "approximate": 4,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sZ1",
+      "requestId": "sZ1",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "19/2"
+      },
+      "approximate": 9.5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sZ2",
+      "requestId": "sZ2",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "23"
+      },
+      "approximate": 23,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sZ3",
+      "requestId": "sZ3",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "11"
+      },
+      "approximate": 11,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sZm",
+      "requestId": "sZm",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "19/2"
+      },
+      "approximate": 9.5,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sYt",
+      "requestId": "sYt",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eYt"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sXr",
+      "requestId": "sXr",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eXr"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sZ1",
+      "requestId": "sZ1",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eZ1"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sZ2",
+      "requestId": "sZ2",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eZ2"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sZ3",
+      "requestId": "sZ3",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eZ3"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sZm",
+      "requestId": "sZm",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eZm"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 41709,
+  "outputTokens": 9559,
+  "totalTokens": 51268,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.176069,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 694,
+    "outputTokens": 1190,
+    "totalTokens": 1884,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.013288,
+    "measuredCostUsd": 0.013288,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 755,
+    "outputTokens": 1673,
+    "totalTokens": 2428,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01824,
+    "measuredCostUsd": 0.01824,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5838,
+    "outputTokens": 93,
+    "totalTokens": 5931,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012606,
+    "measuredCostUsd": 0.012606,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2879,
+    "outputTokens": 1482,
+    "totalTokens": 4361,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.017639,
+    "measuredCostUsd": 0.017639,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7618,
+    "outputTokens": 1516,
+    "totalTokens": 9134,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.030396,
+    "measuredCostUsd": 0.030396,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7618,
+    "outputTokens": 1722,
+    "totalTokens": 9340,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.032456,
+    "measuredCostUsd": 0.032456,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 8158,
+    "outputTokens": 1006,
+    "totalTokens": 9164,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.026376,
+    "measuredCostUsd": 0.026376,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 8149,
+    "outputTokens": 877,
+    "totalTokens": 9026,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.025068,
+    "measuredCostUsd": 0.025068,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.176069
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "21a0428bb9ff2bf36385e2e82756ad3a3fe2ac6d0a235ba464ec3cf14d802272",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "feasible"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "53bcc39d5600736b454f32ec7acfc09191bed0f455968472bb7495c997a56f71",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "feasible"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":0,\"xMax\":5,\"yMin\":0,\"yMax\":8}",
+    "argumentsPresent": true,
+    "argumentBytes": 37,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kFeasible",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=1\",\"y>=1\",\"x+2*y>=6\",\"2*x+y<=9\"]}",
+    "argumentsPresent": true,
+    "argumentBytes": 75,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kC",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "kU",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"xb\",\"y\":\"yt\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "kR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"xr\",\"y\":\"yb\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":0,\"xMax\":5,\"yMin\":0,\"yMax\":8}",
+    "argumentsPresent": true,
+    "argumentBytes": 37,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeFeasible",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=1\",\"y>=1\",\"x+2*y>=6\",\"2*x+y<=9\"],\"objective\":{\"expression\":\"2*x+3*y\",\"sense\":\"min\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 126,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "makeC",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "makeU",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"xb\",\"y\":\"yt\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "makeR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"xr\",\"y\":\"yb\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": false,
+  "declinedUnreadable": false,
+  "emptyCause": "candidates_invalid",
+  "tier": null,
+  "nonMetric": false,
+  "figureSource": "text_only",
+  "reason": "linear_source_plan_role_unproved: Finite requested answer 'yt' ('yatupper-leftcorner' -> 'yatupper-leftcorner') has no original-source objective or unique optimal-coordinate role; linear_source_plan_role_unproved: Finite requested answer 'xr' ('xatrightcorner' -> 'xatrightcorner') has no original-source objective or unique optimal-coordinate role; linear_source_plan_role_unproved: Finite requested answer 'z1' ('Zat(1,5/2)' -> 'Zat(1,5/2)') has no original-source objective or unique optimal-coordinate role; linear_source_plan_role_unproved: Finite requested answer 'z2' ('Zat(1,7)' -> 'Zat(1,7)') has no original-source objective or unique optimal-coordinate role; linear_source_plan_role_unproved: Finite requested answer 'z3' ('Zat(4,1)' -> 'Zat(4,1)') has no original-source objective or unique optimal-coordinate role",
+  "archetypeId": null,
+  "family": null,
+  "entityIds": [],
+  "focusableIds": [],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [],
+  "labelByEntity": {},
+  "primitiveCount": 0,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch",
+   "invalid_linear_region"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 26704,
+    "elapsedMs": 18101,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 26715,
+    "elapsedMs": 18112,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 29075,
+    "elapsedMs": 7304,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 29036,
+    "elapsedMs": 7996,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   },
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": null,
+  "png": null,
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequalities and points determine an exact feasible region.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.\"\n  },\n  \"quantities\": [\n    {\"id\":\"zx\",\"value\":2},\n    {\"id\":\"zy\",\"value\":3},\n    {\"id\":\"xb\",\"value\":1},\n    {\"id\":\"yb\",\"value\":1},\n    {\"id\":\"lc\",\"value\":6},\n    {\"id\":\"uc\",\"value\":9},\n    {\"id\":\"ax\",\"value\":2},\n    {\"id\":\"ay\",\"value\":2},\n    {\"id\":\"bx\",\"value\":1},\n    {\"id\":\"by\",\"value\":2},\n    {\"id\":\"cx\",\"value\":1},\n    {\"id\":\"cy\",\"value\":2.5},\n    {\"id\":\"yt\",\"value\":7},\n    {\"id\":\"xr\",\"value\":4},\n    {\"id\":\"z1\",\"value\":9.5},\n    {\"id\":\"z2\",\"value\":23},\n    {\"id\":\"z3\",\"value\":11},\n    {\"id\":\"zm\",\"value\":9.5}\n  ],\n  \"entities\": [\n    {\"id\":\"axes\",\"kind\":\"axes\",\"role\":\"coordinate axes\"},\n    {\"id\":\"feasible\",\"kind\":\"linear_region\",\"role\":\"exact feasible region\"},\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"stated feasible point\",\"label\":\"A\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"stated infeasible point\",\"label\":\"B\"},\n    {\"id\":\"C\",\"kind\":\"point\",\"role\":\"lower-left corner and stated point\",\"label\":\"C\"},\n    {\"id\":\"U\",\"kind\":\"point\",\"role\":\"upper-left corner\"},\n    {\"id\":\"R\",\"kind\":\"point\",\"role\":\"right corner\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"kAxes\",\"operator\":\"axes\",\"inputs\":{\"xMin\":0,\"xMax\":5,\"yMin\":0,\"yMax\":8},\"outputs\":[\"axes\"]},\n    {\"id\":\"kFeasible\",\"operator\":\"linear_feasible_region\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=1\",\"y>=1\",\"x+2*y>=6\",\"2*x+y<=9\"]},\"outputs\":[\"feasible\"]},\n    {\"id\":\"kA\",\"operator\":\"point\",\"inputs\":{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},\n    {\"id\":\"kB\",\"operator\":\"point\",\"inputs\":{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]},\n    {\"id\":\"kC\",\"operator\":\"point\",\"inputs\":{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"},\"outputs\":[\"C\"]},\n    {\"id\":\"kU\",\"operator\":\"point\",\"inputs\":{\"x\":\"xb\",\"y\":\"yt\",\"coordinateSpace\":\"world\"},\"outputs\":[\"U\"]},\n    {\"id\":\"kR\",\"operator\":\"point\",\"inputs\":{\"x\":\"xr\",\"y\":\"yb\",\"coordinateSpace\":\"world\"},\"outputs\":[\"R\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\":\"aCoord\",\"kind\":\"label\",\"targetIds\":[\"A\"],\"text\":\"(2,2)\"},\n    {\"id\":\"bCoord\",\"kind\":\"label\",\"targetIds\":[\"B\"],\"text\":\"(1,2)\"},\n    {\"id\":\"cCoord\",\"kind\":\"label\",\"targetIds\":[\"C\"],\"text\":\"(1,5/2)\"},\n    {\"id\":\"aClass\",\"kind\":\"callout\",\"targetIds\":[\"A\"],\"text\":\"Feasible\"},\n    {\"id\":\"bClass\",\"kind\":\"callout\",\"targetIds\":[\"B\"],\"text\":\"Infeasible\"},\n    {\"id\":\"cValue\",\"kind\":\"callout\",\"targetIds\":[\"C\"],\"text\":\"Z=19/2\",\"quantityId\":\"z1\"},\n    {\"id\":\"uValue\",\"kind\":\"callout\",\"targetIds\":[\"U\"],\"text\":\"(1,7) Z=23\",\"quantityId\":\"z2\"},\n    {\"id\":\"rValue\",\"kind\":\"callout\",\"targetIds\":[\"R\"],\"text\":\"(4,1) Z=11\",\"quantityId\":\"z3\"},\n    {\"id\":\"minimum\",\"kind\":\"highlight\",\"targetIds\":[\"C\"],\"quantityId\":\"zm\"}\n  ],\n  \"requiredEntityIds\": [\"axes\",\"feasible\",\"A\",\"B\",\"C\",\"U\",\"R\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"axes\",\"feasible\",\"A\",\"B\",\"C\",\"U\",\"R\"],\"dependsOn\":[],\"narrationCue\":\"Graph the four stated inequalities over real pairs and mark A, B, and C.\"},\n    {\"id\":\"classification\",\"entityIds\":[],\"dependsOn\":[\"setup\"],\"narrationCue\":\"A and C satisfy all four inequalities; B fails x+2y≥6.\"},\n    {\"id\":\"solution\",\"entityIds\":[],\"dependsOn\":[\"classification\"],\"narrationCue\":\"Calculate the objective at every corner. The complete minimum set is the singleton C.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"showSetup\",\"revealGroupId\":\"setup\",\"targetIds\":[\"axes\",\"feasible\",\"A\",\"B\",\"C\",\"U\",\"R\",\"aCoord\",\"bCoord\",\"cCoord\"]},\n    {\"id\":\"showClassification\",\"revealGroupId\":\"classification\",\"targetIds\":[\"aClass\",\"bClass\"]},\n    {\"id\":\"showSolution\",\"revealGroupId\":\"solution\",\"targetIds\":[\"cValue\",\"uValue\",\"rValue\",\"minimum\"]}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequalities determine an exact feasible region.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.\"\n  },\n  \"quantities\": [\n    {\"id\": \"zx\", \"value\": 2},\n    {\"id\": \"zy\", \"value\": 3},\n    {\"id\": \"xb\", \"value\": 1},\n    {\"id\": \"yb\", \"value\": 1},\n    {\"id\": \"lc\", \"value\": 6},\n    {\"id\": \"uc\", \"value\": 9},\n    {\"id\": \"ax\", \"value\": 2},\n    {\"id\": \"ay\", \"value\": 2},\n    {\"id\": \"bx\", \"value\": 1},\n    {\"id\": \"by\", \"value\": 2},\n    {\"id\": \"cx\", \"value\": 1},\n    {\"id\": \"cy\", \"value\": 2.5},\n    {\"id\": \"yt\", \"value\": 7},\n    {\"id\": \"xr\", \"value\": 4},\n    {\"id\": \"z1\", \"value\": 9.5},\n    {\"id\": \"z2\", \"value\": 23},\n    {\"id\": \"z3\", \"value\": 11},\n    {\"id\": \"zm\", \"value\": 9.5}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"feasible\", \"kind\": \"polygon\", \"role\": \"exact feasible region\"},\n    {\"id\": \"A\", \"kind\": \"point\", \"role\": \"stated point\", \"label\": \"A\"},\n    {\"id\": \"B\", \"kind\": \"point\", \"role\": \"stated point\", \"label\": \"B\"},\n    {\"id\": \"C\", \"kind\": \"point\", \"role\": \"lower-left corner and stated point\", \"label\": \"C\"},\n    {\"id\": \"U\", \"kind\": \"point\", \"role\": \"upper-left corner\", \"label\": \"(1,7)\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"role\": \"right corner\", \"label\": \"(4,1)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": 0, \"xMax\": 5, \"yMin\": 0, \"yMax\": 8}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeFeasible\", \"operator\": \"linear_feasible_region\", \"inputs\": {\"variables\": [\"x\", \"y\"], \"constraints\": [\"x>=1\", \"y>=1\", \"x+2*y>=6\", \"2*x+y<=9\"], \"objective\": {\"expression\": \"2*x+3*y\", \"sense\": \"min\"}}, \"outputs\": [\"feasible\"]},\n    {\"id\": \"makeA\", \"operator\": \"point\", \"inputs\": {\"x\": \"ax\", \"y\": \"ay\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"A\"]},\n    {\"id\": \"makeB\", \"operator\": \"point\", \"inputs\": {\"x\": \"bx\", \"y\": \"by\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"B\"]},\n    {\"id\": \"makeC\", \"operator\": \"point\", \"inputs\": {\"x\": \"cx\", \"y\": \"cy\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"C\"]},\n    {\"id\": \"makeU\", \"operator\": \"point\", \"inputs\": {\"x\": \"xb\", \"y\": \"yt\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"U\"]},\n    {\"id\": \"makeR\", \"operator\": \"point\", \"inputs\": {\"x\": \"xr\", \"y\": \"yb\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\": \"cCoordinates\", \"kind\": \"callout\", \"targetIds\": [\"C\"], \"text\": \"(1,5/2)\"},\n    {\"id\": \"cValue\", \"kind\": \"callout\", \"targetIds\": [\"C\"], \"text\": \"Z=19/2\", \"quantityId\": \"z1\"},\n    {\"id\": \"uValue\", \"kind\": \"callout\", \"targetIds\": [\"U\"], \"text\": \"Z=23\", \"quantityId\": \"z2\"},\n    {\"id\": \"rValue\", \"kind\": \"callout\", \"targetIds\": [\"R\"], \"text\": \"Z=11\", \"quantityId\": \"z3\"},\n    {\"id\": \"classification\", \"kind\": \"narration\", \"targetIds\": [\"A\", \"B\", \"C\"], \"text\": \"A is feasible. B is infeasible: x+2y=5<6. C is feasible.\"},\n    {\"id\": \"minimum\", \"kind\": \"highlight\", \"targetIds\": [\"C\"], \"text\": \"Complete minimum set: {C}; minimum Z=19/2.\", \"quantityId\": \"zm\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"feasible\", \"A\", \"B\", \"C\", \"U\", \"R\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"feasible\", \"A\", \"B\", \"C\"], \"dependsOn\": [], \"narrationCue\": \"Graph the four inequalities over real pairs and mark the three stated points.\"},\n    {\"id\": \"solution\", \"entityIds\": [\"U\", \"R\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"Identify all corners, evaluate the objective, classify the stated points, and mark the unique minimum.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"revealGroupId\": \"setup\", \"annotationIds\": []},\n    {\"revealGroupId\": \"solution\", \"annotationIds\": [\"cCoordinates\", \"cValue\", \"uValue\", \"rValue\", \"classification\", \"minimum\"]}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The verified linear-feasible-region operator constructs the exact boundaries, corners, objective values, and minimum set.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.\"\n  },\n  \"quantities\": [\n    {\"id\":\"zx\",\"symbol\":\"coefficient of x in Z\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"zy\",\"symbol\":\"coefficient of y in Z\",\"value\":3,\"provenance\":\"given\"},\n    {\"id\":\"xb\",\"symbol\":\"lower bound on x\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"yb\",\"symbol\":\"lower bound on y\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"lc\",\"symbol\":\"lower bound on x+2y\",\"value\":6,\"provenance\":\"given\"},\n    {\"id\":\"uc\",\"symbol\":\"upper bound on 2x+y\",\"value\":9,\"provenance\":\"given\"},\n    {\"id\":\"ax\",\"symbol\":\"A_x\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"ay\",\"symbol\":\"A_y\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"bx\",\"symbol\":\"B_x\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"by\",\"symbol\":\"B_y\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"cx\",\"symbol\":\"C_x\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"cy\",\"symbol\":\"C_y\",\"value\":2.5,\"provenance\":\"given\"},\n    {\"id\":\"yt\",\"symbol\":\"y at upper-left corner\",\"value\":7,\"provenance\":\"derived\"},\n    {\"id\":\"xr\",\"symbol\":\"x at right corner\",\"value\":4,\"provenance\":\"derived\"},\n    {\"id\":\"z1\",\"symbol\":\"Z at (1,5/2)\",\"value\":9.5,\"provenance\":\"derived\"},\n    {\"id\":\"z2\",\"symbol\":\"Z at (1,7)\",\"value\":23,\"provenance\":\"derived\"},\n    {\"id\":\"z3\",\"symbol\":\"Z at (4,1)\",\"value\":11,\"provenance\":\"derived\"},\n    {\"id\":\"zm\",\"symbol\":\"minimum Z\",\"value\":9.5,\"provenance\":\"derived\"}\n  ],\n  \"entities\": [\n    {\"id\":\"feasible\",\"kind\":\"linear_region\",\"role\":\"exact feasible region, objective, and stated-point classification\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\":\"kFeasible\",\n      \"operator\":\"linear_feasible_region\",\n      \"inputs\":{\n        \"variables\":[\"x\",\"y\"],\n        \"constraints\":[\"x>=1\",\"y>=1\",\"x+2y>=6\",\"2x+y<=9\"],\n        \"objective\":{\"expression\":\"2x+3y\",\"sense\":\"min\"}\n      },\n      \"outputs\":[\"feasible\"]\n    }\n  ],\n  \"relations\":[],\n  \"assertions\":[],\n  \"annotations\":[],\n  \"requiredEntityIds\":[\"feasible\"],\n  \"revealGroups\":[\n    {\n      \"id\":\"setup\",\n      \"entityIds\":[\"feasible\"],\n      \"dependsOn\":[],\n      \"narrationCue\":\"Graph the four stated inequalities over real pairs before evaluating the objective.\"\n    }\n  ],\n  \"teachingTimeline\":[\n    {\"id\":\"showSetup\",\"revealGroupId\":\"setup\",\"targetIds\":[\"feasible\"],\"narrationCue\":\"Show the exact feasible region.\"},\n    {\"id\":\"evaluate\",\"targetIds\":[\"feasible\"],\"narrationCue\":\"Then calculate each corner’s coordinates and Z value, mark the complete minimum set, and classify A, B, and C against the stated inequalities.\"}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The verified linear-region operator graphs the exact feasible region, stated points, corners, objective values, and complete minimum set.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.\"\n  },\n  \"quantities\": [\n    {\"id\":\"zx\",\"symbol\":\"coefficient of x in Z\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"zy\",\"symbol\":\"coefficient of y in Z\",\"value\":3,\"provenance\":\"given\"},\n    {\"id\":\"xb\",\"symbol\":\"lower bound on x\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"yb\",\"symbol\":\"lower bound on y\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"lc\",\"symbol\":\"lower bound on x+2y\",\"value\":6,\"provenance\":\"given\"},\n    {\"id\":\"uc\",\"symbol\":\"upper bound on 2x+y\",\"value\":9,\"provenance\":\"given\"},\n    {\"id\":\"ax\",\"symbol\":\"A_x\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"ay\",\"symbol\":\"A_y\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"bx\",\"symbol\":\"B_x\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"by\",\"symbol\":\"B_y\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"cx\",\"symbol\":\"C_x\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"cy\",\"symbol\":\"C_y\",\"value\":2.5,\"provenance\":\"given\"}\n  ],\n  \"entities\": [\n    {\"id\":\"feasible\",\"kind\":\"linear_region\",\"role\":\"exact feasible region, source points, corners, and objective\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\":\"kFeasible\",\n      \"operator\":\"linear_feasible_region\",\n      \"inputs\":{\n        \"variables\":[\"x\",\"y\"],\n        \"constraints\":[\"x>=1\",\"y>=1\",\"x+2y>=6\",\"2x+y<=9\"],\n        \"objective\":{\"expression\":\"2x+3y\",\"sense\":\"min\"}\n      },\n      \"outputs\":[\"feasible\"]\n    }\n  ],\n  \"relations\":[],\n  \"assertions\":[],\n  \"annotations\":[],\n  \"requiredEntityIds\":[\"feasible\"],\n  \"revealGroups\":[\n    {\"id\":\"setup\",\"entityIds\":[\"feasible\"],\"dependsOn\":[],\"narrationCue\":\"Graph the four stated inequalities and the marked points A=(2,2), B=(1,2), and C=(1,5/2).\"}\n  ],\n  \"teachingTimeline\":[\n    {\"id\":\"showSetup\",\"targetIds\":[\"feasible\"],\"action\":\"reveal\",\"narrationCue\":\"Identify the closed feasible region without an integer restriction.\"},\n    {\"id\":\"evaluate\",\"targetIds\":[\"feasible\"],\"action\":\"highlight\",\"narrationCue\":\"Calculate each corner’s objective value, classify A, B, and C, and identify the complete minimum set.\"}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "ea9db2d602610a2e8baf21c3010441aea81884b0f4bdd521d13abf455558b71c",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0021,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2446,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/area-between--1",
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+  "topic_id": "maths|h3r8-finish-regions|shifted-triangle-minimum",
+  "subject": "maths",
+  "difficulty": "hard",
+  "ask_style": "exam_stem",
+  "question": "Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "feasible_region",
+  "must_show": [
+   "Exactly the included triangle (1,5/2), (4,1), (1,7).",
+   "All four source constraints respected; y = 1 touches only (4,1).",
+   "Corner Z values respectively 19/2, 11, 23.",
+   "Unique minimum 19/2 at (1,5/2).",
+   "A and C feasible; B infeasible."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "x = 1",
+   "y = 1",
+   "x + 2y = 6",
+   "2x + y = 9",
+   "(1,5/2)",
+   "(4,1)",
+   "(1,7)",
+   "Z = 2x + 3y",
+   "19/2",
+   "11",
+   "23",
+   "A",
+   "B",
+   "C"
+  ],
+  "must_not_show": [
+   "A fourth spurious polygon corner on y = 1.",
+   "Including (1,1).",
+   "Rounding (1,5/2).",
+   "Multiple minima."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Z(1,5/2)=19/2; Z(4,1)=11; Z(1,7)=23",
+   "Unique minimum 19/2 at (1,5/2)",
+   "A: true; B: false; C: true"
+  ],
+  "notes": "CBSE class 12 linear programming; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

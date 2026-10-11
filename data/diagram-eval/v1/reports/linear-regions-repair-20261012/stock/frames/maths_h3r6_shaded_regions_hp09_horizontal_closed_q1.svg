@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Represent 2y &lt;= -6 in the coordinate plane and identify the included boundary.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | 2y=-6 | 2y&lt;=-6 | Shaded side satisfies the inequality</text>
+<polygon points="581.18,586 978.82,586 978.82,511.44 581.18,511.44" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="581.18" y1="213.21" x2="978.82" y2="213.21" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="780" y1="586" x2="780" y2="138.65" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="981.88" y="219.12" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="802.94" y="144.56" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="802.94" y="219.12" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="581.18,511.44 978.82,511.44" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="614.4416259792484" y="480.44" font-size="18" dominant-baseline="hanging" textLength="32.87674804150316" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2y=-6</text>
+<text x="760.6406760313088" y="99.82" font-size="18" dominant-baseline="hanging" textLength="38.718647937382414" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2y&lt;=-6</text>
+<text x="681.6529137461708" y="70" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "b6d44d3b097a43a9fcad4faa9cfa3866afe2e635996f7cf648028b0d698b08e6",
+  "pngSha256": "305c7b0c102ccd7eddae5003f1507f6416dcd457f53b52b76040fc7a15fbc254"
+}

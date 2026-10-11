@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "14f781b99de6a35e22548c4d38f2b1f6bc18ce00c26e5bc91db8478392fbf4aa",
+  "pngSha256": "16a1e30ffc99f0c51977004d2f951f21088299f9aa163027711efd7be266778d"
+}

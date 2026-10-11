@@ -1,0 +1,18 @@
+{
+  "beforeEnd": "2026-10-11T23:00:41Z",
+  "afterEnd": "2026-10-11T23:14:41Z",
+  "delta": {
+    "ProcessedPromptTokens": 1507319.0,
+    "GeneratedTokens": 302342.0
+  },
+  "confirmedCachedInputTokens": 91273,
+  "azureEstimateUsd": 5.8646393,
+  "uncachedConservativeEstimateUsd": 6.038058,
+  "knownResponseUsageUsd": 5.219373,
+  "unresolvedAllowanceUsd": 8.649485,
+  "unmeteredAttempts": 71,
+  "realCapUsd": 20,
+  "nativeAgentBillingAvailable": false,
+  "viewsOverlapNotAdded": true,
+  "invoicedCost": false
+}

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=number_line_set tier=qualitative_verified labels=x | 3 | Solution: [3, 3]</text>
+<line x1="434" y1="414.51" x2="1126" y2="414.51" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1139" y="415.77" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<circle cx="1010.67" cy="414.51" r="4" fill="#141821"/>
+<text x="1005.6556049999999" y="383.51" font-size="18" dominant-baseline="hanging" textLength="10.028789999999999" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">3</text>
+<text x="739.3334608014989" y="231.23" font-size="18" dominant-baseline="hanging" textLength="81.33307839700228" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Solution: [3, 3]</text>
+</svg>

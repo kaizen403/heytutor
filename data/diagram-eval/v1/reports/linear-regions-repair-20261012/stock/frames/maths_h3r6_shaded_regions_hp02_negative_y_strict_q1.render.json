@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "790098895bd87dd4c7a51e8084d9250e865dcbad585da82ba6e1c7cc939232ba",
+  "pngSha256": "1a820ea1d4abbdb5694c65fb168dcac9b2bec6a47000fe085d72f16d949373e2"
+}

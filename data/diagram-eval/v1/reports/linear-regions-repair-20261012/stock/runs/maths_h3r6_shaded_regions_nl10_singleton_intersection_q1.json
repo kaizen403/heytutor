@@ -1,0 +1,715 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+ "topicId": "maths|h3r6-shaded-regions|nl10-singleton-intersection",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:01:58.918Z",
+ "timings": {
+  "planMs": 19049,
+  "teachMs": 0,
+  "totalMs": 19050,
+  "figureCommitMs": 19050,
+  "stages": {
+   "turnPlanMs": 4403,
+   "problemIrMs": 3310,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 11319,
+   "deadlineRemainingMs": 40967,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": false,
+  "givens": [
+   {
+    "id": "q1",
+    "symbol": "boundary",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "A = (-infinity, 3] and B = [3, infinity)"
+   }
+  ],
+  "unknowns": [],
+  "derived": [],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "A ∩ B = {3}. On the number line, mark a filled dot at 3 and no other points."
+   }
+  ],
+  "lawIds": [
+   "Set intersection: elements common to both sets"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "da5c804d9755f95b33c03547489eaf8a060cca6d853f65f235ac0b2426a42421",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "q1",
+      "symbol": "boundary",
+      "value": 3,
+      "sourceText": "A = (-infinity, 3] and B = [3, infinity)",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Intersection",
+      "expected": "A ∩ B = {3}. On the number line, mark a filled dot at 3 and no other points.",
+      "relatedQuantityIds": [
+       "q1"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Set intersection: elements common to both sets"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.",
+    "facts": [
+     {
+      "id": "fA",
+      "kind": "given",
+      "statement": "A contains all numbers at most 3",
+      "evidence": {
+       "source": "question",
+       "start": 4,
+       "end": 22,
+       "quote": "A = (-infinity, 3]"
+      }
+     },
+     {
+      "id": "fB",
+      "kind": "given",
+      "statement": "B contains all numbers at least 3",
+      "evidence": {
+       "source": "question",
+       "start": 27,
+       "end": 44,
+       "quote": "B = [3, infinity)"
+      }
+     },
+     {
+      "id": "fIntersection",
+      "kind": "requested",
+      "statement": "Represent the intersection on a number line",
+      "evidence": {
+       "source": "question",
+       "start": 46,
+       "end": 90,
+       "quote": "Represent A intersection B on a number line."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIntersection"
+      ]
+     },
+     {
+      "id": "setA",
+      "kind": "region",
+      "label": "A",
+      "evidenceFactIds": [
+       "fA"
+      ]
+     },
+     {
+      "id": "setB",
+      "kind": "region",
+      "label": "B",
+      "evidenceFactIds": [
+       "fB"
+      ]
+     },
+     {
+      "id": "intersection",
+      "kind": "point",
+      "label": "A ∩ B",
+      "evidenceFactIds": [
+       "fA",
+       "fB",
+       "fIntersection"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iIntersection",
+      "kind": "graph",
+      "entityIds": [
+       "numberLine",
+       "setA",
+       "setB",
+       "intersection"
+      ],
+      "evidenceFactIds": [
+       "fA",
+       "fB",
+       "fIntersection"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 25418,
+  "outputTokens": 2867,
+  "totalTokens": 28285,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.076567,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 620,
+    "outputTokens": 228,
+    "totalTokens": 848,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00352,
+    "measuredCostUsd": 0.00352,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 681,
+    "outputTokens": 351,
+    "totalTokens": 1032,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.004872,
+    "measuredCostUsd": 0.004872,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5324,
+    "outputTokens": 39,
+    "totalTokens": 5363,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011038,
+    "measuredCostUsd": 0.011038,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1760,
+    "outputTokens": 298,
+    "totalTokens": 2058,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.003561,
+    "measuredCostUsd": 0.003561,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4110,
+    "outputTokens": 515,
+    "totalTokens": 4625,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01337,
+    "measuredCostUsd": 0.01337,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4110,
+    "outputTokens": 609,
+    "totalTokens": 4719,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01431,
+    "measuredCostUsd": 0.01431,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4411,
+    "outputTokens": 442,
+    "totalTokens": 4853,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.013242,
+    "measuredCostUsd": 0.013242,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4402,
+    "outputTokens": 385,
+    "totalTokens": 4787,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012654,
+    "measuredCostUsd": 0.012654,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.076567
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "9b4ae77697f4e7cb0251ceb13f0bd955638192f2e180acc8dc73a5c7bb63586a",
+    "errors": [
+     {
+      "code": "untrusted_linear_annotation",
+      "message": "Linear shading, labels and endpoint marks are operator-owned",
+      "severity": "fatal",
+      "entityIds": [
+       "intersectionSet"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "9237d82309d5333d65e0b7695ea3e9e47aa3c64502509245c3b2352e88f84856",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "intersectionSet"
+      ]
+     },
+     {
+      "code": "empty_required_scene",
+      "message": "A scene must declare requiredEntityIds",
+      "severity": "fatal",
+      "path": "requiredEntityIds"
+     }
+    ],
+    "issueCount": 2,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "constructIntersection",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"intersection\":[{\"inequality\":\"x <= 3\"},{\"inequality\":\"x >= 3\"}]}}",
+    "argumentsPresent": true,
+    "argumentBytes": 96,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "untrusted_linear_annotation"
+    ],
+    "errorPaths": [],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "constructIntersection",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"intersection\":[{\"inequality\":\"x <= 3\"},{\"inequality\":\"x >= 3\"}]}}",
+    "argumentsPresent": true,
+    "argumentBytes": 96,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "3",
+   "Solution: [3, 3]"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 5,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "untrusted_linear_annotation",
+   "invalid_linear_region",
+   "empty_required_scene"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 15662,
+    "elapsedMs": 5487,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 15651,
+    "elapsedMs": 6979,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 17172,
+    "elapsedMs": 5488,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 17133,
+    "elapsedMs": 5808,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.\"\n  },\n  \"quantities\": [\n    {\n      \"id\": \"q1\",\n      \"symbol\": \"boundary\",\n      \"value\": 3,\n      \"provenance\": \"given\",\n      \"sourceText\": \"A = (-infinity, 3] and B = [3, infinity)\"\n    }\n  ],\n  \"entities\": [\n    {\n      \"id\": \"intersectionSet\",\n      \"kind\": \"linear_region\",\n      \"label\": \"A ∩ B\"\n    }\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructIntersection\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\"inequality\": \"x <= 3\"},\n            {\"inequality\": \"x >= 3\"}\n          ]\n        }\n      },\n      \"outputs\": [\"intersectionSet\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\n      \"id\": \"filledEndpoint\",\n      \"kind\": \"endpoint\",\n      \"targetIds\": [\"intersectionSet\"],\n      \"style\": {\"pointStyle\": \"filled\"}\n    }\n  ],\n  \"requiredEntityIds\": [\"intersectionSet\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"intersectionSet\"]\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.\"\n  },\n  \"quantities\": [\n    {\n      \"id\": \"q1\",\n      \"symbol\": \"boundary\",\n      \"value\": 3,\n      \"provenance\": \"given\",\n      \"sourceText\": \"A = (-infinity, 3] and B = [3, infinity)\"\n    }\n  ],\n  \"entities\": [\n    {\n      \"id\": \"intersectionSet\",\n      \"kind\": \"group\",\n      \"label\": \"A ∩ B\"\n    }\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructIntersection\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            { \"inequality\": \"x <= 3\" },\n            { \"inequality\": \"x >= 3\" }\n          ]\n        }\n      },\n      \"outputs\": [\"intersectionSet\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\n      \"id\": \"filledBoundary\",\n      \"kind\": \"endpoint\",\n      \"targetIds\": [\"intersectionSet\"],\n      \"quantityId\": \"q1\",\n      \"style\": {\n        \"pointStyle\": \"filled\"\n      }\n    }\n  ],\n  \"requiredEntityIds\": [\"intersectionSet\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"intersectionSet\"]\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.\"\n  },\n  \"quantities\": [\n    {\n      \"id\": \"q1\",\n      \"symbol\": \"boundary\",\n      \"value\": 3\n    }\n  ],\n  \"entities\": [\n    {\n      \"id\": \"intersectionSet\",\n      \"kind\": \"linear_region\"\n    }\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructIntersection\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\n              \"inequality\": \"x <= 3\"\n            },\n            {\n              \"inequality\": \"x >= 3\"\n            }\n          ]\n        }\n      },\n      \"outputs\": [\n        \"intersectionSet\"\n      ]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\n    \"intersectionSet\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\n        \"intersectionSet\"\n      ]\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.\"\n  },\n  \"quantities\": [\n    {\n      \"id\": \"q1\",\n      \"symbol\": \"boundary\",\n      \"value\": 3\n    }\n  ],\n  \"entities\": [\n    {\n      \"id\": \"intersectionSet\",\n      \"kind\": \"linear_region\"\n    }\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructIntersection\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\n              \"inequality\": \"x<=3\"\n            },\n            {\n              \"inequality\": \"x>=3\"\n            }\n          ]\n        }\n      },\n      \"outputs\": [\n        \"intersectionSet\"\n      ]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\n    \"intersectionSet\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\n        \"intersectionSet\"\n      ]\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "da5c804d9755f95b33c03547489eaf8a060cca6d853f65f235ac0b2426a42421",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2124,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+  "topic_id": "maths|h3r6-shaded-regions|nl10-singleton-intersection",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "Let A = (-infinity, 3] and B = [3, infinity). Represent A intersection B on a number line.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "a horizontal number line",
+   "one filled solution marker at 3",
+   "no nonzero-length interval or ray highlighted as the common solution"
+  ],
+  "must_label": [
+   "x",
+   "3"
+  ],
+  "must_not_show": [
+   "an open marker at 3",
+   "both rays shaded as the final intersection",
+   "an empty final solution"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "A intersection B = {3}.",
+   "3 belongs to both sets."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=nl10; exam_scope=CBSE11;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

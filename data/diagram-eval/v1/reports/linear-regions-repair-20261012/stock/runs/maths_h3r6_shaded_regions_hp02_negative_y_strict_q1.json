@@ -1,0 +1,687 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+ "topicId": "maths|h3r6-shaded-regions|hp02-negative-y-strict",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Explain the dashed boundary and shaded side for 3x - 2y > 4 in the coordinate plane.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:02:13.068Z",
+ "timings": {
+  "planMs": 14993,
+  "teachMs": 0,
+  "totalMs": 14995,
+  "figureCommitMs": 14995,
+  "stages": {
+   "turnPlanMs": 5526,
+   "problemIrMs": 4436,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 4953,
+   "deadlineRemainingMs": 45081,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": false,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "x coefficient",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "g1 = 3"
+   },
+   {
+    "id": "g2",
+    "symbol": "y coefficient",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "g2 = -2"
+   },
+   {
+    "id": "g3",
+    "symbol": "right-hand side",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "g3 = 4"
+   }
+  ],
+  "unknowns": [],
+  "derived": [],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "3x - 2y = 4, equivalently y = (3/2)x - 2."
+   },
+   {
+    "id": "c2",
+    "expected": "Points satisfying 3x - 2y = 4 are not solutions."
+   },
+   {
+    "id": "c3",
+    "expected": "Dividing 3x - 2y > 4 by −2 reverses the inequality, giving y < (3/2)x - 2; the origin is not shaded because 0 > 4 is false."
+   }
+  ],
+  "lawIds": [
+   "inequality-division-by-negative",
+   "strict-inequality-boundary",
+   "Cartesian-half-plane-test"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "7fc268df04867d67c30f866c076a0591e8a48c666a9c32214aee37fdc831500e",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Explain the dashed boundary and shaded side for 3x - 2y > 4 in the coordinate plane.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "x coefficient",
+      "value": 3,
+      "sourceText": "g1 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "y coefficient",
+      "value": -2,
+      "sourceText": "g2 = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "right-hand side",
+      "value": 4,
+      "sourceText": "g3 = 4",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "The boundary is the line obtained by replacing > with =.",
+      "expected": "3x - 2y = 4, equivalently y = (3/2)x - 2.",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "g3"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The boundary is dashed because the strict inequality excludes points on the line.",
+      "expected": "Points satisfying 3x - 2y = 4 are not solutions."
+     },
+     {
+      "id": "c3",
+      "claim": "With x increasing rightward and y increasing upward, shade below the boundary.",
+      "expected": "Dividing 3x - 2y > 4 by −2 reverses the inequality, giving y < (3/2)x - 2; the origin is not shaded because 0 > 4 is false."
+     }
+    ],
+    "lawIds": [
+     "inequality-division-by-negative",
+     "strict-inequality-boundary",
+     "Cartesian-half-plane-test"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Explain the dashed boundary and shaded side for 3x - 2y > 4 in the coordinate plane.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The inequality is 3x - 2y > 4.",
+      "evidence": {
+       "source": "question",
+       "start": 48,
+       "end": 59,
+       "quote": "3x - 2y > 4"
+      }
+     },
+     {
+      "id": "fBoundary",
+      "kind": "requested",
+      "statement": "Explain the dashed boundary.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 27,
+       "quote": "Explain the dashed boundary"
+      }
+     },
+     {
+      "id": "fShade",
+      "kind": "requested",
+      "statement": "Explain the shaded side in the coordinate plane.",
+      "evidence": {
+       "source": "question",
+       "start": 32,
+       "end": 83,
+       "quote": "shaded side for 3x - 2y > 4 in the coordinate plane"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "boundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIneq",
+       "fBoundary"
+      ]
+     },
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq",
+       "fShade"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eY",
+      "valueType": "function",
+      "root": {
+       "kind": "variable",
+       "name": "y"
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eLine",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cBoundary",
+      "kind": "equation",
+      "leftExpressionId": "eY",
+      "rightExpressionId": "eLine",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "cSolution",
+      "kind": "inequality",
+      "leftExpressionId": "eY",
+      "rightExpressionId": "eLine",
+      "relation": "<",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "boundary",
+       "solution"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fBoundary",
+       "fShade"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 6,
+  "inputTokens": 21062,
+  "outputTokens": 2469,
+  "totalTokens": 23531,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.063875,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 677,
+    "outputTokens": 519,
+    "totalTokens": 1196,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006544,
+    "measuredCostUsd": 0.006544,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 616,
+    "outputTokens": 439,
+    "totalTokens": 1055,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.005622,
+    "measuredCostUsd": 0.005622,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5437,
+    "outputTokens": 85,
+    "totalTokens": 5522,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011724,
+    "measuredCostUsd": 0.011724,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1936,
+    "outputTokens": 444,
+    "totalTokens": 2380,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.005373,
+    "measuredCostUsd": 0.005373,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6198,
+    "outputTokens": 475,
+    "totalTokens": 6673,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.017146,
+    "measuredCostUsd": 0.017146,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6198,
+    "outputTokens": 507,
+    "totalTokens": 6705,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.017466,
+    "measuredCostUsd": 0.017466,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.063875
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "3x - 2y=4",
+   "3x - 2y>4",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 9,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 22163,
+    "elapsedMs": 4186,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 22174,
+    "elapsedMs": 4867,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The strict linear inequality determines an exact excluded boundary and shaded half-plane.\"\n  },\n  \"source\": {\n    \"question\": \"Explain the dashed boundary and shaded side for 3x - 2y > 4 in the coordinate plane.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"x coefficient\", \"value\": 3},\n    {\"id\": \"g2\", \"symbol\": \"y coefficient\", \"value\": -2},\n    {\"id\": \"g3\", \"symbol\": \"right-hand side\", \"value\": 4}\n  ],\n  \"entities\": [\n    {\"id\": \"region\", \"kind\": \"linear_region\", \"role\": \"half-plane with dashed, excluded boundary\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"construct_region\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"inequality\": \"3x - 2y > 4\"\n      },\n      \"outputs\": [\"region\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"region\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"region\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"The boundary 3x − 2y = 4 is dashed because equality is excluded. Shade below it: dividing by −2 reverses the inequality to y < (3/2)x − 2. The origin is not shaded.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The strict linear inequality determines a dashed boundary and a shaded half-plane.\"\n  },\n  \"source\": {\n    \"question\": \"Explain the dashed boundary and shaded side for 3x - 2y > 4 in the coordinate plane.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"x coefficient\", \"value\": 3},\n    {\"id\": \"g2\", \"symbol\": \"y coefficient\", \"value\": -2},\n    {\"id\": \"g3\", \"symbol\": \"right-hand side\", \"value\": 4}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"strict inequality, dashed boundary, and shaded solution half-plane\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"construct_solution\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"inequality\": \"3x - 2y > 4\"\n      },\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"solution\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"The boundary is 3x − 2y = 4. It is dashed because equality is excluded. Shade below the line: dividing by −2 reverses the inequality to y < (3/2)x − 2. The origin is unshaded because 0 > 4 is false.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "7fc268df04867d67c30f866c076a0591e8a48c666a9c32214aee37fdc831500e",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2597,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+  "topic_id": "maths|h3r6-shaded-regions|hp02-negative-y-strict",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "Explain the dashed boundary and shaded side for 3x - 2y > 4 in the coordinate plane.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "a dashed boundary through (4/3, 0) and (0, -2)",
+   "the half-plane below the boundary shaded"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "3x - 2y = 4",
+   "(4/3, 0)",
+   "(0, -2)"
+  ],
+  "must_not_show": [
+   "a solid boundary",
+   "the half-plane above the boundary shaded",
+   "the origin shown in the solution set"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "y < (3/2)x - 2",
+   "The boundary is excluded.",
+   "(0, 0) does not satisfy the inequality."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=hp02; exam_scope=CBSE11-formative;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

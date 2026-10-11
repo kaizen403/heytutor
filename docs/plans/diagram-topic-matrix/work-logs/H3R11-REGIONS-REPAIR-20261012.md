@@ -1,0 +1,9 @@
+# H3R11 regions repair — 12 October 2026
+
+PR #156 remains ready for review under the owner's right-up, wrong-down, wrong-plus-empty-down bar. The single repaired-branch stock run at `2c81544f` completes all 60 rows: drawn/right/partial/wrong/empty **54/33/21/0/6**, versus retained MAIN 1 **54/1/31/22/6** and prior regions 1 **47/30/17/0/13**. Frozen 40 empties return 10→3; additional 20 remain 3. No new paired repeat, causal estimate or fresh holdout is claimed.
+
+Generic original-source role and solver contract repairs recover ten admissions in the 59-original-record production-selector replay, with zero losses. Independent adversarial gates cover pruned unknowns, finite sets disguised as givens/intermediates, forged boundary roles, exact endpoint provenance, malformed plans and tiny-value rounding. Existing shading/corner/source guards remain intact. The new 61/73/124/53 gates, complete linear suite, builds and typechecks pass. Two MAIN summary reconstructions have intended new safety refusals; missing full MAIN inputs prevent an exact historical pipeline-preservation claim. Topic counts are unchanged.
+
+Blind A/B streams have 53 agreements and one source-blind C majority; consensus wrong is zero. B has one pre-append helper recovery, no rewritten verdicts. All image inspection was delegated; root viewed zero images. One whole stock run only. Azure estimate **$5.864639/$20**; uncached conservative **$6.038058**; known response **$5.219373**, overlapping rather than additive. No merge or production change.
+
+Portable measured evidence, first grades, source records, full rejection messages, health and spend snapshots: [repair report](../../../../data/diagram-eval/v1/reports/linear-regions-repair-20261012/README.md). Earlier full table including the excluded run: [owner decision](H3R11-REGIONS-OWNER-APPROVAL-20261012.md). The two earlier prompt commits remain separate draft #151.

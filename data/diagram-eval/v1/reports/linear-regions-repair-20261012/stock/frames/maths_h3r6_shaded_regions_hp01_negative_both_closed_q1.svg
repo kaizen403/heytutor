@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Teach me the graph of -2x - 3y &lt;= 6, including how to choose which half-plane to shade.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | -2x - 3y=6 | -2x - 3y&lt;=6 | Shaded side satisfies the inequality</text>
+<polygon points="1115.51,586 1115.51,138.65 444.49,138.65" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="444.49" y1="213.21" x2="1115.51" y2="213.21" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="1003.68" y1="586" x2="1003.68" y2="138.65" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1111.74" y="219.12" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="1033.45" y="144.56" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="1033.45" y="219.12" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="444.49,138.65 1115.51,586" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="541.36" y="163.57" font-size="18" dominant-baseline="hanging" textLength="57.6922072118076" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-2x - 3y=6</text>
+<text x="748.2329464461566" y="99.82" font-size="18" dominant-baseline="hanging" textLength="63.53410710768685" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-2x - 3y&lt;=6</text>
+<text x="681.6529137461708" y="70" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "9f005ede0971c91279be334635758d156548239995a0f4797c120935c34fe70f",
+  "pngSha256": "5cf1bfc20fd20f78c0e64f9e55b59d5da5ee628aea883dd70709f94734cccba5"
+}

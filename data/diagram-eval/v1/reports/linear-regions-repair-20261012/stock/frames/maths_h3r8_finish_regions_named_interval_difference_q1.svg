@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Let I = {x in R : -5 &lt;= 3x - 1 &lt;= 8} and J = {x in R : 0 &lt; 2x + 1 &lt; 5}. Draw K = I minus J on a number line. H</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=number_line_set tier=qualitative_verified labels=x | -4/3 | -1/2 | 2 | 3 | A=-4/3 included | B=-1/2 included | C=0 excluded | D=2 included | E=3 included | Solution: [-4/3, -1/2] union [2, 3]</text>
+<line x1="434" y1="389.28" x2="1126" y2="389.28" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1139" y="387.38" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<polyline points="549.33,389.28 638.05,389.28" fill="none" stroke="#141821" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="549.33" cy="389.28" r="4" fill="#141821"/>
+<text x="537.0757140914332" y="358.28" font-size="18" dominant-baseline="hanging" textLength="24.508571817133756" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-4/3</text>
+<circle cx="638.05" cy="389.28" r="4" fill="#141821"/>
+<text x="626.1693449090344" y="402.28" font-size="18" dominant-baseline="hanging" textLength="23.76131018193111" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-1/2</text>
+<polyline points="904.21,389.28 1010.67,389.28" fill="none" stroke="#141821" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="904.21" cy="389.28" r="4" fill="#141821"/>
+<text x="899.15596" y="402.28" font-size="18" dominant-baseline="hanging" textLength="10.108079999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2</text>
+<circle cx="1010.67" cy="389.28" r="4" fill="#141821"/>
+<text x="1005.6556049999999" y="402.28" font-size="18" dominant-baseline="hanging" textLength="10.028789999999999" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">3</text>
+<circle cx="549.33" cy="389.28" r="4" fill="#141821"/>
+<text x="506.62246207336705" y="402.28" font-size="18" dominant-baseline="hanging" textLength="85.41507585326605" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">A=-4/3 included</text>
+<circle cx="638.05" cy="389.28" r="4" fill="#141821"/>
+<text x="595.3246874944778" y="358.28" font-size="18" dominant-baseline="hanging" textLength="85.4506250110445" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">B=-1/2 included</text>
+<circle cx="691.28" cy="389.28" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="704.28" y="358.28" font-size="18" dominant-baseline="hanging" textLength="72.55399707987903" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">C=0 excluded</text>
+<circle cx="904.21" cy="389.28" r="4" fill="#141821"/>
+<text x="868.3585710391887" y="358.28" font-size="18" dominant-baseline="hanging" textLength="71.70285792162248" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">D=2 included</text>
+<circle cx="1010.67" cy="389.28" r="4" fill="#141821"/>
+<text x="975.3132795619364" y="358.28" font-size="18" dominant-baseline="hanging" textLength="70.71344087612715" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">E=3 included</text>
+<text x="691.4025774437144" y="259.62" font-size="18" dominant-baseline="hanging" textLength="177.19484511257102" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Solution: [-4/3, -1/2] union [2, 3]</text>
+</svg>

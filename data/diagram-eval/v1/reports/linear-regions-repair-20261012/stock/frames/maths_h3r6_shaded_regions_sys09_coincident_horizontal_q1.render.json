@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "1764857eb98847ec49fa766dbc555a00695e905684114c91474e3a014921068c",
+  "pngSha256": "229fe016f3cea11e0d0c3dd17283a87a86b7eddeaf8c29ae296ffb25dfc8fb5c"
+}

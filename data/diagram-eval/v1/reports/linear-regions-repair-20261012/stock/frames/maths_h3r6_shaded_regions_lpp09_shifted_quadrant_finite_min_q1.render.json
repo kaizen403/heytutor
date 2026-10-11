@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "75f02060f752578922f58ad90102755ebbe7d96ca8e79b6430d6b5e2a98d0cc6",
+  "pngSha256": "1c6a64737d611feadddea48d1e993df68a9e0c10223d2b99012dbacac0200790"
+}

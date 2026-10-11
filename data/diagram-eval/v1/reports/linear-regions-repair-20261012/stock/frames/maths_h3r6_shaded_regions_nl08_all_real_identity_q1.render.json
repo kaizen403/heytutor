@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "0860e628558c8c5072aca5295b46e9d48600323f019777bce15bca06e8ba427e",
+  "pngSha256": "92c79f84102bed52b73e09176d164b9bc8b79db3156718819d56c7ec7bb4b68a"
+}

@@ -1,0 +1,1837 @@
+{
+ "probeId": "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+ "topicId": "maths|h3r8-finish-regions|multiple-optimum-edge",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "hard",
+ "question": "Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:07:03.354Z",
+ "timings": {
+  "planMs": 34853,
+  "teachMs": 0,
+  "totalMs": 34855,
+  "figureCommitMs": 34855,
+  "stages": {
+   "turnPlanMs": 9267,
+   "problemIrMs": 6472,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 18259,
+   "deadlineRemainingMs": 25996,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "c_x",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "g1 = 6"
+   },
+   {
+    "id": "g2",
+    "symbol": "c_y",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "g2 = 4"
+   },
+   {
+    "id": "g3",
+    "symbol": "a_x",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "g3 = 3"
+   },
+   {
+    "id": "g4",
+    "symbol": "a_y",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "g4 = 2"
+   },
+   {
+    "id": "g5",
+    "symbol": "b",
+    "value": 7,
+    "provenance": "given",
+    "sourceText": "g5 = 7"
+   },
+   {
+    "id": "g6",
+    "symbol": "s",
+    "value": 5,
+    "provenance": "given",
+    "sourceText": "g6 = 5"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "C_min"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u1",
+    "symbol": "C_min",
+    "value": 14
+   },
+   {
+    "id": "d2",
+    "symbol": "C_(0,5)",
+    "value": 20
+   },
+   {
+    "id": "d3",
+    "symbol": "C_(5,0)",
+    "value": 30
+   },
+   {
+    "id": "d4",
+    "symbol": "C_B",
+    "value": 16
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "In boundary order, its exact corners and costs are (0,7/2): C=14; (0,5): C=20; (5,0): C=30; (7/3,0): C=14."
+   },
+   {
+    "id": "c2",
+    "expected": "The entire closed line segment from D=(0,7/2) to (7/3,0), given by 3x+2y=7 with x,y≥0, attains C=14."
+   },
+   {
+    "id": "c3",
+    "expected": "A=(1,1) is infeasible because 3(1)+2(1)=5<7. B=(2,1) is feasible, with C=16. D=(0,7/2) is feasible and minimizes C."
+   }
+  ],
+  "lawIds": [
+   "linear-inequality-intersection",
+   "boundary-intersection",
+   "objective-proportionality",
+   "linear-objective-evaluation"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eMin",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "*",
+      "left": {
+       "kind": "number",
+       "value": 2
+      },
+      "right": {
+       "kind": "number",
+       "value": 7
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fLower"
+     ]
+    },
+    {
+     "id": "eTop",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "*",
+      "left": {
+       "kind": "number",
+       "value": 4
+      },
+      "right": {
+       "kind": "number",
+       "value": 5
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fUpper"
+     ]
+    },
+    {
+     "id": "eRight",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "*",
+      "left": {
+       "kind": "number",
+       "value": 6
+      },
+      "right": {
+       "kind": "number",
+       "value": 5
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fUpper"
+     ]
+    },
+    {
+     "id": "eB",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 6
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fB"
+     ]
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iRegion",
+     "kind": "bounded_region",
+     "entityIds": [
+      "feasible",
+      "minSegment",
+      "pointA",
+      "pointB",
+      "pointD"
+     ],
+     "evidenceFactIds": [
+      "fRegion",
+      "fCorners",
+      "fAll",
+      "fA",
+      "fB",
+      "fD",
+      "fClassify",
+      "fContinuous",
+      "fNonnegative",
+      "fLower",
+      "fUpper"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sMin",
+     "quantityId": "u1",
+     "symbol": "C_min",
+     "approximate": 14,
+     "exact": {
+      "kind": "integer",
+      "value": "14"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "e14a9ca9d5fac8792772cfe60cacf85156e953752ce0e2fe551832d020e6b029",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sMin",
+      "quantityId": "u1",
+      "symbol": "C_min",
+      "approximate": 14,
+      "exact": {
+       "kind": "integer",
+       "value": "14"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "c_x",
+      "value": 6,
+      "sourceText": "g1 = 6",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "c_y",
+      "value": 4,
+      "sourceText": "g2 = 4",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "a_x",
+      "value": 3,
+      "sourceText": "g3 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "g4",
+      "symbol": "a_y",
+      "value": 2,
+      "sourceText": "g4 = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "g5",
+      "symbol": "b",
+      "value": 7,
+      "sourceText": "g5 = 7",
+      "provenance": "given"
+     },
+     {
+      "id": "g6",
+      "symbol": "s",
+      "value": 5,
+      "sourceText": "g6 = 5",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "C_min"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "C_min",
+      "value": 14,
+      "sourceText": "C=6x+4y=2(3x+2y)≥2(7)=14.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3",
+       "g4",
+       "g5"
+      ]
+     },
+     {
+      "id": "d2",
+      "symbol": "C_(0,5)",
+      "value": 20,
+      "sourceText": "C(0,5)=4(5)=20.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2",
+       "g6"
+      ]
+     },
+     {
+      "id": "d3",
+      "symbol": "C_(5,0)",
+      "value": 30,
+      "sourceText": "C(5,0)=6(5)=30.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g6"
+      ]
+     },
+     {
+      "id": "d4",
+      "symbol": "C_B",
+      "value": 16,
+      "sourceText": "C(2,1)=6(2)+4(1)=16.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "The entire feasible region is the closed quadrilateral bounded by x=0, y=0, 3x+2y=7 and x+y=5.",
+      "expected": "In boundary order, its exact corners and costs are (0,7/2): C=14; (0,5): C=20; (5,0): C=30; (7/3,0): C=14.",
+      "relatedQuantityIds": [
+       "u1",
+       "d2",
+       "d3"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Mark every minimum point, not just the minimizing corners.",
+      "expected": "The entire closed line segment from D=(0,7/2) to (7/3,0), given by 3x+2y=7 with x,y≥0, attains C=14.",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Classify the marked points.",
+      "expected": "A=(1,1) is infeasible because 3(1)+2(1)=5<7. B=(2,1) is feasible, with C=16. D=(0,7/2) is feasible and minimizes C.",
+      "relatedQuantityIds": [
+       "u1",
+       "d4"
+      ]
+     }
+    ],
+    "lawIds": [
+     "linear-inequality-intersection",
+     "boundary-intersection",
+     "objective-proportionality",
+     "linear-objective-evaluation"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.",
+    "facts": [
+     {
+      "id": "fObjective",
+      "kind": "given",
+      "statement": "Objective is C = 6x + 4y.",
+      "evidence": {
+       "source": "question",
+       "start": 9,
+       "end": 20,
+       "quote": "C = 6x + 4y"
+      }
+     },
+     {
+      "id": "fNonnegative",
+      "kind": "given",
+      "statement": "Real x and y are nonnegative.",
+      "evidence": {
+       "source": "question",
+       "start": 32,
+       "end": 45,
+       "quote": "real x,y >= 0"
+      }
+     },
+     {
+      "id": "fLower",
+      "kind": "given",
+      "statement": "Three x plus two y is at least seven.",
+      "evidence": {
+       "source": "question",
+       "start": 47,
+       "end": 59,
+       "quote": "3x + 2y >= 7"
+      }
+     },
+     {
+      "id": "fUpper",
+      "kind": "given",
+      "statement": "The sum of x and y is at most five.",
+      "evidence": {
+       "source": "question",
+       "start": 65,
+       "end": 75,
+       "quote": "x + y <= 5"
+      }
+     },
+     {
+      "id": "fMin",
+      "kind": "requested",
+      "statement": "Find the minimum objective value.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 10,
+       "quote": "Minimise C"
+      }
+     },
+     {
+      "id": "fRegion",
+      "kind": "requested",
+      "statement": "Draw the entire feasible region.",
+      "evidence": {
+       "source": "question",
+       "start": 77,
+       "end": 108,
+       "quote": "Draw the entire feasible region"
+      }
+     },
+     {
+      "id": "fCorners",
+      "kind": "requested",
+      "statement": "Label exact corners and their objective values.",
+      "evidence": {
+       "source": "question",
+       "start": 110,
+       "end": 162,
+       "quote": "label exact corner coordinates and C at every corner"
+      }
+     },
+     {
+      "id": "fAll",
+      "kind": "requested",
+      "statement": "Mark every point attaining the minimum.",
+      "evidence": {
+       "source": "question",
+       "start": 168,
+       "end": 205,
+       "quote": "mark ALL points attaining the minimum"
+      }
+     },
+     {
+      "id": "fA",
+      "kind": "given",
+      "statement": "A has coordinates (1,1).",
+      "evidence": {
+       "source": "question",
+       "start": 212,
+       "end": 221,
+       "quote": "A = (1,1)"
+      }
+     },
+     {
+      "id": "fB",
+      "kind": "given",
+      "statement": "B has coordinates (2,1).",
+      "evidence": {
+       "source": "question",
+       "start": 223,
+       "end": 232,
+       "quote": "B = (2,1)"
+      }
+     },
+     {
+      "id": "fD",
+      "kind": "given",
+      "statement": "D has coordinates (0,7/2).",
+      "evidence": {
+       "source": "question",
+       "start": 234,
+       "end": 245,
+       "quote": "D = (0,7/2)"
+      }
+     },
+     {
+      "id": "fClassify",
+      "kind": "requested",
+      "statement": "Classify feasibility of marked points.",
+      "evidence": {
+       "source": "question",
+       "start": 251,
+       "end": 271,
+       "quote": "classify feasibility"
+      }
+     },
+     {
+      "id": "fContinuous",
+      "kind": "given",
+      "statement": "The domain is continuous, not integer-valued.",
+      "evidence": {
+       "source": "question",
+       "start": 273,
+       "end": 318,
+       "quote": "The domain is continuous, not integer-valued."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "feasible",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fNonnegative",
+       "fLower",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "minSegment",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLower",
+       "fAll"
+      ]
+     },
+     {
+      "id": "pointA",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+       "fA"
+      ]
+     },
+     {
+      "id": "pointB",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+       "fB"
+      ]
+     },
+     {
+      "id": "pointD",
+      "kind": "point",
+      "label": "D",
+      "evidenceFactIds": [
+       "fD"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eMin",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "number",
+        "value": 7
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fLower"
+      ]
+     },
+     {
+      "id": "eTop",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "number",
+        "value": 5
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "eRight",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 6
+       },
+       "right": {
+        "kind": "number",
+        "value": 5
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fUpper"
+      ]
+     },
+     {
+      "id": "eB",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 6
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fB"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "feasible",
+       "minSegment",
+       "pointA",
+       "pointB",
+       "pointD"
+      ],
+      "evidenceFactIds": [
+       "fRegion",
+       "fCorners",
+       "fAll",
+       "fA",
+       "fB",
+       "fD",
+       "fClassify",
+       "fContinuous",
+       "fNonnegative",
+       "fLower",
+       "fUpper"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sMin",
+      "kind": "evaluate",
+      "expressionId": "eMin",
+      "resultBinding": {
+       "turnPlanQuantityId": "u1",
+       "symbol": "C_min",
+       "evidenceFactIds": [
+        "fMin"
+       ]
+      }
+     },
+     {
+      "id": "sTop",
+      "kind": "evaluate",
+      "expressionId": "eTop"
+     },
+     {
+      "id": "sRight",
+      "kind": "evaluate",
+      "expressionId": "eRight"
+     },
+     {
+      "id": "sB",
+      "kind": "evaluate",
+      "expressionId": "eB"
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sMin",
+      "requestId": "sMin",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "14"
+      },
+      "approximate": 14,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sTop",
+      "requestId": "sTop",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "20"
+      },
+      "approximate": 20,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sRight",
+      "requestId": "sRight",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "30"
+      },
+      "approximate": 30,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sB",
+      "requestId": "sB",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "16"
+      },
+      "approximate": 16,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sMin",
+      "requestId": "sMin",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eMin"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sTop",
+      "requestId": "sTop",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eTop"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sRight",
+      "requestId": "sRight",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eRight"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sB",
+      "requestId": "sB",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eB"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 37788,
+  "outputTokens": 8527,
+  "totalTokens": 46315,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.157907,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 694,
+    "outputTokens": 1016,
+    "totalTokens": 1710,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011548,
+    "measuredCostUsd": 0.011548,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 755,
+    "outputTokens": 1313,
+    "totalTokens": 2068,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01464,
+    "measuredCostUsd": 0.01464,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5701,
+    "outputTokens": 68,
+    "totalTokens": 5769,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012082,
+    "measuredCostUsd": 0.012082,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2493,
+    "outputTokens": 968,
+    "totalTokens": 3461,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.011727,
+    "measuredCostUsd": 0.011727,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6755,
+    "outputTokens": 1517,
+    "totalTokens": 8272,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02868,
+    "measuredCostUsd": 0.02868,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6755,
+    "outputTokens": 2043,
+    "totalTokens": 8798,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.03394,
+    "measuredCostUsd": 0.03394,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7322,
+    "outputTokens": 733,
+    "totalTokens": 8055,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.021974,
+    "measuredCostUsd": 0.021974,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7313,
+    "outputTokens": 869,
+    "totalTokens": 8182,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023316,
+    "measuredCostUsd": 0.023316,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.157907
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "52faf7e5296b8ac6ff8f70d8a25c02d9e692bfac1f5105e6c03009bd785b0a94",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "feasible"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "f518286d78d78af3bf252e775b629e8a766e32cd97ad9c9873ef14ad39b5ba71",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "F"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-0.5,\"xMax\":5.7,\"yMin\":-0.5,\"yMax\":5.7}",
+    "argumentsPresent": true,
+    "argumentBytes": 47,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kFeasible",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"3*x+2*y>=7\",\"x+y<=5\"],\"objective\":{\"expression\":\"6*x+4*y\",\"sense\":\"min\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 126,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kD",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":3.5,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kTop",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":5,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kRight",
+    "operator": "point",
+    "rawArguments": "{\"x\":5,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "kLow",
+    "operator": "point",
+    "rawArguments": "{\"x\":2.3333333333333335,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 56,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "kMinimumEdge",
+    "operator": "segment",
+    "rawArguments": "{\"start\":\"D\",\"end\":\"low\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 25,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 7,
+    "constructionId": "kA",
+    "operator": "point",
+    "rawArguments": "{\"x\":1,\"y\":1,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 8,
+    "constructionId": "kB",
+    "operator": "point",
+    "rawArguments": "{\"x\":2,\"y\":1,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kax",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-0.5,\"xMax\":5.5,\"yMin\":-0.5,\"yMax\":5.5}",
+    "argumentsPresent": true,
+    "argumentBytes": 47,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kF",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"3*x+2*y>=7\",\"x+y<=5\"],\"objective\":{\"expression\":\"6*x+4*y\",\"sense\":\"min\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 126,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kD",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":3.5,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kP",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":5,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":5,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "kE",
+    "operator": "point",
+    "rawArguments": "{\"x\":2.3333333333333335,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 56,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "kA",
+    "operator": "point",
+    "rawArguments": "{\"x\":1,\"y\":1,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 7,
+    "constructionId": "kB",
+    "operator": "point",
+    "rawArguments": "{\"x\":2,\"y\":1,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 8,
+    "constructionId": "kM",
+    "operator": "segment",
+    "rawArguments": "{\"start\":\"D\",\"end\":\"E\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 23,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_feasible_region",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "3x + 2y=7",
+   "x + y=5",
+   "A",
+   "B",
+   "D",
+   "(0, 5)",
+   "(7/3, 0)",
+   "(5, 0)",
+   "x>=(0/1)",
+   "y>=(0/1)",
+   "A=(1, 1) excluded",
+   "B=(2, 1) included",
+   "D=(0, 7/2) included",
+   "Feasible region: bounded",
+   "Minimize 6x + 4y",
+   "(0, 7/2): 14",
+   "(0, 5): 20",
+   "(7/3, 0): 14",
+   "(5, 0): 30",
+   "Minimum = 14"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 39,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "invalid_linear_region",
+   "linear_source_mismatch"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 23522,
+    "elapsedMs": 10083,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 23533,
+    "elapsedMs": 13332,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 26005,
+    "elapsedMs": 6397,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 25966,
+    "elapsedMs": 7329,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_multiple_optimum_edge_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_multiple_optimum_edge_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated linear inequalities determine an exact feasible region and its boundary.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.\"\n  },\n  \"quantities\": [\n    {\"id\":\"g1\",\"symbol\":\"c_x\",\"value\":6},\n    {\"id\":\"g2\",\"symbol\":\"c_y\",\"value\":4},\n    {\"id\":\"g3\",\"symbol\":\"a_x\",\"value\":3},\n    {\"id\":\"g4\",\"symbol\":\"a_y\",\"value\":2},\n    {\"id\":\"g5\",\"symbol\":\"b\",\"value\":7},\n    {\"id\":\"g6\",\"symbol\":\"s\",\"value\":5},\n    {\"id\":\"u1\",\"symbol\":\"C_min\",\"value\":14},\n    {\"id\":\"d2\",\"symbol\":\"C_(0,5)\",\"value\":20},\n    {\"id\":\"d3\",\"symbol\":\"C_(5,0)\",\"value\":30},\n    {\"id\":\"d4\",\"symbol\":\"C_B\",\"value\":16}\n  ],\n  \"entities\": [\n    {\"id\":\"axes\",\"kind\":\"axes\",\"role\":\"real x-y coordinate axes\"},\n    {\"id\":\"feasible\",\"kind\":\"polygon\",\"role\":\"entire closed feasible region\"},\n    {\"id\":\"D\",\"kind\":\"point\",\"role\":\"feasible minimizing corner\",\"label\":\"D=(0,7/2)\"},\n    {\"id\":\"top\",\"kind\":\"point\",\"role\":\"feasible corner\",\"label\":\"(0,5)\"},\n    {\"id\":\"right\",\"kind\":\"point\",\"role\":\"feasible corner\",\"label\":\"(5,0)\"},\n    {\"id\":\"low\",\"kind\":\"point\",\"role\":\"feasible minimizing corner\",\"label\":\"(7/3,0)\"},\n    {\"id\":\"minimumEdge\",\"kind\":\"segment\",\"role\":\"all points attaining the minimum\"},\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"infeasible test point\",\"label\":\"A=(1,1)\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"feasible test point\",\"label\":\"B=(2,1)\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"kAxes\",\"operator\":\"axes\",\"inputs\":{\"xMin\":-0.5,\"xMax\":5.7,\"yMin\":-0.5,\"yMax\":5.7},\"outputs\":[\"axes\"]},\n    {\"id\":\"kFeasible\",\"operator\":\"linear_feasible_region\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"3*x+2*y>=7\",\"x+y<=5\"],\"objective\":{\"expression\":\"6*x+4*y\",\"sense\":\"min\"}},\"outputs\":[\"feasible\"]},\n    {\"id\":\"kD\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":3.5,\"coordinateSpace\":\"world\"},\"outputs\":[\"D\"]},\n    {\"id\":\"kTop\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":5,\"coordinateSpace\":\"world\"},\"outputs\":[\"top\"]},\n    {\"id\":\"kRight\",\"operator\":\"point\",\"inputs\":{\"x\":5,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"right\"]},\n    {\"id\":\"kLow\",\"operator\":\"point\",\"inputs\":{\"x\":2.3333333333333335,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"low\"]},\n    {\"id\":\"kMinimumEdge\",\"operator\":\"segment\",\"inputs\":{\"start\":\"D\",\"end\":\"low\"},\"outputs\":[\"minimumEdge\"]},\n    {\"id\":\"kA\",\"operator\":\"point\",\"inputs\":{\"x\":1,\"y\":1,\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},\n    {\"id\":\"kB\",\"operator\":\"point\",\"inputs\":{\"x\":2,\"y\":1,\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\":\"costD\",\"kind\":\"label\",\"targetIds\":[\"D\"],\"text\":\"C=14\"},\n    {\"id\":\"costTop\",\"kind\":\"label\",\"targetIds\":[\"top\"],\"text\":\"C=20\"},\n    {\"id\":\"costRight\",\"kind\":\"label\",\"targetIds\":[\"right\"],\"text\":\"C=30\"},\n    {\"id\":\"costLow\",\"kind\":\"label\",\"targetIds\":[\"low\"],\"text\":\"C=14\"},\n    {\"id\":\"costB\",\"kind\":\"label\",\"targetIds\":[\"B\"],\"text\":\"C=16\"},\n    {\"id\":\"allMinima\",\"kind\":\"highlight\",\"targetIds\":[\"minimumEdge\"]},\n    {\"id\":\"statusA\",\"kind\":\"callout\",\"targetIds\":[\"A\"],\"text\":\"Infeasible: 3x+2y=5<7.\"},\n    {\"id\":\"statusB\",\"kind\":\"callout\",\"targetIds\":[\"B\"],\"text\":\"Feasible.\"},\n    {\"id\":\"statusD\",\"kind\":\"callout\",\"targetIds\":[\"D\"],\"text\":\"Feasible; minimizes C.\"}\n  ],\n  \"requiredEntityIds\": [\"axes\",\"feasible\",\"D\",\"top\",\"right\",\"low\",\"minimumEdge\",\"A\",\"B\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"axes\",\"feasible\",\"D\",\"top\",\"right\",\"low\",\"A\",\"B\"],\"dependsOn\":[],\"narrationCue\":\"Show the continuous feasible region, its four exact corners, and the three named points.\"},\n    {\"id\":\"result\",\"entityIds\":[\"minimumEdge\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"Evaluate C at the corners, classify A, B and D, then highlight the entire closed segment of minimizers.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"showSetup\",\"revealGroupId\":\"setup\"},\n    {\"id\":\"showResult\",\"revealGroupId\":\"result\",\"annotationIds\":[\"costD\",\"costTop\",\"costRight\",\"costLow\",\"costB\",\"allMinima\",\"statusA\",\"statusB\",\"statusD\"]}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated linear inequalities determine an exact feasible region.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.\"\n  },\n  \"quantities\": [\n    {\"id\":\"g1\",\"symbol\":\"c_x\",\"value\":6,\"provenance\":\"given\"},\n    {\"id\":\"g2\",\"symbol\":\"c_y\",\"value\":4,\"provenance\":\"given\"},\n    {\"id\":\"g3\",\"symbol\":\"a_x\",\"value\":3,\"provenance\":\"given\"},\n    {\"id\":\"g4\",\"symbol\":\"a_y\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"g5\",\"symbol\":\"b\",\"value\":7,\"provenance\":\"given\"},\n    {\"id\":\"g6\",\"symbol\":\"s\",\"value\":5,\"provenance\":\"given\"},\n    {\"id\":\"u1\",\"symbol\":\"C_min\",\"value\":14,\"provenance\":\"derived\",\"dependsOn\":[\"g1\",\"g2\",\"g3\",\"g4\",\"g5\"]},\n    {\"id\":\"d2\",\"symbol\":\"C_(0,5)\",\"value\":20,\"provenance\":\"derived\",\"dependsOn\":[\"g2\",\"g6\"]},\n    {\"id\":\"d3\",\"symbol\":\"C_(5,0)\",\"value\":30,\"provenance\":\"derived\",\"dependsOn\":[\"g1\",\"g6\"]},\n    {\"id\":\"d4\",\"symbol\":\"C_B\",\"value\":16,\"provenance\":\"derived\",\"dependsOn\":[\"g1\",\"g2\"]}\n  ],\n  \"entities\": [\n    {\"id\":\"ax\",\"kind\":\"axes\",\"role\":\"continuous x-y coordinates\"},\n    {\"id\":\"F\",\"kind\":\"linear_region\",\"role\":\"entire closed feasible region\"},\n    {\"id\":\"D\",\"kind\":\"point\",\"role\":\"feasible minimizing corner\",\"label\":\"D\"},\n    {\"id\":\"P\",\"kind\":\"point\",\"role\":\"corner (0,5)\"},\n    {\"id\":\"Q\",\"kind\":\"point\",\"role\":\"corner (5,0)\"},\n    {\"id\":\"E\",\"kind\":\"point\",\"role\":\"minimizing corner (7/3,0)\"},\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"point to classify\",\"label\":\"A\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"point to classify\",\"label\":\"B\"},\n    {\"id\":\"M\",\"kind\":\"segment\",\"role\":\"entire closed set of minimizers\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"kax\",\"operator\":\"axes\",\"inputs\":{\"xMin\":-0.5,\"xMax\":5.5,\"yMin\":-0.5,\"yMax\":5.5},\"outputs\":[\"ax\"]},\n    {\"id\":\"kF\",\"operator\":\"linear_feasible_region\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"3*x+2*y>=7\",\"x+y<=5\"],\"objective\":{\"expression\":\"6*x+4*y\",\"sense\":\"min\"}},\"outputs\":[\"F\"]},\n    {\"id\":\"kD\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":3.5,\"coordinateSpace\":\"world\"},\"outputs\":[\"D\"]},\n    {\"id\":\"kP\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":5,\"coordinateSpace\":\"world\"},\"outputs\":[\"P\"]},\n    {\"id\":\"kQ\",\"operator\":\"point\",\"inputs\":{\"x\":5,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"Q\"]},\n    {\"id\":\"kE\",\"operator\":\"point\",\"inputs\":{\"x\":2.3333333333333335,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"E\"]},\n    {\"id\":\"kA\",\"operator\":\"point\",\"inputs\":{\"x\":1,\"y\":1,\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},\n    {\"id\":\"kB\",\"operator\":\"point\",\"inputs\":{\"x\":2,\"y\":1,\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]},\n    {\"id\":\"kM\",\"operator\":\"segment\",\"inputs\":{\"start\":\"D\",\"end\":\"E\"},\"outputs\":[\"M\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\":\"D_on_minimum\",\"predicate\":\"on\",\"entities\":[\"D\",\"M\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"E_on_minimum\",\"predicate\":\"on\",\"entities\":[\"E\",\"M\"],\"expected\":true,\"severity\":\"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\":\"aD\",\"kind\":\"label\",\"targetIds\":[\"D\"],\"text\":\"(0,7/2)\"},\n    {\"id\":\"aP\",\"kind\":\"label\",\"targetIds\":[\"P\"],\"text\":\"(0,5)\"},\n    {\"id\":\"aQ\",\"kind\":\"label\",\"targetIds\":[\"Q\"],\"text\":\"(5,0)\"},\n    {\"id\":\"aE\",\"kind\":\"label\",\"targetIds\":[\"E\"],\"text\":\"(7/3,0)\"},\n    {\"id\":\"aAcoord\",\"kind\":\"label\",\"targetIds\":[\"A\"],\"text\":\"(1,1)\"},\n    {\"id\":\"aBcoord\",\"kind\":\"label\",\"targetIds\":[\"B\"],\"text\":\"(2,1)\"},\n    {\"id\":\"aDcost\",\"kind\":\"callout\",\"targetIds\":[\"D\"],\"text\":\"C=14\",\"quantityId\":\"u1\"},\n    {\"id\":\"aPcost\",\"kind\":\"callout\",\"targetIds\":[\"P\"],\"text\":\"C=20\",\"quantityId\":\"d2\"},\n    {\"id\":\"aQcost\",\"kind\":\"callout\",\"targetIds\":[\"Q\"],\"text\":\"C=30\",\"quantityId\":\"d3\"},\n    {\"id\":\"aEcost\",\"kind\":\"callout\",\"targetIds\":[\"E\"],\"text\":\"C=14\",\"quantityId\":\"u1\"},\n    {\"id\":\"aBcost\",\"kind\":\"callout\",\"targetIds\":[\"B\"],\"text\":\"C=16\",\"quantityId\":\"d4\"},\n    {\"id\":\"aMin\",\"kind\":\"highlight\",\"targetIds\":[\"M\"]},\n    {\"id\":\"aClass\",\"kind\":\"narration\",\"targetIds\":[\"A\",\"B\",\"D\"],\"text\":\"A is infeasible: 3(1)+2(1)=5<7. B is feasible. D is feasible and minimizes C. Every point on the highlighted closed segment minimizes C.\"}\n  ],\n  \"requiredEntityIds\": [\"ax\",\"F\",\"D\",\"P\",\"Q\",\"E\",\"A\",\"B\",\"M\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"ax\",\"F\",\"D\",\"P\",\"Q\",\"E\",\"A\",\"B\"],\"dependsOn\":[],\"narrationCue\":\"Show the continuous feasible region and the marked points before evaluating the objective.\"},\n    {\"id\":\"evaluation\",\"entityIds\":[\"M\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"Label the exact corners and costs; highlight the full minimizing segment and classify A, B, and D.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"t1\",\"revealGroupId\":\"setup\",\"targetIds\":[\"ax\",\"F\",\"D\",\"P\",\"Q\",\"E\",\"A\",\"B\"]},\n    {\"id\":\"t2\",\"revealGroupId\":\"evaluation\",\"targetIds\":[\"M\",\"D\",\"P\",\"Q\",\"E\",\"A\",\"B\"]}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated linear constraints define an exact feasible region.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"c_x\", \"value\": 6},\n    {\"id\": \"g2\", \"symbol\": \"c_y\", \"value\": 4},\n    {\"id\": \"g3\", \"symbol\": \"a_x\", \"value\": 3},\n    {\"id\": \"g4\", \"symbol\": \"a_y\", \"value\": 2},\n    {\"id\": \"g5\", \"symbol\": \"b\", \"value\": 7},\n    {\"id\": \"g6\", \"symbol\": \"s\", \"value\": 5}\n  ],\n  \"entities\": [\n    {\"id\": \"feasible\", \"kind\": \"linear_region\", \"role\": \"entire closed feasible region and objective\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"kFeasible\",\n      \"operator\": \"linear_feasible_region\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"constraints\": [\"x>=0\", \"y>=0\", \"3x+2y>=7\", \"x+y<=5\"],\n        \"objective\": {\"expression\": \"6x+4y\", \"sense\": \"min\"}\n      },\n      \"outputs\": [\"feasible\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"feasible\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"feasible\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Show the continuous feasible region before evaluating its corner costs and minimum.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The linear feasible-region operator determines the complete region, its exact corners, corner objective values, and every minimizer.\"\n  },\n  \"source\": {\n    \"question\": \"Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"c_x\", \"value\": 6, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"c_y\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"g3\", \"symbol\": \"a_x\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"g4\", \"symbol\": \"a_y\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"g5\", \"symbol\": \"b\", \"value\": 7, \"provenance\": \"given\"},\n    {\"id\": \"g6\", \"symbol\": \"s\", \"value\": 5, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"C_min\", \"value\": 14, \"provenance\": \"derived\"},\n    {\"id\": \"d2\", \"symbol\": \"C_(0,5)\", \"value\": 20, \"provenance\": \"derived\"},\n    {\"id\": \"d3\", \"symbol\": \"C_(5,0)\", \"value\": 30, \"provenance\": \"derived\"},\n    {\"id\": \"d4\", \"symbol\": \"C_B\", \"value\": 16, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"feasible\", \"kind\": \"linear_region\", \"role\": \"complete continuous feasible region and objective\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"kFeasible\",\n      \"operator\": \"linear_feasible_region\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"constraints\": [\"x>=0\", \"y>=0\", \"3x+2y>=7\", \"x+y<=5\"],\n        \"objective\": {\"expression\": \"6x+4y\", \"sense\": \"min\"}\n      },\n      \"outputs\": [\"feasible\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"feasible\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"feasible\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Plot all four inequalities over the real plane. Mark A=(1,1), B=(2,1), and D=(0,7/2) for classification.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "e14a9ca9d5fac8792772cfe60cacf85156e953752ce0e2fe551832d020e6b029",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0021,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1745,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+  "topic_id": "maths|h3r8-finish-regions|multiple-optimum-edge",
+  "subject": "maths",
+  "difficulty": "hard",
+  "ask_style": "exam_stem",
+  "question": "Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "feasible_region",
+  "must_show": [
+   "Exactly the included quadrilateral (7/3,0), (5,0), (0,5), (0,7/2).",
+   "Corner C values respectively 14, 30, 20, 14.",
+   "The entire closed segment from (7/3,0) to (0,7/2) is optimal, with C = 14.",
+   "A infeasible; B and D feasible."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "3x + 2y = 7",
+   "x + y = 5",
+   "(7/3,0)",
+   "(5,0)",
+   "(0,5)",
+   "(0,7/2)",
+   "C = 6x + 4y",
+   "14",
+   "30",
+   "20",
+   "optimal segment",
+   "A",
+   "B",
+   "D"
+  ],
+  "must_not_show": [
+   "A unique optimal vertex.",
+   "Only the optimal endpoints marked without the intervening segment.",
+   "The origin included as feasible.",
+   "Shading 3x + 2y <= 7."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "C(7/3,0)=14; C(5,0)=30; C(0,5)=20; C(0,7/2)=14",
+   "Minimum 14 at every point on the segment joining (7/3,0) and (0,7/2)",
+   "A: false; B: true; D: true"
+  ],
+  "notes": "CBSE class 12 linear programming; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

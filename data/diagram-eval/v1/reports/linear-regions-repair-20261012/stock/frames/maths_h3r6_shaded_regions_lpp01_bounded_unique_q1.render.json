@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "c2399c4bbfb6c045d037a6e865477fc74a0a92d7dd7bb568c2cdc774b5c57aa0",
+  "pngSha256": "6beab6fd1b8a4a9eba2d8ef2cacc03074f34b010c8018776cf5238ff6b2bcc50"
+}

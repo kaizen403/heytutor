@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_system tier=qualitative_verified labels=x | y | 0 | 2x - y=5 | -3x + 2y=-4 | (6, 7) | One solution</text>
+<line x1="661.17" y1="374.75" x2="898.83" y2="374.75" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="700.78" y1="586" x2="700.78" y2="110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="905.89" y="381.59" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="719.72" y="117.53" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="683.6822999999999" y="381.59" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="661.17,586 898.83,110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="661.17,486.98 898.83,130.49" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="631.3284448839571" y="517.59" font-size="18" dominant-baseline="hanging" textLength="46.551555116042806" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2x - y=5</text>
+<text x="614.8422704134915" y="411.42" font-size="18" dominant-baseline="hanging" textLength="63.03772958650849" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-3x + 2y=-4</text>
+<circle cx="859.22" cy="189.91" r="4" fill="#141821"/>
+<text x="819.7128005677641" y="158.91" font-size="18" dominant-baseline="hanging" textLength="26.50719943223594" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(6, 7)</text>
+<text x="746.8116815698926" y="70" font-size="18" dominant-baseline="hanging" textLength="66.37663686021479" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">One solution</text>
+</svg>

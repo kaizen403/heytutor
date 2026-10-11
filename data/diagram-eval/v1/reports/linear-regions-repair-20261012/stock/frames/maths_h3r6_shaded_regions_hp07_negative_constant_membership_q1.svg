@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Represent -3x + 4y &lt;= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | -3x + 4y=-12 | P | Q | -3x + 4y&lt;=-12 | P=(0, -4) included | Q=(0, 0) excluded | Shaded side satisfies the inequality</text>
+<polygon points="579.87,586 980.13,586 980.13,202.41 579.87,502.61" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="579.87" y1="252.45" x2="980.13" y2="252.45" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="646.58" y1="586" x2="646.58" y2="185.74" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="965.98676" y="278.79" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="669.59" y="190.08" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="669.59" y="278.79" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="579.87,502.61 980.13,202.41" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="849.3412863955733" y="208.94" font-size="18" dominant-baseline="hanging" textLength="67.75871360442667" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-3x + 4y=-12</text>
+<circle cx="646.58" cy="519.29" r="4" fill="#141821"/>
+<text x="659.58" y="510.28999999999996" font-size="18" dominant-baseline="hanging" textLength="11.45223" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">P</text>
+<circle cx="646.58" cy="252.45" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="659.58" y="221.45" font-size="18" dominant-baseline="hanging" textLength="11.610269999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Q</text>
+<text x="743.1996932498471" y="150.05" font-size="18" dominant-baseline="hanging" textLength="73.60061350030593" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-3x + 4y&lt;=-12</text>
+<text x="734.5625471787387" y="123.37" font-size="18" dominant-baseline="hanging" textLength="90.87490564252266" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">P=(0, -4) included</text>
+<text x="735.1127468503313" y="96.68" font-size="18" dominant-baseline="hanging" textLength="89.77450629933733" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Q=(0, 0) excluded</text>
+<text x="681.6529137461708" y="70" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

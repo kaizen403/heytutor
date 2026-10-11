@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "363770e770bbe1d84bf230111b818679e5bef7b222eae1fa0b93105488e08827",
+  "pngSha256": "9192fffafce2dd06316fc53eeda10d3c2af7e539e25b71ada9e6f0159babc3d2"
+}

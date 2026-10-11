@@ -1,0 +1,666 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|sys03-distinct-parallel|q1",
+ "topicId": "maths|h3r6-shaded-regions|sys03-distinct-parallel",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "easy",
+ "question": "Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:04:35.545Z",
+ "timings": {
+  "planMs": 19973,
+  "teachMs": 0,
+  "totalMs": 19975,
+  "figureCommitMs": 19975,
+  "stages": {
+   "turnPlanMs": 6919,
+   "problemIrMs": 2778,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 10161,
+   "deadlineRemainingMs": 40140,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "c₁",
+    "value": 4,
+    "sourceText": "x + 2y = 4",
+    "provenance": "given"
+   },
+   {
+    "id": "g2",
+    "symbol": "c₂",
+    "value": 12,
+    "sourceText": "2x + 4y = 12",
+    "provenance": "given"
+   }
+  ],
+  "unknowns": [],
+  "derived": [
+   {
+    "id": "d1",
+    "symbol": "x₁",
+    "value": 4
+   },
+   {
+    "id": "d2",
+    "symbol": "y₁",
+    "value": 2
+   },
+   {
+    "id": "d3",
+    "symbol": "x₂",
+    "value": 6
+   },
+   {
+    "id": "d4",
+    "symbol": "y₂",
+    "value": 3
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "Plot each pair of intercepts and join the points to form two straight lines."
+   },
+   {
+    "id": "c2",
+    "expected": "There is no common solution."
+   }
+  ],
+  "lawIds": [
+   "coordinate-intercept method",
+   "parallel distinct lines criterion"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "421de3b47b0edd8419776a8f4cfc383ae2322befbb3e752677e25a4631c7b398",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "c₁",
+      "value": 4,
+      "sourceText": "x + 2y = 4",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "c₂",
+      "value": 12,
+      "sourceText": "2x + 4y = 12",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [],
+    "derived": [
+     {
+      "id": "d1",
+      "symbol": "x₁",
+      "value": 4,
+      "sourceText": "For x + 2y = 4, set y = 0: x = 4.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1"
+      ]
+     },
+     {
+      "id": "d2",
+      "symbol": "y₁",
+      "value": 2,
+      "sourceText": "For x + 2y = 4, set x = 0: y = 2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1"
+      ]
+     },
+     {
+      "id": "d3",
+      "symbol": "x₂",
+      "value": 6,
+      "sourceText": "For 2x + 4y = 12, set y = 0: x = 6.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2"
+      ]
+     },
+     {
+      "id": "d4",
+      "symbol": "y₂",
+      "value": 3,
+      "sourceText": "For 2x + 4y = 12, set x = 0: y = 3.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "On the same x-y axes, the first line passes through (4, 0) and (0, 2); the second passes through (6, 0) and (0, 3).",
+      "expected": "Plot each pair of intercepts and join the points to form two straight lines.",
+      "relatedQuantityIds": [
+       "d1",
+       "d2",
+       "d3",
+       "d4"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The lines have the same slope but different intercepts, so they are parallel and never meet.",
+      "expected": "There is no common solution.",
+      "relatedQuantityIds": [
+       "d1",
+       "d2",
+       "d3",
+       "d4"
+      ]
+     }
+    ],
+    "lawIds": [
+     "coordinate-intercept method",
+     "parallel distinct lines criterion"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution.",
+    "facts": [
+     {
+      "id": "fLine1",
+      "kind": "given",
+      "statement": "The first equation is x + 2y = 4.",
+      "evidence": {
+       "source": "question",
+       "start": 24,
+       "end": 34,
+       "quote": "x + 2y = 4"
+      }
+     },
+     {
+      "id": "fLine2",
+      "kind": "given",
+      "statement": "The second equation is 2x + 4y = 12.",
+      "evidence": {
+       "source": "question",
+       "start": 39,
+       "end": 51,
+       "quote": "2x + 4y = 12"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Show graphically why the equations have no common solution.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 76,
+       "quote": "Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "line1",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine1"
+      ]
+     },
+     {
+      "id": "line2",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine2"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [
+     {
+      "id": "cParallel",
+      "kind": "parallel",
+      "entityIds": [
+       "line1",
+       "line2"
+      ],
+      "evidenceFactIds": [
+       "fLine1",
+       "fLine2"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "line1",
+       "line2"
+      ],
+      "evidenceFactIds": [
+       "fLine1",
+       "fLine2",
+       "fGraph"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 6,
+  "inputTokens": 19933,
+  "outputTokens": 5079,
+  "totalTokens": 25012,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.087717,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 622,
+    "outputTokens": 717,
+    "totalTokens": 1339,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.008414,
+    "measuredCostUsd": 0.008414,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 683,
+    "outputTokens": 902,
+    "totalTokens": 1585,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010386,
+    "measuredCostUsd": 0.010386,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5496,
+    "outputTokens": 64,
+    "totalTokens": 5560,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011632,
+    "measuredCostUsd": 0.011632,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2094,
+    "outputTokens": 310,
+    "totalTokens": 2404,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.004349,
+    "measuredCostUsd": 0.004349,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5519,
+    "outputTokens": 1424,
+    "totalTokens": 6943,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.025278,
+    "measuredCostUsd": 0.025278,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5519,
+    "outputTokens": 1662,
+    "totalTokens": 7181,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.027658,
+    "measuredCostUsd": 0.027658,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.087717
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_system",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "x + 2y=4",
+   "2x + 4y=12",
+   "Parallel lines: no solution"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 9,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19689,
+    "elapsedMs": 9540,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19700,
+    "elapsedMs": 10068,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Graph both equations on shared axes, then reveal their intercepts.\"\n  },\n  \"source\": {\n    \"question\": \"Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"c₁\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"c₂\", \"value\": 12, \"provenance\": \"given\"},\n    {\"id\": \"d1\", \"symbol\": \"x₁\", \"value\": 4, \"provenance\": \"derived\"},\n    {\"id\": \"d2\", \"symbol\": \"y₁\", \"value\": 2, \"provenance\": \"derived\"},\n    {\"id\": \"d3\", \"symbol\": \"x₂\", \"value\": 6, \"provenance\": \"derived\"},\n    {\"id\": \"d4\", \"symbol\": \"y₂\", \"value\": 3, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\"},\n    {\"id\": \"A\", \"kind\": \"point\", \"role\": \"first line's x-intercept\", \"label\": \"(4,0)\"},\n    {\"id\": \"B\", \"kind\": \"point\", \"role\": \"first line's y-intercept\", \"label\": \"(0,2)\"},\n    {\"id\": \"C\", \"kind\": \"point\", \"role\": \"second line's x-intercept\", \"label\": \"(6,0)\"},\n    {\"id\": \"D\", \"kind\": \"point\", \"role\": \"second line's y-intercept\", \"label\": \"(0,3)\"},\n    {\"id\": \"L1\", \"kind\": \"line\", \"label\": \"x + 2y = 4\"},\n    {\"id\": \"L2\", \"kind\": \"line\", \"label\": \"2x + 4y = 12\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"kax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 7, \"yMin\": -1, \"yMax\": 5}, \"outputs\": [\"ax\"]},\n    {\"id\": \"kA\", \"operator\": \"point\", \"inputs\": {\"x\": \"d1\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"A\"]},\n    {\"id\": \"kB\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": \"d2\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"B\"]},\n    {\"id\": \"kC\", \"operator\": \"point\", \"inputs\": {\"x\": \"d3\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"C\"]},\n    {\"id\": \"kD\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": \"d4\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"D\"]},\n    {\"id\": \"kL1\", \"operator\": \"line\", \"inputs\": {\"start\": \"A\", \"end\": \"B\"}, \"outputs\": [\"L1\"]},\n    {\"id\": \"kL2\", \"operator\": \"line\", \"inputs\": {\"start\": \"C\", \"end\": \"D\"}, \"outputs\": [\"L2\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"a1\", \"predicate\": \"on\", \"entities\": [\"A\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a2\", \"predicate\": \"on\", \"entities\": [\"B\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a3\", \"predicate\": \"on\", \"entities\": [\"C\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a4\", \"predicate\": \"on\", \"entities\": [\"D\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"ax\", \"A\", \"B\", \"C\", \"D\", \"L1\", \"L2\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"ax\", \"L1\", \"L2\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph both equations on the same axes.\"\n    },\n    {\n      \"id\": \"intercepts\",\n      \"entityIds\": [\"A\", \"B\", \"C\", \"D\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"Calculate and show each line’s intercepts. The lines have the same slope but different intercepts, so they never meet and have no common solution.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two given equations define distinct parallel lines on shared coordinate axes.\"\n  },\n  \"source\": {\n    \"question\": \"Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution.\",\n    \"representationTier\": \"quantitative_verified\",\n    \"nonMetric\": false\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"c₁\", \"value\": 4, \"sourceText\": \"x + 2y = 4\", \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"c₂\", \"value\": 12, \"sourceText\": \"2x + 4y = 12\", \"provenance\": \"given\"},\n    {\"id\": \"d1\", \"symbol\": \"x₁\", \"value\": 4, \"sourceText\": \"For x + 2y = 4, set y = 0: x = 4.\", \"provenance\": \"derived\", \"dependsOn\": [\"g1\"]},\n    {\"id\": \"d2\", \"symbol\": \"y₁\", \"value\": 2, \"sourceText\": \"For x + 2y = 4, set x = 0: y = 2.\", \"provenance\": \"derived\", \"dependsOn\": [\"g1\"]},\n    {\"id\": \"d3\", \"symbol\": \"x₂\", \"value\": 6, \"sourceText\": \"For 2x + 4y = 12, set y = 0: x = 6.\", \"provenance\": \"derived\", \"dependsOn\": [\"g2\"]},\n    {\"id\": \"d4\", \"symbol\": \"y₂\", \"value\": 3, \"sourceText\": \"For 2x + 4y = 12, set x = 0: y = 3.\", \"provenance\": \"derived\", \"dependsOn\": [\"g2\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"shared x-y axes\"},\n    {\"id\": \"a1\", \"kind\": \"point\", \"role\": \"first line x-intercept\", \"label\": \"(4,0)\"},\n    {\"id\": \"b1\", \"kind\": \"point\", \"role\": \"first line y-intercept\", \"label\": \"(0,2)\"},\n    {\"id\": \"a2\", \"kind\": \"point\", \"role\": \"second line x-intercept\", \"label\": \"(6,0)\"},\n    {\"id\": \"b2\", \"kind\": \"point\", \"role\": \"second line y-intercept\", \"label\": \"(0,3)\"},\n    {\"id\": \"l1\", \"kind\": \"line\", \"role\": \"first given equation\", \"label\": \"x + 2y = 4\"},\n    {\"id\": \"l2\", \"kind\": \"line\", \"role\": \"second given equation\", \"label\": \"2x + 4y = 12\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"kax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 7, \"yMin\": -1, \"yMax\": 5}, \"outputs\": [\"ax\"]},\n    {\"id\": \"ka1\", \"operator\": \"point\", \"inputs\": {\"x\": 4, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"a1\"]},\n    {\"id\": \"kb1\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 2, \"coordinateSpace\": \"world\"}, \"outputs\": [\"b1\"]},\n    {\"id\": \"ka2\", \"operator\": \"point\", \"inputs\": {\"x\": 6, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"a2\"]},\n    {\"id\": \"kb2\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"b2\"]},\n    {\"id\": \"kl1\", \"operator\": \"line\", \"inputs\": {\"start\": \"b1\", \"end\": \"a1\"}, \"outputs\": [\"l1\"]},\n    {\"id\": \"kl2\", \"operator\": \"line\", \"inputs\": {\"start\": \"b2\", \"end\": \"a2\"}, \"outputs\": [\"l2\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"on1a\", \"predicate\": \"on\", \"entities\": [\"a1\", \"l1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"on1b\", \"predicate\": \"on\", \"entities\": [\"b1\", \"l1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"on2a\", \"predicate\": \"on\", \"entities\": [\"a2\", \"l2\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"on2b\", \"predicate\": \"on\", \"entities\": [\"b2\", \"l2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"ax\", \"a1\", \"b1\", \"a2\", \"b2\", \"l1\", \"l2\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"ax\", \"l1\", \"l2\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Show both given equations as lines on the same axes.\"\n    },\n    {\n      \"id\": \"intercepts\",\n      \"entityIds\": [\"a1\", \"b1\", \"a2\", \"b2\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"Calculate and reveal each line’s intercepts. The lines have the same slope but different intercepts, so they never meet and have no common solution.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "421de3b47b0edd8419776a8f4cfc383ae2322befbb3e752677e25a4631c7b398",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2089,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|sys03-distinct-parallel|q1",
+  "topic_id": "maths|h3r6-shaded-regions|sys03-distinct-parallel",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "topic_ask",
+  "question": "Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "two distinct parallel solid lines",
+   "separate y-intercepts at 2 and 3 with no crossing"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "x + 2y = 4",
+   "2x + 4y = 12",
+   "(0, 2)",
+   "(0, 3)"
+  ],
+  "must_not_show": [
+   "the same line reused for both equations",
+   "an intersection point",
+   "a filled feasible strip representing equation solutions"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "The lines are y = -x/2 + 2 and y = -x/2 + 3.",
+   "They are distinct parallel lines.",
+   "The system has no solution."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=sys03; exam_scope=CBSE10;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

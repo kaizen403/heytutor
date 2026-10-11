@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Explain the number-line solution of -4x &lt;= 6, including whether the rational endpoint is included.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=number_line_set tier=qualitative_verified labels=x | -3/2 | Solution: [-3/2, infinity)</text>
+<line x1="434" y1="496.53" x2="1126" y2="496.53" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1139" y="508.03" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<line x1="549.33" y1="496.53" x2="1126" y2="496.53" fill="none" stroke="#141821" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<circle cx="549.33" cy="496.53" r="4" fill="#141821"/>
+<text x="536.9404038990505" y="465.53" font-size="18" dominant-baseline="hanging" textLength="24.77919220189915" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-3/2</text>
+<text x="715.9407314874118" y="138.97" font-size="18" dominant-baseline="hanging" textLength="128.11853702517638" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Solution: [-3/2, infinity)</text>
+</svg>

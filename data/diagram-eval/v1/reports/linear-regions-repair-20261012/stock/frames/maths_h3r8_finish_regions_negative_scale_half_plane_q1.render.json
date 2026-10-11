@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "156355c6a44f3145c1a8ac888a3874682f945960f45c6f2a4f5607b544450f15",
+  "pngSha256": "67a5e6fb98ad502503e6728f6a34bf1f568a202766f94f97e40342f1ec981f4a"
+}

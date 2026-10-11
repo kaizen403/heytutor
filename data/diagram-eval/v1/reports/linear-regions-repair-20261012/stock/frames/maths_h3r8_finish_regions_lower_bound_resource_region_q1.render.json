@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_lower_bound_resource_region_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_lower_bound_resource_region_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "e45572c315866d1acd9e8e1063d4fefc3b7650d5e416de3ab2b1c8d81e70b634",
+  "pngSha256": "b296bd0885fac73b0e5ecfbe30e575d212693cffff23a2c8dbbb97168b4981f6"
+}

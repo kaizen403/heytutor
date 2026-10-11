@@ -1,0 +1,690 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+ "topicId": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "easy",
+ "question": "Explain the graph and number of solutions of -2x + 3y = 6 and 4x - 6y = -12.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:04:35.656Z",
+ "timings": {
+  "planMs": 17582,
+  "teachMs": 0,
+  "totalMs": 17582,
+  "figureCommitMs": 17582,
+  "stages": {
+   "turnPlanMs": 5047,
+   "problemIrMs": 3331,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 9096,
+   "deadlineRemainingMs": 42524,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a1",
+    "symbol": "x coefficient, equation 1",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "a1 = -2"
+   },
+   {
+    "id": "b1",
+    "symbol": "y coefficient, equation 1",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "b1 = 3"
+   },
+   {
+    "id": "c1",
+    "symbol": "right-hand side, equation 1",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "c1 = 6"
+   },
+   {
+    "id": "a2",
+    "symbol": "x coefficient, equation 2",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "a2 = 4"
+   },
+   {
+    "id": "b2",
+    "symbol": "y coefficient, equation 2",
+    "value": -6,
+    "provenance": "given",
+    "sourceText": "b2 = -6"
+   },
+   {
+    "id": "c2",
+    "symbol": "right-hand side, equation 2",
+    "value": -12,
+    "provenance": "given",
+    "sourceText": "c2 = -12"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "S",
+    "symbol": "solution set"
+   },
+   {
+    "id": "N",
+    "symbol": "number of solutions"
+   }
+  ],
+  "derived": [],
+  "qualitativeClaims": [
+   {
+    "id": "equiv",
+    "expected": "Multiplying -2x + 3y = 6 by -2 gives 4x - 6y = -12."
+   },
+   {
+    "id": "graph",
+    "expected": "Both graphs are the line y = (2/3)x + 2, passing through (0, 2) and (-3, 0)."
+   },
+   {
+    "id": "solutions",
+    "expected": "S = {(x, (2/3)x + 2) : x is any real number}; N is infinitely many."
+   }
+  ],
+  "lawIds": [
+   "equivalent-equations-under-nonzero-scaling",
+   "slope-intercept-form",
+   "intersection-of-linear-equation-graphs"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "6711f947c5d69038437d23378c8d4aa6d9ba9b6969d97ce77aee8b84b119144e",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Explain the graph and number of solutions of -2x + 3y = 6 and 4x - 6y = -12.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a1",
+      "symbol": "x coefficient, equation 1",
+      "value": -2,
+      "sourceText": "a1 = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "b1",
+      "symbol": "y coefficient, equation 1",
+      "value": 3,
+      "sourceText": "b1 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "c1",
+      "symbol": "right-hand side, equation 1",
+      "value": 6,
+      "sourceText": "c1 = 6",
+      "provenance": "given"
+     },
+     {
+      "id": "a2",
+      "symbol": "x coefficient, equation 2",
+      "value": 4,
+      "sourceText": "a2 = 4",
+      "provenance": "given"
+     },
+     {
+      "id": "b2",
+      "symbol": "y coefficient, equation 2",
+      "value": -6,
+      "sourceText": "b2 = -6",
+      "provenance": "given"
+     },
+     {
+      "id": "c2",
+      "symbol": "right-hand side, equation 2",
+      "value": -12,
+      "sourceText": "c2 = -12",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "S",
+      "symbol": "solution set"
+     },
+     {
+      "id": "N",
+      "symbol": "number of solutions"
+     }
+    ],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "equiv",
+      "claim": "The equations represent the same line.",
+      "expected": "Multiplying -2x + 3y = 6 by -2 gives 4x - 6y = -12.",
+      "relatedQuantityIds": [
+       "a1",
+       "b1",
+       "c1",
+       "a2",
+       "b2",
+       "c2"
+      ]
+     },
+     {
+      "id": "graph",
+      "claim": "Their graphs coincide.",
+      "expected": "Both graphs are the line y = (2/3)x + 2, passing through (0, 2) and (-3, 0).",
+      "relatedQuantityIds": [
+       "S"
+      ]
+     },
+     {
+      "id": "solutions",
+      "claim": "Every point on the common line satisfies both equations.",
+      "expected": "S = {(x, (2/3)x + 2) : x is any real number}; N is infinitely many.",
+      "relatedQuantityIds": [
+       "S",
+       "N"
+      ]
+     }
+    ],
+    "lawIds": [
+     "equivalent-equations-under-nonzero-scaling",
+     "slope-intercept-form",
+     "intersection-of-linear-equation-graphs"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Explain the graph and number of solutions of -2x + 3y = 6 and 4x - 6y = -12.",
+    "facts": [
+     {
+      "id": "fEq1",
+      "kind": "given",
+      "statement": "First equation is -2x + 3y = 6",
+      "evidence": {
+       "source": "question",
+       "start": 45,
+       "end": 57,
+       "quote": "-2x + 3y = 6"
+      }
+     },
+     {
+      "id": "fEq2",
+      "kind": "given",
+      "statement": "Second equation is 4x - 6y = -12",
+      "evidence": {
+       "source": "question",
+       "start": 62,
+       "end": 75,
+       "quote": "4x - 6y = -12"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Explain the graph",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 17,
+       "quote": "Explain the graph"
+      }
+     },
+     {
+      "id": "fNumber",
+      "kind": "requested",
+      "statement": "Find the number of solutions",
+      "evidence": {
+       "source": "question",
+       "start": 22,
+       "end": 41,
+       "quote": "number of solutions"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "line1",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fEq1"
+      ]
+     },
+     {
+      "id": "line2",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fEq2"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "line1",
+       "line2"
+      ],
+      "evidenceFactIds": [
+       "fEq1",
+       "fEq2",
+       "fGraph",
+       "fNumber"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 6,
+  "inputTokens": 19916,
+  "outputTokens": 3846,
+  "totalTokens": 23762,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.075353,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 684,
+    "outputTokens": 630,
+    "totalTokens": 1314,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007668,
+    "measuredCostUsd": 0.007668,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 623,
+    "outputTokens": 459,
+    "totalTokens": 1082,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.005836,
+    "measuredCostUsd": 0.005836,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5486,
+    "outputTokens": 66,
+    "totalTokens": 5552,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011632,
+    "measuredCostUsd": 0.011632,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2091,
+    "outputTokens": 307,
+    "totalTokens": 2398,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.004313,
+    "measuredCostUsd": 0.004313,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5516,
+    "outputTokens": 1179,
+    "totalTokens": 6695,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.022822,
+    "measuredCostUsd": 0.022822,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5516,
+    "outputTokens": 1205,
+    "totalTokens": 6721,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023082,
+    "measuredCostUsd": 0.023082,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.075353
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_system",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "-2x + 3y=6; 4x - 6y=-12",
+   "Coincident lines: infinitely many solutions"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 7,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19837,
+    "elapsedMs": 8907,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19826,
+    "elapsedMs": 9020,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Both equations define one coincident line.\"\n  },\n  \"source\": {\n    \"question\": \"Explain the graph and number of solutions of -2x + 3y = 6 and 4x - 6y = -12.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"value\": -2},\n    {\"id\": \"b1\", \"value\": 3},\n    {\"id\": \"c1\", \"value\": 6},\n    {\"id\": \"a2\", \"value\": 4},\n    {\"id\": \"b2\", \"value\": -6},\n    {\"id\": \"c2\", \"value\": -12}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"xIntercept\", \"kind\": \"point\", \"role\": \"common x-intercept\", \"label\": \"(-3, 0)\"},\n    {\"id\": \"yIntercept\", \"kind\": \"point\", \"role\": \"common y-intercept\", \"label\": \"(0, 2)\"},\n    {\"id\": \"commonLine\", \"kind\": \"line\", \"role\": \"graph of both equations\"},\n    {\"id\": \"equation1\", \"kind\": \"label\", \"role\": \"first equation\", \"label\": \"-2x + 3y = 6\"},\n    {\"id\": \"equation2\", \"kind\": \"label\", \"role\": \"second equation\", \"label\": \"4x - 6y = -12\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeAxes\",\n      \"operator\": \"axes\",\n      \"inputs\": {\"xMin\": -5, \"xMax\": 4, \"yMin\": -2, \"yMax\": 5},\n      \"outputs\": [\"axes\"]\n    },\n    {\n      \"id\": \"makeXIntercept\",\n      \"operator\": \"point\",\n      \"inputs\": {\"x\": -3, \"y\": 0, \"coordinateSpace\": \"world\"},\n      \"outputs\": [\"xIntercept\"]\n    },\n    {\n      \"id\": \"makeYIntercept\",\n      \"operator\": \"point\",\n      \"inputs\": {\"x\": 0, \"y\": 2, \"coordinateSpace\": \"world\"},\n      \"outputs\": [\"yIntercept\"]\n    },\n    {\n      \"id\": \"makeCommonLine\",\n      \"operator\": \"line\",\n      \"inputs\": {\"start\": \"xIntercept\", \"end\": \"yIntercept\"},\n      \"outputs\": [\"commonLine\"]\n    },\n    {\n      \"id\": \"labelEquation1\",\n      \"operator\": \"label\",\n      \"inputs\": {\"target\": \"commonLine\", \"text\": \"-2x + 3y = 6\"},\n      \"outputs\": [\"equation1\"]\n    },\n    {\n      \"id\": \"labelEquation2\",\n      \"operator\": \"label\",\n      \"inputs\": {\"target\": \"commonLine\", \"text\": \"4x - 6y = -12\"},\n      \"outputs\": [\"equation2\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\n      \"id\": \"xInterceptOnLine\",\n      \"predicate\": \"on\",\n      \"entities\": [\"xIntercept\", \"commonLine\"],\n      \"expected\": true,\n      \"severity\": \"fatal\"\n    },\n    {\n      \"id\": \"yInterceptOnLine\",\n      \"predicate\": \"on\",\n      \"entities\": [\"yIntercept\", \"commonLine\"],\n      \"expected\": true,\n      \"severity\": \"fatal\"\n    }\n  ],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\n    \"axes\",\n    \"xIntercept\",\n    \"yIntercept\",\n    \"commonLine\",\n    \"equation1\",\n    \"equation2\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"xIntercept\", \"yIntercept\", \"commonLine\", \"equation1\", \"equation2\"],\n      \"dependsOn\": []\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two stated equations determine one common line.\"\n  },\n  \"source\": {\n    \"question\": \"Explain the graph and number of solutions of -2x + 3y = 6 and 4x - 6y = -12.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"value\": -2},\n    {\"id\": \"b1\", \"value\": 3},\n    {\"id\": \"c1\", \"value\": 6},\n    {\"id\": \"a2\", \"value\": 4},\n    {\"id\": \"b2\", \"value\": -6},\n    {\"id\": \"c2\", \"value\": -12}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"eq1\", \"kind\": \"label\", \"role\": \"first given equation\", \"label\": \"-2x + 3y = 6\"},\n    {\"id\": \"eq2\", \"kind\": \"label\", \"role\": \"second given equation\", \"label\": \"4x - 6y = -12\"},\n    {\"id\": \"common\", \"kind\": \"polyline\", \"role\": \"graph of both equations\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -5, \"xMax\": 5, \"yMin\": -2, \"yMax\": 5}, \"outputs\": [\"ax\"]},\n    {\"id\": \"showEq1\", \"operator\": \"label\", \"inputs\": {\"target\": \"ax\", \"text\": \"-2x + 3y = 6\"}, \"outputs\": [\"eq1\"]},\n    {\"id\": \"showEq2\", \"operator\": \"label\", \"inputs\": {\"target\": \"ax\", \"text\": \"4x - 6y = -12\"}, \"outputs\": [\"eq2\"]},\n    {\"id\": \"plotCommon\", \"operator\": \"function_curve\", \"inputs\": {\"expression\": \"(2/3)*x + 2\", \"variable\": \"x\", \"xMin\": -5, \"xMax\": 4}, \"outputs\": [\"common\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"yIntercept\", \"predicate\": \"function_value\", \"entities\": [\"common\"], \"expected\": {\"x\": 0, \"y\": 2}, \"severity\": \"fatal\"},\n    {\"id\": \"xIntercept\", \"predicate\": \"root\", \"entities\": [\"common\"], \"expected\": -3, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"equivalence\", \"kind\": \"narration\", \"targetIds\": [\"eq1\", \"eq2\"], \"text\": \"Multiplying the first equation by −2 gives the second, so their graphs coincide.\"},\n    {\"id\": \"solutions\", \"kind\": \"narration\", \"targetIds\": [\"common\"], \"text\": \"Every point on the common line satisfies both equations. The solution set is {(x, (2/3)x + 2) : x is any real number}, so there are infinitely many solutions.\"}\n  ],\n  \"requiredEntityIds\": [\"ax\", \"eq1\", \"eq2\", \"common\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\", \"eq1\", \"eq2\"], \"dependsOn\": []},\n    {\"id\": \"graph\", \"entityIds\": [\"common\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "6711f947c5d69038437d23378c8d4aa6d9ba9b6969d97ce77aee8b84b119144e",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1530,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+  "topic_id": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "topic_ask",
+  "question": "Explain the graph and number of solutions of -2x + 3y = 6 and 4x - 6y = -12.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "one geometric solid line shared by both equation labels",
+   "the common line through (0, 2) and (-3, 0)"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "-2x + 3y = 6",
+   "4x - 6y = -12",
+   "(0, 2)",
+   "(-3, 0)"
+  ],
+  "must_not_show": [
+   "two offset parallel lines",
+   "one point presented as the only solution",
+   "a shaded half-plane"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "The second equation is -2 times the first.",
+   "Both equations describe y = (2/3)x + 2.",
+   "There are infinitely many solutions, all points on that line."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=sys04; exam_scope=CBSE10;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

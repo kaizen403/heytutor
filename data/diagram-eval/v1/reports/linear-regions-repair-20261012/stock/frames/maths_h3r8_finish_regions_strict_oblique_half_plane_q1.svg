@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">In the real xy-plane, graph the set S = {(x,y) : 2x - 3y &lt; 6}. Draw and label its boundary, use the correct st</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | 2x - 3y=6 | A | B | C | D | 2x - 3y&lt;6 | A=(0, -2) excluded | B=(0, 0) included | C=(3, 0) excluded | D=(0, -3) excluded | Shaded side satisfies the inequality</text>
+<polygon points="961.07,243.98 961.07,223.86 598.93,223.86 598.93,485.4" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="598.93" y1="284.21" x2="961.07" y2="284.21" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="659.29" y1="586" x2="659.29" y2="223.86" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="947.87676" y="309.29" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="681.34" y="204.93" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="681.34" y="309.29" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="598.93,485.4 961.07,243.98" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<text x="712.9103697223629" y="333.69" font-size="18" dominant-baseline="hanging" textLength="54.08963027763698" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2x - 3y=6</text>
+<circle cx="659.29" cy="445.17" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="635.6868299999999" y="414.17" font-size="18" dominant-baseline="hanging" textLength="10.60317" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">A</text>
+<circle cx="659.29" cy="284.21" r="4" fill="#141821"/>
+<text x="672.29" y="253.20999999999998" font-size="18" dominant-baseline="hanging" textLength="11.25828" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">B</text>
+<circle cx="900.71" cy="284.21" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="895.20047" y="253.20999999999998" font-size="18" dominant-baseline="hanging" textLength="11.01906" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">C</text>
+<circle cx="659.29" cy="525.64" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="672.29" y="516.64" font-size="18" dominant-baseline="hanging" textLength="12.60117" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">D</text>
+<text x="752.6751006813531" y="190.71" font-size="18" dominant-baseline="hanging" textLength="54.64979863729371" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2x - 3y&lt;6</text>
+<text x="732.1346406973556" y="166.57" font-size="18" dominant-baseline="hanging" textLength="95.73071860528876" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">A=(0, -2) excluded</text>
+<text x="735.7468619741522" y="142.43" font-size="18" dominant-baseline="hanging" textLength="88.50627605169556" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">B=(0, 0) included</text>
+<text x="735.3946965325968" y="118.29" font-size="18" dominant-baseline="hanging" textLength="89.21060693480639" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">C=(3, 0) excluded</text>
+<text x="732.1943642872048" y="94.14" font-size="18" dominant-baseline="hanging" textLength="95.61127142559035" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">D=(0, -3) excluded</text>
+<text x="681.6529137461708" y="70" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

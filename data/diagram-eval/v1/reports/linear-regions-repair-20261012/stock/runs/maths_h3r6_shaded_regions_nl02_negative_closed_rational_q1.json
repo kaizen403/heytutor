@@ -1,0 +1,773 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+ "topicId": "maths|h3r6-shaded-regions|nl02-negative-closed-rational",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "easy",
+ "question": "Explain the number-line solution of -4x <= 6, including whether the rational endpoint is included.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:01:07.466Z",
+ "timings": {
+  "planMs": 23459,
+  "teachMs": 0,
+  "totalMs": 23481,
+  "figureCommitMs": 23481,
+  "stages": {
+   "turnPlanMs": 12087,
+   "problemIrMs": 3751,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 7586,
+   "deadlineRemainingMs": 36573,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": false,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "a",
+    "value": -4,
+    "provenance": "given",
+    "sourceText": "-4x <= 6"
+   },
+   {
+    "id": "g2",
+    "symbol": "b",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "-4x <= 6"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "x"
+   },
+   {
+    "id": "u2",
+    "symbol": "endpoint"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u2",
+    "symbol": "endpoint",
+    "value": -1.5
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "x ≥ -3/2; dividing by negative 4 reverses the inequality."
+   },
+   {
+    "id": "c2",
+    "expected": "Place a filled dot at -3/2 because equality is allowed, and shade to the right for all greater values."
+   }
+  ],
+  "lawIds": [
+   "inequality-division-by-negative",
+   "inclusive-inequality-number-line"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "054bbf70b47072718295ea95bde45dc3f223f1f9902684a3ab6928de51afda79",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown u1 has no explicit solver binding",
+      "quantityId": "u1"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sEndpoint",
+      "quantityId": "u2",
+      "symbol": "endpoint",
+      "approximate": -1.5,
+      "exact": {
+       "kind": "rational",
+       "value": "-3/2"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Explain the number-line solution of -4x <= 6, including whether the rational endpoint is included.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "a",
+      "value": -4,
+      "sourceText": "-4x <= 6",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "b",
+      "value": 6,
+      "sourceText": "-4x <= 6",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "x"
+     },
+     {
+      "id": "u2",
+      "symbol": "endpoint"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u2",
+      "symbol": "endpoint",
+      "value": -1.5,
+      "sourceText": "6 ÷ (-4) = -1.5 = -3/2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Solution inequality",
+      "expected": "x ≥ -3/2; dividing by negative 4 reverses the inequality.",
+      "relatedQuantityIds": [
+       "u1",
+       "u2"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Number-line representation",
+      "expected": "Place a filled dot at -3/2 because equality is allowed, and shade to the right for all greater values.",
+      "relatedQuantityIds": [
+       "u1",
+       "u2",
+       "u2"
+      ]
+     }
+    ],
+    "lawIds": [
+     "inequality-division-by-negative",
+     "inclusive-inequality-number-line"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Explain the number-line solution of -4x <= 6, including whether the rational endpoint is included.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The inequality is -4x <= 6.",
+      "evidence": {
+       "source": "question",
+       "start": 36,
+       "end": 44,
+       "quote": "-4x <= 6"
+      }
+     },
+     {
+      "id": "fLine",
+      "kind": "requested",
+      "statement": "Explain the number-line solution.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 32,
+       "quote": "Explain the number-line solution"
+      }
+     },
+     {
+      "id": "fEndpoint",
+      "kind": "requested",
+      "statement": "Determine whether the rational endpoint is included.",
+      "evidence": {
+       "source": "question",
+       "start": 56,
+       "end": 97,
+       "quote": "whether the rational endpoint is included"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine"
+      ]
+     },
+     {
+      "id": "endpoint",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fIneq",
+       "fEndpoint"
+      ]
+     },
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq",
+       "fLine"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eX",
+      "valueType": "scalar",
+      "root": {
+       "kind": "variable",
+       "name": "x"
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eBoundary",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 6
+       },
+       "right": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 4
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cSolution",
+      "kind": "inequality",
+      "leftExpressionId": "eX",
+      "rightExpressionId": "eBoundary",
+      "relation": ">=",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iLine",
+      "kind": "bounded_region",
+      "entityIds": [
+       "numberLine",
+       "endpoint",
+       "solution"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fLine",
+       "fEndpoint"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sEndpoint",
+      "kind": "evaluate",
+      "expressionId": "eBoundary",
+      "resultBinding": {
+       "turnPlanQuantityId": "u2",
+       "symbol": "endpoint",
+       "evidenceFactIds": [
+        "fEndpoint"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sEndpoint",
+      "requestId": "sEndpoint",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "-3/2"
+      },
+      "approximate": -1.5,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sEndpoint",
+      "requestId": "sEndpoint",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eBoundary"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 6,
+  "inputTokens": 16074,
+  "outputTokens": 2916,
+  "totalTokens": 18990,
+  "cachedInputTokens": 0,
+  "estimatedCostUsd": 0.061308,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 675,
+    "outputTokens": 356,
+    "totalTokens": 1031,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00491,
+    "measuredCostUsd": 0.00491,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 614,
+    "outputTokens": 388,
+    "totalTokens": 1002,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.005108,
+    "measuredCostUsd": 0.005108,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5366,
+    "outputTokens": 10,
+    "totalTokens": 5376,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010832,
+    "measuredCostUsd": 0.010832,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1891,
+    "outputTokens": 409,
+    "totalTokens": 2300,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007872,
+    "measuredCostUsd": 0.007872,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 3764,
+    "outputTokens": 794,
+    "totalTokens": 4558,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.015468,
+    "measuredCostUsd": 0.015468,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 3764,
+    "outputTokens": 959,
+    "totalTokens": 4723,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.017118,
+    "measuredCostUsd": 0.017118,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.061308
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "37d021975658a0e35d5fe2ce142af5fce7876b02ec53d46a92976a4ba4e388ad",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "solution"
+      ]
+     },
+     {
+      "code": "empty_required_scene",
+      "message": "A scene must declare requiredEntityIds",
+      "severity": "fatal",
+      "path": "requiredEntityIds"
+     }
+    ],
+    "issueCount": 2,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "number-line-solution",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"inequality\":\"-4*x <= 6\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 56,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "-3/2",
+   "Solution: [-3/2, infinity)"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 6,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "invalid_linear_region",
+   "empty_required_scene"
+  ],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 14206,
+    "elapsedMs": 6749,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 14195,
+    "elapsedMs": 7582,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Explain the number-line solution of -4x <= 6, including whether the rational endpoint is included.\"\n  },\n  \"quantities\": [\n    {\n      \"id\": \"g1\",\n      \"symbol\": \"a\",\n      \"value\": -4,\n      \"provenance\": \"given\",\n      \"sourceText\": \"-4x <= 6\"\n    },\n    {\n      \"id\": \"g2\",\n      \"symbol\": \"b\",\n      \"value\": 6,\n      \"provenance\": \"given\",\n      \"sourceText\": \"-4x <= 6\"\n    },\n    {\n      \"id\": \"u1\",\n      \"symbol\": \"x\"\n    },\n    {\n      \"id\": \"u2\",\n      \"symbol\": \"endpoint\",\n      \"value\": -1.5,\n      \"sourceText\": \"6 ÷ (-4) = -1.5 = -3/2\",\n      \"provenance\": \"derived\",\n      \"dependsOn\": [\"g1\", \"g2\"]\n    }\n  ],\n  \"entities\": [\n    {\n      \"id\": \"solution\",\n      \"kind\": \"linear_region\"\n    }\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"construct_solution\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"inequality\": \"-4x <= 6\"\n        }\n      },\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"number_line\",\n      \"entityIds\": [\"solution\"]\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"setup\",\n      \"action\": \"reveal\",\n      \"targetIds\": [\"solution\"]\n    },\n    {\n      \"id\": \"explain\",\n      \"action\": \"narrate\",\n      \"targetIds\": [\"solution\"],\n      \"text\": \"Dividing by −4 reverses the inequality, so x ≥ −3/2. Equality is allowed: the endpoint is filled, and the solution extends to the right.\"\n    }\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Explain the number-line solution of -4x <= 6, including whether the rational endpoint is included.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"a\", \"value\": -4, \"provenance\": \"given\", \"sourceText\": \"-4x <= 6\"},\n    {\"id\": \"g2\", \"symbol\": \"b\", \"value\": 6, \"provenance\": \"given\", \"sourceText\": \"-4x <= 6\"},\n    {\"id\": \"u1\", \"symbol\": \"x\"},\n    {\"id\": \"u2\", \"symbol\": \"endpoint\", \"value\": -1.5, \"provenance\": \"derived\", \"sourceText\": \"6 ÷ (-4) = -1.5 = -3/2\", \"dependsOn\": [\"g1\", \"g2\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"group\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"number-line-solution\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\"inequality\": \"-4*x <= 6\"}\n      },\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\n      \"id\": \"endpoint-label\",\n      \"kind\": \"endpoint\",\n      \"targetIds\": [\"solution\"],\n      \"text\": \"−3/2\",\n      \"quantityId\": \"u2\",\n      \"style\": {\"pointStyle\": \"filled\"}\n    },\n    {\n      \"id\": \"reason\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"solution\"],\n      \"text\": \"Dividing by negative 4 reverses the inequality: x ≥ −3/2. Equality is allowed, so the endpoint is filled; the solution extends to the right.\"\n    }\n  ],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"number-line\", \"entityIds\": [\"solution\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"setup\", \"targetIds\": [\"solution\"], \"action\": \"reveal\"},\n    {\"id\": \"explanation\", \"targetIds\": [\"endpoint-label\", \"reason\"], \"action\": \"reveal\"}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "deadline",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "054bbf70b47072718295ea95bde45dc3f223f1f9902684a3ab6928de51afda79",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": null,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "transport",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": null,
+   "unresolvedAllowanceUsd": 0.002091
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1894,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+  "topic_id": "maths|h3r6-shaded-regions|nl02-negative-closed-rational",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "topic_ask",
+  "question": "Explain the number-line solution of -4x <= 6, including whether the rational endpoint is included.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "a horizontal number line increasing to the right",
+   "a filled endpoint at -3/2",
+   "a shaded ray extending right from -3/2"
+  ],
+  "must_label": [
+   "x",
+   "-3/2"
+  ],
+  "must_not_show": [
+   "an open endpoint at -3/2",
+   "a ray extending left from -3/2",
+   "an endpoint at 3/2"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "x >= -3/2",
+   "Solution set is [-3/2, infinity).",
+   "-3/2 is included."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=nl02; exam_scope=CBSE11;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

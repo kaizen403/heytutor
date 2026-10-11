@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Graph the set of all real ordered pairs satisfying -4x &lt; 2. State whether points on the boundary belong to it.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | -4x=2 | -4x&lt;2 | Shaded side satisfies the inequality</text>
+<polygon points="752.04,586 1031.64,586 1031.64,138.65 752.04,138.65" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="528.36" y1="362.32" x2="1031.64" y2="362.32" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="807.96" y1="586" x2="807.96" y2="138.65" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1032.05" y="368.24" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="833.54" y="144.56" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="833.54" y="368.24" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="752.04,586 752.04,138.65" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<text x="765.04" y="521.08" font-size="18" dominant-baseline="hanging" textLength="30.87754398244205" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-4x=2</text>
+<text x="763.6877101244304" y="99.82" font-size="18" dominant-baseline="hanging" textLength="32.62457975113925" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-4x&lt;2</text>
+<text x="681.6529137461708" y="70" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

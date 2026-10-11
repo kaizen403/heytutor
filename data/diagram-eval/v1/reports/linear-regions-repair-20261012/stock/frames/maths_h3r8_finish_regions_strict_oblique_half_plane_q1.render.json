@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "1134b9401bc0aed43442d586b369b0a5adcd4427bafc9a183effa20d1a22712e",
+  "pngSha256": "e7c56c93df17cb5454b40fbe67978517cfc5337a33039093f43b6206dba79595"
+}

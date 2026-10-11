@@ -1,0 +1,930 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+ "topicId": "maths|h3r6-shaded-regions|hp01-negative-both-closed",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Teach me the graph of -2x - 3y <= 6, including how to choose which half-plane to shade.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:02:00.074Z",
+ "timings": {
+  "planMs": 15137,
+  "teachMs": 0,
+  "totalMs": 15138,
+  "figureCommitMs": 15137,
+  "stages": {
+   "turnPlanMs": 4593,
+   "problemIrMs": 4333,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 6119,
+   "deadlineRemainingMs": 44953,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a",
+    "symbol": "x coefficient",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "a = -2"
+   },
+   {
+    "id": "b",
+    "symbol": "y coefficient",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "b = -3"
+   },
+   {
+    "id": "c",
+    "symbol": "right-hand side",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "c = 6"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "xi",
+    "symbol": "x-intercept"
+   },
+   {
+    "id": "yi",
+    "symbol": "y-intercept"
+   }
+  ],
+  "derived": [
+   {
+    "id": "xi",
+    "symbol": "x-intercept",
+    "value": -3
+   },
+   {
+    "id": "yi",
+    "symbol": "y-intercept",
+    "value": -2
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "boundary",
+    "expected": "-2x - 3y = 6"
+   },
+   {
+    "id": "shade",
+    "expected": "y ≥ -2 - (2/3)x"
+   },
+   {
+    "id": "method",
+    "expected": "The origin satisfies the inequality, so shade the side containing the origin."
+   }
+  ],
+  "lawIds": [
+   "Coordinate intercept method",
+   "Inequality division by a negative number reverses the inequality",
+   "Test-point method for linear inequalities"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eXi",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 6
+      },
+      "right": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 2
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    },
+    {
+     "id": "eYi",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 6
+      },
+      "right": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 3
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iGraph",
+     "kind": "graph",
+     "entityIds": [
+      "boundary",
+      "solution"
+     ],
+     "evidenceFactIds": [
+      "fGraph",
+      "fShade"
+     ]
+    },
+    {
+     "id": "iShade",
+     "kind": "bounded_region",
+     "entityIds": [
+      "solution",
+      "boundary"
+     ],
+     "evidenceFactIds": [
+      "fIneq",
+      "fShade"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sXi",
+     "quantityId": "xi",
+     "symbol": "x-intercept",
+     "approximate": -3,
+     "exact": {
+      "kind": "integer",
+      "value": "-3"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sYi",
+     "quantityId": "yi",
+     "symbol": "y-intercept",
+     "approximate": -2,
+     "exact": {
+      "kind": "integer",
+      "value": "-2"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "b15dcfa6d0e97b82171c76b3f5ee4e44b398587caa489f549c4b4c11c62f24bc",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sXi",
+      "quantityId": "xi",
+      "symbol": "x-intercept",
+      "approximate": -3,
+      "exact": {
+       "kind": "integer",
+       "value": "-3"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sYi",
+      "quantityId": "yi",
+      "symbol": "y-intercept",
+      "approximate": -2,
+      "exact": {
+       "kind": "integer",
+       "value": "-2"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Teach me the graph of -2x - 3y <= 6, including how to choose which half-plane to shade.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "x coefficient",
+      "value": -2,
+      "sourceText": "a = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "y coefficient",
+      "value": -3,
+      "sourceText": "b = -3",
+      "provenance": "given"
+     },
+     {
+      "id": "c",
+      "symbol": "right-hand side",
+      "value": 6,
+      "sourceText": "c = 6",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "xi",
+      "symbol": "x-intercept"
+     },
+     {
+      "id": "yi",
+      "symbol": "y-intercept"
+     }
+    ],
+    "derived": [
+     {
+      "id": "xi",
+      "symbol": "x-intercept",
+      "value": -3,
+      "sourceText": "At y=0, -2x=6, so x=-3.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "c"
+      ]
+     },
+     {
+      "id": "yi",
+      "symbol": "y-intercept",
+      "value": -2,
+      "sourceText": "At x=0, -3y=6, so y=-2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "b",
+       "c"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "boundary",
+      "claim": "The boundary is the line through the two intercepts; draw it solid because equality is included.",
+      "expected": "-2x - 3y = 6",
+      "relatedQuantityIds": [
+       "xi",
+       "yi"
+      ]
+     },
+     {
+      "id": "shade",
+      "claim": "Shade the half-plane above the boundary. The origin is in that half-plane: substituting x=0 and y=0 gives 0≤6.",
+      "expected": "y ≥ -2 - (2/3)x",
+      "relatedQuantityIds": [
+       "a",
+       "b",
+       "c",
+       "yi"
+      ]
+     },
+     {
+      "id": "method",
+      "claim": "To choose a half-plane, test a point off the boundary in the original inequality; shade its side if it satisfies the inequality, otherwise shade the opposite side.",
+      "expected": "The origin satisfies the inequality, so shade the side containing the origin.",
+      "relatedQuantityIds": [
+       "c"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Coordinate intercept method",
+     "Inequality division by a negative number reverses the inequality",
+     "Test-point method for linear inequalities"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Teach me the graph of -2x - 3y <= 6, including how to choose which half-plane to shade.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "-2x - 3y is at most 6",
+      "evidence": {
+       "source": "question",
+       "start": 22,
+       "end": 35,
+       "quote": "-2x - 3y <= 6"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph the inequality",
+      "evidence": {
+       "source": "question",
+       "start": 13,
+       "end": 35,
+       "quote": "graph of -2x - 3y <= 6"
+      }
+     },
+     {
+      "id": "fShade",
+      "kind": "requested",
+      "statement": "Explain how to choose the shaded half-plane",
+      "evidence": {
+       "source": "question",
+       "start": 47,
+       "end": 86,
+       "quote": "how to choose which half-plane to shade"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "boundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eXi",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 6
+       },
+       "right": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eYi",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 6
+       },
+       "right": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 3
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "boundary",
+       "solution"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fShade"
+      ]
+     },
+     {
+      "id": "iShade",
+      "kind": "bounded_region",
+      "entityIds": [
+       "solution",
+       "boundary"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fShade"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sXi",
+      "kind": "evaluate",
+      "expressionId": "eXi",
+      "resultBinding": {
+       "turnPlanQuantityId": "xi",
+       "symbol": "x-intercept",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     },
+     {
+      "id": "sYi",
+      "kind": "evaluate",
+      "expressionId": "eYi",
+      "resultBinding": {
+       "turnPlanQuantityId": "yi",
+       "symbol": "y-intercept",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sXi",
+      "requestId": "sXi",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-3"
+      },
+      "approximate": -3,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sYi",
+      "requestId": "sYi",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-2"
+      },
+      "approximate": -2,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sXi",
+      "requestId": "sXi",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eXi"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sYi",
+      "requestId": "sYi",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eYi"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 15637,
+  "outputTokens": 2370,
+  "totalTokens": 18007,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.052035,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 680,
+    "outputTokens": 543,
+    "totalTokens": 1223,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00679,
+    "measuredCostUsd": 0.00679,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 619,
+    "outputTokens": 509,
+    "totalTokens": 1128,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006328,
+    "measuredCostUsd": 0.006328,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5475,
+    "outputTokens": 87,
+    "totalTokens": 5562,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01182,
+    "measuredCostUsd": 0.01182,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2062,
+    "outputTokens": 544,
+    "totalTokens": 2606,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.006625,
+    "measuredCostUsd": 0.006625,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6801,
+    "outputTokens": 687,
+    "totalTokens": 7488,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.020472,
+    "measuredCostUsd": 0.020472,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.278304
+   }
+  ],
+  "knownUsageUsd": 0.052035
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "-2x - 3y=6",
+   "-2x - 3y<=6",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 9,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 24590,
+    "elapsedMs": 5259,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 24579,
+    "elapsedMs": 6118,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequality defines an exact boundary and half-plane.\"\n  },\n  \"source\": {\n    \"question\": \"Teach me the graph of -2x - 3y <= 6, including how to choose which half-plane to shade.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"x coefficient\", \"value\": -2},\n    {\"id\": \"b\", \"symbol\": \"y coefficient\", \"value\": -3},\n    {\"id\": \"c\", \"symbol\": \"right-hand side\", \"value\": 6},\n    {\"id\": \"xi\", \"symbol\": \"x-intercept\", \"value\": -3},\n    {\"id\": \"yi\", \"symbol\": \"y-intercept\", \"value\": -2}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"solid boundary and shaded solution half-plane\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"construct_solution\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\"inequality\": \"-2*x - 3*y <= 6\"},\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"solution\"], \"dependsOn\": []}\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"test\",\n      \"targetIds\": [\"solution\"],\n      \"text\": \"Test a point off the boundary in the original inequality. At the origin, 0 ≤ 6, so shade the side containing the origin.\"\n    },\n    {\n      \"id\": \"intercepts\",\n      \"targetIds\": [\"solution\"],\n      \"text\": \"For the boundary, set y = 0 to get x = −3; set x = 0 to get y = −2.\"\n    },\n    {\n      \"id\": \"boundary\",\n      \"targetIds\": [\"solution\"],\n      \"text\": \"Draw the boundary through those intercepts as a solid line because equality is included.\"\n    }\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "b15dcfa6d0e97b82171c76b3f5ee4e44b398587caa489f549c4b4c11c62f24bc",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1784,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+  "topic_id": "maths|h3r6-shaded-regions|hp01-negative-both-closed",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "Teach me the graph of -2x - 3y <= 6, including how to choose which half-plane to shade.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "a solid boundary through (-3, 0) and (0, -2)",
+   "the half-plane above that line shaded, including the boundary"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "-2x - 3y = 6",
+   "(-3, 0)",
+   "(0, -2)"
+  ],
+  "must_not_show": [
+   "a dashed boundary",
+   "only the half-plane below the line shaded",
+   "the origin excluded from the solution"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "y >= -(2/3)x - 2",
+   "The boundary is included.",
+   "(0, 0) satisfies the inequality."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=hp01; exam_scope=CBSE11-formative;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

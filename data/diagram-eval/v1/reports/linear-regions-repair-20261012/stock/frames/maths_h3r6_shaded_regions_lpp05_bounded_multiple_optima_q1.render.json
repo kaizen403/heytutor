@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "ea565af100f4d37d4f46052ee684e8f0123fd4696cb51c9fecb1c82016b2c24d",
+  "pngSha256": "6062307bdfaa7a0d1a913cf03e31f261a9a98917c37eb653ca2236bcb4d9664b"
+}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "3540361273751f871bedde6c43e754c36b393d92c6aa20ac6964c4ff0ef0b8ec",
+  "pngSha256": "0076ea0714af4b57999c9816f6fae4025035da38599e35111003703548a696eb"
+}

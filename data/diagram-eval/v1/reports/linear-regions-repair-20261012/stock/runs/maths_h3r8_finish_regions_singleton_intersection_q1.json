@@ -1,0 +1,945 @@
+{
+ "probeId": "maths|h3r8-finish-regions|singleton-intersection|q1",
+ "topicId": "maths|h3r8-finish-regions|singleton-intersection",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "medium",
+ "question": "For real x, solve both inequalities -2(x - 3) <= x and 4x - 1 <= 7 simultaneously. Draw their common solution set S on a number line, and label A = 1, B = 2, C = 3 with membership. A solution must satisfy BOTH inequalities.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:05:55.158Z",
+ "timings": {
+  "planMs": 20408,
+  "teachMs": 0,
+  "totalMs": 20408,
+  "figureCommitMs": 20408,
+  "stages": {
+   "turnPlanMs": 6110,
+   "problemIrMs": 4248,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 9876,
+   "deadlineRemainingMs": 39764,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "coefficient in first inequality",
+    "value": -2,
+    "sign": "negative",
+    "provenance": "given",
+    "sourceText": "g1 = -2"
+   },
+   {
+    "id": "g2",
+    "symbol": "constant in first parentheses",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "g2 = 3"
+   },
+   {
+    "id": "g3",
+    "symbol": "coefficient in second inequality",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "g3 = 4"
+   },
+   {
+    "id": "g4",
+    "symbol": "subtracted constant",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "g4 = 1"
+   },
+   {
+    "id": "g5",
+    "symbol": "right-hand side of second inequality",
+    "value": 7,
+    "provenance": "given",
+    "sourceText": "g5 = 7"
+   },
+   {
+    "id": "gA",
+    "symbol": "A",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "gA = 1"
+   },
+   {
+    "id": "gB",
+    "symbol": "B",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "gB = 2"
+   },
+   {
+    "id": "gC",
+    "symbol": "C",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "gC = 3"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "uS",
+    "symbol": "S"
+   }
+  ],
+  "derived": [
+   {
+    "id": "d1",
+    "symbol": "lower bound for x",
+    "value": 2
+   },
+   {
+    "id": "d2",
+    "symbol": "upper bound for x",
+    "value": 2
+   },
+   {
+    "id": "dS",
+    "symbol": "sole element of S",
+    "value": 2
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "-2(x - 3) ≤ x ⇔ 6 ≤ 3x ⇔ x ≥ 2."
+   },
+   {
+    "id": "c2",
+    "expected": "4x - 1 ≤ 7 ⇔ 4x ≤ 8 ⇔ x ≤ 2."
+   },
+   {
+    "id": "c3",
+    "expected": "S = [2, ∞) ∩ (-∞, 2] = {2}."
+   },
+   {
+    "id": "c4",
+    "expected": "Mark S as a single filled point at B = 2. A = 1 is not in S; B = 2 is in S; C = 3 is not in S."
+   }
+  ],
+  "lawIds": [
+   "distributive_property",
+   "addition_property_of_inequalities",
+   "division_by_positive_number_preserves_inequality",
+   "intersection_of_solution_sets"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "7cd26cb7215127e08a256f1d5c9bc459b2dc0b462b571ab8f669ac64fedfc225",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x, solve both inequalities -2(x - 3) <= x and 4x - 1 <= 7 simultaneously. Draw their common solution set S on a number line, and label A = 1, B = 2, C = 3 with membership. A solution must satisfy BOTH inequalities.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "coefficient in first inequality",
+      "value": -2,
+      "sign": "negative",
+      "sourceText": "g1 = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "constant in first parentheses",
+      "value": 3,
+      "sourceText": "g2 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "coefficient in second inequality",
+      "value": 4,
+      "sourceText": "g3 = 4",
+      "provenance": "given"
+     },
+     {
+      "id": "g4",
+      "symbol": "subtracted constant",
+      "value": 1,
+      "sourceText": "g4 = 1",
+      "provenance": "given"
+     },
+     {
+      "id": "g5",
+      "symbol": "right-hand side of second inequality",
+      "value": 7,
+      "sourceText": "g5 = 7",
+      "provenance": "given"
+     },
+     {
+      "id": "gA",
+      "symbol": "A",
+      "value": 1,
+      "sourceText": "gA = 1",
+      "provenance": "given"
+     },
+     {
+      "id": "gB",
+      "symbol": "B",
+      "value": 2,
+      "sourceText": "gB = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "gC",
+      "symbol": "C",
+      "value": 3,
+      "sourceText": "gC = 3",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "uS",
+      "symbol": "S"
+     }
+    ],
+    "derived": [
+     {
+      "id": "d1",
+      "symbol": "lower bound for x",
+      "value": 2,
+      "sourceText": "d1 = 2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     },
+     {
+      "id": "d2",
+      "symbol": "upper bound for x",
+      "value": 2,
+      "sourceText": "d2 = 2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g3",
+       "g4",
+       "g5"
+      ]
+     },
+     {
+      "id": "dS",
+      "symbol": "sole element of S",
+      "value": 2,
+      "sourceText": "dS = 2",
+      "provenance": "derived",
+      "dependsOn": [
+       "d1",
+       "d2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Solve the first inequality.",
+      "expected": "-2(x - 3) ≤ x ⇔ 6 ≤ 3x ⇔ x ≥ 2.",
+      "relatedQuantityIds": [
+       "d1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Solve the second inequality.",
+      "expected": "4x - 1 ≤ 7 ⇔ 4x ≤ 8 ⇔ x ≤ 2.",
+      "relatedQuantityIds": [
+       "d2"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Intersect both solutions.",
+      "expected": "S = [2, ∞) ∩ (-∞, 2] = {2}.",
+      "relatedQuantityIds": [
+       "uS",
+       "dS"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "Locate and label the set and points on a number line.",
+      "expected": "Mark S as a single filled point at B = 2. A = 1 is not in S; B = 2 is in S; C = 3 is not in S.",
+      "relatedQuantityIds": [
+       "uS",
+       "gA",
+       "gB",
+       "gC",
+       "dS"
+      ]
+     }
+    ],
+    "lawIds": [
+     "distributive_property",
+     "addition_property_of_inequalities",
+     "division_by_positive_number_preserves_inequality",
+     "intersection_of_solution_sets"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x, solve both inequalities -2(x - 3) <= x and 4x - 1 <= 7 simultaneously. Draw their common solution set S on a number line, and label A = 1, B = 2, C = 3 with membership. A solution must satisfy BOTH inequalities.",
+    "facts": [
+     {
+      "id": "fReal",
+      "kind": "given",
+      "statement": "x is real",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 10,
+       "quote": "For real x"
+      }
+     },
+     {
+      "id": "fFirst",
+      "kind": "given",
+      "statement": "First inequality holds",
+      "evidence": {
+       "source": "question",
+       "start": 36,
+       "end": 50,
+       "quote": "-2(x - 3) <= x"
+      }
+     },
+     {
+      "id": "fSecond",
+      "kind": "given",
+      "statement": "Second inequality holds",
+      "evidence": {
+       "source": "question",
+       "start": 55,
+       "end": 66,
+       "quote": "4x - 1 <= 7"
+      }
+     },
+     {
+      "id": "fBoth",
+      "kind": "given",
+      "statement": "Both inequalities must hold",
+      "evidence": {
+       "source": "question",
+       "start": 181,
+       "end": 222,
+       "quote": "A solution must satisfy BOTH inequalities"
+      }
+     },
+     {
+      "id": "fSet",
+      "kind": "requested",
+      "statement": "Find and draw the common solution set S",
+      "evidence": {
+       "source": "question",
+       "start": 83,
+       "end": 132,
+       "quote": "Draw their common solution set S on a number line"
+      }
+     },
+     {
+      "id": "fA",
+      "kind": "given",
+      "statement": "A equals 1",
+      "evidence": {
+       "source": "question",
+       "start": 144,
+       "end": 149,
+       "quote": "A = 1"
+      }
+     },
+     {
+      "id": "fB",
+      "kind": "given",
+      "statement": "B equals 2",
+      "evidence": {
+       "source": "question",
+       "start": 151,
+       "end": 156,
+       "quote": "B = 2"
+      }
+     },
+     {
+      "id": "fC",
+      "kind": "given",
+      "statement": "C equals 3",
+      "evidence": {
+       "source": "question",
+       "start": 158,
+       "end": 163,
+       "quote": "C = 3"
+      }
+     },
+     {
+      "id": "fMembership",
+      "kind": "requested",
+      "statement": "Label the points with membership",
+      "evidence": {
+       "source": "question",
+       "start": 138,
+       "end": 179,
+       "quote": "label A = 1, B = 2, C = 3 with membership"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fSet"
+      ]
+     },
+     {
+      "id": "S",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fSet",
+       "fBoth"
+      ]
+     },
+     {
+      "id": "A",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fA"
+      ]
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fB"
+      ]
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fC"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eFirstLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "variable",
+         "name": "x"
+        },
+        "right": {
+         "kind": "number",
+         "value": 3
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "eFirstRight",
+      "valueType": "function",
+      "root": {
+       "kind": "variable",
+       "name": "x"
+      },
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "eSecondLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     },
+     {
+      "id": "eSecondRight",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 7
+      },
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cFirst",
+      "kind": "inequality",
+      "leftExpressionId": "eFirstLeft",
+      "rightExpressionId": "eFirstRight",
+      "relation": "<=",
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "cSecond",
+      "kind": "inequality",
+      "leftExpressionId": "eSecondLeft",
+      "rightExpressionId": "eSecondRight",
+      "relation": "<=",
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iNumberLine",
+      "kind": "conceptual",
+      "entityIds": [
+       "numberLine",
+       "S",
+       "A",
+       "B",
+       "C"
+      ],
+      "evidenceFactIds": [
+       "fSet",
+       "fA",
+       "fB",
+       "fC",
+       "fMembership",
+       "fBoth"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 13571,
+  "outputTokens": 3019,
+  "totalTokens": 16590,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.054393,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 658,
+    "outputTokens": 490,
+    "totalTokens": 1148,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006216,
+    "measuredCostUsd": 0.006216,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 719,
+    "outputTokens": 784,
+    "totalTokens": 1503,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.009278,
+    "measuredCostUsd": 0.009278,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5581,
+    "outputTokens": 29,
+    "totalTokens": 5610,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011452,
+    "measuredCostUsd": 0.011452,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2370,
+    "outputTokens": 656,
+    "totalTokens": 3026,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.008361,
+    "measuredCostUsd": 0.008361,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4243,
+    "outputTokens": 1060,
+    "totalTokens": 5303,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.019086,
+    "measuredCostUsd": 0.019086,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.236404
+   }
+  ],
+  "knownUsageUsd": 0.054393000000000004
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "2",
+   "A=1 excluded",
+   "B=2 included",
+   "C=3 excluded",
+   "Solution: [2, 2]"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 11,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 15607,
+    "elapsedMs": 8694,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 15596,
+    "elapsedMs": 9875,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_singleton_intersection_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_singleton_intersection_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"For real x, solve both inequalities -2(x - 3) <= x and 4x - 1 <= 7 simultaneously. Draw their common solution set S on a number line, and label A = 1, B = 2, C = 3 with membership. A solution must satisfy BOTH inequalities.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"coefficient in first inequality\", \"value\": -2},\n    {\"id\": \"g2\", \"symbol\": \"constant in first parentheses\", \"value\": 3},\n    {\"id\": \"g3\", \"symbol\": \"coefficient in second inequality\", \"value\": 4},\n    {\"id\": \"g4\", \"symbol\": \"subtracted constant\", \"value\": 1},\n    {\"id\": \"g5\", \"symbol\": \"right-hand side of second inequality\", \"value\": 7},\n    {\"id\": \"gA\", \"symbol\": \"A\", \"value\": 1},\n    {\"id\": \"gB\", \"symbol\": \"B\", \"value\": 2},\n    {\"id\": \"gC\", \"symbol\": \"C\", \"value\": 3},\n    {\"id\": \"d1\", \"symbol\": \"lower bound for x\", \"value\": 2},\n    {\"id\": \"d2\", \"symbol\": \"upper bound for x\", \"value\": 2},\n    {\"id\": \"dS\", \"symbol\": \"sole element of S\", \"value\": 2}\n  ],\n  \"entities\": [\n    {\"id\": \"solutionSet\", \"kind\": \"linear_region\", \"role\": \"common solution set\", \"label\": \"S\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructSolutionSet\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\"inequality\": \"-2(x - 3) <= x\"},\n            {\"inequality\": \"4x - 1 <= 7\"}\n          ]\n        }\n      },\n      \"outputs\": [\"solutionSet\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solutionSet\"],\n  \"revealGroups\": [\n    {\"id\": \"numberLine\", \"entityIds\": [\"solutionSet\"]}\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"setup\",\n      \"targetIds\": [\"solutionSet\"],\n      \"text\": \"S contains the real numbers satisfying both inequalities.\"\n    },\n    {\n      \"id\": \"firstInequality\",\n      \"targetIds\": [\"solutionSet\"],\n      \"text\": \"-2(x - 3) ≤ x gives x ≥ 2.\"\n    },\n    {\n      \"id\": \"secondInequality\",\n      \"targetIds\": [\"solutionSet\"],\n      \"text\": \"4x - 1 ≤ 7 gives x ≤ 2.\"\n    },\n    {\n      \"id\": \"membership\",\n      \"targetIds\": [\"solutionSet\"],\n      \"text\": \"S = {2}. A = 1 is not in S; B = 2 is in S; C = 3 is not in S.\"\n    }\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "7cd26cb7215127e08a256f1d5c9bc459b2dc0b462b571ab8f669ac64fedfc225",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002096,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1839,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|singleton-intersection|q1",
+  "topic_id": "maths|h3r8-finish-regions|singleton-intersection",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "For real x, solve both inequalities -2(x - 3) <= x and 4x - 1 <= 7 simultaneously. Draw their common solution set S on a number line, and label A = 1, B = 2, C = 3 with membership. A solution must satisfy BOTH inequalities.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "number_line",
+  "must_show": [
+   "S consists of exactly the singleton {2}.",
+   "One closed solution point at 2 and no shaded ray or positive-length interval.",
+   "Only B belongs to S."
+  ],
+  "must_label": [
+   "x",
+   "2",
+   "S = {2}",
+   "A = 1",
+   "B = 2",
+   "C = 3"
+  ],
+  "must_not_show": [
+   "Empty solution set.",
+   "A shaded interval around 2.",
+   "An open solution point at 2.",
+   "Either ray shown as the common solution."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "First inequality gives x >= 2",
+   "Second inequality gives x <= 2",
+   "S = {2}",
+   "A: false; B: true; C: false"
+  ],
+  "notes": "CBSE class 11 inequalities; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

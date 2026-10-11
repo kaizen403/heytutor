@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "e445e78cdb3e7b8b6771d87fde0f3310f55be436685ac1e144eb7264db9bd7d7",
+  "pngSha256": "47aa4882dc792f0f3d764c83a13050cd78bc9f354fe980a2f7485108320e7f86"
+}

@@ -1,0 +1,782 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+ "topicId": "maths|h3r6-shaded-regions|nl01-negative-strict",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "easy",
+ "question": "Teach me how to show -3x + 6 > 0 on a number line, especially the endpoint and ray direction.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:01:07.464Z",
+ "timings": {
+  "planMs": 23650,
+  "teachMs": 0,
+  "totalMs": 23653,
+  "figureCommitMs": 23653,
+  "stages": {
+   "turnPlanMs": 12124,
+   "problemIrMs": 4691,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 6806,
+   "deadlineRemainingMs": 36375,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": false,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "a",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "-3x"
+   },
+   {
+    "id": "g2",
+    "symbol": "b",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "+ 6"
+   },
+   {
+    "id": "g3",
+    "symbol": "c",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "> 0"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "endpoint"
+   },
+   {
+    "id": "u2",
+    "symbol": "solution set"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u1",
+    "symbol": "endpoint",
+    "value": 2
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "Subtract 6, then divide by -3 and reverse the inequality: x < 2."
+   },
+   {
+    "id": "c2",
+    "expected": "Put an open circle at 2 because the strict inequality excludes 2."
+   },
+   {
+    "id": "c3",
+    "expected": "Shade left from 2, toward smaller numbers, because x < 2."
+   }
+  ],
+  "lawIds": [
+   "inequality_addition_property",
+   "inequality_negative_division_reverses_order",
+   "strict_inequality_excludes_boundary"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "76d54c56809b2bacbbdcca95b2769e69d6cf84f3ce7b660c1cd528c370d42118",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown u2 has no explicit solver binding",
+      "quantityId": "u2"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sEndpoint",
+      "quantityId": "u1",
+      "symbol": "endpoint",
+      "approximate": 2,
+      "exact": {
+       "kind": "integer",
+       "value": "2"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Teach me how to show -3x + 6 > 0 on a number line, especially the endpoint and ray direction.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "a",
+      "value": -3,
+      "sourceText": "-3x",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "b",
+      "value": 6,
+      "sourceText": "+ 6",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "c",
+      "value": 0,
+      "sourceText": "> 0",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "endpoint"
+     },
+     {
+      "id": "u2",
+      "symbol": "solution set"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "endpoint",
+      "value": 2,
+      "sourceText": "At the boundary, -3x + 6 = 0, so x = 6/3 = 2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Solve the inequality",
+      "expected": "Subtract 6, then divide by -3 and reverse the inequality: x < 2.",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "g3",
+       "u1",
+       "u2"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Mark the endpoint",
+      "expected": "Put an open circle at 2 because the strict inequality excludes 2.",
+      "relatedQuantityIds": [
+       "u1",
+       "u1"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Show the ray direction",
+      "expected": "Shade left from 2, toward smaller numbers, because x < 2.",
+      "relatedQuantityIds": [
+       "u1",
+       "u2"
+      ]
+     }
+    ],
+    "lawIds": [
+     "inequality_addition_property",
+     "inequality_negative_division_reverses_order",
+     "strict_inequality_excludes_boundary"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Teach me how to show -3x + 6 > 0 on a number line, especially the endpoint and ray direction.",
+    "facts": [
+     {
+      "id": "fInequality",
+      "kind": "given",
+      "statement": "The inequality is -3x + 6 > 0.",
+      "evidence": {
+       "source": "question",
+       "start": 21,
+       "end": 32,
+       "quote": "-3x + 6 > 0"
+      }
+     },
+     {
+      "id": "fEndpoint",
+      "kind": "requested",
+      "statement": "Show the endpoint.",
+      "evidence": {
+       "source": "question",
+       "start": 62,
+       "end": 74,
+       "quote": "the endpoint"
+      }
+     },
+     {
+      "id": "fRay",
+      "kind": "requested",
+      "statement": "Show the ray direction.",
+      "evidence": {
+       "source": "question",
+       "start": 79,
+       "end": 92,
+       "quote": "ray direction"
+      }
+     },
+     {
+      "id": "fNumberLine",
+      "kind": "requested",
+      "statement": "Use a number line.",
+      "evidence": {
+       "source": "question",
+       "start": 33,
+       "end": 49,
+       "quote": "on a number line"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fNumberLine"
+      ]
+     },
+     {
+      "id": "endpoint",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fEndpoint"
+      ]
+     },
+     {
+      "id": "solutionRay",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fRay"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 3
+         }
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 6
+       }
+      },
+      "evidenceFactIds": [
+       "fInequality"
+      ]
+     },
+     {
+      "id": "eZero",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 0
+      },
+      "evidenceFactIds": [
+       "fInequality"
+      ]
+     },
+     {
+      "id": "eEndpoint",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 6
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fInequality",
+       "fEndpoint"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cInequality",
+      "kind": "inequality",
+      "leftExpressionId": "eLeft",
+      "rightExpressionId": "eZero",
+      "relation": ">",
+      "evidenceFactIds": [
+       "fInequality"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iNumberLine",
+      "kind": "graph",
+      "entityIds": [
+       "numberLine",
+       "endpoint",
+       "solutionRay"
+      ],
+      "evidenceFactIds": [
+       "fInequality",
+       "fNumberLine",
+       "fEndpoint",
+       "fRay"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sEndpoint",
+      "kind": "evaluate",
+      "expressionId": "eEndpoint",
+      "resultBinding": {
+       "turnPlanQuantityId": "u1",
+       "symbol": "endpoint",
+       "evidenceFactIds": [
+        "fEndpoint"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sEndpoint",
+      "requestId": "sEndpoint",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "2"
+      },
+      "approximate": 2,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sEndpoint",
+      "requestId": "sEndpoint",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eEndpoint"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 13014,
+  "outputTokens": 1942,
+  "totalTokens": 14956,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.042509,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 680,
+    "outputTokens": 442,
+    "totalTokens": 1122,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00578,
+    "measuredCostUsd": 0.00578,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 619,
+    "outputTokens": 423,
+    "totalTokens": 1042,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.005468,
+    "measuredCostUsd": 0.005468,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5403,
+    "outputTokens": 38,
+    "totalTokens": 5441,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011186,
+    "measuredCostUsd": 0.011186,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1981,
+    "outputTokens": 498,
+    "totalTokens": 2479,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.006003,
+    "measuredCostUsd": 0.006003,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4331,
+    "outputTokens": 541,
+    "totalTokens": 4872,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.014072,
+    "measuredCostUsd": 0.014072,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.238828
+   }
+  ],
+  "knownUsageUsd": 0.042509000000000005
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "2",
+   "Solution: (-infinity, 2)"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 6,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 16379,
+    "elapsedMs": 6004,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 16368,
+    "elapsedMs": 6806,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Teach me how to show -3x + 6 > 0 on a number line, especially the endpoint and ray direction.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"a\", \"value\": -3, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"b\", \"value\": 6, \"provenance\": \"given\"},\n    {\"id\": \"g3\", \"symbol\": \"c\", \"value\": 0, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"endpoint\", \"value\": 2, \"provenance\": \"derived\"},\n    {\"id\": \"u2\", \"symbol\": \"solution set\"}\n  ],\n  \"entities\": [\n    {\"id\": \"solutionLine\", \"kind\": \"linear_region\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructSolutionLine\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\"inequality\": \"-3*x+6>0\"}\n      },\n      \"outputs\": [\"solutionLine\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solutionLine\"],\n  \"revealGroups\": [\n    {\"id\": \"main\", \"entityIds\": [\"solutionLine\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "deadline",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "76d54c56809b2bacbbdcca95b2769e69d6cf84f3ce7b660c1cd528c370d42118",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": null,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "transport",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": null,
+   "unresolvedAllowanceUsd": 0.002091
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2070,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+  "topic_id": "maths|h3r6-shaded-regions|nl01-negative-strict",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "topic_ask",
+  "question": "Teach me how to show -3x + 6 > 0 on a number line, especially the endpoint and ray direction.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "a horizontal number line increasing to the right",
+   "an open endpoint at 2",
+   "a shaded ray extending left from 2"
+  ],
+  "must_label": [
+   "x",
+   "2"
+  ],
+  "must_not_show": [
+   "a closed endpoint at 2",
+   "a shaded ray to the right of 2"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "x < 2",
+   "Solution set is (-infinity, 2).",
+   "2 is excluded."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=nl01; exam_scope=CBSE11;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

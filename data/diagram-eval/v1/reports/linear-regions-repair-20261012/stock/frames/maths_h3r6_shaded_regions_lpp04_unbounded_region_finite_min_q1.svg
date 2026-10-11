@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Explain why an unbounded feasible region can have a finite minimum: minimize Z = 2x + 3y for x &gt;= 0, y &gt;= 0 an</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_feasible_region tier=qualitative_verified labels=x | y | 0 | x + y=4 | (0, 4) | (4, 0) | x&gt;=0 | y&gt;=0 | Feasible region: unbounded | Minimize 2x + 3y | (0, 4): 12 | (4, 0): 8 | Minimum = 8</text>
+<polygon points="952.84,528.39 952.84,240.32 664.77,240.32 664.77,297.93 895.23,528.39" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="607.16" y1="528.39" x2="952.84" y2="528.39" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="664.77" y1="586" x2="664.77" y2="240.32" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="957.2" y="552.91" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="686.41" y="242.84" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="686.41" y="552.91" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="664.77,586 664.77,240.32" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="607.16,528.39 952.84,528.39" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="607.16,240.32 952.84,586" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="793" y="382.16" font-size="18" dominant-baseline="hanging" textLength="41.11331990646145" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x + y=4</text>
+<circle cx="664.77" cy="297.93" r="4" fill="#141821"/>
+<text x="625.0827186235583" y="310.93" font-size="18" dominant-baseline="hanging" textLength="26.687281376441586" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 4)</text>
+<circle cx="895.23" cy="528.39" r="4" fill="#141821"/>
+<text x="908.23" y="497.39" font-size="18" dominant-baseline="hanging" textLength="26.556775741597743" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(4, 0)</text>
+<circle cx="895.23" cy="528.39" r="4" fill="#141821"/>
+<text x="765.3254308464286" y="208.27" font-size="18" dominant-baseline="hanging" textLength="29.34913830714281" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x&gt;=0</text>
+<text x="765.3846720399861" y="185.23" font-size="18" dominant-baseline="hanging" textLength="29.23065592002785" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y&gt;=0</text>
+<text x="706.6989490463661" y="162.18" font-size="18" dominant-baseline="hanging" textLength="146.60210190726784" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Feasible region: unbounded</text>
+<text x="732.1973155600992" y="139.14" font-size="18" dominant-baseline="hanging" textLength="95.60536887980152" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Minimize 2x + 3y</text>
+<text x="757.4247904208098" y="116.09" font-size="18" dominant-baseline="hanging" textLength="45.15041915838037" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 4): 12</text>
+<text x="759.9057042818507" y="93.05" font-size="18" dominant-baseline="hanging" textLength="40.188591436298616" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(4, 0): 8</text>
+<text x="742.8801543682739" y="70" font-size="18" dominant-baseline="hanging" textLength="74.23969126345222" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Minimum = 8</text>
+</svg>

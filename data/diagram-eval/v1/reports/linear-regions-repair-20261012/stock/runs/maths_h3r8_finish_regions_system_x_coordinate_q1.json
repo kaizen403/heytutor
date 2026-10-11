@@ -1,0 +1,1209 @@
+{
+ "probeId": "maths|h3r8-finish-regions|system-x-coordinate|q1",
+ "topicId": "maths|h3r8-finish-regions|system-x-coordinate",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "medium",
+ "question": "For real x and y, the system is L1: 3x + 2y = 7 and L2: 2x - 3y = 1. Graph both labelled lines, label their exact intercepts and intersection P, and determine the x-coordinate of the solution. The figure must show the actual solution pair, even though the question asks only for x.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:07:47.742Z",
+ "timings": {
+  "planMs": 29189,
+  "teachMs": 0,
+  "totalMs": 29191,
+  "figureCommitMs": null,
+  "stages": {
+   "turnPlanMs": 6311,
+   "problemIrMs": 6364,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 16487,
+   "deadlineRemainingMs": 30832,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a1",
+    "symbol": "L1 x coefficient",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "a1 = 3"
+   },
+   {
+    "id": "b1",
+    "symbol": "L1 y coefficient",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "b1 = 2"
+   },
+   {
+    "id": "c1",
+    "symbol": "L1 constant",
+    "value": 7,
+    "provenance": "given",
+    "sourceText": "c1 = 7"
+   },
+   {
+    "id": "a2",
+    "symbol": "L2 x coefficient",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "a2 = 2"
+   },
+   {
+    "id": "b2",
+    "symbol": "L2 y coefficient",
+    "value": -3,
+    "sign": "negative",
+    "provenance": "given",
+    "sourceText": "b2 = -3"
+   },
+   {
+    "id": "c2",
+    "symbol": "L2 constant",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "c2 = 1"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "x",
+    "symbol": "x"
+   },
+   {
+    "id": "y",
+    "symbol": "y"
+   }
+  ],
+  "derived": [
+   {
+    "id": "x",
+    "symbol": "x",
+    "value": 1.7692307692307692
+   },
+   {
+    "id": "y",
+    "symbol": "y",
+    "value": 0.8461538461538461
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "intercepts1",
+    "expected": "L1 crosses the axes at (7/3, 0) and (0, 7/2)."
+   },
+   {
+    "id": "intercepts2",
+    "expected": "L2 crosses the axes at (1/2, 0) and (0, -1/3)."
+   },
+   {
+    "id": "intersection",
+    "expected": "P=(23/13, 11/13); the requested x-coordinate is 23/13."
+   }
+  ],
+  "lawIds": [
+   "linear-equation-axis-intercepts",
+   "elimination-of-simultaneous-linear-equations",
+   "substitution"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "contradiction",
+  "issueCodes": [
+   "value_type_mismatch"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "147b30ff7a1e058726267a53c6fde9a457138929d3dc86412f298c6e80aaa6fd",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "contradiction",
+    "issues": [
+     {
+      "code": "value_type_mismatch",
+      "message": "bound TurnPlan quantity x requires a scalar solver value",
+      "requestId": "sX",
+      "quantityId": "x"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sX",
+      "quantityId": "x",
+      "symbol": "x",
+      "approximate": [
+       1.7692307692307692
+      ],
+      "exact": [
+       {
+        "kind": "rational",
+        "value": "23/13"
+       }
+      ],
+      "errorBound": 1e-9
+     },
+     {
+      "requestId": "sY",
+      "quantityId": "y",
+      "symbol": "y",
+      "approximate": 0.8461538461538461,
+      "exact": {
+       "kind": "rational",
+       "value": "11/13"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x and y, the system is L1: 3x + 2y = 7 and L2: 2x - 3y = 1. Graph both labelled lines, label their exact intercepts and intersection P, and determine the x-coordinate of the solution. The figure must show the actual solution pair, even though the question asks only for x.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a1",
+      "symbol": "L1 x coefficient",
+      "value": 3,
+      "sourceText": "a1 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "b1",
+      "symbol": "L1 y coefficient",
+      "value": 2,
+      "sourceText": "b1 = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "c1",
+      "symbol": "L1 constant",
+      "value": 7,
+      "sourceText": "c1 = 7",
+      "provenance": "given"
+     },
+     {
+      "id": "a2",
+      "symbol": "L2 x coefficient",
+      "value": 2,
+      "sourceText": "a2 = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "b2",
+      "symbol": "L2 y coefficient",
+      "value": -3,
+      "sign": "negative",
+      "sourceText": "b2 = -3",
+      "provenance": "given"
+     },
+     {
+      "id": "c2",
+      "symbol": "L2 constant",
+      "value": 1,
+      "sourceText": "c2 = 1",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "x",
+      "symbol": "x"
+     },
+     {
+      "id": "y",
+      "symbol": "y"
+     }
+    ],
+    "derived": [
+     {
+      "id": "x",
+      "symbol": "x",
+      "value": 1.7692307692307692,
+      "sourceText": "Elimination gives 13x=23, so x=23/13.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a1",
+       "b1",
+       "c1",
+       "a2",
+       "b2",
+       "c2"
+      ]
+     },
+     {
+      "id": "y",
+      "symbol": "y",
+      "value": 0.8461538461538461,
+      "sourceText": "Substitution gives y=11/13.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a1",
+       "b1",
+       "c1",
+       "x"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "intercepts1",
+      "claim": "Label both intercepts of L1.",
+      "expected": "L1 crosses the axes at (7/3, 0) and (0, 7/2).",
+      "relatedQuantityIds": [
+       "a1",
+       "b1",
+       "c1"
+      ]
+     },
+     {
+      "id": "intercepts2",
+      "claim": "Label both intercepts of L2.",
+      "expected": "L2 crosses the axes at (1/2, 0) and (0, -1/3).",
+      "relatedQuantityIds": [
+       "a2",
+       "b2",
+       "c2"
+      ]
+     },
+     {
+      "id": "intersection",
+      "claim": "Graph both labelled lines and mark their intersection with the actual solution pair.",
+      "expected": "P=(23/13, 11/13); the requested x-coordinate is 23/13.",
+      "relatedQuantityIds": [
+       "x",
+       "y",
+       "x",
+       "y"
+      ]
+     }
+    ],
+    "lawIds": [
+     "linear-equation-axis-intercepts",
+     "elimination-of-simultaneous-linear-equations",
+     "substitution"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x and y, the system is L1: 3x + 2y = 7 and L2: 2x - 3y = 1. Graph both labelled lines, label their exact intercepts and intersection P, and determine the x-coordinate of the solution. The figure must show the actual solution pair, even though the question asks only for x.",
+    "facts": [
+     {
+      "id": "fReal",
+      "kind": "given",
+      "statement": "x and y are real",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 16,
+       "quote": "For real x and y"
+      }
+     },
+     {
+      "id": "fL1",
+      "kind": "given",
+      "statement": "L1 satisfies 3x + 2y = 7",
+      "evidence": {
+       "source": "question",
+       "start": 32,
+       "end": 47,
+       "quote": "L1: 3x + 2y = 7"
+      }
+     },
+     {
+      "id": "fL2",
+      "kind": "given",
+      "statement": "L2 satisfies 2x - 3y = 1",
+      "evidence": {
+       "source": "question",
+       "start": 52,
+       "end": 67,
+       "quote": "L2: 2x - 3y = 1"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph both labelled lines",
+      "evidence": {
+       "source": "question",
+       "start": 69,
+       "end": 94,
+       "quote": "Graph both labelled lines"
+      }
+     },
+     {
+      "id": "fIntercepts",
+      "kind": "requested",
+      "statement": "Label the exact intercepts",
+      "evidence": {
+       "source": "question",
+       "start": 96,
+       "end": 124,
+       "quote": "label their exact intercepts"
+      }
+     },
+     {
+      "id": "fIntersection",
+      "kind": "requested",
+      "statement": "Label intersection P",
+      "evidence": {
+       "source": "question",
+       "start": 129,
+       "end": 143,
+       "quote": "intersection P"
+      }
+     },
+     {
+      "id": "fX",
+      "kind": "requested",
+      "statement": "Determine the solution's x-coordinate",
+      "evidence": {
+       "source": "question",
+       "start": 149,
+       "end": 191,
+       "quote": "determine the x-coordinate of the solution"
+      }
+     },
+     {
+      "id": "fPair",
+      "kind": "requested",
+      "statement": "Show the actual solution pair",
+      "evidence": {
+       "source": "question",
+       "start": 193,
+       "end": 238,
+       "quote": "The figure must show the actual solution pair"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "l1",
+      "kind": "line",
+      "label": "L1",
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "l2",
+      "kind": "line",
+      "label": "L2",
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fIntersection"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eL1",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 7
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "variable",
+          "name": "x"
+         }
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL2",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "variable",
+          "name": "x"
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "eY",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 11
+       },
+       "right": {
+        "kind": "number",
+        "value": 13
+       }
+      },
+      "evidenceFactIds": [
+       "fL1",
+       "fL2"
+      ]
+     },
+     {
+      "id": "eL1X",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 7
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL1Y",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 7
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL2X",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 1
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "eL2Y",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cP1",
+      "kind": "incident",
+      "entityIds": [
+       "p",
+       "l1"
+      ],
+      "evidenceFactIds": [
+       "fIntersection",
+       "fL1"
+      ]
+     },
+     {
+      "id": "cP2",
+      "kind": "incident",
+      "entityIds": [
+       "p",
+       "l2"
+      ],
+      "evidenceFactIds": [
+       "fIntersection",
+       "fL2"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "l1",
+       "l2",
+       "p"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fIntercepts",
+       "fIntersection",
+       "fPair"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sX",
+      "kind": "intersections",
+      "leftExpressionId": "eL1",
+      "rightExpressionId": "eL2",
+      "variable": "x",
+      "domain": {
+       "min": -10,
+       "max": 10
+      },
+      "resultBinding": {
+       "turnPlanQuantityId": "x",
+       "symbol": "x",
+       "evidenceFactIds": [
+        "fX"
+       ]
+      }
+     },
+     {
+      "id": "sY",
+      "kind": "evaluate",
+      "expressionId": "eY",
+      "resultBinding": {
+       "turnPlanQuantityId": "y",
+       "symbol": "y",
+       "evidenceFactIds": [
+        "fPair"
+       ]
+      }
+     },
+     {
+      "id": "sL1X",
+      "kind": "evaluate",
+      "expressionId": "eL1X"
+     },
+     {
+      "id": "sL1Y",
+      "kind": "evaluate",
+      "expressionId": "eL1Y"
+     },
+     {
+      "id": "sL2X",
+      "kind": "evaluate",
+      "expressionId": "eL2X"
+     },
+     {
+      "id": "sL2Y",
+      "kind": "evaluate",
+      "expressionId": "eL2Y"
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sX",
+      "requestId": "sX",
+      "valueType": "set",
+      "exact": [
+       {
+        "kind": "rational",
+        "value": "23/13"
+       }
+      ],
+      "approximate": [
+       1.7692307692307692
+      ],
+      "errorBound": 1e-9
+     },
+     {
+      "id": "value_sY",
+      "requestId": "sY",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "11/13"
+      },
+      "approximate": 0.8461538461538461,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL1X",
+      "requestId": "sL1X",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "7/3"
+      },
+      "approximate": 2.3333333333333335,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL1Y",
+      "requestId": "sL1Y",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "7/2"
+      },
+      "approximate": 3.5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL2X",
+      "requestId": "sL2X",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "1/2"
+      },
+      "approximate": 0.5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL2Y",
+      "requestId": "sL2Y",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "-1/3"
+      },
+      "approximate": -0.3333333333333333,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sX",
+      "requestId": "sX",
+      "method": "polynomial_roots",
+      "expressionIds": [
+       "eL1",
+       "eL2"
+      ],
+      "verified": true,
+      "residual": 4.440892098500626e-16,
+      "tolerance": 1e-9,
+      "detail": "Isolated all real polynomial roots between derivative critical points and verified residuals."
+     },
+     {
+      "id": "proof_sY",
+      "requestId": "sY",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eY"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL1X",
+      "requestId": "sL1X",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL1X"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL1Y",
+      "requestId": "sL1Y",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL1Y"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL2X",
+      "requestId": "sL2X",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL2X"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL2Y",
+      "requestId": "sL2Y",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL2Y"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 6,
+  "inputTokens": 20639,
+  "outputTokens": 6451,
+  "totalTokens": 27090,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.102849,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 671,
+    "outputTokens": 796,
+    "totalTokens": 1467,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.009302,
+    "measuredCostUsd": 0.009302,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 732,
+    "outputTokens": 1075,
+    "totalTokens": 1807,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012214,
+    "measuredCostUsd": 0.012214,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5531,
+    "outputTokens": 22,
+    "totalTokens": 5553,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011282,
+    "measuredCostUsd": 0.011282,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2285,
+    "outputTokens": 1076,
+    "totalTokens": 3361,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.012391,
+    "measuredCostUsd": 0.012391,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5710,
+    "outputTokens": 1729,
+    "totalTokens": 7439,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02871,
+    "measuredCostUsd": 0.02871,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5710,
+    "outputTokens": 1753,
+    "totalTokens": 7463,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02895,
+    "measuredCostUsd": 0.02895,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.102849
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": false,
+  "declinedUnreadable": false,
+  "emptyCause": "planner_no_output",
+  "tier": null,
+  "nonMetric": false,
+  "figureSource": "text_only",
+  "reason": "solver_contradiction",
+  "archetypeId": null,
+  "family": null,
+  "entityIds": [],
+  "focusableIds": [],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [],
+  "labelByEntity": {},
+  "primitiveCount": 0,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 20452,
+    "elapsedMs": 16311,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 20463,
+    "elapsedMs": 16404,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": "solver_contradiction",
+  "suppressedFallback": null,
+  "svg": null,
+  "png": null,
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The given equations determine both lines, their intercepts, and their intersection.\"\n  },\n  \"source\": {\n    \"question\": \"For real x and y, the system is L1: 3x + 2y = 7 and L2: 2x - 3y = 1. Graph both labelled lines, label their exact intercepts and intersection P, and determine the x-coordinate of the solution. The figure must show the actual solution pair, even though the question asks only for x.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"value\": 3},\n    {\"id\": \"b1\", \"value\": 2},\n    {\"id\": \"c1\", \"value\": 7},\n    {\"id\": \"a2\", \"value\": 2},\n    {\"id\": \"b2\", \"value\": -3},\n    {\"id\": \"c2\", \"value\": 1},\n    {\"id\": \"x\", \"value\": 1.7692307692307692},\n    {\"id\": \"y\", \"value\": 0.8461538461538461}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"L1x\", \"kind\": \"point\", \"role\": \"x-intercept of L1\", \"label\": \"(7/3,0)\"},\n    {\"id\": \"L1y\", \"kind\": \"point\", \"role\": \"y-intercept of L1\", \"label\": \"(0,7/2)\"},\n    {\"id\": \"L2x\", \"kind\": \"point\", \"role\": \"x-intercept of L2\", \"label\": \"(1/2,0)\"},\n    {\"id\": \"L2y\", \"kind\": \"point\", \"role\": \"y-intercept of L2\", \"label\": \"(0,-1/3)\"},\n    {\"id\": \"L1\", \"kind\": \"line\", \"role\": \"3x + 2y = 7\", \"label\": \"L1\"},\n    {\"id\": \"L2\", \"kind\": \"line\", \"role\": \"2x - 3y = 1\", \"label\": \"L2\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"intersection of L1 and L2\", \"label\": \"P\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"kax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -0.6, \"xMax\": 3, \"yMin\": -0.8, \"yMax\": 4}, \"outputs\": [\"ax\"]},\n    {\"id\": \"kL1x\", \"operator\": \"point\", \"inputs\": {\"x\": 2.3333333333333335, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L1x\"]},\n    {\"id\": \"kL1y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 3.5, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L1y\"]},\n    {\"id\": \"kL2x\", \"operator\": \"point\", \"inputs\": {\"x\": 0.5, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L2x\"]},\n    {\"id\": \"kL2y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -0.3333333333333333, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L2y\"]},\n    {\"id\": \"kL1\", \"operator\": \"line\", \"inputs\": {\"start\": \"L1y\", \"end\": \"L1x\"}, \"outputs\": [\"L1\"]},\n    {\"id\": \"kL2\", \"operator\": \"line\", \"inputs\": {\"start\": \"L2y\", \"end\": \"L2x\"}, \"outputs\": [\"L2\"]},\n    {\"id\": \"kP\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"L1\", \"second\": \"L2\"}, \"outputs\": [\"P\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"pOnL1\", \"predicate\": \"on\", \"entities\": [\"P\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"pOnL2\", \"predicate\": \"on\", \"entities\": [\"P\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"pair\", \"kind\": \"callout\", \"targetIds\": [\"P\"], \"text\": \"(23/13,11/13)\"},\n    {\"id\": \"answer\", \"kind\": \"callout\", \"targetIds\": [\"P\"], \"text\": \"x=23/13\"}\n  ],\n  \"requiredEntityIds\": [\"ax\", \"L1x\", \"L1y\", \"L2x\", \"L2y\", \"L1\", \"L2\", \"P\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\", \"L1\", \"L2\"], \"dependsOn\": [], \"narrationCue\": \"Graph the two given equations.\"},\n    {\"id\": \"intercepts\", \"entityIds\": [\"L1x\", \"L1y\", \"L2x\", \"L2y\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"Identify each line’s exact axis intercepts.\"},\n    {\"id\": \"solution\", \"entityIds\": [\"P\"], \"dependsOn\": [\"intercepts\"], \"narrationCue\": \"Mark the intersection and reveal its solution pair and x-coordinate.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"showIntercepts\", \"revealGroupId\": \"intercepts\"},\n    {\"id\": \"showIntersection\", \"revealGroupId\": \"solution\", \"annotationIds\": [\"pair\"]},\n    {\"id\": \"showAnswer\", \"annotationIds\": [\"answer\"]}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated equations determine both lines, their exact intercepts, and their intersection.\"\n  },\n  \"source\": {\n    \"question\": \"For real x and y, the system is L1: 3x + 2y = 7 and L2: 2x - 3y = 1. Graph both labelled lines, label their exact intercepts and intersection P, and determine the x-coordinate of the solution. The figure must show the actual solution pair, even though the question asks only for x.\",\n    \"representationTier\": \"quantitative_verified\",\n    \"nonMetric\": false\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"value\": 3, \"unit\": \"\"},\n    {\"id\": \"b1\", \"value\": 2, \"unit\": \"\"},\n    {\"id\": \"c1\", \"value\": 7, \"unit\": \"\"},\n    {\"id\": \"a2\", \"value\": 2, \"unit\": \"\"},\n    {\"id\": \"b2\", \"value\": -3, \"unit\": \"\"},\n    {\"id\": \"c2\", \"value\": 1, \"unit\": \"\"},\n    {\"id\": \"x\", \"value\": 1.7692307692307692, \"unit\": \"\"},\n    {\"id\": \"y\", \"value\": 0.8461538461538461, \"unit\": \"\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"I1x\", \"kind\": \"point\", \"role\": \"L1 x-intercept\", \"label\": \"(7/3,0)\"},\n    {\"id\": \"I1y\", \"kind\": \"point\", \"role\": \"L1 y-intercept\", \"label\": \"(0,7/2)\"},\n    {\"id\": \"I2x\", \"kind\": \"point\", \"role\": \"L2 x-intercept\", \"label\": \"(1/2,0)\"},\n    {\"id\": \"I2y\", \"kind\": \"point\", \"role\": \"L2 y-intercept\", \"label\": \"(0,-1/3)\"},\n    {\"id\": \"L1\", \"kind\": \"line\", \"role\": \"3x + 2y = 7\", \"label\": \"L1\"},\n    {\"id\": \"L2\", \"kind\": \"line\", \"role\": \"2x - 3y = 1\", \"label\": \"L2\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"intersection and solution pair\", \"label\": \"P\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"cAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -0.7, \"xMax\": 3.2, \"yMin\": -0.8, \"yMax\": 4}, \"outputs\": [\"axes\"]},\n    {\"id\": \"cI1x\", \"operator\": \"point\", \"inputs\": {\"x\": 2.3333333333333335, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"I1x\"]},\n    {\"id\": \"cI1y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 3.5, \"coordinateSpace\": \"world\"}, \"outputs\": [\"I1y\"]},\n    {\"id\": \"cI2x\", \"operator\": \"point\", \"inputs\": {\"x\": 0.5, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"I2x\"]},\n    {\"id\": \"cI2y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -0.3333333333333333, \"coordinateSpace\": \"world\"}, \"outputs\": [\"I2y\"]},\n    {\"id\": \"cL1\", \"operator\": \"line\", \"inputs\": {\"start\": \"I1y\", \"end\": \"I1x\"}, \"outputs\": [\"L1\"]},\n    {\"id\": \"cL2\", \"operator\": \"line\", \"inputs\": {\"start\": \"I2y\", \"end\": \"I2x\"}, \"outputs\": [\"L2\"]},\n    {\"id\": \"cP\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"L1\", \"second\": \"L2\"}, \"outputs\": [\"P\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"onL1\", \"predicate\": \"on\", \"entities\": [\"P\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"onL2\", \"predicate\": \"on\", \"entities\": [\"P\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"solutionPair\", \"kind\": \"callout\", \"targetIds\": [\"P\"], \"text\": \"(23/13,11/13)\", \"placementIntent\": \"near intersection\"},\n    {\"id\": \"requestedX\", \"kind\": \"callout\", \"targetIds\": [\"P\"], \"text\": \"x=23/13\", \"quantityId\": \"x\", \"placementIntent\": \"beside solution pair\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"I1x\", \"I1y\", \"I2x\", \"I2y\", \"L1\", \"L2\", \"P\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"I1x\", \"I1y\", \"I2x\", \"I2y\", \"L1\", \"L2\"], \"dependsOn\": []},\n    {\"id\": \"solution\", \"entityIds\": [\"P\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"showSolution\", \"revealGroupId\": \"solution\", \"annotationIds\": [\"solutionPair\", \"requestedX\"]}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "147b30ff7a1e058726267a53c6fde9a457138929d3dc86412f298c6e80aaa6fd",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1587,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|system-x-coordinate|q1",
+  "topic_id": "maths|h3r8-finish-regions|system-x-coordinate",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "For real x and y, the system is L1: 3x + 2y = 7 and L2: 2x - 3y = 1. Graph both labelled lines, label their exact intercepts and intersection P, and determine the x-coordinate of the solution. The figure must show the actual solution pair, even though the question asks only for x.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "linear_system",
+  "must_show": [
+   "Two distinct nonparallel lines with intersection P = (23/13,11/13).",
+   "L1 intercepts (7/3,0), (0,7/2); L2 intercepts (1/2,0), (0,-1/3).",
+   "Unique solution and requested x = 23/13."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "L1",
+   "L2",
+   "3x + 2y = 7",
+   "2x - 3y = 1",
+   "P = (23/13,11/13)",
+   "(7/3,0)",
+   "(0,7/2)",
+   "(1/2,0)",
+   "(0,-1/3)",
+   "x = 23/13"
+  ],
+  "must_not_show": [
+   "Swapping the intersection coordinates.",
+   "Reporting 11/13 as x.",
+   "Parallel or coincident depiction.",
+   "A shaded half-plane."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Unique solution (23/13,11/13)",
+   "Requested x-coordinate = 23/13"
+  ],
+  "notes": "SAT linear systems; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

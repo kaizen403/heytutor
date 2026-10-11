@@ -1,0 +1,1290 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+ "topicId": "maths|h3r6-shaded-regions|sys02-unique-rational",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:04:25.133Z",
+ "timings": {
+  "planMs": 28937,
+  "teachMs": 0,
+  "totalMs": 28939,
+  "figureCommitMs": 28939,
+  "stages": {
+   "turnPlanMs": 5606,
+   "problemIrMs": 4917,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 18253,
+   "deadlineRemainingMs": 31221,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a1",
+    "symbol": "a₁",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "a1 = 2"
+   },
+   {
+    "id": "b1",
+    "symbol": "b₁",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "b1 = 3"
+   },
+   {
+    "id": "c1",
+    "symbol": "c₁",
+    "value": 7,
+    "provenance": "given",
+    "sourceText": "c1 = 7"
+   },
+   {
+    "id": "a2",
+    "symbol": "a₂",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "a2 = 3"
+   },
+   {
+    "id": "b2",
+    "symbol": "b₂",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "b2 = -2"
+   },
+   {
+    "id": "c2",
+    "symbol": "c₂",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "c2 = 1"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "x",
+    "symbol": "x"
+   },
+   {
+    "id": "y",
+    "symbol": "y"
+   }
+  ],
+  "derived": [],
+  "qualitativeClaims": [
+   {
+    "id": "graph",
+    "expected": "(17/13, 19/13)"
+   },
+   {
+    "id": "check",
+    "expected": "2(17/13)+3(19/13)=7; 3(17/13)−2(19/13)=1"
+   }
+  ],
+  "lawIds": [
+   "linear-equation-graph",
+   "elimination",
+   "substitution"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown",
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "c4925790a6a0e0aa2b1efd5eeba7689ed8e39b344cf6db84c7bcdfb95c753ca6",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown x has no explicit solver binding",
+      "quantityId": "x"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown y has no explicit solver binding",
+      "quantityId": "y"
+     }
+    ],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a1",
+      "symbol": "a₁",
+      "value": 2,
+      "sourceText": "a1 = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "b1",
+      "symbol": "b₁",
+      "value": 3,
+      "sourceText": "b1 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "c1",
+      "symbol": "c₁",
+      "value": 7,
+      "sourceText": "c1 = 7",
+      "provenance": "given"
+     },
+     {
+      "id": "a2",
+      "symbol": "a₂",
+      "value": 3,
+      "sourceText": "a2 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "b2",
+      "symbol": "b₂",
+      "value": -2,
+      "sourceText": "b2 = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "c2",
+      "symbol": "c₂",
+      "value": 1,
+      "sourceText": "c2 = 1",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "x",
+      "symbol": "x"
+     },
+     {
+      "id": "y",
+      "symbol": "y"
+     }
+    ],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "graph",
+      "claim": "On an x–y coordinate plane, graph both equations as straight lines. Their crossing is the solution of the system.",
+      "expected": "(17/13, 19/13)",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "check",
+      "claim": "The exact crossing satisfies both equations.",
+      "expected": "2(17/13)+3(19/13)=7; 3(17/13)−2(19/13)=1",
+      "relatedQuantityIds": []
+     }
+    ],
+    "lawIds": [
+     "linear-equation-graph",
+     "elimination",
+     "substitution"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.",
+    "facts": [
+     {
+      "id": "fLine1",
+      "kind": "given",
+      "statement": "First line satisfies 2x+3y=7",
+      "evidence": {
+       "source": "question",
+       "start": 70,
+       "end": 81,
+       "quote": "2x + 3y = 7"
+      }
+     },
+     {
+      "id": "fLine2",
+      "kind": "given",
+      "statement": "Second line satisfies 3x−2y=1",
+      "evidence": {
+       "source": "question",
+       "start": 86,
+       "end": 97,
+       "quote": "3x - 2y = 1"
+      }
+     },
+     {
+      "id": "fCross",
+      "kind": "requested",
+      "statement": "Explain the crossing with exact coordinates",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 127,
+       "quote": "Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "line1",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine1"
+      ]
+     },
+     {
+      "id": "line2",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine2"
+      ]
+     },
+     {
+      "id": "crossing",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fCross"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eX",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 7
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "number",
+          "value": 1
+         }
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "number",
+          "value": 3
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fLine1",
+       "fLine2"
+      ]
+     },
+     {
+      "id": "eY",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "number",
+          "value": 7
+         }
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "number",
+          "value": 1
+         }
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "number",
+          "value": 3
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fLine1",
+       "fLine2"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cCross1",
+      "kind": "incident",
+      "entityIds": [
+       "crossing",
+       "line1"
+      ],
+      "evidenceFactIds": [
+       "fCross"
+      ]
+     },
+     {
+      "id": "cCross2",
+      "kind": "incident",
+      "entityIds": [
+       "crossing",
+       "line2"
+      ],
+      "evidenceFactIds": [
+       "fCross"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "line1",
+       "line2",
+       "crossing"
+      ],
+      "evidenceFactIds": [
+       "fLine1",
+       "fLine2",
+       "fCross"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sX",
+      "kind": "evaluate",
+      "expressionId": "eX"
+     },
+     {
+      "id": "sY",
+      "kind": "evaluate",
+      "expressionId": "eY"
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sX",
+      "requestId": "sX",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "17/13"
+      },
+      "approximate": 1.3076923076923077,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sY",
+      "requestId": "sY",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "19/13"
+      },
+      "approximate": 1.4615384615384615,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sX",
+      "requestId": "sX",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eX"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sY",
+      "requestId": "sY",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eY"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 29301,
+  "outputTokens": 8228,
+  "totalTokens": 37529,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.137943,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 691,
+    "outputTokens": 762,
+    "totalTokens": 1453,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.009002,
+    "measuredCostUsd": 0.009002,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 630,
+    "outputTokens": 773,
+    "totalTokens": 1403,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00899,
+    "measuredCostUsd": 0.00899,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5419,
+    "outputTokens": 37,
+    "totalTokens": 5456,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011208,
+    "measuredCostUsd": 0.011208,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1992,
+    "outputTokens": 584,
+    "totalTokens": 2576,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.006885,
+    "measuredCostUsd": 0.006885,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4936,
+    "outputTokens": 1566,
+    "totalTokens": 6502,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.025532,
+    "measuredCostUsd": 0.025532,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4936,
+    "outputTokens": 1693,
+    "totalTokens": 6629,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.026802,
+    "measuredCostUsd": 0.026802,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5353,
+    "outputTokens": 1387,
+    "totalTokens": 6740,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.024576,
+    "measuredCostUsd": 0.024576,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5344,
+    "outputTokens": 1426,
+    "totalTokens": 6770,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.024948,
+    "measuredCostUsd": 0.024948,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.137943
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "76bd7e958b01d8cdaf23dc306ddf82042f9e660efe7ea890bfb2e7b978c0a8fc",
+    "errors": [
+     {
+      "code": "derived_role_operator_mismatch",
+      "message": "x–y coordinate plane must be derived with plane, not guessed with axes",
+      "severity": "fatal",
+      "path": "entities[0].role",
+      "entityIds": [
+       "axes"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "275c2c3506a647e6fa6b11067c4ea4fa1974c497eddb07458075e2c843e66d11",
+    "errors": [
+     {
+      "code": "derived_role_operator_mismatch",
+      "message": "x–y coordinate plane must be derived with plane, not guessed with axes",
+      "severity": "fatal",
+      "path": "entities[0].role",
+      "entityIds": [
+       "axes"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-1,\"xMax\":4,\"yMin\":-1,\"yMax\":4}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "graphFirst",
+    "operator": "function_curve",
+    "rawArguments": "{\"expression\":\"(7-2*x)/3\",\"variable\":\"x\",\"xMin\":-1,\"xMax\":4}",
+    "argumentsPresent": true,
+    "argumentBytes": 60,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "graphSecond",
+    "operator": "function_curve",
+    "rawArguments": "{\"expression\":\"(3*x-1)/2\",\"variable\":\"x\",\"xMin\":-1,\"xMax\":3}",
+    "argumentsPresent": true,
+    "argumentBytes": 60,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "findCrossing",
+    "operator": "intersection",
+    "rawArguments": "{\"first\":\"first\",\"second\":\"second\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 35,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-2,\"xMax\":4,\"yMin\":-1,\"yMax\":5}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeP1",
+    "operator": "point",
+    "rawArguments": "{\"x\":2,\"y\":1,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeP2",
+    "operator": "point",
+    "rawArguments": "{\"x\":-1,\"y\":3,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 40,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeP3",
+    "operator": "point",
+    "rawArguments": "{\"x\":1,\"y\":1,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "makeP4",
+    "operator": "point",
+    "rawArguments": "{\"x\":3,\"y\":4,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "makeLine1",
+    "operator": "line",
+    "rawArguments": "{\"start\":\"p1\",\"end\":\"p2\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 25,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "makeLine2",
+    "operator": "line",
+    "rawArguments": "{\"start\":\"p3\",\"end\":\"p4\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 25,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 7,
+    "constructionId": "findCrossing",
+    "operator": "intersection",
+    "rawArguments": "{\"first\":\"line1\",\"second\":\"line2\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 34,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "derived_role_operator_mismatch"
+    ],
+    "errorPaths": [
+     "entities[0].role"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_system",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "2x + 3y=7",
+   "3x - 2y=1",
+   "(17/13, 19/13)",
+   "One solution"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 12,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "derived_role_operator_mismatch"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 17557,
+    "elapsedMs": 9457,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 17568,
+    "elapsedMs": 11358,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19394,
+    "elapsedMs": 8121,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19355,
+    "elapsedMs": 8693,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Graph the two given equations and reveal their exact crossing after the setup.\"\n  },\n  \"source\": {\n    \"question\": \"Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"symbol\": \"a₁\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"a1 = 2\"},\n    {\"id\": \"b1\", \"symbol\": \"b₁\", \"value\": 3, \"provenance\": \"given\", \"sourceText\": \"b1 = 3\"},\n    {\"id\": \"c1\", \"symbol\": \"c₁\", \"value\": 7, \"provenance\": \"given\", \"sourceText\": \"c1 = 7\"},\n    {\"id\": \"a2\", \"symbol\": \"a₂\", \"value\": 3, \"provenance\": \"given\", \"sourceText\": \"a2 = 3\"},\n    {\"id\": \"b2\", \"symbol\": \"b₂\", \"value\": -2, \"provenance\": \"given\", \"sourceText\": \"b2 = -2\"},\n    {\"id\": \"c2\", \"symbol\": \"c₂\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"c2 = 1\"},\n    {\"id\": \"x\", \"symbol\": \"x\"},\n    {\"id\": \"y\", \"symbol\": \"y\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"x–y coordinate plane\"},\n    {\"id\": \"first\", \"kind\": \"polyline\", \"role\": \"graph of the first equation\", \"label\": \"2x + 3y = 7\"},\n    {\"id\": \"second\", \"kind\": \"polyline\", \"role\": \"graph of the second equation\", \"label\": \"3x − 2y = 1\"},\n    {\"id\": \"crossing\", \"kind\": \"point\", \"role\": \"solution of both equations\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeAxes\",\n      \"operator\": \"axes\",\n      \"inputs\": {\"xMin\": -1, \"xMax\": 4, \"yMin\": -1, \"yMax\": 4},\n      \"outputs\": [\"axes\"]\n    },\n    {\n      \"id\": \"graphFirst\",\n      \"operator\": \"function_curve\",\n      \"inputs\": {\"expression\": \"(7-2*x)/3\", \"variable\": \"x\", \"xMin\": -1, \"xMax\": 4},\n      \"outputs\": [\"first\"]\n    },\n    {\n      \"id\": \"graphSecond\",\n      \"operator\": \"function_curve\",\n      \"inputs\": {\"expression\": \"(3*x-1)/2\", \"variable\": \"x\", \"xMin\": -1, \"xMax\": 3},\n      \"outputs\": [\"second\"]\n    },\n    {\n      \"id\": \"findCrossing\",\n      \"operator\": \"intersection\",\n      \"inputs\": {\"first\": \"first\", \"second\": \"second\"},\n      \"outputs\": [\"crossing\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\n      \"id\": \"firstEquationAtCrossing\",\n      \"predicate\": \"function_value\",\n      \"entities\": [\"first\"],\n      \"expected\": {\"x\": 1.3076923076923077, \"y\": 1.4615384615384615},\n      \"severity\": \"fatal\"\n    },\n    {\n      \"id\": \"secondEquationAtCrossing\",\n      \"predicate\": \"function_value\",\n      \"entities\": [\"second\"],\n      \"expected\": {\"x\": 1.3076923076923077, \"y\": 1.4615384615384615},\n      \"severity\": \"fatal\"\n    }\n  ],\n  \"annotations\": [\n    {\n      \"id\": \"exactCoordinates\",\n      \"kind\": \"label\",\n      \"targetIds\": [\"crossing\"],\n      \"text\": \"(17/13,19/13)\"\n    },\n    {\n      \"id\": \"check\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"crossing\"],\n      \"text\": \"Substitution checks both equations: 2(17/13) + 3(19/13) = 7 and 3(17/13) − 2(19/13) = 1.\"\n    }\n  ],\n  \"requiredEntityIds\": [\"axes\", \"first\", \"second\", \"crossing\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"first\", \"second\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph each equation as a straight line on the same x–y plane.\"\n    },\n    {\n      \"id\": \"solution\",\n      \"entityIds\": [\"crossing\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"Their crossing gives the exact solution.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"revealGroupId\": \"setup\"},\n    {\"revealGroupId\": \"solution\", \"annotationIds\": [\"exactCoordinates\", \"check\"]}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Both given equations determine straight lines with an exact intersection.\"\n  },\n  \"source\": {\n    \"question\": \"Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"symbol\": \"a₁\", \"value\": 2},\n    {\"id\": \"b1\", \"symbol\": \"b₁\", \"value\": 3},\n    {\"id\": \"c1\", \"symbol\": \"c₁\", \"value\": 7},\n    {\"id\": \"a2\", \"symbol\": \"a₂\", \"value\": 3},\n    {\"id\": \"b2\", \"symbol\": \"b₂\", \"value\": -2},\n    {\"id\": \"c2\", \"symbol\": \"c₂\", \"value\": 1}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"x–y coordinate plane\"},\n    {\"id\": \"p1\", \"kind\": \"point\", \"role\": \"point on first equation\"},\n    {\"id\": \"p2\", \"kind\": \"point\", \"role\": \"point on first equation\"},\n    {\"id\": \"p3\", \"kind\": \"point\", \"role\": \"point on second equation\"},\n    {\"id\": \"p4\", \"kind\": \"point\", \"role\": \"point on second equation\"},\n    {\"id\": \"line1\", \"kind\": \"line\", \"role\": \"first equation\"},\n    {\"id\": \"line2\", \"kind\": \"line\", \"role\": \"second equation\"},\n    {\"id\": \"crossing\", \"kind\": \"point\", \"role\": \"solution of both equations\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -2, \"xMax\": 4, \"yMin\": -1, \"yMax\": 5}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeP1\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 1, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p1\"]},\n    {\"id\": \"makeP2\", \"operator\": \"point\", \"inputs\": {\"x\": -1, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p2\"]},\n    {\"id\": \"makeP3\", \"operator\": \"point\", \"inputs\": {\"x\": 1, \"y\": 1, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p3\"]},\n    {\"id\": \"makeP4\", \"operator\": \"point\", \"inputs\": {\"x\": 3, \"y\": 4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p4\"]},\n    {\"id\": \"makeLine1\", \"operator\": \"line\", \"inputs\": {\"start\": \"p1\", \"end\": \"p2\"}, \"outputs\": [\"line1\"]},\n    {\"id\": \"makeLine2\", \"operator\": \"line\", \"inputs\": {\"start\": \"p3\", \"end\": \"p4\"}, \"outputs\": [\"line2\"]},\n    {\"id\": \"findCrossing\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"line1\", \"second\": \"line2\"}, \"outputs\": [\"crossing\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"onFirst\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"line1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"onSecond\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"line2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"firstEquation\", \"kind\": \"label\", \"targetIds\": [\"line1\"], \"text\": \"2x + 3y = 7\"},\n    {\"id\": \"secondEquation\", \"kind\": \"label\", \"targetIds\": [\"line2\"], \"text\": \"3x - 2y = 1\"},\n    {\"id\": \"exactCrossing\", \"kind\": \"label\", \"targetIds\": [\"crossing\"], \"text\": \"(17/13,19/13)\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"line1\", \"line2\", \"crossing\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"p1\", \"p2\", \"p3\", \"p4\", \"line1\", \"line2\"], \"dependsOn\": []},\n    {\"id\": \"solution\", \"entityIds\": [\"crossing\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"graphLines\", \"revealGroupId\": \"setup\", \"narration\": \"Graph each equation as a straight line on the same coordinate plane.\"},\n    {\"id\": \"identifyCrossing\", \"revealGroupId\": \"solution\", \"narration\": \"Their crossing is the solution. Its exact coordinates are (17/13, 19/13): 2(17/13) + 3(19/13) = 7 and 3(17/13) − 2(19/13) = 1.\"}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two given equations determine distinct straight lines and an exact intersection.\"\n  },\n  \"source\": {\n    \"question\": \"Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.\",\n    \"representationTier\": \"exact\",\n    \"nonMetric\": false\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"symbol\": \"a₁\", \"value\": 2},\n    {\"id\": \"b1\", \"symbol\": \"b₁\", \"value\": 3},\n    {\"id\": \"c1\", \"symbol\": \"c₁\", \"value\": 7},\n    {\"id\": \"a2\", \"symbol\": \"a₂\", \"value\": 3},\n    {\"id\": \"b2\", \"symbol\": \"b₂\", \"value\": -2},\n    {\"id\": \"c2\", \"symbol\": \"c₂\", \"value\": 1},\n    {\"id\": \"x\", \"symbol\": \"x\"},\n    {\"id\": \"y\", \"symbol\": \"y\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"p1\", \"kind\": \"point\", \"role\": \"construction point on the first line\"},\n    {\"id\": \"p2\", \"kind\": \"point\", \"role\": \"construction point on the first line\"},\n    {\"id\": \"p3\", \"kind\": \"point\", \"role\": \"construction point on the second line\"},\n    {\"id\": \"p4\", \"kind\": \"point\", \"role\": \"construction point on the second line\"},\n    {\"id\": \"first\", \"kind\": \"line\", \"role\": \"graph of the first equation\"},\n    {\"id\": \"second\", \"kind\": \"line\", \"role\": \"graph of the second equation\"},\n    {\"id\": \"crossing\", \"kind\": \"point\", \"role\": \"solution of the system\", \"label\": \"(17/13,19/13)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -2, \"xMax\": 4, \"yMin\": -1, \"yMax\": 5}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeP1\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 1, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p1\"]},\n    {\"id\": \"makeP2\", \"operator\": \"point\", \"inputs\": {\"x\": -1, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p2\"]},\n    {\"id\": \"makeP3\", \"operator\": \"point\", \"inputs\": {\"x\": 1, \"y\": 1, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p3\"]},\n    {\"id\": \"makeP4\", \"operator\": \"point\", \"inputs\": {\"x\": 3, \"y\": 4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p4\"]},\n    {\"id\": \"graphFirst\", \"operator\": \"line\", \"inputs\": {\"start\": \"p1\", \"end\": \"p2\"}, \"outputs\": [\"first\"]},\n    {\"id\": \"graphSecond\", \"operator\": \"line\", \"inputs\": {\"start\": \"p3\", \"end\": \"p4\"}, \"outputs\": [\"second\"]},\n    {\"id\": \"findCrossing\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"first\", \"second\": \"second\"}, \"outputs\": [\"crossing\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"onFirst\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"first\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"onSecond\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"second\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"firstLabel\", \"kind\": \"label\", \"targetIds\": [\"first\"], \"text\": \"2x + 3y = 7\"},\n    {\"id\": \"secondLabel\", \"kind\": \"label\", \"targetIds\": [\"second\"], \"text\": \"3x - 2y = 1\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"first\", \"second\", \"crossing\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"first\", \"second\"], \"dependsOn\": [], \"narrationCue\": \"Graph both given equations as straight lines.\"},\n    {\"id\": \"solution\", \"entityIds\": [\"crossing\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"The crossing is (17/13, 19/13). Substitution gives 2(17/13) + 3(19/13) = 7 and 3(17/13) − 2(19/13) = 1.\"}\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Both given equations determine straight lines with an exact intersection.\"\n  },\n  \"source\": {\n    \"question\": \"Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a1\", \"symbol\": \"a₁\", \"value\": 2},\n    {\"id\": \"b1\", \"symbol\": \"b₁\", \"value\": 3},\n    {\"id\": \"c1\", \"symbol\": \"c₁\", \"value\": 7},\n    {\"id\": \"a2\", \"symbol\": \"a₂\", \"value\": 3},\n    {\"id\": \"b2\", \"symbol\": \"b₂\", \"value\": -2},\n    {\"id\": \"c2\", \"symbol\": \"c₂\", \"value\": 1},\n    {\"id\": \"x\", \"symbol\": \"x\"},\n    {\"id\": \"y\", \"symbol\": \"y\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"p1\", \"kind\": \"point\", \"role\": \"construction point on first line\"},\n    {\"id\": \"p2\", \"kind\": \"point\", \"role\": \"construction point on first line\"},\n    {\"id\": \"p3\", \"kind\": \"point\", \"role\": \"construction point on second line\"},\n    {\"id\": \"p4\", \"kind\": \"point\", \"role\": \"construction point on second line\"},\n    {\"id\": \"first\", \"kind\": \"line\", \"role\": \"graph of the first equation\"},\n    {\"id\": \"second\", \"kind\": \"line\", \"role\": \"graph of the second equation\"},\n    {\"id\": \"crossing\", \"kind\": \"point\", \"role\": \"exact solution of both equations\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1.5, \"xMax\": 4, \"yMin\": -1, \"yMax\": 4.5}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeP1\", \"operator\": \"point\", \"inputs\": {\"x\": -1, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p1\"]},\n    {\"id\": \"makeP2\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 1, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p2\"]},\n    {\"id\": \"makeP3\", \"operator\": \"point\", \"inputs\": {\"x\": 1, \"y\": 1, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p3\"]},\n    {\"id\": \"makeP4\", \"operator\": \"point\", \"inputs\": {\"x\": 3, \"y\": 4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"p4\"]},\n    {\"id\": \"graphFirst\", \"operator\": \"line\", \"inputs\": {\"start\": \"p1\", \"end\": \"p2\"}, \"outputs\": [\"first\"]},\n    {\"id\": \"graphSecond\", \"operator\": \"line\", \"inputs\": {\"start\": \"p3\", \"end\": \"p4\"}, \"outputs\": [\"second\"]},\n    {\"id\": \"findCrossing\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"first\", \"second\": \"second\"}, \"outputs\": [\"crossing\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"onFirst\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"first\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"onSecond\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"second\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"firstEquation\", \"kind\": \"label\", \"targetIds\": [\"first\"], \"text\": \"2x + 3y = 7\"},\n    {\"id\": \"secondEquation\", \"kind\": \"label\", \"targetIds\": [\"second\"], \"text\": \"3x - 2y = 1\"},\n    {\"id\": \"exactCrossing\", \"kind\": \"label\", \"targetIds\": [\"crossing\"], \"text\": \"(17/13, 19/13)\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"first\", \"second\", \"crossing\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"first\", \"second\"], \"dependsOn\": [], \"narrationCue\": \"Graph each given equation as a straight line.\"},\n    {\"id\": \"solution\", \"entityIds\": [\"crossing\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"Their crossing is the exact solution (17/13, 19/13); substituting it satisfies both equations.\"}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "c4925790a6a0e0aa2b1efd5eeba7689ed8e39b344cf6db84c7bcdfb95c753ca6",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002092,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1647,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+  "topic_id": "maths|h3r6-shaded-regions|sys02-unique-rational",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "the two distinct solid equation lines",
+   "one crossing point at (17/13, 19/13) marked"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "2x + 3y = 7",
+   "3x - 2y = 1",
+   "(17/13, 19/13)"
+  ],
+  "must_not_show": [
+   "a crossing rounded to integer coordinates",
+   "parallel or coincident lines",
+   "a shaded half-plane as the solution"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "The unique solution is (17/13, 19/13).",
+   "2(17/13) + 3(19/13) = 7.",
+   "3(17/13) - 2(19/13) = 1."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=sys02; exam_scope=CBSE10;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

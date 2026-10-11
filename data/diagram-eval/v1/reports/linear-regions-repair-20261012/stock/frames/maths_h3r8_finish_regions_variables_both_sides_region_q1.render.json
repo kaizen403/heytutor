@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "6ffed69503eb22038d57dc10b5de7424af9168c36d8bf8d221a37dd2c0e2ce20",
+  "pngSha256": "d17657d596d2a7a3b98a1dcc3e1cfbb8940c8fc44c7e4cd53691d956824b0d46"
+}

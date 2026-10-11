@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Graph x + 2y &lt; 6. On the same graph, indicate whether P = (1, 1) is in the solution region.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | x + 2y=6 | P | x + 2y&lt;6 | P=(1, 1) included | Shaded side satisfies the inequality</text>
+<polygon points="434,540.1 1126,540.1 434,194.1" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="434" y1="482.43" x2="1126" y2="482.43" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="549.33" y1="540.1" x2="549.33" y2="194.1" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1121.7" y="506.97" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="579.63" y="196.63" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="561.61115" y="506.97" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="434,194.1 1126,540.1" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<text x="978.5524696011516" y="509.85" font-size="18" dominant-baseline="hanging" textLength="47.947530398848315" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x + 2y=6</text>
+<circle cx="626.22" cy="405.54" r="4" fill="#141821"/>
+<text x="639.22" y="396.54" font-size="18" dominant-baseline="hanging" textLength="11.45223" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">P</text>
+<text x="755.7461506207475" y="162.03" font-size="18" dominant-baseline="hanging" textLength="48.50769875850504" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x + 2y&lt;6</text>
+<text x="737.1001991072653" y="138.97" font-size="18" dominant-baseline="hanging" textLength="85.79960178546928" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">P=(1, 1) included</text>
+<text x="681.6529137461708" y="115.9" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

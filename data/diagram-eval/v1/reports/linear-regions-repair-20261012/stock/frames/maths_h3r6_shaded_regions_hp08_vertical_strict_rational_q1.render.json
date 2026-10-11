@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "7256ad893b0834c494e3bbf43b69a14178bc678c3d3118a8e4dca4ec5234e467",
+  "pngSha256": "861519536a4924f8ae6e96f6788f863f6f2fa0ad742af000f01fa41e792fa3d2"
+}

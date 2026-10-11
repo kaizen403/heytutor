@@ -1,0 +1,1864 @@
+{
+ "probeId": "maths|h3r8-finish-regions|rational-unique-max|q1",
+ "topicId": "maths|h3r8-finish-regions|rational-unique-max",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "hard",
+ "question": "For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:06:46.656Z",
+ "timings": {
+  "planMs": 39276,
+  "teachMs": 0,
+  "totalMs": 39279,
+  "figureCommitMs": 39279,
+  "stages": {
+   "turnPlanMs": 11079,
+   "problemIrMs": 7337,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 20171,
+   "deadlineRemainingMs": 21407,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "2",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "2x + 3y <= 11"
+   },
+   {
+    "id": "g2",
+    "symbol": "3",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "2x + 3y <= 11"
+   },
+   {
+    "id": "g3",
+    "symbol": "11",
+    "value": 11,
+    "provenance": "given",
+    "sourceText": "2x + 3y <= 11"
+   },
+   {
+    "id": "g4",
+    "symbol": "4",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "4x + y <= 9; Z = 5x + 4y"
+   },
+   {
+    "id": "g5",
+    "symbol": "9",
+    "value": 9,
+    "provenance": "given",
+    "sourceText": "4x + y <= 9"
+   },
+   {
+    "id": "g6",
+    "symbol": "5",
+    "value": 5,
+    "provenance": "given",
+    "sourceText": "Z = 5x + 4y"
+   },
+   {
+    "id": "g7",
+    "symbol": "A_x",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "A = (1,1)"
+   },
+   {
+    "id": "g8",
+    "symbol": "A_y",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "A = (1,1)"
+   },
+   {
+    "id": "g9",
+    "symbol": "B_x",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "B = (3,0)"
+   },
+   {
+    "id": "g10",
+    "symbol": "B_y",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "B = (3,0)"
+   },
+   {
+    "id": "g11",
+    "symbol": "C_x",
+    "value": 1.6,
+    "provenance": "given",
+    "sourceText": "C = (8/5,13/5)"
+   },
+   {
+    "id": "g12",
+    "symbol": "C_y",
+    "value": 2.6,
+    "provenance": "given",
+    "sourceText": "C = (8/5,13/5)"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "corner coordinates"
+   },
+   {
+    "id": "u2",
+    "symbol": "maximum Z"
+   },
+   {
+    "id": "u3",
+    "symbol": "complete optimum set"
+   },
+   {
+    "id": "u4",
+    "symbol": "feasibility of A, B, C"
+   }
+  ],
+  "derived": [
+   {
+    "id": "d1",
+    "symbol": "x-axis corner x",
+    "value": 2.25
+   },
+   {
+    "id": "d2",
+    "symbol": "y-axis corner y",
+    "value": 3.6666666666666665
+   },
+   {
+    "id": "d3",
+    "symbol": "Z(0,0)",
+    "value": 0
+   },
+   {
+    "id": "d4",
+    "symbol": "Z(9/4,0)",
+    "value": 11.25
+   },
+   {
+    "id": "d5",
+    "symbol": "Z(C)",
+    "value": 18.4
+   },
+   {
+    "id": "d6",
+    "symbol": "Z(0,11/3)",
+    "value": 14.666666666666666
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "The two constraint lines intersect at C: 2(8/5)+3(13/5)=11 and 4(8/5)+13/5=9."
+   },
+   {
+    "id": "c2",
+    "expected": "Z(0,0)=0; Z(9/4,0)=45/4; Z(C)=92/5; Z(0,11/3)=44/3."
+   },
+   {
+    "id": "c3",
+    "expected": "Maximum Z=92/5 at {(8/5,13/5)}. A linear objective reaches its maximum at a polygon corner, and this corner's value strictly exceeds the other three."
+   },
+   {
+    "id": "c4",
+    "expected": "A=(1,1) is feasible; B=(3,0) is infeasible because 4(3)+0=12>9; C=(8/5,13/5) is feasible and lies on both constraint lines."
+   }
+  ],
+  "lawIds": [
+   "linear-inequality-half-plane",
+   "simultaneous-linear-equations",
+   "linear-programming-vertex-optimum",
+   "objective-function-evaluation"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown",
+   "unbound_unknown",
+   "unbound_unknown",
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "64dcc3fbb4ea4dd78b4243451935ee7175048d991f5a3b3a49d28cb198d002ba",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown u1 has no explicit solver binding",
+      "quantityId": "u1"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown u2 has no explicit solver binding",
+      "quantityId": "u2"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown u3 has no explicit solver binding",
+      "quantityId": "u3"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown u4 has no explicit solver binding",
+      "quantityId": "u4"
+     }
+    ],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "2",
+      "value": 2,
+      "sourceText": "2x + 3y <= 11",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "3",
+      "value": 3,
+      "sourceText": "2x + 3y <= 11",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "11",
+      "value": 11,
+      "sourceText": "2x + 3y <= 11",
+      "provenance": "given"
+     },
+     {
+      "id": "g4",
+      "symbol": "4",
+      "value": 4,
+      "sourceText": "4x + y <= 9; Z = 5x + 4y",
+      "provenance": "given"
+     },
+     {
+      "id": "g5",
+      "symbol": "9",
+      "value": 9,
+      "sourceText": "4x + y <= 9",
+      "provenance": "given"
+     },
+     {
+      "id": "g6",
+      "symbol": "5",
+      "value": 5,
+      "sourceText": "Z = 5x + 4y",
+      "provenance": "given"
+     },
+     {
+      "id": "g7",
+      "symbol": "A_x",
+      "value": 1,
+      "sourceText": "A = (1,1)",
+      "provenance": "given"
+     },
+     {
+      "id": "g8",
+      "symbol": "A_y",
+      "value": 1,
+      "sourceText": "A = (1,1)",
+      "provenance": "given"
+     },
+     {
+      "id": "g9",
+      "symbol": "B_x",
+      "value": 3,
+      "sourceText": "B = (3,0)",
+      "provenance": "given"
+     },
+     {
+      "id": "g10",
+      "symbol": "B_y",
+      "value": 0,
+      "sourceText": "B = (3,0)",
+      "provenance": "given"
+     },
+     {
+      "id": "g11",
+      "symbol": "C_x",
+      "value": 1.6,
+      "sourceText": "C = (8/5,13/5)",
+      "provenance": "given"
+     },
+     {
+      "id": "g12",
+      "symbol": "C_y",
+      "value": 2.6,
+      "sourceText": "C = (8/5,13/5)",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "corner coordinates"
+     },
+     {
+      "id": "u2",
+      "symbol": "maximum Z"
+     },
+     {
+      "id": "u3",
+      "symbol": "complete optimum set"
+     },
+     {
+      "id": "u4",
+      "symbol": "feasibility of A, B, C"
+     }
+    ],
+    "derived": [
+     {
+      "id": "d1",
+      "symbol": "x-axis corner x",
+      "value": 2.25,
+      "sourceText": "9/4",
+      "provenance": "derived",
+      "dependsOn": [
+       "g5",
+       "g4"
+      ]
+     },
+     {
+      "id": "d2",
+      "symbol": "y-axis corner y",
+      "value": 3.6666666666666665,
+      "sourceText": "11/3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g3",
+       "g2"
+      ]
+     },
+     {
+      "id": "d3",
+      "symbol": "Z(0,0)",
+      "value": 0,
+      "sourceText": "0",
+      "provenance": "derived",
+      "dependsOn": [
+       "g6",
+       "g4"
+      ]
+     },
+     {
+      "id": "d4",
+      "symbol": "Z(9/4,0)",
+      "value": 11.25,
+      "sourceText": "45/4",
+      "provenance": "derived",
+      "dependsOn": [
+       "g6",
+       "d1"
+      ]
+     },
+     {
+      "id": "d5",
+      "symbol": "Z(C)",
+      "value": 18.4,
+      "sourceText": "5(8/5)+4(13/5)=92/5",
+      "provenance": "derived",
+      "dependsOn": [
+       "g6",
+       "g4",
+       "g11",
+       "g12"
+      ]
+     },
+     {
+      "id": "d6",
+      "symbol": "Z(0,11/3)",
+      "value": 14.666666666666666,
+      "sourceText": "44/3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g4",
+       "d2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Graph and shade the closed first-quadrant polygon bounded by the coordinate axes and the two constraint lines. Label its corners (0,0), (9/4,0), C=(8/5,13/5), and (0,11/3).",
+      "expected": "The two constraint lines intersect at C: 2(8/5)+3(13/5)=11 and 4(8/5)+13/5=9.",
+      "relatedQuantityIds": [
+       "u1",
+       "d1",
+       "d2",
+       "g11",
+       "g12"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Show the objective value at every corner in the same order.",
+      "expected": "Z(0,0)=0; Z(9/4,0)=45/4; Z(C)=92/5; Z(0,11/3)=44/3.",
+      "relatedQuantityIds": [
+       "d3",
+       "d4",
+       "d5",
+       "d6"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Mark C as the complete optimum set; the maximum is attained uniquely there.",
+      "expected": "Maximum Z=92/5 at {(8/5,13/5)}. A linear objective reaches its maximum at a polygon corner, and this corner's value strictly exceeds the other three.",
+      "relatedQuantityIds": [
+       "u2",
+       "u3",
+       "d3",
+       "d4",
+       "d5",
+       "d6"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "Mark and classify the three specified points.",
+      "expected": "A=(1,1) is feasible; B=(3,0) is infeasible because 4(3)+0=12>9; C=(8/5,13/5) is feasible and lies on both constraint lines.",
+      "relatedQuantityIds": [
+       "u4",
+       "g7",
+       "g8",
+       "g9",
+       "g10",
+       "g11",
+       "g12"
+      ]
+     }
+    ],
+    "lawIds": [
+     "linear-inequality-half-plane",
+     "simultaneous-linear-equations",
+     "linear-programming-vertex-optimum",
+     "objective-function-evaluation"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.",
+    "facts": [
+     {
+      "id": "fReal",
+      "kind": "given",
+      "statement": "x and y are real",
+      "evidence": {
+       "source": "question",
+       "start": 4,
+       "end": 12,
+       "quote": "real x,y"
+      }
+     },
+     {
+      "id": "fNonnegative",
+      "kind": "given",
+      "statement": "x and y are nonnegative",
+      "evidence": {
+       "source": "question",
+       "start": 9,
+       "end": 17,
+       "quote": "x,y >= 0"
+      }
+     },
+     {
+      "id": "fBoundOne",
+      "kind": "given",
+      "statement": "First linear constraint",
+      "evidence": {
+       "source": "question",
+       "start": 45,
+       "end": 58,
+       "quote": "2x + 3y <= 11"
+      }
+     },
+     {
+      "id": "fBoundTwo",
+      "kind": "given",
+      "statement": "Second linear constraint",
+      "evidence": {
+       "source": "question",
+       "start": 63,
+       "end": 74,
+       "quote": "4x + y <= 9"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph the feasible region",
+      "evidence": {
+       "source": "question",
+       "start": 19,
+       "end": 44,
+       "quote": "graph the feasible region"
+      }
+     },
+     {
+      "id": "fCorners",
+      "kind": "requested",
+      "statement": "Label every corner with exact coordinates",
+      "evidence": {
+       "source": "question",
+       "start": 76,
+       "end": 117,
+       "quote": "Label every corner with exact coordinates"
+      }
+     },
+     {
+      "id": "fObjective",
+      "kind": "given",
+      "statement": "Objective is Z = 5x + 4y",
+      "evidence": {
+       "source": "question",
+       "start": 128,
+       "end": 139,
+       "quote": "Z = 5x + 4y"
+      }
+     },
+     {
+      "id": "fMaximum",
+      "kind": "requested",
+      "statement": "Maximise Z",
+      "evidence": {
+       "source": "question",
+       "start": 119,
+       "end": 129,
+       "quote": "Maximise Z"
+      }
+     },
+     {
+      "id": "fCornerValues",
+      "kind": "requested",
+      "statement": "Show Z at every corner",
+      "evidence": {
+       "source": "question",
+       "start": 141,
+       "end": 166,
+       "quote": "showing Z at every corner"
+      }
+     },
+     {
+      "id": "fOptimumSet",
+      "kind": "requested",
+      "statement": "Mark the complete optimum set",
+      "evidence": {
+       "source": "question",
+       "start": 171,
+       "end": 203,
+       "quote": "marking the complete optimum set"
+      }
+     },
+     {
+      "id": "fPointA",
+      "kind": "given",
+      "statement": "A has coordinates (1,1)",
+      "evidence": {
+       "source": "question",
+       "start": 215,
+       "end": 224,
+       "quote": "A = (1,1)"
+      }
+     },
+     {
+      "id": "fPointB",
+      "kind": "given",
+      "statement": "B has coordinates (3,0)",
+      "evidence": {
+       "source": "question",
+       "start": 226,
+       "end": 235,
+       "quote": "B = (3,0)"
+      }
+     },
+     {
+      "id": "fPointC",
+      "kind": "given",
+      "statement": "C has coordinates (8/5,13/5)",
+      "evidence": {
+       "source": "question",
+       "start": 237,
+       "end": 251,
+       "quote": "C = (8/5,13/5)"
+      }
+     },
+     {
+      "id": "fFeasibility",
+      "kind": "requested",
+      "statement": "Classify feasibility of A, B and C",
+      "evidence": {
+       "source": "question",
+       "start": 256,
+       "end": 276,
+       "quote": "classify feasibility"
+      }
+     },
+     {
+      "id": "fContinuous",
+      "kind": "given",
+      "statement": "Optimisation is continuous, not integer",
+      "evidence": {
+       "source": "question",
+       "start": 278,
+       "end": 334,
+       "quote": "This is continuous optimisation, not an integer problem."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "feasible",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fNonnegative",
+       "fBoundOne",
+       "fBoundTwo"
+      ]
+     },
+     {
+      "id": "boundOne",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fBoundOne"
+      ]
+     },
+     {
+      "id": "boundTwo",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fBoundTwo"
+      ]
+     },
+     {
+      "id": "pointA",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+       "fPointA"
+      ]
+     },
+     {
+      "id": "pointB",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+       "fPointB"
+      ]
+     },
+     {
+      "id": "pointC",
+      "kind": "point",
+      "label": "C",
+      "evidenceFactIds": [
+       "fPointC"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eMaximum",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 5
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 8
+         },
+         "right": {
+          "kind": "number",
+          "value": 5
+         }
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 13
+         },
+         "right": {
+          "kind": "number",
+          "value": 5
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fPointC"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "feasible",
+       "boundOne",
+       "boundTwo",
+       "pointA",
+       "pointB",
+       "pointC"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fCorners",
+       "fNonnegative",
+       "fBoundOne",
+       "fBoundTwo",
+       "fPointA",
+       "fPointB",
+       "fPointC",
+       "fCornerValues",
+       "fOptimumSet",
+       "fFeasibility"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sMaximum",
+      "kind": "evaluate",
+      "expressionId": "eMaximum"
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sMaximum",
+      "requestId": "sMaximum",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "92/5"
+      },
+      "approximate": 18.4,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sMaximum",
+      "requestId": "sMaximum",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eMaximum"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 40241,
+  "outputTokens": 10238,
+  "totalTokens": 50479,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.179923,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 697,
+    "outputTokens": 1679,
+    "totalTokens": 2376,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.018184,
+    "measuredCostUsd": 0.018184,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 758,
+    "outputTokens": 1857,
+    "totalTokens": 2615,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.020086,
+    "measuredCostUsd": 0.020086,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5884,
+    "outputTokens": 71,
+    "totalTokens": 5955,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012478,
+    "measuredCostUsd": 0.012478,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2947,
+    "outputTokens": 933,
+    "totalTokens": 3880,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.012285,
+    "measuredCostUsd": 0.012285,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7209,
+    "outputTokens": 1870,
+    "totalTokens": 9079,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.033118,
+    "measuredCostUsd": 0.033118,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7209,
+    "outputTokens": 2209,
+    "totalTokens": 9418,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.036508,
+    "measuredCostUsd": 0.036508,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7773,
+    "outputTokens": 780,
+    "totalTokens": 8553,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023346,
+    "measuredCostUsd": 0.023346,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7764,
+    "outputTokens": 839,
+    "totalTokens": 8603,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023918,
+    "measuredCostUsd": 0.023918,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.17992300000000003
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "8e3eca09c2897d8951b715d70bba9b99509075f050c2ec22addf90b792f55dc5",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "F"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "bb58094afe1f9198baad8438b916fe1a48f3563a4a43b9bf3df251a5234081c4",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "R"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kax",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-0.4,\"xMax\":3.5,\"yMin\":-0.4,\"yMax\":4.2}",
+    "argumentsPresent": true,
+    "argumentBytes": 47,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kF",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"2*x+3*y<=11\",\"4*x+y<=9\"],\"objective\":{\"expression\":\"5*x+4*y\",\"sense\":\"max\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 129,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kO",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kX",
+    "operator": "point",
+    "rawArguments": "{\"x\":2.25,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kY",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":3.6666666666666665,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 56,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "kA",
+    "operator": "point",
+    "rawArguments": "{\"x\":1,\"y\":1,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "kB",
+    "operator": "point",
+    "rawArguments": "{\"x\":3,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 7,
+    "constructionId": "kC",
+    "operator": "point",
+    "rawArguments": "{\"x\":1.6,\"y\":2.6,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 43,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kax",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-0.4,\"xMax\":3.5,\"yMin\":-0.4,\"yMax\":4.2}",
+    "argumentsPresent": true,
+    "argumentBytes": 47,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kR",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"2*x+3*y<=11\",\"4*x+y<=9\"],\"objective\":{\"expression\":\"5*x+4*y\",\"sense\":\"max\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 129,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kO",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kX",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"d1\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kY",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":\"d2\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "kC",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"g11\",\"y\":\"g12\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 47,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "kA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"g7\",\"y\":\"g8\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 7,
+    "constructionId": "kB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"g9\",\"y\":\"g10\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 46,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 8,
+    "constructionId": "kL1",
+    "operator": "line",
+    "rawArguments": "{\"start\":\"Y\",\"end\":\"C\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 23,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 9,
+    "constructionId": "kL2",
+    "operator": "line",
+    "rawArguments": "{\"start\":\"X\",\"end\":\"C\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 23,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 10,
+    "constructionId": "kzO",
+    "operator": "label",
+    "rawArguments": "{\"target\":\"O\",\"text\":\"Z=0\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 27,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 11,
+    "constructionId": "kzX",
+    "operator": "label",
+    "rawArguments": "{\"target\":\"X\",\"text\":\"Z=45/4\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 30,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 12,
+    "constructionId": "kzC",
+    "operator": "label",
+    "rawArguments": "{\"target\":\"C\",\"text\":\"Z=92/5\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 30,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 13,
+    "constructionId": "kzY",
+    "operator": "label",
+    "rawArguments": "{\"target\":\"Y\",\"text\":\"Z=44/3\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 30,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_feasible_region",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "2x + 3y=11",
+   "4x + y=9",
+   "A",
+   "B",
+   "C",
+   "(0, 0)",
+   "(0, 11/3)",
+   "(9/4, 0)",
+   "x>=(0/1)",
+   "y>=(0/1)",
+   "A=(1, 1) included",
+   "B=(3, 0) excluded",
+   "C=(8/5, 13/5) included",
+   "Feasible region: bounded",
+   "Maximize 5x + 4y",
+   "(0, 0): 0",
+   "(0, 11/3): 44/3",
+   "(8/5, 13/5): 92/5",
+   "(9/4, 0): 45/4",
+   "Maximum = 92/5"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 37,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch",
+   "invalid_linear_region"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 24886,
+    "elapsedMs": 12567,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 24897,
+    "elapsedMs": 14665,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 27244,
+    "elapsedMs": 6120,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 27205,
+    "elapsedMs": 6904,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   },
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_rational_unique_max_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_rational_unique_max_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequalities and point coordinates determine an exact feasible region.\"\n  },\n  \"source\": {\n    \"question\": \"For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.\"\n  },\n  \"quantities\": [\n    {\"id\":\"g1\",\"symbol\":\"2\",\"value\":2},\n    {\"id\":\"g2\",\"symbol\":\"3\",\"value\":3},\n    {\"id\":\"g3\",\"symbol\":\"11\",\"value\":11},\n    {\"id\":\"g4\",\"symbol\":\"4\",\"value\":4},\n    {\"id\":\"g5\",\"symbol\":\"9\",\"value\":9},\n    {\"id\":\"g6\",\"symbol\":\"5\",\"value\":5},\n    {\"id\":\"g7\",\"symbol\":\"A_x\",\"value\":1},\n    {\"id\":\"g8\",\"symbol\":\"A_y\",\"value\":1},\n    {\"id\":\"g9\",\"symbol\":\"B_x\",\"value\":3},\n    {\"id\":\"g10\",\"symbol\":\"B_y\",\"value\":0},\n    {\"id\":\"g11\",\"symbol\":\"C_x\",\"value\":1.6},\n    {\"id\":\"g12\",\"symbol\":\"C_y\",\"value\":2.6},\n    {\"id\":\"d1\",\"symbol\":\"x-axis corner x\",\"value\":2.25},\n    {\"id\":\"d2\",\"symbol\":\"y-axis corner y\",\"value\":3.6666666666666665},\n    {\"id\":\"d3\",\"symbol\":\"Z(0,0)\",\"value\":0},\n    {\"id\":\"d4\",\"symbol\":\"Z(9/4,0)\",\"value\":11.25},\n    {\"id\":\"d5\",\"symbol\":\"Z(C)\",\"value\":18.4},\n    {\"id\":\"d6\",\"symbol\":\"Z(0,11/3)\",\"value\":14.666666666666666}\n  ],\n  \"entities\": [\n    {\"id\":\"ax\",\"kind\":\"axes\",\"role\":\"coordinate axes\"},\n    {\"id\":\"F\",\"kind\":\"linear_region\",\"role\":\"closed feasible region\"},\n    {\"id\":\"O\",\"kind\":\"point\",\"role\":\"origin corner\",\"label\":\"(0,0)\"},\n    {\"id\":\"X\",\"kind\":\"point\",\"role\":\"x-axis corner\",\"label\":\"(9/4,0)\"},\n    {\"id\":\"Y\",\"kind\":\"point\",\"role\":\"y-axis corner\",\"label\":\"(0,11/3)\"},\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"specified feasible point\",\"label\":\"A\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"specified infeasible point\",\"label\":\"B\"},\n    {\"id\":\"C\",\"kind\":\"point\",\"role\":\"corner on both constraint boundaries\",\"label\":\"C\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"kax\",\"operator\":\"axes\",\"inputs\":{\"xMin\":-0.4,\"xMax\":3.5,\"yMin\":-0.4,\"yMax\":4.2},\"outputs\":[\"ax\"]},\n    {\"id\":\"kF\",\"operator\":\"linear_feasible_region\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"2*x+3*y<=11\",\"4*x+y<=9\"],\"objective\":{\"expression\":\"5*x+4*y\",\"sense\":\"max\"}},\"outputs\":[\"F\"]},\n    {\"id\":\"kO\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"O\"]},\n    {\"id\":\"kX\",\"operator\":\"point\",\"inputs\":{\"x\":2.25,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"X\"]},\n    {\"id\":\"kY\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":3.6666666666666665,\"coordinateSpace\":\"world\"},\"outputs\":[\"Y\"]},\n    {\"id\":\"kA\",\"operator\":\"point\",\"inputs\":{\"x\":1,\"y\":1,\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},\n    {\"id\":\"kB\",\"operator\":\"point\",\"inputs\":{\"x\":3,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]},\n    {\"id\":\"kC\",\"operator\":\"point\",\"inputs\":{\"x\":1.6,\"y\":2.6,\"coordinateSpace\":\"world\"},\"outputs\":[\"C\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\":\"coordinates\",\"kind\":\"narration\",\"targetIds\":[\"O\",\"X\",\"C\",\"Y\"],\"text\":\"The corners are (0,0), (9/4,0), C=(8/5,13/5), and (0,11/3).\"},\n    {\"id\":\"values\",\"kind\":\"narration\",\"targetIds\":[\"O\",\"X\",\"C\",\"Y\"],\"text\":\"In corner order, Z is 0, 45/4, 92/5, and 44/3.\"},\n    {\"id\":\"optimum\",\"kind\":\"highlight\",\"targetIds\":[\"C\"],\"text\":\"The complete optimum set is {(8/5,13/5)}; maximum Z=92/5.\"},\n    {\"id\":\"classification\",\"kind\":\"narration\",\"targetIds\":[\"A\",\"B\",\"C\"],\"text\":\"A is feasible. B is infeasible because 4(3)+0=12>9. C is feasible and lies on both constraint lines.\"}\n  ],\n  \"requiredEntityIds\": [\"ax\",\"F\",\"O\",\"X\",\"Y\",\"A\",\"B\",\"C\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"ax\",\"F\",\"O\",\"X\",\"Y\",\"A\",\"B\",\"C\"],\"dependsOn\":[],\"narrationCue\":\"Graph the closed feasible region and mark the specified points and corners.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"setupStep\",\"targetIds\":[\"ax\",\"F\",\"O\",\"X\",\"Y\",\"A\",\"B\",\"C\"],\"narrationCue\":\"Show the constraints and labeled points.\"},\n    {\"id\":\"cornerStep\",\"targetIds\":[\"O\",\"X\",\"C\",\"Y\"],\"annotationIds\":[\"coordinates\"],\"narrationCue\":\"Identify the exact corner coordinates.\"},\n    {\"id\":\"valueStep\",\"targetIds\":[\"O\",\"X\",\"C\",\"Y\"],\"annotationIds\":[\"values\"],\"narrationCue\":\"Calculate the objective at each corner.\"},\n    {\"id\":\"resultStep\",\"targetIds\":[\"A\",\"B\",\"C\"],\"annotationIds\":[\"optimum\",\"classification\"],\"narrationCue\":\"Classify A, B, and C, and identify the unique optimum.\"}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequalities and points determine an exact feasible-region diagram.\"\n  },\n  \"source\": {\n    \"question\": \"For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.\"\n  },\n  \"quantities\": [\n    {\"id\":\"g1\",\"value\":2},\n    {\"id\":\"g2\",\"value\":3},\n    {\"id\":\"g3\",\"value\":11},\n    {\"id\":\"g4\",\"value\":4},\n    {\"id\":\"g5\",\"value\":9},\n    {\"id\":\"g6\",\"value\":5},\n    {\"id\":\"g7\",\"value\":1},\n    {\"id\":\"g8\",\"value\":1},\n    {\"id\":\"g9\",\"value\":3},\n    {\"id\":\"g10\",\"value\":0},\n    {\"id\":\"g11\",\"value\":1.6},\n    {\"id\":\"g12\",\"value\":2.6},\n    {\"id\":\"d1\",\"value\":2.25},\n    {\"id\":\"d2\",\"value\":3.6666666666666665},\n    {\"id\":\"d3\",\"value\":0},\n    {\"id\":\"d4\",\"value\":11.25},\n    {\"id\":\"d5\",\"value\":18.4},\n    {\"id\":\"d6\",\"value\":14.666666666666666}\n  ],\n  \"entities\": [\n    {\"id\":\"ax\",\"kind\":\"axes\",\"role\":\"coordinate axes\"},\n    {\"id\":\"R\",\"kind\":\"polygon\",\"role\":\"closed feasible region\"},\n    {\"id\":\"O\",\"kind\":\"point\",\"role\":\"corner\",\"label\":\"(0,0)\"},\n    {\"id\":\"X\",\"kind\":\"point\",\"role\":\"x-axis corner\",\"label\":\"(9/4,0)\"},\n    {\"id\":\"Y\",\"kind\":\"point\",\"role\":\"y-axis corner\",\"label\":\"(0,11/3)\"},\n    {\"id\":\"C\",\"kind\":\"point\",\"role\":\"intersection corner and optimum\",\"label\":\"C\"},\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"specified feasible point\",\"label\":\"A\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"specified infeasible point\",\"label\":\"B\"},\n    {\"id\":\"L1\",\"kind\":\"line\",\"role\":\"2x + 3y = 11\"},\n    {\"id\":\"L2\",\"kind\":\"line\",\"role\":\"4x + y = 9\"},\n    {\"id\":\"zO\",\"kind\":\"label\",\"role\":\"objective value at origin\",\"label\":\"Z=0\"},\n    {\"id\":\"zX\",\"kind\":\"label\",\"role\":\"objective value at x-axis corner\",\"label\":\"Z=45/4\"},\n    {\"id\":\"zC\",\"kind\":\"label\",\"role\":\"maximum objective value\",\"label\":\"Z=92/5\"},\n    {\"id\":\"zY\",\"kind\":\"label\",\"role\":\"objective value at y-axis corner\",\"label\":\"Z=44/3\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"kax\",\"operator\":\"axes\",\"inputs\":{\"xMin\":-0.4,\"xMax\":3.5,\"yMin\":-0.4,\"yMax\":4.2},\"outputs\":[\"ax\"]},\n    {\"id\":\"kR\",\"operator\":\"linear_feasible_region\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x>=0\",\"y>=0\",\"2*x+3*y<=11\",\"4*x+y<=9\"],\"objective\":{\"expression\":\"5*x+4*y\",\"sense\":\"max\"}},\"outputs\":[\"R\"]},\n    {\"id\":\"kO\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"O\"]},\n    {\"id\":\"kX\",\"operator\":\"point\",\"inputs\":{\"x\":\"d1\",\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"X\"]},\n    {\"id\":\"kY\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":\"d2\",\"coordinateSpace\":\"world\"},\"outputs\":[\"Y\"]},\n    {\"id\":\"kC\",\"operator\":\"point\",\"inputs\":{\"x\":\"g11\",\"y\":\"g12\",\"coordinateSpace\":\"world\"},\"outputs\":[\"C\"]},\n    {\"id\":\"kA\",\"operator\":\"point\",\"inputs\":{\"x\":\"g7\",\"y\":\"g8\",\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},\n    {\"id\":\"kB\",\"operator\":\"point\",\"inputs\":{\"x\":\"g9\",\"y\":\"g10\",\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]},\n    {\"id\":\"kL1\",\"operator\":\"line\",\"inputs\":{\"start\":\"Y\",\"end\":\"C\"},\"outputs\":[\"L1\"]},\n    {\"id\":\"kL2\",\"operator\":\"line\",\"inputs\":{\"start\":\"X\",\"end\":\"C\"},\"outputs\":[\"L2\"]},\n    {\"id\":\"kzO\",\"operator\":\"label\",\"inputs\":{\"target\":\"O\",\"text\":\"Z=0\"},\"outputs\":[\"zO\"]},\n    {\"id\":\"kzX\",\"operator\":\"label\",\"inputs\":{\"target\":\"X\",\"text\":\"Z=45/4\"},\"outputs\":[\"zX\"]},\n    {\"id\":\"kzC\",\"operator\":\"label\",\"inputs\":{\"target\":\"C\",\"text\":\"Z=92/5\"},\"outputs\":[\"zC\"]},\n    {\"id\":\"kzY\",\"operator\":\"label\",\"inputs\":{\"target\":\"Y\",\"text\":\"Z=44/3\"},\"outputs\":[\"zY\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\":\"c_on_first\",\"predicate\":\"on\",\"entities\":[\"C\",\"L1\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"c_on_second\",\"predicate\":\"on\",\"entities\":[\"C\",\"L2\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"x_on_second\",\"predicate\":\"on\",\"entities\":[\"X\",\"L2\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"y_on_first\",\"predicate\":\"on\",\"entities\":[\"Y\",\"L1\"],\"expected\":true,\"severity\":\"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\":\"c_coordinates\",\"kind\":\"callout\",\"targetIds\":[\"C\"],\"text\":\"(8/5,13/5)\"},\n    {\"id\":\"a_coordinates\",\"kind\":\"callout\",\"targetIds\":[\"A\"],\"text\":\"(1,1)\"},\n    {\"id\":\"b_coordinates\",\"kind\":\"callout\",\"targetIds\":[\"B\"],\"text\":\"(3,0)\"},\n    {\"id\":\"optimum\",\"kind\":\"highlight\",\"targetIds\":[\"C\"],\"style\":{\"transient\":false}}\n  ],\n  \"requiredEntityIds\": [\"ax\",\"R\",\"O\",\"X\",\"Y\",\"C\",\"A\",\"B\",\"L1\",\"L2\",\"zO\",\"zX\",\"zC\",\"zY\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"ax\",\"R\",\"O\",\"X\",\"Y\",\"C\",\"A\",\"B\",\"L1\",\"L2\"],\"dependsOn\":[],\"narrationCue\":\"Graph the closed first-quadrant feasible region and mark its corners and the three specified points.\"},\n    {\"id\":\"evaluation\",\"entityIds\":[\"zO\",\"zX\",\"zC\",\"zY\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"Evaluate Z at each corner. A is feasible; B is infeasible; C is feasible on both constraint lines. The complete optimum set is the single point C, where Z=92/5.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"show_setup\",\"revealGroupId\":\"setup\",\"action\":\"reveal\"},\n    {\"id\":\"show_evaluation\",\"revealGroupId\":\"evaluation\",\"action\":\"reveal\"}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated linear constraints and objective define an exact feasible region that the linear operator can verify.\"\n  },\n  \"source\": {\n    \"question\": \"For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"value\": 2},\n    {\"id\": \"g2\", \"value\": 3},\n    {\"id\": \"g3\", \"value\": 11},\n    {\"id\": \"g4\", \"value\": 4},\n    {\"id\": \"g5\", \"value\": 9},\n    {\"id\": \"g6\", \"value\": 5},\n    {\"id\": \"g7\", \"value\": 1},\n    {\"id\": \"g8\", \"value\": 1},\n    {\"id\": \"g9\", \"value\": 3},\n    {\"id\": \"g10\", \"value\": 0},\n    {\"id\": \"g11\", \"value\": 1.6},\n    {\"id\": \"g12\", \"value\": 2.6},\n    {\"id\": \"d1\", \"value\": 2.25},\n    {\"id\": \"d2\", \"value\": 3.6666666666666665},\n    {\"id\": \"d3\", \"value\": 0},\n    {\"id\": \"d4\", \"value\": 11.25},\n    {\"id\": \"d5\", \"value\": 18.4},\n    {\"id\": \"d6\", \"value\": 14.666666666666666}\n  ],\n  \"entities\": [\n    {\"id\": \"F\", \"kind\": \"linear_region\", \"role\": \"verified feasible region, corners and objective\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"kF\",\n      \"operator\": \"linear_feasible_region\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"constraints\": [\"x>=0\", \"y>=0\", \"2x+3y<=11\", \"4x+y<=9\"],\n        \"objective\": {\"expression\": \"5x+4y\", \"sense\": \"max\"}\n      },\n      \"outputs\": [\"F\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"F\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"F\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"First show the stated constraints and feasible region; then inspect the verified corners and objective values.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequalities and objective define an exact linear feasible region.\"\n  },\n  \"source\": {\n    \"question\": \"For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.\"\n  },\n  \"quantities\": [\n    {\"id\":\"g1\",\"symbol\":\"2\",\"value\":2},\n    {\"id\":\"g2\",\"symbol\":\"3\",\"value\":3},\n    {\"id\":\"g3\",\"symbol\":\"11\",\"value\":11},\n    {\"id\":\"g4\",\"symbol\":\"4\",\"value\":4},\n    {\"id\":\"g5\",\"symbol\":\"9\",\"value\":9},\n    {\"id\":\"g6\",\"symbol\":\"5\",\"value\":5},\n    {\"id\":\"g7\",\"symbol\":\"A_x\",\"value\":1},\n    {\"id\":\"g8\",\"symbol\":\"A_y\",\"value\":1},\n    {\"id\":\"g9\",\"symbol\":\"B_x\",\"value\":3},\n    {\"id\":\"g10\",\"symbol\":\"B_y\",\"value\":0},\n    {\"id\":\"g11\",\"symbol\":\"C_x\",\"value\":1.6},\n    {\"id\":\"g12\",\"symbol\":\"C_y\",\"value\":2.6},\n    {\"id\":\"d1\",\"symbol\":\"x-axis corner x\",\"value\":2.25},\n    {\"id\":\"d2\",\"symbol\":\"y-axis corner y\",\"value\":3.6666666666666665},\n    {\"id\":\"d3\",\"symbol\":\"Z(0,0)\",\"value\":0},\n    {\"id\":\"d4\",\"symbol\":\"Z(9/4,0)\",\"value\":11.25},\n    {\"id\":\"d5\",\"symbol\":\"Z(C)\",\"value\":18.4},\n    {\"id\":\"d6\",\"symbol\":\"Z(0,11/3)\",\"value\":14.666666666666666}\n  ],\n  \"entities\": [\n    {\"id\":\"F\",\"kind\":\"linear_region\",\"role\":\"verified feasible region, exact corners and objective\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\":\"kF\",\n      \"operator\":\"linear_feasible_region\",\n      \"inputs\":{\n        \"variables\":[\"x\",\"y\"],\n        \"constraints\":[\"x>=0\",\"y>=0\",\"2x+3y<=11\",\"4x+y<=9\"],\n        \"objective\":{\"expression\":\"5x+4y\",\"sense\":\"max\"}\n      },\n      \"outputs\":[\"F\"]\n    }\n  ],\n  \"relations\":[],\n  \"assertions\":[],\n  \"annotations\":[],\n  \"requiredEntityIds\":[\"F\"],\n  \"revealGroups\":[\n    {\"id\":\"setup\",\"entityIds\":[\"F\"],\"dependsOn\":[],\"narrationCue\":\"Show the closed feasible region before evaluating the objective at its corners.\"}\n  ],\n  \"teachingTimeline\":[]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "64dcc3fbb4ea4dd78b4243451935ee7175048d991f5a3b3a49d28cb198d002ba",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002101,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2371,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/area-between--1",
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|rational-unique-max|q1",
+  "topic_id": "maths|h3r8-finish-regions|rational-unique-max",
+  "subject": "maths",
+  "difficulty": "hard",
+  "ask_style": "topic_ask",
+  "question": "For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "feasible_region",
+  "must_show": [
+   "Exactly the bounded quadrilateral with corners (0,0), (9/4,0), (8/5,13/5), (0,11/3).",
+   "All four boundary segments included.",
+   "Corner Z values respectively 0, 45/4, 92/5, 44/3.",
+   "Unique maximum at (8/5,13/5), value 92/5.",
+   "A and C feasible; B infeasible."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "2x + 3y = 11",
+   "4x + y = 9",
+   "(0,0)",
+   "(9/4,0)",
+   "(8/5,13/5)",
+   "(0,11/3)",
+   "Z = 5x + 4y",
+   "0",
+   "45/4",
+   "92/5",
+   "44/3",
+   "A",
+   "B",
+   "C"
+  ],
+  "must_not_show": [
+   "Shading either inequality separately as the common feasible region.",
+   "An integer lattice replacing the continuous region.",
+   "Rounded corner substituted for (8/5,13/5).",
+   "More than one optimum."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Z(0,0)=0; Z(9/4,0)=45/4; Z(8/5,13/5)=92/5; Z(0,11/3)=44/3",
+   "Unique maximum 92/5 at (8/5,13/5)",
+   "A: true; B: false; C: true"
+  ],
+  "notes": "CBSE class 12 linear programming; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

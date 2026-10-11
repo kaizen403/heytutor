@@ -1,0 +1,931 @@
+{
+ "probeId": "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1",
+ "topicId": "maths|h3r8-finish-regions|scaled-system-x-coordinate",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "hard",
+ "question": "For real x and y, L1 is -3(x - y) = 2x + 4y - 11 and L2 is 2(x + 2y) = -x + y + 8. Graph both lines with equivalent simplified equations and labelled intercepts; mark their exact intersection P. What is the x-coordinate of their common solution? Show the full ordered pair on the figure.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:08:39.632Z",
+ "timings": {
+  "planMs": 26250,
+  "teachMs": 0,
+  "totalMs": 26250,
+  "figureCommitMs": null,
+  "stages": {
+   "turnPlanMs": 8700,
+   "problemIrMs": 5463,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 12053,
+   "deadlineRemainingMs": 33778,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [],
+  "unknowns": [
+   {
+    "id": "xP",
+    "symbol": "x_P"
+   },
+   {
+    "id": "yP",
+    "symbol": "y_P"
+   }
+  ],
+  "derived": [
+   {
+    "id": "xP",
+    "symbol": "x_P",
+    "value": 2.0833333333333335
+   },
+   {
+    "id": "yP",
+    "symbol": "y_P",
+    "value": 0.5833333333333334
+   },
+   {
+    "id": "a",
+    "symbol": "L1 x-intercept",
+    "value": 2.2
+   },
+   {
+    "id": "b",
+    "symbol": "L1 y-intercept",
+    "value": 11
+   },
+   {
+    "id": "c",
+    "symbol": "L2 x-intercept",
+    "value": 2.6666666666666665
+   },
+   {
+    "id": "d",
+    "symbol": "L2 y-intercept",
+    "value": 2.6666666666666665
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "l1",
+    "expected": "y=11−5x; intercepts (11/5, 0) and (0, 11)."
+   },
+   {
+    "id": "l2",
+    "expected": "y=8/3−x; intercepts (8/3, 0) and (0, 8/3)."
+   },
+   {
+    "id": "p",
+    "expected": "P=(25/12, 7/12); its x-coordinate is 25/12."
+   }
+  ],
+  "lawIds": [
+   "equivalent equations",
+   "axis-intercept method",
+   "elimination by subtraction",
+   "substitution"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "contradiction",
+  "issueCodes": [
+   "value_type_mismatch"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "dff8167d3665be026703524d3173cc45a3879884d8cd0674d6ab5dfcaf94a55a",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "contradiction",
+    "issues": [
+     {
+      "code": "value_type_mismatch",
+      "message": "bound TurnPlan quantity xP requires a scalar solver value",
+      "requestId": "sX",
+      "quantityId": "xP"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sX",
+      "quantityId": "xP",
+      "symbol": "x_P",
+      "approximate": [
+       2.0833333333333335
+      ],
+      "exact": [
+       {
+        "kind": "rational",
+        "value": "25/12"
+       }
+      ],
+      "errorBound": 1e-9
+     },
+     {
+      "requestId": "sY",
+      "quantityId": "yP",
+      "symbol": "y_P",
+      "approximate": 0.583333333333333,
+      "exact": {
+       "kind": "rational",
+       "value": "7/12"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x and y, L1 is -3(x - y) = 2x + 4y - 11 and L2 is 2(x + 2y) = -x + y + 8. Graph both lines with equivalent simplified equations and labelled intercepts; mark their exact intersection P. What is the x-coordinate of their common solution? Show the full ordered pair on the figure.",
+    "visualRequirement": "required",
+    "givens": [],
+    "unknowns": [
+     {
+      "id": "xP",
+      "symbol": "x_P"
+     },
+     {
+      "id": "yP",
+      "symbol": "y_P"
+     }
+    ],
+    "derived": [
+     {
+      "id": "xP",
+      "symbol": "x_P",
+      "value": 2.0833333333333335,
+      "sourceText": "Subtract x+y=8/3 from 5x+y=11: 4x=25/3, so x=25/12.",
+      "provenance": "derived"
+     },
+     {
+      "id": "yP",
+      "symbol": "y_P",
+      "value": 0.5833333333333334,
+      "sourceText": "y=8/3−25/12=7/12.",
+      "provenance": "derived"
+     },
+     {
+      "id": "a",
+      "symbol": "L1 x-intercept",
+      "value": 2.2,
+      "sourceText": "L1: 5x+y=11; set y=0, so x=11/5.",
+      "provenance": "derived"
+     },
+     {
+      "id": "b",
+      "symbol": "L1 y-intercept",
+      "value": 11,
+      "sourceText": "L1: 5x+y=11; set x=0.",
+      "provenance": "derived"
+     },
+     {
+      "id": "c",
+      "symbol": "L2 x-intercept",
+      "value": 2.6666666666666665,
+      "sourceText": "L2: x+y=8/3; set y=0, so x=8/3.",
+      "provenance": "derived"
+     },
+     {
+      "id": "d",
+      "symbol": "L2 y-intercept",
+      "value": 2.6666666666666665,
+      "sourceText": "L2: x+y=8/3; set x=0, so y=8/3.",
+      "provenance": "derived"
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "l1",
+      "claim": "Graph L1 with its labelled intercepts.",
+      "expected": "y=11−5x; intercepts (11/5, 0) and (0, 11).",
+      "relatedQuantityIds": [
+       "a",
+       "b"
+      ]
+     },
+     {
+      "id": "l2",
+      "claim": "Graph L2 with its labelled intercepts.",
+      "expected": "y=8/3−x; intercepts (8/3, 0) and (0, 8/3).",
+      "relatedQuantityIds": [
+       "c",
+       "d"
+      ]
+     },
+     {
+      "id": "p",
+      "claim": "Mark the common solution and give its x-coordinate.",
+      "expected": "P=(25/12, 7/12); its x-coordinate is 25/12.",
+      "relatedQuantityIds": [
+       "xP",
+       "yP"
+      ]
+     }
+    ],
+    "lawIds": [
+     "equivalent equations",
+     "axis-intercept method",
+     "elimination by subtraction",
+     "substitution"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x and y, L1 is -3(x - y) = 2x + 4y - 11 and L2 is 2(x + 2y) = -x + y + 8. Graph both lines with equivalent simplified equations and labelled intercepts; mark their exact intersection P. What is the x-coordinate of their common solution? Show the full ordered pair on the figure.",
+    "facts": [
+     {
+      "id": "fReal",
+      "kind": "given",
+      "statement": "x and y are real",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 16,
+       "quote": "For real x and y"
+      }
+     },
+     {
+      "id": "fL1",
+      "kind": "given",
+      "statement": "L1 has the stated equation",
+      "evidence": {
+       "source": "question",
+       "start": 18,
+       "end": 48,
+       "quote": "L1 is -3(x - y) = 2x + 4y - 11"
+      }
+     },
+     {
+      "id": "fL2",
+      "kind": "given",
+      "statement": "L2 has the stated equation",
+      "evidence": {
+       "source": "question",
+       "start": 53,
+       "end": 81,
+       "quote": "L2 is 2(x + 2y) = -x + y + 8"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph simplified lines with labelled intercepts",
+      "evidence": {
+       "source": "question",
+       "start": 83,
+       "end": 160,
+       "quote": "Graph both lines with equivalent simplified equations and labelled intercepts"
+      }
+     },
+     {
+      "id": "fPoint",
+      "kind": "requested",
+      "statement": "Mark exact intersection P",
+      "evidence": {
+       "source": "question",
+       "start": 162,
+       "end": 193,
+       "quote": "mark their exact intersection P"
+      }
+     },
+     {
+      "id": "fX",
+      "kind": "requested",
+      "statement": "Find common solution’s x-coordinate",
+      "evidence": {
+       "source": "question",
+       "start": 195,
+       "end": 245,
+       "quote": "What is the x-coordinate of their common solution?"
+      }
+     },
+     {
+      "id": "fPair",
+      "kind": "requested",
+      "statement": "Show the full ordered pair",
+      "evidence": {
+       "source": "question",
+       "start": 246,
+       "end": 287,
+       "quote": "Show the full ordered pair on the figure."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "l1",
+      "kind": "line",
+      "label": "L1",
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "l2",
+      "kind": "line",
+      "label": "L2",
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fPoint"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eL1",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 11
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 5
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL2",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 8
+        },
+        "right": {
+         "kind": "number",
+         "value": 3
+        }
+       },
+       "right": {
+        "kind": "variable",
+        "name": "x"
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "eYp",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 8
+        },
+        "right": {
+         "kind": "number",
+         "value": 3
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 25
+        },
+        "right": {
+         "kind": "number",
+         "value": 12
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fL1",
+       "fL2"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cMeet",
+      "kind": "incident",
+      "entityIds": [
+       "p",
+       "l1",
+       "l2"
+      ],
+      "evidenceFactIds": [
+       "fPoint"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "l1",
+       "l2",
+       "p"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fPoint",
+       "fPair"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sX",
+      "kind": "intersections",
+      "leftExpressionId": "eL1",
+      "rightExpressionId": "eL2",
+      "variable": "x",
+      "domain": {
+       "min": -20,
+       "max": 20
+      },
+      "resultBinding": {
+       "turnPlanQuantityId": "xP",
+       "symbol": "x_P",
+       "evidenceFactIds": [
+        "fX"
+       ]
+      }
+     },
+     {
+      "id": "sY",
+      "kind": "evaluate",
+      "expressionId": "eYp",
+      "resultBinding": {
+       "turnPlanQuantityId": "yP",
+       "symbol": "y_P",
+       "evidenceFactIds": [
+        "fPair"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sX",
+      "requestId": "sX",
+      "valueType": "set",
+      "exact": [
+       {
+        "kind": "rational",
+        "value": "25/12"
+       }
+      ],
+      "approximate": [
+       2.0833333333333335
+      ],
+      "errorBound": 1e-9
+     },
+     {
+      "id": "value_sY",
+      "requestId": "sY",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "7/12"
+      },
+      "approximate": 0.583333333333333,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sX",
+      "requestId": "sX",
+      "method": "polynomial_roots",
+      "expressionIds": [
+       "eL1",
+       "eL2"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Isolated all real polynomial roots between derivative critical points and verified residuals."
+     },
+     {
+      "id": "proof_sY",
+      "requestId": "sY",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eYp"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 4,
+  "inputTokens": 14309,
+  "outputTokens": 3341,
+  "totalTokens": 17650,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.059089,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 677,
+    "outputTokens": 897,
+    "totalTokens": 1574,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010324,
+    "measuredCostUsd": 0.010324,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.184988
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5603,
+    "outputTokens": 39,
+    "totalTokens": 5642,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011596,
+    "measuredCostUsd": 0.011596,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2282,
+    "outputTokens": 670,
+    "totalTokens": 2952,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.008325,
+    "measuredCostUsd": 0.008325,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5747,
+    "outputTokens": 1735,
+    "totalTokens": 7482,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.028844,
+    "measuredCostUsd": 0.028844,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.258624
+   }
+  ],
+  "knownUsageUsd": 0.059089
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": false,
+  "declinedUnreadable": false,
+  "emptyCause": "planner_no_output",
+  "tier": null,
+  "nonMetric": false,
+  "figureSource": "text_only",
+  "reason": "solver_contradiction",
+  "archetypeId": null,
+  "family": null,
+  "entityIds": [],
+  "focusableIds": [],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [],
+  "labelByEntity": {},
+  "primitiveCount": 0,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 20388,
+    "elapsedMs": 11142,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 20399,
+    "elapsedMs": 12051,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": "solver_contradiction",
+  "suppressedFallback": null,
+  "svg": null,
+  "png": null,
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Both lines and their intercepts have exact plan-backed coordinates.\"\n  },\n  \"source\": {\n    \"question\": \"For real x and y, L1 is -3(x - y) = 2x + 4y - 11 and L2 is 2(x + 2y) = -x + y + 8. Graph both lines with equivalent simplified equations and labelled intercepts; mark their exact intersection P. What is the x-coordinate of their common solution? Show the full ordered pair on the figure.\"\n  },\n  \"quantities\": [\n    {\"id\": \"xP\", \"value\": 2.0833333333333335, \"unit\": null},\n    {\"id\": \"yP\", \"value\": 0.5833333333333334, \"unit\": null},\n    {\"id\": \"a\", \"value\": 2.2, \"unit\": null},\n    {\"id\": \"b\", \"value\": 11, \"unit\": null},\n    {\"id\": \"c\", \"value\": 2.6666666666666665, \"unit\": null},\n    {\"id\": \"d\", \"value\": 2.6666666666666665, \"unit\": null}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"A\", \"kind\": \"point\", \"role\": \"L1 x-intercept\", \"label\": \"(11/5,0)\"},\n    {\"id\": \"B\", \"kind\": \"point\", \"role\": \"L1 y-intercept\", \"label\": \"(0,11)\"},\n    {\"id\": \"C\", \"kind\": \"point\", \"role\": \"L2 x-intercept\", \"label\": \"(8/3,0)\"},\n    {\"id\": \"D\", \"kind\": \"point\", \"role\": \"L2 y-intercept\", \"label\": \"(0,8/3)\"},\n    {\"id\": \"L1\", \"kind\": \"line\", \"role\": \"first line\", \"label\": \"L1: 5x+y=11\"},\n    {\"id\": \"L2\", \"kind\": \"line\", \"role\": \"second line\", \"label\": \"L2: x+y=8/3\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"common solution\", \"label\": \"P=(25/12,7/12)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"kax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 12, \"yMin\": -1, \"yMax\": 12}, \"outputs\": [\"ax\"]},\n    {\"id\": \"kA\", \"operator\": \"point\", \"inputs\": {\"x\": 2.2, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"A\"]},\n    {\"id\": \"kB\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 11, \"coordinateSpace\": \"world\"}, \"outputs\": [\"B\"]},\n    {\"id\": \"kC\", \"operator\": \"point\", \"inputs\": {\"x\": 2.6666666666666665, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"C\"]},\n    {\"id\": \"kD\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 2.6666666666666665, \"coordinateSpace\": \"world\"}, \"outputs\": [\"D\"]},\n    {\"id\": \"kL1\", \"operator\": \"line\", \"inputs\": {\"start\": \"B\", \"end\": \"A\"}, \"outputs\": [\"L1\"]},\n    {\"id\": \"kL2\", \"operator\": \"line\", \"inputs\": {\"start\": \"D\", \"end\": \"C\"}, \"outputs\": [\"L2\"]},\n    {\"id\": \"kP\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"L1\", \"second\": \"L2\"}, \"outputs\": [\"P\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"a1\", \"predicate\": \"on\", \"entities\": [\"A\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a2\", \"predicate\": \"on\", \"entities\": [\"B\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a3\", \"predicate\": \"on\", \"entities\": [\"C\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a4\", \"predicate\": \"on\", \"entities\": [\"D\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a5\", \"predicate\": \"on\", \"entities\": [\"P\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a6\", \"predicate\": \"on\", \"entities\": [\"P\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"ax\", \"A\", \"B\", \"C\", \"D\", \"L1\", \"L2\", \"P\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\", \"A\", \"B\", \"C\", \"D\", \"L1\", \"L2\"], \"dependsOn\": []},\n    {\"id\": \"solution\", \"entityIds\": [\"P\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"step1\", \"revealGroupId\": \"setup\", \"narration\": \"Rewrite the equations as 5x+y=11 and x+y=8/3, then plot their intercepts.\"},\n    {\"id\": \"step2\", \"revealGroupId\": \"solution\", \"narration\": \"The lines meet at P=(25/12,7/12), so the x-coordinate is 25/12.\"}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "dff8167d3665be026703524d3173cc45a3879884d8cd0674d6ab5dfcaf94a55a",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002099,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1357,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1",
+  "topic_id": "maths|h3r8-finish-regions|scaled-system-x-coordinate",
+  "subject": "maths",
+  "difficulty": "hard",
+  "ask_style": "exam_stem",
+  "question": "For real x and y, L1 is -3(x - y) = 2x + 4y - 11 and L2 is 2(x + 2y) = -x + y + 8. Graph both lines with equivalent simplified equations and labelled intercepts; mark their exact intersection P. What is the x-coordinate of their common solution? Show the full ordered pair on the figure.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "linear_system",
+  "must_show": [
+   "L1: 5x + y = 11 and L2: x + y = 8/3.",
+   "L1 intercepts (11/5,0), (0,11); L2 intercepts (8/3,0), (0,8/3).",
+   "Unique intersection P = (25/12,7/12), requested x = 25/12."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "L1",
+   "L2",
+   "5x + y = 11",
+   "x + y = 8/3",
+   "(11/5,0)",
+   "(0,11)",
+   "(8/3,0)",
+   "(0,8/3)",
+   "P = (25/12,7/12)",
+   "x = 25/12"
+  ],
+  "must_not_show": [
+   "Incorrect expansion of either scaled equation.",
+   "Reporting 7/12 as x.",
+   "Swapped intersection coordinates.",
+   "Shaded half-planes."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Unique solution (25/12,7/12)",
+   "Requested x-coordinate = 25/12"
+  ],
+  "notes": "SAT linear systems; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

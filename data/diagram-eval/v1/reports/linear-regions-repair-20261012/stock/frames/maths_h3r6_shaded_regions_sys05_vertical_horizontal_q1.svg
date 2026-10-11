@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_system tier=qualitative_verified labels=x | y | 0 | x=-2 | y=3 | (-2, 3) | One solution</text>
+<line x1="621.56" y1="506.78" x2="938.44" y2="506.78" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="885.63" y1="586" x2="885.63" y2="110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="943.52" y="513.63" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="906.55" y="117.53" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="906.55" y="513.63" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="674.38,586 674.38,110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="621.56,189.91 938.44,189.91" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="687.38" y="517.59" font-size="18" dominant-baseline="hanging" textLength="24.995663199245527" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x=-2</text>
+<text x="911.83" y="158.91" font-size="18" dominant-baseline="hanging" textLength="20.73991124817273" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y=3</text>
+<circle cx="674.38" cy="189.91" r="4" fill="#141821"/>
+<text x="687.38" y="158.91" font-size="18" dominant-baseline="hanging" textLength="32.32407979260437" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(-2, 3)</text>
+<text x="746.8116815698926" y="70" font-size="18" dominant-baseline="hanging" textLength="66.37663686021479" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">One solution</text>
+</svg>

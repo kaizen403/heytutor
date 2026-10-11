@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_rational_unique_max_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_rational_unique_max_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "02e681467586438ab8bdcd2df14d35aed6b1136e79de5e312c5befee984480eb",
+  "pngSha256": "9a060b3976c0c72fb39aec9d8b547e4912da5a0947401bce800470921578ad5b"
+}

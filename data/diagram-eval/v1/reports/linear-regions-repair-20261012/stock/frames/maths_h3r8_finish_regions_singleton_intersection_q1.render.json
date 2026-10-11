@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_singleton_intersection_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_singleton_intersection_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "d3292c3fb8ca22113daa4d1482d77d7fe629e87080db096f1c8c595ec98987f5",
+  "pngSha256": "0afc99c3c636bf5801d40f33c8451bfa0f8e1fd29cddfc6d4ada63bfd3e380ae"
+}

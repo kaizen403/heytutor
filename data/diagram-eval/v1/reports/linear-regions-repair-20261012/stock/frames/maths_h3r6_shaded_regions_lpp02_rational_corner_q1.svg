@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Explain a graphical LPP with a rational optimal corner: maximize Z = 5x + 4y subject to x &gt;= 0, y &gt;= 0, 2x + 3</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_feasible_region tier=qualitative_verified labels=x | y | 2x + 3y=12 | 4x + y=10 | (0, 0) | (0, 4) | (9/5, 14/5) | (5/2, 0) | x&gt;=0 | y&gt;=0 | Feasible region: bounded | Maximize 5x + 4y | (0, 0): 0 | (0, 4): 16 | (9/5, 14/5): 101/5 | (5/2, 0): 25/2 | Maximum = 101/5</text>
+<polygon points="716.63,448.69 716.63,533.19 769.44,533.19 754.65,474.04" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="684.94" y1="533.19" x2="875.06" y2="533.19" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="716.63" y1="586" x2="716.63" y2="269.13" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="883.31" y="534.75" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="734.38" y="270.69" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<polyline points="716.63,586 716.63,269.13" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="684.94,533.19 875.06,533.19" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="684.94,427.56 875.06,554.31" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="782.64,586 703.42,269.13" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="816.9197874177682" y="481.94" font-size="18" dominant-baseline="hanging" textLength="62.160425164463604" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2x + 3y=12</text>
+<text x="756.03" y="396.56" font-size="18" dominant-baseline="hanging" textLength="53.474021679145594" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">4x + y=10</text>
+<circle cx="716.63" cy="533.19" r="4" fill="#141821"/>
+<text x="676.7393533089056" y="502.19000000000005" font-size="18" dominant-baseline="hanging" textLength="26.89064669109431" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 0)</text>
+<circle cx="716.63" cy="448.69" r="4" fill="#141821"/>
+<text x="676.9427186235583" y="461.69" font-size="18" dominant-baseline="hanging" textLength="26.687281376441586" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 4)</text>
+<circle cx="754.65" cy="474.04" r="4" fill="#141821"/>
+<text x="767.65" y="443.04" font-size="18" dominant-baseline="hanging" textLength="52.17337393485999" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(9/5, 14/5)</text>
+<circle cx="769.44" cy="533.19" r="4" fill="#141821"/>
+<text x="786.7506861305442" y="539.4973372946037" font-size="18" dominant-baseline="hanging" textLength="39.28899033981468" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(5/2, 0)</text>
+<circle cx="754.65" cy="474.04" r="4" fill="#141821"/>
+<text x="765.3254308464286" y="239" font-size="18" dominant-baseline="hanging" textLength="29.34913830714281" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x&gt;=0</text>
+<text x="765.3846720399861" y="217.88" font-size="18" dominant-baseline="hanging" textLength="29.23065592002785" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y&gt;=0</text>
+<text x="713.017047835695" y="196.75" font-size="18" dominant-baseline="hanging" textLength="133.96590432860995" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Feasible region: bounded</text>
+<text x="730.484699650983" y="175.63" font-size="18" dominant-baseline="hanging" textLength="99.03060069803396" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Maximize 5x + 4y</text>
+<text x="760.0658738071024" y="154.5" font-size="18" dominant-baseline="hanging" textLength="39.86825238579518" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 0): 0</text>
+<text x="757.712127900573" y="133.38" font-size="18" dominant-baseline="hanging" textLength="44.57574419885401" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 4): 16</text>
+<text x="736.4377495786827" y="112.25" font-size="18" dominant-baseline="hanging" textLength="87.12450084263459" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(9/5, 14/5): 101/5</text>
+<text x="744.4377971541525" y="91.13" font-size="18" dominant-baseline="hanging" textLength="71.12440569169517" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(5/2, 0): 25/2</text>
+<text x="729.5512801224984" y="70" font-size="18" dominant-baseline="hanging" textLength="100.89743975500329" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Maximum = 101/5</text>
+<polyline points="780,490.94 809.9197874177682,490.94" fill="none" stroke="#141821" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

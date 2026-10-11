@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">For real x,y &gt;= 0, form the common feasible region of -2(x + 2y) &gt;= y - 12 and 3x - y &lt;= x + 4. Draw it with a</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_feasible_region tier=qualitative_verified labels=x | y | -2(x + 2y)=y - 12 | 3x - y=x + 4 | A | B | C | (0, 0) | (0, 12/5) | (2, 0) | x&gt;=(0/1) | y&gt;=(0/1) | A=(1, 1) included | B=(3, 1) excluded | C=(8/3, 4/3) included | Feasible region: bounded | Maximize 3x + 2y | (0, 0): 0 | (0, 12/5): 24/5 | (2, 0): 6 | (8/3, 4/3): 32/3 | Maximum = 32/3</text>
+<polygon points="691.98,351.28 691.98,421.69 750.66,421.69 770.22,382.57" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="647.97" y1="421.69" x2="912.03" y2="421.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="691.98" y1="586" x2="691.98" y2="304.33" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="918.43" y="422.08" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="711.58" y="304.72" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<polyline points="691.98,586 691.98,304.33" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="647.97,421.69 912.03,421.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="647.97,333.67 912.03,439.3" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="668.51,586 809.34,304.33" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="826.0733686910042" y="364.28" font-size="18" dominant-baseline="hanging" textLength="89.83326261799142" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-2(x + 2y)=y - 12</text>
+<text x="825.2322079508249" y="317.27385810290326" font-size="18" dominant-baseline="hanging" textLength="66.40238223318966" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">3x - y=x + 4</text>
+<circle cx="721.32" cy="392.35" r="4" fill="#141821"/>
+<text x="734.32" y="383.35" font-size="18" dominant-baseline="hanging" textLength="10.60317" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">A</text>
+<circle cx="780" cy="392.35" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="793" y="361.35" font-size="18" dominant-baseline="hanging" textLength="11.25828" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">B</text>
+<circle cx="770.22" cy="382.57" r="4" fill="#141821"/>
+<text x="755.5260676232379" y="351.3968912197291" font-size="18" dominant-baseline="hanging" textLength="11.01906" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">C</text>
+<circle cx="691.98" cy="421.69" r="4" fill="#141821"/>
+<text x="652.0893533089056" y="390.69" font-size="18" dominant-baseline="hanging" textLength="26.89064669109431" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 0)</text>
+<circle cx="691.98" cy="351.28" r="4" fill="#141821"/>
+<text x="634.2126160516293" y="364.28" font-size="18" dominant-baseline="hanging" textLength="44.76738394837061" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 12/5)</text>
+<circle cx="750.66" cy="421.69" r="4" fill="#141821"/>
+<text x="763.66" y="434.69" font-size="18" dominant-baseline="hanging" textLength="28.5568684644784" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(2, 0)</text>
+<circle cx="770.22" cy="382.57" r="4" fill="#141821"/>
+<circle cx="770.22" cy="382.57" r="4" fill="#141821"/>
+<text x="757.3801356202018" y="276.56" font-size="18" dominant-baseline="hanging" textLength="45.23972875959639" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x&gt;=(0/1)</text>
+<text x="757.4393768137593" y="257.78" font-size="18" dominant-baseline="hanging" textLength="45.12124637248143" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y&gt;=(0/1)</text>
+<text x="736.6133798377623" y="239" font-size="18" dominant-baseline="hanging" textLength="86.77324032447535" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">A=(1, 1) included</text>
+<text x="734.7019490197409" y="220.22" font-size="18" dominant-baseline="hanging" textLength="90.59610196051808" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">B=(3, 1) excluded</text>
+<text x="725.3977022109889" y="201.44" font-size="18" dominant-baseline="hanging" textLength="109.20459557802215" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">C=(8/3, 4/3) included</text>
+<text x="713.017047835695" y="182.67" font-size="18" dominant-baseline="hanging" textLength="133.96590432860995" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Feasible region: bounded</text>
+<text x="730.1385566321374" y="163.89" font-size="18" dominant-baseline="hanging" textLength="99.7228867357252" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Maximize 3x + 2y</text>
+<text x="760.0658738071024" y="145.11" font-size="18" dominant-baseline="hanging" textLength="39.86825238579518" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 0): 0</text>
+<text x="743.2926607073326" y="126.33000000000001" font-size="18" dominant-baseline="hanging" textLength="73.4146785853348" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 12/5): 24/5</text>
+<text x="759.3005329204103" y="107.56" font-size="18" dominant-baseline="hanging" textLength="41.39893415917926" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(2, 0): 6</text>
+<text x="739.189721905454" y="88.78" font-size="18" dominant-baseline="hanging" textLength="81.62055618909207" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(8/3, 4/3): 32/3</text>
+<text x="730.868946103406" y="70" font-size="18" dominant-baseline="hanging" textLength="98.26210779318816" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Maximum = 32/3</text>
+<polyline points="746.99,373.28 746.99,300.64 819.0733686910042,300.64 819.0733686910042,373.28" fill="none" stroke="#141821" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="791.74,339.54 818.2322079508249,334.2703721993872" fill="none" stroke="#141821" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

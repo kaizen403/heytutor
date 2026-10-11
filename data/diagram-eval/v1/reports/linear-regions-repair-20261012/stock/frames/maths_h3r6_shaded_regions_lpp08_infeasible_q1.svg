@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">For x &gt;= 0 and y &gt;= 0, consider x + y &lt;= 2 and x + y &gt;= 5. Use a graph to find the feasible region and decide </text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_feasible_region tier=qualitative_verified labels=x | y | 0 | x + y=2 | x + y=5 | x&gt;=0 | y&gt;=0 | No feasible points | Maximize 2x + y | Objective: infeasible</text>
+<line x1="589.88" y1="522.63" x2="970.13" y2="522.63" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="653.25" y1="586" x2="653.25" y2="205.75" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="973.62" y="548.3" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="675.76" y="209.42" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="675.76" y="548.3" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="653.25,586 653.25,205.75" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="589.88,522.63 970.13,522.63" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="589.88,357.85 818.03,586" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="589.88,205.75 970.13,586" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="716.95" y="440.93" font-size="18" dominant-baseline="hanging" textLength="39.959779072124206" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x + y=2</text>
+<text x="793" y="364.88" font-size="18" dominant-baseline="hanging" textLength="39.69707448606049" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x + y=5</text>
+<text x="765.3254308464286" y="171.4" font-size="18" dominant-baseline="hanging" textLength="29.34913830714281" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x&gt;=0</text>
+<text x="765.3846720399861" y="146.05" font-size="18" dominant-baseline="hanging" textLength="29.23065592002785" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y&gt;=0</text>
+<text x="729.7992630987043" y="120.69999999999999" font-size="18" dominant-baseline="hanging" textLength="100.40147380259137" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">No feasible points</text>
+<text x="732.86528171191" y="95.35" font-size="18" dominant-baseline="hanging" textLength="94.26943657617993" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Maximize 2x + y</text>
+<text x="725.652270636342" y="70" font-size="18" dominant-baseline="hanging" textLength="108.69545872731604" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Objective: infeasible</text>
+</svg>

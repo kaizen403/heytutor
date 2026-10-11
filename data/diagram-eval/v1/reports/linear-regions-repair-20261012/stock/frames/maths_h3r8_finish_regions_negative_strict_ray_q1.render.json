@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_negative_strict_ray_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_negative_strict_ray_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "e72e8710893c9e3a8550b18d4162a0d3a2e8d4abf1fe6b269886ae46c513b969",
+  "pngSha256": "529651afbdfebbea00a8f1e1c7d006461bfe851e44bfd954ae8b3543746c126a"
+}

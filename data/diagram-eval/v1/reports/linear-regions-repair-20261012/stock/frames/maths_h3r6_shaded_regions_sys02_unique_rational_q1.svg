@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the in</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_system tier=qualitative_verified labels=x | y | 0 | 2x + 3y=7 | 3x - 2y=1 | (17/13, 19/13) | One solution</text>
+<line x1="486.42" y1="450.86" x2="1073.58" y2="450.86" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="584.28" y1="586" x2="584.28" y2="110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1071.9" y="457.71" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="611.96" y="117.53" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="611.96" y="479.71" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="486.42,124.67 1073.58,516.1" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="531.47,586 848.35,110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="931.6883057825345" y="480.17" font-size="18" dominant-baseline="hanging" textLength="55.49169421746542" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2x + 3y=7</text>
+<text x="742.335596345328" y="139.1" font-size="18" dominant-baseline="hanging" textLength="53.40440365467205" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">3x - 2y=1</text>
+<circle cx="730.53" cy="287.41" r="4" fill="#141821"/>
+<text x="763.5798142124521" y="278.41" font-size="18" dominant-baseline="hanging" textLength="69.90037157509583" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(17/13, 19/13)</text>
+<text x="746.8116815698926" y="70" font-size="18" dominant-baseline="hanging" textLength="66.37663686021479" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">One solution</text>
+<polyline points="730.53,287.41 756.5798142124521,287.41" fill="none" stroke="#141821" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

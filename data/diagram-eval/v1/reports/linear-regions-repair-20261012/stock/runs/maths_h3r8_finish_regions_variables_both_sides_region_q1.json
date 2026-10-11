@@ -1,0 +1,1337 @@
+{
+ "probeId": "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+ "topicId": "maths|h3r8-finish-regions|variables-both-sides-region",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "hard",
+ "question": "For real x,y >= 0, form the common feasible region of -2(x + 2y) >= y - 12 and 3x - y <= x + 4. Draw it with all exact corners labelled. Maximise P = 3x + 2y, showing P at each corner and all maximisers. Mark A = (1,1), B = (3,1), C = (8/3,4/3), and classify feasibility.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:07:16.535Z",
+ "timings": {
+  "planMs": 31204,
+  "teachMs": 0,
+  "totalMs": 31205,
+  "figureCommitMs": 31205,
+  "stages": {
+   "turnPlanMs": 11092,
+   "problemIrMs": 6805,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 12463,
+   "deadlineRemainingMs": 29633,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g12",
+    "symbol": "right-hand bound",
+    "value": 12,
+    "provenance": "given",
+    "sourceText": "g12 = 12"
+   },
+   {
+    "id": "g4",
+    "symbol": "right-hand bound",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "g4 = 4"
+   },
+   {
+    "id": "ax",
+    "symbol": "x_A",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "ax = 1"
+   },
+   {
+    "id": "ay",
+    "symbol": "y_A",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "ay = 1"
+   },
+   {
+    "id": "bx",
+    "symbol": "x_B",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "bx = 3"
+   },
+   {
+    "id": "by",
+    "symbol": "y_B",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "by = 1"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "corners",
+    "symbol": "feasible-region corners"
+   },
+   {
+    "id": "p0",
+    "symbol": "P(0,0)"
+   },
+   {
+    "id": "pX",
+    "symbol": "P at x-axis corner"
+   },
+   {
+    "id": "pC",
+    "symbol": "P(C)"
+   },
+   {
+    "id": "pY",
+    "symbol": "P at y-axis corner"
+   },
+   {
+    "id": "maximum",
+    "symbol": "maximum P"
+   },
+   {
+    "id": "maximisers",
+    "symbol": "all maximisers"
+   },
+   {
+    "id": "classify",
+    "symbol": "feasibility of A, B, C"
+   }
+  ],
+  "derived": [
+   {
+    "id": "p0",
+    "symbol": "P(0,0)",
+    "value": 0
+   },
+   {
+    "id": "xint",
+    "symbol": "x-axis corner x",
+    "value": 2
+   },
+   {
+    "id": "vX",
+    "symbol": "P(2,0)",
+    "value": 6
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "region",
+    "expected": "x≥0, y≥0, 2x+5y≤12, y≥2x−4. Label its corners (0,0), (2,0), C=(8/3,4/3), and (0,12/5) in boundary order."
+   },
+   {
+    "id": "intersection",
+    "expected": "Solving 2x+5y=12 and 2x−y=4 gives (x,y)=(8/3,4/3)=C."
+   },
+   {
+    "id": "values",
+    "expected": "P(0,0)=0; P(2,0)=6; P(C)=32/3; P(0,12/5)=24/5."
+   },
+   {
+    "id": "opt",
+    "expected": "The maximum is 32/3, attained uniquely at C=(8/3,4/3)."
+   },
+   {
+    "id": "points",
+    "expected": "A=(1,1) is feasible (interior); B=(3,1) is infeasible because 2x−y=5>4; C=(8/3,4/3) is feasible on both sloping boundaries."
+   }
+  ],
+  "lawIds": [
+   "equivalent-inequality-transformations",
+   "simultaneous-linear-equations",
+   "linear-programming-vertex-theorem",
+   "linear-function-evaluation"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown",
+   "unbound_unknown",
+   "unbound_unknown",
+   "unbound_unknown",
+   "unbound_unknown",
+   "unbound_unknown",
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "23293eb60175f0f20d97dbd32c8a8eb919df7447c1be7691c68e1ccdd77e6ff0",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown corners has no explicit solver binding",
+      "quantityId": "corners"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown pX has no explicit solver binding",
+      "quantityId": "pX"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown pC has no explicit solver binding",
+      "quantityId": "pC"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown pY has no explicit solver binding",
+      "quantityId": "pY"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown maximum has no explicit solver binding",
+      "quantityId": "maximum"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown maximisers has no explicit solver binding",
+      "quantityId": "maximisers"
+     },
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown classify has no explicit solver binding",
+      "quantityId": "classify"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sP0",
+      "quantityId": "p0",
+      "symbol": "P(0,0)",
+      "approximate": 0,
+      "exact": {
+       "kind": "integer",
+       "value": "0"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x,y >= 0, form the common feasible region of -2(x + 2y) >= y - 12 and 3x - y <= x + 4. Draw it with all exact corners labelled. Maximise P = 3x + 2y, showing P at each corner and all maximisers. Mark A = (1,1), B = (3,1), C = (8/3,4/3), and classify feasibility.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g12",
+      "symbol": "right-hand bound",
+      "value": 12,
+      "sourceText": "g12 = 12",
+      "provenance": "given"
+     },
+     {
+      "id": "g4",
+      "symbol": "right-hand bound",
+      "value": 4,
+      "sourceText": "g4 = 4",
+      "provenance": "given"
+     },
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": 1,
+      "sourceText": "ax = 1",
+      "provenance": "given"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 1,
+      "sourceText": "ay = 1",
+      "provenance": "given"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 3,
+      "sourceText": "bx = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 1,
+      "sourceText": "by = 1",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "corners",
+      "symbol": "feasible-region corners"
+     },
+     {
+      "id": "p0",
+      "symbol": "P(0,0)"
+     },
+     {
+      "id": "pX",
+      "symbol": "P at x-axis corner"
+     },
+     {
+      "id": "pC",
+      "symbol": "P(C)"
+     },
+     {
+      "id": "pY",
+      "symbol": "P at y-axis corner"
+     },
+     {
+      "id": "maximum",
+      "symbol": "maximum P"
+     },
+     {
+      "id": "maximisers",
+      "symbol": "all maximisers"
+     },
+     {
+      "id": "classify",
+      "symbol": "feasibility of A, B, C"
+     }
+    ],
+    "derived": [
+     {
+      "id": "p0",
+      "symbol": "P(0,0)",
+      "value": 0,
+      "sourceText": "3(0)+2(0)=0.",
+      "provenance": "derived"
+     },
+     {
+      "id": "xint",
+      "symbol": "x-axis corner x",
+      "value": 2,
+      "sourceText": "At y=0, 2x−y=4 gives x=2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g4"
+      ]
+     },
+     {
+      "id": "vX",
+      "symbol": "P(2,0)",
+      "value": 6,
+      "sourceText": "3(2)+2(0)=6.",
+      "provenance": "derived",
+      "dependsOn": [
+       "xint"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "region",
+      "claim": "Draw the intersection of the four closed half-planes in the xy-plane.",
+      "expected": "x≥0, y≥0, 2x+5y≤12, y≥2x−4. Label its corners (0,0), (2,0), C=(8/3,4/3), and (0,12/5) in boundary order.",
+      "relatedQuantityIds": [
+       "corners",
+       "xint"
+      ]
+     },
+     {
+      "id": "intersection",
+      "claim": "Check the intersection of the two sloping boundaries.",
+      "expected": "Solving 2x+5y=12 and 2x−y=4 gives (x,y)=(8/3,4/3)=C.",
+      "relatedQuantityIds": [
+       "g12",
+       "g4"
+      ]
+     },
+     {
+      "id": "values",
+      "claim": "Show the objective value at every corner.",
+      "expected": "P(0,0)=0; P(2,0)=6; P(C)=32/3; P(0,12/5)=24/5.",
+      "relatedQuantityIds": [
+       "p0",
+       "pX",
+       "pC",
+       "pY",
+       "p0",
+       "vX"
+      ]
+     },
+     {
+      "id": "opt",
+      "claim": "Maximise the linear objective over the polygon.",
+      "expected": "The maximum is 32/3, attained uniquely at C=(8/3,4/3).",
+      "relatedQuantityIds": [
+       "maximum",
+       "maximisers"
+      ]
+     },
+     {
+      "id": "points",
+      "claim": "Mark and classify the three specified points.",
+      "expected": "A=(1,1) is feasible (interior); B=(3,1) is infeasible because 2x−y=5>4; C=(8/3,4/3) is feasible on both sloping boundaries.",
+      "relatedQuantityIds": [
+       "classify",
+       "ax",
+       "ay",
+       "bx",
+       "by"
+      ]
+     }
+    ],
+    "lawIds": [
+     "equivalent-inequality-transformations",
+     "simultaneous-linear-equations",
+     "linear-programming-vertex-theorem",
+     "linear-function-evaluation"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x,y >= 0, form the common feasible region of -2(x + 2y) >= y - 12 and 3x - y <= x + 4. Draw it with all exact corners labelled. Maximise P = 3x + 2y, showing P at each corner and all maximisers. Mark A = (1,1), B = (3,1), C = (8/3,4/3), and classify feasibility.",
+    "facts": [
+     {
+      "id": "fDomain",
+      "kind": "given",
+      "statement": "x and y are nonnegative real numbers",
+      "evidence": {
+       "source": "question",
+       "start": 4,
+       "end": 17,
+       "quote": "real x,y >= 0"
+      }
+     },
+     {
+      "id": "fBound1",
+      "kind": "given",
+      "statement": "First inequality bounds the feasible region",
+      "evidence": {
+       "source": "question",
+       "start": 54,
+       "end": 74,
+       "quote": "-2(x + 2y) >= y - 12"
+      }
+     },
+     {
+      "id": "fBound2",
+      "kind": "given",
+      "statement": "Second inequality bounds the feasible region",
+      "evidence": {
+       "source": "question",
+       "start": 79,
+       "end": 94,
+       "quote": "3x - y <= x + 4"
+      }
+     },
+     {
+      "id": "fCorners",
+      "kind": "requested",
+      "statement": "Draw and label every exact corner",
+      "evidence": {
+       "source": "question",
+       "start": 96,
+       "end": 136,
+       "quote": "Draw it with all exact corners labelled."
+      }
+     },
+     {
+      "id": "fObjective",
+      "kind": "given",
+      "statement": "Objective is P equals 3x plus 2y",
+      "evidence": {
+       "source": "question",
+       "start": 146,
+       "end": 157,
+       "quote": "P = 3x + 2y"
+      }
+     },
+     {
+      "id": "fMaximum",
+      "kind": "requested",
+      "statement": "Find the maximum and all maximisers",
+      "evidence": {
+       "source": "question",
+       "start": 137,
+       "end": 203,
+       "quote": "Maximise P = 3x + 2y, showing P at each corner and all maximisers."
+      }
+     },
+     {
+      "id": "fA",
+      "kind": "given",
+      "statement": "A has coordinates one, one",
+      "evidence": {
+       "source": "question",
+       "start": 209,
+       "end": 218,
+       "quote": "A = (1,1)"
+      }
+     },
+     {
+      "id": "fB",
+      "kind": "given",
+      "statement": "B has coordinates three, one",
+      "evidence": {
+       "source": "question",
+       "start": 220,
+       "end": 229,
+       "quote": "B = (3,1)"
+      }
+     },
+     {
+      "id": "fC",
+      "kind": "given",
+      "statement": "C has coordinates eight-thirds, four-thirds",
+      "evidence": {
+       "source": "question",
+       "start": 231,
+       "end": 244,
+       "quote": "C = (8/3,4/3)"
+      }
+     },
+     {
+      "id": "fClassify",
+      "kind": "requested",
+      "statement": "Classify feasibility of the marked points",
+      "evidence": {
+       "source": "question",
+       "start": 246,
+       "end": 271,
+       "quote": "and classify feasibility."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "region",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fDomain",
+       "fBound1",
+       "fBound2"
+      ]
+     },
+     {
+      "id": "origin",
+      "kind": "point",
+      "label": "(0,0)",
+      "evidenceFactIds": [
+       "fCorners"
+      ]
+     },
+     {
+      "id": "xCorner",
+      "kind": "point",
+      "label": "(2,0)",
+      "evidenceFactIds": [
+       "fBound2",
+       "fCorners"
+      ]
+     },
+     {
+      "id": "yCorner",
+      "kind": "point",
+      "label": "(0,12/5)",
+      "evidenceFactIds": [
+       "fBound1",
+       "fCorners"
+      ]
+     },
+     {
+      "id": "a",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+       "fA"
+      ]
+     },
+     {
+      "id": "b",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+       "fB"
+      ]
+     },
+     {
+      "id": "c",
+      "kind": "point",
+      "label": "C",
+      "evidenceFactIds": [
+       "fC"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eP0",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "number",
+         "value": 0
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 0
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fMaximum"
+      ]
+     },
+     {
+      "id": "ePX",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 0
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fBound2",
+       "fMaximum"
+      ]
+     },
+     {
+      "id": "ePC",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 8
+         },
+         "right": {
+          "kind": "number",
+          "value": 3
+         }
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 4
+         },
+         "right": {
+          "kind": "number",
+          "value": 3
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fC",
+       "fMaximum"
+      ]
+     },
+     {
+      "id": "ePY",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "number",
+         "value": 0
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "number",
+          "value": 12
+         },
+         "right": {
+          "kind": "number",
+          "value": 5
+         }
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fBound1",
+       "fMaximum"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "region",
+       "origin",
+       "xCorner",
+       "c",
+       "yCorner",
+       "a",
+       "b"
+      ],
+      "evidenceFactIds": [
+       "fDomain",
+       "fBound1",
+       "fBound2",
+       "fCorners",
+       "fA",
+       "fB",
+       "fC",
+       "fClassify"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sP0",
+      "kind": "evaluate",
+      "expressionId": "eP0",
+      "resultBinding": {
+       "turnPlanQuantityId": "p0",
+       "symbol": "P(0,0)",
+       "evidenceFactIds": [
+        "fMaximum"
+       ]
+      }
+     },
+     {
+      "id": "sPX",
+      "kind": "evaluate",
+      "expressionId": "ePX"
+     },
+     {
+      "id": "sPC",
+      "kind": "evaluate",
+      "expressionId": "ePC"
+     },
+     {
+      "id": "sPY",
+      "kind": "evaluate",
+      "expressionId": "ePY"
+     },
+     {
+      "id": "sMaximum",
+      "kind": "evaluate",
+      "expressionId": "ePC"
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sP0",
+      "requestId": "sP0",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "0"
+      },
+      "approximate": 0,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sPX",
+      "requestId": "sPX",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "6"
+      },
+      "approximate": 6,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sPC",
+      "requestId": "sPC",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "32/3"
+      },
+      "approximate": 10.666666666666666,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sPY",
+      "requestId": "sPY",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "24/5"
+      },
+      "approximate": 4.8,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sMaximum",
+      "requestId": "sMaximum",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "32/3"
+      },
+      "approximate": 10.666666666666666,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sP0",
+      "requestId": "sP0",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eP0"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sPX",
+      "requestId": "sPX",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "ePX"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sPC",
+      "requestId": "sPC",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "ePC"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sPY",
+      "requestId": "sPY",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "ePY"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sMaximum",
+      "requestId": "sMaximum",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "ePC"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 15377,
+  "outputTokens": 5950,
+  "totalTokens": 21327,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.087315,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 692,
+    "outputTokens": 1423,
+    "totalTokens": 2115,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.015614,
+    "measuredCostUsd": 0.015614,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 753,
+    "outputTokens": 1591,
+    "totalTokens": 2344,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.017416,
+    "measuredCostUsd": 0.017416,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5769,
+    "outputTokens": 56,
+    "totalTokens": 5825,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012098,
+    "measuredCostUsd": 0.012098,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2605,
+    "outputTokens": 1035,
+    "totalTokens": 3640,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.012621,
+    "measuredCostUsd": 0.012621,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5558,
+    "outputTokens": 1845,
+    "totalTokens": 7403,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.029566,
+    "measuredCostUsd": 0.029566,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.256536
+   }
+  ],
+  "knownUsageUsd": 0.087315
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_feasible_region",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "-2(x + 2y)=y - 12",
+   "3x - y=x + 4",
+   "A",
+   "B",
+   "C",
+   "(0, 0)",
+   "(0, 12/5)",
+   "(2, 0)",
+   "x>=(0/1)",
+   "y>=(0/1)",
+   "A=(1, 1) included",
+   "B=(3, 1) excluded",
+   "C=(8/3, 4/3) included",
+   "Feasible region: bounded",
+   "Maximize 3x + 2y",
+   "(0, 0): 0",
+   "(0, 12/5): 24/5",
+   "(2, 0): 6",
+   "(8/3, 4/3): 32/3",
+   "Maximum = 32/3"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 38,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19863,
+    "elapsedMs": 11565,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 19874,
+    "elapsedMs": 12461,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequalities define an exact planar feasible region with identifiable corners.\"\n  },\n  \"source\": {\n    \"question\": \"For real x,y >= 0, form the common feasible region of -2(x + 2y) >= y - 12 and 3x - y <= x + 4. Draw it with all exact corners labelled. Maximise P = 3x + 2y, showing P at each corner and all maximisers. Mark A = (1,1), B = (3,1), C = (8/3,4/3), and classify feasibility.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g12\", \"symbol\": \"right-hand bound\", \"value\": 12},\n    {\"id\": \"g4\", \"symbol\": \"right-hand bound\", \"value\": 4},\n    {\"id\": \"ax\", \"symbol\": \"x_A\", \"value\": 1},\n    {\"id\": \"ay\", \"symbol\": \"y_A\", \"value\": 1},\n    {\"id\": \"bx\", \"symbol\": \"x_B\", \"value\": 3},\n    {\"id\": \"by\", \"symbol\": \"y_B\", \"value\": 1},\n    {\"id\": \"p0\", \"symbol\": \"P(0,0)\", \"value\": 0},\n    {\"id\": \"xint\", \"symbol\": \"x-axis corner x\", \"value\": 2},\n    {\"id\": \"vX\", \"symbol\": \"P(2,0)\", \"value\": 6}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"feasible\", \"kind\": \"polygon\", \"role\": \"common feasible region\"},\n    {\"id\": \"O\", \"kind\": \"point\", \"role\": \"corner\", \"label\": \"(0,0)\"},\n    {\"id\": \"X\", \"kind\": \"point\", \"role\": \"x-axis corner\", \"label\": \"(2,0)\"},\n    {\"id\": \"C\", \"kind\": \"point\", \"role\": \"corner and specified point\", \"label\": \"C=(8/3,4/3)\"},\n    {\"id\": \"Y\", \"kind\": \"point\", \"role\": \"y-axis corner\", \"label\": \"(0,12/5)\"},\n    {\"id\": \"A\", \"kind\": \"point\", \"role\": \"specified point\", \"label\": \"A=(1,1)\"},\n    {\"id\": \"B\", \"kind\": \"point\", \"role\": \"specified point\", \"label\": \"B=(3,1)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"kaxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -0.4, \"xMax\": 3.5, \"yMin\": -0.4, \"yMax\": 2.9}, \"outputs\": [\"axes\"]},\n    {\"id\": \"kfeasible\", \"operator\": \"constraint_region\", \"inputs\": {\"constraints\": [{\"expression\": \"x\", \"relation\": \"ge\"}, {\"expression\": \"y\", \"relation\": \"ge\"}, {\"expression\": \"2*x+5*y-12\", \"relation\": \"le\"}, {\"expression\": \"2*x-y-4\", \"relation\": \"le\"}], \"xMin\": -0.4, \"xMax\": 3.5, \"yMin\": -0.4, \"yMax\": 2.9}, \"outputs\": [\"feasible\"]},\n    {\"id\": \"kO\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"O\"]},\n    {\"id\": \"kX\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"X\"]},\n    {\"id\": \"kC\", \"operator\": \"point\", \"inputs\": {\"x\": 2.6666666666666665, \"y\": 1.3333333333333333, \"coordinateSpace\": \"world\"}, \"outputs\": [\"C\"]},\n    {\"id\": \"kY\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 2.4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"Y\"]},\n    {\"id\": \"kA\", \"operator\": \"point\", \"inputs\": {\"x\": \"ax\", \"y\": \"ay\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"A\"]},\n    {\"id\": \"kB\", \"operator\": \"point\", \"inputs\": {\"x\": \"bx\", \"y\": \"by\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"B\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\": \"pO\", \"kind\": \"callout\", \"targetIds\": [\"O\"], \"text\": \"P=0\"},\n    {\"id\": \"pX\", \"kind\": \"callout\", \"targetIds\": [\"X\"], \"text\": \"P=6\"},\n    {\"id\": \"pC\", \"kind\": \"callout\", \"targetIds\": [\"C\"], \"text\": \"P=32/3\"},\n    {\"id\": \"pY\", \"kind\": \"callout\", \"targetIds\": [\"Y\"], \"text\": \"P=24/5\"},\n    {\"id\": \"opt\", \"kind\": \"highlight\", \"targetIds\": [\"C\"]},\n    {\"id\": \"classA\", \"kind\": \"callout\", \"targetIds\": [\"A\"], \"text\": \"feasible: interior\"},\n    {\"id\": \"classB\", \"kind\": \"callout\", \"targetIds\": [\"B\"], \"text\": \"infeasible\"},\n    {\"id\": \"classC\", \"kind\": \"callout\", \"targetIds\": [\"C\"], \"text\": \"feasible: boundary\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"feasible\", \"O\", \"X\", \"C\", \"Y\", \"A\", \"B\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"feasible\", \"O\", \"X\", \"C\", \"Y\", \"A\", \"B\"], \"dependsOn\": [], \"narrationCue\": \"Show the common feasible region, its four corners, and the three specified points.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"setupStep\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"classificationStep\", \"annotationIds\": [\"classA\", \"classB\", \"classC\"], \"narrationCue\": \"A is interior; B violates 2x−y≤4; C lies on both sloping boundaries.\"},\n    {\"id\": \"objectiveStep\", \"annotationIds\": [\"pO\", \"pX\", \"pC\", \"pY\", \"opt\"], \"narrationCue\": \"Evaluate P at each corner. Its maximum is 32/3, attained uniquely at C.\"}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "23293eb60175f0f20d97dbd32c8a8eb919df7447c1be7691c68e1ccdd77e6ff0",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2168,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+  "topic_id": "maths|h3r8-finish-regions|variables-both-sides-region",
+  "subject": "maths",
+  "difficulty": "hard",
+  "ask_style": "topic_ask",
+  "question": "For real x,y >= 0, form the common feasible region of -2(x + 2y) >= y - 12 and 3x - y <= x + 4. Draw it with all exact corners labelled. Maximise P = 3x + 2y, showing P at each corner and all maximisers. Mark A = (1,1), B = (3,1), C = (8/3,4/3), and classify feasibility.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "feasible_region",
+  "must_show": [
+   "Exactly the included quadrilateral (0,0), (2,0), (8/3,4/3), (0,12/5).",
+   "Boundaries include 2x + 5y = 12 and 2x - y = 4.",
+   "Corner P values respectively 0, 6, 32/3, 24/5.",
+   "Unique maximum 32/3 at (8/3,4/3).",
+   "A and C feasible; B infeasible."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "2x + 5y = 12",
+   "2x - y = 4",
+   "(0,0)",
+   "(2,0)",
+   "(8/3,4/3)",
+   "(0,12/5)",
+   "P = 3x + 2y",
+   "0",
+   "6",
+   "32/3",
+   "24/5",
+   "A",
+   "B",
+   "C"
+  ],
+  "must_not_show": [
+   "Wrong inequality reversal after negative scaling.",
+   "Including (3,1) in the common region.",
+   "Omitting the boundary corner (2,0).",
+   "More than one maximiser."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Equivalent constraints: 2x + 5y <= 12 and 2x - y <= 4",
+   "P(0,0)=0; P(2,0)=6; P(8/3,4/3)=32/3; P(0,12/5)=24/5",
+   "Unique maximum 32/3 at (8/3,4/3)",
+   "A: true; B: false; C: true"
+  ],
+  "notes": "CBSE class 12 linear programming; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

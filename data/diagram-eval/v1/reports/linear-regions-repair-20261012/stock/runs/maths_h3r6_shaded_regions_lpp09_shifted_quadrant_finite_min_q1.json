@@ -1,0 +1,1432 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+ "topicId": "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:04:00.314Z",
+ "timings": {
+  "planMs": 24817,
+  "teachMs": 0,
+  "totalMs": 24818,
+  "figureCommitMs": 24818,
+  "stages": {
+   "turnPlanMs": 5112,
+   "problemIrMs": 5250,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 14305,
+   "deadlineRemainingMs": 35330,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a",
+    "symbol": "a",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "Z = 3x + 4y"
+   },
+   {
+    "id": "b",
+    "symbol": "b",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "Z = 3x + 4y"
+   },
+   {
+    "id": "xmin",
+    "symbol": "x_min",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "x >= 1"
+   },
+   {
+    "id": "ymin",
+    "symbol": "y_min",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "y >= 2"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "xstar",
+    "symbol": "x*"
+   },
+   {
+    "id": "ystar",
+    "symbol": "y*"
+   },
+   {
+    "id": "zmin",
+    "symbol": "Z_min"
+   }
+  ],
+  "derived": [
+   {
+    "id": "xstar",
+    "symbol": "x*",
+    "value": 1
+   },
+   {
+    "id": "ystar",
+    "symbol": "y*",
+    "value": 2
+   },
+   {
+    "id": "zmin",
+    "symbol": "Z_min",
+    "value": 11
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "region",
+    "expected": "Draw the lines x = 1 and y = 2 as solid boundaries; shade their intersection x ≥ 1, y ≥ 2 and label the corner (1, 2)."
+   },
+   {
+    "id": "minimum",
+    "expected": "The minimum is 11 at (1, 2)."
+   }
+  ],
+  "lawIds": [
+   "linear-programming-feasible-intersection",
+   "positive-coefficient-monotonicity"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eX",
+     "valueType": "function",
+     "root": {
+      "kind": "variable",
+      "name": "x"
+     },
+     "evidenceFactIds": [
+      "fXBound"
+     ]
+    },
+    {
+     "id": "eXLimit",
+     "valueType": "scalar",
+     "root": {
+      "kind": "number",
+      "value": 1
+     },
+     "evidenceFactIds": [
+      "fXBound"
+     ]
+    },
+    {
+     "id": "eY",
+     "valueType": "function",
+     "root": {
+      "kind": "variable",
+      "name": "y"
+     },
+     "evidenceFactIds": [
+      "fYBound"
+     ]
+    },
+    {
+     "id": "eYLimit",
+     "valueType": "scalar",
+     "root": {
+      "kind": "number",
+      "value": 2
+     },
+     "evidenceFactIds": [
+      "fYBound"
+     ]
+    },
+    {
+     "id": "eMinimum",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fObjective",
+      "fXBound",
+      "fYBound"
+     ]
+    }
+   ],
+   "constraints": [
+    {
+     "id": "cX",
+     "kind": "inequality",
+     "leftExpressionId": "eX",
+     "rightExpressionId": "eXLimit",
+     "relation": ">=",
+     "evidenceFactIds": [
+      "fXBound"
+     ]
+    },
+    {
+     "id": "cY",
+     "kind": "inequality",
+     "leftExpressionId": "eY",
+     "rightExpressionId": "eYLimit",
+     "relation": ">=",
+     "evidenceFactIds": [
+      "fYBound"
+     ]
+    }
+   ],
+   "representationIntents": [
+    {
+     "id": "iRegion",
+     "kind": "bounded_region",
+     "entityIds": [
+      "feasibleRegion",
+      "xBoundary",
+      "yBoundary",
+      "corner"
+     ],
+     "evidenceFactIds": [
+      "fRegion",
+      "fXBound",
+      "fYBound",
+      "fCorner"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sX",
+     "quantityId": "xstar",
+     "symbol": "x*",
+     "approximate": 1,
+     "exact": {
+      "kind": "integer",
+      "value": "1"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sY",
+     "quantityId": "ystar",
+     "symbol": "y*",
+     "approximate": 2,
+     "exact": {
+      "kind": "integer",
+      "value": "2"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sZ",
+     "quantityId": "zmin",
+     "symbol": "Z_min",
+     "approximate": 11,
+     "exact": {
+      "kind": "integer",
+      "value": "11"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "4c6444c77da1c8ab03f29f8fc4f1a5da13f6a3927b712c726f128dbe442dd0b7",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sX",
+      "quantityId": "xstar",
+      "symbol": "x*",
+      "approximate": 1,
+      "exact": {
+       "kind": "integer",
+       "value": "1"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sY",
+      "quantityId": "ystar",
+      "symbol": "y*",
+      "approximate": 2,
+      "exact": {
+       "kind": "integer",
+       "value": "2"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sZ",
+      "quantityId": "zmin",
+      "symbol": "Z_min",
+      "approximate": 11,
+      "exact": {
+       "kind": "integer",
+       "value": "11"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "a",
+      "value": 3,
+      "sourceText": "Z = 3x + 4y",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "b",
+      "value": 4,
+      "sourceText": "Z = 3x + 4y",
+      "provenance": "given"
+     },
+     {
+      "id": "xmin",
+      "symbol": "x_min",
+      "value": 1,
+      "sourceText": "x >= 1",
+      "provenance": "given"
+     },
+     {
+      "id": "ymin",
+      "symbol": "y_min",
+      "value": 2,
+      "sourceText": "y >= 2",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "xstar",
+      "symbol": "x*"
+     },
+     {
+      "id": "ystar",
+      "symbol": "y*"
+     },
+     {
+      "id": "zmin",
+      "symbol": "Z_min"
+     }
+    ],
+    "derived": [
+     {
+      "id": "xstar",
+      "symbol": "x*",
+      "value": 1,
+      "sourceText": "At the corner, x = 1.",
+      "provenance": "derived",
+      "dependsOn": [
+       "xmin"
+      ]
+     },
+     {
+      "id": "ystar",
+      "symbol": "y*",
+      "value": 2,
+      "sourceText": "At the corner, y = 2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "ymin"
+      ]
+     },
+     {
+      "id": "zmin",
+      "symbol": "Z_min",
+      "value": 11,
+      "sourceText": "Z_min = 3(1) + 4(2) = 11.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "xstar",
+       "ystar"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "region",
+      "claim": "The feasible region includes its boundary and extends without bound to the right and upward from the exact corner (1, 2).",
+      "expected": "Draw the lines x = 1 and y = 2 as solid boundaries; shade their intersection x ≥ 1, y ≥ 2 and label the corner (1, 2).",
+      "relatedQuantityIds": [
+       "xmin",
+       "ymin",
+       "xstar",
+       "ystar"
+      ]
+     },
+     {
+      "id": "minimum",
+      "claim": "Unboundedness does not prevent a finite minimum: increasing either coordinate from its lower bound cannot decrease Z.",
+      "expected": "The minimum is 11 at (1, 2).",
+      "relatedQuantityIds": [
+       "a",
+       "b",
+       "xstar",
+       "ystar",
+       "zmin"
+      ]
+     }
+    ],
+    "lawIds": [
+     "linear-programming-feasible-intersection",
+     "positive-coefficient-monotonicity"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.",
+    "facts": [
+     {
+      "id": "fObjective",
+      "kind": "given",
+      "statement": "Objective is Z = 3x + 4y",
+      "evidence": {
+       "source": "question",
+       "start": 9,
+       "end": 20,
+       "quote": "Z = 3x + 4y"
+      }
+     },
+     {
+      "id": "fXBound",
+      "kind": "given",
+      "statement": "x is at least 1",
+      "evidence": {
+       "source": "question",
+       "start": 32,
+       "end": 38,
+       "quote": "x >= 1"
+      }
+     },
+     {
+      "id": "fYBound",
+      "kind": "given",
+      "statement": "y is at least 2",
+      "evidence": {
+       "source": "question",
+       "start": 43,
+       "end": 49,
+       "quote": "y >= 2"
+      }
+     },
+     {
+      "id": "fMin",
+      "kind": "requested",
+      "statement": "Minimize Z",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 10,
+       "quote": "Minimize Z"
+      }
+     },
+     {
+      "id": "fRegion",
+      "kind": "requested",
+      "statement": "Draw the feasible region",
+      "evidence": {
+       "source": "question",
+       "start": 51,
+       "end": 75,
+       "quote": "Draw the feasible region"
+      }
+     },
+     {
+      "id": "fCorner",
+      "kind": "requested",
+      "statement": "Find the exact corner",
+      "evidence": {
+       "source": "question",
+       "start": 80,
+       "end": 96,
+       "quote": "its exact corner"
+      }
+     },
+     {
+      "id": "fFinite",
+      "kind": "requested",
+      "statement": "Decide whether unboundedness prevents a finite minimum",
+      "evidence": {
+       "source": "question",
+       "start": 102,
+       "end": 160,
+       "quote": "decide whether its unboundedness prevents a finite minimum"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "feasibleRegion",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fXBound",
+       "fYBound",
+       "fRegion"
+      ]
+     },
+     {
+      "id": "corner",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fXBound",
+       "fYBound",
+       "fCorner"
+      ]
+     },
+     {
+      "id": "xBoundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fXBound"
+      ]
+     },
+     {
+      "id": "yBoundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fYBound"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eX",
+      "valueType": "function",
+      "root": {
+       "kind": "variable",
+       "name": "x"
+      },
+      "evidenceFactIds": [
+       "fXBound"
+      ]
+     },
+     {
+      "id": "eXLimit",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 1
+      },
+      "evidenceFactIds": [
+       "fXBound"
+      ]
+     },
+     {
+      "id": "eY",
+      "valueType": "function",
+      "root": {
+       "kind": "variable",
+       "name": "y"
+      },
+      "evidenceFactIds": [
+       "fYBound"
+      ]
+     },
+     {
+      "id": "eYLimit",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 2
+      },
+      "evidenceFactIds": [
+       "fYBound"
+      ]
+     },
+     {
+      "id": "eMinimum",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fObjective",
+       "fXBound",
+       "fYBound"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cX",
+      "kind": "inequality",
+      "leftExpressionId": "eX",
+      "rightExpressionId": "eXLimit",
+      "relation": ">=",
+      "evidenceFactIds": [
+       "fXBound"
+      ]
+     },
+     {
+      "id": "cY",
+      "kind": "inequality",
+      "leftExpressionId": "eY",
+      "rightExpressionId": "eYLimit",
+      "relation": ">=",
+      "evidenceFactIds": [
+       "fYBound"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "feasibleRegion",
+       "xBoundary",
+       "yBoundary",
+       "corner"
+      ],
+      "evidenceFactIds": [
+       "fRegion",
+       "fXBound",
+       "fYBound",
+       "fCorner"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sX",
+      "kind": "evaluate",
+      "expressionId": "eXLimit",
+      "resultBinding": {
+       "turnPlanQuantityId": "xstar",
+       "symbol": "x*",
+       "evidenceFactIds": [
+        "fCorner"
+       ]
+      }
+     },
+     {
+      "id": "sY",
+      "kind": "evaluate",
+      "expressionId": "eYLimit",
+      "resultBinding": {
+       "turnPlanQuantityId": "ystar",
+       "symbol": "y*",
+       "evidenceFactIds": [
+        "fCorner"
+       ]
+      }
+     },
+     {
+      "id": "sZ",
+      "kind": "evaluate",
+      "expressionId": "eMinimum",
+      "resultBinding": {
+       "turnPlanQuantityId": "zmin",
+       "symbol": "Z_min",
+       "evidenceFactIds": [
+        "fMin"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sX",
+      "requestId": "sX",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "1"
+      },
+      "approximate": 1,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sY",
+      "requestId": "sY",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "2"
+      },
+      "approximate": 2,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sZ",
+      "requestId": "sZ",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "11"
+      },
+      "approximate": 11,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sX",
+      "requestId": "sX",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eXLimit"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sY",
+      "requestId": "sY",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eYLimit"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sZ",
+      "requestId": "sZ",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eMinimum"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 35507,
+  "outputTokens": 5607,
+  "totalTokens": 41114,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.124145,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 698,
+    "outputTokens": 603,
+    "totalTokens": 1301,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007426,
+    "measuredCostUsd": 0.007426,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 637,
+    "outputTokens": 652,
+    "totalTokens": 1289,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007794,
+    "measuredCostUsd": 0.007794,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5493,
+    "outputTokens": 81,
+    "totalTokens": 5574,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011796,
+    "measuredCostUsd": 0.011796,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2150,
+    "outputTokens": 757,
+    "totalTokens": 2907,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.008931,
+    "measuredCostUsd": 0.008931,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6412,
+    "outputTokens": 1130,
+    "totalTokens": 7542,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.024124,
+    "measuredCostUsd": 0.024124,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6412,
+    "outputTokens": 1295,
+    "totalTokens": 7707,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.025774,
+    "measuredCostUsd": 0.025774,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6848,
+    "outputTokens": 462,
+    "totalTokens": 7310,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.018316,
+    "measuredCostUsd": 0.018316,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6857,
+    "outputTokens": 627,
+    "totalTokens": 7484,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.019984,
+    "measuredCostUsd": 0.019984,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.124145
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "ead3a5df7c743ddd717a52e502028cc1b0b43ce90742fcc42bab3b703980dce0",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "feasible"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "5f206ca20786cf217a8cf479d111f7a1ce364e85f979cd775daeeece704154b7",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "feasible"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":0,\"xMax\":5,\"yMin\":0,\"yMax\":6}",
+    "argumentsPresent": true,
+    "argumentBytes": 37,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeFeasible",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x >= 1\",\"y >= 2\"],\"objective\":{\"expression\":\"3x + 4y\",\"sense\":\"min\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 108,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeCorner",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"xstar\",\"y\":\"ystar\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 51,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "make_axes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":0,\"xMax\":5,\"yMin\":0,\"yMax\":6}",
+    "argumentsPresent": true,
+    "argumentBytes": 37,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "make_feasible",
+    "operator": "linear_feasible_region",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"constraints\":[\"x >= 1\",\"y >= 2\"],\"objective\":{\"expression\":\"3x + 4y\",\"sense\":\"min\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 108,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "make_corner",
+    "operator": "point",
+    "rawArguments": "{\"x\":1,\"y\":2,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_feasible_region",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "x=1",
+   "y=2",
+   "(1, 2)",
+   "Feasible region: unbounded",
+   "Minimize 3x + 4y",
+   "(1, 2): 11",
+   "Minimum = 11"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 16,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 22832,
+    "elapsedMs": 8412,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 22843,
+    "elapsedMs": 10283,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 24909,
+    "elapsedMs": 5013,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 24948,
+    "elapsedMs": 5712,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequalities determine an exact feasible region and corner.\"\n  },\n  \"source\": {\n    \"question\": \"Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"a\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"b\", \"symbol\": \"b\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"xmin\", \"symbol\": \"x_min\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"ymin\", \"symbol\": \"y_min\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"xstar\", \"symbol\": \"x*\", \"value\": 1, \"provenance\": \"derived\", \"dependsOn\": [\"xmin\"]},\n    {\"id\": \"ystar\", \"symbol\": \"y*\", \"value\": 2, \"provenance\": \"derived\", \"dependsOn\": [\"ymin\"]},\n    {\"id\": \"zmin\", \"symbol\": \"Z_min\", \"value\": 11, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"xstar\", \"ystar\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"feasible\", \"kind\": \"linear_region\", \"role\": \"feasible region, including both boundaries\"},\n    {\"id\": \"corner\", \"kind\": \"point\", \"role\": \"exact lower corner\", \"label\": \"(1, 2)\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeAxes\",\n      \"operator\": \"axes\",\n      \"inputs\": {\"xMin\": 0, \"xMax\": 5, \"yMin\": 0, \"yMax\": 6},\n      \"outputs\": [\"axes\"]\n    },\n    {\n      \"id\": \"makeFeasible\",\n      \"operator\": \"linear_feasible_region\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"constraints\": [\"x >= 1\", \"y >= 2\"],\n        \"objective\": {\"expression\": \"3x + 4y\", \"sense\": \"min\"}\n      },\n      \"outputs\": [\"feasible\"]\n    },\n    {\n      \"id\": \"makeCorner\",\n      \"operator\": \"point\",\n      \"inputs\": {\"x\": \"xstar\", \"y\": \"ystar\", \"coordinateSpace\": \"world\"},\n      \"outputs\": [\"corner\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\", \"feasible\", \"corner\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"feasible\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"The solid boundaries x = 1 and y = 2 are included; their intersection extends without bound rightward and upward.\"\n    },\n    {\n      \"id\": \"result\",\n      \"entityIds\": [\"corner\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"At (1, 2), Z = 3(1) + 4(2) = 11. Both coefficients are positive, so increasing either coordinate cannot lower Z; unboundedness does not prevent this finite minimum.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"showResult\", \"revealGroupId\": \"result\"}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The exact constraints define an unbounded feasible region with a known corner.\"\n  },\n  \"source\": {\n    \"question\": \"Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"a\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"b\", \"symbol\": \"b\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"xmin\", \"symbol\": \"x_min\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"ymin\", \"symbol\": \"y_min\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"xstar\", \"symbol\": \"x*\", \"value\": 1, \"provenance\": \"derived\"},\n    {\"id\": \"ystar\", \"symbol\": \"y*\", \"value\": 2, \"provenance\": \"derived\"},\n    {\"id\": \"zmin\", \"symbol\": \"Z_min\", \"value\": 11, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"feasible\", \"kind\": \"linear_region\", \"role\": \"feasible region including both solid boundaries\"},\n    {\"id\": \"corner\", \"kind\": \"point\", \"role\": \"exact feasible corner\", \"label\": \"(1, 2)\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"make_axes\",\n      \"operator\": \"axes\",\n      \"inputs\": {\"xMin\": 0, \"xMax\": 5, \"yMin\": 0, \"yMax\": 6},\n      \"outputs\": [\"axes\"]\n    },\n    {\n      \"id\": \"make_feasible\",\n      \"operator\": \"linear_feasible_region\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"constraints\": [\"x >= 1\", \"y >= 2\"],\n        \"objective\": {\"expression\": \"3x + 4y\", \"sense\": \"min\"}\n      },\n      \"outputs\": [\"feasible\"]\n    },\n    {\n      \"id\": \"make_corner\",\n      \"operator\": \"point\",\n      \"inputs\": {\"x\": 1, \"y\": 2, \"coordinateSpace\": \"world\"},\n      \"outputs\": [\"corner\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\n      \"id\": \"minimum\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"corner\", \"feasible\"],\n      \"text\": \"The region extends right and upward without bound. Because both objective coefficients are positive, increasing either coordinate cannot lower Z; the finite minimum is 11 at (1, 2).\",\n      \"quantityId\": \"zmin\"\n    }\n  ],\n  \"requiredEntityIds\": [\"axes\", \"feasible\", \"corner\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"feasible\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Show the solid boundaries x = 1 and y = 2 and their feasible intersection.\"\n    },\n    {\n      \"id\": \"minimum_step\",\n      \"entityIds\": [\"corner\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"Mark the exact corner, then determine whether the objective has a finite minimum.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"show_setup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"show_minimum\", \"revealGroupId\": \"minimum_step\", \"annotationIds\": [\"minimum\"]}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Verified linear feasible region with engine-derived boundaries, corner, and minimum\"\n  },\n  \"source\": {\n    \"question\": \"Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"a\", \"value\": 3},\n    {\"id\": \"b\", \"symbol\": \"b\", \"value\": 4},\n    {\"id\": \"xmin\", \"symbol\": \"x_min\", \"value\": 1},\n    {\"id\": \"ymin\", \"symbol\": \"y_min\", \"value\": 2}\n  ],\n  \"entities\": [\n    {\"id\": \"feasible\", \"kind\": \"linear_region\", \"role\": \"feasible region, including its boundaries\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeFeasible\",\n      \"operator\": \"linear_feasible_region\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"constraints\": [\"x>=1\", \"y>=2\"],\n        \"objective\": {\"expression\": \"3x+4y\", \"sense\": \"min\"}\n      },\n      \"outputs\": [\"feasible\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"feasible\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"feasible\"], \"dependsOn\": []}\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The verified linear feasible-region operator draws the stated boundaries, region, exact corner, and objective result.\"\n  },\n  \"source\": {\n    \"question\": \"Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"a\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"b\", \"symbol\": \"b\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"xmin\", \"symbol\": \"x_min\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"ymin\", \"symbol\": \"y_min\", \"value\": 2, \"provenance\": \"given\"}\n  ],\n  \"entities\": [\n    {\"id\": \"feasible\", \"kind\": \"linear_region\", \"role\": \"verified feasible region, boundaries, corner, and objective\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeFeasible\",\n      \"operator\": \"linear_feasible_region\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"constraints\": [\"x>=1\", \"y>=2\"],\n        \"objective\": {\"expression\": \"3x+4y\", \"sense\": \"min\"}\n      },\n      \"outputs\": [\"feasible\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"feasible\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"feasible\"], \"dependsOn\": []}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\", \"narrationCue\": \"Show the inclusive boundaries and their unbounded intersection before evaluating the objective.\"},\n    {\"id\": \"explainMinimum\", \"revealGroupId\": \"setup\", \"narrationCue\": \"The exact corner is (1, 2). Both objective coefficients are positive, so moving right or upward cannot lower Z. The finite minimum is 11 at that corner.\"}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "4c6444c77da1c8ab03f29f8fc4f1a5da13f6a3927b712c726f128dbe442dd0b7",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0020930000000000002,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1904,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+  "topic_id": "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled axes",
+   "solid boundaries x = 1 and y = 2",
+   "their northeast common region shaded with unbounded continuation",
+   "the single corner (1, 2) marked"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "x = 1",
+   "y = 2",
+   "(1, 2)",
+   "Z = 11"
+  ],
+  "must_not_show": [
+   "the origin treated as feasible",
+   "a bounded rectangle with invented upper limits",
+   "the minimum asserted to be unbounded"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "The feasible region is unbounded and has one corner (1, 2).",
+   "Corner objective values: Z(1, 2) = 11.",
+   "The unique minimum is 11 at (1, 2)."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=lpp09; exam_scope=CBSE12; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

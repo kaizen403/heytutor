@@ -1,0 +1,683 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+ "topicId": "maths|h3r6-shaded-regions|nl07-empty-intersection",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Represent the common solution of 2(x - 1) > x + 3 and 4 - x >= 1 on a number line. State the solution set.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:01:43.348Z",
+ "timings": {
+  "planMs": 15567,
+  "teachMs": 0,
+  "totalMs": 15569,
+  "figureCommitMs": 15569,
+  "stages": {
+   "turnPlanMs": 5049,
+   "problemIrMs": 4270,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 6217,
+   "deadlineRemainingMs": 44461,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": false,
+  "givens": [],
+  "unknowns": [
+   {
+    "id": "solution",
+    "symbol": "S"
+   }
+  ],
+  "derived": [
+   {
+    "id": "lower",
+    "symbol": "a",
+    "value": 5
+   },
+   {
+    "id": "upper",
+    "symbol": "b",
+    "value": 3
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "intersection",
+    "expected": "S = ∅"
+   },
+   {
+    "id": "numberLine",
+    "expected": "No points represent the common solution."
+   }
+  ],
+  "lawIds": [
+   "inequality-equivalence",
+   "inequality-sign-reversal",
+   "intersection-of-solution-sets"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "123005df6184e294fd05c3f47dcbde625032e72a6acc4a225a692b8b606a9e27",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Represent the common solution of 2(x - 1) > x + 3 and 4 - x >= 1 on a number line. State the solution set.",
+    "visualRequirement": "required",
+    "givens": [],
+    "unknowns": [
+     {
+      "id": "solution",
+      "symbol": "S"
+     }
+    ],
+    "derived": [
+     {
+      "id": "lower",
+      "symbol": "a",
+      "value": 5,
+      "sourceText": "2(x - 1) > x + 3 simplifies to x > 5.",
+      "provenance": "derived"
+     },
+     {
+      "id": "upper",
+      "symbol": "b",
+      "value": 3,
+      "sourceText": "4 - x >= 1 simplifies to x <= 3.",
+      "provenance": "derived"
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "intersection",
+      "claim": "The two inequalities have no common solution.",
+      "expected": "S = ∅",
+      "relatedQuantityIds": [
+       "lower",
+       "upper",
+       "solution"
+      ]
+     },
+     {
+      "id": "numberLine",
+      "claim": "On a number line, x > 5 lies to the right of 5 with an open endpoint, while x <= 3 lies to the left of 3 with a closed endpoint. The regions do not overlap.",
+      "expected": "No points represent the common solution.",
+      "relatedQuantityIds": [
+       "lower",
+       "upper",
+       "solution"
+      ]
+     }
+    ],
+    "lawIds": [
+     "inequality-equivalence",
+     "inequality-sign-reversal",
+     "intersection-of-solution-sets"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Represent the common solution of 2(x - 1) > x + 3 and 4 - x >= 1 on a number line. State the solution set.",
+    "facts": [
+     {
+      "id": "fFirst",
+      "kind": "given",
+      "statement": "First inequality is 2(x - 1) > x + 3.",
+      "evidence": {
+       "source": "question",
+       "start": 33,
+       "end": 49,
+       "quote": "2(x - 1) > x + 3"
+      }
+     },
+     {
+      "id": "fSecond",
+      "kind": "given",
+      "statement": "Second inequality is 4 - x >= 1.",
+      "evidence": {
+       "source": "question",
+       "start": 54,
+       "end": 64,
+       "quote": "4 - x >= 1"
+      }
+     },
+     {
+      "id": "fLine",
+      "kind": "requested",
+      "statement": "Represent the common solution on a number line.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 82,
+       "quote": "Represent the common solution of 2(x - 1) > x + 3 and 4 - x >= 1 on a number line."
+      }
+     },
+     {
+      "id": "fSet",
+      "kind": "requested",
+      "statement": "State the solution set.",
+      "evidence": {
+       "source": "question",
+       "start": 83,
+       "end": 106,
+       "quote": "State the solution set."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine"
+      ]
+     },
+     {
+      "id": "commonSolution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fLine",
+       "fSet"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eFirstLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "variable",
+         "name": "x"
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "eFirstRight",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "variable",
+        "name": "x"
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "eSecondLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "variable",
+        "name": "x"
+       }
+      },
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     },
+     {
+      "id": "eSecondRight",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 1
+      },
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cFirst",
+      "kind": "inequality",
+      "leftExpressionId": "eFirstLeft",
+      "rightExpressionId": "eFirstRight",
+      "relation": ">",
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "cSecond",
+      "kind": "inequality",
+      "leftExpressionId": "eSecondLeft",
+      "rightExpressionId": "eSecondRight",
+      "relation": ">=",
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iLine",
+      "kind": "bounded_region",
+      "entityIds": [
+       "numberLine",
+       "commonSolution"
+      ],
+      "evidenceFactIds": [
+       "fFirst",
+       "fSecond",
+       "fLine"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 12388,
+  "outputTokens": 2055,
+  "totalTokens": 14443,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.042387,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 628,
+    "outputTokens": 373,
+    "totalTokens": 1001,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.004986,
+    "measuredCostUsd": 0.004986,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 689,
+    "outputTokens": 581,
+    "totalTokens": 1270,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007188,
+    "measuredCostUsd": 0.007188,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5394,
+    "outputTokens": 31,
+    "totalTokens": 5425,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011098,
+    "measuredCostUsd": 0.011098,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1888,
+    "outputTokens": 490,
+    "totalTokens": 2378,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.005737,
+    "measuredCostUsd": 0.005737,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 3789,
+    "outputTokens": 580,
+    "totalTokens": 4369,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.013378,
+    "measuredCostUsd": 0.013378,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.230328
+   }
+  ],
+  "knownUsageUsd": 0.042387
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "Solution: empty set"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 3,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 14333,
+    "elapsedMs": 5437,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 14322,
+    "elapsedMs": 6216,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Represent the common solution of 2(x - 1) > x + 3 and 4 - x >= 1 on a number line. State the solution set.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"lower\", \"symbol\": \"a\", \"value\": 5},\n    {\"id\": \"upper\", \"symbol\": \"b\", \"value\": 3}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"label\": \"S\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"common_solution\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\"inequality\": \"2(x - 1) > x + 3\"},\n            {\"inequality\": \"4 - x >= 1\"}\n          ]\n        }\n      },\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"solution\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "123005df6184e294fd05c3f47dcbde625032e72a6acc4a225a692b8b606a9e27",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1447,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+  "topic_id": "maths|h3r6-shaded-regions|nl07-empty-intersection",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "Represent the common solution of 2(x - 1) > x + 3 and 4 - x >= 1 on a number line. State the solution set.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "component rays x > 5 and x <= 3 distinguished on aligned number lines",
+   "the cutoff values 3 and 5 in increasing order",
+   "a final common-solution number line with no highlighted points"
+  ],
+  "must_label": [
+   "x",
+   "3",
+   "5",
+   "empty set"
+  ],
+  "must_not_show": [
+   "a highlighted segment between 3 and 5",
+   "a filled point offered as a common solution",
+   "the union offered as the intersection"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "The first inequality gives x > 5.",
+   "The second gives x <= 3.",
+   "The common solution is the empty set."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=nl07; exam_scope=CBSE11;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

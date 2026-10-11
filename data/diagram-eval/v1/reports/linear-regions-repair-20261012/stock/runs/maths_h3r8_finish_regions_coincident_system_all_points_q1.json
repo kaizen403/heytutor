@@ -1,0 +1,821 @@
+{
+ "probeId": "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+ "topicId": "maths|h3r8-finish-regions|coincident-system-all-points",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "hard",
+ "question": "For real x,y, consider L1: 3(x - 2y) + 4 = 2x - y + 9 and L2: -2x + 10y = -10. Graph both equations and label L1 and L2, even if they share the same geometric line. Mark P = (0,-1), Q = (5,0), R = (0,0), and identify which solve BOTH equations. State the full solution set and whether the system determines a unique x-coordinate.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:08:16.934Z",
+ "timings": {
+  "planMs": 22688,
+  "teachMs": 0,
+  "totalMs": 22697,
+  "figureCommitMs": 22697,
+  "stages": {
+   "turnPlanMs": 8401,
+   "problemIrMs": 4180,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 10083,
+   "deadlineRemainingMs": 37329,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "px",
+    "symbol": "x_P",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "px = 0"
+   },
+   {
+    "id": "py",
+    "symbol": "y_P",
+    "value": -1,
+    "provenance": "given",
+    "sourceText": "py = -1"
+   },
+   {
+    "id": "qx",
+    "symbol": "x_Q",
+    "value": 5,
+    "provenance": "given",
+    "sourceText": "qx = 5"
+   },
+   {
+    "id": "qy",
+    "symbol": "y_Q",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "qy = 0"
+   },
+   {
+    "id": "rx",
+    "symbol": "x_R",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "rx = 0"
+   },
+   {
+    "id": "ry",
+    "symbol": "y_R",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "ry = 0"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "x",
+    "symbol": "x"
+   },
+   {
+    "id": "y",
+    "symbol": "y"
+   }
+  ],
+  "derived": [],
+  "qualitativeClaims": [
+   {
+    "id": "same",
+    "expected": "L1 simplifies to x−5y=5. Dividing L2 by −2 gives x−5y=5."
+   },
+   {
+    "id": "points",
+    "expected": "P=(0,−1) and Q=(5,0) lie on both lines; R=(0,0) lies on neither."
+   },
+   {
+    "id": "solutions",
+    "expected": "{(x,y)∈ℝ² : x−5y=5} = {(5+5t,t) : t∈ℝ}."
+   },
+   {
+    "id": "unique",
+    "expected": "No. As t ranges over ℝ, x=5+5t takes infinitely many values."
+   }
+  ],
+  "lawIds": [
+   "equivalent-equations",
+   "substitution",
+   "linear-equation-graph"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "89d975d166e2b57c3bd731ce7f1b8c1cd971a1a505e4775519c7958618e7ffd1",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x,y, consider L1: 3(x - 2y) + 4 = 2x - y + 9 and L2: -2x + 10y = -10. Graph both equations and label L1 and L2, even if they share the same geometric line. Mark P = (0,-1), Q = (5,0), R = (0,0), and identify which solve BOTH equations. State the full solution set and whether the system determines a unique x-coordinate.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "px",
+      "symbol": "x_P",
+      "value": 0,
+      "sourceText": "px = 0",
+      "provenance": "given"
+     },
+     {
+      "id": "py",
+      "symbol": "y_P",
+      "value": -1,
+      "sourceText": "py = -1",
+      "provenance": "given"
+     },
+     {
+      "id": "qx",
+      "symbol": "x_Q",
+      "value": 5,
+      "sourceText": "qx = 5",
+      "provenance": "given"
+     },
+     {
+      "id": "qy",
+      "symbol": "y_Q",
+      "value": 0,
+      "sourceText": "qy = 0",
+      "provenance": "given"
+     },
+     {
+      "id": "rx",
+      "symbol": "x_R",
+      "value": 0,
+      "sourceText": "rx = 0",
+      "provenance": "given"
+     },
+     {
+      "id": "ry",
+      "symbol": "y_R",
+      "value": 0,
+      "sourceText": "ry = 0",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "x",
+      "symbol": "x"
+     },
+     {
+      "id": "y",
+      "symbol": "y"
+     }
+    ],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "same",
+      "claim": "L1 and L2 have the same graph; label that line with both names.",
+      "expected": "L1 simplifies to x−5y=5. Dividing L2 by −2 gives x−5y=5.",
+      "relatedQuantityIds": [
+       "x",
+       "y"
+      ]
+     },
+     {
+      "id": "points",
+      "claim": "Identify which marked points solve both equations.",
+      "expected": "P=(0,−1) and Q=(5,0) lie on both lines; R=(0,0) lies on neither.",
+      "relatedQuantityIds": [
+       "px",
+       "py",
+       "qx",
+       "qy",
+       "rx",
+       "ry"
+      ]
+     },
+     {
+      "id": "solutions",
+      "claim": "State the full solution set.",
+      "expected": "{(x,y)∈ℝ² : x−5y=5} = {(5+5t,t) : t∈ℝ}.",
+      "relatedQuantityIds": [
+       "x",
+       "y"
+      ]
+     },
+     {
+      "id": "unique",
+      "claim": "Determine whether the x-coordinate is unique.",
+      "expected": "No. As t ranges over ℝ, x=5+5t takes infinitely many values.",
+      "relatedQuantityIds": [
+       "x"
+      ]
+     }
+    ],
+    "lawIds": [
+     "equivalent-equations",
+     "substitution",
+     "linear-equation-graph"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x,y, consider L1: 3(x - 2y) + 4 = 2x - y + 9 and L2: -2x + 10y = -10. Graph both equations and label L1 and L2, even if they share the same geometric line. Mark P = (0,-1), Q = (5,0), R = (0,0), and identify which solve BOTH equations. State the full solution set and whether the system determines a unique x-coordinate.",
+    "facts": [
+     {
+      "id": "fDomain",
+      "kind": "given",
+      "statement": "x and y are real",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 12,
+       "quote": "For real x,y"
+      }
+     },
+     {
+      "id": "fL1",
+      "kind": "given",
+      "statement": "L1 has the stated equation",
+      "evidence": {
+       "source": "question",
+       "start": 23,
+       "end": 53,
+       "quote": "L1: 3(x - 2y) + 4 = 2x - y + 9"
+      }
+     },
+     {
+      "id": "fL2",
+      "kind": "given",
+      "statement": "L2 has the stated equation",
+      "evidence": {
+       "source": "question",
+       "start": 58,
+       "end": 77,
+       "quote": "L2: -2x + 10y = -10"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph and label both equations, even if coincident",
+      "evidence": {
+       "source": "question",
+       "start": 79,
+       "end": 164,
+       "quote": "Graph both equations and label L1 and L2, even if they share the same geometric line."
+      }
+     },
+     {
+      "id": "fP",
+      "kind": "given",
+      "statement": "P has coordinates (0,-1)",
+      "evidence": {
+       "source": "question",
+       "start": 170,
+       "end": 180,
+       "quote": "P = (0,-1)"
+      }
+     },
+     {
+      "id": "fQ",
+      "kind": "given",
+      "statement": "Q has coordinates (5,0)",
+      "evidence": {
+       "source": "question",
+       "start": 182,
+       "end": 191,
+       "quote": "Q = (5,0)"
+      }
+     },
+     {
+      "id": "fR",
+      "kind": "given",
+      "statement": "R has coordinates (0,0)",
+      "evidence": {
+       "source": "question",
+       "start": 193,
+       "end": 202,
+       "quote": "R = (0,0)"
+      }
+     },
+     {
+      "id": "fBoth",
+      "kind": "requested",
+      "statement": "Identify marked points solving both equations",
+      "evidence": {
+       "source": "question",
+       "start": 208,
+       "end": 243,
+       "quote": "identify which solve BOTH equations"
+      }
+     },
+     {
+      "id": "fSet",
+      "kind": "requested",
+      "statement": "State the full solution set",
+      "evidence": {
+       "source": "question",
+       "start": 245,
+       "end": 272,
+       "quote": "State the full solution set"
+      }
+     },
+     {
+      "id": "fUnique",
+      "kind": "requested",
+      "statement": "Determine whether the x-coordinate is unique",
+      "evidence": {
+       "source": "question",
+       "start": 277,
+       "end": 328,
+       "quote": "whether the system determines a unique x-coordinate"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "l1",
+      "kind": "line",
+      "label": "L1",
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "l2",
+      "kind": "line",
+      "label": "L2",
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fP"
+      ]
+     },
+     {
+      "id": "q",
+      "kind": "point",
+      "label": "Q",
+      "evidenceFactIds": [
+       "fQ"
+      ]
+     },
+     {
+      "id": "r",
+      "kind": "point",
+      "label": "R",
+      "evidenceFactIds": [
+       "fR"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "l1",
+       "l2",
+       "p",
+       "q",
+       "r"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fP",
+       "fQ",
+       "fR"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 6,
+  "inputTokens": 20605,
+  "outputTokens": 5222,
+  "totalTokens": 25827,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.090491,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 701,
+    "outputTokens": 751,
+    "totalTokens": 1452,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.008912,
+    "measuredCostUsd": 0.008912,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 762,
+    "outputTokens": 946,
+    "totalTokens": 1708,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010984,
+    "measuredCostUsd": 0.010984,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5557,
+    "outputTokens": 64,
+    "totalTokens": 5621,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011754,
+    "measuredCostUsd": 0.011754,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2245,
+    "outputTokens": 551,
+    "totalTokens": 2796,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.007061,
+    "measuredCostUsd": 0.007061,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5670,
+    "outputTokens": 1512,
+    "totalTokens": 7182,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02646,
+    "measuredCostUsd": 0.02646,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5670,
+    "outputTokens": 1398,
+    "totalTokens": 7068,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02532,
+    "measuredCostUsd": 0.02532,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.09049099999999999
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "planner",
+  "reason": "caller supplied a verified scene; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": null,
+  "entityIds": [
+   "axes",
+   "P",
+   "Q",
+   "R",
+   "commonLine"
+  ],
+  "focusableIds": [
+   "axes",
+   "P",
+   "Q",
+   "R",
+   "commonLine",
+   "setup"
+  ],
+  "labels": [
+   "P",
+   "Q",
+   "R"
+  ],
+  "annotations": [
+   "L1",
+   "L2"
+  ],
+  "renderedLabels": [
+   "P",
+   "Q",
+   "R",
+   "L1"
+  ],
+  "labelByEntity": {
+   "P": "P",
+   "Q": "Q",
+   "R": "R",
+   "commonLine": "L1"
+  },
+  "primitiveCount": 9,
+  "assertionCount": 6,
+  "candidateErrorCodes": [],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 20281,
+    "elapsedMs": 9976,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 20292,
+    "elapsedMs": 10048,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The given points determine the shared graph of both equations.\"\n  },\n  \"source\": {\n    \"question\": \"For real x,y, consider L1: 3(x - 2y) + 4 = 2x - y + 9 and L2: -2x + 10y = -10. Graph both equations and label L1 and L2, even if they share the same geometric line. Mark P = (0,-1), Q = (5,0), R = (0,0), and identify which solve BOTH equations. State the full solution set and whether the system determines a unique x-coordinate.\"\n  },\n  \"quantities\": [\n    {\"id\": \"px\", \"symbol\": \"x_P\", \"value\": 0},\n    {\"id\": \"py\", \"symbol\": \"y_P\", \"value\": -1},\n    {\"id\": \"qx\", \"symbol\": \"x_Q\", \"value\": 5},\n    {\"id\": \"qy\", \"symbol\": \"y_Q\", \"value\": 0},\n    {\"id\": \"rx\", \"symbol\": \"x_R\", \"value\": 0},\n    {\"id\": \"ry\", \"symbol\": \"y_R\", \"value\": 0},\n    {\"id\": \"x\", \"symbol\": \"x\"},\n    {\"id\": \"y\", \"symbol\": \"y\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"label\": \"Q\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"label\": \"R\"},\n    {\"id\": \"commonLine\", \"kind\": \"line\", \"role\": \"shared graph of L1 and L2\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -2, \"xMax\": 7, \"yMin\": -2, \"yMax\": 2}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": \"px\", \"y\": \"py\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"qx\", \"y\": \"qy\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"makeR\", \"operator\": \"point\", \"inputs\": {\"x\": \"rx\", \"y\": \"ry\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"makeCommonLine\", \"operator\": \"line\", \"inputs\": {\"start\": \"P\", \"end\": \"Q\"}, \"outputs\": [\"commonLine\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"pOnLine\", \"predicate\": \"on\", \"entities\": [\"P\", \"commonLine\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"qOnLine\", \"predicate\": \"on\", \"entities\": [\"Q\", \"commonLine\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"rOffLine\", \"predicate\": \"on\", \"entities\": [\"R\", \"commonLine\"], \"expected\": false, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"labelL1\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"L1\", \"placementIntent\": \"near one end\"},\n    {\"id\": \"labelL2\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"L2\", \"placementIntent\": \"near the other end\"},\n    {\"id\": \"solution\", \"kind\": \"narration\", \"targetIds\": [\"commonLine\", \"P\", \"Q\", \"R\"], \"text\": \"Both equations reduce to x−5y=5, so their graphs coincide. P and Q solve both; R solves neither. The full solution set is {(x,y)∈ℝ² : x−5y=5} = {(5+5t,t) : t∈ℝ}. The x-coordinate is not unique.\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"P\", \"Q\", \"R\", \"commonLine\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"P\", \"Q\", \"R\", \"commonLine\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Plot the three given points and label the shared line L1 and L2.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"explainSolution\", \"annotationIds\": [\"solution\"]}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated coordinates determine the marked points, and both equations have the same graph.\"\n  },\n  \"source\": {\n    \"question\": \"For real x,y, consider L1: 3(x - 2y) + 4 = 2x - y + 9 and L2: -2x + 10y = -10. Graph both equations and label L1 and L2, even if they share the same geometric line. Mark P = (0,-1), Q = (5,0), R = (0,0), and identify which solve BOTH equations. State the full solution set and whether the system determines a unique x-coordinate.\"\n  },\n  \"quantities\": [\n    {\"id\": \"px\", \"symbol\": \"x_P\", \"value\": 0},\n    {\"id\": \"py\", \"symbol\": \"y_P\", \"value\": -1},\n    {\"id\": \"qx\", \"symbol\": \"x_Q\", \"value\": 5},\n    {\"id\": \"qy\", \"symbol\": \"y_Q\", \"value\": 0},\n    {\"id\": \"rx\", \"symbol\": \"x_R\", \"value\": 0},\n    {\"id\": \"ry\", \"symbol\": \"y_R\", \"value\": 0}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"label\": \"Q\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"label\": \"R\"},\n    {\"id\": \"sharedLine\", \"kind\": \"line\", \"label\": \"L1, L2\", \"role\": \"shared graph of both equations\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 6, \"yMin\": -2, \"yMax\": 2}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": \"px\", \"y\": \"py\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"qx\", \"y\": \"qy\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"makeR\", \"operator\": \"point\", \"inputs\": {\"x\": \"rx\", \"y\": \"ry\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"makeSharedLine\", \"operator\": \"line\", \"inputs\": {\"start\": \"P\", \"end\": \"Q\"}, \"outputs\": [\"sharedLine\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"pOnBoth\", \"predicate\": \"on\", \"entities\": [\"P\", \"sharedLine\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"qOnBoth\", \"predicate\": \"on\", \"entities\": [\"Q\", \"sharedLine\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"rOnNeither\", \"predicate\": \"on\", \"entities\": [\"R\", \"sharedLine\"], \"expected\": false, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\n      \"id\": \"solutionExplanation\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"sharedLine\", \"P\", \"Q\", \"R\"],\n      \"text\": \"Both equations reduce to x−5y=5. P and Q solve both; R solves neither. The full solution set is {(x,y)∈ℝ² : x−5y=5} = {(5+5t,t) : t∈ℝ}. The x-coordinate is not unique.\"\n    }\n  ],\n  \"requiredEntityIds\": [\"axes\", \"P\", \"Q\", \"R\", \"sharedLine\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"P\", \"Q\", \"R\", \"sharedLine\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph the two equations as one line bearing both labels, and mark P, Q, and R.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "89d975d166e2b57c3bd731ce7f1b8c1cd971a1a505e4775519c7958618e7ffd1",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0021,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2036,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+  "topic_id": "maths|h3r8-finish-regions|coincident-system-all-points",
+  "subject": "maths",
+  "difficulty": "hard",
+  "ask_style": "exam_stem",
+  "question": "For real x,y, consider L1: 3(x - 2y) + 4 = 2x - y + 9 and L2: -2x + 10y = -10. Graph both equations and label L1 and L2, even if they share the same geometric line. Mark P = (0,-1), Q = (5,0), R = (0,0), and identify which solve BOTH equations. State the full solution set and whether the system determines a unique x-coordinate.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "linear_system",
+  "must_show": [
+   "Both equations coincide on the single geometric line x - 5y = 5.",
+   "P and Q solve both equations; R does not.",
+   "Infinitely many solutions, all points on that line; x is not unique."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "L1",
+   "L2",
+   "x - 5y = 5",
+   "P = (0,-1)",
+   "Q = (5,0)",
+   "R = (0,0)",
+   "infinitely many solutions",
+   "x not unique"
+  ],
+  "must_not_show": [
+   "Two separate parallel lines.",
+   "A unique solution at an intercept.",
+   "An empty solution set.",
+   "A shaded half-plane as the solution set."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Both equations reduce to x - 5y = 5",
+   "Solution set = {(t,(t-5)/5): t in R}",
+   "No unique x-coordinate",
+   "P: true; Q: true; R: false"
+  ],
+  "notes": "SAT linear systems; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

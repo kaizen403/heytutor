@@ -1,0 +1,1403 @@
+{
+ "probeId": "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+ "topicId": "maths|h3r8-finish-regions|horizontal-strict-half-plane",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "easy",
+ "question": "In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:06:46.234Z",
+ "timings": {
+  "planMs": 30296,
+  "teachMs": 0,
+  "totalMs": 30296,
+  "figureCommitMs": 30296,
+  "stages": {
+   "turnPlanMs": 6949,
+   "problemIrMs": 5378,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 17795,
+   "deadlineRemainingMs": 29873,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a",
+    "symbol": "a",
+    "value": -4,
+    "provenance": "given",
+    "sourceText": "-4(y + 1)"
+   },
+   {
+    "id": "b",
+    "symbol": "b",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "y + 1"
+   },
+   {
+    "id": "c",
+    "symbol": "c",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "2y"
+   },
+   {
+    "id": "d",
+    "symbol": "d",
+    "value": -10,
+    "provenance": "given",
+    "sourceText": "2y - 10"
+   },
+   {
+    "id": "px",
+    "symbol": "x_P",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "P = (0,1)"
+   },
+   {
+    "id": "py",
+    "symbol": "y_P",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "P = (0,1)"
+   },
+   {
+    "id": "qx",
+    "symbol": "x_Q",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "Q = (-2,0)"
+   },
+   {
+    "id": "qy",
+    "symbol": "y_Q",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "Q = (-2,0)"
+   },
+   {
+    "id": "rx",
+    "symbol": "x_R",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "R = (3,2)"
+   },
+   {
+    "id": "ry",
+    "symbol": "y_R",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "R = (3,2)"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "boundary",
+    "symbol": "y_boundary"
+   },
+   {
+    "id": "membership",
+    "symbol": "solution memberships"
+   }
+  ],
+  "derived": [
+   {
+    "id": "boundary",
+    "symbol": "y_boundary",
+    "value": 1
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "solution",
+    "expected": "y<1"
+   },
+   {
+    "id": "graph",
+    "expected": "Boundary excluded; shade below."
+   },
+   {
+    "id": "p",
+    "expected": "excluded"
+   },
+   {
+    "id": "q",
+    "expected": "included"
+   },
+   {
+    "id": "r",
+    "expected": "excluded"
+   }
+  ],
+  "lawIds": [
+   "distributive-property",
+   "addition-property-of-inequality",
+   "division-property-of-inequality",
+   "boundary-of-strict-inequality"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "151a7a78316526a81d6b9c843a3e8a39343147c0cf3b7bbe31ac424cf16d309f",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown membership has no explicit solver binding",
+      "quantityId": "membership"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sBoundary",
+      "quantityId": "boundary",
+      "symbol": "y_boundary",
+      "approximate": 1,
+      "exact": {
+       "kind": "integer",
+       "value": "1"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "a",
+      "value": -4,
+      "sourceText": "-4(y + 1)",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "b",
+      "value": 1,
+      "sourceText": "y + 1",
+      "provenance": "given"
+     },
+     {
+      "id": "c",
+      "symbol": "c",
+      "value": 2,
+      "sourceText": "2y",
+      "provenance": "given"
+     },
+     {
+      "id": "d",
+      "symbol": "d",
+      "value": -10,
+      "sourceText": "2y - 10",
+      "provenance": "given"
+     },
+     {
+      "id": "px",
+      "symbol": "x_P",
+      "value": 0,
+      "sourceText": "P = (0,1)",
+      "provenance": "given"
+     },
+     {
+      "id": "py",
+      "symbol": "y_P",
+      "value": 1,
+      "sourceText": "P = (0,1)",
+      "provenance": "given"
+     },
+     {
+      "id": "qx",
+      "symbol": "x_Q",
+      "value": -2,
+      "sourceText": "Q = (-2,0)",
+      "provenance": "given"
+     },
+     {
+      "id": "qy",
+      "symbol": "y_Q",
+      "value": 0,
+      "sourceText": "Q = (-2,0)",
+      "provenance": "given"
+     },
+     {
+      "id": "rx",
+      "symbol": "x_R",
+      "value": 3,
+      "sourceText": "R = (3,2)",
+      "provenance": "given"
+     },
+     {
+      "id": "ry",
+      "symbol": "y_R",
+      "value": 2,
+      "sourceText": "R = (3,2)",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "boundary",
+      "symbol": "y_boundary"
+     },
+     {
+      "id": "membership",
+      "symbol": "solution memberships"
+     }
+    ],
+    "derived": [
+     {
+      "id": "boundary",
+      "symbol": "y_boundary",
+      "value": 1,
+      "sourceText": "-4(y+1)=2y-10 implies 6=6y, so y=1.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "c",
+       "d"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "solution",
+      "claim": "The solution set is y<1, with no restriction on x.",
+      "expected": "y<1",
+      "relatedQuantityIds": [
+       "boundary"
+      ]
+     },
+     {
+      "id": "graph",
+      "claim": "Draw and label the horizontal boundary y=1 as a dashed line, and shade the half-plane below it.",
+      "expected": "Boundary excluded; shade below.",
+      "relatedQuantityIds": [
+       "boundary"
+      ]
+     },
+     {
+      "id": "p",
+      "claim": "Mark P=(0,1) on the boundary; P is not a solution.",
+      "expected": "excluded",
+      "relatedQuantityIds": [
+       "px",
+       "py",
+       "boundary"
+      ]
+     },
+     {
+      "id": "q",
+      "claim": "Mark Q=(-2,0) below the boundary; Q is a solution.",
+      "expected": "included",
+      "relatedQuantityIds": [
+       "qx",
+       "qy",
+       "boundary"
+      ]
+     },
+     {
+      "id": "r",
+      "claim": "Mark R=(3,2) above the boundary; R is not a solution.",
+      "expected": "excluded",
+      "relatedQuantityIds": [
+       "rx",
+       "ry",
+       "boundary"
+      ]
+     }
+    ],
+    "lawIds": [
+     "distributive-property",
+     "addition-property-of-inequality",
+     "division-property-of-inequality",
+     "boundary-of-strict-inequality"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The solution satisfies a strict inequality.",
+      "evidence": {
+       "source": "question",
+       "start": 28,
+       "end": 47,
+       "quote": "-4(y + 1) > 2y - 10"
+      }
+     },
+     {
+      "id": "fBoundary",
+      "kind": "requested",
+      "statement": "Draw and label the boundary.",
+      "evidence": {
+       "source": "question",
+       "start": 49,
+       "end": 76,
+       "quote": "Draw and label the boundary"
+      }
+     },
+     {
+      "id": "fShade",
+      "kind": "requested",
+      "statement": "Shade all solutions.",
+      "evidence": {
+       "source": "question",
+       "start": 78,
+       "end": 97,
+       "quote": "shade all solutions"
+      }
+     },
+     {
+      "id": "fP",
+      "kind": "given",
+      "statement": "P has coordinates (0,1).",
+      "evidence": {
+       "source": "question",
+       "start": 108,
+       "end": 117,
+       "quote": "P = (0,1)"
+      }
+     },
+     {
+      "id": "fQ",
+      "kind": "given",
+      "statement": "Q has coordinates (-2,0).",
+      "evidence": {
+       "source": "question",
+       "start": 119,
+       "end": 129,
+       "quote": "Q = (-2,0)"
+      }
+     },
+     {
+      "id": "fR",
+      "kind": "given",
+      "statement": "R has coordinates (3,2).",
+      "evidence": {
+       "source": "question",
+       "start": 131,
+       "end": 140,
+       "quote": "R = (3,2)"
+      }
+     },
+     {
+      "id": "fMembership",
+      "kind": "requested",
+      "statement": "Identify point membership.",
+      "evidence": {
+       "source": "question",
+       "start": 142,
+       "end": 164,
+       "quote": "identifying membership"
+      }
+     },
+     {
+      "id": "fX",
+      "kind": "given",
+      "statement": "The x-coordinate is unrestricted.",
+      "evidence": {
+       "source": "question",
+       "start": 166,
+       "end": 194,
+       "quote": "There is no constraint on x."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "boundaryLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIneq",
+       "fBoundary"
+      ]
+     },
+     {
+      "id": "solutionRegion",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq",
+       "fShade",
+       "fX"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fP"
+      ]
+     },
+     {
+      "id": "q",
+      "kind": "point",
+      "label": "Q",
+      "evidenceFactIds": [
+       "fQ"
+      ]
+     },
+     {
+      "id": "r",
+      "kind": "point",
+      "label": "R",
+      "evidenceFactIds": [
+       "fR"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "ineqLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 4
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "variable",
+         "name": "y"
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "ineqRight",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "variable",
+         "name": "y"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 10
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "boundaryValue",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 10
+        },
+        "right": {
+         "kind": "number",
+         "value": 4
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "solutionIneq",
+      "kind": "inequality",
+      "leftExpressionId": "ineqLeft",
+      "rightExpressionId": "ineqRight",
+      "relation": ">",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "boundaryLine",
+       "solutionRegion",
+       "p",
+       "q",
+       "r"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fBoundary",
+       "fShade",
+       "fP",
+       "fQ",
+       "fR",
+       "fMembership",
+       "fX"
+      ]
+     },
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "solutionRegion",
+       "boundaryLine"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fShade",
+       "fX"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sBoundary",
+      "kind": "evaluate",
+      "expressionId": "boundaryValue",
+      "resultBinding": {
+       "turnPlanQuantityId": "boundary",
+       "symbol": "y_boundary",
+       "evidenceFactIds": [
+        "fBoundary"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sBoundary",
+      "requestId": "sBoundary",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "1"
+      },
+      "approximate": 1,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sBoundary",
+      "requestId": "sBoundary",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "boundaryValue"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 7,
+  "inputTokens": 30897,
+  "outputTokens": 6211,
+  "totalTokens": 37108,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.120965,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 658,
+    "outputTokens": 803,
+    "totalTokens": 1461,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.009346,
+    "measuredCostUsd": 0.009346,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 719,
+    "outputTokens": 996,
+    "totalTokens": 1715,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011398,
+    "measuredCostUsd": 0.011398,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5550,
+    "outputTokens": 152,
+    "totalTokens": 5702,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01262,
+    "measuredCostUsd": 0.01262,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2325,
+    "outputTokens": 704,
+    "totalTokens": 3029,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.008751,
+    "measuredCostUsd": 0.008751,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7064,
+    "outputTokens": 1278,
+    "totalTokens": 8342,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.026908,
+    "measuredCostUsd": 0.026908,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7064,
+    "outputTokens": 1481,
+    "totalTokens": 8545,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.028938,
+    "measuredCostUsd": 0.028938,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7517,
+    "outputTokens": 797,
+    "totalTokens": 8314,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023004,
+    "measuredCostUsd": 0.023004,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.290772
+   }
+  ],
+  "knownUsageUsd": 0.12096499999999999
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "5450299f5504d2a48bbb3794b5cf2327e85fdeeb03fb1763c903fb61582094fc",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[4]",
+      "entityIds": [
+       "solutions"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "9dba7d4c27d23ffe3a332fbd06e5fc6b79c09280f997157c118c9661a6e25427",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[4]",
+      "entityIds": [
+       "solutions"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kax",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-3,\"xMax\":4,\"yMin\":-1,\"yMax\":3}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"px\",\"y\":\"py\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"qx\",\"y\":\"qy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"rx\",\"y\":\"ry\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kSolutions",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"-4(y + 1) > 2y - 10\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 58,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kax",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-3,\"xMax\":4,\"yMin\":-2,\"yMax\":3}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"px\",\"y\":\"py\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"qx\",\"y\":\"qy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"rx\",\"y\":\"ry\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kSolutions",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"inequality\":\"-4(y+1)>2y-10\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 30,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "-4(y + 1)=2y - 10",
+   "P",
+   "Q",
+   "R",
+   "-4(y + 1)>2y - 10",
+   "P=(0, 1) excluded",
+   "Q=(-2, 0) included",
+   "R=(3, 2) excluded",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 18,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch",
+   "invalid_linear_region"
+  ],
+  "candidateCount": 3,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 25294,
+    "elapsedMs": 10023,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 25283,
+    "elapsedMs": 10708,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 27354,
+    "elapsedMs": 6852,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 27393,
+    "elapsedMs": 7767,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\"schemaVersion\":\"scene-document/v2\",\"visualDecision\":{\"mode\":\"scene\",\"reason\":\"The given inequality defines a horizontal boundary and half-plane, with three stated points.\"},\"source\":{\"question\":\"In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.\"},\"quantities\":[{\"id\":\"a\",\"symbol\":\"a\",\"value\":-4,\"provenance\":\"given\"},{\"id\":\"b\",\"symbol\":\"b\",\"value\":1,\"provenance\":\"given\"},{\"id\":\"c\",\"symbol\":\"c\",\"value\":2,\"provenance\":\"given\"},{\"id\":\"d\",\"symbol\":\"d\",\"value\":-10,\"provenance\":\"given\"},{\"id\":\"px\",\"symbol\":\"x_P\",\"value\":0,\"provenance\":\"given\"},{\"id\":\"py\",\"symbol\":\"y_P\",\"value\":1,\"provenance\":\"given\"},{\"id\":\"qx\",\"symbol\":\"x_Q\",\"value\":-2,\"provenance\":\"given\"},{\"id\":\"qy\",\"symbol\":\"y_Q\",\"value\":0,\"provenance\":\"given\"},{\"id\":\"rx\",\"symbol\":\"x_R\",\"value\":3,\"provenance\":\"given\"},{\"id\":\"ry\",\"symbol\":\"y_R\",\"value\":2,\"provenance\":\"given\"},{\"id\":\"boundary\",\"symbol\":\"y_boundary\",\"value\":1,\"provenance\":\"derived\"}],\"entities\":[{\"id\":\"ax\",\"kind\":\"axes\",\"role\":\"real xy-plane\"},{\"id\":\"P\",\"kind\":\"point\",\"role\":\"given boundary point\",\"label\":\"P\"},{\"id\":\"Q\",\"kind\":\"point\",\"role\":\"given point below boundary\",\"label\":\"Q\"},{\"id\":\"R\",\"kind\":\"point\",\"role\":\"given point above boundary\",\"label\":\"R\"},{\"id\":\"solutions\",\"kind\":\"linear_region\",\"role\":\"solutions with excluded boundary and unrestricted x\"}],\"constructions\":[{\"id\":\"kax\",\"operator\":\"axes\",\"inputs\":{\"xMin\":-3,\"xMax\":4,\"yMin\":-1,\"yMax\":3},\"outputs\":[\"ax\"]},{\"id\":\"kP\",\"operator\":\"point\",\"inputs\":{\"x\":\"px\",\"y\":\"py\",\"coordinateSpace\":\"world\"},\"outputs\":[\"P\"]},{\"id\":\"kQ\",\"operator\":\"point\",\"inputs\":{\"x\":\"qx\",\"y\":\"qy\",\"coordinateSpace\":\"world\"},\"outputs\":[\"Q\"]},{\"id\":\"kR\",\"operator\":\"point\",\"inputs\":{\"x\":\"rx\",\"y\":\"ry\",\"coordinateSpace\":\"world\"},\"outputs\":[\"R\"]},{\"id\":\"kSolutions\",\"operator\":\"linear_half_plane\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"inequality\":\"-4(y + 1) > 2y - 10\"},\"outputs\":[\"solutions\"]}],\"relations\":[],\"assertions\":[],\"annotations\":[],\"requiredEntityIds\":[\"ax\",\"P\",\"Q\",\"R\",\"solutions\"],\"revealGroups\":[{\"id\":\"setup\",\"entityIds\":[\"ax\",\"P\",\"Q\",\"R\"],\"dependsOn\":[]},{\"id\":\"solution\",\"entityIds\":[\"solutions\"],\"dependsOn\":[\"setup\"]}],\"teachingTimeline\":[{\"id\":\"given\",\"revealGroupId\":\"setup\",\"narration\":\"Plot the three given points in the xy-plane.\"},{\"id\":\"boundaryStep\",\"revealGroupId\":\"solution\",\"narration\":\"The boundary is y=1. Draw it dashed because the inequality is strict, and shade y<1 for every x.\"},{\"id\":\"membershipStep\",\"revealGroupId\":\"solution\",\"narration\":\"P lies on the excluded boundary. Q is a solution; R is not.\"}]}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequality and point coordinates support a verified half-plane graph.\"\n  },\n  \"source\": {\n    \"question\": \"In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"a\", \"value\": -4},\n    {\"id\": \"b\", \"symbol\": \"b\", \"value\": 1},\n    {\"id\": \"c\", \"symbol\": \"c\", \"value\": 2},\n    {\"id\": \"d\", \"symbol\": \"d\", \"value\": -10},\n    {\"id\": \"px\", \"symbol\": \"x_P\", \"value\": 0},\n    {\"id\": \"py\", \"symbol\": \"y_P\", \"value\": 1},\n    {\"id\": \"qx\", \"symbol\": \"x_Q\", \"value\": -2},\n    {\"id\": \"qy\", \"symbol\": \"y_Q\", \"value\": 0},\n    {\"id\": \"rx\", \"symbol\": \"x_R\", \"value\": 3},\n    {\"id\": \"ry\", \"symbol\": \"y_R\", \"value\": 2},\n    {\"id\": \"boundary\", \"symbol\": \"y_boundary\", \"value\": 1}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"real xy-plane\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"given point on the boundary\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"role\": \"given point in the solution half-plane\", \"label\": \"Q\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"role\": \"given point outside the solution half-plane\", \"label\": \"R\"},\n    {\"id\": \"solutions\", \"kind\": \"polygon\", \"role\": \"shaded half-plane below the excluded dashed boundary\", \"label\": \"y = 1\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"kax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -3, \"xMax\": 4, \"yMin\": -2, \"yMax\": 3}, \"outputs\": [\"ax\"]},\n    {\"id\": \"kP\", \"operator\": \"point\", \"inputs\": {\"x\": \"px\", \"y\": \"py\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"kQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"qx\", \"y\": \"qy\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"kR\", \"operator\": \"point\", \"inputs\": {\"x\": \"rx\", \"y\": \"ry\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"kSolutions\", \"operator\": \"linear_half_plane\", \"inputs\": {\"inequality\": \"-4(y+1)>2y-10\"}, \"outputs\": [\"solutions\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"ax\", \"P\", \"Q\", \"R\", \"solutions\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\", \"P\", \"Q\", \"R\"], \"dependsOn\": [], \"narrationCue\": \"Plot the three given points before solving the inequality.\"},\n    {\"id\": \"solution\", \"entityIds\": [\"solutions\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"The boundary is y = 1 and is excluded, so draw it dashed. Shade y < 1 for every x. Q is included; P is on the excluded boundary, and R is above it, so neither P nor R is included.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"groupId\": \"setup\", \"action\": \"reveal\", \"targetIds\": [\"ax\", \"P\", \"Q\", \"R\"]},\n    {\"groupId\": \"solution\", \"action\": \"reveal\", \"targetIds\": [\"solutions\"]}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The linear inequality operator produces the excluded boundary and the solution half-plane from the original inequality.\"\n  },\n  \"source\": {\n    \"question\": \"In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.\"\n  },\n  \"quantities\": [\n    {\"id\":\"a\",\"symbol\":\"a\",\"value\":-4,\"provenance\":\"given\"},\n    {\"id\":\"b\",\"symbol\":\"b\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"c\",\"symbol\":\"c\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"d\",\"symbol\":\"d\",\"value\":-10,\"provenance\":\"given\"},\n    {\"id\":\"px\",\"symbol\":\"x_P\",\"value\":0,\"provenance\":\"given\"},\n    {\"id\":\"py\",\"symbol\":\"y_P\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"qx\",\"symbol\":\"x_Q\",\"value\":-2,\"provenance\":\"given\"},\n    {\"id\":\"qy\",\"symbol\":\"y_Q\",\"value\":0,\"provenance\":\"given\"},\n    {\"id\":\"rx\",\"symbol\":\"x_R\",\"value\":3,\"provenance\":\"given\"},\n    {\"id\":\"ry\",\"symbol\":\"y_R\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"boundary\",\"symbol\":\"y_boundary\",\"value\":1,\"provenance\":\"derived\"}\n  ],\n  \"entities\": [\n    {\"id\":\"solutions\",\"kind\":\"linear_region\",\"role\":\"solutions and excluded boundary\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\":\"kSolutions\",\n      \"operator\":\"linear_half_plane\",\n      \"inputs\":{\"variables\":[\"x\",\"y\"],\"inequality\":\"-4(y + 1) > 2y - 10\"},\n      \"outputs\":[\"solutions\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solutions\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"solutions\"],\"dependsOn\":[]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"setup\",\"revealGroupId\":\"setup\",\"narrationCue\":\"Graph the strict inequality. Its boundary is dashed, and all solutions lie below it; x is unrestricted.\"},\n    {\"id\":\"membership\",\"revealGroupId\":\"setup\",\"narrationCue\":\"P = (0,1) is on the excluded boundary; Q = (-2,0) is a solution; R = (3,2) is not a solution.\"}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "151a7a78316526a81d6b9c843a3e8a39343147c0cf3b7bbe31ac424cf16d309f",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002095,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2895,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+  "topic_id": "maths|h3r8-finish-regions|horizontal-strict-half-plane",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "topic_ask",
+  "question": "In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "half_plane",
+  "must_show": [
+   "Dashed horizontal boundary y = 1.",
+   "Shade the full half-plane y < 1, including points with negative x.",
+   "P is an excluded boundary point; Q is inside; R is outside."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "y = 1",
+   "1",
+   "P",
+   "Q",
+   "R"
+  ],
+  "must_not_show": [
+   "Solid boundary.",
+   "Vertical boundary.",
+   "Shading y > 1.",
+   "Restricting x to nonnegative values."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Equivalent inequality: y < 1",
+   "P: false; Q: true; R: false"
+  ],
+  "notes": "CBSE class 11 inequalities; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

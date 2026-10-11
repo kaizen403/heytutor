@@ -1,0 +1,1604 @@
+{
+ "probeId": "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+ "topicId": "maths|h3r8-finish-regions|negative-scale-half-plane",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "medium",
+ "question": "For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:06:15.568Z",
+ "timings": {
+  "planMs": 31087,
+  "teachMs": 0,
+  "totalMs": 31087,
+  "figureCommitMs": 31087,
+  "stages": {
+   "turnPlanMs": 6765,
+   "problemIrMs": 5572,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 18590,
+   "deadlineRemainingMs": 29070,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a",
+    "symbol": "a",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "-2(2x - y)"
+   },
+   {
+    "id": "b",
+    "symbol": "b",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "2x - y"
+   },
+   {
+    "id": "c",
+    "symbol": "c",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "3y - 9"
+   },
+   {
+    "id": "d",
+    "symbol": "d",
+    "value": 9,
+    "provenance": "given",
+    "sourceText": "3y - 9"
+   },
+   {
+    "id": "px",
+    "symbol": "x_P",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "P = (1,4)"
+   },
+   {
+    "id": "py",
+    "symbol": "y_P",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "P = (1,4)"
+   },
+   {
+    "id": "qx",
+    "symbol": "x_Q",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "Q = (2,2)"
+   },
+   {
+    "id": "qy",
+    "symbol": "y_Q",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "Q = (2,2)"
+   },
+   {
+    "id": "rx",
+    "symbol": "x_R",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "R = (2,1)"
+   },
+   {
+    "id": "ry",
+    "symbol": "y_R",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "R = (2,1)"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "xi",
+    "symbol": "x_intercept"
+   },
+   {
+    "id": "yi",
+    "symbol": "y_intercept"
+   }
+  ],
+  "derived": [
+   {
+    "id": "xi",
+    "symbol": "x_intercept",
+    "value": 2.25
+   },
+   {
+    "id": "yi",
+    "symbol": "y_intercept",
+    "value": 9
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "boundary",
+    "expected": "Draw the solid line y = 9 - 4x through (0, 9) and (2.25, 0)."
+   },
+   {
+    "id": "shade",
+    "expected": "Shade y ≤ 9 - 4x, on and below the boundary."
+   },
+   {
+    "id": "membership",
+    "expected": "P = (1,4) is inside since 4 ≤ 5; Q = (2,2) is outside since 2 > 1; R = (2,1) lies on the boundary since 1 = 1."
+   },
+   {
+    "id": "included",
+    "expected": "The boundary belongs to the set because the inequality includes equality."
+   }
+  ],
+  "lawIds": [
+   "distributive-property",
+   "equivalent-inequality-transformations",
+   "axis-intercept-substitution",
+   "point-substitution-test"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eXi",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 9
+      },
+      "right": {
+       "kind": "number",
+       "value": 4
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    },
+    {
+     "id": "eYi",
+     "valueType": "scalar",
+     "root": {
+      "kind": "number",
+      "value": 9
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    },
+    {
+     "id": "eY",
+     "valueType": "function",
+     "root": {
+      "kind": "binary",
+      "operator": "-",
+      "left": {
+       "kind": "number",
+       "value": 9
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "variable",
+        "name": "x"
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iGraph",
+     "kind": "graph",
+     "entityIds": [
+      "boundary",
+      "solution",
+      "xIntercept",
+      "yIntercept",
+      "p",
+      "q",
+      "r"
+     ],
+     "evidenceFactIds": [
+      "fGraph",
+      "fIntercepts",
+      "fShade",
+      "fP",
+      "fQ",
+      "fR",
+      "fMembership",
+      "fBoundarySet"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sXi",
+     "quantityId": "xi",
+     "symbol": "x_intercept",
+     "approximate": 2.25,
+     "exact": {
+      "kind": "rational",
+      "value": "9/4"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sYi",
+     "quantityId": "yi",
+     "symbol": "y_intercept",
+     "approximate": 9,
+     "exact": {
+      "kind": "integer",
+      "value": "9"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "32f0dd44d22f926b0124f638ad97bfe7baed3315abc8a5bf7c140f1839ade258",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sXi",
+      "quantityId": "xi",
+      "symbol": "x_intercept",
+      "approximate": 2.25,
+      "exact": {
+       "kind": "rational",
+       "value": "9/4"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sYi",
+      "quantityId": "yi",
+      "symbol": "y_intercept",
+      "approximate": 9,
+      "exact": {
+       "kind": "integer",
+       "value": "9"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "a",
+      "value": -2,
+      "sourceText": "-2(2x - y)",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "b",
+      "value": 2,
+      "sourceText": "2x - y",
+      "provenance": "given"
+     },
+     {
+      "id": "c",
+      "symbol": "c",
+      "value": 3,
+      "sourceText": "3y - 9",
+      "provenance": "given"
+     },
+     {
+      "id": "d",
+      "symbol": "d",
+      "value": 9,
+      "sourceText": "3y - 9",
+      "provenance": "given"
+     },
+     {
+      "id": "px",
+      "symbol": "x_P",
+      "value": 1,
+      "sourceText": "P = (1,4)",
+      "provenance": "given"
+     },
+     {
+      "id": "py",
+      "symbol": "y_P",
+      "value": 4,
+      "sourceText": "P = (1,4)",
+      "provenance": "given"
+     },
+     {
+      "id": "qx",
+      "symbol": "x_Q",
+      "value": 2,
+      "sourceText": "Q = (2,2)",
+      "provenance": "given"
+     },
+     {
+      "id": "qy",
+      "symbol": "y_Q",
+      "value": 2,
+      "sourceText": "Q = (2,2)",
+      "provenance": "given"
+     },
+     {
+      "id": "rx",
+      "symbol": "x_R",
+      "value": 2,
+      "sourceText": "R = (2,1)",
+      "provenance": "given"
+     },
+     {
+      "id": "ry",
+      "symbol": "y_R",
+      "value": 1,
+      "sourceText": "R = (2,1)",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "xi",
+      "symbol": "x_intercept"
+     },
+     {
+      "id": "yi",
+      "symbol": "y_intercept"
+     }
+    ],
+    "derived": [
+     {
+      "id": "xi",
+      "symbol": "x_intercept",
+      "value": 2.25,
+      "sourceText": "On y = 9 - 4x, set y = 0: x = 9/4 = 2.25.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "c",
+       "d"
+      ]
+     },
+     {
+      "id": "yi",
+      "symbol": "y_intercept",
+      "value": 9,
+      "sourceText": "On y = 9 - 4x, set x = 0: y = 9.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "c",
+       "d"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "boundary",
+      "claim": "Boundary",
+      "expected": "Draw the solid line y = 9 - 4x through (0, 9) and (2.25, 0).",
+      "relatedQuantityIds": [
+       "xi",
+       "yi"
+      ]
+     },
+     {
+      "id": "shade",
+      "claim": "Solution half-plane",
+      "expected": "Shade y ≤ 9 - 4x, on and below the boundary."
+     },
+     {
+      "id": "membership",
+      "claim": "Point membership",
+      "expected": "P = (1,4) is inside since 4 ≤ 5; Q = (2,2) is outside since 2 > 1; R = (2,1) lies on the boundary since 1 = 1.",
+      "relatedQuantityIds": [
+       "px",
+       "py",
+       "qx",
+       "qy",
+       "rx",
+       "ry"
+      ]
+     },
+     {
+      "id": "included",
+      "claim": "Boundary membership",
+      "expected": "The boundary belongs to the set because the inequality includes equality."
+     }
+    ],
+    "lawIds": [
+     "distributive-property",
+     "equivalent-inequality-transformations",
+     "axis-intercept-substitution",
+     "point-substitution-test"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.",
+    "facts": [
+     {
+      "id": "fDomain",
+      "kind": "given",
+      "statement": "x and y are real",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 16,
+       "quote": "For real x and y"
+      }
+     },
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The solution satisfies the stated inequality",
+      "evidence": {
+       "source": "question",
+       "start": 24,
+       "end": 44,
+       "quote": "-2(2x - y) >= 3y - 9"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph the inequality",
+      "evidence": {
+       "source": "question",
+       "start": 18,
+       "end": 44,
+       "quote": "graph -2(2x - y) >= 3y - 9"
+      }
+     },
+     {
+      "id": "fIntercepts",
+      "kind": "requested",
+      "statement": "Label the boundary and both intercepts",
+      "evidence": {
+       "source": "question",
+       "start": 46,
+       "end": 84,
+       "quote": "Label the boundary and both intercepts"
+      }
+     },
+     {
+      "id": "fShade",
+      "kind": "requested",
+      "statement": "Shade the solution half-plane",
+      "evidence": {
+       "source": "question",
+       "start": 86,
+       "end": 115,
+       "quote": "shade the solution half-plane"
+      }
+     },
+     {
+      "id": "fP",
+      "kind": "given",
+      "statement": "P has coordinates (1,4)",
+      "evidence": {
+       "source": "question",
+       "start": 122,
+       "end": 131,
+       "quote": "P = (1,4)"
+      }
+     },
+     {
+      "id": "fQ",
+      "kind": "given",
+      "statement": "Q has coordinates (2,2)",
+      "evidence": {
+       "source": "question",
+       "start": 133,
+       "end": 142,
+       "quote": "Q = (2,2)"
+      }
+     },
+     {
+      "id": "fR",
+      "kind": "given",
+      "statement": "R has coordinates (2,1)",
+      "evidence": {
+       "source": "question",
+       "start": 148,
+       "end": 157,
+       "quote": "R = (2,1)"
+      }
+     },
+     {
+      "id": "fMembership",
+      "kind": "requested",
+      "statement": "Classify the marked points' membership",
+      "evidence": {
+       "source": "question",
+       "start": 164,
+       "end": 189,
+       "quote": "classify their membership"
+      }
+     },
+     {
+      "id": "fBoundarySet",
+      "kind": "requested",
+      "statement": "Determine whether the boundary belongs to the set",
+      "evidence": {
+       "source": "question",
+       "start": 191,
+       "end": 235,
+       "quote": "Show whether the boundary belongs to the set"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "boundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIneq",
+       "fIntercepts"
+      ]
+     },
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq",
+       "fShade"
+      ]
+     },
+     {
+      "id": "xIntercept",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fIntercepts"
+      ]
+     },
+     {
+      "id": "yIntercept",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fIntercepts"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fP"
+      ]
+     },
+     {
+      "id": "q",
+      "kind": "point",
+      "label": "Q",
+      "evidenceFactIds": [
+       "fQ"
+      ]
+     },
+     {
+      "id": "r",
+      "kind": "point",
+      "label": "R",
+      "evidenceFactIds": [
+       "fR"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eXi",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 9
+       },
+       "right": {
+        "kind": "number",
+        "value": 4
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eYi",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 9
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eY",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 9
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "boundary",
+       "solution",
+       "xIntercept",
+       "yIntercept",
+       "p",
+       "q",
+       "r"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fIntercepts",
+       "fShade",
+       "fP",
+       "fQ",
+       "fR",
+       "fMembership",
+       "fBoundarySet"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sXi",
+      "kind": "evaluate",
+      "expressionId": "eXi",
+      "resultBinding": {
+       "turnPlanQuantityId": "xi",
+       "symbol": "x_intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     },
+     {
+      "id": "sYi",
+      "kind": "evaluate",
+      "expressionId": "eYi",
+      "resultBinding": {
+       "turnPlanQuantityId": "yi",
+       "symbol": "y_intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sXi",
+      "requestId": "sXi",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "9/4"
+      },
+      "approximate": 2.25,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sYi",
+      "requestId": "sYi",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "9"
+      },
+      "approximate": 9,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sXi",
+      "requestId": "sXi",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eXi"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sYi",
+      "requestId": "sYi",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eYi"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 7,
+  "inputTokens": 31313,
+  "outputTokens": 7040,
+  "totalTokens": 38353,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.130087,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 667,
+    "outputTokens": 976,
+    "totalTokens": 1643,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011094,
+    "measuredCostUsd": 0.011094,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 728,
+    "outputTokens": 929,
+    "totalTokens": 1657,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010746,
+    "measuredCostUsd": 0.010746,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5610,
+    "outputTokens": 84,
+    "totalTokens": 5694,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01206,
+    "measuredCostUsd": 0.01206,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2400,
+    "outputTokens": 782,
+    "totalTokens": 3182,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.009681,
+    "measuredCostUsd": 0.009681,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7139,
+    "outputTokens": 1689,
+    "totalTokens": 8828,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.031168,
+    "measuredCostUsd": 0.031168,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7139,
+    "outputTokens": 1829,
+    "totalTokens": 8968,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.032568,
+    "measuredCostUsd": 0.032568,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7630,
+    "outputTokens": 751,
+    "totalTokens": 8381,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02277,
+    "measuredCostUsd": 0.02277,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.291764
+   }
+  ],
+  "knownUsageUsd": 0.130087
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "aeab09deff9bdc936d95a0c1719f86d1c73c10b1ed69b21ee8a2c46ddc02c7b3",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "94d0e678b977c9e9ffafe89c85617ba465ba53058be90a426b0f0288f2d712e6",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-1,\"xMax\":4,\"yMin\":-1,\"yMax\":11}",
+    "argumentsPresent": true,
+    "argumentBytes": 40,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"-2*(2*x-y)>=3*y-9\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 56,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"px\",\"y\":\"py\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"qx\",\"y\":\"qy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "makeR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"rx\",\"y\":\"ry\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "makeX",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"xi\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 6,
+    "constructionId": "makeY",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":\"yi\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "kSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"-2*(2*x-y)>=3*y-9\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 56,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "kP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"px\",\"y\":\"py\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "kQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"qx\",\"y\":\"qy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "kR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"rx\",\"y\":\"ry\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "kX",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"xi\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "kY",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":\"yi\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "-2(2x - y)=3y - 9",
+   "P",
+   "Q",
+   "R",
+   "-2(2x - y)>=3y - 9",
+   "P=(1, 4) included",
+   "Q=(2, 2) excluded",
+   "R=(2, 1) included",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 18,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch"
+  ],
+  "candidateCount": 3,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 25350,
+    "elapsedMs": 11479,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 25361,
+    "elapsedMs": 11679,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 27560,
+    "elapsedMs": 6183,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 27599,
+    "elapsedMs": 7107,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequality and point coordinates determine the half-plane, boundary, intercepts, and membership.\"\n  },\n  \"source\": {\n    \"question\": \"For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.\",\n    \"representationTier\": \"quantitative_verified\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"a\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"b\", \"symbol\": \"b\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"c\", \"symbol\": \"c\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"d\", \"symbol\": \"d\", \"value\": 9, \"provenance\": \"given\"},\n    {\"id\": \"px\", \"symbol\": \"x_P\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"py\", \"symbol\": \"y_P\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"qx\", \"symbol\": \"x_Q\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"qy\", \"symbol\": \"y_Q\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"rx\", \"symbol\": \"x_R\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"ry\", \"symbol\": \"y_R\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"xi\", \"symbol\": \"x_intercept\", \"value\": 2.25, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"c\", \"d\"]},\n    {\"id\": \"yi\", \"symbol\": \"y_intercept\", \"value\": 9, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"c\", \"d\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"shaded solution half-plane and included solid boundary\", \"label\": \"y = 9 − 4x\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"given point inside the solution\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"role\": \"given point outside the solution\", \"label\": \"Q\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"role\": \"given point on the included boundary\", \"label\": \"R\"},\n    {\"id\": \"X\", \"kind\": \"point\", \"role\": \"x-intercept\", \"label\": \"(2.25,0)\"},\n    {\"id\": \"Y\", \"kind\": \"point\", \"role\": \"y-intercept\", \"label\": \"(0,9)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 4, \"yMin\": -1, \"yMax\": 11}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeSolution\", \"operator\": \"linear_half_plane\", \"inputs\": {\"variables\": [\"x\", \"y\"], \"inequality\": \"-2*(2*x-y)>=3*y-9\"}, \"outputs\": [\"solution\"]},\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": \"px\", \"y\": \"py\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"qx\", \"y\": \"qy\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"makeR\", \"operator\": \"point\", \"inputs\": {\"x\": \"rx\", \"y\": \"ry\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"makeX\", \"operator\": \"point\", \"inputs\": {\"x\": \"xi\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"X\"]},\n    {\"id\": \"makeY\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": \"yi\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Y\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\", \"solution\", \"P\", \"Q\", \"R\", \"X\", \"Y\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"solution\", \"P\", \"Q\", \"R\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph the given inequality and mark P, Q, and R. Equality is included, so the boundary is solid.\"\n    },\n    {\n      \"id\": \"classification\",\n      \"entityIds\": [\"X\", \"Y\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"The intercepts are (2.25,0) and (0,9). P is inside, Q is outside, and R is on the included boundary.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequality determines an exact boundary and solution half-plane.\"\n  },\n  \"source\": {\n    \"question\": \"For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.\",\n    \"representationTier\": \"quantitative_verified\",\n    \"nonMetric\": false\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"a\", \"value\": -2, \"provenance\": \"given\", \"sourceText\": \"-2(2x - y)\"},\n    {\"id\": \"b\", \"symbol\": \"b\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"2x - y\"},\n    {\"id\": \"c\", \"symbol\": \"c\", \"value\": 3, \"provenance\": \"given\", \"sourceText\": \"3y - 9\"},\n    {\"id\": \"d\", \"symbol\": \"d\", \"value\": 9, \"provenance\": \"given\", \"sourceText\": \"3y - 9\"},\n    {\"id\": \"px\", \"symbol\": \"x_P\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"P = (1,4)\"},\n    {\"id\": \"py\", \"symbol\": \"y_P\", \"value\": 4, \"provenance\": \"given\", \"sourceText\": \"P = (1,4)\"},\n    {\"id\": \"qx\", \"symbol\": \"x_Q\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"Q = (2,2)\"},\n    {\"id\": \"qy\", \"symbol\": \"y_Q\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"Q = (2,2)\"},\n    {\"id\": \"rx\", \"symbol\": \"x_R\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"R = (2,1)\"},\n    {\"id\": \"ry\", \"symbol\": \"y_R\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"R = (2,1)\"},\n    {\"id\": \"xi\", \"symbol\": \"x_intercept\", \"value\": 2.25, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"c\", \"d\"], \"sourceText\": \"On y = 9 - 4x, set y = 0: x = 9/4 = 2.25.\"},\n    {\"id\": \"yi\", \"symbol\": \"y_intercept\", \"value\": 9, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"c\", \"d\"], \"sourceText\": \"On y = 9 - 4x, set x = 0: y = 9.\"}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"shaded solution half-plane with included boundary\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"given point\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"role\": \"given point\", \"label\": \"Q\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"role\": \"given point on the boundary\", \"label\": \"R\"},\n    {\"id\": \"X\", \"kind\": \"point\", \"role\": \"boundary x-intercept\", \"label\": \"(9/4, 0)\"},\n    {\"id\": \"Y\", \"kind\": \"point\", \"role\": \"boundary y-intercept\", \"label\": \"(0, 9)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"kSolution\", \"operator\": \"linear_half_plane\", \"inputs\": {\"variables\": [\"x\", \"y\"], \"inequality\": \"-2*(2*x-y)>=3*y-9\"}, \"outputs\": [\"solution\"]},\n    {\"id\": \"kP\", \"operator\": \"point\", \"inputs\": {\"x\": \"px\", \"y\": \"py\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"kQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"qx\", \"y\": \"qy\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"kR\", \"operator\": \"point\", \"inputs\": {\"x\": \"rx\", \"y\": \"ry\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"kX\", \"operator\": \"point\", \"inputs\": {\"x\": \"xi\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"X\"]},\n    {\"id\": \"kY\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": \"yi\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Y\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\", \"P\", \"Q\", \"R\", \"X\", \"Y\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"solution\", \"P\", \"Q\", \"R\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Shade the solution side of the solid boundary. P is inside, Q is outside, and R is on the included boundary.\"\n    },\n    {\n      \"id\": \"intercepts\",\n      \"entityIds\": [\"X\", \"Y\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"The boundary is y = 9 − 4x; its intercepts are (9/4, 0) and (0, 9).\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The verified linear half-plane operator draws the boundary, shading, intercepts, and source points.\"\n  },\n  \"source\": {\n    \"question\": \"For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.\"\n  },\n  \"quantities\": [\n    {\"id\":\"a\",\"symbol\":\"a\",\"value\":-2,\"provenance\":\"given\"},\n    {\"id\":\"b\",\"symbol\":\"b\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"c\",\"symbol\":\"c\",\"value\":3,\"provenance\":\"given\"},\n    {\"id\":\"d\",\"symbol\":\"d\",\"value\":9,\"provenance\":\"given\"},\n    {\"id\":\"px\",\"symbol\":\"x_P\",\"value\":1,\"provenance\":\"given\"},\n    {\"id\":\"py\",\"symbol\":\"y_P\",\"value\":4,\"provenance\":\"given\"},\n    {\"id\":\"qx\",\"symbol\":\"x_Q\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"qy\",\"symbol\":\"y_Q\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"rx\",\"symbol\":\"x_R\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"ry\",\"symbol\":\"y_R\",\"value\":1,\"provenance\":\"given\"}\n  ],\n  \"entities\": [\n    {\"id\":\"solution\",\"kind\":\"linear_region\",\"role\":\"verified solution half-plane, solid boundary, intercepts, and source points\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\":\"makeSolution\",\n      \"operator\":\"linear_half_plane\",\n      \"inputs\":{\"variables\":[\"x\",\"y\"],\"inequality\":\"-2(2x - y) >= 3y - 9\"},\n      \"outputs\":[\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"solution\"],\"dependsOn\":[],\"narrationCue\":\"Graph the original inequality with its solid boundary and shaded solution half-plane; label both intercepts and mark P, Q, and R.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"classify\",\"targetIds\":[\"solution\"],\"narrationCue\":\"The boundary is y = 9 − 4x. Its intercepts are (2.25, 0) and (0, 9). P is inside, Q is outside, and R is on the boundary. The boundary belongs to the set because equality is included.\"}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "32f0dd44d22f926b0124f638ad97bfe7baed3315abc8a5bf7c140f1839ade258",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1860,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+  "topic_id": "maths|h3r8-finish-regions|negative-scale-half-plane",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "half_plane",
+  "must_show": [
+   "Solid boundary 4x + y = 9 through (9/4,0) and (0,9).",
+   "Shade 4x + y <= 9.",
+   "P is inside, Q is outside, and R is included on the boundary."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "4x + y = 9",
+   "(9/4,0)",
+   "(0,9)",
+   "P = (1,4)",
+   "Q = (2,2)",
+   "R = (2,1)"
+  ],
+  "must_not_show": [
+   "Dashed excluded boundary.",
+   "Shading 4x + y >= 9.",
+   "Excluding R.",
+   "Boundary with positive slope."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Equivalent inequality: 4x + y <= 9",
+   "P: true; Q: false; R: true"
+  ],
+  "notes": "SAT inequalities; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

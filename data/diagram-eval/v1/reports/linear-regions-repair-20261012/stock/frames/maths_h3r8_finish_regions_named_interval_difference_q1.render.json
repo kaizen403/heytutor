@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_named_interval_difference_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_named_interval_difference_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "c9fb07d1e434f258cf161034d3e577e2c149ebed1e4ea10b012fd9f555cd1642",
+  "pngSha256": "59238d6c78552eb247117734b3ebc94e92cddb2d07ea546d8042521ad6dccf9f"
+}

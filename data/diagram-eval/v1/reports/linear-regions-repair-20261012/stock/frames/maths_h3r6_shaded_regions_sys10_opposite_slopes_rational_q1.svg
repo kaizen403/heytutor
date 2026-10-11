@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">The graphs y = (3/2)x + 4 and y = -(1/2)x + 10 cross at P. Show the graphs and find the exact coordinates of P</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_system tier=qualitative_verified labels=x | y | 0 | y=(3/2)x + 4 | y=-(1/2)x + 10 | (3, 17/2) | One solution</text>
+<line x1="434" y1="444.44" x2="1126" y2="444.44" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="603.61" y1="495.32" x2="603.61" y2="190.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1121.7" y="467.62" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="633.91" y="191.21" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="615.8911499999999" y="467.62" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="515.41,495.32 718.94,190.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="1112.43,495.32 501.84,190.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="511.7468782129151" y="349.84" font-size="18" dominant-baseline="hanging" textLength="66.99312178708497" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y=(3/2)x + 4</text>
+<text x="947.3438565803517" y="470.16" font-size="18" dominant-baseline="hanging" textLength="75.76614341964822" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y=-(1/2)x + 10</text>
+<circle cx="664.67" cy="271.44" r="4" fill="#141821"/>
+<text x="627.2003954140312" y="225.48481869954853" font-size="18" dominant-baseline="hanging" textLength="44.32453458273036" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(3, 17/2)</text>
+<text x="746.8116815698926" y="160.68" font-size="18" dominant-baseline="hanging" textLength="66.37663686021479" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">One solution</text>
+<polyline points="664.67,271.44 655.9900797033658,250.48481869954853" fill="none" stroke="#141821" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">For real x, draw the solution set S of (4x + 5 &gt;= 7x + 8) OR (-2(3x - 1) &lt; -x - 21). OR is inclusive: satisfyi</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=number_line_set tier=qualitative_verified labels=x | -1 | 23/5 | P=-1 included | Q=0 excluded | R=23/5 excluded | T=5 included | Solution: (-infinity, -1] union (23/5, infinity)</text>
+<line x1="434" y1="373.51" x2="1126" y2="373.51" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1139" y="369.63" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<line x1="549.33" y1="373.51" x2="434" y2="373.51" fill="none" stroke="#141821" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<circle cx="549.33" cy="373.51" r="4" fill="#141821"/>
+<text x="542.64489" y="342.51" font-size="18" dominant-baseline="hanging" textLength="13.37022" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-1</text>
+<line x1="979.91" y1="373.51" x2="1126" y2="373.51" fill="none" stroke="#141821" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<circle cx="979.91" cy="373.51" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="938.9509885981519" y="386.51" font-size="18" dominant-baseline="hanging" textLength="27.959011401848016" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">23/5</text>
+<circle cx="549.33" cy="373.51" r="4" fill="#141821"/>
+<text x="512.678457251437" y="386.51" font-size="18" dominant-baseline="hanging" textLength="73.3030854971262" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">P=-1 included</text>
+<circle cx="626.22" cy="373.51" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="589.4704400234041" y="342.51" font-size="18" dominant-baseline="hanging" textLength="73.4991199531919" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Q=0 excluded</text>
+<circle cx="979.91" cy="373.51" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="935.2991216990022" y="342.51" font-size="18" dominant-baseline="hanging" textLength="89.22175660199566" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">R=23/5 excluded</text>
+<circle cx="1010.67" cy="373.51" r="4" fill="#141821"/>
+<text x="977.2007674888392" y="386.51" font-size="18" dominant-baseline="hanging" textLength="66.93846502232147" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">T=5 included</text>
+<text x="665.0679177502166" y="277.37" font-size="18" dominant-baseline="hanging" textLength="229.86416449956693" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Solution: (-infinity, -1] union (23/5, infinity)</text>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent si</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_system tier=qualitative_verified labels=x | y | 0 | 4x + 3=2x + 8 | 2y - x=7 | (5/2, 19/4) | One solution</text>
+<line x1="434" y1="459.37" x2="1126" y2="459.37" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="889.26" y1="517.03" x2="889.26" y2="171.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1104.55676" y="483.9" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="919.56" y="173.57" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="901.5411499999999" y="483.9" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="1010.67,517.03 1010.67,171.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="434,517.03 1126,171.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1023.6699999999998" y="378.28" font-size="18" dominant-baseline="hanging" textLength="77.2029134596313" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">4x + 3=2x + 8</text>
+<text x="533.5" y="486.78" font-size="18" dominant-baseline="hanging" textLength="46.37611604423775" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2y - x=7</text>
+<circle cx="1010.67" cy="228.7" r="4" fill="#141821"/>
+<text x="942.9642343621582" y="197.7" font-size="18" dominant-baseline="hanging" textLength="54.70576563784185" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(5/2, 19/4)</text>
+<text x="746.8116815698926" y="138.97" font-size="18" dominant-baseline="hanging" textLength="66.37663686021479" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">One solution</text>
+</svg>

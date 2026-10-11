@@ -1,0 +1,1110 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+ "topicId": "maths|h3r6-shaded-regions|nl03-mixed-interval",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:01:07.477Z",
+ "timings": {
+  "planMs": 29976,
+  "teachMs": 0,
+  "totalMs": 29984,
+  "figureCommitMs": 29984,
+  "stages": {
+   "turnPlanMs": 13132,
+   "problemIrMs": 3912,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 12891,
+   "deadlineRemainingMs": 30062,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": false,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "lowerBound",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "-2 <= 3x + 1 < 10"
+   },
+   {
+    "id": "g2",
+    "symbol": "coefficient",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "3x"
+   },
+   {
+    "id": "g3",
+    "symbol": "constant",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "3x + 1"
+   },
+   {
+    "id": "g4",
+    "symbol": "upperBound",
+    "value": 10,
+    "provenance": "given",
+    "sourceText": "3x + 1 < 10"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "leftEndpoint"
+   },
+   {
+    "id": "u2",
+    "symbol": "rightEndpoint"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u1",
+    "symbol": "leftEndpoint",
+    "value": -1
+   },
+   {
+    "id": "u2",
+    "symbol": "rightEndpoint",
+    "value": 3
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "-1 <= x < 3, or [-1, 3)."
+   },
+   {
+    "id": "c2",
+    "expected": "Mark -1 with a filled circle because it is included; mark 3 with an open circle because it is excluded. The solution lies between them."
+   }
+  ],
+  "lawIds": [
+   "inequality-addition-property",
+   "inequality-division-by-positive-number",
+   "interval-endpoint-convention"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eLeft",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 3
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    },
+    {
+     "id": "eRight",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 10
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 3
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iInterval",
+     "kind": "bounded_region",
+     "entityIds": [
+      "interval",
+      "left",
+      "right"
+     ],
+     "evidenceFactIds": [
+      "fIneq",
+      "fInterval",
+      "fMarks"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sLeft",
+     "quantityId": "u1",
+     "symbol": "leftEndpoint",
+     "approximate": -1,
+     "exact": {
+      "kind": "integer",
+      "value": "-1"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sRight",
+     "quantityId": "u2",
+     "symbol": "rightEndpoint",
+     "approximate": 3,
+     "exact": {
+      "kind": "integer",
+      "value": "3"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "65c9e1b454199cf53b78533e2da397bcfc3548634df5495be04eb8d020364339",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sLeft",
+      "quantityId": "u1",
+      "symbol": "leftEndpoint",
+      "approximate": -1,
+      "exact": {
+       "kind": "integer",
+       "value": "-1"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sRight",
+      "quantityId": "u2",
+      "symbol": "rightEndpoint",
+      "approximate": 3,
+      "exact": {
+       "kind": "integer",
+       "value": "3"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "lowerBound",
+      "value": -2,
+      "sourceText": "-2 <= 3x + 1 < 10",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "coefficient",
+      "value": 3,
+      "sourceText": "3x",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "constant",
+      "value": 1,
+      "sourceText": "3x + 1",
+      "provenance": "given"
+     },
+     {
+      "id": "g4",
+      "symbol": "upperBound",
+      "value": 10,
+      "sourceText": "3x + 1 < 10",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "leftEndpoint"
+     },
+     {
+      "id": "u2",
+      "symbol": "rightEndpoint"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "leftEndpoint",
+      "value": -1,
+      "sourceText": "(-2 - 1) / 3 = -1",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3"
+      ]
+     },
+     {
+      "id": "u2",
+      "symbol": "rightEndpoint",
+      "value": 3,
+      "sourceText": "(10 - 1) / 3 = 3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2",
+       "g3",
+       "g4"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Solution interval",
+      "expected": "-1 <= x < 3, or [-1, 3).",
+      "relatedQuantityIds": [
+       "u1",
+       "u2",
+       "u1",
+       "u2"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Number-line marks",
+      "expected": "Mark -1 with a filled circle because it is included; mark 3 with an open circle because it is excluded. The solution lies between them.",
+      "relatedQuantityIds": [
+       "u1",
+       "u2"
+      ]
+     }
+    ],
+    "lawIds": [
+     "inequality-addition-property",
+     "inequality-division-by-positive-number",
+     "interval-endpoint-convention"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The inequality includes its lower bound but excludes its upper bound.",
+      "evidence": {
+       "source": "question",
+       "start": 48,
+       "end": 65,
+       "quote": "-2 <= 3x + 1 < 10"
+      }
+     },
+     {
+      "id": "fInterval",
+      "kind": "requested",
+      "statement": "Find the number-line interval.",
+      "evidence": {
+       "source": "question",
+       "start": 23,
+       "end": 43,
+       "quote": "number-line interval"
+      }
+     },
+     {
+      "id": "fMarks",
+      "kind": "requested",
+      "statement": "Explain the two different endpoint marks.",
+      "evidence": {
+       "source": "question",
+       "start": 74,
+       "end": 102,
+       "quote": "two different endpoint marks"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "interval",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq",
+       "fInterval"
+      ]
+     },
+     {
+      "id": "left",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fIneq",
+       "fMarks"
+      ]
+     },
+     {
+      "id": "right",
+      "kind": "point",
+      "evidenceFactIds": [
+       "fIneq",
+       "fMarks"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eLeft",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 2
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eRight",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 10
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iInterval",
+      "kind": "bounded_region",
+      "entityIds": [
+       "interval",
+       "left",
+       "right"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fInterval",
+       "fMarks"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sLeft",
+      "kind": "evaluate",
+      "expressionId": "eLeft",
+      "resultBinding": {
+       "turnPlanQuantityId": "u1",
+       "symbol": "leftEndpoint",
+       "evidenceFactIds": [
+        "fInterval"
+       ]
+      }
+     },
+     {
+      "id": "sRight",
+      "kind": "evaluate",
+      "expressionId": "eRight",
+      "resultBinding": {
+       "turnPlanQuantityId": "u2",
+       "symbol": "rightEndpoint",
+       "evidenceFactIds": [
+        "fInterval"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sLeft",
+      "requestId": "sLeft",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-1"
+      },
+      "approximate": -1,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sRight",
+      "requestId": "sRight",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "3"
+      },
+      "approximate": 3,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sLeft",
+      "requestId": "sLeft",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eLeft"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sRight",
+      "requestId": "sRight",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eRight"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 25162,
+  "outputTokens": 4540,
+  "totalTokens": 29702,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.092785,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 681,
+    "outputTokens": 510,
+    "totalTokens": 1191,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006462,
+    "measuredCostUsd": 0.006462,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 620,
+    "outputTokens": 519,
+    "totalTokens": 1139,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00643,
+    "measuredCostUsd": 0.00643,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5420,
+    "outputTokens": 31,
+    "totalTokens": 5451,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01115,
+    "measuredCostUsd": 0.01115,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2030,
+    "outputTokens": 403,
+    "totalTokens": 2433,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.005151,
+    "measuredCostUsd": 0.005151,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 3903,
+    "outputTokens": 985,
+    "totalTokens": 4888,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.017656,
+    "measuredCostUsd": 0.017656,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 3903,
+    "outputTokens": 1022,
+    "totalTokens": 4925,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.018026,
+    "measuredCostUsd": 0.018026,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4307,
+    "outputTokens": 519,
+    "totalTokens": 4826,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.013804,
+    "measuredCostUsd": 0.013804,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4298,
+    "outputTokens": 551,
+    "totalTokens": 4849,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.014106,
+    "measuredCostUsd": 0.014106,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.092785
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "d9f00eed1b4b6b120034df0208a68a9efa72aef24acefb87bebc3df4cfc614dc",
+    "errors": [
+     {
+      "code": "untrusted_linear_annotation",
+      "message": "Linear shading, labels and endpoint marks are operator-owned",
+      "severity": "fatal",
+      "entityIds": [
+       "solutionSet"
+      ]
+     },
+     {
+      "code": "untrusted_linear_claim",
+      "message": "Linear solution values and boundary semantics must be emitted by the verified operator",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "solutionSet"
+      ]
+     },
+     {
+      "code": "untrusted_linear_claim",
+      "message": "Linear solution values and boundary semantics must be emitted by the verified operator",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "solutionSet"
+      ]
+     }
+    ],
+    "issueCount": 3,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "9f970ac3a813bb728bc7f52768b52ec1f05ccf6a2708fa0a33ae6cd6950c1569",
+    "errors": [
+     {
+      "code": "untrusted_linear_annotation",
+      "message": "Linear shading, labels and endpoint marks are operator-owned",
+      "severity": "fatal",
+      "entityIds": [
+       "solution"
+      ]
+     },
+     {
+      "code": "untrusted_linear_claim",
+      "message": "Linear solution values and boundary semantics must be emitted by the verified operator",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 2,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "constructSolutionSet",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"intersection\":[{\"inequality\":\"-2 <= 3x + 1\"},{\"inequality\":\"3x + 1 < 10\"}]}}",
+    "argumentsPresent": true,
+    "argumentBytes": 107,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "untrusted_linear_annotation",
+     "untrusted_linear_claim"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0,
+     1,
+     2
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "construct_solution",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"intersection\":[{\"inequality\":\"x >= -1\"},{\"inequality\":\"x < 3\"}]}}",
+    "argumentsPresent": true,
+    "argumentBytes": 96,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "untrusted_linear_annotation",
+     "untrusted_linear_claim"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0,
+     1
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "-1",
+   "3",
+   "Solution: [-1, 3)"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 8,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "untrusted_linear_annotation",
+   "untrusted_linear_claim"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 14593,
+    "elapsedMs": 7493,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 14582,
+    "elapsedMs": 8676,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 16535,
+    "elapsedMs": 4587,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 16496,
+    "elapsedMs": 5359,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"lowerBound\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"coefficient\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"g3\", \"symbol\": \"constant\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"g4\", \"symbol\": \"upperBound\", \"value\": 10, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"leftEndpoint\", \"value\": -1, \"provenance\": \"derived\"},\n    {\"id\": \"u2\", \"symbol\": \"rightEndpoint\", \"value\": 3, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"solutionSet\", \"kind\": \"linear_region\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructSolutionSet\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\"inequality\": \"-2 <= 3x + 1\"},\n            {\"inequality\": \"3x + 1 < 10\"}\n          ]\n        }\n      },\n      \"outputs\": [\"solutionSet\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\n      \"id\": \"givenExpression\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"solutionSet\"],\n      \"text\": \"-2 ≤ 3x + 1 < 10\"\n    },\n    {\n      \"id\": \"leftMark\",\n      \"kind\": \"endpoint\",\n      \"targetIds\": [\"solutionSet\"],\n      \"quantityId\": \"u1\",\n      \"style\": {\"pointStyle\": \"filled\"}\n    },\n    {\n      \"id\": \"rightMark\",\n      \"kind\": \"endpoint\",\n      \"targetIds\": [\"solutionSet\"],\n      \"quantityId\": \"u2\",\n      \"style\": {\"pointStyle\": \"open\"}\n    },\n    {\n      \"id\": \"intervalExplanation\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"solutionSet\"],\n      \"text\": \"The filled endpoint is included; the open endpoint is excluded. The solution lies between them.\"\n    }\n  ],\n  \"requiredEntityIds\": [\"solutionSet\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"solutionSet\"]},\n    {\"id\": \"endpoints\", \"entityIds\": []}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\", \"targetIds\": [\"solutionSet\", \"givenExpression\"]},\n    {\"id\": \"showEndpoints\", \"revealGroupId\": \"endpoints\", \"targetIds\": [\"leftMark\", \"rightMark\", \"intervalExplanation\"]}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"value\": -2, \"unit\": \"unitless\"},\n    {\"id\": \"g2\", \"value\": 3, \"unit\": \"unitless\"},\n    {\"id\": \"g3\", \"value\": 1, \"unit\": \"unitless\"},\n    {\"id\": \"g4\", \"value\": 10, \"unit\": \"unitless\"},\n    {\"id\": \"u1\", \"value\": -1, \"unit\": \"unitless\"},\n    {\"id\": \"u2\", \"value\": 3, \"unit\": \"unitless\"}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"construct_solution\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\"inequality\": \"x >= -1\"},\n            {\"inequality\": \"x < 3\"}\n          ]\n        }\n      },\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\n      \"id\": \"setup\",\n      \"kind\": \"narration\",\n      \"targetIds\": [],\n      \"text\": \"Start with −2 ≤ 3x + 1 < 10. Subtract 1 throughout, then divide by positive 3; neither inequality reverses.\"\n    },\n    {\n      \"id\": \"left_mark\",\n      \"kind\": \"endpoint\",\n      \"targetIds\": [\"solution\"],\n      \"quantityId\": \"u1\",\n      \"style\": {\"pointStyle\": \"filled\"}\n    },\n    {\n      \"id\": \"right_mark\",\n      \"kind\": \"endpoint\",\n      \"targetIds\": [\"solution\"],\n      \"quantityId\": \"u2\",\n      \"style\": {\"pointStyle\": \"open\"}\n    },\n    {\n      \"id\": \"interpretation\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"solution\"],\n      \"text\": \"The result is −1 ≤ x < 3, or [−1, 3). The filled mark includes −1; the open mark excludes 3. Every point between them is included.\"\n    }\n  ],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"givens\", \"entityIds\": []},\n    {\"id\": \"interval\", \"entityIds\": [\"solution\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"revealGroupId\": \"givens\", \"annotationIds\": [\"setup\"]},\n    {\"revealGroupId\": \"interval\", \"annotationIds\": [\"left_mark\", \"right_mark\", \"interpretation\"]}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.\",\n    \"representationTier\": \"verified\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"lowerBound\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"coefficient\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"g3\", \"symbol\": \"constant\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"g4\", \"symbol\": \"upperBound\", \"value\": 10, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"leftEndpoint\", \"value\": -1, \"provenance\": \"derived\"},\n    {\"id\": \"u2\", \"symbol\": \"rightEndpoint\", \"value\": 3, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"solutionSet\", \"kind\": \"linear_region\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructSolutionSet\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\"inequality\": \"-2 <= 3x + 1\"},\n            {\"inequality\": \"3x + 1 < 10\"}\n          ]\n        }\n      },\n      \"outputs\": [\"solutionSet\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solutionSet\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"solutionSet\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"lowerBound\", \"value\": -2},\n    {\"id\": \"g2\", \"symbol\": \"coefficient\", \"value\": 3},\n    {\"id\": \"g3\", \"symbol\": \"constant\", \"value\": 1},\n    {\"id\": \"g4\", \"symbol\": \"upperBound\", \"value\": 10},\n    {\"id\": \"u1\", \"symbol\": \"leftEndpoint\", \"value\": -1},\n    {\"id\": \"u2\", \"symbol\": \"rightEndpoint\", \"value\": 3}\n  ],\n  \"entities\": [\n    {\"id\": \"solutionSet\", \"kind\": \"linear_region\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructSolutionSet\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"intersection\": [\n            {\"inequality\": \"-2 <= 3x + 1\"},\n            {\"inequality\": \"3x + 1 < 10\"}\n          ]\n        }\n      },\n      \"outputs\": [\"solutionSet\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solutionSet\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"solutionSet\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "deadline",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "65c9e1b454199cf53b78533e2da397bcfc3548634df5495be04eb8d020364339",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": null,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "transport",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": null,
+   "unresolvedAllowanceUsd": 0.002091
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2468,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+  "topic_id": "maths|h3r6-shaded-regions|nl03-mixed-interval",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "Help me understand the number-line interval for -2 <= 3x + 1 < 10 and the two different endpoint marks.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "a horizontal number line",
+   "a filled marker at -1 and an open marker at 3",
+   "only the segment between -1 and 3 shaded"
+  ],
+  "must_label": [
+   "x",
+   "-1",
+   "3"
+  ],
+  "must_not_show": [
+   "both endpoints filled",
+   "both endpoints open",
+   "shading outside the interval"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "-1 <= x < 3",
+   "Solution set is [-1, 3)."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=nl03; exam_scope=CBSE11;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

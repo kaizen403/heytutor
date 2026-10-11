@@ -1,0 +1,1083 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+ "topicId": "maths|h3r6-shaded-regions|hp07-negative-constant-membership",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Represent -3x + 4y <= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:02:31.295Z",
+ "timings": {
+  "planMs": 25852,
+  "teachMs": 0,
+  "totalMs": 25853,
+  "figureCommitMs": 25853,
+  "stages": {
+   "turnPlanMs": 6013,
+   "problemIrMs": 4756,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 14914,
+   "deadlineRemainingMs": 34315,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a",
+    "symbol": "x coefficient",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "a = -3"
+   },
+   {
+    "id": "b",
+    "symbol": "y coefficient",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "b = 4"
+   },
+   {
+    "id": "c",
+    "symbol": "right-hand side",
+    "value": -12,
+    "provenance": "given",
+    "sourceText": "c = -12"
+   },
+   {
+    "id": "pY",
+    "symbol": "P y-coordinate",
+    "value": -4,
+    "provenance": "given",
+    "sourceText": "pY = -4"
+   },
+   {
+    "id": "z",
+    "symbol": "P and Q x-coordinates; Q y-coordinate",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "z = 0"
+   }
+  ],
+  "unknowns": [],
+  "derived": [
+   {
+    "id": "yInt",
+    "symbol": "boundary y-intercept",
+    "value": -3
+   },
+   {
+    "id": "xInt",
+    "symbol": "boundary x-intercept",
+    "value": 4
+   },
+   {
+    "id": "pLhs",
+    "symbol": "left-hand side at P",
+    "value": -16
+   },
+   {
+    "id": "qLhs",
+    "symbol": "left-hand side at Q",
+    "value": 0
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "graph",
+    "expected": "Draw a solid boundary line through (0, -3) and (4, 0), then shade the region on or below it: y <= (3/4)x - 3. Mark P and Q at their stated coordinates."
+   },
+   {
+    "id": "test",
+    "expected": "P satisfies it because -16 <= -12. Q does not because 0 > -12."
+   }
+  ],
+  "lawIds": [
+   "linear-inequality-boundary-and-half-plane",
+   "inequality-substitution-test"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "cc7c81158d7d34e0cd2ecfed2a5543a441965f80c71caa3b4d3b786ada2af972",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Represent -3x + 4y <= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "x coefficient",
+      "value": -3,
+      "sourceText": "a = -3",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "y coefficient",
+      "value": 4,
+      "sourceText": "b = 4",
+      "provenance": "given"
+     },
+     {
+      "id": "c",
+      "symbol": "right-hand side",
+      "value": -12,
+      "sourceText": "c = -12",
+      "provenance": "given"
+     },
+     {
+      "id": "pY",
+      "symbol": "P y-coordinate",
+      "value": -4,
+      "sourceText": "pY = -4",
+      "provenance": "given"
+     },
+     {
+      "id": "z",
+      "symbol": "P and Q x-coordinates; Q y-coordinate",
+      "value": 0,
+      "sourceText": "z = 0",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [],
+    "derived": [
+     {
+      "id": "yInt",
+      "symbol": "boundary y-intercept",
+      "value": -3,
+      "sourceText": "yInt = -3",
+      "provenance": "derived",
+      "dependsOn": [
+       "b",
+       "c"
+      ]
+     },
+     {
+      "id": "xInt",
+      "symbol": "boundary x-intercept",
+      "value": 4,
+      "sourceText": "xInt = 4",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "c"
+      ]
+     },
+     {
+      "id": "pLhs",
+      "symbol": "left-hand side at P",
+      "value": -16,
+      "sourceText": "pLhs = -16",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "pY",
+       "z"
+      ]
+     },
+     {
+      "id": "qLhs",
+      "symbol": "left-hand side at Q",
+      "value": 0,
+      "sourceText": "qLhs = 0",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "z"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "graph",
+      "claim": "Graph the inequality",
+      "expected": "Draw a solid boundary line through (0, -3) and (4, 0), then shade the region on or below it: y <= (3/4)x - 3. Mark P and Q at their stated coordinates.",
+      "relatedQuantityIds": [
+       "yInt",
+       "xInt",
+       "pY",
+       "z"
+      ]
+     },
+     {
+      "id": "test",
+      "claim": "Identify which marked point satisfies the inequality",
+      "expected": "P satisfies it because -16 <= -12. Q does not because 0 > -12.",
+      "relatedQuantityIds": [
+       "pLhs",
+       "qLhs",
+       "c"
+      ]
+     }
+    ],
+    "lawIds": [
+     "linear-inequality-boundary-and-half-plane",
+     "inequality-substitution-test"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Represent -3x + 4y <= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The inequality is -3x + 4y <= -12.",
+      "evidence": {
+       "source": "question",
+       "start": 10,
+       "end": 25,
+       "quote": "-3x + 4y <= -12"
+      }
+     },
+     {
+      "id": "fP",
+      "kind": "given",
+      "statement": "P is at (0, -4).",
+      "evidence": {
+       "source": "question",
+       "start": 44,
+       "end": 55,
+       "quote": "P = (0, -4)"
+      }
+     },
+     {
+      "id": "fQ",
+      "kind": "given",
+      "statement": "Q is at (0, 0).",
+      "evidence": {
+       "source": "question",
+       "start": 60,
+       "end": 70,
+       "quote": "Q = (0, 0)"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Represent the inequality graphically.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 37,
+       "quote": "Represent -3x + 4y <= -12 graphically"
+      }
+     },
+     {
+      "id": "fMark",
+      "kind": "requested",
+      "statement": "Mark P and Q.",
+      "evidence": {
+       "source": "question",
+       "start": 39,
+       "end": 70,
+       "quote": "Mark P = (0, -4) and Q = (0, 0)"
+      }
+     },
+     {
+      "id": "fIdentify",
+      "kind": "requested",
+      "statement": "Identify which point satisfies the inequality.",
+      "evidence": {
+       "source": "question",
+       "start": 76,
+       "end": 109,
+       "quote": "identify which point satisfies it"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "boundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fP"
+      ]
+     },
+     {
+      "id": "q",
+      "kind": "point",
+      "label": "Q",
+      "evidenceFactIds": [
+       "fQ"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "boundary",
+       "solution",
+       "p",
+       "q"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fP",
+       "fQ",
+       "fGraph",
+       "fMark",
+       "fIdentify"
+      ]
+     },
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "solution",
+       "boundary"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fGraph"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 7,
+  "inputTokens": 32637,
+  "outputTokens": 5245,
+  "totalTokens": 37882,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.114785,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 632,
+    "outputTokens": 593,
+    "totalTokens": 1225,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.007194,
+    "measuredCostUsd": 0.007194,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 693,
+    "outputTokens": 758,
+    "totalTokens": 1451,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.008966,
+    "measuredCostUsd": 0.008966,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5470,
+    "outputTokens": 101,
+    "totalTokens": 5571,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01195,
+    "measuredCostUsd": 0.01195,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2156,
+    "outputTokens": 483,
+    "totalTokens": 2639,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.006203,
+    "measuredCostUsd": 0.006203,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7750,
+    "outputTokens": 1039,
+    "totalTokens": 8789,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02589,
+    "measuredCostUsd": 0.02589,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7750,
+    "outputTokens": 1455,
+    "totalTokens": 9205,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.03005,
+    "measuredCostUsd": 0.03005,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 8186,
+    "outputTokens": 816,
+    "totalTokens": 9002,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.024532,
+    "measuredCostUsd": 0.024532,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.302188
+   }
+  ],
+  "knownUsageUsd": 0.114785
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "f883f1c7bee067babada1ffb5362cc149261f453f91c82628a72b848c33a9500",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "b693d786eeac8b073677519392c454f60a08d4770e121e9e03be4636c2bbf8b5",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-3,\"xMax\":6,\"yMin\":-6,\"yMax\":3}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"-3*x+4*y<=-12\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 52,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeP",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":-4,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 40,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":0,\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-5,\"xMax\":6,\"yMin\":-6,\"yMax\":3}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"-3*x+4*y<=-12\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 52,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"z\",\"y\":\"pY\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 44,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"z\",\"y\":\"z\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 43,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "-3x + 4y=-12",
+   "P",
+   "Q",
+   "-3x + 4y<=-12",
+   "P=(0, -4) included",
+   "Q=(0, 0) excluded",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 15,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch"
+  ],
+  "candidateCount": 3,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 27816,
+    "elapsedMs": 7336,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 27827,
+    "elapsedMs": 10601,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 29828,
+    "elapsedMs": 6662,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 29867,
+    "elapsedMs": 7574,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   },
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "synthesized:archetype-fx_graph_area:e53d4d1104f0",
+    "sourceKind": "synthesized",
+    "question": null,
+    "depicts": "function graph with area under the curve; construction: axes, function curve, function region; entities: axes, F-x axes, polyline, F(x), x-axis under the region, polygon, work done = area under F(x), point, lower limit, upper limit, force at the upper limit; labels: F-x, F=5x, x=2, x=4, F=20",
+    "figureKind": "function_plot",
+    "family": "analytic_curve",
+    "archetype": "fx_graph_area"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequality and point coordinates determine an exact graph.\"\n  },\n  \"source\": {\n    \"question\": \"Represent -3x + 4y <= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"x coefficient\", \"value\": -3, \"provenance\": \"given\"},\n    {\"id\": \"b\", \"symbol\": \"y coefficient\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"c\", \"symbol\": \"right-hand side\", \"value\": -12, \"provenance\": \"given\"},\n    {\"id\": \"pY\", \"symbol\": \"P y-coordinate\", \"value\": -4, \"provenance\": \"given\"},\n    {\"id\": \"z\", \"symbol\": \"P and Q x-coordinates; Q y-coordinate\", \"value\": 0, \"provenance\": \"given\"},\n    {\"id\": \"yInt\", \"symbol\": \"boundary y-intercept\", \"value\": -3, \"provenance\": \"derived\"},\n    {\"id\": \"xInt\", \"symbol\": \"boundary x-intercept\", \"value\": 4, \"provenance\": \"derived\"},\n    {\"id\": \"pLhs\", \"symbol\": \"left-hand side at P\", \"value\": -16, \"provenance\": \"derived\"},\n    {\"id\": \"qLhs\", \"symbol\": \"left-hand side at Q\", \"value\": 0, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"solid boundary and satisfying half-plane\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"stated point\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"role\": \"stated point\", \"label\": \"Q\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -3, \"xMax\": 6, \"yMin\": -6, \"yMax\": 3}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeSolution\", \"operator\": \"linear_half_plane\", \"inputs\": {\"variables\": [\"x\", \"y\"], \"inequality\": \"-3*x+4*y<=-12\"}, \"outputs\": [\"solution\"]},\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\", \"solution\", \"P\", \"Q\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"solution\", \"P\", \"Q\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph the inequality with a solid boundary and shade its satisfying half-plane. Mark P and Q.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"targetIds\": [\"axes\", \"solution\", \"P\", \"Q\"], \"action\": \"reveal\"},\n    {\"id\": \"testPoints\", \"targetIds\": [\"P\", \"Q\"], \"action\": \"narrate\", \"text\": \"At P, the left-hand side is −16, which is at most −12. At Q, it is 0, which is greater than −12. P satisfies the inequality; Q does not.\"}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequality and point coordinates determine a half-plane and two marked points.\"\n  },\n  \"source\": {\n    \"question\": \"Represent -3x + 4y <= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.\",\n    \"representationTier\": \"exact\",\n    \"nonMetric\": false\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"x coefficient\", \"value\": -3, \"provenance\": \"given\", \"sourceText\": \"a = -3\"},\n    {\"id\": \"b\", \"symbol\": \"y coefficient\", \"value\": 4, \"provenance\": \"given\", \"sourceText\": \"b = 4\"},\n    {\"id\": \"c\", \"symbol\": \"right-hand side\", \"value\": -12, \"provenance\": \"given\", \"sourceText\": \"c = -12\"},\n    {\"id\": \"pY\", \"symbol\": \"P y-coordinate\", \"value\": -4, \"provenance\": \"given\", \"sourceText\": \"pY = -4\"},\n    {\"id\": \"z\", \"symbol\": \"P and Q x-coordinates; Q y-coordinate\", \"value\": 0, \"provenance\": \"given\", \"sourceText\": \"z = 0\"},\n    {\"id\": \"yInt\", \"symbol\": \"boundary y-intercept\", \"value\": -3, \"provenance\": \"derived\", \"dependsOn\": [\"b\", \"c\"], \"sourceText\": \"yInt = -3\"},\n    {\"id\": \"xInt\", \"symbol\": \"boundary x-intercept\", \"value\": 4, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"c\"], \"sourceText\": \"xInt = 4\"},\n    {\"id\": \"pLhs\", \"symbol\": \"left-hand side at P\", \"value\": -16, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"pY\", \"z\"], \"sourceText\": \"pLhs = -16\"},\n    {\"id\": \"qLhs\", \"symbol\": \"left-hand side at Q\", \"value\": 0, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"z\"], \"sourceText\": \"qLhs = 0\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"solid boundary and satisfying half-plane\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"marked point\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"role\": \"marked point\", \"label\": \"Q\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -5, \"xMax\": 6, \"yMin\": -6, \"yMax\": 3}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeSolution\", \"operator\": \"linear_half_plane\", \"inputs\": {\"variables\": [\"x\", \"y\"], \"inequality\": \"-3*x+4*y<=-12\"}, \"outputs\": [\"solution\"]},\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": \"z\", \"y\": \"pY\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"z\", \"y\": \"z\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\", \"solution\", \"P\", \"Q\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"solution\", \"P\", \"Q\"], \"dependsOn\": [], \"narrationCue\": \"Graph the solid boundary and shade its satisfying side; mark P and Q.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"groupId\": \"setup\"},\n    {\"id\": \"testPoints\", \"targetIds\": [\"P\", \"Q\"], \"narrationCue\": \"At P the left-hand side is −16, which is at most −12. At Q it is 0, which is greater than −12. P satisfies the inequality.\"}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated inequality has an exact, verifiable half-plane graph.\"\n  },\n  \"source\": {\n    \"question\": \"Represent -3x + 4y <= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"x coefficient\", \"value\": -3},\n    {\"id\": \"b\", \"symbol\": \"y coefficient\", \"value\": 4},\n    {\"id\": \"c\", \"symbol\": \"right-hand side\", \"value\": -12},\n    {\"id\": \"pY\", \"symbol\": \"P y-coordinate\", \"value\": -4},\n    {\"id\": \"z\", \"symbol\": \"P and Q x-coordinates; Q y-coordinate\", \"value\": 0},\n    {\"id\": \"yInt\", \"symbol\": \"boundary y-intercept\", \"value\": -3},\n    {\"id\": \"xInt\", \"symbol\": \"boundary x-intercept\", \"value\": 4},\n    {\"id\": \"pLhs\", \"symbol\": \"left-hand side at P\", \"value\": -16},\n    {\"id\": \"qLhs\", \"symbol\": \"left-hand side at Q\", \"value\": 0}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"solid boundary and solution half-plane for -3x + 4y <= -12\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeSolution\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"inequality\": \"-3x+4y<=-12\"\n      },\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"solution\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph the solid boundary and shade its solution half-plane.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"revealGroupId\": \"setup\",\n      \"narration\": \"The boundary passes through (0, -3) and (4, 0). P = (0, -4) satisfies the inequality because -16 <= -12; Q = (0, 0) does not because 0 > -12.\"\n    }\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "cc7c81158d7d34e0cd2ecfed2a5543a441965f80c71caa3b4d3b786ada2af972",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2991,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/area-between--1",
+   "curated:maths/two-lines-angle--1",
+   "synthesized:archetype-fx_graph_area:e53d4d1104f0"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+  "topic_id": "maths|h3r6-shaded-regions|hp07-negative-constant-membership",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "Represent -3x + 4y <= -12 graphically. Mark P = (0, -4) and Q = (0, 0), and identify which point satisfies it.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "a solid boundary through (4, 0) and (0, -3)",
+   "the half-plane below the line shaded",
+   "P at (0, -4) inside and Q at the origin outside"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "-3x + 4y = -12",
+   "(4, 0)",
+   "(0, -3)",
+   "P (0, -4)",
+   "Q (0, 0)"
+  ],
+  "must_not_show": [
+   "a dashed boundary",
+   "a y-intercept at 3",
+   "the origin included in the shaded solution"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "y <= (3/4)x - 3",
+   "P satisfies -16 <= -12.",
+   "Q does not satisfy 0 <= -12."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=hp07; exam_scope=SAT;CBSE11-formative; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

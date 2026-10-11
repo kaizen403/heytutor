@@ -1,0 +1,1479 @@
+{
+ "probeId": "maths|h3r8-finish-regions|separated-boolean-union|q1",
+ "topicId": "maths|h3r8-finish-regions|separated-boolean-union",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "hard",
+ "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:05:36.215Z",
+ "timings": {
+  "planMs": 29195,
+  "teachMs": 0,
+  "totalMs": 29197,
+  "figureCommitMs": 29197,
+  "stages": {
+   "turnPlanMs": 6448,
+   "problemIrMs": 7318,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 15153,
+   "deadlineRemainingMs": 31077,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "gP",
+    "symbol": "P",
+    "value": -1,
+    "provenance": "given",
+    "sourceText": "P = -1"
+   },
+   {
+    "id": "gQ",
+    "symbol": "Q",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "Q = 0"
+   },
+   {
+    "id": "gR",
+    "symbol": "R",
+    "value": 4.6,
+    "provenance": "given",
+    "sourceText": "R = 23/5"
+   },
+   {
+    "id": "gT",
+    "symbol": "T",
+    "value": 5,
+    "provenance": "given",
+    "sourceText": "T = 5"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "uS",
+    "symbol": "S"
+   },
+   {
+    "id": "uL",
+    "symbol": "left boundary"
+   },
+   {
+    "id": "uU",
+    "symbol": "right boundary"
+   }
+  ],
+  "derived": [
+   {
+    "id": "uL",
+    "symbol": "left boundary",
+    "value": -1
+   },
+   {
+    "id": "uU",
+    "symbol": "right boundary",
+    "value": 4.6
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "cS",
+    "expected": "S = (-∞, -1] ∪ (23/5, ∞). Draw both rays on a real number line."
+   },
+   {
+    "id": "cB",
+    "expected": "-1 is included (closed endpoint); 23/5 is excluded (open endpoint)."
+   },
+   {
+    "id": "cP",
+    "expected": "P=-1 ∈ S; Q=0 ∉ S; R=23/5 ∉ S; T=5 ∈ S. Label all four points on the number line."
+   }
+  ],
+  "lawIds": [
+   "addition-and-subtraction-properties-of-inequalities",
+   "division-of-inequalities-by-positive-and-negative-numbers",
+   "inclusive-disjunction-union-of-sets"
+  ],
+  "assumptions": [
+   "Removed 2 invalid planner dependency references."
+  ]
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "f4d0109c3777611986e221a290ecf3476c05a1c338d05da2b7812b9c59cb3c02",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown uS has no explicit solver binding",
+      "quantityId": "uS"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sLower",
+      "quantityId": "uL",
+      "symbol": "left boundary",
+      "approximate": -1,
+      "exact": {
+       "kind": "integer",
+       "value": "-1"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sUpper",
+      "quantityId": "uU",
+      "symbol": "right boundary",
+      "approximate": 4.6,
+      "exact": {
+       "kind": "rational",
+       "value": "23/5"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "gP",
+      "symbol": "P",
+      "value": -1,
+      "sourceText": "P = -1",
+      "provenance": "given"
+     },
+     {
+      "id": "gQ",
+      "symbol": "Q",
+      "value": 0,
+      "sourceText": "Q = 0",
+      "provenance": "given"
+     },
+     {
+      "id": "gR",
+      "symbol": "R",
+      "value": 4.6,
+      "sourceText": "R = 23/5",
+      "provenance": "given"
+     },
+     {
+      "id": "gT",
+      "symbol": "T",
+      "value": 5,
+      "sourceText": "T = 5",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "uS",
+      "symbol": "S"
+     },
+     {
+      "id": "uL",
+      "symbol": "left boundary"
+     },
+     {
+      "id": "uU",
+      "symbol": "right boundary"
+     }
+    ],
+    "derived": [
+     {
+      "id": "uL",
+      "symbol": "left boundary",
+      "value": -1,
+      "sourceText": "4x+5≥7x+8 gives -3x≥3, hence x≤-1.",
+      "provenance": "derived",
+      "dependsOn": []
+     },
+     {
+      "id": "uU",
+      "symbol": "right boundary",
+      "value": 4.6,
+      "sourceText": "-2(3x-1)<-x-21 gives 23<5x, hence x>23/5=4.6.",
+      "provenance": "derived",
+      "dependsOn": []
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "cS",
+      "claim": "Solution set",
+      "expected": "S = (-∞, -1] ∪ (23/5, ∞). Draw both rays on a real number line.",
+      "relatedQuantityIds": [
+       "uS",
+       "uL",
+       "uU"
+      ]
+     },
+     {
+      "id": "cB",
+      "claim": "Finite boundary inclusion",
+      "expected": "-1 is included (closed endpoint); 23/5 is excluded (open endpoint).",
+      "relatedQuantityIds": [
+       "uL",
+       "uU"
+      ]
+     },
+     {
+      "id": "cP",
+      "claim": "Membership of labeled points",
+      "expected": "P=-1 ∈ S; Q=0 ∉ S; R=23/5 ∉ S; T=5 ∈ S. Label all four points on the number line.",
+      "relatedQuantityIds": [
+       "gP",
+       "gQ",
+       "gR",
+       "gT",
+       "uS"
+      ]
+     }
+    ],
+    "lawIds": [
+     "addition-and-subtraction-properties-of-inequalities",
+     "division-of-inequalities-by-positive-and-negative-numbers",
+     "inclusive-disjunction-union-of-sets"
+    ],
+    "assumptions": [
+     "Removed 2 invalid planner dependency references."
+    ]
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+    "facts": [
+     {
+      "id": "fDomain",
+      "kind": "given",
+      "statement": "x is real",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 10,
+       "quote": "For real x"
+      }
+     },
+     {
+      "id": "fFirst",
+      "kind": "given",
+      "statement": "First inequality is non-strict",
+      "evidence": {
+       "source": "question",
+       "start": 40,
+       "end": 56,
+       "quote": "4x + 5 >= 7x + 8"
+      }
+     },
+     {
+      "id": "fSecond",
+      "kind": "given",
+      "statement": "Second inequality is strict",
+      "evidence": {
+       "source": "question",
+       "start": 62,
+       "end": 82,
+       "quote": "-2(3x - 1) < -x - 21"
+      }
+     },
+     {
+      "id": "fOr",
+      "kind": "given",
+      "statement": "Either inequality may be satisfied",
+      "evidence": {
+       "source": "question",
+       "start": 85,
+       "end": 141,
+       "quote": "OR is inclusive: satisfying either inequality is enough."
+      }
+     },
+     {
+      "id": "fP",
+      "kind": "given",
+      "statement": "P equals negative one",
+      "evidence": {
+       "source": "question",
+       "start": 148,
+       "end": 154,
+       "quote": "P = -1"
+      }
+     },
+     {
+      "id": "fQ",
+      "kind": "given",
+      "statement": "Q equals zero",
+      "evidence": {
+       "source": "question",
+       "start": 156,
+       "end": 161,
+       "quote": "Q = 0"
+      }
+     },
+     {
+      "id": "fR",
+      "kind": "given",
+      "statement": "R equals twenty-three fifths",
+      "evidence": {
+       "source": "question",
+       "start": 163,
+       "end": 171,
+       "quote": "R = 23/5"
+      }
+     },
+     {
+      "id": "fT",
+      "kind": "given",
+      "statement": "T equals five",
+      "evidence": {
+       "source": "question",
+       "start": 177,
+       "end": 182,
+       "quote": "T = 5"
+      }
+     },
+     {
+      "id": "fSet",
+      "kind": "requested",
+      "statement": "Draw the solution set",
+      "evidence": {
+       "source": "question",
+       "start": 12,
+       "end": 35,
+       "quote": "draw the solution set S"
+      }
+     },
+     {
+      "id": "fMembership",
+      "kind": "requested",
+      "statement": "Identify labeled points' membership",
+      "evidence": {
+       "source": "question",
+       "start": 188,
+       "end": 213,
+       "quote": "identify their membership"
+      }
+     },
+     {
+      "id": "fBoundary",
+      "kind": "requested",
+      "statement": "Show finite boundaries and inclusion",
+      "evidence": {
+       "source": "question",
+       "start": 215,
+       "end": 269,
+       "quote": "Show all finite boundaries and their inclusion status."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fDomain"
+      ]
+     },
+     {
+      "id": "solutionSet",
+      "kind": "region",
+      "label": "S",
+      "evidenceFactIds": [
+       "fSet",
+       "fFirst",
+       "fSecond",
+       "fOr"
+      ]
+     },
+     {
+      "id": "pointP",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fP"
+      ]
+     },
+     {
+      "id": "pointQ",
+      "kind": "point",
+      "label": "Q",
+      "evidenceFactIds": [
+       "fQ"
+      ]
+     },
+     {
+      "id": "pointR",
+      "kind": "point",
+      "label": "R",
+      "evidenceFactIds": [
+       "fR"
+      ]
+     },
+     {
+      "id": "pointT",
+      "kind": "point",
+      "label": "T",
+      "evidenceFactIds": [
+       "fT"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eFirstLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 5
+       }
+      },
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "eFirstRight",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 7
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 8
+       }
+      },
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "eSecondLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "variable",
+          "name": "x"
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     },
+     {
+      "id": "eSecondRight",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 21
+       }
+      },
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     },
+     {
+      "id": "eLower",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 8
+        },
+        "right": {
+         "kind": "number",
+         "value": 5
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "number",
+         "value": 7
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "eUpper",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 21
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 6
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cFirst",
+      "kind": "inequality",
+      "leftExpressionId": "eFirstLeft",
+      "rightExpressionId": "eFirstRight",
+      "relation": ">=",
+      "evidenceFactIds": [
+       "fFirst"
+      ]
+     },
+     {
+      "id": "cSecond",
+      "kind": "inequality",
+      "leftExpressionId": "eSecondLeft",
+      "rightExpressionId": "eSecondRight",
+      "relation": "<",
+      "evidenceFactIds": [
+       "fSecond"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iSet",
+      "kind": "bounded_region",
+      "entityIds": [
+       "numberLine",
+       "solutionSet",
+       "pointP",
+       "pointQ",
+       "pointR",
+       "pointT"
+      ],
+      "evidenceFactIds": [
+       "fSet",
+       "fDomain",
+       "fFirst",
+       "fSecond",
+       "fOr",
+       "fP",
+       "fQ",
+       "fR",
+       "fT",
+       "fMembership",
+       "fBoundary"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sLower",
+      "kind": "evaluate",
+      "expressionId": "eLower",
+      "resultBinding": {
+       "turnPlanQuantityId": "uL",
+       "symbol": "left boundary",
+       "evidenceFactIds": [
+        "fBoundary"
+       ]
+      }
+     },
+     {
+      "id": "sUpper",
+      "kind": "evaluate",
+      "expressionId": "eUpper",
+      "resultBinding": {
+       "turnPlanQuantityId": "uU",
+       "symbol": "right boundary",
+       "evidenceFactIds": [
+        "fBoundary"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sLower",
+      "requestId": "sLower",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-1"
+      },
+      "approximate": -1,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sUpper",
+      "requestId": "sUpper",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "23/5"
+      },
+      "approximate": 4.6,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sLower",
+      "requestId": "sLower",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eLower"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sUpper",
+      "requestId": "sUpper",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eUpper"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 7,
+  "inputTokens": 22054,
+  "outputTokens": 5653,
+  "totalTokens": 27707,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.097699,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 682,
+    "outputTokens": 530,
+    "totalTokens": 1212,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006664,
+    "measuredCostUsd": 0.006664,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 743,
+    "outputTokens": 862,
+    "totalTokens": 1605,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010106,
+    "measuredCostUsd": 0.010106,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5556,
+    "outputTokens": 28,
+    "totalTokens": 5584,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011392,
+    "measuredCostUsd": 0.011392,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2254,
+    "outputTokens": 1108,
+    "totalTokens": 3362,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.012649,
+    "measuredCostUsd": 0.012649,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4127,
+    "outputTokens": 1175,
+    "totalTokens": 5302,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.020004,
+    "measuredCostUsd": 0.020004,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4127,
+    "outputTokens": 1379,
+    "totalTokens": 5506,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.022044,
+    "measuredCostUsd": 0.022044,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4565,
+    "outputTokens": 571,
+    "totalTokens": 5136,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01484,
+    "measuredCostUsd": 0.01484,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.243004
+   }
+  ],
+  "knownUsageUsd": 0.09769900000000001
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "ed2b9cadd75e57f24f3046ba934680be37085ed55d454aa13e236c97f7fba1bf",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "S"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "2bcf98ea8881cb8d2f389e494f7d01509aaccf5b7f52bcfe1cb5eb6e5d2c9e48",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[4]",
+      "entityIds": [
+       "setS"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "solution",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"union\":[{\"inequality\":\"x <= -1\"},{\"inequality\":\"x > 23/5\"}]}}",
+    "argumentsPresent": true,
+    "argumentBytes": 92,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "locateP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gP\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "locateQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gQ\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "locateR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gR\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "locateT",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gT\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gP\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gQ\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gR\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeT",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"gT\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 42,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "makeS",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"union\":[{\"inequality\":\"4x + 5 >= 7x + 8\"},{\"inequality\":\"-2(3x - 1) < -x - 21\"}]}}",
+    "argumentsPresent": true,
+    "argumentBytes": 113,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "-1",
+   "23/5",
+   "P=-1 included",
+   "Q=0 excluded",
+   "R=23/5 excluded",
+   "T=5 included",
+   "Solution: (-infinity, -1] union (23/5, infinity)"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 17,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch"
+  ],
+  "candidateCount": 3,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 15190,
+    "elapsedMs": 9073,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 15179,
+    "elapsedMs": 9886,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 17170,
+    "elapsedMs": 5029,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 17209,
+    "elapsedMs": 6075,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_separated_boolean_union_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_separated_boolean_union_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.\",\n    \"representationTier\": \"quantitative_verified\"\n  },\n  \"quantities\": [\n    {\"id\": \"gP\", \"symbol\": \"P\", \"value\": -1},\n    {\"id\": \"gQ\", \"symbol\": \"Q\", \"value\": 0},\n    {\"id\": \"gR\", \"symbol\": \"R\", \"value\": 4.6},\n    {\"id\": \"gT\", \"symbol\": \"T\", \"value\": 5},\n    {\"id\": \"uL\", \"symbol\": \"left boundary\", \"value\": -1},\n    {\"id\": \"uU\", \"symbol\": \"right boundary\", \"value\": 4.6}\n  ],\n  \"entities\": [\n    {\"id\": \"S\", \"kind\": \"linear_region\", \"label\": \"S\"},\n    {\"id\": \"P\", \"kind\": \"point\", \"label\": \"P = -1\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"label\": \"Q = 0\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"label\": \"R = 23/5\"},\n    {\"id\": \"T\", \"kind\": \"point\", \"label\": \"T = 5\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"solution\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"union\": [\n            {\"inequality\": \"x <= -1\"},\n            {\"inequality\": \"x > 23/5\"}\n          ]\n        }\n      },\n      \"outputs\": [\"S\"]\n    },\n    {\"id\": \"locateP\", \"operator\": \"point\", \"inputs\": {\"x\": \"gP\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"locateQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"gQ\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"locateR\", \"operator\": \"point\", \"inputs\": {\"x\": \"gR\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"locateT\", \"operator\": \"point\", \"inputs\": {\"x\": \"gT\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"T\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\": \"pEndpoint\", \"kind\": \"endpoint\", \"targetIds\": [\"P\"], \"style\": {\"pointStyle\": \"filled\"}},\n    {\"id\": \"rEndpoint\", \"kind\": \"endpoint\", \"targetIds\": [\"R\"], \"style\": {\"pointStyle\": \"open\"}},\n    {\"id\": \"membership\", \"kind\": \"narration\", \"targetIds\": [\"P\", \"Q\", \"R\", \"T\"], \"text\": \"P and T belong to S; Q and R do not.\"}\n  ],\n  \"requiredEntityIds\": [\"S\", \"P\", \"Q\", \"R\", \"T\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"S\", \"P\", \"Q\", \"R\", \"T\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.\",\n    \"representationTier\": \"qualitative_verified\",\n    \"nonMetric\": false\n  },\n  \"quantities\": [\n    {\"id\": \"gP\", \"symbol\": \"P\", \"value\": -1},\n    {\"id\": \"gQ\", \"symbol\": \"Q\", \"value\": 0},\n    {\"id\": \"gR\", \"symbol\": \"R\", \"value\": 4.6},\n    {\"id\": \"gT\", \"symbol\": \"T\", \"value\": 5},\n    {\"id\": \"uS\", \"symbol\": \"S\"},\n    {\"id\": \"uL\", \"symbol\": \"left boundary\", \"value\": -1},\n    {\"id\": \"uU\", \"symbol\": \"right boundary\", \"value\": 4.6}\n  ],\n  \"entities\": [\n    {\"id\": \"pP\", \"kind\": \"point\", \"label\": \"P\"},\n    {\"id\": \"pQ\", \"kind\": \"point\", \"label\": \"Q\"},\n    {\"id\": \"pR\", \"kind\": \"point\", \"label\": \"R\"},\n    {\"id\": \"pT\", \"kind\": \"point\", \"label\": \"T\"},\n    {\"id\": \"setS\", \"kind\": \"linear_region\", \"label\": \"S\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": \"gP\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pP\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"gQ\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pQ\"]},\n    {\"id\": \"makeR\", \"operator\": \"point\", \"inputs\": {\"x\": \"gR\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pR\"]},\n    {\"id\": \"makeT\", \"operator\": \"point\", \"inputs\": {\"x\": \"gT\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pT\"]},\n    {\n      \"id\": \"makeS\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"union\": [\n            {\"inequality\": \"4x + 5 >= 7x + 8\"},\n            {\"inequality\": \"-2(3x - 1) < -x - 21\"}\n          ]\n        }\n      },\n      \"outputs\": [\"setS\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\": \"pValue\", \"kind\": \"callout\", \"targetIds\": [\"pP\"], \"text\": \"−1 ∈ S\"},\n    {\"id\": \"qValue\", \"kind\": \"callout\", \"targetIds\": [\"pQ\"], \"text\": \"0 ∉ S\"},\n    {\"id\": \"rValue\", \"kind\": \"callout\", \"targetIds\": [\"pR\"], \"text\": \"23/5 ∉ S\"},\n    {\"id\": \"tValue\", \"kind\": \"callout\", \"targetIds\": [\"pT\"], \"text\": \"5 ∈ S\"},\n    {\"id\": \"closedP\", \"kind\": \"endpoint\", \"targetIds\": [\"pP\"], \"style\": {\"pointStyle\": \"filled\"}},\n    {\"id\": \"openR\", \"kind\": \"endpoint\", \"targetIds\": [\"pR\"], \"style\": {\"pointStyle\": \"open\"}}\n  ],\n  \"requiredEntityIds\": [\"pP\", \"pQ\", \"pR\", \"pT\", \"setS\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"pP\", \"pQ\", \"pR\", \"pT\"]},\n    {\"id\": \"solution\", \"entityIds\": [\"setS\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"revealGroupId\": \"setup\"},\n    {\"revealGroupId\": \"solution\"}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.\"\n  },\n  \"quantities\": [\n    {\"id\": \"gP\", \"symbol\": \"P\", \"value\": -1},\n    {\"id\": \"gQ\", \"symbol\": \"Q\", \"value\": 0},\n    {\"id\": \"gR\", \"symbol\": \"R\", \"value\": 4.6},\n    {\"id\": \"gT\", \"symbol\": \"T\", \"value\": 5}\n  ],\n  \"entities\": [\n    {\"id\": \"S\", \"kind\": \"linear_region\", \"role\": \"solution\", \"label\": \"S\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"solution\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"union\": [\n            {\"inequality\": \"4x + 5 >= 7x + 8\"},\n            {\"inequality\": \"-2(3x - 1) < -x - 21\"}\n          ]\n        }\n      },\n      \"outputs\": [\"S\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"S\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"S\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "f4d0109c3777611986e221a290ecf3476c05a1c338d05da2b7812b9c59cb3c02",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1248,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|separated-boolean-union|q1",
+  "topic_id": "maths|h3r8-finish-regions|separated-boolean-union",
+  "subject": "maths",
+  "difficulty": "hard",
+  "ask_style": "topic_ask",
+  "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "number_line",
+  "must_show": [
+   "Two rays: (-infinity, -1] and (23/5, infinity).",
+   "The gap (-1, 23/5] is unshaded.",
+   "P and T belong to S; Q and R do not."
+  ],
+  "must_label": [
+   "x",
+   "-1",
+   "23/5",
+   "P = -1",
+   "Q = 0",
+   "R = 23/5",
+   "T = 5"
+  ],
+  "must_not_show": [
+   "An intersection substituted for OR.",
+   "Closed endpoint at 23/5.",
+   "Open endpoint at -1.",
+   "Shading across the gap."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "First inequality gives x <= -1",
+   "Second inequality gives x > 23/5",
+   "S = (-infinity, -1] union (23/5, infinity)",
+   "P: true; Q: false; R: false; T: true"
+  ],
+  "notes": "SAT inequalities; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

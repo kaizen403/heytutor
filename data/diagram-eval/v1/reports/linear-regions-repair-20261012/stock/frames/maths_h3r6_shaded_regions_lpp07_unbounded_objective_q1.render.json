@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "b2cbd2f931e20eb43e8088e2ed66007edcbc5fe85301611ed6d8a67ecbbcbb64",
+  "pngSha256": "aa487aaad862c21df5d4dc29c6cb10be642b2ff0c91986d4906fc8eadd1fceae"
+}

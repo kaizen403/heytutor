@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "a1afe4384b580938f07097d2b8998f0d70bf2b299690bd5c7961bf8f9927b5f2",
+  "pngSha256": "331f1277c703a9e491977eb997fe88f005250828e3a3ea33ee40fc14aada6486"
+}

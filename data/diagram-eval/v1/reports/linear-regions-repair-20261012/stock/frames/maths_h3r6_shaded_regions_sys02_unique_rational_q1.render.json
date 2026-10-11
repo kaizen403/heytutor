@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "a65eaf1fb029e7d0d07cb5233f405c17a91757d7f1b33151dbdd9f66cb7199de",
+  "pngSha256": "9dc01d92a79b61ef8438b09a5c489bd27365a4ce77afc927c9b693b2aaa17803"
+}

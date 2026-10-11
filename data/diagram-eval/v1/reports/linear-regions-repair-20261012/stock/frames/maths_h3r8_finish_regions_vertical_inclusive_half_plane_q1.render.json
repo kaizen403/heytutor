@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "19667b23fa2fc352d19ecafbc5d14b6ea260db18b9f32b56c27e2e831d754523",
+  "pngSha256": "c7b28e5716ca37e29a1deaff13259ac2d8d6e95866fa1bb01fd61689dbc3c3d3"
+}

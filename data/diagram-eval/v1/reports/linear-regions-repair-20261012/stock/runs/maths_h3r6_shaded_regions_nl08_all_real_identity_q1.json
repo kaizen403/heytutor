@@ -1,0 +1,732 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+ "topicId": "maths|h3r6-shaded-regions|nl08-all-real-identity",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Solve -2(x - 3) <= -2x + 6 for real x. Show its solution set on a number line.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:01:43.949Z",
+ "timings": {
+  "planMs": 16122,
+  "teachMs": 0,
+  "totalMs": 16124,
+  "figureCommitMs": 16124,
+  "stages": {
+   "turnPlanMs": 4239,
+   "problemIrMs": 3717,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 8140,
+   "deadlineRemainingMs": 43899,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": false,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "coefficient",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "g1 = -2"
+   },
+   {
+    "id": "g2",
+    "symbol": "constant in parentheses",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "g2 = 3"
+   },
+   {
+    "id": "g3",
+    "symbol": "right-hand constant",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "g3 = 6"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "solution set"
+   }
+  ],
+  "derived": [],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "-2x + 6 ≤ -2x + 6; solution set = ℝ"
+   },
+   {
+    "id": "c2",
+    "expected": "Shade the entire number line in both directions, with no excluded points."
+   }
+  ],
+  "lawIds": [
+   "distributive property",
+   "reflexive property of inequality"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "05085b6d203441b1cae63859b462c8175cf0c98e166436c8bf1e3db8fa990fe5",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Solve -2(x - 3) <= -2x + 6 for real x. Show its solution set on a number line.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "coefficient",
+      "value": -2,
+      "sourceText": "g1 = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "constant in parentheses",
+      "value": 3,
+      "sourceText": "g2 = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "right-hand constant",
+      "value": 6,
+      "sourceText": "g3 = 6",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "solution set"
+     }
+    ],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Distributing on the left gives the same expression on both sides, so the inequality holds for every real x.",
+      "expected": "-2x + 6 ≤ -2x + 6; solution set = ℝ",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "g3",
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The number line shows the solution set.",
+      "expected": "Shade the entire number line in both directions, with no excluded points.",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     }
+    ],
+    "lawIds": [
+     "distributive property",
+     "reflexive property of inequality"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Solve -2(x - 3) <= -2x + 6 for real x. Show its solution set on a number line.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The inequality is -2(x - 3) <= -2x + 6.",
+      "evidence": {
+       "source": "question",
+       "start": 6,
+       "end": 26,
+       "quote": "-2(x - 3) <= -2x + 6"
+      }
+     },
+     {
+      "id": "fReal",
+      "kind": "given",
+      "statement": "x is real.",
+      "evidence": {
+       "source": "question",
+       "start": 27,
+       "end": 37,
+       "quote": "for real x"
+      }
+     },
+     {
+      "id": "fSolve",
+      "kind": "requested",
+      "statement": "Find the solution set.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 37,
+       "quote": "Solve -2(x - 3) <= -2x + 6 for real x"
+      }
+     },
+     {
+      "id": "fLine",
+      "kind": "requested",
+      "statement": "Show the solution set on a number line.",
+      "evidence": {
+       "source": "question",
+       "start": 39,
+       "end": 78,
+       "quote": "Show its solution set on a number line."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "realLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fReal",
+       "fLine"
+      ]
+     },
+     {
+      "id": "solutionSet",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fSolve",
+       "fLine"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "variable",
+         "name": "x"
+        },
+        "right": {
+         "kind": "number",
+         "value": 3
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eRight",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 2
+         }
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 6
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cIneq",
+      "kind": "inequality",
+      "leftExpressionId": "eLeft",
+      "rightExpressionId": "eRight",
+      "relation": "<=",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iLine",
+      "kind": "bounded_region",
+      "entityIds": [
+       "realLine",
+       "solutionSet"
+      ],
+      "evidenceFactIds": [
+       "fReal",
+       "fLine"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 6,
+  "inputTokens": 16091,
+  "outputTokens": 2800,
+  "totalTokens": 18891,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.057243,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 621,
+    "outputTokens": 222,
+    "totalTokens": 843,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.003462,
+    "measuredCostUsd": 0.003462,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 682,
+    "outputTokens": 378,
+    "totalTokens": 1060,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.005144,
+    "measuredCostUsd": 0.005144,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5375,
+    "outputTokens": 30,
+    "totalTokens": 5405,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.01105,
+    "measuredCostUsd": 0.01105,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1889,
+    "outputTokens": 395,
+    "totalTokens": 2284,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.004789,
+    "measuredCostUsd": 0.004789,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 3762,
+    "outputTokens": 856,
+    "totalTokens": 4618,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.016084,
+    "measuredCostUsd": 0.016084,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 3762,
+    "outputTokens": 919,
+    "totalTokens": 4681,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.016714,
+    "measuredCostUsd": 0.016714,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.057243
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "276333c75c3280ecf9822aeb84a3da8dd85b4ce002515e550ce42738407fb0b4",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[0]",
+      "entityIds": [
+       "solutionLine"
+      ]
+     },
+     {
+      "code": "empty_required_scene",
+      "message": "A scene must declare requiredEntityIds",
+      "severity": "fatal",
+      "path": "requiredEntityIds"
+     }
+    ],
+    "issueCount": 2,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "constructSolutionLine",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"inequality\":\"-2(x - 3) <= -2x + 6\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 67,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[0]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "Solution: (-infinity, infinity)"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 5,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "invalid_linear_region",
+   "empty_required_scene"
+  ],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 14181,
+    "elapsedMs": 7562,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 14170,
+    "elapsedMs": 8138,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Solve -2(x - 3) <= -2x + 6 for real x. Show its solution set on a number line.\",\n    \"representationTier\": \"qualitative_verified\",\n    \"nonMetric\": true\n  },\n  \"quantities\": [\n    {\n      \"id\": \"g1\",\n      \"symbol\": \"coefficient\",\n      \"value\": -2,\n      \"provenance\": \"given\",\n      \"sourceText\": \"g1 = -2\"\n    },\n    {\n      \"id\": \"g2\",\n      \"symbol\": \"constant in parentheses\",\n      \"value\": 3,\n      \"provenance\": \"given\",\n      \"sourceText\": \"g2 = 3\"\n    },\n    {\n      \"id\": \"g3\",\n      \"symbol\": \"right-hand constant\",\n      \"value\": 6,\n      \"provenance\": \"given\",\n      \"sourceText\": \"g3 = 6\"\n    },\n    {\n      \"id\": \"u1\",\n      \"symbol\": \"solution set\"\n    }\n  ],\n  \"entities\": [\n    {\n      \"id\": \"solutionLine\",\n      \"kind\": \"linear_region\",\n      \"role\": \"solution set\"\n    }\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"solveInequality\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\n          \"inequality\": \"-2(x - 3) <= -2x + 6\"\n        }\n      },\n      \"outputs\": [\n        \"solutionLine\"\n      ]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\n    \"solutionLine\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\": \"solutionReveal\",\n      \"entityIds\": [\n        \"solutionLine\"\n      ]\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"setup\",\n      \"text\": \"Solve −2(x − 3) ≤ −2x + 6 for real x.\"\n    },\n    {\n      \"id\": \"simplify\",\n      \"text\": \"Distributing gives −2x + 6 ≤ −2x + 6, which holds for every real x.\"\n    },\n    {\n      \"id\": \"showSolution\",\n      \"revealGroupIds\": [\n        \"solutionReveal\"\n      ],\n      \"text\": \"The solution set is ℝ: the entire number line, with no excluded points.\"\n    }\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Solve -2(x - 3) <= -2x + 6 for real x. Show its solution set on a number line.\",\n    \"representationTier\": \"exact_verified\",\n    \"nonMetric\": true\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"coefficient\", \"value\": -2},\n    {\"id\": \"g2\", \"symbol\": \"constant in parentheses\", \"value\": 3},\n    {\"id\": \"g3\", \"symbol\": \"right-hand constant\", \"value\": 6}\n  ],\n  \"entities\": [\n    {\"id\": \"solutionLine\", \"kind\": \"group\", \"role\": \"solution set\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"constructSolutionLine\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\"inequality\": \"-2(x - 3) <= -2x + 6\"}\n      },\n      \"outputs\": [\"solutionLine\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\n      \"id\": \"setup\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"solutionLine\"],\n      \"text\": \"Solve -2(x - 3) ≤ -2x + 6.\"\n    },\n    {\n      \"id\": \"reason\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"solutionLine\"],\n      \"text\": \"Distributing gives -2x + 6 ≤ -2x + 6, which holds for every real x. The entire number line is included.\"\n    }\n  ],\n  \"requiredEntityIds\": [\"solutionLine\"],\n  \"revealGroups\": [\n    {\"id\": \"solution\", \"entityIds\": [\"solutionLine\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"targetIds\": [\"setup\"]},\n    {\"id\": \"showSolution\", \"targetIds\": [\"solutionLine\", \"reason\"]}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "05085b6d203441b1cae63859b462c8175cf0c98e166436c8bf1e3db8fa990fe5",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1574,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+  "topic_id": "maths|h3r6-shaded-regions|nl08-all-real-identity",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "Solve -2(x - 3) <= -2x + 6 for real x. Show its solution set on a number line.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "a horizontal number line",
+   "the entire real line highlighted with continuation in both directions",
+   "no finite solution endpoint marker"
+  ],
+  "must_label": [
+   "x",
+   "R (all real numbers)"
+  ],
+  "must_not_show": [
+   "a single point at 3 or 6",
+   "a finite cutoff",
+   "an empty solution line"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Both sides equal -2x + 6.",
+   "The inequality is true for every real x.",
+   "The solution set is R."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=nl08; exam_scope=CBSE11;SAT; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

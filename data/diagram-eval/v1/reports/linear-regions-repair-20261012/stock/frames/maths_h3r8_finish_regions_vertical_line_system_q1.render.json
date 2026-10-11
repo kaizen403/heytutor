@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_vertical_line_system_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_vertical_line_system_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "5aee705ed03c60bb21f691aea3bfed48f46022ce615e82e4e5e9137d4b09f417",
+  "pngSha256": "854639bb396c4d0130610be7f0f4e013fea875e84910877b9d07fdd13df868f9"
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Show me graphically why x + 2y = 4 and 2x + 4y = 12 have no common solution.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_system tier=qualitative_verified labels=x | y | 0 | x + 2y=4 | 2x + 4y=12 | Parallel lines: no solution</text>
+<line x1="434" y1="459.37" x2="1126" y2="459.37" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="549.33" y1="517.03" x2="549.33" y2="171.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1121.7" y="483.9" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="579.63" y="173.57" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="561.61115" y="483.9" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="434,247.92 972.22,517.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="434,171.03 1126,517.03" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="716.11" y="351.48" font-size="18" dominant-baseline="hanging" textLength="48.450930239754015" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x + 2y=4</text>
+<text x="793" y="313.03" font-size="18" dominant-baseline="hanging" textLength="62.26529208380451" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2x + 4y=12</text>
+<text x="712.1972959657427" y="138.97" font-size="18" dominant-baseline="hanging" textLength="135.60540806851472" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Parallel lines: no solution</text>
+</svg>

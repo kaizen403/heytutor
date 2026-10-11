@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">For every real pair (x,y), graph 5 - 3x &lt;= 2x - 10. Draw the solution half-plane, label its boundary, and mark</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | 5 - 3x=2x - 10 | A | B | C | 5 - 3x&lt;=2x - 10 | A=(3, -2) included | B=(2, 4) excluded | C=(5, -1) included | Shaded side satisfies the inequality</text>
+<polygon points="801.13,586 938.44,586 938.44,205.75 801.13,205.75" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="621.56" y1="438.13" x2="938.44" y2="438.13" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="674.38" y1="586" x2="674.38" y2="205.75" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="943.52" y="441.8" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="695.3" y="209.43" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="695.3" y="463.8" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="801.13,586 801.13,205.75" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="814.13" y="386.88" font-size="18" dominant-baseline="hanging" textLength="78.38926171061375" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">5 - 3x=2x - 10</text>
+<circle cx="801.13" cy="522.63" r="4" fill="#141821"/>
+<text x="814.13" y="513.63" font-size="18" dominant-baseline="hanging" textLength="10.60317" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">A</text>
+<circle cx="758.88" cy="269.13" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="771.88" y="260.13" font-size="18" dominant-baseline="hanging" textLength="11.25828" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">B</text>
+<circle cx="885.63" cy="480.38" r="4" fill="#141821"/>
+<text x="898.63" y="471.38" font-size="18" dominant-baseline="hanging" textLength="11.01906" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">C</text>
+<text x="737.9381104155592" y="171.4" font-size="18" dominant-baseline="hanging" textLength="84.12377916888154" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">5 - 3x&lt;=2x - 10</text>
+<text x="732.9389101429849" y="146.05" font-size="18" dominant-baseline="hanging" textLength="94.12217971403011" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">A=(3, -2) included</text>
+<text x="734.0205525447662" y="120.69999999999999" font-size="18" dominant-baseline="hanging" textLength="91.9588949104675" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">B=(2, 4) excluded</text>
+<text x="734.5920289644797" y="95.35" font-size="18" dominant-baseline="hanging" textLength="90.81594207104064" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">C=(5, -1) included</text>
+<text x="681.6529137461708" y="70" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "aee8fc9d8271d61ed323bfe3b9355f7f3af9b5d90d0b58cd8240396937016fc7",
+  "pngSha256": "0b6cb94da1702c2917e770f3dd3c4568df2e0dca4847d053d093135ae30d78c2"
+}

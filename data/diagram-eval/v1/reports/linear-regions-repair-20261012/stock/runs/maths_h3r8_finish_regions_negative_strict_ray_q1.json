@@ -1,0 +1,1299 @@
+{
+ "probeId": "maths|h3r8-finish-regions|negative-strict-ray|q1",
+ "topicId": "maths|h3r8-finish-regions|negative-strict-ray",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "medium",
+ "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:05:29.162Z",
+ "timings": {
+  "planMs": 25994,
+  "teachMs": 0,
+  "totalMs": 25995,
+  "figureCommitMs": 25995,
+  "stages": {
+   "turnPlanMs": 5925,
+   "problemIrMs": 5048,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 14811,
+   "deadlineRemainingMs": 34210,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a",
+    "symbol": "outer coefficient",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "-3(2x - 1)"
+   },
+   {
+    "id": "b",
+    "symbol": "inner coefficient",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "2x - 1"
+   },
+   {
+    "id": "c",
+    "symbol": "inner constant",
+    "value": -1,
+    "provenance": "given",
+    "sourceText": "2x - 1"
+   },
+   {
+    "id": "d",
+    "symbol": "right-hand x coefficient",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "x + 17"
+   },
+   {
+    "id": "e",
+    "symbol": "right-hand constant",
+    "value": 17,
+    "provenance": "given",
+    "sourceText": "x + 17"
+   },
+   {
+    "id": "p",
+    "symbol": "P",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "P = -3"
+   },
+   {
+    "id": "q",
+    "symbol": "Q",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "Q = -2"
+   },
+   {
+    "id": "r",
+    "symbol": "R",
+    "value": 0,
+    "provenance": "given",
+    "sourceText": "R = 0"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u",
+    "symbol": "S"
+   },
+   {
+    "id": "boundary",
+    "symbol": "boundary"
+   }
+  ],
+  "derived": [
+   {
+    "id": "boundary",
+    "symbol": "boundary",
+    "value": -2
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "solution",
+    "expected": "S = {x ∈ ℝ : x < -2} = (-∞, -2)."
+   },
+   {
+    "id": "membership",
+    "expected": "P = -3 belongs to S; Q = -2 and R = 0 do not belong to S."
+   },
+   {
+    "id": "line",
+    "expected": "Place P at -3, Q at -2, and R at 0 in left-to-right order. Mark an open circle at Q and indicate the solution set extending leftward from Q; the boundary is excluded."
+   }
+  ],
+  "lawIds": [
+   "distributive-property",
+   "inequality-addition-property",
+   "inequality-division-by-negative"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "incomplete",
+  "issueCodes": [
+   "unbound_unknown"
+  ],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "fa75c93a932b4dcf2ee9b93d8c5b99c771d5f1d63b514a219b5cfe23ca927350",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "incomplete",
+    "issues": [
+     {
+      "code": "unbound_unknown",
+      "message": "numeric unknown u has no explicit solver binding",
+      "quantityId": "u"
+     }
+    ],
+    "bindings": [
+     {
+      "requestId": "sBoundary",
+      "quantityId": "boundary",
+      "symbol": "boundary",
+      "approximate": -2,
+      "exact": {
+       "kind": "integer",
+       "value": "-2"
+      },
+      "errorBound": 0,
+      "selection": {
+       "kind": "unique_source_linear_boundary",
+       "variable": "x",
+       "exact": "-2"
+      }
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "outer coefficient",
+      "value": -3,
+      "sourceText": "-3(2x - 1)",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "inner coefficient",
+      "value": 2,
+      "sourceText": "2x - 1",
+      "provenance": "given"
+     },
+     {
+      "id": "c",
+      "symbol": "inner constant",
+      "value": -1,
+      "sourceText": "2x - 1",
+      "provenance": "given"
+     },
+     {
+      "id": "d",
+      "symbol": "right-hand x coefficient",
+      "value": 1,
+      "sourceText": "x + 17",
+      "provenance": "given"
+     },
+     {
+      "id": "e",
+      "symbol": "right-hand constant",
+      "value": 17,
+      "sourceText": "x + 17",
+      "provenance": "given"
+     },
+     {
+      "id": "p",
+      "symbol": "P",
+      "value": -3,
+      "sourceText": "P = -3",
+      "provenance": "given"
+     },
+     {
+      "id": "q",
+      "symbol": "Q",
+      "value": -2,
+      "sourceText": "Q = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "r",
+      "symbol": "R",
+      "value": 0,
+      "sourceText": "R = 0",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u",
+      "symbol": "S"
+     },
+     {
+      "id": "boundary",
+      "symbol": "boundary"
+     }
+    ],
+    "derived": [
+     {
+      "id": "boundary",
+      "symbol": "boundary",
+      "value": -2,
+      "sourceText": "-3(2x - 1) > x + 17 gives -7x > 14; dividing by -7 reverses the inequality: x < -2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "c",
+       "d",
+       "e"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "solution",
+      "claim": "Solution set",
+      "expected": "S = {x ∈ ℝ : x < -2} = (-∞, -2).",
+      "relatedQuantityIds": [
+       "u",
+       "boundary"
+      ]
+     },
+     {
+      "id": "membership",
+      "claim": "Membership of labelled positions",
+      "expected": "P = -3 belongs to S; Q = -2 and R = 0 do not belong to S.",
+      "relatedQuantityIds": [
+       "p",
+       "q",
+       "r",
+       "u"
+      ]
+     },
+     {
+      "id": "line",
+      "claim": "Labelled number line",
+      "expected": "Place P at -3, Q at -2, and R at 0 in left-to-right order. Mark an open circle at Q and indicate the solution set extending leftward from Q; the boundary is excluded.",
+      "relatedQuantityIds": [
+       "p",
+       "q",
+       "r",
+       "boundary",
+       "u"
+      ]
+     }
+    ],
+    "lawIds": [
+     "distributive-property",
+     "inequality-addition-property",
+     "inequality-division-by-negative"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The inequality is -3(2x-1)>x+17.",
+      "evidence": {
+       "source": "question",
+       "start": 29,
+       "end": 48,
+       "quote": "-3(2x - 1) > x + 17"
+      }
+     },
+     {
+      "id": "fSolve",
+      "kind": "requested",
+      "statement": "Solve the inequality over the real numbers.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 49,
+       "quote": "Over the real numbers, solve -3(2x - 1) > x + 17."
+      }
+     },
+     {
+      "id": "fLine",
+      "kind": "requested",
+      "statement": "Draw a labelled number line for S.",
+      "evidence": {
+       "source": "question",
+       "start": 50,
+       "end": 101,
+       "quote": "Draw a labelled number line for the solution set S."
+      }
+     },
+     {
+      "id": "fP",
+      "kind": "given",
+      "statement": "P is at -3.",
+      "evidence": {
+       "source": "question",
+       "start": 122,
+       "end": 128,
+       "quote": "P = -3"
+      }
+     },
+     {
+      "id": "fQ",
+      "kind": "given",
+      "statement": "Q is at -2.",
+      "evidence": {
+       "source": "question",
+       "start": 130,
+       "end": 136,
+       "quote": "Q = -2"
+      }
+     },
+     {
+      "id": "fR",
+      "kind": "given",
+      "statement": "R is at 0.",
+      "evidence": {
+       "source": "question",
+       "start": 142,
+       "end": 147,
+       "quote": "R = 0"
+      }
+     },
+     {
+      "id": "fMembership",
+      "kind": "requested",
+      "statement": "Indicate membership of each labelled position.",
+      "evidence": {
+       "source": "question",
+       "start": 153,
+       "end": 187,
+       "quote": "indicate whether each belongs to S"
+      }
+     },
+     {
+      "id": "fBoundary",
+      "kind": "requested",
+      "statement": "Show whether the boundary is included.",
+      "evidence": {
+       "source": "question",
+       "start": 189,
+       "end": 235,
+       "quote": "Show clearly whether the boundary is included."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "numberLine",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fLine"
+      ]
+     },
+     {
+      "id": "solution",
+      "kind": "region",
+      "label": "S",
+      "evidenceFactIds": [
+       "fLine"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fP"
+      ]
+     },
+     {
+      "id": "q",
+      "kind": "point",
+      "label": "Q",
+      "evidenceFactIds": [
+       "fQ"
+      ]
+     },
+     {
+      "id": "r",
+      "kind": "point",
+      "label": "R",
+      "evidenceFactIds": [
+       "fR"
+      ]
+     },
+     {
+      "id": "boundaryPoint",
+      "kind": "point",
+      "label": "boundary",
+      "evidenceFactIds": [
+       "fBoundary"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "lhs",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 3
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "variable",
+          "name": "x"
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "rhs",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "variable",
+        "name": "x"
+       },
+       "right": {
+        "kind": "number",
+        "value": 17
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "difference",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 3
+         }
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "-",
+         "left": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+           "kind": "number",
+           "value": 2
+          },
+          "right": {
+           "kind": "variable",
+           "name": "x"
+          }
+         },
+         "right": {
+          "kind": "number",
+          "value": 1
+         }
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "variable",
+         "name": "x"
+        },
+        "right": {
+         "kind": "number",
+         "value": 17
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cIneq",
+      "kind": "inequality",
+      "leftExpressionId": "lhs",
+      "rightExpressionId": "rhs",
+      "relation": ">",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iLine",
+      "kind": "bounded_region",
+      "entityIds": [
+       "numberLine",
+       "solution",
+       "p",
+       "q",
+       "r",
+       "boundaryPoint"
+      ],
+      "evidenceFactIds": [
+       "fLine",
+       "fP",
+       "fQ",
+       "fR",
+       "fMembership",
+       "fBoundary"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sBoundary",
+      "kind": "roots",
+      "expressionId": "difference",
+      "variable": "x",
+      "domain": {
+       "min": -1000,
+       "max": 1000
+      },
+      "resultBinding": {
+       "turnPlanQuantityId": "boundary",
+       "symbol": "boundary",
+       "evidenceFactIds": [
+        "fSolve",
+        "fBoundary"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sBoundary",
+      "requestId": "sBoundary",
+      "valueType": "set",
+      "exact": [
+       {
+        "kind": "integer",
+        "value": "-2"
+       }
+      ],
+      "approximate": [
+       -2
+      ],
+      "errorBound": 1e-9
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sBoundary",
+      "requestId": "sBoundary",
+      "method": "polynomial_roots",
+      "expressionIds": [
+       "difference"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Isolated all real polynomial roots between derivative critical points and verified residuals."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 7,
+  "inputTokens": 21931,
+  "outputTokens": 5555,
+  "totalTokens": 27486,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.096473,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 660,
+    "outputTokens": 540,
+    "totalTokens": 1200,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00672,
+    "measuredCostUsd": 0.00672,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 721,
+    "outputTokens": 807,
+    "totalTokens": 1528,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.009512,
+    "measuredCostUsd": 0.009512,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5528,
+    "outputTokens": 39,
+    "totalTokens": 5567,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011446,
+    "measuredCostUsd": 0.011446,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2246,
+    "outputTokens": 704,
+    "totalTokens": 2950,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.008593,
+    "measuredCostUsd": 0.008593,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4119,
+    "outputTokens": 1254,
+    "totalTokens": 5373,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.020778,
+    "measuredCostUsd": 0.020778,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4119,
+    "outputTokens": 1500,
+    "totalTokens": 5619,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023238,
+    "measuredCostUsd": 0.023238,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 4538,
+    "outputTokens": 711,
+    "totalTokens": 5249,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.016186,
+    "measuredCostUsd": 0.016186,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.243616
+   }
+  ],
+  "knownUsageUsd": 0.096473
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "0cb09bd0e6f334362a2fcb541e3682c5a7afd060aedc4e04ea36d998e4542247",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[3]",
+      "entityIds": [
+       "S"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "87fe3cce8f48671d77ef78bedca1f8d838e23bd474f4616cf714e649abd092fc",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[3]",
+      "entityIds": [
+       "S"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"p\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"q\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"r\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "solveSet",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"inequality\":\"-3(2x - 1) > x + 17\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 66,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "placeP",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"p\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "placeQ",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"q\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "placeR",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"r\",\"y\":0,\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 41,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "solveSet",
+    "operator": "number_line_set",
+    "rawArguments": "{\"variable\":\"x\",\"expression\":{\"inequality\":\"-3(2x - 1) > x + 17\"}}",
+    "argumentsPresent": true,
+    "argumentBytes": 66,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[3]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "number_line_set",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "-2",
+   "P=-3 included",
+   "Q=-2 excluded",
+   "R=0 excluded",
+   "Solution: (-infinity, -2)"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 12,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch"
+  ],
+  "candidateCount": 3,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 15342,
+    "elapsedMs": 8443,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 15353,
+    "elapsedMs": 9801,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 17291,
+    "elapsedMs": 5394,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 17330,
+    "elapsedMs": 6359,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_negative_strict_ray_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_negative_strict_ray_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"outer coefficient\", \"value\": -3, \"provenance\": \"given\"},\n    {\"id\": \"b\", \"symbol\": \"inner coefficient\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"c\", \"symbol\": \"inner constant\", \"value\": -1, \"provenance\": \"given\"},\n    {\"id\": \"d\", \"symbol\": \"right-hand x coefficient\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"e\", \"symbol\": \"right-hand constant\", \"value\": 17, \"provenance\": \"given\"},\n    {\"id\": \"p\", \"symbol\": \"P\", \"value\": -3, \"provenance\": \"given\"},\n    {\"id\": \"q\", \"symbol\": \"Q\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"r\", \"symbol\": \"R\", \"value\": 0, \"provenance\": \"given\"},\n    {\"id\": \"boundary\", \"symbol\": \"boundary\", \"value\": -2, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"c\", \"d\", \"e\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"P\", \"kind\": \"point\", \"label\": \"P = -3\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"label\": \"Q = -2\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"label\": \"R = 0\"},\n    {\"id\": \"S\", \"kind\": \"linear_region\", \"label\": \"S\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": \"p\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"q\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"makeR\", \"operator\": \"point\", \"inputs\": {\"x\": \"r\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"solveSet\", \"operator\": \"number_line_set\", \"inputs\": {\"variable\": \"x\", \"expression\": {\"inequality\": \"-3(2x - 1) > x + 17\"}}, \"outputs\": [\"S\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\": \"openQ\", \"kind\": \"endpoint\", \"targetIds\": [\"Q\"], \"style\": {\"pointStyle\": \"open\"}},\n    {\"id\": \"inP\", \"kind\": \"callout\", \"targetIds\": [\"P\"], \"text\": \"P belongs to S\"},\n    {\"id\": \"outQ\", \"kind\": \"callout\", \"targetIds\": [\"Q\"], \"text\": \"Q does not belong to S\"},\n    {\"id\": \"outR\", \"kind\": \"callout\", \"targetIds\": [\"R\"], \"text\": \"R does not belong to S\"}\n  ],\n  \"requiredEntityIds\": [\"P\", \"Q\", \"R\", \"S\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"P\", \"Q\", \"R\"]},\n    {\"id\": \"solution\", \"entityIds\": [\"S\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"revealGroupId\": \"setup\"},\n    {\"kind\": \"narration\", \"text\": \"Distribute and collect terms: -7x > 14. Dividing by -7 reverses the inequality, so x < -2.\"},\n    {\"revealGroupId\": \"solution\"},\n    {\"kind\": \"narration\", \"text\": \"S = (-∞, -2). The open boundary excludes Q; P belongs to S, while Q and R do not.\"}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.\",\n    \"representationTier\": \"qualitative_verified\",\n    \"nonMetric\": false\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"outer coefficient\", \"value\": -3, \"provenance\": \"given\", \"sourceText\": \"-3(2x - 1)\"},\n    {\"id\": \"b\", \"symbol\": \"inner coefficient\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"2x - 1\"},\n    {\"id\": \"c\", \"symbol\": \"inner constant\", \"value\": -1, \"provenance\": \"given\", \"sourceText\": \"2x - 1\"},\n    {\"id\": \"d\", \"symbol\": \"right-hand x coefficient\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"x + 17\"},\n    {\"id\": \"e\", \"symbol\": \"right-hand constant\", \"value\": 17, \"provenance\": \"given\", \"sourceText\": \"x + 17\"},\n    {\"id\": \"p\", \"symbol\": \"P\", \"value\": -3, \"provenance\": \"given\", \"sourceText\": \"P = -3\"},\n    {\"id\": \"q\", \"symbol\": \"Q\", \"value\": -2, \"provenance\": \"given\", \"sourceText\": \"Q = -2\"},\n    {\"id\": \"r\", \"symbol\": \"R\", \"value\": 0, \"provenance\": \"given\", \"sourceText\": \"R = 0\"},\n    {\"id\": \"u\", \"symbol\": \"S\"},\n    {\"id\": \"boundary\", \"symbol\": \"boundary\", \"value\": -2, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"c\", \"d\", \"e\"], \"sourceText\": \"-3(2x - 1) > x + 17 gives -7x > 14; dividing by -7 reverses the inequality: x < -2.\"}\n  ],\n  \"entities\": [\n    {\"id\": \"P\", \"kind\": \"point\", \"label\": \"P = -3\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"label\": \"Q = -2\"},\n    {\"id\": \"R\", \"kind\": \"point\", \"label\": \"R = 0\"},\n    {\"id\": \"S\", \"kind\": \"linear_region\", \"label\": \"S\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"placeP\", \"operator\": \"point\", \"inputs\": {\"x\": \"p\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"placeQ\", \"operator\": \"point\", \"inputs\": {\"x\": \"q\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"placeR\", \"operator\": \"point\", \"inputs\": {\"x\": \"r\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"R\"]},\n    {\"id\": \"solveSet\", \"operator\": \"number_line_set\", \"inputs\": {\"variable\": \"x\", \"expression\": {\"inequality\": \"-3(2x - 1) > x + 17\"}}, \"outputs\": [\"S\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"orderedPositions\", \"predicate\": \"between\", \"entities\": [\"Q\", \"P\", \"R\"], \"expected\": true, \"severity\": \"error\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"pMember\", \"kind\": \"callout\", \"targetIds\": [\"P\"], \"text\": \"P belongs to S.\"},\n    {\"id\": \"qExcluded\", \"kind\": \"endpoint\", \"targetIds\": [\"Q\"], \"style\": {\"pointStyle\": \"open\"}},\n    {\"id\": \"qMember\", \"kind\": \"callout\", \"targetIds\": [\"Q\"], \"text\": \"Q does not belong to S; the boundary is excluded.\"},\n    {\"id\": \"rMember\", \"kind\": \"callout\", \"targetIds\": [\"R\"], \"text\": \"R does not belong to S.\"},\n    {\"id\": \"solution\", \"kind\": \"narration\", \"targetIds\": [\"S\"], \"text\": \"Dividing -7x > 14 by -7 reverses the inequality: x < -2. Thus S = (-∞, -2).\"}\n  ],\n  \"requiredEntityIds\": [\"P\", \"Q\", \"R\", \"S\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"P\", \"Q\", \"R\"]},\n    {\"id\": \"result\", \"entityIds\": [\"S\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupIds\": [\"setup\"]},\n    {\"id\": \"showSolution\", \"revealGroupIds\": [\"result\"], \"annotationIds\": [\"pMember\", \"qExcluded\", \"qMember\", \"rMember\", \"solution\"]}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.\"\n  },\n  \"quantities\": [\n    {\"id\": \"a\", \"symbol\": \"outer coefficient\", \"value\": -3, \"provenance\": \"given\"},\n    {\"id\": \"b\", \"symbol\": \"inner coefficient\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"c\", \"symbol\": \"inner constant\", \"value\": -1, \"provenance\": \"given\"},\n    {\"id\": \"d\", \"symbol\": \"right-hand x coefficient\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"e\", \"symbol\": \"right-hand constant\", \"value\": 17, \"provenance\": \"given\"},\n    {\"id\": \"p\", \"symbol\": \"P\", \"value\": -3, \"provenance\": \"given\"},\n    {\"id\": \"q\", \"symbol\": \"Q\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"r\", \"symbol\": \"R\", \"value\": 0, \"provenance\": \"given\"},\n    {\"id\": \"u\", \"symbol\": \"S\"},\n    {\"id\": \"boundary\", \"symbol\": \"boundary\", \"value\": -2, \"provenance\": \"derived\", \"dependsOn\": [\"a\", \"b\", \"c\", \"d\", \"e\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"S\", \"kind\": \"linear_region\", \"label\": \"S\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"solveSet\",\n      \"operator\": \"number_line_set\",\n      \"inputs\": {\n        \"variable\": \"x\",\n        \"expression\": {\"inequality\": \"-3(2x - 1) > x + 17\"}\n      },\n      \"outputs\": [\"S\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"S\"],\n  \"revealGroups\": [\n    {\"id\": \"solution\", \"entityIds\": [\"S\"]}\n  ],\n  \"teachingTimeline\": []\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "fa75c93a932b4dcf2ee9b93d8c5b99c771d5f1d63b514a219b5cfe23ca927350",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "none",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2122,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|negative-strict-ray|q1",
+  "topic_id": "maths|h3r8-finish-regions|negative-strict-ray",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "number_line",
+  "must_show": [
+   "Solution ray x < -2 shaded toward negative infinity.",
+   "Open endpoint at -2.",
+   "P is in S; Q and R are outside S."
+  ],
+  "must_label": [
+   "x",
+   "-2",
+   "P = -3",
+   "Q = -2",
+   "R = 0"
+  ],
+  "must_not_show": [
+   "Closed endpoint at -2.",
+   "Shading to the right of -2.",
+   "Any finite lower endpoint."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "S = (-infinity, -2)",
+   "P: true; Q: false; R: false"
+  ],
+  "notes": "CBSE class 11 inequalities; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

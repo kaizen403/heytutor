@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "3da77edf2ad99565625c552ba83536e1317be785b50494ddc47201052e692c0c",
+  "pngSha256": "e3bacf9b6fae2a8a1aee1eb6624819fa77507724e7b469533fb1b0de4475432a"
+}

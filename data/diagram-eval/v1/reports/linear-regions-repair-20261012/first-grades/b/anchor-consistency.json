@@ -1,0 +1,8 @@
+{
+  "total": 40,
+  "agreed": 34,
+  "reference": "codex-reference consistency, not human accuracy",
+  "referenceSha256": "a3468a75531a55f2f9494b27c7bd7320a216559892b424ef58640b7b07722518",
+  "feedbackGiven": false,
+  "gradeSha256": "f552771901448bf9810e40c28414227e302c232e538169ec671e6eafcca4298a"
+}

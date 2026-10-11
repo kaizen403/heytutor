@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Teach me the graphical corner-point method for maximizing Z = 3x + 2y subject to x &gt;= 0, y &gt;= 0, x + y &lt;= 6 an</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_feasible_region tier=qualitative_verified labels=x | y | x + y=6 | 2x + y=8 | (0, 0) | (0, 6) | (2, 4) | (4, 0) | x&gt;=0 | y&gt;=0 | Feasible region: bounded | Maximize 3x + 2y | (0, 0): 0 | (0, 6): 12 | (2, 4): 14 | (4, 0): 12 | Maximum = 14</text>
+<polygon points="700.78,374.75 700.78,533.19 806.41,533.19 753.59,427.56" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="661.17" y1="533.19" x2="898.83" y2="533.19" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="700.78" y1="586" x2="700.78" y2="269.13" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="905.89" y="534.75" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="719.72" y="270.69" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<polyline points="700.78,586 700.78,269.13" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="661.17,533.19 898.83,533.19" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="661.17,335.14 898.83,572.8" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="832.81,586 674.38,269.13" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="822.71" y="452.68" font-size="18" dominant-baseline="hanging" textLength="40.60992006555575" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x + y=6</text>
+<text x="730.6907686610746" y="497.78" font-size="18" dominant-baseline="hanging" textLength="49.509231338925474" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">2x + y=8</text>
+<circle cx="700.78" cy="533.19" r="4" fill="#141821"/>
+<text x="660.8893533089056" y="502.19000000000005" font-size="18" dominant-baseline="hanging" textLength="26.89064669109431" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 0)</text>
+<circle cx="700.78" cy="374.75" r="4" fill="#141821"/>
+<text x="660.3966716653429" y="387.75" font-size="18" dominant-baseline="hanging" textLength="27.38332833465704" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 6)</text>
+<circle cx="753.59" cy="427.56" r="4" fill="#141821"/>
+<text x="766.59" y="396.56" font-size="18" dominant-baseline="hanging" textLength="28.35350314982567" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(2, 4)</text>
+<circle cx="806.41" cy="533.19" r="4" fill="#141821"/>
+<text x="766.8532242584023" y="546.19" font-size="18" dominant-baseline="hanging" textLength="26.556775741597743" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(4, 0)</text>
+<circle cx="753.59" cy="427.56" r="4" fill="#141821"/>
+<text x="765.3254308464286" y="239" font-size="18" dominant-baseline="hanging" textLength="29.34913830714281" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x&gt;=0</text>
+<text x="765.3846720399861" y="217.88" font-size="18" dominant-baseline="hanging" textLength="29.23065592002785" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y&gt;=0</text>
+<text x="713.017047835695" y="196.75" font-size="18" dominant-baseline="hanging" textLength="133.96590432860995" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Feasible region: bounded</text>
+<text x="730.1385566321374" y="175.63" font-size="18" dominant-baseline="hanging" textLength="99.7228867357252" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Maximize 3x + 2y</text>
+<text x="760.0658738071024" y="154.5" font-size="18" dominant-baseline="hanging" textLength="39.86825238579518" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 0): 0</text>
+<text x="757.0767669417021" y="133.38" font-size="18" dominant-baseline="hanging" textLength="45.84646611659582" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(0, 6): 12</text>
+<text x="756.6231215873042" y="112.25" font-size="18" dominant-baseline="hanging" textLength="46.75375682539152" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(2, 4): 14</text>
+<text x="757.4900432382317" y="91.13" font-size="18" dominant-baseline="hanging" textLength="45.01991352353653" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">(4, 0): 12</text>
+<text x="737.8267167386027" y="70" font-size="18" dominant-baseline="hanging" textLength="84.34656652279453" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Maximum = 14</text>
+</svg>

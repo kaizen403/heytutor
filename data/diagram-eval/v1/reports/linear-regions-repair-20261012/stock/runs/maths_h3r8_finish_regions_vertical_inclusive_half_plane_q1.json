@@ -1,0 +1,1684 @@
+{
+ "probeId": "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+ "topicId": "maths|h3r8-finish-regions|vertical-inclusive-half-plane",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "easy",
+ "question": "For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:06:35.131Z",
+ "timings": {
+  "planMs": 28221,
+  "teachMs": 0,
+  "totalMs": 28222,
+  "figureCommitMs": 28222,
+  "stages": {
+   "turnPlanMs": 6173,
+   "problemIrMs": 5187,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 16701,
+   "deadlineRemainingMs": 31936,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "a",
+    "value": 5,
+    "provenance": "given",
+    "sourceText": "5 - 3x <= 2x - 10"
+   },
+   {
+    "id": "g2",
+    "symbol": "b",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "coefficient of x on the left"
+   },
+   {
+    "id": "g3",
+    "symbol": "c",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "coefficient of x on the right"
+   },
+   {
+    "id": "g4",
+    "symbol": "d",
+    "value": -10,
+    "provenance": "given",
+    "sourceText": "constant on the right"
+   },
+   {
+    "id": "ax",
+    "symbol": "x_A",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "A = (3,-2)"
+   },
+   {
+    "id": "ay",
+    "symbol": "y_A",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "A = (3,-2)"
+   },
+   {
+    "id": "bx",
+    "symbol": "x_B",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "B = (2,4)"
+   },
+   {
+    "id": "by",
+    "symbol": "y_B",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "B = (2,4)"
+   },
+   {
+    "id": "cx",
+    "symbol": "x_C",
+    "value": 5,
+    "provenance": "given",
+    "sourceText": "C = (5,-1)"
+   },
+   {
+    "id": "cy",
+    "symbol": "y_C",
+    "value": -1,
+    "provenance": "given",
+    "sourceText": "C = (5,-1)"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u",
+    "symbol": "x_boundary"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u",
+    "symbol": "x_boundary",
+    "value": 3
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "region",
+    "expected": "Shade the side of the vertical boundary x = 3 where x increases; include the boundary."
+   },
+   {
+    "id": "A",
+    "expected": "3 >= 3 is true."
+   },
+   {
+    "id": "B",
+    "expected": "2 >= 3 is false."
+   },
+   {
+    "id": "C",
+    "expected": "5 >= 3 is true."
+   }
+  ],
+  "lawIds": [
+   "equivalent-inequalities-by-addition",
+   "equivalent-inequalities-by-positive-division",
+   "inclusive-boundary-for-nonstrict-inequality"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eLeft",
+     "valueType": "function",
+     "root": {
+      "kind": "binary",
+      "operator": "-",
+      "left": {
+       "kind": "number",
+       "value": 5
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "variable",
+        "name": "x"
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    },
+    {
+     "id": "eRight",
+     "valueType": "function",
+     "root": {
+      "kind": "binary",
+      "operator": "-",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "variable",
+        "name": "x"
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 10
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    },
+    {
+     "id": "eBoundary",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "number",
+        "value": 5
+       },
+       "right": {
+        "kind": "number",
+        "value": 10
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fIneq",
+      "fGraph"
+     ]
+    }
+   ],
+   "constraints": [
+    {
+     "id": "cIneq",
+     "kind": "inequality",
+     "leftExpressionId": "eLeft",
+     "rightExpressionId": "eRight",
+     "relation": "<=",
+     "evidenceFactIds": [
+      "fIneq"
+     ]
+    }
+   ],
+   "representationIntents": [
+    {
+     "id": "iSolution",
+     "kind": "bounded_region",
+     "entityIds": [
+      "solution",
+      "boundary",
+      "pointA",
+      "pointB",
+      "pointC"
+     ],
+     "evidenceFactIds": [
+      "fGraph",
+      "fMembership",
+      "fY"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sBoundary",
+     "quantityId": "u",
+     "symbol": "x_boundary",
+     "approximate": 3,
+     "exact": {
+      "kind": "integer",
+      "value": "3"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "0d86a8177e9046ca874b4b56578fdf628859b23d37c021de9982743d00954790",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sBoundary",
+      "quantityId": "u",
+      "symbol": "x_boundary",
+      "approximate": 3,
+      "exact": {
+       "kind": "integer",
+       "value": "3"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "a",
+      "value": 5,
+      "sourceText": "5 - 3x <= 2x - 10",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "b",
+      "value": -3,
+      "sourceText": "coefficient of x on the left",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "c",
+      "value": 2,
+      "sourceText": "coefficient of x on the right",
+      "provenance": "given"
+     },
+     {
+      "id": "g4",
+      "symbol": "d",
+      "value": -10,
+      "sourceText": "constant on the right",
+      "provenance": "given"
+     },
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": 3,
+      "sourceText": "A = (3,-2)",
+      "provenance": "given"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": -2,
+      "sourceText": "A = (3,-2)",
+      "provenance": "given"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 2,
+      "sourceText": "B = (2,4)",
+      "provenance": "given"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 4,
+      "sourceText": "B = (2,4)",
+      "provenance": "given"
+     },
+     {
+      "id": "cx",
+      "symbol": "x_C",
+      "value": 5,
+      "sourceText": "C = (5,-1)",
+      "provenance": "given"
+     },
+     {
+      "id": "cy",
+      "symbol": "y_C",
+      "value": -1,
+      "sourceText": "C = (5,-1)",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u",
+      "symbol": "x_boundary"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u",
+      "symbol": "x_boundary",
+      "value": 3,
+      "sourceText": "5 - 3x <= 2x - 10 implies 15 <= 5x, hence x >= 3; equality gives x = 3.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3",
+       "g4"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "region",
+      "claim": "The solution is the closed half-plane x >= 3, with no restriction on y.",
+      "expected": "Shade the side of the vertical boundary x = 3 where x increases; include the boundary.",
+      "relatedQuantityIds": [
+       "u"
+      ]
+     },
+     {
+      "id": "A",
+      "claim": "A lies on the boundary and belongs to the solution.",
+      "expected": "3 >= 3 is true.",
+      "relatedQuantityIds": [
+       "ax",
+       "ay",
+       "u"
+      ]
+     },
+     {
+      "id": "B",
+      "claim": "B does not belong to the solution.",
+      "expected": "2 >= 3 is false.",
+      "relatedQuantityIds": [
+       "bx",
+       "by",
+       "u"
+      ]
+     },
+     {
+      "id": "C",
+      "claim": "C belongs to the solution.",
+      "expected": "5 >= 3 is true.",
+      "relatedQuantityIds": [
+       "cx",
+       "cy",
+       "u"
+      ]
+     }
+    ],
+    "lawIds": [
+     "equivalent-inequalities-by-addition",
+     "equivalent-inequalities-by-positive-division",
+     "inclusive-boundary-for-nonstrict-inequality"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The inequality is 5 - 3x <= 2x - 10.",
+      "evidence": {
+       "source": "question",
+       "start": 33,
+       "end": 50,
+       "quote": "5 - 3x <= 2x - 10"
+      }
+     },
+     {
+      "id": "fDomain",
+      "kind": "given",
+      "statement": "The inequality applies to every real pair.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 25,
+       "quote": "For every real pair (x,y)"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph the solution half-plane and label its boundary.",
+      "evidence": {
+       "source": "question",
+       "start": 52,
+       "end": 100,
+       "quote": "Draw the solution half-plane, label its boundary"
+      }
+     },
+     {
+      "id": "fA",
+      "kind": "given",
+      "statement": "Point A has coordinates (3,-2).",
+      "evidence": {
+       "source": "question",
+       "start": 111,
+       "end": 121,
+       "quote": "A = (3,-2)"
+      }
+     },
+     {
+      "id": "fB",
+      "kind": "given",
+      "statement": "Point B has coordinates (2,4).",
+      "evidence": {
+       "source": "question",
+       "start": 123,
+       "end": 132,
+       "quote": "B = (2,4)"
+      }
+     },
+     {
+      "id": "fC",
+      "kind": "given",
+      "statement": "Point C has coordinates (5,-1).",
+      "evidence": {
+       "source": "question",
+       "start": 138,
+       "end": 148,
+       "quote": "C = (5,-1)"
+      }
+     },
+     {
+      "id": "fMembership",
+      "kind": "requested",
+      "statement": "Mark the points and state their membership.",
+      "evidence": {
+       "source": "question",
+       "start": 106,
+       "end": 168,
+       "quote": "mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership"
+      }
+     },
+     {
+      "id": "fY",
+      "kind": "given",
+      "statement": "There is no constraint on y.",
+      "evidence": {
+       "source": "question",
+       "start": 170,
+       "end": 198,
+       "quote": "There is no constraint on y."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq",
+       "fGraph"
+      ]
+     },
+     {
+      "id": "boundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIneq",
+       "fGraph"
+      ]
+     },
+     {
+      "id": "pointA",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+       "fA"
+      ]
+     },
+     {
+      "id": "pointB",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+       "fB"
+      ]
+     },
+     {
+      "id": "pointC",
+      "kind": "point",
+      "label": "C",
+      "evidenceFactIds": [
+       "fC"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eLeft",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 5
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eRight",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 10
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "eBoundary",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "number",
+         "value": 5
+        },
+        "right": {
+         "kind": "number",
+         "value": 10
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 3
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fIneq",
+       "fGraph"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cIneq",
+      "kind": "inequality",
+      "leftExpressionId": "eLeft",
+      "rightExpressionId": "eRight",
+      "relation": "<=",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iSolution",
+      "kind": "bounded_region",
+      "entityIds": [
+       "solution",
+       "boundary",
+       "pointA",
+       "pointB",
+       "pointC"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fMembership",
+       "fY"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sBoundary",
+      "kind": "evaluate",
+      "expressionId": "eBoundary",
+      "resultBinding": {
+       "turnPlanQuantityId": "u",
+       "symbol": "x_boundary",
+       "evidenceFactIds": [
+        "fGraph"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sBoundary",
+      "requestId": "sBoundary",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "3"
+      },
+      "approximate": 3,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sBoundary",
+      "requestId": "sBoundary",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eBoundary"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 36672,
+  "outputTokens": 6853,
+  "totalTokens": 43525,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.138935,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 660,
+    "outputTokens": 657,
+    "totalTokens": 1317,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.00789,
+    "measuredCostUsd": 0.00789,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 721,
+    "outputTokens": 794,
+    "totalTokens": 1515,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.009382,
+    "measuredCostUsd": 0.009382,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5563,
+    "outputTokens": 114,
+    "totalTokens": 5677,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.012266,
+    "measuredCostUsd": 0.012266,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2321,
+    "outputTokens": 692,
+    "totalTokens": 3013,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.008623,
+    "measuredCostUsd": 0.008623,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6583,
+    "outputTokens": 1171,
+    "totalTokens": 7754,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.024876,
+    "measuredCostUsd": 0.024876,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6583,
+    "outputTokens": 1310,
+    "totalTokens": 7893,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.026266,
+    "measuredCostUsd": 0.026266,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7116,
+    "outputTokens": 919,
+    "totalTokens": 8035,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023422,
+    "measuredCostUsd": 0.023422,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7125,
+    "outputTokens": 1196,
+    "totalTokens": 8321,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02621,
+    "measuredCostUsd": 0.02621,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.138935
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "9f831e451fe47291f3f7aab775c15a4a568dc0a6a1dc93fa78e35a299fccc3f9",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "28b37457ad99fc8b91f86f2eb18aa3d3c214d5d2cd6505bf8de25bdb1623c78b",
+    "errors": [
+     {
+      "code": "invalid_linear_region",
+      "message": "Linear operators require one linear_region output",
+      "severity": "fatal",
+      "path": "constructions[4]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "d9a05d873e9561ea712b8f6540af6643afcd53ab73c5892a28ad3df43a7bb9e8",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":0,\"xMax\":7,\"yMin\":-4,\"yMax\":6}",
+    "argumentsPresent": true,
+    "argumentBytes": 38,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"5 - 3*x <= 2*x - 10\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 58,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "makeC",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "makeBoundaryLabel",
+    "operator": "label",
+    "rawArguments": "{\"target\":\"solution\",\"text\":\"x = 3\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 36,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":0,\"xMax\":7,\"yMin\":-4,\"yMax\":6}",
+    "argumentsPresent": true,
+    "argumentBytes": 38,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeC",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"5 - 3*x <= 2*x - 10\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 58,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 5,
+    "constructionId": "makeBoundary",
+    "operator": "line",
+    "rawArguments": "{\"start\":\"A\",\"direction\":[0,1]}",
+    "argumentsPresent": true,
+    "argumentBytes": 31,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "invalid_linear_region"
+    ],
+    "errorPaths": [
+     "constructions[4]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":0,\"xMax\":7,\"yMin\":-4,\"yMax\":6}",
+    "argumentsPresent": true,
+    "argumentBytes": 38,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 2,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"5-3x<=2x-10\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 50,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 2,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 2,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 2,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 4,
+    "constructionId": "makeC",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 2,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "5 - 3x=2x - 10",
+   "A",
+   "B",
+   "C",
+   "5 - 3x<=2x - 10",
+   "A=(3, -2) included",
+   "B=(2, 4) excluded",
+   "C=(5, -1) included",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 18,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch",
+   "invalid_linear_region"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 23290,
+    "elapsedMs": 8656,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 23301,
+    "elapsedMs": 9811,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 25764,
+    "elapsedMs": 7472,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 25803,
+    "elapsedMs": 8038,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The given inequality defines an exact closed half-plane, and all three points have stated coordinates.\"\n  },\n  \"source\": {\n    \"question\": \"For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.\"\n  },\n  \"quantities\": [\n    {\"id\":\"g1\",\"symbol\":\"a\",\"value\":5,\"provenance\":\"given\"},\n    {\"id\":\"g2\",\"symbol\":\"b\",\"value\":-3,\"provenance\":\"given\"},\n    {\"id\":\"g3\",\"symbol\":\"c\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"g4\",\"symbol\":\"d\",\"value\":-10,\"provenance\":\"given\"},\n    {\"id\":\"ax\",\"symbol\":\"x_A\",\"value\":3,\"provenance\":\"given\"},\n    {\"id\":\"ay\",\"symbol\":\"y_A\",\"value\":-2,\"provenance\":\"given\"},\n    {\"id\":\"bx\",\"symbol\":\"x_B\",\"value\":2,\"provenance\":\"given\"},\n    {\"id\":\"by\",\"symbol\":\"y_B\",\"value\":4,\"provenance\":\"given\"},\n    {\"id\":\"cx\",\"symbol\":\"x_C\",\"value\":5,\"provenance\":\"given\"},\n    {\"id\":\"cy\",\"symbol\":\"y_C\",\"value\":-1,\"provenance\":\"given\"},\n    {\"id\":\"u\",\"symbol\":\"x_boundary\",\"value\":3,\"provenance\":\"derived\"}\n  ],\n  \"entities\": [\n    {\"id\":\"axes\",\"kind\":\"axes\",\"role\":\"coordinate axes\"},\n    {\"id\":\"solution\",\"kind\":\"linear_region\",\"role\":\"closed solution half-plane and its boundary\"},\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"given point on the boundary\",\"label\":\"A\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"given point outside the solution\",\"label\":\"B\"},\n    {\"id\":\"C\",\"kind\":\"point\",\"role\":\"given point inside the solution\",\"label\":\"C\"},\n    {\"id\":\"boundaryLabel\",\"kind\":\"label\",\"role\":\"derived boundary equation\",\"label\":\"x = 3\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"makeAxes\",\"operator\":\"axes\",\"inputs\":{\"xMin\":0,\"xMax\":7,\"yMin\":-4,\"yMax\":6},\"outputs\":[\"axes\"]},\n    {\"id\":\"makeSolution\",\"operator\":\"linear_half_plane\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"inequality\":\"5 - 3*x <= 2*x - 10\"},\"outputs\":[\"solution\"]},\n    {\"id\":\"makeA\",\"operator\":\"point\",\"inputs\":{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},\n    {\"id\":\"makeB\",\"operator\":\"point\",\"inputs\":{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]},\n    {\"id\":\"makeC\",\"operator\":\"point\",\"inputs\":{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"},\"outputs\":[\"C\"]},\n    {\"id\":\"makeBoundaryLabel\",\"operator\":\"label\",\"inputs\":{\"target\":\"solution\",\"text\":\"x = 3\"},\"outputs\":[\"boundaryLabel\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\",\"solution\",\"A\",\"B\",\"C\",\"boundaryLabel\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"axes\",\"solution\",\"A\",\"B\",\"C\"],\"dependsOn\":[]},\n    {\"id\":\"result\",\"entityIds\":[\"boundaryLabel\"],\"dependsOn\":[\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"revealGroupId\":\"setup\",\"narrationCue\":\"Graph the inclusive inequality and mark the three given points. There is no restriction on y.\"},\n    {\"revealGroupId\":\"result\",\"narrationCue\":\"Rearranging gives x ≥ 3. The boundary is x = 3: A lies on it and belongs to the solution; B is outside; C is inside.\"}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\"schemaVersion\":\"scene-document/v2\",\"visualDecision\":{\"mode\":\"scene\",\"reason\":\"The stated inequality defines an exact closed half-plane, and the three given points have exact coordinates.\"},\"source\":{\"question\":\"For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership.\"},\"quantities\":[{\"id\":\"g1\",\"symbol\":\"a\",\"value\":5},{\"id\":\"g2\",\"symbol\":\"b\",\"value\":-3},{\"id\":\"g3\",\"symbol\":\"c\",\"value\":2},{\"id\":\"g4\",\"symbol\":\"d\",\"value\":-10},{\"id\":\"ax\",\"symbol\":\"x_A\",\"value\":3},{\"id\":\"ay\",\"symbol\":\"y_A\",\"value\":-2},{\"id\":\"bx\",\"symbol\":\"x_B\",\"value\":2},{\"id\":\"by\",\"symbol\":\"y_B\",\"value\":4},{\"id\":\"cx\",\"symbol\":\"x_C\",\"value\":5},{\"id\":\"cy\",\"symbol\":\"y_C\",\"value\":-1},{\"id\":\"u\",\"symbol\":\"x_boundary\",\"value\":3,\"provenance\":\"derived\",\"dependsOn\":[\"g1\",\"g2\",\"g3\",\"g4\"]}],\"entities\":[{\"id\":\"axes\",\"kind\":\"axes\",\"role\":\"coordinate axes\"},{\"id\":\"A\",\"kind\":\"point\",\"role\":\"given point\",\"label\":\"A\"},{\"id\":\"B\",\"kind\":\"point\",\"role\":\"given point\",\"label\":\"B\"},{\"id\":\"C\",\"kind\":\"point\",\"role\":\"given point\",\"label\":\"C\"},{\"id\":\"solution\",\"kind\":\"polygon\",\"role\":\"closed solution half-plane\"},{\"id\":\"boundary\",\"kind\":\"line\",\"role\":\"included boundary\",\"label\":\"x = 3\"}],\"constructions\":[{\"id\":\"makeAxes\",\"operator\":\"axes\",\"inputs\":{\"xMin\":0,\"xMax\":7,\"yMin\":-4,\"yMax\":6},\"outputs\":[\"axes\"]},{\"id\":\"makeA\",\"operator\":\"point\",\"inputs\":{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},{\"id\":\"makeB\",\"operator\":\"point\",\"inputs\":{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]},{\"id\":\"makeC\",\"operator\":\"point\",\"inputs\":{\"x\":\"cx\",\"y\":\"cy\",\"coordinateSpace\":\"world\"},\"outputs\":[\"C\"]},{\"id\":\"makeSolution\",\"operator\":\"linear_half_plane\",\"inputs\":{\"variables\":[\"x\",\"y\"],\"inequality\":\"5 - 3*x <= 2*x - 10\"},\"outputs\":[\"solution\"]},{\"id\":\"makeBoundary\",\"operator\":\"line\",\"inputs\":{\"start\":\"A\",\"direction\":[0,1]},\"outputs\":[\"boundary\"]}],\"relations\":[],\"assertions\":[],\"annotations\":[],\"requiredEntityIds\":[\"axes\",\"A\",\"B\",\"C\",\"solution\",\"boundary\"],\"revealGroups\":[{\"id\":\"setup\",\"entityIds\":[\"axes\",\"A\",\"B\",\"C\"],\"dependsOn\":[],\"narrationCue\":\"Plot the three given points. The inequality places no restriction on y.\"},{\"id\":\"result\",\"entityIds\":[\"solution\",\"boundary\"],\"dependsOn\":[\"setup\"],\"narrationCue\":\"The inequality simplifies to x ≥ 3. Include the boundary x = 3 and shade toward increasing x. A is on the boundary and belongs to the solution; B does not belong; C belongs.\"}],\"teachingTimeline\":[{\"id\":\"showSetup\",\"revealGroupId\":\"setup\"},{\"id\":\"showResult\",\"revealGroupId\":\"result\"}]}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The source inequality defines a verifiable closed half-plane.\"\n  },\n  \"source\": {\n    \"question\": \"For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"a\", \"value\": 5},\n    {\"id\": \"g2\", \"symbol\": \"b\", \"value\": -3},\n    {\"id\": \"g3\", \"symbol\": \"c\", \"value\": 2},\n    {\"id\": \"g4\", \"symbol\": \"d\", \"value\": -10},\n    {\"id\": \"ax\", \"symbol\": \"x_A\", \"value\": 3},\n    {\"id\": \"ay\", \"symbol\": \"y_A\", \"value\": -2},\n    {\"id\": \"bx\", \"symbol\": \"x_B\", \"value\": 2},\n    {\"id\": \"by\", \"symbol\": \"y_B\", \"value\": 4},\n    {\"id\": \"cx\", \"symbol\": \"x_C\", \"value\": 5},\n    {\"id\": \"cy\", \"symbol\": \"y_C\", \"value\": -1},\n    {\"id\": \"u\", \"symbol\": \"x_boundary\", \"value\": 3}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"closed solution half-plane, boundary and source points\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeSolution\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\"variables\": [\"x\", \"y\"], \"inequality\": \"5 - 3x <= 2x - 10\"},\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"solution\"], \"dependsOn\": []}\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"showSetup\",\n      \"revealGroupId\": \"setup\",\n      \"narration\": \"Graph 5 − 3x ≤ 2x − 10 for all real y. Mark A = (3, −2), B = (2, 4), and C = (5, −1).\"\n    },\n    {\n      \"id\": \"showResult\",\n      \"revealGroupId\": \"setup\",\n      \"narration\": \"The boundary is x = 3 and is included. Shade x ≥ 3, with no restriction on y. A is on the boundary and belongs; B does not belong; C belongs.\"\n    }\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The original inequality defines a verified linear half-plane; the three stated points have exact coordinates.\"\n  },\n  \"source\": {\n    \"question\": \"For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"a\", \"value\": 5},\n    {\"id\": \"g2\", \"symbol\": \"b\", \"value\": -3},\n    {\"id\": \"g3\", \"symbol\": \"c\", \"value\": 2},\n    {\"id\": \"g4\", \"symbol\": \"d\", \"value\": -10},\n    {\"id\": \"ax\", \"symbol\": \"x_A\", \"value\": 3},\n    {\"id\": \"ay\", \"symbol\": \"y_A\", \"value\": -2},\n    {\"id\": \"bx\", \"symbol\": \"x_B\", \"value\": 2},\n    {\"id\": \"by\", \"symbol\": \"y_B\", \"value\": 4},\n    {\"id\": \"cx\", \"symbol\": \"x_C\", \"value\": 5},\n    {\"id\": \"cy\", \"symbol\": \"y_C\", \"value\": -1},\n    {\"id\": \"u\", \"symbol\": \"x_boundary\", \"value\": 3}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"closed solution half-plane and its boundary\"},\n    {\"id\": \"A\", \"kind\": \"point\", \"label\": \"A\", \"role\": \"stated point on the boundary\"},\n    {\"id\": \"B\", \"kind\": \"point\", \"label\": \"B\", \"role\": \"stated point outside the solution\"},\n    {\"id\": \"C\", \"kind\": \"point\", \"label\": \"C\", \"role\": \"stated point inside the solution\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeAxes\",\n      \"operator\": \"axes\",\n      \"inputs\": {\"xMin\": 0, \"xMax\": 7, \"yMin\": -4, \"yMax\": 6},\n      \"outputs\": [\"axes\"]\n    },\n    {\n      \"id\": \"makeSolution\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\n        \"variables\": [\"x\", \"y\"],\n        \"inequality\": \"5-3x<=2x-10\"\n      },\n      \"outputs\": [\"solution\"]\n    },\n    {\n      \"id\": \"makeA\",\n      \"operator\": \"point\",\n      \"inputs\": {\"x\": \"ax\", \"y\": \"ay\", \"coordinateSpace\": \"world\"},\n      \"outputs\": [\"A\"]\n    },\n    {\n      \"id\": \"makeB\",\n      \"operator\": \"point\",\n      \"inputs\": {\"x\": \"bx\", \"y\": \"by\", \"coordinateSpace\": \"world\"},\n      \"outputs\": [\"B\"]\n    },\n    {\n      \"id\": \"makeC\",\n      \"operator\": \"point\",\n      \"inputs\": {\"x\": \"cx\", \"y\": \"cy\", \"coordinateSpace\": \"world\"},\n      \"outputs\": [\"C\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\", \"solution\", \"A\", \"B\", \"C\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"solution\", \"A\", \"B\", \"C\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph the original inequality and mark the three stated points.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"showSetup\",\n      \"groupId\": \"setup\",\n      \"narration\": \"The boundary is included because the inequality is non-strict.\"\n    },\n    {\n      \"id\": \"stateResult\",\n      \"groupId\": \"setup\",\n      \"narration\": \"The boundary is x = 3. Shade x ≥ 3 for every y. A is on the boundary and belongs to the solution; B does not belong; C belongs.\"\n    }\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "0d86a8177e9046ca874b4b56578fdf628859b23d37c021de9982743d00954790",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002095,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2536,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+  "topic_id": "maths|h3r8-finish-regions|vertical-inclusive-half-plane",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "exam_stem",
+  "question": "For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "half_plane",
+  "must_show": [
+   "Solid vertical boundary x = 3.",
+   "Shade the entire half-plane x >= 3, extending above and below the x-axis.",
+   "A is included on the boundary; B is outside; C is inside."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "x = 3",
+   "3",
+   "A",
+   "B",
+   "C"
+  ],
+  "must_not_show": [
+   "Horizontal boundary.",
+   "Dashed boundary.",
+   "Shading only the first quadrant.",
+   "Shading x <= 3."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Equivalent inequality: x >= 3",
+   "A: true; B: false; C: true"
+  ],
+  "notes": "SAT inequalities; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

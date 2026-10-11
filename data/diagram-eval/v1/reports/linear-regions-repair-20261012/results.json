@@ -1,0 +1,52 @@
+{
+  "status": "MEASURED_ONCE",
+  "source": "2c81544f",
+  "stats": {
+    "all60": {
+      "rows": 60,
+      "drawn": 54,
+      "right": 33,
+      "partial": 21,
+      "wrong": 0,
+      "requiredEmpty": 6,
+      "wrongPlusEmpty": 6
+    },
+    "frozen40": {
+      "rows": 40,
+      "drawn": 37,
+      "right": 22,
+      "partial": 15,
+      "wrong": 0,
+      "requiredEmpty": 3,
+      "wrongPlusEmpty": 3
+    },
+    "additional20": {
+      "rows": 20,
+      "drawn": 17,
+      "right": 11,
+      "partial": 6,
+      "wrong": 0,
+      "requiredEmpty": 3,
+      "wrongPlusEmpty": 3
+    }
+  },
+  "A": {
+    "partial": 21,
+    "right": 32,
+    "wrong": 1
+  },
+  "B": {
+    "partial": 21,
+    "right": 33
+  },
+  "firstAgreements": 53,
+  "disputes": 1,
+  "unresolved": 0,
+  "rootImageViews": 0,
+  "recoveries": {
+    "a": 0,
+    "b": 1,
+    "c": 0
+  },
+  "comparison": "Descriptive versus retained R10 MAIN1/MAIN2 and regions1; no new paired repeat/fresh holdout"
+}

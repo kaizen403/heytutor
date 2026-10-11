@@ -1,0 +1,1046 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1",
+ "topicId": "maths|h3r6-shaded-regions|hp10-strict-boundary-point",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "medium",
+ "question": "Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:02:53.622Z",
+ "timings": {
+  "planMs": 20988,
+  "teachMs": 0,
+  "totalMs": 20988,
+  "figureCommitMs": 20988,
+  "stages": {
+   "turnPlanMs": 4050,
+   "problemIrMs": 3693,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 13136,
+   "deadlineRemainingMs": 39118,
+   "revalidateMs": 0,
+   "plannerCalls": 4,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "c",
+    "symbol": "c",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "x - y > 2"
+   },
+   {
+    "id": "ax",
+    "symbol": "x_A",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "A = (3, 1)"
+   },
+   {
+    "id": "ay",
+    "symbol": "y_A",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "A = (3, 1)"
+   },
+   {
+    "id": "bx",
+    "symbol": "x_B",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "B = (4, 1)"
+   },
+   {
+    "id": "by",
+    "symbol": "y_B",
+    "value": 1,
+    "provenance": "given",
+    "sourceText": "B = (4, 1)"
+   }
+  ],
+  "unknowns": [],
+  "derived": [
+   {
+    "id": "ad",
+    "symbol": "x_A-y_A",
+    "value": 2
+   },
+   {
+    "id": "bd",
+    "symbol": "x_B-y_B",
+    "value": 3
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "graph",
+    "expected": "The boundary is excluded because the inequality is strict."
+   },
+   {
+    "id": "result",
+    "expected": "B satisfies x - y > 2, while A does not."
+   }
+  ],
+  "lawIds": [
+   "strict-inequality-graphing",
+   "substitution-into-inequality"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "4e7eca3c10db48a72c02e6df046415101d3c0722125dab1e002843cd3d976043",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "c",
+      "symbol": "c",
+      "value": 2,
+      "sourceText": "x - y > 2",
+      "provenance": "given"
+     },
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": 3,
+      "sourceText": "A = (3, 1)",
+      "provenance": "given"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 1,
+      "sourceText": "A = (3, 1)",
+      "provenance": "given"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 4,
+      "sourceText": "B = (4, 1)",
+      "provenance": "given"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 1,
+      "sourceText": "B = (4, 1)",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [],
+    "derived": [
+     {
+      "id": "ad",
+      "symbol": "x_A-y_A",
+      "value": 2,
+      "sourceText": "3 - 1 = 2",
+      "provenance": "derived",
+      "dependsOn": [
+       "ax",
+       "ay"
+      ]
+     },
+     {
+      "id": "bd",
+      "symbol": "x_B-y_B",
+      "value": 3,
+      "sourceText": "4 - 1 = 3",
+      "provenance": "derived",
+      "dependsOn": [
+       "bx",
+       "by"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "graph",
+      "claim": "Graph the boundary x - y = 2 as a dashed line and shade the side y < x - 2.",
+      "expected": "The boundary is excluded because the inequality is strict.",
+      "relatedQuantityIds": [
+       "c"
+      ]
+     },
+     {
+      "id": "result",
+      "claim": "B belongs to the shaded solution set; A lies on the excluded boundary.",
+      "expected": "B satisfies x - y > 2, while A does not.",
+      "relatedQuantityIds": [
+       "ad",
+       "bd",
+       "c"
+      ],
+      "relatedEntityHints": [
+       "A",
+       "B"
+      ]
+     }
+    ],
+    "lawIds": [
+     "strict-inequality-graphing",
+     "substitution-into-inequality"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?",
+    "facts": [
+     {
+      "id": "fIneq",
+      "kind": "given",
+      "statement": "The solution set satisfies x - y > 2.",
+      "evidence": {
+       "source": "question",
+       "start": 6,
+       "end": 15,
+       "quote": "x - y > 2"
+      }
+     },
+     {
+      "id": "fAx",
+      "kind": "given",
+      "statement": "A has x-coordinate 3.",
+      "evidence": {
+       "source": "question",
+       "start": 30,
+       "end": 31,
+       "quote": "3"
+      }
+     },
+     {
+      "id": "fAy",
+      "kind": "given",
+      "statement": "A has y-coordinate 1.",
+      "evidence": {
+       "source": "question",
+       "start": 33,
+       "end": 34,
+       "quote": "1"
+      }
+     },
+     {
+      "id": "fBx",
+      "kind": "given",
+      "statement": "B has x-coordinate 4.",
+      "evidence": {
+       "source": "question",
+       "start": 45,
+       "end": 46,
+       "quote": "4"
+      }
+     },
+     {
+      "id": "fBy",
+      "kind": "given",
+      "statement": "B has y-coordinate 1.",
+      "evidence": {
+       "source": "question",
+       "start": 33,
+       "end": 34,
+       "quote": "1"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph the inequality and mark A and B.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 50,
+       "quote": "Graph x - y > 2 and mark A = (3, 1) and B = (4, 1)"
+      }
+     },
+     {
+      "id": "fWhich",
+      "kind": "requested",
+      "statement": "Identify which point belongs to the shaded solution set.",
+      "evidence": {
+       "source": "question",
+       "start": 52,
+       "end": 104,
+       "quote": "Which of A and B belongs to the shaded solution set?"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "solution",
+      "kind": "region",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "boundary",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fIneq"
+      ]
+     },
+     {
+      "id": "pointA",
+      "kind": "point",
+      "label": "A",
+      "evidenceFactIds": [
+       "fAx",
+       "fAy"
+      ]
+     },
+     {
+      "id": "pointB",
+      "kind": "point",
+      "label": "B",
+      "evidenceFactIds": [
+       "fBx",
+       "fBy"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "solution",
+       "boundary",
+       "pointA",
+       "pointB"
+      ],
+      "evidenceFactIds": [
+       "fIneq",
+       "fAx",
+       "fAy",
+       "fBx",
+       "fBy",
+       "fGraph",
+       "fWhich"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 8,
+  "usageCalls": 8,
+  "inputTokens": 36800,
+  "outputTokens": 5062,
+  "totalTokens": 41862,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.121281,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 631,
+    "outputTokens": 531,
+    "totalTokens": 1162,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006572,
+    "measuredCostUsd": 0.006572,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 692,
+    "outputTokens": 513,
+    "totalTokens": 1205,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006514,
+    "measuredCostUsd": 0.006514,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5437,
+    "outputTokens": 78,
+    "totalTokens": 5515,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011654,
+    "measuredCostUsd": 0.011654,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2045,
+    "outputTokens": 436,
+    "totalTokens": 2481,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.005511,
+    "measuredCostUsd": 0.005511,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6784,
+    "outputTokens": 949,
+    "totalTokens": 7733,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023058,
+    "measuredCostUsd": 0.023058,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 6784,
+    "outputTokens": 1125,
+    "totalTokens": 7909,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.024818,
+    "measuredCostUsd": 0.024818,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7209,
+    "outputTokens": 783,
+    "totalTokens": 7992,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.022248,
+    "measuredCostUsd": 0.022248,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 7218,
+    "outputTokens": 647,
+    "totalTokens": 7865,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.020906,
+    "measuredCostUsd": 0.020906,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.121281
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "rawContentSha256": "8ec9246775a03f319ac0a2e692dabc4438d967d288549f19781f3bb97513446a",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "rawContentSha256": "12fa926a6e21fce0afde6efb8f4429248c0d6951dd7b0f1ba33f978e3b4f2fea",
+    "errors": [
+     {
+      "code": "linear_source_mismatch",
+      "message": "Linear figure marks must all be emitted by verified linear operators",
+      "severity": "fatal",
+      "path": "constructions[1]",
+      "entityIds": [
+       "solution"
+      ]
+     }
+    ],
+    "issueCount": 1,
+    "omittedIssueCount": 0
+   }
+  ],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-1,\"xMax\":6,\"yMin\":-2,\"yMax\":4}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"x-y>2\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 44,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 0,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 0,
+    "constructionId": "makeAxes",
+    "operator": "axes",
+    "rawArguments": "{\"xMin\":-1,\"xMax\":6,\"yMin\":-2,\"yMax\":4}",
+    "argumentsPresent": true,
+    "argumentBytes": 39,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 1,
+    "constructionId": "makeSolution",
+    "operator": "linear_half_plane",
+    "rawArguments": "{\"variables\":[\"x\",\"y\"],\"inequality\":\"x-y>2\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 44,
+    "truncated": false,
+    "attribution": "reported_path_or_entity",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 2,
+    "constructionId": "makeA",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"ax\",\"y\":\"ay\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "validationPass": "initial",
+    "constructionIndex": 3,
+    "constructionId": "makeB",
+    "operator": "point",
+    "rawArguments": "{\"x\":\"bx\",\"y\":\"by\",\"coordinateSpace\":\"world\"}",
+    "argumentsPresent": true,
+    "argumentBytes": 45,
+    "truncated": false,
+    "attribution": "candidate_rejected",
+    "errorCodes": [
+     "linear_source_mismatch"
+    ],
+    "errorPaths": [
+     "constructions[1]"
+    ],
+    "validationRecordIndex": 1,
+    "errorIndices": [
+     0
+    ],
+    "omittedErrorCount": 0
+   }
+  ],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_half_plane",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "x - y=2",
+   "A",
+   "B",
+   "x - y>2",
+   "A=(3, 1) excluded",
+   "B=(4, 1) included",
+   "Shaded side satisfies the inequality"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 15,
+  "assertionCount": 0,
+  "candidateErrorCodes": [
+   "linear_source_mismatch"
+  ],
+  "candidateCount": 4,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 24308,
+    "elapsedMs": 6742,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 24297,
+    "elapsedMs": 7430,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 26294,
+    "elapsedMs": 6053,
+    "declineReason": null
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 26333,
+    "elapsedMs": 6273,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   },
+   {
+    "id": "curated:maths/area-between--1",
+    "sourceKind": "curated",
+    "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+    "depicts": "area between curves; construction: axes, label, function curve, function region, curve anchor; entities: axes, coordinate axes, point, x axis end, label, x axis name, y axis end, y axis name, polyline, upper curve, parabola, lower curve, line, parabola label anchor, parabola equation, line label anchor, line equation, polygon, enclosed region, left intersection; labels: x, y, y = 2 − x², y = x, (−2, −2), (1, 1), x = −2, x = 1",
+    "figureKind": "function_plot",
+    "family": null,
+    "archetype": "area_between_curves"
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The strict linear inequality and both given points can be plotted exactly.\"\n  },\n  \"source\": {\n    \"question\": \"Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?\"\n  },\n  \"quantities\": [\n    {\"id\": \"c\", \"symbol\": \"c\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"ax\", \"symbol\": \"x_A\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"ay\", \"symbol\": \"y_A\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"bx\", \"symbol\": \"x_B\", \"value\": 4, \"provenance\": \"given\"},\n    {\"id\": \"by\", \"symbol\": \"y_B\", \"value\": 1, \"provenance\": \"given\"},\n    {\"id\": \"ad\", \"symbol\": \"x_A-y_A\", \"value\": 2, \"provenance\": \"derived\", \"dependsOn\": [\"ax\", \"ay\"]},\n    {\"id\": \"bd\", \"symbol\": \"x_B-y_B\", \"value\": 3, \"provenance\": \"derived\", \"dependsOn\": [\"bx\", \"by\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"shaded solution set with excluded boundary\"},\n    {\"id\": \"A\", \"kind\": \"point\", \"role\": \"point on the excluded boundary\", \"label\": \"A\"},\n    {\"id\": \"B\", \"kind\": \"point\", \"role\": \"point in the shaded solution set\", \"label\": \"B\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 6, \"yMin\": -2, \"yMax\": 4}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeSolution\", \"operator\": \"linear_half_plane\", \"inputs\": {\"variables\": [\"x\", \"y\"], \"inequality\": \"x-y>2\"}, \"outputs\": [\"solution\"]},\n    {\"id\": \"makeA\", \"operator\": \"point\", \"inputs\": {\"x\": \"ax\", \"y\": \"ay\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"A\"]},\n    {\"id\": \"makeB\", \"operator\": \"point\", \"inputs\": {\"x\": \"bx\", \"y\": \"by\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"B\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\", \"solution\", \"A\", \"B\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"solution\", \"A\", \"B\"], \"dependsOn\": []}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"evaluatePoints\", \"targetIds\": [\"A\", \"B\"], \"narration\": \"A lies on the excluded boundary. B belongs to the shaded solution set.\"}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The strict inequality and both stated points support an exact coordinate graph.\"\n  },\n  \"source\": {\n    \"question\": \"Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"c\", \"symbol\": \"c\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"x - y > 2\"},\n    {\"id\": \"ax\", \"symbol\": \"x_A\", \"value\": 3, \"provenance\": \"given\", \"sourceText\": \"A = (3, 1)\"},\n    {\"id\": \"ay\", \"symbol\": \"y_A\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"A = (3, 1)\"},\n    {\"id\": \"bx\", \"symbol\": \"x_B\", \"value\": 4, \"provenance\": \"given\", \"sourceText\": \"B = (4, 1)\"},\n    {\"id\": \"by\", \"symbol\": \"y_B\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"B = (4, 1)\"},\n    {\"id\": \"ad\", \"symbol\": \"x_A-y_A\", \"value\": 2, \"provenance\": \"derived\", \"dependsOn\": [\"ax\", \"ay\"], \"sourceText\": \"3 - 1 = 2\"},\n    {\"id\": \"bd\", \"symbol\": \"x_B-y_B\", \"value\": 3, \"provenance\": \"derived\", \"dependsOn\": [\"bx\", \"by\"], \"sourceText\": \"4 - 1 = 3\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"shaded solution set with excluded boundary\"},\n    {\"id\": \"A\", \"kind\": \"point\", \"role\": \"point on the excluded boundary\", \"label\": \"A\"},\n    {\"id\": \"B\", \"kind\": \"point\", \"role\": \"point in the solution set\", \"label\": \"B\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 6, \"yMin\": -2, \"yMax\": 4}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeSolution\", \"operator\": \"linear_half_plane\", \"inputs\": {\"variables\": [\"x\", \"y\"], \"inequality\": \"x-y>2\"}, \"outputs\": [\"solution\"]},\n    {\"id\": \"makeA\", \"operator\": \"point\", \"inputs\": {\"x\": \"ax\", \"y\": \"ay\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"A\"]},\n    {\"id\": \"makeB\", \"operator\": \"point\", \"inputs\": {\"x\": \"bx\", \"y\": \"by\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"B\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\": \"answer\", \"kind\": \"narration\", \"targetIds\": [\"A\", \"B\", \"solution\"], \"text\": \"A lies on the excluded boundary: 3 − 1 = 2. B is shaded: 4 − 1 = 3 > 2.\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"solution\", \"A\", \"B\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"solution\", \"A\", \"B\"], \"dependsOn\": []}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"checkPoints\", \"annotationIds\": [\"answer\"]}\n  ]\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The verified linear operator graphs the strict inequality and its shaded solution set.\"\n  },\n  \"source\": {\n    \"question\": \"Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?\"\n  },\n  \"quantities\": [\n    {\"id\": \"c\", \"symbol\": \"c\", \"value\": 2, \"provenance\": \"given\", \"sourceText\": \"x - y > 2\"},\n    {\"id\": \"ax\", \"symbol\": \"x_A\", \"value\": 3, \"provenance\": \"given\", \"sourceText\": \"A = (3, 1)\"},\n    {\"id\": \"ay\", \"symbol\": \"y_A\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"A = (3, 1)\"},\n    {\"id\": \"bx\", \"symbol\": \"x_B\", \"value\": 4, \"provenance\": \"given\", \"sourceText\": \"B = (4, 1)\"},\n    {\"id\": \"by\", \"symbol\": \"y_B\", \"value\": 1, \"provenance\": \"given\", \"sourceText\": \"B = (4, 1)\"},\n    {\"id\": \"ad\", \"symbol\": \"x_A-y_A\", \"value\": 2, \"provenance\": \"derived\", \"dependsOn\": [\"ax\", \"ay\"], \"sourceText\": \"3 - 1 = 2\"},\n    {\"id\": \"bd\", \"symbol\": \"x_B-y_B\", \"value\": 3, \"provenance\": \"derived\", \"dependsOn\": [\"bx\", \"by\"], \"sourceText\": \"4 - 1 = 3\"}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"shaded solution set of the strict inequality\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeSolution\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\"inequality\": \"x - y > 2\"},\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"solution\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph the strict inequality. A = (3, 1) lies on the excluded boundary; B = (4, 1) belongs to the shaded set.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+   },
+   {
+    "phase": "repair",
+    "lane": "alternate",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"A verified linear half-plane shows the strict inequality and its excluded boundary.\"\n  },\n  \"source\": {\n    \"question\": \"Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?\"\n  },\n  \"quantities\": [\n    {\"id\": \"c\", \"symbol\": \"c\", \"value\": 2},\n    {\"id\": \"ax\", \"symbol\": \"x_A\", \"value\": 3},\n    {\"id\": \"ay\", \"symbol\": \"y_A\", \"value\": 1},\n    {\"id\": \"bx\", \"symbol\": \"x_B\", \"value\": 4},\n    {\"id\": \"by\", \"symbol\": \"y_B\", \"value\": 1},\n    {\"id\": \"ad\", \"symbol\": \"x_A-y_A\", \"value\": 2},\n    {\"id\": \"bd\", \"symbol\": \"x_B-y_B\", \"value\": 3}\n  ],\n  \"entities\": [\n    {\"id\": \"solution\", \"kind\": \"linear_region\", \"role\": \"shaded solution set with excluded boundary\"}\n  ],\n  \"constructions\": [\n    {\n      \"id\": \"makeSolution\",\n      \"operator\": \"linear_half_plane\",\n      \"inputs\": {\"inequality\": \"x-y>2\"},\n      \"outputs\": [\"solution\"]\n    }\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"solution\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"solution\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Graph the strict inequality; A = (3, 1) and B = (4, 1) are the points to test.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"compare\",\n      \"targetIds\": [\"solution\"],\n      \"narrationCue\": \"A lies on the excluded boundary because its difference is 2. B belongs to the shaded solution set because its difference is 3.\"\n    }\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "4e7eca3c10db48a72c02e6df046415101d3c0722125dab1e002843cd3d976043",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1796,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1",
+   "curated:maths/area-between--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1",
+  "topic_id": "maths|h3r6-shaded-regions|hp10-strict-boundary-point",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "exam_stem",
+  "question": "Graph x - y > 2 and mark A = (3, 1) and B = (4, 1). Which of A and B belongs to the shaded solution set?",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "a dashed boundary y = x - 2",
+   "the half-plane below the line shaded",
+   "A on the excluded boundary and B inside the shaded region"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "x - y = 2",
+   "A (3, 1)",
+   "B (4, 1)"
+  ],
+  "must_not_show": [
+   "a solid boundary",
+   "A marked as a solution",
+   "shading above the line"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "y < x - 2",
+   "A yields 2 > 2, which is false.",
+   "B yields 3 > 2, which is true.",
+   "Only B belongs to the solution set."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=hp10; exam_scope=SAT;CBSE11-formative; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

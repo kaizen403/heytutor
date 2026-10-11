@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "d3d5e623e569e234bdf1488b94a1c2b49428332378c166f2a2beabbf52f2ceeb",
+  "pngSha256": "51be025226810b8e9087a17d9ea7a0fef32299123d78fa2f790013a156faf12a"
+}

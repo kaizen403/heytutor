@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">In the real xy-plane, graph -4(y + 1) &gt; 2y - 10. Draw and label the boundary, shade all solutions, and mark P </text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_half_plane tier=qualitative_verified labels=x | y | 0 | -4(y + 1)=2y - 10 | P | Q | R | -4(y + 1)&gt;2y - 10 | P=(0, 1) excluded | Q=(-2, 0) included | R=(3, 2) excluded | Shaded side satisfies the inequality</text>
+<polygon points="434,517.03 1126,517.03 1126,378.63 434,378.63" fill="rgba(31,111,139,.12)" stroke="none" stroke-width="1.15" stroke-linejoin="round"/>
+<line x1="434" y1="470.9" x2="1126" y2="470.9" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="733.87" y1="517.03" x2="733.87" y2="240.23" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1104.55676" y="493.13" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="764.17" y="240.46" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="746.1511499999999" y="493.13" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="434,378.63 1126,378.63" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<text x="994.5919408831278" y="347.63" font-size="18" dominant-baseline="hanging" textLength="89.81611823374436" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-4(y + 1)=2y - 10</text>
+<circle cx="733.87" cy="378.63" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="746.87" y="347.63" font-size="18" dominant-baseline="hanging" textLength="11.45223" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">P</text>
+<circle cx="549.33" cy="470.9" r="4" fill="#141821"/>
+<text x="543.5248650000001" y="439.9" font-size="18" dominant-baseline="hanging" textLength="11.610269999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Q</text>
+<circle cx="1010.67" cy="286.37" r="4" fill="#FDFDFB" stroke="#141821" stroke-width="1.5"/>
+<text x="1023.6699999999998" y="277.37" font-size="18" dominant-baseline="hanging" textLength="12.430709999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">R</text>
+<text x="734.6136591479144" y="212.78" font-size="18" dominant-baseline="hanging" textLength="90.77268170417122" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-4(y + 1)&gt;2y - 10</text>
+<text x="735.7707854401256" y="194.33" font-size="18" dominant-baseline="hanging" textLength="88.45842911974897" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">P=(0, 1) excluded</text>
+<text x="733.4732286965743" y="175.87" font-size="18" dominant-baseline="hanging" textLength="93.05354260685145" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Q=(-2, 0) included</text>
+<text x="734.2405052843677" y="157.42" font-size="18" dominant-baseline="hanging" textLength="91.51898943126457" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">R=(3, 2) excluded</text>
+<text x="681.6529137461708" y="138.97" font-size="18" dominant-baseline="hanging" textLength="196.6941725076584" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Shaded side satisfies the inequality</text>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "35925b08b4f6689cc8e5722d6821ba8e4ba3f032646c405ba740a6dba0112b03",
+  "pngSha256": "68af8d779afd3663be08aea0699747e6678a3aec6cacbf1cf2c4b355ea794595"
+}

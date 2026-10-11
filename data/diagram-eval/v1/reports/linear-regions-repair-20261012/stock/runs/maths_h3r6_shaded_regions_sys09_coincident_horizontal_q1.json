@@ -1,0 +1,701 @@
+{
+ "probeId": "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+ "topicId": "maths|h3r6-shaded-regions|sys09-coincident-horizontal",
+ "unitId": "maths|h3r6-shaded-regions",
+ "difficulty": "easy",
+ "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:05:11.364Z",
+ "timings": {
+  "planMs": 17796,
+  "teachMs": 0,
+  "totalMs": 17797,
+  "figureCommitMs": 17797,
+  "stages": {
+   "turnPlanMs": 3943,
+   "problemIrMs": 3853,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 9878,
+   "deadlineRemainingMs": 42322,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "2y",
+    "value": -6,
+    "provenance": "given",
+    "sourceText": "2y = -6"
+   },
+   {
+    "id": "g2",
+    "symbol": "-5y",
+    "value": 15,
+    "provenance": "given",
+    "sourceText": "-5y = 15"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "y"
+   },
+   {
+    "id": "u2",
+    "symbol": "x"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u1",
+    "symbol": "y",
+    "value": -3
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "y = -3"
+   },
+   {
+    "id": "c2",
+    "expected": "All ordered pairs (x, -3), where x is any real number."
+   }
+  ],
+  "lawIds": [
+   "Division property of equality",
+   "Coincident-lines criterion for infinitely many solutions"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "not_applicable",
+  "issueCodes": [],
+  "hasProjection": false,
+  "projection": null,
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "0c4b3d01f05d8eb0f053f3323c2476f4fe83bec00a9669aa726f3a3b9c6737ba",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "not_applicable",
+    "issues": [],
+    "bindings": []
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "2y",
+      "value": -6,
+      "sourceText": "2y = -6",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "-5y",
+      "value": 15,
+      "sourceText": "-5y = 15",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "y"
+     },
+     {
+      "id": "u2",
+      "symbol": "x"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "y",
+      "value": -3,
+      "sourceText": "d1 = -3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Both equations graph as the same horizontal line.",
+      "expected": "y = -3",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The coincident lines give infinitely many solutions.",
+      "expected": "All ordered pairs (x, -3), where x is any real number.",
+      "relatedQuantityIds": [
+       "u2",
+       "u1"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Division property of equality",
+     "Coincident-lines criterion for infinitely many solutions"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+    "facts": [
+     {
+      "id": "fEqOne",
+      "kind": "given",
+      "statement": "First equation is 2y = -6.",
+      "evidence": {
+       "source": "question",
+       "start": 18,
+       "end": 25,
+       "quote": "2y = -6"
+      }
+     },
+     {
+      "id": "fEqTwo",
+      "kind": "given",
+      "statement": "Second equation is -5y = 15.",
+      "evidence": {
+       "source": "question",
+       "start": 30,
+       "end": 38,
+       "quote": "-5y = 15"
+      }
+     },
+     {
+      "id": "fRequest",
+      "kind": "requested",
+      "statement": "Determine the number of solutions and describe them.",
+      "evidence": {
+       "source": "question",
+       "start": 42,
+       "end": 107,
+       "quote": "determine the number of solutions of the system and describe them"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "lineOne",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fEqOne"
+      ]
+     },
+     {
+      "id": "lineTwo",
+      "kind": "line",
+      "evidenceFactIds": [
+       "fEqTwo"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eLeftOne",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "variable",
+        "name": "y"
+       }
+      },
+      "evidenceFactIds": [
+       "fEqOne"
+      ]
+     },
+     {
+      "id": "eRightOne",
+      "valueType": "scalar",
+      "root": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 6
+       }
+      },
+      "evidenceFactIds": [
+       "fEqOne"
+      ]
+     },
+     {
+      "id": "eLeftTwo",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 5
+        }
+       },
+       "right": {
+        "kind": "variable",
+        "name": "y"
+       }
+      },
+      "evidenceFactIds": [
+       "fEqTwo"
+      ]
+     },
+     {
+      "id": "eRightTwo",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 15
+      },
+      "evidenceFactIds": [
+       "fEqTwo"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cEqOne",
+      "kind": "equation",
+      "leftExpressionId": "eLeftOne",
+      "rightExpressionId": "eRightOne",
+      "evidenceFactIds": [
+       "fEqOne"
+      ]
+     },
+     {
+      "id": "cEqTwo",
+      "kind": "equation",
+      "leftExpressionId": "eLeftTwo",
+      "rightExpressionId": "eRightTwo",
+      "evidenceFactIds": [
+       "fEqTwo"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "lineOne",
+       "lineTwo"
+      ],
+      "evidenceFactIds": [
+       "fEqOne",
+       "fEqTwo",
+       "fRequest"
+      ]
+     }
+    ],
+    "solveRequests": []
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 13857,
+  "outputTokens": 2719,
+  "totalTokens": 16576,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.051965,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 684,
+    "outputTokens": 482,
+    "totalTokens": 1166,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.006188,
+    "measuredCostUsd": 0.006188,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 623,
+    "outputTokens": 391,
+    "totalTokens": 1014,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.005156,
+    "measuredCostUsd": 0.005156,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5359,
+    "outputTokens": 89,
+    "totalTokens": 5448,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011608,
+    "measuredCostUsd": 0.011608,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 1883,
+    "outputTokens": 478,
+    "totalTokens": 2361,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.005607,
+    "measuredCostUsd": 0.005607,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5308,
+    "outputTokens": 1279,
+    "totalTokens": 6587,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.023406,
+    "measuredCostUsd": 0.023406,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.253672
+   }
+  ],
+  "knownUsageUsd": 0.051965
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_system",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "2y=-6; -5y=15",
+   "Coincident lines: infinitely many solutions"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 7,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 19252,
+    "elapsedMs": 9099,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 19241,
+    "elapsedMs": 9877,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.svg",
+  "png": "frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two given equations determine one coincident horizontal graph.\"\n  },\n  \"source\": {\n    \"question\": \"Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"2y\", \"value\": -6, \"provenance\": \"given\", \"sourceText\": \"2y = -6\"},\n    {\"id\": \"g2\", \"symbol\": \"-5y\", \"value\": 15, \"provenance\": \"given\", \"sourceText\": \"-5y = 15\"},\n    {\"id\": \"u1\", \"symbol\": \"y\", \"value\": -3, \"provenance\": \"derived\", \"dependsOn\": [\"g1\", \"g2\"], \"sourceText\": \"d1 = -3\"},\n    {\"id\": \"u2\", \"symbol\": \"x\"}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"pLeft\", \"kind\": \"point\", \"role\": \"point on the common graph\"},\n    {\"id\": \"pRight\", \"kind\": \"point\", \"role\": \"point on the common graph\"},\n    {\"id\": \"commonLine\", \"kind\": \"line\", \"role\": \"graph of both equations\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -5, \"xMax\": 5, \"yMin\": -5, \"yMax\": 2}, \"outputs\": [\"ax\"]},\n    {\"id\": \"makeLeft\", \"operator\": \"point\", \"inputs\": {\"x\": -4, \"y\": -3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pLeft\"]},\n    {\"id\": \"makeRight\", \"operator\": \"point\", \"inputs\": {\"x\": 4, \"y\": -3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pRight\"]},\n    {\"id\": \"makeCommonLine\", \"operator\": \"line\", \"inputs\": {\"start\": \"pLeft\", \"end\": \"pRight\"}, \"outputs\": [\"commonLine\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"leftOnGraph\", \"predicate\": \"on\", \"entities\": [\"pLeft\", \"commonLine\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"rightOnGraph\", \"predicate\": \"on\", \"entities\": [\"pRight\", \"commonLine\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"givenOne\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"2y = -6\", \"placementIntent\": \"above\"},\n    {\"id\": \"givenTwo\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"-5y = 15\", \"placementIntent\": \"below\"},\n    {\"id\": \"commonValue\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"y = -3\", \"quantityId\": \"u1\"},\n    {\"id\": \"solutionDescription\", \"kind\": \"narration\", \"targetIds\": [\"commonLine\"], \"text\": \"The graphs coincide. There are infinitely many solutions: all ordered pairs (x, -3), where x is any real number.\"}\n  ],\n  \"requiredEntityIds\": [\"ax\", \"pLeft\", \"pRight\", \"commonLine\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\"], \"dependsOn\": [], \"narrationCue\": \"Graph the two given equations.\"},\n    {\"id\": \"graph\", \"entityIds\": [\"pLeft\", \"pRight\", \"commonLine\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"Both equations produce the same horizontal line.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\", \"annotationIds\": []},\n    {\"id\": \"showGraph\", \"revealGroupId\": \"graph\", \"annotationIds\": [\"givenOne\", \"givenTwo\"]},\n    {\"id\": \"describeSolutions\", \"revealGroupId\": \"graph\", \"annotationIds\": [\"commonValue\", \"solutionDescription\"]}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "0c4b3d01f05d8eb0f053f3323c2476f4fe83bec00a9669aa726f3a3b9c6737ba",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2134,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+  "topic_id": "maths|h3r6-shaded-regions|sys09-coincident-horizontal",
+  "subject": "maths",
+  "difficulty": "easy",
+  "ask_style": "exam_stem",
+  "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "function_plot",
+  "must_show": [
+   "labelled coordinate axes",
+   "one shared solid horizontal line y = -3",
+   "both equation labels attached to the same geometric line"
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "2y = -6",
+   "-5y = 15",
+   "y = -3"
+  ],
+  "must_not_show": [
+   "two distinct horizontal lines",
+   "a vertical line",
+   "only one point shown as the complete solution set"
+  ],
+  "trap": null,
+  "answer_facts": [
+   "Both equations give y = -3.",
+   "There are infinitely many solutions (t, -3), t real."
+  ],
+  "notes": "scope_version=h3r6-shaded-regions-v1; family=sys09; exam_scope=SAT;CBSE10; exact oracle frozen before implementation/live calls. Real variables throughout. Diagram required because the ask is graphical. Equivalent algebraic labels are acceptable; endpoint inclusion, topology and shaded side are mandatory."
+ }
+}

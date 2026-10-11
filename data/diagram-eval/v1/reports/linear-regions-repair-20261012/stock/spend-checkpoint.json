@@ -1,0 +1,1083 @@
+{
+ "maxUsd": 16,
+ "chargedUsd": 5.219373,
+ "reservedUsd": 0,
+ "stoppedForBudget": false,
+ "rowsDone": 60,
+ "rowsPlanned": 60,
+ "spendMode": "response_usage",
+ "knownUsageUsd": 5.219373,
+ "unresolvedCalls": [
+  {
+   "traceId": "91553a4c-be49-44c4-80a9-8ffb0841dfb8",
+   "kind": "visual_need",
+   "model": "typesafe-ai/jev",
+   "attempts": 1,
+   "allowanceUsd": 0.002091,
+   "reason": "visual_need_usage_missing_or_interrupted"
+  },
+  {
+   "traceId": "eb98db25-8905-46bc-b2b5-cc47c4eb40f0",
+   "kind": "visual_need",
+   "model": "typesafe-ai/jev",
+   "attempts": 1,
+   "allowanceUsd": 0.002091,
+   "reason": "visual_need_usage_missing_or_interrupted"
+  },
+  {
+   "traceId": "15a9fb5b-f66f-46b3-9177-ca0b5f4b9594",
+   "kind": "visual_need",
+   "model": "typesafe-ai/jev",
+   "attempts": 1,
+   "allowanceUsd": 0.002091,
+   "reason": "visual_need_usage_missing_or_interrupted"
+  },
+  {
+   "traceId": "91553a4c-be49-44c4-80a9-8ffb0841dfb8",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.238828,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "b4db90db-25ac-4375-9ddb-e4aa94af66c5",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.229476,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "9e2a7bac-2d46-4cf2-93da-72ef3526cc12",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.235872,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "9e2a7bac-2d46-4cf2-93da-72ef3526cc12",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.236028,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "b4bdc3b5-37db-4511-9168-44a1c4535c9b",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.230328,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "f975d70f-618e-4d04-9f72-9dbf1ce9e949",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.236216,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "06bf5c62-4bad-4ae3-b61e-569128c39acb",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.278304,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "120d6e49-c2ed-4dae-a179-fee45e5a7682",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.237504,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "8be95b0e-ad4d-49a2-b7b4-8b787c629636",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.273956,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "752cd520-5e6f-42f8-a8bb-7a5c85c33da7",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.248824,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "26476e94-2a4f-400e-b67e-c1d658d495b5",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.302188,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "c6028f51-c28c-40ef-8288-b2cfd7f46940",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.247184,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "f9cf88b0-1569-4c6e-8134-140d0b3c3ed8",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.273932,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "a9d88814-c2fa-469b-85f7-2e0c20569a08",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.27398,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "c6a0248d-cd43-46a3-af04-95292c0a38cc",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.287904,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "e766618a-57b5-4e0a-af65-544ccbc149b3",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.2878,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "e766618a-57b5-4e0a-af65-544ccbc149b3",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.287956,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "bbd16764-f066-4ffc-a264-1c18c1dd66bb",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.253996,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "7be350fa-f946-4fe6-ac12-de1b90eecf97",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.256376,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "09655009-d283-44fe-9099-264ff99c78e4",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.253672,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "2c96135c-b61c-4887-8f73-46c4716c3dae",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.25456,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "8f0efb46-6a8b-4bad-b95d-cc258d45d81e",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.241788,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "fdb8a30e-9896-4247-be4f-36d5a3664743",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.243616,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "0214ee44-7aae-40fe-ac10-f70cb474890a",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.243004,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "6d0c8f3e-72fc-439c-b667-d4cbd50718fd",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.236404,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "e5712dcf-2a6c-4e30-860b-7cb9763ba6d0",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.238152,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "82f2d347-6481-469d-8e08-e7ce5ae308e7",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.287024,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "b7aa0b78-123b-4355-a787-99001a87c702",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.291764,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "6e6bfaf9-252a-451b-8ad7-8c564cc8ab35",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.290772,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "3ad278b0-6367-44ee-9fbd-e4e5b2977b86",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.256536,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "b18ab8bd-2d4f-4298-8b50-9bdcadccc5ab",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.183176,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "7d7d92f8-9fd8-4f23-87fd-767a0251359a",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.184988,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "585732f8-dd30-4919-8d80-114a025a4a4a",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.26248,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "7d7d92f8-9fd8-4f23-87fd-767a0251359a",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.258624,
+   "reason": "response_usage_missing_or_incomplete"
+  }
+ ],
+ "unresolvedAllowanceUsd": 8.649485,
+ "inFlightCalls": 0,
+ "arm": "planner_examples_strict",
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "scenePlannerLimitMs": 60000,
+ "probeIds": [
+  "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+  "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+  "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+  "maths|h3r6-shaded-regions|nl04-disjoint-union|q1",
+  "maths|h3r6-shaded-regions|nl05-overlap-intersection|q1",
+  "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+  "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+  "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+  "maths|h3r6-shaded-regions|nl09-union-puncture|q1",
+  "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+  "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+  "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+  "maths|h3r6-shaded-regions|hp03-vertical-negative-closed|q1",
+  "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+  "maths|h3r6-shaded-regions|hp05-origin-on-boundary|q1",
+  "maths|h3r6-shaded-regions|hp06-positive-strict-membership|q1",
+  "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+  "maths|h3r6-shaded-regions|hp08-vertical-strict-rational|q1",
+  "maths|h3r6-shaded-regions|hp09-horizontal-closed|q1",
+  "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1",
+  "maths|h3r6-shaded-regions|lpp01-bounded-unique|q1",
+  "maths|h3r6-shaded-regions|lpp02-rational-corner|q1",
+  "maths|h3r6-shaded-regions|lpp03-redundant-constraint|q1",
+  "maths|h3r6-shaded-regions|lpp04-unbounded-region-finite-min|q1",
+  "maths|h3r6-shaded-regions|lpp05-bounded-multiple-optima|q1",
+  "maths|h3r6-shaded-regions|lpp06-resource-pentagon|q1",
+  "maths|h3r6-shaded-regions|lpp07-unbounded-objective|q1",
+  "maths|h3r6-shaded-regions|lpp08-infeasible|q1",
+  "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+  "maths|h3r6-shaded-regions|lpp10-negative-objective-strip|q1",
+  "maths|h3r6-shaded-regions|sys01-unique-integer|q1",
+  "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+  "maths|h3r6-shaded-regions|sys03-distinct-parallel|q1",
+  "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+  "maths|h3r6-shaded-regions|sys05-vertical-horizontal|q1",
+  "maths|h3r6-shaded-regions|sys06-cbse10-unique|q1",
+  "maths|h3r6-shaded-regions|sys07-negative-coefficients|q1",
+  "maths|h3r6-shaded-regions|sys08-distinct-vertical|q1",
+  "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+  "maths|h3r6-shaded-regions|sys10-opposite-slopes-rational|q1",
+  "maths|h3r8-finish-regions|negative-strict-ray|q1",
+  "maths|h3r8-finish-regions|interval-intersection|q1",
+  "maths|h3r8-finish-regions|separated-boolean-union|q1",
+  "maths|h3r8-finish-regions|named-interval-difference|q1",
+  "maths|h3r8-finish-regions|singleton-intersection|q1",
+  "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+  "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+  "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+  "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+  "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+  "maths|h3r8-finish-regions|rational-unique-max|q1",
+  "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+  "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+  "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+  "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+  "maths|h3r8-finish-regions|system-x-coordinate|q1",
+  "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+  "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+  "maths|h3r8-finish-regions|vertical-line-system|q1",
+  "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1"
+ ],
+ "sampleFingerprint": "9e7788ab56b3d8ea308b3af8c81a756ea0d5fdab5542bcebb0587e8cafea16e5",
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "sceneDeclinePolicy": "unchanged",
+ "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+ "visualNeedCalls": [
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": null,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "transport",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": null,
+   "unresolvedAllowanceUsd": 0.002091
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": null,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "transport",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": null,
+   "unresolvedAllowanceUsd": 0.002091
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": null,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "transport",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": null,
+   "unresolvedAllowanceUsd": 0.002091
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002089,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002089,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002089,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0020930000000000002,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002094,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002094,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002094,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002096,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0020930000000000002,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002094,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0020930000000000002,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0020930000000000002,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002092,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.00209,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002091,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002099,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002096,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002096,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002095,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002095,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002101,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0021,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002103,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0021,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002098,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.0021,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  },
+  {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002099,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ ]
+}

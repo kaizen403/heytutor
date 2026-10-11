@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "5882bce6a09c1fb8afa019241bbad5e8cbb1e3ceea2148f2788cfead016a14df",
+  "pngSha256": "7a287a5c625da78484c174cba1e45a7a5b0c42437410ab6f0070d204b035bdf6"
+}

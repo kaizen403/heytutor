@@ -1,0 +1,15 @@
+{
+  "sourceHead": "2c81544fe914a015a8d474329cf4316f372d568b",
+  "beforeStart": "2026-10-11T00:00:00Z",
+  "beforeEnd": "2026-10-11T23:00:41Z",
+  "capUsd": 20,
+  "stockMaxUsd": 16,
+  "unknownReserveUsd": 4,
+  "deployment": "st-gpt-6-sol-h3",
+  "metricsResource": "/subscriptions/efcbe580-2ef4-4bde-9d15-3c8708543e6f/resourceGroups/heytutor-ai/providers/Microsoft.CognitiveServices/accounts/heytutor-foundry",
+  "stockCompletedBy": "2026-10-11T23:09:40Z",
+  "knownResponseUsageUsd": 5.219373,
+  "unmeteredAttemptCount": 71,
+  "unresolvedAllowanceUsd": 8.649485,
+  "ownedLocalServerStopped": true
+}

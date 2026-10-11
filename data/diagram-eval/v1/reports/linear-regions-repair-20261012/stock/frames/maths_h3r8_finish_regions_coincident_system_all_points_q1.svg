@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">For real x,y, consider L1: 3(x - 2y) + 4 = 2x - y + 9 and L2: -2x + 10y = -10. Graph both equations and label </text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=? tier=qualitative_verified labels=P | Q | R | L1</text>
+<line x1="474" y1="332.5" x2="1086" y2="332.5" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="610" y1="468.5" x2="610" y2="196.5" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<circle cx="610" cy="400.5" r="2" fill="#141821"/>
+<circle cx="950" cy="332.5" r="2" fill="#141821"/>
+<circle cx="610" cy="332.5" r="2" fill="#141821"/>
+<polyline points="434,435.7 1126,297.3" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="584.37" y="370.5" font-size="13" text-anchor="middle" fill="#B93A2C">P</text>
+<text x="950" y="302.5" font-size="13" text-anchor="middle" fill="#B93A2C">Q</text>
+<text x="636.29" y="302.5" font-size="13" text-anchor="middle" fill="#B93A2C">R</text>
+<text x="780" y="469.7" font-size="13" text-anchor="middle" fill="#B93A2C">L1</text>
+</svg>

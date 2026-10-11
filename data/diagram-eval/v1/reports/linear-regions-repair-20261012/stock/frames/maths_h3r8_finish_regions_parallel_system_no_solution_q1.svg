@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">In R^2, graph the simultaneous system L1: -2(2x - y) = -6 and L2: 6x - 3y = 12. Label both lines with their na</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=linear_system tier=qualitative_verified labels=x | y | 0 | -2(2x - y)=-6 | 6x - 3y=12 | Parallel lines: no solution</text>
+<line x1="661.17" y1="189.91" x2="898.83" y2="189.91" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/><line x1="700.78" y1="586" x2="700.78" y2="110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="905.89" y="196.75" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<text x="719.72" y="117.53" font-size="18" dominant-baseline="hanging" textLength="8.324369999999998" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">y</text>
+<text x="683.6822999999999" y="196.75" font-size="18" dominant-baseline="hanging" textLength="10.0377" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">0</text>
+<polyline points="661.17,506.78 859.22,110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="661.17,586 898.83,110.69" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="725.1476247234523" y="203.73000000000002" font-size="18" dominant-baseline="hanging" textLength="70.10475055309558" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">-2(2x - y)=-6</text>
+<text x="793" y="339.34" font-size="18" dominant-baseline="hanging" textLength="58.089473343294216" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">6x - 3y=12</text>
+<text x="712.1972959657427" y="70" font-size="18" dominant-baseline="hanging" textLength="135.60540806851472" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Parallel lines: no solution</text>
+<polyline points="760.2,308.73 760.2,229.42999999999998" fill="none" stroke="#141821" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_separated_boolean_union_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_separated_boolean_union_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "cd1ad8b9b725861982d1fd9f0c236fb4a181caf380203c9cddd67c8779fd7dff",
+  "pngSha256": "1b3ec467d76e731d8355ade085b5b5435d69b25100fe9451fb71dc4541a2e57d"
+}

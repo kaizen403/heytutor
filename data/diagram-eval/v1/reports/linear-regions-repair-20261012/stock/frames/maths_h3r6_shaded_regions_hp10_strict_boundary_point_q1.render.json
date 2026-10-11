@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "667e2cd96a5a41e57e8df92d37b1ab66968a598c4a9e030a076cbcd1dbb1a347",
+  "pngSha256": "2d8de5173a2098b60b13bfd78ba71282cf2580a820083bf98e75336e4fb3ab2f"
+}

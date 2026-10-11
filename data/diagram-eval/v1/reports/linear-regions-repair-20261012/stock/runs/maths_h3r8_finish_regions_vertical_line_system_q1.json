@@ -1,0 +1,1736 @@
+{
+ "probeId": "maths|h3r8-finish-regions|vertical-line-system|q1",
+ "topicId": "maths|h3r8-finish-regions|vertical-line-system",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "medium",
+ "question": "Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:08:25.329Z",
+ "timings": {
+  "planMs": 26195,
+  "teachMs": 0,
+  "totalMs": 26196,
+  "figureCommitMs": 26196,
+  "stages": {
+   "turnPlanMs": 6783,
+   "problemIrMs": 7158,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 12047,
+   "deadlineRemainingMs": 34006,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "a",
+    "symbol": "L1 left x coefficient",
+    "value": 4,
+    "provenance": "given",
+    "sourceText": "a = 4"
+   },
+   {
+    "id": "b",
+    "symbol": "L1 left constant",
+    "value": 3,
+    "provenance": "given",
+    "sourceText": "b = 3"
+   },
+   {
+    "id": "c",
+    "symbol": "L1 right x coefficient",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "c = 2"
+   },
+   {
+    "id": "d",
+    "symbol": "L1 right constant",
+    "value": 8,
+    "provenance": "given",
+    "sourceText": "d = 8"
+   },
+   {
+    "id": "e",
+    "symbol": "L2 y coefficient",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "e = 2"
+   },
+   {
+    "id": "f",
+    "symbol": "L2 constant",
+    "value": 7,
+    "provenance": "given",
+    "sourceText": "f = 7"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "px",
+    "symbol": "P_x"
+   },
+   {
+    "id": "py",
+    "symbol": "P_y"
+   },
+   {
+    "id": "l1xi",
+    "symbol": "L1 x-intercept"
+   },
+   {
+    "id": "l2xi",
+    "symbol": "L2 x-intercept"
+   },
+   {
+    "id": "l2yi",
+    "symbol": "L2 y-intercept"
+   },
+   {
+    "id": "n",
+    "symbol": "number of solutions"
+   }
+  ],
+  "derived": [
+   {
+    "id": "px",
+    "symbol": "P_x",
+    "value": 2.5
+   },
+   {
+    "id": "py",
+    "symbol": "P_y",
+    "value": 4.75
+   },
+   {
+    "id": "l1xi",
+    "symbol": "L1 x-intercept",
+    "value": 2.5
+   },
+   {
+    "id": "l2xi",
+    "symbol": "L2 x-intercept",
+    "value": -7
+   },
+   {
+    "id": "l2yi",
+    "symbol": "L2 y-intercept",
+    "value": 3.5
+   },
+   {
+    "id": "n",
+    "symbol": "number of solutions",
+    "value": 1
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "lines",
+    "expected": "L1: x=5/2; L2: y=x/2+7/2."
+   },
+   {
+    "id": "intercepts",
+    "expected": "L1: (5/2,0), with no y-intercept. L2: (−7,0) and (0,7/2)."
+   },
+   {
+    "id": "intersection",
+    "expected": "P=(5/2,19/4). The lines cross only at P, so the system has exactly one solution."
+   }
+  ],
+  "lawIds": [
+   "equivalent-equation operations",
+   "axis-intercept substitution",
+   "simultaneous-equation intersection"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eL1Left",
+     "valueType": "function",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "variable",
+        "name": "x"
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 3
+      }
+     },
+     "evidenceFactIds": [
+      "fL1"
+     ]
+    },
+    {
+     "id": "eL1Right",
+     "valueType": "function",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "variable",
+        "name": "x"
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 8
+      }
+     },
+     "evidenceFactIds": [
+      "fL1"
+     ]
+    },
+    {
+     "id": "eL2",
+     "valueType": "function",
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "variable",
+        "name": "x"
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 7
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fL2"
+     ]
+    },
+    {
+     "id": "ePx",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 8
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "-",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fL1"
+     ]
+    },
+    {
+     "id": "ePy",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "binary",
+         "operator": "-",
+         "left": {
+          "kind": "number",
+          "value": 8
+         },
+         "right": {
+          "kind": "number",
+          "value": 3
+         }
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "-",
+         "left": {
+          "kind": "number",
+          "value": 4
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 7
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 2
+      }
+     },
+     "evidenceFactIds": [
+      "fL1",
+      "fL2"
+     ]
+    },
+    {
+     "id": "eL2Xi",
+     "valueType": "scalar",
+     "root": {
+      "kind": "unary",
+      "operator": "-",
+      "operand": {
+       "kind": "number",
+       "value": 7
+      }
+     },
+     "evidenceFactIds": [
+      "fL2"
+     ]
+    },
+    {
+     "id": "eL2Yi",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 7
+      },
+      "right": {
+       "kind": "number",
+       "value": 2
+      }
+     },
+     "evidenceFactIds": [
+      "fL2"
+     ]
+    },
+    {
+     "id": "eCount",
+     "valueType": "scalar",
+     "root": {
+      "kind": "number",
+      "value": 1
+     },
+     "evidenceFactIds": [
+      "fL1",
+      "fL2"
+     ]
+    }
+   ],
+   "constraints": [
+    {
+     "id": "cL1",
+     "kind": "equation",
+     "leftExpressionId": "eL1Left",
+     "rightExpressionId": "eL1Right",
+     "evidenceFactIds": [
+      "fL1"
+     ]
+    },
+    {
+     "id": "cP",
+     "kind": "incident",
+     "entityIds": [
+      "p",
+      "l1",
+      "l2"
+     ],
+     "evidenceFactIds": [
+      "fIntersection",
+      "fL1",
+      "fL2"
+     ]
+    }
+   ],
+   "representationIntents": [
+    {
+     "id": "iGraph",
+     "kind": "graph",
+     "entityIds": [
+      "l1",
+      "l2",
+      "p"
+     ],
+     "evidenceFactIds": [
+      "fGraph",
+      "fL1",
+      "fL2",
+      "fLabels",
+      "fIntercepts",
+      "fIntersection"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sPx",
+     "quantityId": "px",
+     "symbol": "P_x",
+     "approximate": 2.5,
+     "exact": {
+      "kind": "rational",
+      "value": "5/2"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sPy",
+     "quantityId": "py",
+     "symbol": "P_y",
+     "approximate": 4.75,
+     "exact": {
+      "kind": "rational",
+      "value": "19/4"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sL1Xi",
+     "quantityId": "l1xi",
+     "symbol": "L1 x-intercept",
+     "approximate": 2.5,
+     "exact": {
+      "kind": "rational",
+      "value": "5/2"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sL2Xi",
+     "quantityId": "l2xi",
+     "symbol": "L2 x-intercept",
+     "approximate": -7,
+     "exact": {
+      "kind": "integer",
+      "value": "-7"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sL2Yi",
+     "quantityId": "l2yi",
+     "symbol": "L2 y-intercept",
+     "approximate": 3.5,
+     "exact": {
+      "kind": "rational",
+      "value": "7/2"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sCount",
+     "quantityId": "n",
+     "symbol": "number of solutions",
+     "approximate": 1,
+     "exact": {
+      "kind": "integer",
+      "value": "1"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "5fcb112431f97a76725cc5c94b4e26c31f532058d398eb5e691356dc3a72c01f",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sPx",
+      "quantityId": "px",
+      "symbol": "P_x",
+      "approximate": 2.5,
+      "exact": {
+       "kind": "rational",
+       "value": "5/2"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sPy",
+      "quantityId": "py",
+      "symbol": "P_y",
+      "approximate": 4.75,
+      "exact": {
+       "kind": "rational",
+       "value": "19/4"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sL1Xi",
+      "quantityId": "l1xi",
+      "symbol": "L1 x-intercept",
+      "approximate": 2.5,
+      "exact": {
+       "kind": "rational",
+       "value": "5/2"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sL2Xi",
+      "quantityId": "l2xi",
+      "symbol": "L2 x-intercept",
+      "approximate": -7,
+      "exact": {
+       "kind": "integer",
+       "value": "-7"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sL2Yi",
+      "quantityId": "l2yi",
+      "symbol": "L2 y-intercept",
+      "approximate": 3.5,
+      "exact": {
+       "kind": "rational",
+       "value": "7/2"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sCount",
+      "quantityId": "n",
+      "symbol": "number of solutions",
+      "approximate": 1,
+      "exact": {
+       "kind": "integer",
+       "value": "1"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "a",
+      "symbol": "L1 left x coefficient",
+      "value": 4,
+      "sourceText": "a = 4",
+      "provenance": "given"
+     },
+     {
+      "id": "b",
+      "symbol": "L1 left constant",
+      "value": 3,
+      "sourceText": "b = 3",
+      "provenance": "given"
+     },
+     {
+      "id": "c",
+      "symbol": "L1 right x coefficient",
+      "value": 2,
+      "sourceText": "c = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "d",
+      "symbol": "L1 right constant",
+      "value": 8,
+      "sourceText": "d = 8",
+      "provenance": "given"
+     },
+     {
+      "id": "e",
+      "symbol": "L2 y coefficient",
+      "value": 2,
+      "sourceText": "e = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "f",
+      "symbol": "L2 constant",
+      "value": 7,
+      "sourceText": "f = 7",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "px",
+      "symbol": "P_x"
+     },
+     {
+      "id": "py",
+      "symbol": "P_y"
+     },
+     {
+      "id": "l1xi",
+      "symbol": "L1 x-intercept"
+     },
+     {
+      "id": "l2xi",
+      "symbol": "L2 x-intercept"
+     },
+     {
+      "id": "l2yi",
+      "symbol": "L2 y-intercept"
+     },
+     {
+      "id": "n",
+      "symbol": "number of solutions"
+     }
+    ],
+    "derived": [
+     {
+      "id": "px",
+      "symbol": "P_x",
+      "value": 2.5,
+      "sourceText": "4x+3=2x+8 gives 2x=5, so x=5/2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "a",
+       "b",
+       "c",
+       "d"
+      ]
+     },
+     {
+      "id": "py",
+      "symbol": "P_y",
+      "value": 4.75,
+      "sourceText": "2y−5/2=7 gives y=19/4.",
+      "provenance": "derived",
+      "dependsOn": [
+       "px",
+       "e",
+       "f"
+      ]
+     },
+     {
+      "id": "l1xi",
+      "symbol": "L1 x-intercept",
+      "value": 2.5,
+      "sourceText": "The vertical line x=5/2 meets the x-axis at (5/2,0).",
+      "provenance": "derived",
+      "dependsOn": [
+       "px"
+      ]
+     },
+     {
+      "id": "l2xi",
+      "symbol": "L2 x-intercept",
+      "value": -7,
+      "sign": "negative",
+      "sourceText": "Set y=0 in 2y−x=7: x=−7.",
+      "provenance": "derived",
+      "dependsOn": [
+       "f"
+      ]
+     },
+     {
+      "id": "l2yi",
+      "symbol": "L2 y-intercept",
+      "value": 3.5,
+      "sourceText": "Set x=0 in 2y−x=7: y=7/2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "e",
+       "f"
+      ]
+     },
+     {
+      "id": "n",
+      "symbol": "number of solutions",
+      "value": 1,
+      "sourceText": "The distinct vertical and nonvertical lines meet at exactly one point.",
+      "provenance": "derived",
+      "dependsOn": [
+       "px",
+       "py"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "lines",
+      "claim": "Label the lines with their equivalent simplified equations.",
+      "expected": "L1: x=5/2; L2: y=x/2+7/2.",
+      "relatedQuantityIds": [
+       "px",
+       "l2yi"
+      ]
+     },
+     {
+      "id": "intercepts",
+      "claim": "Label every existing axis intercept.",
+      "expected": "L1: (5/2,0), with no y-intercept. L2: (−7,0) and (0,7/2).",
+      "relatedQuantityIds": [
+       "l1xi",
+       "l2xi",
+       "l2yi"
+      ]
+     },
+     {
+      "id": "intersection",
+      "claim": "Label the exact intersection and explain the solution count from the figure.",
+      "expected": "P=(5/2,19/4). The lines cross only at P, so the system has exactly one solution.",
+      "relatedQuantityIds": [
+       "px",
+       "py",
+       "n"
+      ]
+     }
+    ],
+    "lawIds": [
+     "equivalent-equation operations",
+     "axis-intercept substitution",
+     "simultaneous-equation intersection"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.",
+    "facts": [
+     {
+      "id": "fL1",
+      "kind": "given",
+      "statement": "L1 is 4x + 3 = 2x + 8",
+      "evidence": {
+       "source": "question",
+       "start": 35,
+       "end": 54,
+       "quote": "L1: 4x + 3 = 2x + 8"
+      }
+     },
+     {
+      "id": "fL2",
+      "kind": "given",
+      "statement": "L2 is 2y - x = 7",
+      "evidence": {
+       "source": "question",
+       "start": 59,
+       "end": 73,
+       "quote": "L2: 2y - x = 7"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph the real simultaneous system",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 34,
+       "quote": "Graph the real simultaneous system"
+      }
+     },
+     {
+      "id": "fLabels",
+      "kind": "requested",
+      "statement": "Label both lines with equivalent simplified equations",
+      "evidence": {
+       "source": "question",
+       "start": 75,
+       "end": 128,
+       "quote": "Label both lines with equivalent simplified equations"
+      }
+     },
+     {
+      "id": "fIntercepts",
+      "kind": "requested",
+      "statement": "Label intercepts where they exist",
+      "evidence": {
+       "source": "question",
+       "start": 130,
+       "end": 163,
+       "quote": "their intercepts where they exist"
+      }
+     },
+     {
+      "id": "fIntersection",
+      "kind": "requested",
+      "statement": "Label the exact intersection P",
+      "evidence": {
+       "source": "question",
+       "start": 169,
+       "end": 193,
+       "quote": "the exact intersection P"
+      }
+     },
+     {
+      "id": "fCount",
+      "kind": "requested",
+      "statement": "Explain the number of solutions from the figure",
+      "evidence": {
+       "source": "question",
+       "start": 195,
+       "end": 247,
+       "quote": "Explain from the figure how many solutions there are"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "l1",
+      "kind": "line",
+      "label": "L1",
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "l2",
+      "kind": "line",
+      "label": "L2",
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "p",
+      "kind": "point",
+      "label": "P",
+      "evidenceFactIds": [
+       "fIntersection"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eL1Left",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 3
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL1Right",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "variable",
+         "name": "x"
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 8
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL2",
+      "valueType": "function",
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "variable",
+         "name": "x"
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 7
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "ePx",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 8
+        },
+        "right": {
+         "kind": "number",
+         "value": 3
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "ePy",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+           "kind": "number",
+           "value": 8
+          },
+          "right": {
+           "kind": "number",
+           "value": 3
+          }
+         },
+         "right": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+           "kind": "number",
+           "value": 4
+          },
+          "right": {
+           "kind": "number",
+           "value": 2
+          }
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 7
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fL1",
+       "fL2"
+      ]
+     },
+     {
+      "id": "eL2Xi",
+      "valueType": "scalar",
+      "root": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 7
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "eL2Yi",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 7
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "eCount",
+      "valueType": "scalar",
+      "root": {
+       "kind": "number",
+       "value": 1
+      },
+      "evidenceFactIds": [
+       "fL1",
+       "fL2"
+      ]
+     }
+    ],
+    "constraints": [
+     {
+      "id": "cL1",
+      "kind": "equation",
+      "leftExpressionId": "eL1Left",
+      "rightExpressionId": "eL1Right",
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "cP",
+      "kind": "incident",
+      "entityIds": [
+       "p",
+       "l1",
+       "l2"
+      ],
+      "evidenceFactIds": [
+       "fIntersection",
+       "fL1",
+       "fL2"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "l1",
+       "l2",
+       "p"
+      ],
+      "evidenceFactIds": [
+       "fGraph",
+       "fL1",
+       "fL2",
+       "fLabels",
+       "fIntercepts",
+       "fIntersection"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sPx",
+      "kind": "evaluate",
+      "expressionId": "ePx",
+      "resultBinding": {
+       "turnPlanQuantityId": "px",
+       "symbol": "P_x",
+       "evidenceFactIds": [
+        "fIntersection"
+       ]
+      }
+     },
+     {
+      "id": "sPy",
+      "kind": "evaluate",
+      "expressionId": "ePy",
+      "resultBinding": {
+       "turnPlanQuantityId": "py",
+       "symbol": "P_y",
+       "evidenceFactIds": [
+        "fIntersection"
+       ]
+      }
+     },
+     {
+      "id": "sL1Xi",
+      "kind": "evaluate",
+      "expressionId": "ePx",
+      "resultBinding": {
+       "turnPlanQuantityId": "l1xi",
+       "symbol": "L1 x-intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     },
+     {
+      "id": "sL2Xi",
+      "kind": "evaluate",
+      "expressionId": "eL2Xi",
+      "resultBinding": {
+       "turnPlanQuantityId": "l2xi",
+       "symbol": "L2 x-intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     },
+     {
+      "id": "sL2Yi",
+      "kind": "evaluate",
+      "expressionId": "eL2Yi",
+      "resultBinding": {
+       "turnPlanQuantityId": "l2yi",
+       "symbol": "L2 y-intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     },
+     {
+      "id": "sCount",
+      "kind": "evaluate",
+      "expressionId": "eCount",
+      "resultBinding": {
+       "turnPlanQuantityId": "n",
+       "symbol": "number of solutions",
+       "evidenceFactIds": [
+        "fCount"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sPx",
+      "requestId": "sPx",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "5/2"
+      },
+      "approximate": 2.5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sPy",
+      "requestId": "sPy",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "19/4"
+      },
+      "approximate": 4.75,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL1Xi",
+      "requestId": "sL1Xi",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "5/2"
+      },
+      "approximate": 2.5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL2Xi",
+      "requestId": "sL2Xi",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-7"
+      },
+      "approximate": -7,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL2Yi",
+      "requestId": "sL2Yi",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "7/2"
+      },
+      "approximate": 3.5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sCount",
+      "requestId": "sCount",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "1"
+      },
+      "approximate": 1,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sPx",
+      "requestId": "sPx",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "ePx"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sPy",
+      "requestId": "sPy",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "ePy"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL1Xi",
+      "requestId": "sL1Xi",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "ePx"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL2Xi",
+      "requestId": "sL2Xi",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL2Xi"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL2Yi",
+      "requestId": "sL2Yi",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL2Yi"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sCount",
+      "requestId": "sCount",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eCount"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 15473,
+  "outputTokens": 4776,
+  "totalTokens": 20249,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.075767,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 658,
+    "outputTokens": 967,
+    "totalTokens": 1625,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.010986,
+    "measuredCostUsd": 0.010986,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 719,
+    "outputTokens": 1021,
+    "totalTokens": 1740,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011648,
+    "measuredCostUsd": 0.011648,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5661,
+    "outputTokens": 36,
+    "totalTokens": 5697,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011682,
+    "measuredCostUsd": 0.011682,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2505,
+    "outputTokens": 1100,
+    "totalTokens": 3605,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.013071,
+    "measuredCostUsd": 0.013071,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5930,
+    "outputTokens": 1652,
+    "totalTokens": 7582,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.02838,
+    "measuredCostUsd": 0.02838,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.26248
+   }
+  ],
+  "knownUsageUsd": 0.075767
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_system",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "4x + 3=2x + 8",
+   "2y - x=7",
+   "(5/2, 19/4)",
+   "One solution"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 11,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 1,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 21166,
+    "elapsedMs": 11184,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": null,
+    "error": "timeout_or_cancelled",
+    "bodyParsed": false,
+    "promptChars": 21177,
+    "elapsedMs": 12045,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_vertical_line_system_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_vertical_line_system_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The given equations and exact derived values determine both lines and their intersection.\"\n  },\n  \"source\": {\n    \"question\": \"Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.\"\n  },\n  \"quantities\": [\n    {\"id\":\"a\",\"value\":4},\n    {\"id\":\"b\",\"value\":3},\n    {\"id\":\"c\",\"value\":2},\n    {\"id\":\"d\",\"value\":8},\n    {\"id\":\"e\",\"value\":2},\n    {\"id\":\"f\",\"value\":7},\n    {\"id\":\"px\",\"value\":2.5},\n    {\"id\":\"py\",\"value\":4.75},\n    {\"id\":\"l1xi\",\"value\":2.5},\n    {\"id\":\"l2xi\",\"value\":-7},\n    {\"id\":\"l2yi\",\"value\":3.5},\n    {\"id\":\"n\",\"value\":1}\n  ],\n  \"entities\": [\n    {\"id\":\"ax\",\"kind\":\"axes\",\"role\":\"coordinate axes\"},\n    {\"id\":\"I1\",\"kind\":\"point\",\"role\":\"L1 x-intercept\"},\n    {\"id\":\"I2x\",\"kind\":\"point\",\"role\":\"L2 x-intercept\"},\n    {\"id\":\"I2y\",\"kind\":\"point\",\"role\":\"L2 y-intercept\"},\n    {\"id\":\"L1\",\"kind\":\"line\",\"role\":\"4x + 3 = 2x + 8\"},\n    {\"id\":\"L2\",\"kind\":\"line\",\"role\":\"2y - x = 7\"},\n    {\"id\":\"P\",\"kind\":\"point\",\"role\":\"intersection and solution\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"kax\",\"operator\":\"axes\",\"inputs\":{\"xMin\":-8,\"xMax\":5,\"yMin\":-1,\"yMax\":7},\"outputs\":[\"ax\"]},\n    {\"id\":\"kI1\",\"operator\":\"point\",\"inputs\":{\"x\":2.5,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"I1\"]},\n    {\"id\":\"kI2x\",\"operator\":\"point\",\"inputs\":{\"x\":-7,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"I2x\"]},\n    {\"id\":\"kI2y\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":3.5,\"coordinateSpace\":\"world\"},\"outputs\":[\"I2y\"]},\n    {\"id\":\"kL1\",\"operator\":\"line\",\"inputs\":{\"start\":\"I1\",\"direction\":[0,1]},\"outputs\":[\"L1\"]},\n    {\"id\":\"kL2\",\"operator\":\"line\",\"inputs\":{\"start\":\"I2x\",\"end\":\"I2y\"},\"outputs\":[\"L2\"]},\n    {\"id\":\"kP\",\"operator\":\"intersection\",\"inputs\":{\"first\":\"L1\",\"second\":\"L2\"},\"outputs\":[\"P\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\":\"aI1\",\"predicate\":\"on\",\"entities\":[\"I1\",\"L1\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"aI2x\",\"predicate\":\"on\",\"entities\":[\"I2x\",\"L2\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"aI2y\",\"predicate\":\"on\",\"entities\":[\"I2y\",\"L2\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"aP1\",\"predicate\":\"on\",\"entities\":[\"P\",\"L1\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"aP2\",\"predicate\":\"on\",\"entities\":[\"P\",\"L2\"],\"expected\":true,\"severity\":\"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\":\"eq1\",\"kind\":\"label\",\"targetIds\":[\"L1\"],\"text\":\"L1: x=5/2\"},\n    {\"id\":\"eq2\",\"kind\":\"label\",\"targetIds\":[\"L2\"],\"text\":\"L2: y=x/2+7/2\"},\n    {\"id\":\"labI1\",\"kind\":\"label\",\"targetIds\":[\"I1\"],\"text\":\"(5/2,0)\",\"quantityId\":\"l1xi\"},\n    {\"id\":\"labI2x\",\"kind\":\"label\",\"targetIds\":[\"I2x\"],\"text\":\"(-7,0)\",\"quantityId\":\"l2xi\"},\n    {\"id\":\"labI2y\",\"kind\":\"label\",\"targetIds\":[\"I2y\"],\"text\":\"(0,7/2)\",\"quantityId\":\"l2yi\"},\n    {\"id\":\"labP\",\"kind\":\"label\",\"targetIds\":[\"P\"],\"text\":\"P=(5/2,19/4)\"},\n    {\"id\":\"solution\",\"kind\":\"narration\",\"targetIds\":[\"L1\",\"L2\",\"P\"],\"text\":\"L1 is vertical and L2 is nonvertical. They cross only at P, so the system has exactly one solution; L1 has no y-intercept.\",\"quantityId\":\"n\"}\n  ],\n  \"requiredEntityIds\": [\"ax\",\"I1\",\"I2x\",\"I2y\",\"L1\",\"L2\",\"P\"],\n  \"revealGroups\": [\n    {\"id\":\"setup\",\"entityIds\":[\"ax\",\"L1\",\"L2\"],\"dependsOn\":[]},\n    {\"id\":\"results\",\"entityIds\":[\"I1\",\"I2x\",\"I2y\",\"P\"],\"dependsOn\":[\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"showSetup\",\"revealGroupId\":\"setup\",\"action\":\"reveal\",\"targetIds\":[\"ax\",\"L1\",\"L2\"]},\n    {\"id\":\"showResults\",\"revealGroupId\":\"results\",\"action\":\"reveal\",\"targetIds\":[\"I1\",\"I2x\",\"I2y\",\"P\"]},\n    {\"id\":\"explain\",\"action\":\"reveal\",\"targetIds\":[\"eq1\",\"eq2\",\"labI1\",\"labI2x\",\"labI2y\",\"labP\",\"solution\"]}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "5fcb112431f97a76725cc5c94b4e26c31f532058d398eb5e691356dc3a72c01f",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 1332,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|vertical-line-system|q1",
+  "topic_id": "maths|h3r8-finish-regions|vertical-line-system",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "linear_system",
+  "must_show": [
+   "L1 is the vertical line x = 5/2; L2 is y = x/2 + 7/2.",
+   "L1 x-intercept (5/2,0) and no y-intercept; L2 intercepts (-7,0), (0,7/2).",
+   "Unique intersection P = (5/2,19/4)."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "L1",
+   "L2",
+   "x = 5/2",
+   "2y - x = 7",
+   "(5/2,0)",
+   "(-7,0)",
+   "(0,7/2)",
+   "P = (5/2,19/4)",
+   "one solution"
+  ],
+  "must_not_show": [
+   "A horizontal L1.",
+   "Invented y-intercept for L1.",
+   "A shaded region.",
+   "Integer-rounded intersection."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "L1 gives x = 5/2",
+   "Unique solution (5/2,19/4)"
+  ],
+  "notes": "SAT linear systems; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "b198455e65cbe0415ac4604044d626e6e72763c383b649f570938d43cf4eb044",
+  "pngSha256": "5d563b2b36a3672778f2d8a25950c58a5967eecbd688e0437e42f39400cb52ee"
+}

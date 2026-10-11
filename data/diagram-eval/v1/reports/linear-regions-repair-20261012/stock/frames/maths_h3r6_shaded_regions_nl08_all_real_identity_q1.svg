@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="ui-sans-serif, system-ui, sans-serif">
+<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#141821"/></marker></defs>
+<rect width="1200" height="700" fill="#FDFDFB"/>
+<rect x="400" y="140" width="760" height="380" fill="none" stroke="#C9CFDA" stroke-dasharray="4 4"/>
+<rect x="410" y="55" width="740" height="555" fill="none" stroke="#ECE9D8"/>
+<text x="20" y="28" font-size="16" fill="#222">Solve -2(x - 3) &lt;= -2x + 6 for real x. Show its solution set on a number line.</text>
+<text x="20" y="48" font-size="12" font-family="ui-monospace, Menlo, monospace" fill="#666">family=number_line_set tier=qualitative_verified labels=x | Solution: (-infinity, infinity)</text>
+<line x1="434" y1="424.77" x2="1126" y2="424.77" fill="none" stroke="#141821" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="1139" y="427.3" font-size="18" dominant-baseline="hanging" textLength="8.28648" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">x</text>
+<line x1="1126" y1="424.77" x2="434" y2="424.77" fill="none" stroke="#141821" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<line x1="434" y1="424.77" x2="1126" y2="424.77" fill="none" stroke="#141821" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"/>
+<text x="707.280384462686" y="219.7" font-size="18" dominant-baseline="hanging" textLength="145.43923107462794" lengthAdjust="spacingAndGlyphs" fill="#B93A2C">Solution: (-infinity, infinity)</text>
+</svg>

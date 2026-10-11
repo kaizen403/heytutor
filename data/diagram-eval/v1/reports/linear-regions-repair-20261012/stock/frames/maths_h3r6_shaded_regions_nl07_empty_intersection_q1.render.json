@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "616b73ee81ef2fe3c972dcae625aefeadeef72630441226c49aadca53d00e7a1",
+  "pngSha256": "41b6e0119269365aa2bd73f0201d284e8306780b2be6775f3d98c93be6a95f68"
+}

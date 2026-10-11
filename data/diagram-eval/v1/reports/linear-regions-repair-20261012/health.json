@@ -1,0 +1,609 @@
+{
+  "schemaVersion": "independent-stock-health/v1",
+  "healthy": true,
+  "decision": "admit_whole_60",
+  "frozenRule": "60 unique exact frozen inputs; no true noncancel local/provider transport failure; at most4 actual planner deadline rows",
+  "sourceHead": "2c81544fe914a015a8d474329cf4316f372d568b",
+  "run": "apps/tutor/.lecture-lab/h3r11-region-repair",
+  "inputs": {
+    "rows": 60,
+    "uniqueIds": 60,
+    "duplicates": [],
+    "missingIds": [],
+    "extraIds": [],
+    "questionAndCompleteRubricMismatches": [],
+    "evalSha256": "acbb80c5d9dddcb57b127c4e27513c98970f129c034a10b758293ea57aaa78be",
+    "sampleFingerprintMatchesRetainedMAIN1": true
+  },
+  "configuration": {
+    "provider": {
+      "provider": "azure",
+      "deployment": "st-gpt-6-sol-h3",
+      "model": "st-gpt-6-sol-h3"
+    },
+    "summaryMatchesRetainedR10": {
+      "providerConfig": true,
+      "executionConfig": true,
+      "evaluationConfig": true
+    },
+    "rowMismatches": [],
+    "execution": {
+      "figureSelectionPolicy": "production-scene-selection/v2",
+      "figureOnly": true,
+      "scenePlannerLimitMs": 60000,
+      "familiarity": "normal",
+      "narrationLanguage": "english",
+      "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+      "sceneDeclinePolicy": "unchanged",
+      "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+      "visualNeedPolicy": {
+        "evidenceVersion": "live-visual-need/v1",
+        "model": "typesafe-ai/jev",
+        "rubricVersion": "visual-need/v1",
+        "policyVersion": "advisory/v1",
+        "clientTimeoutMs": 3000,
+        "serverTimeoutMs": 2400
+      },
+      "visualNeedReplayFingerprint": null,
+      "productionStrictSubjects": [
+        "maths"
+      ],
+      "examplePickerProfile": "live-client-4000ms/v1",
+      "subjectClassification": "existing-turn-plan",
+      "spendMode": "response_usage",
+      "pricing": {
+        "lane": "gpt-6.1-sol",
+        "inputUsdPer1M": 2,
+        "outputUsdPer1M": 10,
+        "cachedInputUsdPer1M": 0.1
+      },
+      "visualNeedPricing": {
+        "lane": "jev",
+        "inputUsdPer1M": 0.042,
+        "outputUsdPer1M": 0,
+        "cachedInputUsdPer1M": 0.042
+      },
+      "plannerOutputCap": 8096,
+      "teachingOutputCap": 18144
+    },
+    "arm": "planner_examples_strict",
+    "concurrency": 3,
+    "resume": false,
+    "libraryRows": 169,
+    "libraryFileSha256": "8d93140ea65f014c015657f101a0d53939dee759150f08baa63e14b01445bf3c",
+    "full60Exclusions": true
+  },
+  "transport": {
+    "recordedNoncancelSceneFailures": [],
+    "rowErrors": [],
+    "sceneOutcomes": 170,
+    "sceneHttp200": 138,
+    "timeoutOrCancelledOutcomes": 32,
+    "cancelAffectedRows": 30,
+    "cancelElapsedMsRange": [
+      1139,
+      12461
+    ],
+    "cancellationCause": "assumed ordinary cancellation; winner/supersession cause not individually proven because proxy records lack trace ids",
+    "providerHttp200Records": 377,
+    "providerUnexpectedRecords": [],
+    "blankProxyErrorRecords": 32,
+    "nonblankErrorRecords": [],
+    "armHttpStatusAtLeast400": [],
+    "startupOnlyGetProbeStatuses": [
+      {
+        "line": 15,
+        "method": "GET",
+        "path": "/api/boards/00000000-0000-4000-8000-000000000000",
+        "httpStatus": 404
+      },
+      {
+        "line": 16,
+        "method": "GET",
+        "path": "/api/boards/00000000-0000-4000-8000-000000000000",
+        "httpStatus": 404
+      },
+      {
+        "line": 19,
+        "method": "GET",
+        "path": "/api/boards/00000000-0000-4000-8000-000000000000/turns",
+        "httpStatus": 405
+      },
+      {
+        "line": 20,
+        "method": "GET",
+        "path": "/api/boards/00000000-0000-4000-8000-000000000000/turns",
+        "httpStatus": 405
+      },
+      {
+        "line": 23,
+        "method": "GET",
+        "path": "/api/chat",
+        "httpStatus": 405
+      },
+      {
+        "line": 24,
+        "method": "GET",
+        "path": "/api/chat",
+        "httpStatus": 405
+      },
+      {
+        "line": 29,
+        "method": "GET",
+        "path": "/api/tts/stream",
+        "httpStatus": 405
+      },
+      {
+        "line": 30,
+        "method": "GET",
+        "path": "/api/tts/stream",
+        "httpStatus": 405
+      }
+    ],
+    "firstMeasuredPostLine": 40
+  },
+  "plannerDeadlines": {
+    "actualStock25sAttemptEvents": 0,
+    "actualScene25sPlannerDeadlineRows": 0,
+    "conservativeAffectedRowUpperBound": 0,
+    "sceneCancellationOutcomesAtLeast25000ms": 0,
+    "limitRows": 4,
+    "serverRecords": [],
+    "evidence": "No explicit stock25s deadline/retry event in complete serverlog; all32 typed abort outcomes below25s. No missing-trace deadline record requiring a positive row upper bound."
+  },
+  "advisory": {
+    "genericAccountingTransportLabelsPreserved": 3,
+    "typedClientDeadlineRows": [
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+        "assessmentUnavailableReason": "deadline",
+        "accountingUnavailableReason": "transport",
+        "accountingHttpStatus": null,
+        "knownUsage": false,
+        "serverHttp200Recorded": false
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+        "assessmentUnavailableReason": "deadline",
+        "accountingUnavailableReason": "transport",
+        "accountingHttpStatus": null,
+        "knownUsage": false,
+        "serverHttp200Recorded": false
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+        "assessmentUnavailableReason": "deadline",
+        "accountingUnavailableReason": "transport",
+        "accountingHttpStatus": null,
+        "knownUsage": false,
+        "serverHttp200Recorded": false
+      }
+    ],
+    "serverVisualNeedHttp200Records": 57,
+    "serverHttp200Attribution": "57 missing-key replies recorded; no explicit server200 records for the3 client-deadline calls, retain HTTPnull",
+    "missingKeyRows": 57,
+    "plannerDeadlineAllowanceUsed": 0
+  },
+  "rejectionRetention": {
+    "candidateRecords": 53,
+    "issues": 66,
+    "omittedIssueCount": 0,
+    "recordCounters": {
+      "candidateRecords": 0,
+      "candidateIssues": 0,
+      "operatorRecords": 0
+    },
+    "messageOrFieldTruncation": [],
+    "operatorArgumentsTruncated": 0,
+    "operatorErrorsOmitted": 0,
+    "rawContentHashReferencesMissing": [],
+    "solverEvidenceTruncationCounters": {},
+    "fullMessagesRemainIn": "runs/*.json diagram.candidateRejections[].errors[]"
+  },
+  "artifacts": {
+    "committedRows": 54,
+    "emptyRows": 6,
+    "pngCount": 54,
+    "onDiskPngCount": 54,
+    "uniquePngHashes": 54,
+    "errors": [],
+    "pngs": [
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.png",
+        "bytes": 34364,
+        "sha256": "57a3a7f70906ef2b8f600c10b32384b2d1029e16dd60139110fcfcc45950fa63"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.png",
+        "bytes": 34354,
+        "sha256": "1a820ea1d4abbdb5694c65fb168dcac9b2bec6a47000fe085d72f16d949373e2"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp03-vertical-negative-closed|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.png",
+        "bytes": 28119,
+        "sha256": "c7df2248a396274efcbc5d2588c72fd4a53c366ab1c9314f268b3090bfd6bc3a"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.png",
+        "bytes": 27787,
+        "sha256": "dab8c3cf8ceea05578ea602399ccacc78e2feea5ac646587ae8a572e84cc77d6"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp05-origin-on-boundary|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.png",
+        "bytes": 29862,
+        "sha256": "5d563b2b36a3672778f2d8a25950c58a5967eecbd688e0437e42f39400cb52ee"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp06-positive-strict-membership|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.png",
+        "bytes": 41004,
+        "sha256": "e46a08005c1c8b4415eaeb0d7bce2d57c9491902c3cba822ee0a000ca3863271"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.png",
+        "bytes": 42275,
+        "sha256": "fbf333db895647791ac6165a97ea1ccaab1a3f4bd7423deffce63593db4f0906"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp08-vertical-strict-rational|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.png",
+        "bytes": 31160,
+        "sha256": "861519536a4924f8ae6e96f6788f863f6f2fa0ad742af000f01fa41e792fa3d2"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp09-horizontal-closed|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.png",
+        "bytes": 28042,
+        "sha256": "2c444fecc26b7e5c569b6d3af0e2c8ed2cb24b2170d6d65551609da4e9e39d01"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.png",
+        "bytes": 41541,
+        "sha256": "2d8de5173a2098b60b13bfd78ba71282cf2580a820083bf98e75336e4fb3ab2f"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp01-bounded-unique|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.png",
+        "bytes": 48157,
+        "sha256": "6beab6fd1b8a4a9eba2d8ef2cacc03074f34b010c8018776cf5238ff6b2bcc50"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp02-rational-corner|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.png",
+        "bytes": 52531,
+        "sha256": "16a1e30ffc99f0c51977004d2f951f21088299f9aa163027711efd7be266778d"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp03-redundant-constraint|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.png",
+        "bytes": 43842,
+        "sha256": "0076ea0714af4b57999c9816f6fae4025035da38599e35111003703548a696eb"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp04-unbounded-region-finite-min|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.png",
+        "bytes": 40425,
+        "sha256": "331f1277c703a9e491977eb997fe88f005250828e3a3ea33ee40fc14aada6486"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp05-bounded-multiple-optima|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.png",
+        "bytes": 43349,
+        "sha256": "6062307bdfaa7a0d1a913cf03e31f261a9a98917c37eb653ca2236bcb4d9664b"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp07-unbounded-objective|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.png",
+        "bytes": 40645,
+        "sha256": "aa487aaad862c21df5d4dc29c6cb10be642b2ff0c91986d4906fc8eadd1fceae"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp08-infeasible|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.png",
+        "bytes": 39007,
+        "sha256": "0b6cb94da1702c2917e770f3dd3c4568df2e0dca4847d053d093135ae30d78c2"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.png",
+        "bytes": 35445,
+        "sha256": "1c6a64737d611feadddea48d1e993df68a9e0c10223d2b99012dbacac0200790"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|lpp10-negative-objective-strip|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.png",
+        "bytes": 47126,
+        "sha256": "a03df5ee13e62509aeb5107567f21ebfb3a157e05a6952557a29ea6625ced528"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.png",
+        "bytes": 22745,
+        "sha256": "41ebee010996edbad1fb2092b817a5ad55aca79d0206e3a72dca4fc25514458f"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.png",
+        "bytes": 24403,
+        "sha256": "203a432ed52d6eed0f5e59d71073cc66493c005bb16dde90a5fd89d72e4462fd"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.png",
+        "bytes": 22400,
+        "sha256": "5cf1bfc20fd20f78c0e64f9e55b59d5da5ee628aea883dd70709f94734cccba5"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl04-disjoint-union|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.png",
+        "bytes": 23704,
+        "sha256": "47aa4882dc792f0f3d764c83a13050cd78bc9f354fe980a2f7485108320e7f86"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl05-overlap-intersection|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.png",
+        "bytes": 19683,
+        "sha256": "9192fffafce2dd06316fc53eeda10d3c2af7e539e25b71ada9e6f0159babc3d2"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.png",
+        "bytes": 21772,
+        "sha256": "305c7b0c102ccd7eddae5003f1507f6416dcd457f53b52b76040fc7a15fbc254"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.png",
+        "bytes": 22306,
+        "sha256": "41b6e0119269365aa2bd73f0201d284e8306780b2be6775f3d98c93be6a95f68"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.png",
+        "bytes": 22235,
+        "sha256": "92c79f84102bed52b73e09176d164b9bc8b79db3156718819d56c7ec7bb4b68a"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl09-union-puncture|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.png",
+        "bytes": 25130,
+        "sha256": "195e1034799b69874b302e86b84ac156b865dcc4ae68306f3ac336ef9e05aa14"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.png",
+        "bytes": 21983,
+        "sha256": "1c02c26a8a6265200c9ddad53cba6eb52817691239aef50869149d36fac69146"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.png",
+        "bytes": 38880,
+        "sha256": "9dc01d92a79b61ef8438b09a5c489bd27365a4ce77afc927c9b693b2aaa17803"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys03-distinct-parallel|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.png",
+        "bytes": 33398,
+        "sha256": "b8dfa695be1d19006e81f7330a46062154efc6191bfe6e4003a9c39d9d307b33"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.png",
+        "bytes": 33392,
+        "sha256": "e3bacf9b6fae2a8a1aee1eb6624819fa77507724e7b469533fb1b0de4475432a"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys05-vertical-horizontal|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.png",
+        "bytes": 25644,
+        "sha256": "fa9dd7a86718f9da1848e78c2f229462db5b27cebafae197d4f7b61a8e5e167f"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys06-cbse10-unique|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.png",
+        "bytes": 30077,
+        "sha256": "0bfb751ac3c45fab6903dafe754907c0210107258e8b32f70679909523da284d"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys07-negative-coefficients|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.png",
+        "bytes": 33051,
+        "sha256": "c1a194b37eafc71604de15c0fb86cf3570f9eedc34ed6cdbe46aa46a68e17907"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.png",
+        "bytes": 29315,
+        "sha256": "229fe016f3cea11e0d0c3dd17283a87a86b7eddeaf8c29ae296ffb25dfc8fb5c"
+      },
+      {
+        "probeId": "maths|h3r6-shaded-regions|sys10-opposite-slopes-rational|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.png",
+        "bytes": 36700,
+        "sha256": "68af8d779afd3663be08aea0699747e6678a3aec6cacbf1cf2c4b355ea794595"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.png",
+        "bytes": 24341,
+        "sha256": "c0d237c4f8bfa0f8131d7ca2fcd7e2128e07f3bb79dd19993dfacde432ca9302"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.png",
+        "bytes": 42287,
+        "sha256": "8ac6792f42ece32a59a45c66f8664fedd50e1420a15bdbeec9b679b114f1ae04"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|interval-intersection|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_interval_intersection_q1.png",
+        "bytes": 35007,
+        "sha256": "c7103ebd7d5f8d36e354df4338e3e5664f80439ab731c2d90900812d59317f60"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_lower_bound_resource_region_q1.png",
+        "bytes": 54020,
+        "sha256": "b296bd0885fac73b0e5ecfbe30e575d212693cffff23a2c8dbbb97168b4981f6"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_multiple_optimum_edge_q1.png",
+        "bytes": 60098,
+        "sha256": "ac1b437dbd6870b801ea2ef4cc2aaf6a4793c998d0b407d928ffb284995f88c6"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|named-interval-difference|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_named_interval_difference_q1.png",
+        "bytes": 37868,
+        "sha256": "59238d6c78552eb247117734b3ebc94e92cddb2d07ea546d8042521ad6dccf9f"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.png",
+        "bytes": 44238,
+        "sha256": "67a5e6fb98ad502503e6728f6a34bf1f568a202766f94f97e40342f1ec981f4a"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|negative-strict-ray|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_negative_strict_ray_q1.png",
+        "bytes": 31121,
+        "sha256": "529651afbdfebbea00a8f1e1c7d006461bfe851e44bfd954ae8b3543746c126a"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.png",
+        "bytes": 33104,
+        "sha256": "51be025226810b8e9087a17d9ea7a0fef32299123d78fa2f790013a156faf12a"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.png",
+        "bytes": 49985,
+        "sha256": "7a287a5c625da78484c174cba1e45a7a5b0c42437410ab6f0070d204b035bdf6"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|rational-unique-max|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_rational_unique_max_q1.png",
+        "bytes": 61919,
+        "sha256": "9a060b3976c0c72fb39aec9d8b547e4912da5a0947401bce800470921578ad5b"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|separated-boolean-union|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_separated_boolean_union_q1.png",
+        "bytes": 38096,
+        "sha256": "1b3ec467d76e731d8355ade085b5b5435d69b25100fe9451fb71dc4541a2e57d"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|singleton-intersection|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_singleton_intersection_q1.png",
+        "bytes": 30779,
+        "sha256": "0afc99c3c636bf5801d40f33c8451bfa0f8e1fd29cddfc6d4ada63bfd3e380ae"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.png",
+        "bytes": 48683,
+        "sha256": "e7c56c93df17cb5454b40fbe67978517cfc5337a33039093f43b6206dba79595"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.png",
+        "bytes": 62390,
+        "sha256": "d17657d596d2a7a3b98a1dcc3e1cfbb8940c8fc44c7e4cd53691d956824b0d46"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.png",
+        "bytes": 42127,
+        "sha256": "c7b28e5716ca37e29a1deaff13259ac2d8d6e95866fa1bb01fd61689dbc3c3d3"
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|vertical-line-system|q1",
+        "path": "apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_vertical_line_system_q1.png",
+        "bytes": 33990,
+        "sha256": "854639bb396c4d0130610be7f0f4e013fea875e84910877b9d07fdd13df868f9"
+      }
+    ],
+    "verification": "exists/nonempty/PNGsignature/SHA256 only; no image view or semantic grading; no earlier expected digest supplied"
+  },
+  "structuralOnly": {
+    "cohorts": [
+      {
+        "cohort": "frozen40",
+        "rows": 40,
+        "drawn": 37,
+        "empty": 3
+      },
+      {
+        "cohort": "additional20",
+        "rows": 20,
+        "drawn": 17,
+        "empty": 3
+      }
+    ],
+    "emptyIds": [
+      "maths|h3r6-shaded-regions|lpp06-resource-pentagon|q1",
+      "maths|h3r6-shaded-regions|sys01-unique-integer|q1",
+      "maths|h3r6-shaded-regions|sys08-distinct-vertical|q1",
+      "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1",
+      "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+      "maths|h3r8-finish-regions|system-x-coordinate|q1"
+    ],
+    "plannerVoteOrStrategyQualityObservations": [
+      {
+        "probeId": "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+        "mergedVisualRequirement": "optional",
+        "productionStrategy": {
+          "classifiedSubject": "maths",
+          "strategy": "strict"
+        },
+        "committed": true
+      },
+      {
+        "probeId": "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+        "mergedVisualRequirement": "required",
+        "productionStrategy": {
+          "classifiedSubject": "maths",
+          "strategy": "current"
+        },
+        "committed": true
+      }
+    ]
+  },
+  "spend": {
+    "knownResponseUsd": 5.219373,
+    "unmeteredAttempts": 71,
+    "unresolvedRecords": 37,
+    "unresolvedAllowanceUsd": 8.649485,
+    "allowanceIsMeasuredSpend": false,
+    "stockCapUsd": 16,
+    "realJobCapUsd": 20,
+    "unknownReserveUsd": 4,
+    "stoppedForBudget": false,
+    "reservedUsd": 0,
+    "inFlightCalls": 0,
+    "azureAfter": "pending owner capture after lag; no new metric snapshot taken and no real provider total certified"
+  },
+  "evidenceSha256": {
+    "METHOD.md": "96605f21094eb49e69bdab358097a6a8deb6565b3c926c3a902948d9f5b4632c",
+    "freeze.json": "d67bc4a5a6cbfbbfa7621747c08426b9f3a18726e98fd93da16517028d65569e",
+    "stock-run.log": "71735252351efbe962180536ce963dbd9836ff8dbffaac08aea60a8b22b98b7c",
+    "server-final.log": "d9fa856bca3e0c5abe303ca55f06541f0bf03d0cbcc40d132d74910652fde1cb"
+  },
+  "limitations": [
+    "No blind judge grades/maps or images accessed.",
+    "Winning/superseding reason for each short abort is not trace-attributed;32 are assumed cancellations, not asserted proven winner cancels.",
+    "The3 advisory client deadlines have no recorded serverHTTP200 response; generic transport/HTTPnull fields remain unchanged.",
+    "Health admission is separate from image correctness, rejected candidate/refusal quality, classifier/visual-vote quality and spend reconciliation.",
+    "Original library and full60 input/exclusion identity remain fixed; additional20 are repair data, not fresh heldout."
+  ]
+}

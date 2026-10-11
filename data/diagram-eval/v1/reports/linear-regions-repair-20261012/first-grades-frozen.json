@@ -1,0 +1,15 @@
+{
+  "sha256": {
+    "a": "7391a291b61b03a731a09f3c9921bdb153516b812be2c7732273afa3ab338850",
+    "b": "c12ae4b0354ea5b38c52814e7bbce42cec0e9025f234dd55fbf8114610c7427c"
+  },
+  "cards": 54,
+  "disputedIds": [
+    "figure-031"
+  ],
+  "recoveries": {
+    "a": 0,
+    "b": 1
+  },
+  "bRecovery": "pre-append helper error; no rewritten verdicts"
+}

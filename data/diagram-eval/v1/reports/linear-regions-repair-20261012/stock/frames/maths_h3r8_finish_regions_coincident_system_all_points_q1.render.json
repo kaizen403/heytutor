@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "523c451da8ad155c48f9533d80d5c1a34ae99ae270da1af0b561b473e083a118",
+  "pngSha256": "c0d237c4f8bfa0f8131d7ca2fcd7e2128e07f3bb79dd19993dfacde432ca9302"
+}

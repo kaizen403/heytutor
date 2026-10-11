@@ -1,0 +1,1295 @@
+{
+ "probeId": "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+ "topicId": "maths|h3r8-finish-regions|parallel-system-no-solution",
+ "unitId": "maths|h3r8-finish-regions",
+ "difficulty": "medium",
+ "question": "In R^2, graph the simultaneous system L1: -2(2x - y) = -6 and L2: 6x - 3y = 12. Label both lines with their names and simplified equations, and label their intercepts. Use the graph to classify the system and state its full solution set.",
+ "familiarity": "normal",
+ "arm": "planner_examples_strict",
+ "figureOnly": true,
+ "startedAt": "2026-10-11T23:08:16.721Z",
+ "timings": {
+  "planMs": 24489,
+  "teachMs": 0,
+  "totalMs": 24490,
+  "figureCommitMs": 24490,
+  "stages": {
+   "turnPlanMs": 8610,
+   "problemIrMs": 5383,
+   "deterministicFigureMs": 0,
+   "scenePlannerMs": 10358,
+   "deadlineRemainingMs": 35643,
+   "revalidateMs": 0,
+   "plannerCalls": 2,
+   "speculative": false,
+   "restarted": false,
+   "speculationAbort": null
+  }
+ },
+ "error": null,
+ "isDsa": false,
+ "plan": {
+  "visualRequirement": "required",
+  "requiresVisualByStem": true,
+  "givens": [
+   {
+    "id": "g1",
+    "symbol": "L1 outer coefficient",
+    "value": -2,
+    "provenance": "given",
+    "sourceText": "g1 = -2"
+   },
+   {
+    "id": "g2",
+    "symbol": "L1 x coefficient inside parentheses",
+    "value": 2,
+    "provenance": "given",
+    "sourceText": "g2 = 2"
+   },
+   {
+    "id": "g3",
+    "symbol": "L1 right-hand side",
+    "value": -6,
+    "provenance": "given",
+    "sourceText": "g3 = -6"
+   },
+   {
+    "id": "g4",
+    "symbol": "L2 x coefficient",
+    "value": 6,
+    "provenance": "given",
+    "sourceText": "g4 = 6"
+   },
+   {
+    "id": "g5",
+    "symbol": "L2 y coefficient",
+    "value": -3,
+    "provenance": "given",
+    "sourceText": "g5 = -3"
+   },
+   {
+    "id": "g6",
+    "symbol": "L2 right-hand side",
+    "value": 12,
+    "provenance": "given",
+    "sourceText": "g6 = 12"
+   }
+  ],
+  "unknowns": [
+   {
+    "id": "u1",
+    "symbol": "L1 x-intercept"
+   },
+   {
+    "id": "u2",
+    "symbol": "L1 y-intercept"
+   },
+   {
+    "id": "u3",
+    "symbol": "L2 x-intercept"
+   },
+   {
+    "id": "u4",
+    "symbol": "L2 y-intercept"
+   }
+  ],
+  "derived": [
+   {
+    "id": "u1",
+    "symbol": "L1 x-intercept",
+    "value": 1.5
+   },
+   {
+    "id": "u2",
+    "symbol": "L1 y-intercept",
+    "value": -3
+   },
+   {
+    "id": "u3",
+    "symbol": "L2 x-intercept",
+    "value": 2
+   },
+   {
+    "id": "u4",
+    "symbol": "L2 y-intercept",
+    "value": -4
+   }
+  ],
+  "qualitativeClaims": [
+   {
+    "id": "c1",
+    "expected": "L1: y=2x−3; intercepts (1.5,0) and (0,−3)."
+   },
+   {
+    "id": "c2",
+    "expected": "L2: y=2x−4; intercepts (2,0) and (0,−4)."
+   },
+   {
+    "id": "c3",
+    "expected": "The lines have equal slopes and different y-intercepts, so they are distinct parallel lines. The system is inconsistent; its solution set is ∅."
+   }
+  ],
+  "lawIds": [
+   "equivalent-equations",
+   "axis-intercept-substitution",
+   "parallel-lines-equal-slopes"
+  ],
+  "assumptions": []
+ },
+ "solver": {
+  "status": "verified",
+  "issueCodes": [],
+  "hasProjection": true,
+  "projection": {
+   "schemaVersion": "solver-authority/v1",
+   "problemId": "problem",
+   "status": "verified",
+   "expressions": [
+    {
+     "id": "eL1x",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 6
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fL1"
+     ]
+    },
+    {
+     "id": "eL1y",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 6
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 2
+      }
+     },
+     "evidenceFactIds": [
+      "fL1"
+     ]
+    },
+    {
+     "id": "eL2x",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 12
+      },
+      "right": {
+       "kind": "number",
+       "value": 6
+      }
+     },
+     "evidenceFactIds": [
+      "fL2"
+     ]
+    },
+    {
+     "id": "eL2y",
+     "valueType": "scalar",
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 12
+      },
+      "right": {
+       "kind": "unary",
+       "operator": "-",
+       "operand": {
+        "kind": "number",
+        "value": 3
+       }
+      }
+     },
+     "evidenceFactIds": [
+      "fL2"
+     ]
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iGraph",
+     "kind": "graph",
+     "entityIds": [
+      "l1",
+      "l2"
+     ],
+     "evidenceFactIds": [
+      "fPlane",
+      "fL1",
+      "fL2",
+      "fGraph",
+      "fLabels",
+      "fIntercepts",
+      "fClass",
+      "fSolution"
+     ]
+    }
+   ],
+   "bindings": [
+    {
+     "requestId": "sL1x",
+     "quantityId": "u1",
+     "symbol": "L1 x-intercept",
+     "approximate": 1.5,
+     "exact": {
+      "kind": "rational",
+      "value": "3/2"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sL1y",
+     "quantityId": "u2",
+     "symbol": "L1 y-intercept",
+     "approximate": -3,
+     "exact": {
+      "kind": "integer",
+      "value": "-3"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sL2x",
+     "quantityId": "u3",
+     "symbol": "L2 x-intercept",
+     "approximate": 2,
+     "exact": {
+      "kind": "integer",
+      "value": "2"
+     },
+     "errorBound": 0
+    },
+    {
+     "requestId": "sL2y",
+     "quantityId": "u4",
+     "symbol": "L2 y-intercept",
+     "approximate": -4,
+     "exact": {
+      "kind": "integer",
+      "value": "-4"
+     },
+     "errorBound": 0
+    }
+   ],
+   "solverProviderId": "local-deterministic/v1"
+  },
+  "evidence": {
+   "schemaVersion": "solver-evidence/v1",
+   "originalQuestionSha256": "7b3b92e793751c44018c1ee8ff4b7992add4c1febdd4230ad8691b11ecf80bd8",
+   "problemQuestionMatchesOriginal": true,
+   "audit": {
+    "status": "verified",
+    "issues": [],
+    "bindings": [
+     {
+      "requestId": "sL1x",
+      "quantityId": "u1",
+      "symbol": "L1 x-intercept",
+      "approximate": 1.5,
+      "exact": {
+       "kind": "rational",
+       "value": "3/2"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sL1y",
+      "quantityId": "u2",
+      "symbol": "L1 y-intercept",
+      "approximate": -3,
+      "exact": {
+       "kind": "integer",
+       "value": "-3"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sL2x",
+      "quantityId": "u3",
+      "symbol": "L2 x-intercept",
+      "approximate": 2,
+      "exact": {
+       "kind": "integer",
+       "value": "2"
+      },
+      "errorBound": 0
+     },
+     {
+      "requestId": "sL2y",
+      "quantityId": "u4",
+      "symbol": "L2 y-intercept",
+      "approximate": -4,
+      "exact": {
+       "kind": "integer",
+       "value": "-4"
+      },
+      "errorBound": 0
+     }
+    ]
+   },
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "In R^2, graph the simultaneous system L1: -2(2x - y) = -6 and L2: 6x - 3y = 12. Label both lines with their names and simplified equations, and label their intercepts. Use the graph to classify the system and state its full solution set.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "L1 outer coefficient",
+      "value": -2,
+      "sourceText": "g1 = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "L1 x coefficient inside parentheses",
+      "value": 2,
+      "sourceText": "g2 = 2",
+      "provenance": "given"
+     },
+     {
+      "id": "g3",
+      "symbol": "L1 right-hand side",
+      "value": -6,
+      "sourceText": "g3 = -6",
+      "provenance": "given"
+     },
+     {
+      "id": "g4",
+      "symbol": "L2 x coefficient",
+      "value": 6,
+      "sourceText": "g4 = 6",
+      "provenance": "given"
+     },
+     {
+      "id": "g5",
+      "symbol": "L2 y coefficient",
+      "value": -3,
+      "sourceText": "g5 = -3",
+      "provenance": "given"
+     },
+     {
+      "id": "g6",
+      "symbol": "L2 right-hand side",
+      "value": 12,
+      "sourceText": "g6 = 12",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "L1 x-intercept"
+     },
+     {
+      "id": "u2",
+      "symbol": "L1 y-intercept"
+     },
+     {
+      "id": "u3",
+      "symbol": "L2 x-intercept"
+     },
+     {
+      "id": "u4",
+      "symbol": "L2 y-intercept"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "L1 x-intercept",
+      "value": 1.5,
+      "sourceText": "L1: 2x−y=3; at y=0, x=3/2=1.5.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3"
+      ]
+     },
+     {
+      "id": "u2",
+      "symbol": "L1 y-intercept",
+      "value": -3,
+      "sign": "negative",
+      "sourceText": "L1: y=2x−3; at x=0, y=−3.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3"
+      ]
+     },
+     {
+      "id": "u3",
+      "symbol": "L2 x-intercept",
+      "value": 2,
+      "sourceText": "L2: 2x−y=4; at y=0, x=2.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g4",
+       "g5",
+       "g6"
+      ]
+     },
+     {
+      "id": "u4",
+      "symbol": "L2 y-intercept",
+      "value": -4,
+      "sign": "negative",
+      "sourceText": "L2: y=2x−4; at x=0, y=−4.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g4",
+       "g5",
+       "g6"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Label L1 with its simplified equation and intercepts.",
+      "expected": "L1: y=2x−3; intercepts (1.5,0) and (0,−3).",
+      "relatedQuantityIds": [
+       "u1",
+       "u2"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Label L2 with its simplified equation and intercepts.",
+      "expected": "L2: y=2x−4; intercepts (2,0) and (0,−4).",
+      "relatedQuantityIds": [
+       "u3",
+       "u4"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Classify the system and state its full solution set.",
+      "expected": "The lines have equal slopes and different y-intercepts, so they are distinct parallel lines. The system is inconsistent; its solution set is ∅.",
+      "relatedQuantityIds": [
+       "u2",
+       "u4"
+      ]
+     }
+    ],
+    "lawIds": [
+     "equivalent-equations",
+     "axis-intercept-substitution",
+     "parallel-lines-equal-slopes"
+    ],
+    "assumptions": []
+   },
+   "problemIR": {
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "In R^2, graph the simultaneous system L1: -2(2x - y) = -6 and L2: 6x - 3y = 12. Label both lines with their names and simplified equations, and label their intercepts. Use the graph to classify the system and state its full solution set.",
+    "facts": [
+     {
+      "id": "fPlane",
+      "kind": "given",
+      "statement": "Graph in the plane.",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 6,
+       "quote": "In R^2"
+      }
+     },
+     {
+      "id": "fL1",
+      "kind": "given",
+      "statement": "L1 is defined by its stated equation.",
+      "evidence": {
+       "source": "question",
+       "start": 38,
+       "end": 57,
+       "quote": "L1: -2(2x - y) = -6"
+      }
+     },
+     {
+      "id": "fL2",
+      "kind": "given",
+      "statement": "L2 is defined by its stated equation.",
+      "evidence": {
+       "source": "question",
+       "start": 62,
+       "end": 78,
+       "quote": "L2: 6x - 3y = 12"
+      }
+     },
+     {
+      "id": "fGraph",
+      "kind": "requested",
+      "statement": "Graph both lines.",
+      "evidence": {
+       "source": "question",
+       "start": 8,
+       "end": 37,
+       "quote": "graph the simultaneous system"
+      }
+     },
+     {
+      "id": "fLabels",
+      "kind": "requested",
+      "statement": "Label both lines with names and simplified equations.",
+      "evidence": {
+       "source": "question",
+       "start": 80,
+       "end": 138,
+       "quote": "Label both lines with their names and simplified equations"
+      }
+     },
+     {
+      "id": "fIntercepts",
+      "kind": "requested",
+      "statement": "Label both lines' intercepts.",
+      "evidence": {
+       "source": "question",
+       "start": 144,
+       "end": 166,
+       "quote": "label their intercepts"
+      }
+     },
+     {
+      "id": "fClass",
+      "kind": "requested",
+      "statement": "Classify the system.",
+      "evidence": {
+       "source": "question",
+       "start": 185,
+       "end": 204,
+       "quote": "classify the system"
+      }
+     },
+     {
+      "id": "fSolution",
+      "kind": "requested",
+      "statement": "State the full solution set.",
+      "evidence": {
+       "source": "question",
+       "start": 209,
+       "end": 236,
+       "quote": "state its full solution set"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "l1",
+      "kind": "line",
+      "label": "L1: y=2x-3",
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "l2",
+      "kind": "line",
+      "label": "L2: y=2x-4",
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eL1x",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 6
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 2
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL1y",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 6
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "evidenceFactIds": [
+       "fL1"
+      ]
+     },
+     {
+      "id": "eL2x",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 12
+       },
+       "right": {
+        "kind": "number",
+        "value": 6
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     },
+     {
+      "id": "eL2y",
+      "valueType": "scalar",
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 12
+       },
+       "right": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 3
+        }
+       }
+      },
+      "evidenceFactIds": [
+       "fL2"
+      ]
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iGraph",
+      "kind": "graph",
+      "entityIds": [
+       "l1",
+       "l2"
+      ],
+      "evidenceFactIds": [
+       "fPlane",
+       "fL1",
+       "fL2",
+       "fGraph",
+       "fLabels",
+       "fIntercepts",
+       "fClass",
+       "fSolution"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sL1x",
+      "kind": "evaluate",
+      "expressionId": "eL1x",
+      "resultBinding": {
+       "turnPlanQuantityId": "u1",
+       "symbol": "L1 x-intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     },
+     {
+      "id": "sL1y",
+      "kind": "evaluate",
+      "expressionId": "eL1y",
+      "resultBinding": {
+       "turnPlanQuantityId": "u2",
+       "symbol": "L1 y-intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     },
+     {
+      "id": "sL2x",
+      "kind": "evaluate",
+      "expressionId": "eL2x",
+      "resultBinding": {
+       "turnPlanQuantityId": "u3",
+       "symbol": "L2 x-intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     },
+     {
+      "id": "sL2y",
+      "kind": "evaluate",
+      "expressionId": "eL2y",
+      "resultBinding": {
+       "turnPlanQuantityId": "u4",
+       "symbol": "L2 y-intercept",
+       "evidenceFactIds": [
+        "fIntercepts"
+       ]
+      }
+     }
+    ]
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sL1x",
+      "requestId": "sL1x",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "3/2"
+      },
+      "approximate": 1.5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL1y",
+      "requestId": "sL1y",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-3"
+      },
+      "approximate": -3,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL2x",
+      "requestId": "sL2x",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "2"
+      },
+      "approximate": 2,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sL2y",
+      "requestId": "sL2y",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-4"
+      },
+      "approximate": -4,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sL1x",
+      "requestId": "sL1x",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL1x"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL1y",
+      "requestId": "sL1y",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL1y"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL2x",
+      "requestId": "sL2x",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL2x"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sL2y",
+      "requestId": "sL2y",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eL2y"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   },
+   "truncation": {
+    "omittedArrayItems": 0,
+    "shortenedStringFields": 0,
+    "depthLimitedFields": 0,
+    "nodeLimitedFields": 0,
+    "unsupportedValueFields": 0,
+    "omittedDetailRecords": 0,
+    "details": []
+   }
+  }
+ },
+ "planner": {
+  "calls": 6,
+  "usageCalls": 5,
+  "inputTokens": 20564,
+  "outputTokens": 5255,
+  "totalTokens": 25819,
+  "cachedInputTokens": 1547,
+  "estimatedCostUsd": 0.090739,
+  "modelCalls": [
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 0,
+    "ok": false,
+    "usageKnown": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0,
+    "measuredCostUsd": null,
+    "unresolvedAttempts": 2,
+    "unresolvedAllowanceUsd": 0.183176
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 722,
+    "outputTokens": 973,
+    "totalTokens": 1695,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011174,
+    "measuredCostUsd": 0.011174,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5651,
+    "outputTokens": 52,
+    "totalTokens": 5703,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.011822,
+    "measuredCostUsd": 0.011822,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 2447,
+    "outputTokens": 812,
+    "totalTokens": 3259,
+    "cachedInputTokens": 1547,
+    "estimatedCostUsd": 0.010075,
+    "measuredCostUsd": 0.010075,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5872,
+    "outputTokens": 1657,
+    "totalTokens": 7529,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.028314,
+    "measuredCostUsd": 0.028314,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   },
+   {
+    "model": "st-gpt-6-sol-h3",
+    "pricingModel": "st-gpt-6-sol-h3",
+    "status": 200,
+    "ok": true,
+    "usageKnown": true,
+    "inputTokens": 5872,
+    "outputTokens": 1761,
+    "totalTokens": 7633,
+    "cachedInputTokens": 0,
+    "estimatedCostUsd": 0.029354,
+    "measuredCostUsd": 0.029354,
+    "unresolvedAttempts": 0,
+    "unresolvedAllowanceUsd": 0
+   }
+  ],
+  "knownUsageUsd": 0.090739
+ },
+ "diagram": {
+  "plannerDeclineReason": null,
+  "plannerDeclines": [],
+  "candidateRejections": [],
+  "rejectionEvidenceTruncation": {
+   "candidateRecords": 0,
+   "candidateIssues": 0,
+   "operatorRecords": 0
+  },
+  "rejectedOperatorCalls": [],
+  "committed": true,
+  "declinedUnreadable": false,
+  "emptyCause": null,
+  "tier": "qualitative_verified",
+  "nonMetric": true,
+  "figureSource": "linear_source",
+  "reason": "engine independently compiled the complete original linear source program; no metric assertion; structure only",
+  "archetypeId": null,
+  "family": "linear_system",
+  "entityIds": [
+   "source_linear_region"
+  ],
+  "focusableIds": [
+   "source_linear_region",
+   "source_linear_setup"
+  ],
+  "labels": [],
+  "annotations": [],
+  "renderedLabels": [
+   "x",
+   "y",
+   "0",
+   "-2(2x - y)=-6",
+   "6x - 3y=12",
+   "Parallel lines: no solution"
+  ],
+  "labelByEntity": {
+   "source_linear_region": "x"
+  },
+  "primitiveCount": 10,
+  "assertionCount": 0,
+  "candidateErrorCodes": [],
+  "candidateCount": 2,
+  "plannerCallOutcomes": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 20832,
+    "elapsedMs": 10124,
+    "declineReason": null
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "httpStatus": 200,
+    "error": null,
+    "bodyParsed": true,
+    "promptChars": 20821,
+    "elapsedMs": 10243,
+    "declineReason": null
+   }
+  ],
+  "examplesUsed": [
+   {
+    "id": "curated:maths/two-lines-angle--1",
+    "sourceKind": "curated",
+    "question": "Lines L₁: x/a + y/b = 1 and L₂: y = mx + c meet at P. Show the intercepts a, b and c, the angle θ between the lines, both angle bisectors, and a point Q on a bisector with its perpendiculars to L₁ and L₂.",
+    "depicts": "coordinate figure; construction: axes, line, label, intersection, angle bisector, project, angle mark, segment, right angle mark; entities: axes, coordinate axes, point, x-intercept of L1, y-intercept of L1, y-intercept of L2, line, first line, intercept form, label, equation of L1, second line, slope m, equation of L2, where L1 meets L2, angle mark, angle between the lines, bisector of angle θ, bisector of 180°−θ, point on a bisector; labels: (a, 0), (0, b), (0, c), x/a + y/b = 1, y = mx + c, P, θ, Q",
+    "figureKind": "geometry",
+    "family": "coordinate_figure",
+    "archetype": null
+   }
+  ],
+  "validationIssues": [],
+  "degradationReason": null,
+  "suppressedFallback": null,
+  "svg": "frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.svg",
+  "png": "frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.png",
+  "plannerResponses": [
+   {
+    "phase": "plan",
+    "lane": "alternate",
+    "selected": true,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Both equations determine exact lines and intercepts in the coordinate plane.\"\n  },\n  \"source\": {\n    \"question\": \"In R^2, graph the simultaneous system L1: -2(2x - y) = -6 and L2: 6x - 3y = 12. Label both lines with their names and simplified equations, and label their intercepts. Use the graph to classify the system and state its full solution set.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"value\": -2},\n    {\"id\": \"g2\", \"value\": 2},\n    {\"id\": \"g3\", \"value\": -6},\n    {\"id\": \"g4\", \"value\": 6},\n    {\"id\": \"g5\", \"value\": -3},\n    {\"id\": \"g6\", \"value\": 12},\n    {\"id\": \"u1\", \"value\": 1.5},\n    {\"id\": \"u2\", \"value\": -3},\n    {\"id\": \"u3\", \"value\": 2},\n    {\"id\": \"u4\", \"value\": -4}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"l1x\", \"kind\": \"point\", \"role\": \"L1 x-intercept\"},\n    {\"id\": \"l1y\", \"kind\": \"point\", \"role\": \"L1 y-intercept\"},\n    {\"id\": \"l2x\", \"kind\": \"point\", \"role\": \"L2 x-intercept\"},\n    {\"id\": \"l2y\", \"kind\": \"point\", \"role\": \"L2 y-intercept\"},\n    {\"id\": \"L1\", \"kind\": \"line\", \"role\": \"first equation\", \"label\": \"L1: y=2x−3\"},\n    {\"id\": \"L2\", \"kind\": \"line\", \"role\": \"second equation\", \"label\": \"L2: y=2x−4\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"cax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -0.5, \"xMax\": 3.5, \"yMin\": -5, \"yMax\": 2}, \"outputs\": [\"ax\"]},\n    {\"id\": \"c1x\", \"operator\": \"point\", \"inputs\": {\"x\": 1.5, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"l1x\"]},\n    {\"id\": \"c1y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"l1y\"]},\n    {\"id\": \"c2x\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"l2x\"]},\n    {\"id\": \"c2y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"l2y\"]},\n    {\"id\": \"cL1\", \"operator\": \"line\", \"inputs\": {\"start\": \"l1y\", \"end\": \"l1x\"}, \"outputs\": [\"L1\"]},\n    {\"id\": \"cL2\", \"operator\": \"line\", \"inputs\": {\"start\": \"l2y\", \"end\": \"l2x\"}, \"outputs\": [\"L2\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"a1\", \"predicate\": \"on\", \"entities\": [\"l1x\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a2\", \"predicate\": \"on\", \"entities\": [\"l1y\", \"L1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a3\", \"predicate\": \"on\", \"entities\": [\"l2x\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a4\", \"predicate\": \"on\", \"entities\": [\"l2y\", \"L2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"n1x\", \"kind\": \"label\", \"targetIds\": [\"l1x\"], \"text\": \"(1.5,0)\", \"quantityId\": \"u1\"},\n    {\"id\": \"n1y\", \"kind\": \"label\", \"targetIds\": [\"l1y\"], \"text\": \"(0,−3)\", \"quantityId\": \"u2\"},\n    {\"id\": \"n2x\", \"kind\": \"label\", \"targetIds\": [\"l2x\"], \"text\": \"(2,0)\", \"quantityId\": \"u3\"},\n    {\"id\": \"n2y\", \"kind\": \"label\", \"targetIds\": [\"l2y\"], \"text\": \"(0,−4)\", \"quantityId\": \"u4\"}\n  ],\n  \"requiredEntityIds\": [\"ax\", \"l1x\", \"l1y\", \"l2x\", \"l2y\", \"L1\", \"L2\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\", \"L1\", \"L2\"], \"dependsOn\": []},\n    {\"id\": \"intercepts\", \"entityIds\": [\"l1x\", \"l1y\", \"l2x\", \"l2y\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"t1\", \"groupId\": \"setup\", \"narration\": \"Graph the two given equations before calculating their intercepts.\"},\n    {\"id\": \"t2\", \"groupId\": \"intercepts\", \"annotationIds\": [\"n1x\", \"n1y\", \"n2x\", \"n2y\"], \"narration\": \"Simplify each equation and find its x- and y-intercepts.\"},\n    {\"id\": \"t3\", \"groupId\": \"intercepts\", \"narration\": \"The lines have equal slopes and different y-intercepts. They are distinct parallel lines, so the system is inconsistent and its full solution set is ∅.\"}\n  ]\n}"
+   },
+   {
+    "phase": "plan",
+    "lane": "primary",
+    "selected": false,
+    "rawContent": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two stated equations determine exact lines and intercepts.\"\n  },\n  \"source\": {\n    \"question\": \"In R^2, graph the simultaneous system L1: -2(2x - y) = -6 and L2: 6x - 3y = 12. Label both lines with their names and simplified equations, and label their intercepts. Use the graph to classify the system and state its full solution set.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"L1 outer coefficient\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"L1 x coefficient inside parentheses\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"g3\", \"symbol\": \"L1 right-hand side\", \"value\": -6, \"provenance\": \"given\"},\n    {\"id\": \"g4\", \"symbol\": \"L2 x coefficient\", \"value\": 6, \"provenance\": \"given\"},\n    {\"id\": \"g5\", \"symbol\": \"L2 y coefficient\", \"value\": -3, \"provenance\": \"given\"},\n    {\"id\": \"g6\", \"symbol\": \"L2 right-hand side\", \"value\": 12, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"L1 x-intercept\", \"value\": 1.5, \"provenance\": \"derived\"},\n    {\"id\": \"u2\", \"symbol\": \"L1 y-intercept\", \"value\": -3, \"provenance\": \"derived\"},\n    {\"id\": \"u3\", \"symbol\": \"L2 x-intercept\", \"value\": 2, \"provenance\": \"derived\"},\n    {\"id\": \"u4\", \"symbol\": \"L2 y-intercept\", \"value\": -4, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"Cartesian axes\"},\n    {\"id\": \"L1\", \"kind\": \"polyline\", \"role\": \"first equation\", \"label\": \"L1: y=2x−3\"},\n    {\"id\": \"L2\", \"kind\": \"polyline\", \"role\": \"second equation\", \"label\": \"L2: y=2x−4\"},\n    {\"id\": \"L1x\", \"kind\": \"point\", \"role\": \"L1 x-intercept\", \"label\": \"(1.5,0)\"},\n    {\"id\": \"L1y\", \"kind\": \"point\", \"role\": \"L1 y-intercept\", \"label\": \"(0,−3)\"},\n    {\"id\": \"L2x\", \"kind\": \"point\", \"role\": \"L2 x-intercept\", \"label\": \"(2,0)\"},\n    {\"id\": \"L2y\", \"kind\": \"point\", \"role\": \"L2 y-intercept\", \"label\": \"(0,−4)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"cax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 4, \"yMin\": -5, \"yMax\": 3}, \"outputs\": [\"ax\"]},\n    {\"id\": \"cL1\", \"operator\": \"function_curve\", \"inputs\": {\"expression\": \"2*x-3\", \"variable\": \"x\", \"xMin\": -1, \"xMax\": 3}, \"outputs\": [\"L1\"]},\n    {\"id\": \"cL2\", \"operator\": \"function_curve\", \"inputs\": {\"expression\": \"2*x-4\", \"variable\": \"x\", \"xMin\": -0.5, \"xMax\": 3.5}, \"outputs\": [\"L2\"]},\n    {\"id\": \"cL1x\", \"operator\": \"point\", \"inputs\": {\"x\": 1.5, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L1x\"]},\n    {\"id\": \"cL1y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L1y\"]},\n    {\"id\": \"cL2x\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L2x\"]},\n    {\"id\": \"cL2y\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": -4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"L2y\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"a1\", \"predicate\": \"function_value\", \"entities\": [\"L1\"], \"expected\": {\"x\": 1.5, \"y\": 0}, \"severity\": \"fatal\"},\n    {\"id\": \"a2\", \"predicate\": \"function_value\", \"entities\": [\"L1\"], \"expected\": {\"x\": 0, \"y\": -3}, \"severity\": \"fatal\"},\n    {\"id\": \"a3\", \"predicate\": \"function_value\", \"entities\": [\"L2\"], \"expected\": {\"x\": 2, \"y\": 0}, \"severity\": \"fatal\"},\n    {\"id\": \"a4\", \"predicate\": \"function_value\", \"entities\": [\"L2\"], \"expected\": {\"x\": 0, \"y\": -4}, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\n      \"id\": \"result\",\n      \"kind\": \"narration\",\n      \"targetIds\": [\"L1\", \"L2\"],\n      \"text\": \"Both lines have slope 2, but their y-intercepts differ. They are distinct parallel lines, so the system is inconsistent and its full solution set is ∅.\"\n    }\n  ],\n  \"requiredEntityIds\": [\"ax\", \"L1\", \"L2\", \"L1x\", \"L1y\", \"L2x\", \"L2y\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\", \"L1\", \"L2\"], \"dependsOn\": []},\n    {\"id\": \"intercepts\", \"entityIds\": [\"L1x\", \"L1y\", \"L2x\", \"L2y\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"showIntercepts\", \"revealGroupId\": \"intercepts\"},\n    {\"id\": \"classify\", \"annotationIds\": [\"result\"], \"targetIds\": [\"L1\", \"L2\"]}\n  ]\n}"
+   }
+  ],
+  "plannerDeclined": false
+ },
+ "lessonBudget": {
+  "scope": "",
+  "minSteps": 0,
+  "maxSteps": 0,
+  "boardPages": 0
+ },
+ "givenRows": [],
+ "teaching": {
+  "rawText": "",
+  "usedStepMarkers": false,
+  "unresolvedFocusIds": [],
+  "steps": [],
+  "writes": [],
+  "focusIds": [],
+  "emphasizeTargets": [],
+  "annotateTargets": [],
+  "forbiddenTags": [],
+  "continuations": 0,
+  "incomplete": false,
+  "contentChars": 0,
+  "reasoningChars": 0,
+  "ttftMs": null
+ },
+ "promptChars": 0,
+ "visualNeed": {
+  "plannerRequirement": "required",
+  "assessment": {
+   "decision": null,
+   "source": "unavailable",
+   "unavailableReason": "missing_key",
+   "usage": null,
+   "provenance": null
+  },
+  "mergedRequirement": "required",
+  "origin": "live_service",
+  "questionHash": "7b3b92e793751c44018c1ee8ff4b7992add4c1febdd4230ad8691b11ecf80bd8",
+  "policy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "accounting": {
+   "chargedUsd": 0,
+   "knownUsage": false,
+   "httpStatus": 200,
+   "inputTokens": 0,
+   "outputTokens": 0,
+   "unavailableReason": "missing_key",
+   "reservedUsd": 0.002097,
+   "measuredCostUsd": 0,
+   "unresolvedAllowanceUsd": 0
+  }
+ },
+ "productionStrategy": {
+  "classifiedSubject": "maths",
+  "strategy": "strict"
+ },
+ "examplePicker": {
+  "method": "model",
+  "status": "picked",
+  "model": "st-gpt-6-sol-h3",
+  "elapsedMs": 2134,
+  "catalogueEntries": 169,
+  "catalogueEstimatedTokens": 0,
+  "ids": [
+   "curated:maths/two-lines-angle--1"
+  ],
+  "attempts": 1,
+  "usageKnown": false,
+  "usageKnownCalls": 0,
+  "inputTokens": 0,
+  "outputTokens": 0,
+  "totalTokens": 0,
+  "estimatedCostUsd": 0,
+  "fallbackReason": null,
+  "overlappedProblemIr": true,
+  "criticalPathMs": 0
+ },
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "b3bdf087450a49c57e50c06f9c112e7caeb9005b62881e0daec9b92a01acd820",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": null,
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "evaluation": {
+  "id": "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+  "topic_id": "maths|h3r8-finish-regions|parallel-system-no-solution",
+  "subject": "maths",
+  "difficulty": "medium",
+  "ask_style": "topic_ask",
+  "question": "In R^2, graph the simultaneous system L1: -2(2x - y) = -6 and L2: 6x - 3y = 12. Label both lines with their names and simplified equations, and label their intercepts. Use the graph to classify the system and state its full solution set.",
+  "source": {
+   "kind": "authored",
+   "ref": null
+  },
+  "figure_need": "required",
+  "figure_kind": "linear_system",
+  "must_show": [
+   "Distinct parallel lines L1: y = 2x - 3 and L2: y = 2x - 4.",
+   "L1 intercepts (3/2,0), (0,-3); L2 intercepts (2,0), (0,-4).",
+   "No intersection and empty simultaneous solution set."
+  ],
+  "must_label": [
+   "x",
+   "y",
+   "L1",
+   "L2",
+   "y = 2x - 3",
+   "y = 2x - 4",
+   "(3/2,0)",
+   "(0,-3)",
+   "(2,0)",
+   "(0,-4)",
+   "no solution"
+  ],
+  "must_not_show": [
+   "Coincident lines.",
+   "A marked intersection.",
+   "A shaded strip described as equality solutions.",
+   "Only one of the two lines."
+  ],
+  "trap": null,
+  "answer_facts": [
+   "L1 simplifies to 2x - y = 3",
+   "L2 simplifies to 2x - y = 4",
+   "Parallel distinct; solution set empty"
+  ],
+  "notes": "SAT linear systems; independently authored fresh supplemental case. All variables are real. Strict image review; labels and mathematical geometry are distinct error categories. Exact oracle stored separately."
+ }
+}

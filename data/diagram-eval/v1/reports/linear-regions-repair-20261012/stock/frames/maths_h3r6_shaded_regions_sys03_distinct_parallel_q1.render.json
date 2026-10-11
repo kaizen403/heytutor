@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "expectedUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.svg",
+  "actualUrl": "file:///Users/kaizen/conductor/workspaces/heytutor/provo/apps/tutor/.lecture-lab/h3r11-region-repair/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.svg",
+  "readyState": "complete",
+  "root": "svg",
+  "paintReady": true,
+  "svgSha256": "ada825e0fbd63bb6c455ec16bffca297a9310b8050493cba7cdfaa87544526ad",
+  "pngSha256": "b8dfa695be1d19006e81f7330a46062154efc6191bfe6e4003a9c39d9d307b33"
+}
