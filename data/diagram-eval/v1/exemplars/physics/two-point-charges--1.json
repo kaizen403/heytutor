@@ -1,0 +1,417 @@
+{
+  "topic_id": "physics|11|multiple-charges-and-superposition",
+  "question": "Point charges qA = −1.5 μC and qB = +1.5 μC are fixed 0.80 m apart, A to the left of B. Point P lies on line AB extended, 0.50 m beyond B. Show the force each charge exerts on the other, the dipole moment, and the field of each charge at P, then find the net field at P. Use the standard Coulomb constant.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "dipole force pair and opposing axial fields"
+    },
+    "source": {
+      "question": "Point charges qA = −1.5 μC and qB = +1.5 μC are fixed 0.80 m apart, A to the left of B. Point P lies on line AB extended, 0.50 m beyond B. Show the force each charge exerts on the other, the dipole moment, and the field of each charge at P, then find the net field at P. Use the standard Coulomb constant.",
+      "archetype": "two_point_charges"
+    },
+    "quantities": [
+      {
+        "id": "qA",
+        "symbol": "q_A",
+        "value": -1.5,
+        "unit": "μC"
+      },
+      {
+        "id": "qB",
+        "symbol": "q_B",
+        "value": 1.5,
+        "unit": "μC"
+      },
+      {
+        "id": "d",
+        "symbol": "d",
+        "value": 0.8,
+        "unit": "m"
+      },
+      {
+        "id": "r",
+        "symbol": "r",
+        "value": 0.5,
+        "unit": "m"
+      }
+    ],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "negative point charge"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "positive point charge"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "axial point beyond the positive charge"
+      },
+      {
+        "id": "F_A",
+        "kind": "vector",
+        "role": "force on A by B, toward B"
+      },
+      {
+        "id": "F_B",
+        "kind": "vector",
+        "role": "force on B by A, toward A"
+      },
+      {
+        "id": "pT",
+        "kind": "point",
+        "role": "moment tail"
+      },
+      {
+        "id": "pH",
+        "kind": "point",
+        "role": "moment head"
+      },
+      {
+        "id": "p",
+        "kind": "vector",
+        "role": "dipole moment, negative to positive"
+      },
+      {
+        "id": "E_A",
+        "kind": "vector",
+        "role": "field of A at P, toward A"
+      },
+      {
+        "id": "E_B",
+        "kind": "vector",
+        "role": "field of B at P, away from B"
+      },
+      {
+        "id": "sep",
+        "kind": "dimension",
+        "role": "charge separation",
+        "label": "0.80 m"
+      },
+      {
+        "id": "gap",
+        "kind": "dimension",
+        "role": "distance from B to P",
+        "label": "0.50 m"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "cA",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "cB",
+        "operator": "point",
+        "inputs": {
+          "x": 0.8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "cP",
+        "operator": "point",
+        "inputs": {
+          "x": 1.3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "cFA",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 0.12
+        },
+        "outputs": [
+          "F_A"
+        ]
+      },
+      {
+        "id": "cFB",
+        "operator": "vector",
+        "inputs": {
+          "start": "B",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 0.12
+        },
+        "outputs": [
+          "F_B"
+        ]
+      },
+      {
+        "id": "cpT",
+        "operator": "translate",
+        "inputs": {
+          "point": "A",
+          "vector": [
+            0,
+            0.35
+          ]
+        },
+        "outputs": [
+          "pT"
+        ]
+      },
+      {
+        "id": "cpH",
+        "operator": "translate",
+        "inputs": {
+          "point": "B",
+          "vector": [
+            0,
+            0.35
+          ]
+        },
+        "outputs": [
+          "pH"
+        ]
+      },
+      {
+        "id": "cp",
+        "operator": "vector",
+        "inputs": {
+          "start": "pT",
+          "end": "pH"
+        },
+        "outputs": [
+          "p"
+        ]
+      },
+      {
+        "id": "cEA",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 0.06
+        },
+        "outputs": [
+          "E_A"
+        ]
+      },
+      {
+        "id": "cEB",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 0.405
+        },
+        "outputs": [
+          "E_B"
+        ]
+      },
+      {
+        "id": "csep",
+        "operator": "dimension",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "sep"
+        ]
+      },
+      {
+        "id": "cgap",
+        "operator": "dimension",
+        "inputs": {
+          "start": "B",
+          "end": "P"
+        },
+        "outputs": [
+          "gap"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "F_pair",
+        "predicate": "opposite_direction",
+        "entities": [
+          "F_A",
+          "F_B"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "E_pair",
+        "predicate": "opposite_direction",
+        "entities": [
+          "E_A",
+          "E_B"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "P_out",
+        "predicate": "between",
+        "entities": [
+          "B",
+          "A",
+          "P"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "lA",
+        "kind": "label",
+        "targetIds": [
+          "A"
+        ],
+        "text": "qA=−1.5 μC",
+        "placementIntent": "below"
+      },
+      {
+        "id": "lB",
+        "kind": "label",
+        "targetIds": [
+          "B"
+        ],
+        "text": "qB=+1.5 μC",
+        "placementIntent": "right"
+      },
+      {
+        "id": "lP",
+        "kind": "label",
+        "targetIds": [
+          "P"
+        ],
+        "text": "P",
+        "placementIntent": "below-right"
+      },
+      {
+        "id": "lF_A",
+        "kind": "label",
+        "targetIds": [
+          "F_A"
+        ],
+        "text": "F on A",
+        "placementIntent": "right"
+      },
+      {
+        "id": "lF_B",
+        "kind": "label",
+        "targetIds": [
+          "F_B"
+        ],
+        "text": "F on B",
+        "placementIntent": "left"
+      },
+      {
+        "id": "lE_A",
+        "kind": "label",
+        "targetIds": [
+          "E_A"
+        ],
+        "text": "E_A",
+        "placementIntent": "above"
+      },
+      {
+        "id": "lE_B",
+        "kind": "label",
+        "targetIds": [
+          "E_B"
+        ],
+        "text": "E_B",
+        "placementIntent": "above"
+      },
+      {
+        "id": "lp",
+        "kind": "label",
+        "targetIds": [
+          "p"
+        ],
+        "text": "p",
+        "placementIntent": "above"
+      }
+    ],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "P",
+      "F_A",
+      "F_B",
+      "pT",
+      "pH",
+      "p",
+      "E_A",
+      "E_B",
+      "sep",
+      "gap"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "A",
+          "B",
+          "P",
+          "F_A",
+          "F_B",
+          "pT",
+          "pH",
+          "p",
+          "E_A",
+          "E_B",
+          "sep",
+          "gap"
+        ],
+        "dependsOn": [],
+        "narrationCue": "dipole, force pair, fields at P"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "dipole, force pair, fields at P"
+      }
+    ]
+  }
+}

@@ -1,0 +1,412 @@
+{
+  "topic_id": "physics|13|force-on-current-carrying-conductor",
+  "question": "A straight wire 0.15 m long lies along the x-axis and carries a current of 4.5 A in the +x direction through a uniform magnetic field of 0.36 T pointing along +y. On right-handed x, y, z axes, show the current, the field and the force on the wire, then find the magnitude and direction of the force.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "wire in uniform B, force glyph"
+    },
+    "source": {
+      "question": "A straight wire 0.15 m long lies along the x-axis and carries a current of 4.5 A in the +x direction through a uniform magnetic field of 0.36 T pointing along +y. On right-handed x, y, z axes, show the current, the field and the force on the wire, then find the magnitude and direction of the force.",
+      "archetype": "force_on_conductor"
+    },
+    "quantities": [
+      {
+        "id": "I",
+        "symbol": "I",
+        "value": 4.5,
+        "unit": "A"
+      },
+      {
+        "id": "L",
+        "symbol": "L",
+        "value": 0.15,
+        "unit": "m"
+      },
+      {
+        "id": "B",
+        "symbol": "B",
+        "value": 0.36,
+        "unit": "T"
+      }
+    ],
+    "entities": [
+      {
+        "id": "W1",
+        "kind": "point",
+        "role": "wire end"
+      },
+      {
+        "id": "W2",
+        "kind": "point",
+        "role": "wire end"
+      },
+      {
+        "id": "wire",
+        "kind": "segment",
+        "role": "straight wire"
+      },
+      {
+        "id": "cur",
+        "kind": "vector",
+        "role": "current I along +x",
+        "label": "I = 4.5 A"
+      },
+      {
+        "id": "B1",
+        "kind": "vector",
+        "role": "uniform field B"
+      },
+      {
+        "id": "B2",
+        "kind": "vector",
+        "role": "uniform field B"
+      },
+      {
+        "id": "B3",
+        "kind": "vector",
+        "role": "uniform field B"
+      },
+      {
+        "id": "B4",
+        "kind": "vector",
+        "role": "uniform field B",
+        "label": "B = 0.36 T"
+      },
+      {
+        "id": "F",
+        "kind": "vector",
+        "role": "force I L × B, out of page",
+        "label": "F"
+      },
+      {
+        "id": "len",
+        "kind": "dimension",
+        "role": "wire length",
+        "label": "L = 0.15 m"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "axes origin",
+        "label": "+z"
+      },
+      {
+        "id": "ex",
+        "kind": "vector",
+        "role": "+x axis",
+        "label": "+x"
+      },
+      {
+        "id": "ey",
+        "kind": "vector",
+        "role": "+y axis",
+        "label": "+y"
+      },
+      {
+        "id": "ez",
+        "kind": "circle",
+        "role": "+z out of page"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kW1",
+        "operator": "point",
+        "inputs": {
+          "x": -4.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "W1"
+        ]
+      },
+      {
+        "id": "kW2",
+        "operator": "point",
+        "inputs": {
+          "x": 4.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "W2"
+        ]
+      },
+      {
+        "id": "kwire",
+        "operator": "segment",
+        "inputs": {
+          "start": "W1",
+          "end": "W2"
+        },
+        "outputs": [
+          "wire"
+        ]
+      },
+      {
+        "id": "kcur",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -2.8,
+            0
+          ],
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1
+        },
+        "outputs": [
+          "cur"
+        ]
+      },
+      {
+        "id": "kB1",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -3,
+            -0.7
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 2.8
+        },
+        "outputs": [
+          "B1"
+        ]
+      },
+      {
+        "id": "kB2",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -1.5,
+            -0.7
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 2.8
+        },
+        "outputs": [
+          "B2"
+        ]
+      },
+      {
+        "id": "kB3",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            1.5,
+            -0.7
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 2.8
+        },
+        "outputs": [
+          "B3"
+        ]
+      },
+      {
+        "id": "kB4",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            3,
+            -0.7
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 2.8
+        },
+        "outputs": [
+          "B4"
+        ]
+      },
+      {
+        "id": "kF",
+        "operator": "conductor_force",
+        "inputs": {
+          "current": "I",
+          "length": [
+            "L",
+            0,
+            0
+          ],
+          "magneticField": [
+            0,
+            "B",
+            0
+          ],
+          "units": {
+            "current": "A",
+            "length": "m",
+            "magneticField": "T"
+          },
+          "origin": [
+            0,
+            0
+          ],
+          "displayLength": 0.8
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "klen",
+        "operator": "dimension",
+        "inputs": {
+          "start": "W2",
+          "end": "W1"
+        },
+        "outputs": [
+          "len"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": -8,
+          "y": -1.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kex",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.8
+        },
+        "outputs": [
+          "ex"
+        ]
+      },
+      {
+        "id": "key",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.8
+        },
+        "outputs": [
+          "ey"
+        ]
+      },
+      {
+        "id": "kez",
+        "operator": "circle",
+        "inputs": {
+          "center": "O",
+          "radius": 0.2
+        },
+        "outputs": [
+          "ez"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "a1",
+        "predicate": "perpendicular",
+        "entities": [
+          "wire",
+          "B1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a2",
+        "predicate": "parallel",
+        "entities": [
+          "cur",
+          "ex"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a3",
+        "predicate": "parallel",
+        "entities": [
+          "B1",
+          "ey"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "wire",
+      "B1",
+      "F",
+      "len",
+      "O",
+      "ex",
+      "ey",
+      "ez"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "W1",
+          "W2",
+          "wire",
+          "cur",
+          "B1",
+          "B2",
+          "B3",
+          "B4",
+          "F",
+          "len",
+          "O",
+          "ex",
+          "ey",
+          "ez"
+        ],
+        "dependsOn": [],
+        "narrationCue": "axes, wire, field, force"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "axes, wire, field, force"
+      }
+    ]
+  }
+}

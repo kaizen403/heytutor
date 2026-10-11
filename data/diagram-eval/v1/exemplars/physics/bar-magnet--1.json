@@ -1,0 +1,404 @@
+{
+  "topic_id": "physics|13|bar-magnet-and-magnetic-field-lines",
+  "question": "A short bar magnet of magnetic moment m lies along the x-axis with its south pole S on the left and north pole N on the right. Point P is on its axis and point Q on its equatorial line, each at distance r from its centre O, and a small compass is placed at P. Sketch the field lines and show the field directions at P and Q and the compass needle.",
+  "figure_kind": "field_lines",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "bar magnet field lines and compass"
+    },
+    "source": {
+      "question": "A short bar magnet of magnetic moment m lies along the x-axis with its south pole S on the left and north pole N on the right. Point P is on its axis and point Q on its equatorial line, each at distance r from its centre O, and a small compass is placed at P. Sketch the field lines and show the field directions at P and Q and the compass needle.",
+      "archetype": "bar_magnet"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "magnet centre",
+        "label": "O"
+      },
+      {
+        "id": "S",
+        "kind": "rectangle",
+        "role": "S pole half",
+        "label": "S"
+      },
+      {
+        "id": "N",
+        "kind": "rectangle",
+        "role": "N pole half",
+        "label": "N"
+      },
+      {
+        "id": "m",
+        "kind": "vector",
+        "role": "moment, S to N",
+        "label": "m"
+      },
+      {
+        "id": "L1",
+        "kind": "polyline",
+        "role": "closed field line"
+      },
+      {
+        "id": "L2",
+        "kind": "polyline",
+        "role": "closed field line"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "equatorial point",
+        "label": "Q, OQ = r"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "axial point",
+        "label": "P, OP = r"
+      },
+      {
+        "id": "BQ",
+        "kind": "vector",
+        "role": "field at Q, opposite m",
+        "label": "B_Q"
+      },
+      {
+        "id": "BP",
+        "kind": "vector",
+        "role": "field at P, along m",
+        "label": "B_P"
+      },
+      {
+        "id": "b2",
+        "kind": "vector",
+        "role": "field above magnet"
+      },
+      {
+        "id": "b3",
+        "kind": "vector",
+        "role": "field leaving N"
+      },
+      {
+        "id": "b4",
+        "kind": "vector",
+        "role": "field leaving N"
+      },
+      {
+        "id": "K",
+        "kind": "circle",
+        "role": "compass at P",
+        "label": "compass"
+      },
+      {
+        "id": "n",
+        "kind": "vector",
+        "role": "compass needle along B"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "cO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "cS",
+        "operator": "rectangle",
+        "inputs": {
+          "center": [
+            -0.25,
+            0
+          ],
+          "width": 0.5,
+          "height": 0.3
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "cN",
+        "operator": "rectangle",
+        "inputs": {
+          "center": [
+            0.25,
+            0
+          ],
+          "width": 0.5,
+          "height": 0.3
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "cm",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -0.25,
+            0
+          ],
+          "direction": [
+            1,
+            0
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "m"
+        ]
+      },
+      {
+        "id": "cL1",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "2.5*abs(sin(t))*sin(t)*cos(t)",
+          "yExpression": "2.5*sin(t)^3",
+          "tMin": 0,
+          "tMax": 6.2832,
+          "samples": 161
+        },
+        "outputs": [
+          "L1"
+        ]
+      },
+      {
+        "id": "cL2",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "1.4*abs(sin(t))*sin(t)*cos(t)",
+          "yExpression": "1.4*sin(t)^3",
+          "tMin": 0,
+          "tMax": 6.2832,
+          "samples": 161
+        },
+        "outputs": [
+          "L2"
+        ]
+      },
+      {
+        "id": "cQ",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "L1",
+          "at": 4.7124
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "cP",
+        "operator": "point",
+        "inputs": {
+          "x": 2.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "cBQ",
+        "operator": "curve_derivative",
+        "inputs": {
+          "curve": "L1",
+          "at": 4.7124,
+          "parameterScale": 0.25
+        },
+        "outputs": [
+          "BQ"
+        ]
+      },
+      {
+        "id": "cBP",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.25
+        },
+        "outputs": [
+          "BP"
+        ]
+      },
+      {
+        "id": "cb2",
+        "operator": "curve_derivative",
+        "inputs": {
+          "curve": "L1",
+          "at": 1.5708,
+          "parameterScale": 0.25
+        },
+        "outputs": [
+          "b2"
+        ]
+      },
+      {
+        "id": "cb3",
+        "operator": "curve_derivative",
+        "inputs": {
+          "curve": "L2",
+          "at": 0.95,
+          "parameterScale": 0.25
+        },
+        "outputs": [
+          "b3"
+        ]
+      },
+      {
+        "id": "cb4",
+        "operator": "curve_derivative",
+        "inputs": {
+          "curve": "L2",
+          "at": 4.0916,
+          "parameterScale": 0.25
+        },
+        "outputs": [
+          "b4"
+        ]
+      },
+      {
+        "id": "cK",
+        "operator": "circle",
+        "inputs": {
+          "center": "P",
+          "radius": 0.3
+        },
+        "outputs": [
+          "K"
+        ]
+      },
+      {
+        "id": "cn",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            2.25,
+            0
+          ],
+          "direction": [
+            1,
+            0
+          ],
+          "length": 0.5
+        },
+        "outputs": [
+          "n"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "a1",
+        "predicate": "opposite_direction",
+        "entities": [
+          "BQ",
+          "m"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a2",
+        "predicate": "opposite_direction",
+        "entities": [
+          "BP",
+          "BQ"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a3",
+        "predicate": "opposite_direction",
+        "entities": [
+          "n",
+          "BQ"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a4",
+        "predicate": "distance_ratio",
+        "entities": [
+          "O",
+          "P",
+          "O",
+          "Q"
+        ],
+        "expected": 1,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "S",
+      "N",
+      "m",
+      "L1",
+      "L2",
+      "Q",
+      "P",
+      "BQ",
+      "BP",
+      "b2",
+      "b3",
+      "b4",
+      "K",
+      "n"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "S",
+          "N",
+          "m",
+          "L1",
+          "L2",
+          "Q",
+          "P",
+          "BQ",
+          "BP",
+          "b2",
+          "b3",
+          "b4",
+          "K",
+          "n"
+        ],
+        "dependsOn": [],
+        "narrationCue": "bar magnet field lines and compass"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "bar magnet field lines and compass"
+      }
+    ]
+  }
+}
