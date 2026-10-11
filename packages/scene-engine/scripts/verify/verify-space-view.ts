@@ -1,5 +1,7 @@
 /**
- * Space view gate (G1 to G16 of .context/h4/3d/DESIGN.md section 8).
+ * Space view gate (G1 to G16 of .context/h4/3d/DESIGN.md section 8; G17 to G21
+ * from fix pass 1: two planes and their line, patch size, element labels,
+ * room inside triangles, face-on planes).
  *
  * G15 guards byte identity: every frozen document without a space_frame
  * (golden and regression fixtures, the evaluation compile probes, the physics
@@ -278,7 +280,8 @@ gate("G11 control planes are patches that hold what lies on them", () => {
   const checks: Array<[string, SceneDocument, V3[], string[]]> = [
     ["x + y + z = 0", throughOrigin, [v3(0, 0, 0)], []],
     ["x + y = 2", parallelToZ, [v3(2, 0, 0), v3(0, 2, 0)], []],
-    ["x + y + z = 2 with P outside its triangle", pointOutside, [v3(2, 0, 0), v3(0, 2, 0), v3(0, 0, 2)], ["P"]],
+    // Fix pass 1: a plane that holds a point is drawn around it, not grown to its unmarked intercepts.
+    ["x + y + z = 2 with P outside its triangle", pointOutside, [], ["P"]],
   ];
   for (const [name, document, worlds, points] of checks) {
     const render = rendered(document);
@@ -382,6 +385,75 @@ gate("G16 the axes carry their letters", () => {
     }
   }
   return null;
+});
+
+// ---------- Fix pass 1: G17 to G21 ----------
+const ZONE = { left: 410, right: 1150, top: 55, bottom: 610 };
+const inZone = (point: RenderPoint, inset = 0): boolean => point.x >= ZONE.left + inset && point.x <= ZONE.right - inset && point.y >= ZONE.top + inset && point.y <= ZONE.bottom - inset;
+function labelCentre(render: RenderScene, entityId: string): RenderPoint {
+  return primitive(render, `primitive_${entityId}_label`).points[0]!;
+}
+
+const twoPlanes = spaceDocument("planes x + 2y - z = 4 and 2x - y + z = 3 meet in a line through M", [
+  part("p1", "polygon", "plane", { a: 1, b: 2, c: -1, d: 4 }, "Π₁"),
+  part("p2", "polygon", "plane", { a: 2, b: -1, c: 1, d: 3 }, "Π₂"),
+  [entity("m", "line", "m"), make("space_intersection", { frame: "frame", first: "p1", second: "p2", tMin: -2, tMax: 2 }, ["m"])],
+  sp("M", v3(2, 1, 0), "M"),
+]);
+gate("G17 two planes hold a common stretch of their line, drawn inside the figure", () => {
+  const render = rendered(twoPlanes);
+  const line = primitive(render, "primitive_m").points;
+  const ends = [line[0]!, line.at(-1)!];
+  // Lines are clipped 24 px inside the zone; an end there was cut by the view.
+  if (ends.some((end) => !inZone(end, 25))) return `line ends ${ends.map((end) => `(${end.x}, ${end.y})`).join(" ")} reach the view edge`;
+  for (const id of ["p1", "p2"]) {
+    const margins = ends.map((end) => insideMargin(end, polygon(render, id)));
+    if (margins.some((margin) => margin < 1)) return `${id} holds the line ends by ${margins.map((margin) => margin.toFixed(1)).join(", ")} px`;
+  }
+  return null;
+});
+
+gate("G18 a patch around a meeting point does not grow to unmarked intercepts", () => {
+  const render = rendered(meetingDocument);
+  const ring = polygon(render, "plane");
+  const canvas = worldToCanvas(render, meetingDocument);
+  const held = [v3(6, 0, 0), v3(0, -3, 0), v3(0, 0, 3)].filter((intercept) => insideMargin(canvas(intercept), ring) > 0);
+  return held.length === 0 ? null : `the patch holds ${held.length} unmarked intercept(s)`;
+});
+
+gate("G19 line and plane labels sit on their drawn elements inside the view", () => {
+  const render = rendered(meetingDocument);
+  const line = primitive(render, "primitive_L").points;
+  const lineLabel = labelCentre(render, "L");
+  const toLine = segmentDistance(lineLabel, line[0]!, line.at(-1)!);
+  if (toLine > 48) return `L's label is ${toLine.toFixed(1)} px from its line`;
+  const planeLabel = labelCentre(render, "plane");
+  const toPlane = insideMargin(planeLabel, polygon(render, "plane"));
+  if (toPlane < -24) return `the plane's label is ${(-toPlane).toFixed(1)} px outside the plane`;
+  const outside = render.primitives.filter((item) => item.kind === "label" && !inZone(item.points[0]!)).map((item) => item.id);
+  return outside.length === 0 ? null : `labels outside the zone: ${outside.join(", ")}`;
+});
+
+const footInTriangle = spaceDocument("foot N of the perpendicular from O to 2x + y + 2z = 2", [
+  sp("O", v3(0, 0, 0), "O"),
+  part("plane", "polygon", "plane", { a: 2, b: 1, c: 2, d: 2 }, "Π"),
+  [entity("N", "point", "N"), make("space_project", { frame: "frame", point: "O", onto: "plane" }, ["N"])],
+  part("ON", "segment", "space_segment", { a: "O", b: "N" }, "p"),
+  part("k", "line", "space_line", { point: "N", direction: [1, -2, 0], tMin: -0.5, tMax: 0.5 }),
+  part("right", "right_angle_mark", "space_right_angle_mark", { vertex: "N", a: "ON", b: "k" }),
+]);
+gate("G20 a point drawn inside an intercept triangle keeps room for its name", () => {
+  const render = rendered(footInTriangle);
+  const ring = polygon(render, "plane");
+  // O at the axes' meeting point is either clear of the triangle or well inside it.
+  const margin = insideMargin(pointCanvas(render, "O"), ring);
+  return margin < 0 || margin >= 30 ? null : `O is ${margin.toFixed(1)} px inside the triangle's edges`;
+});
+
+const facingPlane = spaceDocument("the plane x = 1", [part("plane", "polygon", "plane", { a: 1, b: 0, c: 0, d: 1 }, "Π")]);
+gate("G21 a plane seen face on is drawn as a plane, not a box", () => {
+  const kind = primitive(rendered(facingPlane), "primitive_plane").kind;
+  return kind === "polygon" ? null : `plane primitive is a ${kind}`;
 });
 
 // ---------- G15: byte identity of every document without a space_frame ----------

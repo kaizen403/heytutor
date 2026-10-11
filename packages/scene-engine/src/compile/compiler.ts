@@ -261,7 +261,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric)) {
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
-      const outputs = evaluateConstruction(operator, inputs, geometry, quantities, document);
+      const outputs = withPlannedSpaceLineExtent(evaluateConstruction(operator, inputs, geometry, quantities, document), construction, spaceView, geometry);
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
         if (override) outputs[0] = { kind: "point", point: override };
@@ -547,6 +547,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
     const transform = transformPlan.transformFor(entity.id);
+    const spaceElementPlacement = spaceElementLabelPlacement(entity.id, target, primitives);
     labelOwners.push({
       labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
@@ -560,6 +561,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       requireLeader: entity.provenance?.requireLabelLeader === true,
       leaderGeometrySafe: entity.kind === "point" || entity.provenance?.leaderGeometrySafe === true,
       ...dimensionLabelPlacement(entity.id, target, primitives, transformPlan.viewportFor(entity.id)),
+      ...spaceElementPlacement,
     });
   }
   for (const annotation of document.annotations) {
@@ -2436,7 +2438,8 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
     : entityKind === "vector" || value.directed
       ? "vector"
       : value.closed
-        ? (value.points.length === 4 && value.points.every((point, index) => {
+        // A plane seen face on is still a plane, not a box on the page.
+        ? (value.points.length === 4 && !value.spacePlane && value.points.every((point, index) => {
             const next = value.points[(index + 1) % value.points.length]!;
             return Math.abs(point.x - next.x) < EPSILON || Math.abs(point.y - next.y) < EPSILON;
           }) ? "rectangle" : "polygon")
@@ -2444,7 +2447,9 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
           ? "polyline"
           : "line";
   const transformedPoints = value.points.map(transform);
-  let renderPoints = value.infinite && !forceFinite && value.points.length >= 2
+  let renderPoints = drawsFiniteSpaceLine(value) && !forceFinite && transformedPoints.length >= 2
+    ? clipSegmentToView(transformedPoints[0]!, transformedPoints.at(-1)!, viewport)
+    : value.infinite && !forceFinite && value.points.length >= 2
     ? clipInfinitePath(
         transform(value.points[0]!),
         transform(infinitePathFarPoint(value.points[0]!, value.points[1]!)),
@@ -2708,6 +2713,30 @@ function clipInfinitePath(start:RenderPoint,next:RenderPoint,directed:boolean,vi
   const unique=[...new Map(hits.map((hit)=>[`${hit.point.x}:${hit.point.y}`,hit])).values()].sort((a,b)=>a.t-b.t);
   if(directed){const forward=unique.filter((hit)=>hit.t>EPSILON);return forward.length>0?[start,forward.at(-1)!.point]:[start,next];}
   return unique.length>=2?[unique[0]!.point,unique.at(-1)!.point]:[start,next];
+}
+
+/**
+ * A finite space line keeps its drawn extent but stops at the view edge.
+ * Lines stay out of the fit: a long planner range would otherwise shrink
+ * every point and label of the figure.
+ */
+function clipSegmentToView(start: RenderPoint, end: RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }): RenderPoint[] {
+  const padding = viewport.padding ?? 0;
+  const bounds = { left: viewport.x + padding, right: viewport.x + viewport.width - padding, top: viewport.y + padding, bottom: viewport.y + viewport.height - padding };
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  let low = 0;
+  let high = 1;
+  for (const [p, q] of [[-dx, start.x - bounds.left], [dx, bounds.right - start.x], [-dy, start.y - bounds.top], [dy, bounds.bottom - start.y]] as const) {
+    if (Math.abs(p) < EPSILON) { if (q < 0) return [start, end]; continue; }
+    const t = q / p;
+    if (p < 0) low = Math.max(low, t); else high = Math.min(high, t);
+  }
+  if (!(high - low > EPSILON)) return [start, end];
+  return [
+    { x: round(start.x + dx * low), y: round(start.y + dy * low) },
+    { x: round(start.x + dx * high), y: round(start.y + dy * high) },
+  ];
 }
 
 function emptyRenderScene(document: SceneDocument) {
@@ -3370,6 +3399,89 @@ function spaceLineGeometry(
     ? { frameId: String(inputs.frame), point: anchor, direction, tMin: drawnMin, tMax: drawnMax }
     : { frameId: String(inputs.frame), point: anchor, direction };
   return { kind: "path", infinite: true, points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_line"), spaceLine };
+}
+
+/**
+ * A space line with a planned world extent is drawn as that finite segment,
+ * clipped at the view edge. Without an extent it is clipped to the view like
+ * any infinite line.
+ */
+function drawsFiniteSpaceLine(value: Geometry): boolean {
+  if (value.kind !== "path" || !value.spaceLine) return false;
+  const { tMin, tMax } = value.spaceLine;
+  return typeof tMin === "number" && typeof tMax === "number" && Number.isFinite(tMin) && Number.isFinite(tMax) && tMin < tMax;
+}
+
+/**
+ * A plane/plane intersection line is drawn over the stretch the view plan
+ * gives it, the stretch both planes hold. Its derivation still checks the
+ * planner's own range; dependants read the drawn world extent.
+ */
+function withPlannedSpaceLineExtent(outputs: Geometry[], construction: SceneConstruction, plan: SpaceViewPlan | null, geometry: Map<string, Geometry>): Geometry[] {
+  if (!plan || construction.operator !== "space_intersection") return outputs;
+  return outputs.map((value, index) => {
+    const id = construction.outputs[index];
+    const extent = typeof id === "string" ? plan.lines.get(id) : undefined;
+    if (!extent || value.kind !== "path" || !value.spaceLine) return value;
+    const frame = resolveSpaceFrame(value.spaceLine.frameId, geometry);
+    const { point, direction } = value.spaceLine;
+    const a = projectSpace(vec3Add(point, vec3Scale(direction, extent.tMin)), frame);
+    const b = projectSpace(vec3Add(point, vec3Scale(direction, extent.tMax)), frame);
+    return {
+      ...value,
+      points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_intersection"),
+      spaceLine: { ...value.spaceLine, tMin: extent.tMin, tMax: extent.tMax },
+    };
+  });
+}
+
+/**
+ * A space line or plane carries its name on the drawn element: a line's
+ * label beside the stretch of the line with the most room, a plane's inside
+ * the corner with the most room. The bounding-box slots other paths use put
+ * a long diagonal line's label far from its stroke, and a plane's label above
+ * a patch that reaches the top of the view.
+ */
+function spaceElementLabelPlacement(entityId: string, value: Geometry, primitives: RenderPrimitive[]): Partial<LabelOwner> {
+  if (value.kind !== "path") return {};
+  const isLine = drawsFiniteSpaceLine(value);
+  const isPlane = Boolean(value.spacePlane) && value.closed === true;
+  if (!isLine && !isPlane) return {};
+  const own = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
+  if (!own || own.points.length < 2) return {};
+  const candidates: RenderPoint[] = [];
+  const along = (a: RenderPoint, b: RenderPoint, t: number): RenderPoint => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  if (isLine) {
+    const start = own.points[0]!;
+    const end = own.points.at(-1)!;
+    for (const t of [0.85, 0.15, 0.7, 0.3, 0.5]) candidates.push(along(start, end, t));
+  } else {
+    const closing = own.points.length > 3 && distance(own.points[0]!, own.points.at(-1)!) < EPSILON;
+    const ring = closing ? own.points.slice(0, -1) : own.points;
+    const centroid = { x: ring.reduce((sum, point) => sum + point.x, 0) / ring.length, y: ring.reduce((sum, point) => sum + point.y, 0) / ring.length };
+    for (const corner of ring) candidates.push(along(corner, centroid, 0.3));
+    candidates.push(centroid);
+  }
+  // Room is the distance to every other drawn stroke and point; a plane's
+  // own edges count too, so its label does not sit in a sharp corner.
+  const segments: Array<[RenderPoint, RenderPoint]> = [];
+  for (const primitive of primitives) {
+    if (primitive.kind === "label" || (isLine && primitive.entityId === entityId)) continue;
+    const points = primitive.points;
+    if (points.length === 1 || primitive.kind === "point") { segments.push([points[0]!, points[0]!]); continue; }
+    for (let index = 1; index < points.length; index += 1) segments.push([points[index - 1]!, points[index]!]);
+    if ((primitive.kind === "polygon" || primitive.kind === "rectangle") && points.length > 2) segments.push([points.at(-1)!, points[0]!]);
+  }
+  const room = (point: RenderPoint): number => segments.length === 0
+    ? Infinity
+    : Math.min(...segments.map(([a, b]) => pointSegmentResidual(point, [a, b])));
+  let best = candidates[0]!;
+  let bestRoom = room(best);
+  for (const candidate of candidates.slice(1)) {
+    const candidateRoom = room(candidate);
+    if (candidateRoom > bestRoom + 1) { best = candidate; bestRoom = candidateRoom; }
+  }
+  return { anchor: { x: best.x, y: best.y }, useOwnerBounds: false };
 }
 
 function spaceLineExtent(value: unknown): { tMin: number; tMax: number } | null {

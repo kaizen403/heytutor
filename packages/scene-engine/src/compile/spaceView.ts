@@ -8,7 +8,7 @@
  * validation judges collapse and edge-on guards under the same projection.
  * A document without a space_frame has no plan, so nothing else changes.
  */
-import { chooseSpaceProjection, DEFAULT_SPACE_PROJECTION, type SpaceViewConstraints } from "../math/spaceCamera";
+import { chooseSpaceProjection, DEFAULT_SPACE_PROJECTION, projectionMetrics, projectionName, SPACE_PROJECTION_CANDIDATES, type SpaceViewConstraints } from "../math/spaceCamera";
 import { planeFromCartesian, type SpaceProjection, type Vec3 } from "../math/space";
 import type { SceneConstruction, SceneDocument } from "../types";
 import {
@@ -28,7 +28,10 @@ export interface SpaceViewPlan {
   projection: SpaceProjection;
   /** Drawn axis range per frame; axisMin <= 0 < axisLength <= axisMax. */
   frames: Map<string, { axisMin: Vec3; axisMax: Vec3 }>;
-  /** Drawn world range of each space_line output along its own direction. */
+  /**
+   * Drawn world range of each space_line and plane/plane intersection line
+   * along its own direction. Lines are drawn as these finite segments.
+   */
   lines: Map<string, { tMin: number; tMax: number }>;
   planes: Map<string, SpacePlaneDrawing>;
   report: { candidate: string; score: number; passesFloors: boolean; worst: string };
@@ -49,6 +52,20 @@ const MAX_INTERCEPT_AXIS_LENGTHS = 20;
  * plane's boundary, so that plane is drawn as a patch instead.
  */
 const MIN_TRIANGLE_INTERIOR = 0.05;
+/**
+ * A drawn line runs at most this many axis lengths past the points it holds
+ * (or past the middle of its planner range when it holds none). The planner's
+ * range is a minimum only within that reach, so a long planner range cannot
+ * run off the board or shrink the rest of the figure.
+ */
+const MAX_LINE_REACH = 1.2;
+/** A patch around one point is at least this share of the figure's world size. */
+const FIGURE_SPAN_SHARE = 0.5;
+/** The board room a figure is fitted into: the diagram zone less its label reserve. */
+const FIT_WIDTH_PX = 740 - 2 * 64;
+const FIT_HEIGHT_PX = 555 - 2 * 64;
+/** Screen room a point drawn inside a plane needs from its edges and the axes, for its name. */
+const POINT_ROOM_PX = 44;
 const MAX_DEPTH = 64;
 
 /**
@@ -99,7 +116,18 @@ function finite(a: Vec3): boolean {
 }
 
 interface FrameInfo { id: string; axisLength: number; tolerance: number }
-interface LineInfo { id: string; frameId: string; point: Vec3; direction: Vec3; tMin: number; tMax: number; extendable: boolean }
+interface LineInfo {
+  id: string;
+  frameId: string;
+  point: Vec3;
+  direction: Vec3;
+  tMin: number;
+  tMax: number;
+  /** A space_line the planner placed; a derived line keeps no meeting points with planes. */
+  extendable: boolean;
+  /** The two planes a plane/plane intersection line lies in. */
+  planes?: [string, string];
+}
 interface PlaneInfo {
   id: string;
   frameId: string;
@@ -222,7 +250,10 @@ function evaluateWorld(document: SceneDocument): World {
     }
     if (!(SPACE_DERIVATION_OPERATORS as readonly string[]).includes(producer.operator)) return [];
     const derived = deriveSpaceWorld(producer.operator, inputs, context);
-    return derived.records.map((record, index) => recordGeometry(record, derived.frameId, String(producer.outputs[index])));
+    const planes = producer.operator === "space_intersection" && typeof inputs.first === "string" && typeof inputs.second === "string"
+      ? [inputs.first, inputs.second] as [string, string]
+      : undefined;
+    return derived.records.map((record, index) => recordGeometry(record, derived.frameId, String(producer.outputs[index]), planes));
   }
   function planeGeometry(inputs: Record<string, unknown>, output: string): unknown {
     const frame = frameOf(inputs.frame);
@@ -257,14 +288,14 @@ function evaluateWorld(document: SceneDocument): World {
     world.planes.push(info);
     return { kind: "path", closed: true, points: [], spacePlane: { frameId: frame.id, point: anchor, normal } };
   }
-  function recordGeometry(record: SpaceWorldRecord, frameId: string, output: string): unknown {
+  function recordGeometry(record: SpaceWorldRecord, frameId: string, output: string, planes?: [string, string]): unknown {
     if (record.kind === "point") {
       world.points.push({ frameId, point: record.space });
       return { kind: "point", point: { x: 0, y: 0 }, space: record.space, spaceFrameId: frameId, ...(record.spaceCross ? { spaceCross: record.spaceCross } : {}) };
     }
     if (record.kind === "line") {
       const { point, direction, tMin = -1, tMax = 1 } = record.spaceLine;
-      world.lines.push({ id: output, frameId, point, direction, tMin, tMax, extendable: false });
+      world.lines.push({ id: output, frameId, point, direction, tMin, tMax, extendable: false, ...(planes ? { planes } : {}) });
       return { kind: "path", infinite: true, points: [], spaceLine: record.spaceLine };
     }
     if (record.kind === "segment") {
@@ -296,6 +327,11 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
   const frames = new Map<string, { axisMin: Vec3; axisMax: Vec3 }>();
   const frameOf = (id: string): FrameInfo => world.frames.get(id) ?? { id, axisLength: DEFAULT_AXIS_LENGTH, tolerance: PRESENTATION_TOLERANCE * DEFAULT_AXIS_LENGTH };
   const marked = (frameId: string) => world.points.filter((item) => item.frameId === frameId).map((item) => item.point);
+  /** The figure's world size: the largest coordinate range of its axes and marked points. */
+  const figureExtent = (frameId: string): number => {
+    const points = [...marked(frameId), ...world.endpoints.filter((item) => item.frameId === frameId).map((item) => item.point), ORIGIN, scale({ x: 1, y: 1, z: 1 }, frameOf(frameId).axisLength)].filter(finite);
+    return Math.max(...[0, 1, 2].map((axis) => Math.max(...points.map((point) => component(point, axis))) - Math.min(...points.map((point) => component(point, axis)))));
+  };
   const candidates = (frameId: string) => [...marked(frameId), ...world.endpoints.filter((item) => item.frameId === frameId).map((item) => item.point), ORIGIN];
 
   /** Where a line meets a plane, when that point is near the line's own drawn range. */
@@ -308,38 +344,44 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
     return { t, point: add(line.point, scale(line.direction, t)) };
   };
 
-  // Lines: the planner's range, widened to hold every point drawn on the line.
+  // Lines: a finite stretch that holds every point drawn on the line, and the
+  // planner's range within a reach that keeps the line on the board.
   for (const line of world.lines) {
-    if (!line.extendable) continue;
     const frame = frameOf(line.frameId);
     const length = norm(line.direction);
+    if (!(length > 0) || !Number.isFinite(length)) continue;
     const unitDirection = scale(line.direction, 1 / length);
     const parameters: number[] = [];
     for (const point of marked(line.frameId)) {
       const offset = sub(point, line.point);
       if (norm(cross(offset, unitDirection)) <= frame.tolerance) parameters.push(dot(offset, line.direction) / (length * length));
     }
-    for (const plane of world.planes) {
-      if (plane.frameId !== line.frameId) continue;
-      const hit = meeting(line, plane);
-      if (hit) parameters.push(hit.t);
+    if (line.extendable) {
+      for (const plane of world.planes) {
+        if (plane.frameId !== line.frameId) continue;
+        const hit = meeting(line, plane);
+        if (hit) parameters.push(hit.t);
+      }
     }
-    const margin = 0.1 * frame.axisLength / length;
-    const finiteParameters = parameters.filter(Number.isFinite);
-    lines.set(line.id, {
-      tMin: Math.min(line.tMin, ...finiteParameters.map((t) => t - margin)),
-      tMax: Math.max(line.tMax, ...finiteParameters.map((t) => t + margin)),
-    });
+    const extent = drawnLineRange(line, parameters.filter(Number.isFinite), length, frame.axisLength);
+    if (extent) lines.set(line.id, extent);
   }
 
   // Planes: the intercept triangle when it holds everything on the plane, else a patch that does.
   const planeResults = new Map<string, PlaneDrawingResult>();
   for (const plane of world.planes) {
     try {
-      const result = planeDrawing(plane, frameOf(plane.frameId), [
+      // Both planes of an intersection line hold its drawn stretch, so the
+      // two patches visibly meet along the line.
+      const stretches = world.lines.flatMap((line) => {
+        const extent = lines.get(line.id);
+        if (!line.planes?.includes(plane.id) || !extent) return [];
+        return [add(line.point, scale(line.direction, extent.tMin)), add(line.point, scale(line.direction, extent.tMax))];
+      });
+      const result = planeDrawing(plane, frameOf(plane.frameId), figureExtent(plane.frameId), [
         ...candidates(plane.frameId),
         ...world.lines.filter((line) => line.frameId === plane.frameId).flatMap((line) => { const hit = meeting(line, plane); return hit ? [hit.point] : []; }),
-      ]);
+      ], stretches);
       planes.set(plane.id, result.drawing);
       planeResults.set(plane.id, result);
     } catch { /* compile keeps its own drawing */ }
@@ -367,17 +409,123 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
     frames.set(frame.id, { axisMin: { x: axisMin[0]!, y: axisMin[1]!, z: axisMin[2]! }, axisMax: { x: axisMax[0]!, y: axisMax[1]!, z: axisMax[2]! } });
   }
 
-  const choice = chooseProjection(world, planeResults, frameOf);
+  const choice = withRoomInsidePlanes(chooseProjection(world, planeResults, frameOf), world, frames, lines, planes);
   return { projection: choice.projection, frames, lines, planes, report: choice.report };
 }
 
-function planeDrawing(plane: PlaneInfo, frame: FrameInfo, candidates: Vec3[]): PlaneDrawingResult {
+type ProjectionChoice = { projection: SpaceProjection; report: SpaceViewPlan["report"]; constraints?: SpaceViewConstraints };
+interface Screen { x: number; y: number }
+const onScreen = (projection: SpaceProjection, point: Vec3): Screen => ({ x: dot(projection.right, point), y: dot(projection.up, point) });
+function drawingCorners(drawing: SpacePlaneDrawing): Vec3[] {
+  if (drawing.kind === "triangle") return drawing.vertices;
+  const halfU = scale(drawing.u, drawing.uSpan / 2);
+  const halfV = scale(drawing.v, drawing.vSpan / 2);
+  return [add(add(drawing.center, halfU), halfV), add(sub(drawing.center, halfU), halfV), sub(sub(drawing.center, halfU), halfV), sub(add(drawing.center, halfU), halfV)];
+}
+
+/**
+ * Pixels per world unit the board fit will give the figure under this
+ * projection: the screen box of the axes, points, lines and planes, fitted
+ * into the diagram zone. An estimate; compile does the real fit.
+ */
+function figureScale(projection: SpaceProjection, world: World, frames: SpaceViewPlan["frames"], lines: SpaceViewPlan["lines"], planes: SpaceViewPlan["planes"]): number {
+  const points: Vec3[] = [ORIGIN, ...world.points.map((item) => item.point), ...world.endpoints.map((item) => item.point)];
+  for (const range of frames.values()) {
+    for (let axis = 0; axis < 3; axis += 1) points.push(scale(AXES[axis]!, component(range.axisMin, axis)), scale(AXES[axis]!, component(range.axisMax, axis)));
+  }
+  // Lines stay out of the board fit (compile clips them to the view).
+  void lines;
+  for (const drawing of planes.values()) points.push(...drawingCorners(drawing));
+  const screen = points.filter(finite).map((point) => onScreen(projection, point));
+  const width = Math.max(...screen.map((point) => point.x)) - Math.min(...screen.map((point) => point.x));
+  const height = Math.max(...screen.map((point) => point.y)) - Math.min(...screen.map((point) => point.y));
+  return Math.min(FIT_WIDTH_PX / Math.max(width, 1e-9), FIT_HEIGHT_PX / Math.max(height, 1e-9));
+}
+
+/**
+ * The least screen room any marked point drawn inside a plane's drawing has
+ * from its edges and the axes, in pixels; Infinity when none is inside.
+ * Points at a triangle's vertex are its own corners.
+ */
+function planeRoom(projection: SpaceProjection, world: World, frames: SpaceViewPlan["frames"], lines: SpaceViewPlan["lines"], planes: SpaceViewPlan["planes"]): number {
+  const pixels = figureScale(projection, world, frames, lines, planes);
+  const axisSegments: Array<[Screen, Screen]> = [];
+  for (const range of frames.values()) {
+    for (let axis = 0; axis < 3; axis += 1) axisSegments.push([onScreen(projection, scale(AXES[axis]!, component(range.axisMin, axis))), onScreen(projection, scale(AXES[axis]!, component(range.axisMax, axis)))]);
+  }
+  const segmentDistance = (q: Screen, [a, b]: [Screen, Screen]): number => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const t = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / Math.max(1e-12, dx * dx + dy * dy)));
+    return Math.hypot(q.x - a.x - dx * t, q.y - a.y - dy * t) * pixels;
+  };
+  let room = Infinity;
+  for (const [id, drawing] of planes) {
+    const frameId = world.planes.find((plane) => plane.id === id)?.frameId;
+    const ring = drawingCorners(drawing).map((vertex) => onScreen(projection, vertex));
+    const area = ring.reduce((sum, a, index) => { const b = ring[(index + 1) % ring.length]!; return sum + a.x * b.y - b.x * a.y; }, 0);
+    if (!(Math.abs(area) > 1e-12)) continue;
+    for (const item of world.points) {
+      if (item.frameId !== frameId) continue;
+      const q = onScreen(projection, item.point);
+      if (drawing.kind === "triangle" && ring.some((vertex) => Math.hypot(vertex.x - q.x, vertex.y - q.y) * pixels < POINT_ROOM_PX / 4)) continue;
+      const distances = ring.map((a, index) => {
+        const b = ring[(index + 1) % ring.length]!;
+        return Math.sign(area) * ((b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x)) / Math.hypot(b.x - a.x, b.y - a.y) * pixels;
+      });
+      if (distances.every((distance) => distance > 1)) room = Math.min(room, ...distances, ...axisSegments.map((segment) => segmentDistance(q, segment)));
+    }
+  }
+  return room;
+}
+
+/**
+ * A point drawn inside a plane needs room for its name. When the chosen
+ * view leaves less, take the first acceptable view (floors met, score at
+ * least 0.85) that gives the most room, up to what a name needs.
+ */
+function withRoomInsidePlanes(choice: ProjectionChoice, world: World, frames: SpaceViewPlan["frames"], lines: SpaceViewPlan["lines"], planes: SpaceViewPlan["planes"]): ProjectionChoice {
+  const constraints = choice.constraints;
+  if (!constraints || planes.size === 0) return choice;
+  const roomFor = (projection: SpaceProjection) => Math.min(POINT_ROOM_PX, planeRoom(projection, world, frames, lines, planes));
+  let bestRoom = roomFor(choice.projection);
+  if (bestRoom >= POINT_ROOM_PX) return choice;
+  let best: ProjectionChoice | null = null;
+  for (const projection of SPACE_PROJECTION_CANDIDATES) {
+    const metrics = projectionMetrics(projection, constraints);
+    if (!metrics.passesFloors || metrics.score < 0.85) continue;
+    const room = roomFor(projection);
+    if (room > bestRoom + 0.5) {
+      bestRoom = room;
+      best = { projection, report: { candidate: projectionName(projection), score: metrics.score, passesFloors: metrics.passesFloors, worst: `${metrics.worst}; room inside a plane` } };
+    }
+  }
+  return best ?? choice;
+}
+
+/**
+ * The drawn parameter range of a line: the points it holds with a margin, and
+ * the planner's range only as far as MAX_LINE_REACH axis lengths past them.
+ * A line that holds no point is centred on the middle of its planner range.
+ */
+function drawnLineRange(line: LineInfo, held: number[], length: number, axisLength: number): { tMin: number; tMax: number } | null {
+  const margin = 0.1 * axisLength / length;
+  const reach = MAX_LINE_REACH * axisLength / length;
+  const middle = (line.tMin + line.tMax) / 2;
+  const low = held.length > 0 ? Math.min(...held) - margin : middle;
+  const high = held.length > 0 ? Math.max(...held) + margin : middle;
+  const tMin = Math.min(low, Math.max(line.tMin, low - reach));
+  const tMax = Math.max(high, Math.min(line.tMax, high + reach));
+  return Number.isFinite(tMin) && Number.isFinite(tMax) && tMin < tMax ? { tMin, tMax } : null;
+}
+
+function planeDrawing(plane: PlaneInfo, frame: FrameInfo, extent: number, candidates: Vec3[], stretches: Vec3[] = []): PlaneDrawingResult {
   const L0 = frame.axisLength;
   const tolerance = frame.tolerance;
   const length = norm(plane.normal);
   const unitNormal = scale(plane.normal, 1 / length);
   const offPlane = (point: Vec3) => Math.abs(dot(unitNormal, point) - plane.delta / length);
-  const incident = candidates.filter((point) => finite(point) && offPlane(point) <= tolerance);
+  const incident = [...candidates, ...stretches].filter((point) => finite(point) && offPlane(point) <= tolerance);
   if (plane.basis) incident.push(plane.anchor);
   const crossesAxis = (axis: number) => Math.abs(component(unitNormal, axis)) >= MIN_INTERCEPT_COMPONENT;
   const throughOrigin = !(Math.abs(plane.delta) >= 1e-6 * L0 * length);
@@ -394,7 +542,10 @@ function planeDrawing(plane: PlaneInfo, frame: FrameInfo, candidates: Vec3[]): P
       return { drawing: { kind: "triangle", vertices: [A, B, C] }, axisPoints: [A, B, C], edges: [sub(B, A), sub(C, B), sub(A, C)], vertices: [A, B, C] };
     }
   }
-  const finiteIntercepts = intercepts.filter((point): point is Vec3 => point !== null);
+  // Axis crossings locate a plane that holds nothing else. A plane that holds
+  // points or lines is drawn around them: its unmarked intercepts would grow
+  // the patch until it swamps the figure.
+  const finiteIntercepts = incident.length === 0 ? intercepts.filter((point): point is Vec3 => point !== null) : [];
   incident.push(...finiteIntercepts);
 
   // In-plane basis: one horizontal edge and one up-slope edge, or the planner's own u and v.
@@ -433,8 +584,10 @@ function planeDrawing(plane: PlaneInfo, frame: FrameInfo, candidates: Vec3[]): P
   const spreadU = (aMax - aMin) * unitE1;
   const spreadV = (bMax - bMin) * unitE2;
   const margin = Math.max(0.15 * Math.max(spreadU, spreadV), 0.1 * L0);
-  const minimumU = (plane.uSpan ?? 1.2 * L0) * (plane.basis ? unitE1 : 1);
-  const minimumV = (plane.vSpan ?? 1.2 * L0) * (plane.basis ? unitE2 : 1);
+  // A plane in a large figure is drawn large enough to carry its points' names.
+  const defaultSpan = Math.max(1.2 * L0, FIGURE_SPAN_SHARE * extent);
+  const minimumU = (plane.uSpan ?? defaultSpan) * (plane.basis ? unitE1 : 1);
+  const minimumV = (plane.vSpan ?? defaultSpan) * (plane.basis ? unitE2 : 1);
   const uSpan = Math.max(spreadU + 2 * margin, minimumU);
   const vSpan = Math.max(spreadV + 2 * margin, minimumV);
   const center = add(origin, add(scale(e1, (aMin + aMax) / 2), scale(e2, (bMin + bMax) / 2)));
@@ -459,7 +612,7 @@ function insideTriangle(point: Vec3, A: Vec3, B: Vec3, C: Vec3, tolerance: numbe
 }
 
 /** The figure's drawn directions, meeting pairs, faces and points, then the fixed camera rule. */
-function chooseProjection(world: World, planeResults: Map<string, PlaneDrawingResult>, frameOf: (id: string) => FrameInfo): { projection: SpaceProjection; report: SpaceViewPlan["report"] } {
+function chooseProjection(world: World, planeResults: Map<string, PlaneDrawingResult>, frameOf: (id: string) => FrameInfo): ProjectionChoice {
   try {
     const directions: Vec3[] = [];
     const faces: Vec3[] = [];
@@ -518,7 +671,7 @@ function chooseProjection(world: World, planeResults: Map<string, PlaneDrawingRe
       pointGroups: pointGroups.map((group) => group.filter(finite)),
       pointTolerance: Number.isFinite(pointTolerance) ? pointTolerance : PRESENTATION_TOLERANCE * DEFAULT_AXIS_LENGTH,
     };
-    return chooseSpaceProjection(constraints);
+    return { ...chooseSpaceProjection(constraints), constraints };
   } catch {
     return { projection: DEFAULT_SPACE_PROJECTION, report: { candidate: "book 0.5 45", score: 0, passesFloors: false, worst: "planning failed" } };
   }
