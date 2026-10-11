@@ -236,6 +236,17 @@ export function parseLangfuseTrace(trace: { id?: unknown; observations?: unknown
     const starts = metadata.map((value) => intervalMs(value.start_since_ask_ms));
     stages.push(stageRow(name, starts.every((start) => start !== null) ? Math.min(...starts) : null,
       sumRecordedIntervals(metadata.map((value) => intervalMs(value.duration_ms)))));
+    if (name === "scene-fast-selection") {
+      // Old or malformed traces lack a phase. Never infer it from call order.
+      const phaseOf = (value: Record<string, unknown>): "prediction" | "selection" | "unknown" =>
+        value.phase === "prediction" || value.phase === "selection" ? value.phase : "unknown";
+      for (const phase of new Set(metadata.map(phaseOf))) {
+        const calls = metadata.filter((value) => phaseOf(value) === phase);
+        const phaseStarts = calls.map((value) => intervalMs(value.start_since_ask_ms));
+        stages.push(stageRow(`${name}:${phase}`, phaseStarts.every((start) => start !== null) ? Math.min(...phaseStarts) : null,
+          sumRecordedIntervals(calls.map((value) => intervalMs(value.duration_ms)))));
+      }
+    }
   }
   // A mark lands at completion, not at validation start. This counts calls:
   // the same document may be revalidated. Keep detail, but compare turn totals.
@@ -367,7 +378,7 @@ export function summarizeTurns(turns: TurnLatency[]): { askToFirstAudible: Stage
         values.set(stage.name, []);
       }
       // A mark's offset after Ask is its number; a span's is its duration.
-      const value = SELECTION_STAGES.some((name) => name === stage.name) || stage.name.startsWith("scene-candidate-validation-total")
+      const value = SELECTION_STAGES.some((name) => name === stage.name) || stage.name.startsWith("scene-fast-selection:") || stage.name.startsWith("scene-candidate-validation-total")
         ? stage.durationMs : stage.durationMs ?? stage.startMs;
       if (value !== null) values.get(stage.name)!.push(value);
       if (stage.hitCap) caps.set(stage.name, (caps.get(stage.name) ?? 0) + 1);
@@ -395,7 +406,7 @@ export function summarizeTurns(turns: TurnLatency[]): { askToFirstAudible: Stage
 }
 
 const cell = (value: number | null) => (value === null ? "." : String(value));
-const CALLBACK_TIMING_NOTE = "  scene totals sum recorded call intervals only (capture may be incomplete); callback/planner/revalidate intervals may overlap and are not additive wall time.";
+const CALLBACK_TIMING_NOTE = "  scene totals sum recorded call intervals only (capture may be incomplete); fast phase rows partition the overall fast total, with legacy phase UNKNOWN; callback/planner/revalidate intervals may overlap and are not additive wall time.";
 const USEFUL_AUDIO_NOTE = "  first useful teaching audio is not measured; teaching-first-step is a parser mark, not an audio clock.";
 
 export function formatTurn(turn: TurnLatency): string {

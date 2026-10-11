@@ -295,6 +295,123 @@ function verifyHandlerTimingWiring() {
   }
 }
 
+/** Phase is a property of the actual call site, never call index or authority. */
+function verifyFastSelectionPhaseWiring() {
+  const planning = readFileSync(path.resolve(import.meta.dirname, "../../features/tutor-session/lib/scene/planningOverlap.ts"), "utf8");
+  const checkPlanning = (source: string) => {
+    const file = ts.createSourceFile("planningOverlap.ts", source, ts.ScriptTarget.Latest, true);
+    const calls: ts.CallExpression[] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node) && node.expression.getText(file) === "input.selectFast") calls.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+    assert.equal(calls.length, 2, "the prediction and real selection remain the only fast calls");
+    for (const call of calls) {
+      let ancestor: ts.Node | undefined = call.parent;
+      while (ancestor && !ts.isVariableDeclaration(ancestor) && !ts.isExpressionStatement(ancestor)) ancestor = ancestor.parent;
+      const prediction = ancestor && ts.isVariableDeclaration(ancestor) && ancestor.name.getText(file) === "deterministicPredicted";
+      assert.equal(call.arguments[3]?.getText(file), JSON.stringify(prediction ? "prediction" : "selection"),
+        "each actual fast call must carry its own fixed phase");
+    }
+  };
+  checkPlanning(planning);
+  for (const [before, after] of [[", gate, \"prediction\"", ", gate"], [", gate, \"selection\"", ", gate"],
+    [", gate, \"prediction\"", ", gate, \"selection\""], [", gate, \"selection\"", ", gate, \"prediction\""]] as const) {
+    const mutant = planning.replace(before, after);
+    assert.notEqual(mutant, planning, "the phase mutation changes an actual planning call");
+    assert.throws(() => checkPlanning(mutant), /own fixed phase/, "dropping or swapping a source phase is RED");
+  }
+  const handler = readFileSync(path.resolve(import.meta.dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+  const checkHandler = (source: string) => {
+    const { wrapper, file } = timedHandlerCall(source, "selectFastVerifiedRepresentation", "measureSceneSelection", "fast");
+    let callback: ts.Node | undefined = wrapper.parent;
+    while (callback && !ts.isArrowFunction(callback)) callback = callback.parent;
+    assert(callback && ts.isArrowFunction(callback));
+    assert.equal(callback.parameters[3]?.name.getText(file), "phase", "the live callback receives the explicit fourth phase argument");
+    assert.equal(wrapper.arguments[3]?.getText(file), "undefined", "the existing fourth clock argument stays compatible");
+    assert.equal(wrapper.arguments[4]?.getText(file), "phase", "the live callback forwards phase without guessing");
+    return callback.getText(file);
+  };
+  const callbackSource = checkHandler(handler);
+  const emitted = ts.transpileModule(`const callback = ${callbackSource}; module.exports = callback;`,
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const loaded = { exports: undefined as unknown };
+  const phases: unknown[] = [];
+  const chosen = { figure: "synthetic-boundary-result" };
+  const make = new Function("module", "measureSceneSelection", "tel", "selectFastVerifiedRepresentation", "question", emitted);
+  make(loaded, measureSceneSelection, { durationMs: () => 0, mark: (_name: string, metadata: Record<string, unknown>) => phases.push(metadata.phase) },
+    () => chosen, "synthetic public question");
+  const callback = loaded.exports as (plan: unknown, authority: unknown, gate: unknown, phase: "prediction" | "selection") => unknown;
+  for (const phase of ["prediction", "selection"] as const) {
+    assert.equal(callback({}, null, { sceneCapabilities: { families: [] } }, phase), chosen,
+      "actual live callback preserves result identity even when both authority arguments are null");
+  }
+  assert.deepEqual(phases, ["prediction", "selection"], "the actual live callback carries both phases into actual telemetry");
+  for (const replacement of ["undefined", "\"prediction\"", "\"selection\""]) {
+    const mutant = handler.replace("undefined, phase)", `undefined, ${replacement})`);
+    assert.notEqual(mutant, handler);
+    assert.throws(() => checkHandler(mutant), /forwards phase/, "dropping or hardcoding the actual live phase is RED");
+  }
+}
+
+function verifyFastSelectionPhaseReport() {
+  const parsed = parseLangfuseTrace({ id: "fast-phases", observations: [
+    observation("scene-fast-selection", 200, 200, { start_since_ask_ms: 100, duration_ms: 10, phase: "prediction" }),
+    observation("scene-fast-selection", 500, 500, { start_since_ask_ms: 400, duration_ms: 20, phase: "selection" }),
+    observation("scene-fast-selection", 800, 800, { start_since_ask_ms: 700, duration_ms: 30 }),
+    observation("scene-fast-selection", 900, 900, { start_since_ask_ms: 850, duration_ms: 5, phase: STUDENT_TEXT }),
+  ] })!;
+  const totals = Object.fromEntries(parsed.stages.map((stage) => [stage.name, stage.durationMs]));
+  assert.deepEqual(totals, { "scene-fast-selection": 65, "scene-fast-selection:prediction": 10,
+    "scene-fast-selection:selection": 20, "scene-fast-selection:unknown": 35 },
+  "the overall recorded total remains honest and legacy/invalid phases are UNKNOWN, never inferred");
+  assert(!JSON.stringify(parsed).includes(STUDENT_TEXT), "invalid phase text does not become a report label");
+  const unknown = parseLangfuseTrace({ id: "phase-missing-clock", observations: [
+    observation("scene-fast-selection", 200, 200, { duration_ms: 10, phase: "prediction" }),
+    observation("scene-fast-selection", 500, 500, { start_since_ask_ms: 400, phase: "selection" }),
+  ] })!;
+  assert.equal(unknown.stages.find((stage) => stage.name === "scene-fast-selection")?.durationMs, null);
+  assert.equal(unknown.stages.find((stage) => stage.name.endsWith(":prediction"))?.startMs, null);
+  assert.equal(unknown.stages.find((stage) => stage.name.endsWith(":selection"))?.durationMs, null);
+  assert.equal(summarizeTurns([unknown]).stages.find((stage) => stage.name.endsWith(":selection"))?.count, 0,
+    "an unknown phase duration never falls back to a known Ask-offset in percentiles");
+  assert(!unknown.stages.some((stage) => stage.name.endsWith(":unknown")), "unobserved phase buckets are not zero-filled");
+}
+
+/** A guard in this script alone cannot detect its own removal from CI. */
+function verifyStartupTelemetryCiPath() {
+  const source = readFileSync(path.resolve(import.meta.dirname, "verify-publication-authority-and-restore.ts"), "utf8");
+  const loadGuard = (text: string) => {
+    const file = ts.createSourceFile("publication.ts", text, ts.ScriptTarget.Latest, true);
+    const guard = file.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) &&
+      node.name?.text === "verifyStartupTelemetryCiPath");
+    assert(guard, "the CI-retained publication verifier must guard startup telemetry reachability");
+    const main = file.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === "main");
+    assert(main?.body?.statements.some((node) => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) &&
+      node.expression.expression.getText(file) === "verifyStartupTelemetryCiPath"), "the retained publication gate must execute its CI path guard");
+    const emitted = ts.transpileModule(`${guard.getText(file)}; module.exports = verifyStartupTelemetryCiPath;`,
+      { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    const loaded = { exports: undefined as unknown };
+    new Function("module", "assert", emitted)(loaded, assert);
+    return loaded.exports as (script: string, workflow: string) => void;
+  };
+  const check = loadGuard(source);
+  const manifest = JSON.parse(readFileSync(path.resolve(import.meta.dirname, "../../package.json"), "utf8")) as { scripts: Record<string, string> };
+  const script = manifest.scripts["verify:publication"]!;
+  const workflow = readFileSync(path.resolve(import.meta.dirname, "../../../../.github/workflows/deploy-tutor.yml"), "utf8");
+  check(script, workflow);
+  const command = "tsx scripts/verify/verify-startup-telemetry.ts";
+  assert(script.split("&&").map((part) => part.trim()).includes("tsx scripts/verify/verify-publication-authority-and-restore.ts"),
+    "the guard remains in the already-CI-run first publication verifier");
+  assert.throws(() => check(script.replace(command, "echo telemetry-not-run"), workflow), /startup telemetry/, "CI publication command removal is RED");
+  assert.throws(() => check(script, workflow.replace("run: pnpm --filter @heytutor/tutor verify:publication", "run: echo publication-not-run")),
+    /publication/, "workflow-to-publication path removal is RED");
+  const mutant = source.replace(/verifyStartupTelemetryCiPath\(publicationScript, workflow\);/, "void publicationScript;");
+  assert.notEqual(mutant, source);
+  assert.throws(() => loadGuard(mutant), /execute its CI path guard/, "removing the retained guard call is RED");
+}
+
 async function verifySelectionTiming() {
   const h = harness(2_000);
   const tel = createTurnTelemetry({ originPerf: 1_000, env: h.env });
@@ -317,6 +434,7 @@ async function verifySelectionTiming() {
   assert(parsed, "a trace of selection callback timings remains reportable");
   assert.deepEqual(parsed.stages, [
     { name: "scene-fast-selection", startMs: 1_000, durationMs: 30, capMs: null, hitCap: false },
+    { name: "scene-fast-selection:unknown", startMs: 1_000, durationMs: 30, capMs: null, hitCap: false },
     { name: "scene-final-selection", startMs: 1_030, durationMs: 9, capMs: null, hitCap: false },
   ], "the report reads the measured callback clocks, not completion mark offsets");
   const unknown = parseLangfuseTrace({ id: "selection-unknown", observations: [
@@ -342,6 +460,19 @@ async function verifySelectionTiming() {
   for (const name of ["scene-fast-selection", "scene-final-selection"]) {
     assert(STARTUP_PRIORITY_EVENTS.some((stage) => String(stage) === name), "selection callback timings survive a noisy startup buffer");
   }
+  const bounded = harness();
+  const boundedTel = createTurnTelemetry({ originPerf: 0, env: bounded.env });
+  boundedTel.setTrace("phase-allowlist");
+  for (const phase of ["prediction", "selection", STUDENT_TEXT, undefined]) {
+    assert.equal(Reflect.apply(measureSceneSelection, undefined,
+      [boundedTel, "fast", () => result, () => bounded.clock.now, phase]), result);
+  }
+  assert.throws(() => measureSceneSelection(boundedTel, "final", () => { throw originalError; }, () => bounded.clock.now, "prediction"),
+    (error: unknown) => error === originalError, "irrelevant final phase cannot alter the original error");
+  await boundedTel.flush();
+  assert.deepEqual(bounded.batches.flatMap((batch) => batch.events).map((event) => event.metadata?.phase),
+    ["prediction", "selection", undefined, undefined, undefined], "only fixed fast phases serialize; legacy and final marks remain unchanged");
+  assert(!JSON.stringify(bounded.batches).includes(STUDENT_TEXT), "runtime phase input is allowlisted even if the TypeScript contract is bypassed");
 }
 
 async function verifyOriginAtAsk() {
@@ -1042,6 +1173,9 @@ function verifyHandlerPrivacy() {
 }
 
 async function main() {
+  verifyFastSelectionPhaseWiring();
+  verifyFastSelectionPhaseReport();
+  verifyStartupTelemetryCiPath();
   verifyHandlerTimingWiring();
   await verifyBoardCommitMeasurement();
   await verifyCandidateValidationTiming();
@@ -1058,7 +1192,7 @@ async function main() {
   verifyReportParsing();
   verifyValidationTotals();
   verifyHandlerPrivacy();
-  console.log("verified actual board callback true/false/reject/absent and five rejected measurement mutants; all three actual handler timing-wrapper removal mutants rejected; validation call index, recorded per-turn/context totals, fast/final combined callback identity/error/clock/sink/privacy, unknown clocks and non-additive report limits, full versus remaining board commit, Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, and no question text");
+  console.log("verified explicit fast prediction/selection call sites, actual live phase transport and drop/swap mutants; phase totals with UNKNOWN legacy and unknown clocks; retained publication CI reachability and removal mutants; actual board callback true/false/reject/absent and five rejected measurement mutants; all three actual handler timing-wrapper removal mutants rejected; validation call index, recorded per-turn/context totals, fast/final combined callback identity/error/clock/sink/privacy, non-additive report limits, full versus remaining board commit, Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, and no question text");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
