@@ -30,9 +30,12 @@ function turn(chars: number, status: "live" | "stopped" = "stopped", id = "lesso
     segments: [{ id: `${id}-type`, orderIndex: 0, narration: "Explain the function.", spokenText: "Explain the function.", audioUrl: null, durationMs: null, timings: null,
       command: { type: "TYPE", params: [], charPosition: 0, narrationBefore: "", text: block.code, semanticRef: { entityId: block.id }, shownChars: chars } }] };
 }
-function fixture() {
+function fixture(options: { holdCheckpoint?: boolean; holdOwnerProbe?: Promise<"inactive"> } = {}) {
   const controller = new CodeLessonController();
-  const registry = new LiveTurnSaveRegistry({ transport: { checkpoint: async () => ({ ok: false, status: 403, reason: "forbidden", error: "fixture", retryable: false }), close: async () => ({ ok: false, status: 403, reason: "forbidden", error: "fixture", retryable: false }) }, mintId: () => "attempt", now: () => 1000, isOnline: () => true, setTimer: () => 1, clearTimer() {} });
+  const registry = new LiveTurnSaveRegistry({ transport: { checkpoint: async () => {
+    if (options.holdCheckpoint) await new Promise<never>(() => {});
+    return { ok: false, status: 403, reason: "forbidden", error: "fixture", retryable: false };
+  }, close: async () => ({ ok: false, status: 403, reason: "forbidden", error: "fixture", retryable: false }) }, mintId: () => "attempt", now: () => 1000, isOnline: () => true, setTimer: () => 1, clearTimer() {} });
   const effects: Array<() => void> = []; const offers: unknown[] = []; const paints: string[] = [];
   const commonReact = { useRef: ref, useCallback: (fn: unknown) => fn, useState: (initial: unknown) => [initial, () => {}], useLayoutEffect: (fn: () => void) => fn(), useSyncExternalStore: (_listen: unknown, get: () => unknown) => get(), useEffect: (fn: () => void) => effects.push(fn) };
   let currentDetail: { turns: StoredTurn[] } | null = { turns: [turn(2, "live")] };
@@ -68,14 +71,21 @@ function fixture() {
   };
   const controlRefs: Array<{ current: unknown }> = []; let refIndex = 0;
   const controlStates: unknown[] = []; let stateIndex = 0;
+  let boardRevisionEffect: (() => void) | undefined;
   const controlReact = { ...commonReact, useRef: (initial: unknown) => controlRefs[refIndex++] ?? (controlRefs[refIndex - 1] = ref(initial)),
     useState: (initial: unknown) => { const index = stateIndex++; if (!(index in controlStates)) controlStates[index] = initial;
-      return [controlStates[index], (value: unknown) => { controlStates[index] = value; offers.push(value); }]; }, useEffect() {} };
+      return [controlStates[index], (value: unknown) => { controlStates[index] = value; offers.push(value); }]; },
+    useEffect: (effect: () => void) => {
+      // Run the actual replay-ref synchronization on each controlled render;
+      // timers, board revision and unmount effects remain owned by this fixture.
+      if (effect.toString().includes("isReplayingRef.current = isReplaying")) effect();
+      if (effect.toString().includes("restoreBoardRevisionRef.current += 1")) boardRevisionEffect = effect;
+    } };
   const asked: unknown[] = [];
   const controlHook = load("features/tutor-session/hooks/turn/useTurnControl.ts", controlReact, {
     "./useSegmentRunner": { useSegmentRunner: () => ({ runSegment: async () => {}, pauseFallbackSpeech() {}, resumeFallbackSpeech() {}, stopFallbackSpeech() {}, speakingNarrationRef: ref("") }) },
     "../../lib/turn/liveTurnSave": { ...requireApp("./features/tutor-session/lib/turn/liveTurnSave"), liveTurnSave: () => registry },
-    "../../lib/turn/lessonOwnership": { lessonAdmission: () => ({ probe: async () => ownerState, hasAttempt: () => false, cancel() {} }) },
+    "../../lib/turn/lessonOwnership": { lessonAdmission: () => ({ probe: async () => options.holdOwnerProbe ?? ownerState, hasAttempt: () => false, cancel() {} }) },
     "@/lib/boards/boardsClient": { ...requireApp("./lib/boards/boardsClient"), fetchBoardDetail: async () => { reads++; return controlRead ? controlRead() : currentDetail; } },
   });
   const handler = ref(async (_question: string, options: import("../../features/tutor-session/hooks/turn/types").HandleQuestionOptions | undefined) => { asked.push({ options, shown: controller.getState().revealedChars[block.id] }); });
@@ -84,6 +94,7 @@ function fixture() {
   return { controller, registry, board, control, render, handler, params, effects, offers, asked, paints,
     setDetail: (detail: typeof currentDetail) => { currentDetail = detail; }, setRead: (read: () => Promise<typeof currentDetail>) => { controlRead = read; },
     setOwner: (state: typeof ownerState) => { ownerState = state; },
+    advanceBoardRevision: () => { assert(boardRevisionEffect); boardRevisionEffect(); },
     holdPaint: (wait: Promise<void> | null) => { paintWait = wait; }, failPaint: () => { paintFails = true; }, get reads() { return reads; } };
 }
 const defer = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; };
@@ -98,12 +109,64 @@ function plainTurn(rows = 1): StoredTurn {
     segments: Array.from({ length: rows }, (_, index) => ({ id: `plain-${index}`, orderIndex: index, narration: index ? `Explain step ${index}` : "", spokenText: index ? `Explain step ${index}` : "", audioUrl: null, durationMs: index ? null : 50, timings: null,
       command: index ? { type: "WRITE" as const, params: [90, 145 + index * 40, 28], text: `work = ${index}`, charPosition: 0, narrationBefore: "" } : { type: "CLEAR" as const, params: [], charPosition: 0, narrationBefore: "" } })) };
 }
+function stoppedPendingFixture(holdOwnerProbe?: Promise<"inactive">) {
+  const stopped = fixture({ holdCheckpoint: true, holdOwnerProbe });
+  const question = plainTurn().question;
+  stopped.params.boardPageRef.current = lessonPageRecord("board", question);
+  stopped.registry.begin({ owner: stopped.params.cancelRef, generation: 1, boardId: "board", traceId: "stop", kind: "lesson",
+    question, preview: question, speedMultiplier: 1, continuesBoard: false, page: stopped.params.boardPageRef.current });
+  stopped.registry.recordRow(stopped.params.cancelRef, 1, {
+    orderIndex: 0, narration: "Compute the work.", spokenText: "Compute the work.", audioBytes: null, durationMs: null, timings: null,
+    command: { type: "WRITE", params: [90, 142, 32], text: "work = 1", charPosition: 0, narrationBefore: "" },
+  }, { intro: false });
+  stopped.params.recordedSegmentsRef.current = [{ narration: "Compute the work." }] as never;
+  stopped.params.phase = "drawing"; stopped.params.phaseRef.current = "drawing"; stopped.params.turnActiveRef.current = true;
+  stopped.render().stopTurn();
+  assert(stopped.offers.at(-1), "native Stop immediately offers its taught lesson");
+  stopped.params.phase = "idle"; stopped.params.phaseRef.current = "idle";
+  return { ...stopped, idle: stopped.render(), rawLive: { ...plainTurn(), id: "attempt", status: "live" as const, persistedStatus: "live" as const } };
+}
 async function main() {
   const originalSet = globalThis.setTimeout, originalClear = globalThis.clearTimeout;
   const timers = new Map<number, () => void>(); let timerId = 0;
   globalThis.setTimeout = ((fn: () => void) => { const id = ++timerId; timers.set(id, fn); return id; }) as unknown as typeof setTimeout;
   globalThis.clearTimeout = ((id: number) => { timers.delete(id); }) as unknown as typeof clearTimeout;
   try {
+    // Stop creates an ended local mirror synchronously; the idle effect can
+    // still hold the empty/raw-live snapshot from before that checkpoint.
+    for (const staleHistory of ["empty", "live"] as const) {
+      const stopped = stoppedPendingFixture();
+      const { idle, rawLive } = stopped;
+      const restored = await idle.restorePausedLesson(staleHistory === "empty" ? [] : [rawLive]);
+      assert.equal(restored?.parentTurnId, "attempt", `${staleHistory} history must retain the same locally stopped parent while its checkpoint is pending`);
+      assert(stopped.offers.at(-1), `${staleHistory} idle restore must not erase Continue`);
+      assert.equal(stopped.asked.length, 0, "retaining the offer never starts a lesson automatically");
+      idle.flushPausedLesson();
+      assert.equal(stopped.asked.length, 1, "the retained native Continue remains actionable");
+      await tick();
+      idle.offerPausedLessonResume(restored!);
+      assert(stopped.offers.at(-1));
+      assert.equal(await idle.restorePausedLesson([{ ...rawLive, status: "complete", persistedStatus: "complete" }]), null,
+        "fresh completed server history still outranks the pending local Stop");
+      assert(!stopped.offers.at(-1), "fresh completion removes the stale offer");
+      timers.clear();
+    }
+    for (const successor of ["generation", "same-text-page", "foreign-page", "board-revision", "replay", "queued-segment"] as const) {
+      const probe = defer<"inactive">();
+      const stopped = stoppedPendingFixture(probe.promise);
+      const pending = stopped.idle.restorePausedLesson([stopped.rawLive]);
+      if (successor === "generation") stopped.params.turnGenerationRef.current++;
+      else if (successor === "same-text-page" || successor === "foreign-page")
+        stopped.params.boardPageRef.current = lessonPageRecord(successor === "foreign-page" ? "other" : "board", plainTurn().question);
+      else if (successor === "board-revision") { stopped.params.sessionId = "other"; stopped.render(); stopped.advanceBoardRevision(); }
+      else if (successor === "replay") { stopped.params.isReplaying = true; stopped.render(); }
+      else stopped.params.pendingSegmentCountRef.current = 1;
+      const offersBefore = stopped.offers.length;
+      probe.resolve("inactive");
+      assert.equal(await pending, null, `${successor}: late ownership probe cannot install the old stopped snapshot`);
+      assert.equal(stopped.offers.length, offersBefore, `${successor}: stale probe cannot publish an offer`);
+      timers.clear();
+    }
     const h = fixture();
     const mount = h.effects.find(effect => effect.toString().includes("restoreBoardFromApiRef.current(sessionId")); assert(mount); mount(); await tick();
     assert.equal(h.controller.getState().revealedChars[block.id], 2, "opening snapshot has the old shown code prefix");
