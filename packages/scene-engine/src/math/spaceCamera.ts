@@ -126,6 +126,8 @@ export interface SpaceViewConstraints {
   readonly faces: readonly Vec3[];
   /** Marked points and frame origins. */
   readonly points: readonly Vec3[];
+  /** Further point sets, one per frame; pairs are only formed inside a set. */
+  readonly pointGroups?: readonly (readonly Vec3[])[];
   /** Points closer than this are one point. */
   readonly pointTolerance?: number;
 }
@@ -176,12 +178,18 @@ function vectorName(v: Vec3): string {
   const short = (value: number) => Number(value.toFixed(3));
   return `(${short(v.x)},${short(v.y)},${short(v.z)})`;
 }
-/** Unsigned unit lines with near duplicates removed, in first-seen order. */
+/** Unsigned unit lines with duplicates removed, in first-seen order. */
 function distinctLines(values: readonly Vec3[]): Vec3[] {
   const result: Vec3[] = [];
+  const seen = new Set<string>();
   for (const value of values) {
     const line = unit(value);
-    if (line && !result.some((existing) => lineAngle3(existing, line) < 1e-6)) result.push(line);
+    if (!line) continue;
+    const sign = line.x !== 0 ? Math.sign(line.x) : line.y !== 0 ? Math.sign(line.y) : Math.sign(line.z);
+    const key = [line.x, line.y, line.z].map((part) => (part * sign).toFixed(9)).join(",");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(line);
   }
   return result;
 }
@@ -209,13 +217,14 @@ function prepare(constraints: SpaceViewConstraints): Prepared {
   const faces = distinctLines(constraints.faces);
   const tolerance = constraints.pointTolerance ?? 1e-9;
   const pointPairs: Vec3[] = [];
-  const points = constraints.points;
-  for (let i = 0; i < points.length; i += 1) {
-    for (let j = i + 1; j < points.length; j += 1) {
-      const a = points[i]!;
-      const b = points[j]!;
-      const delta = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
-      if (norm(delta) > tolerance) pointPairs.push(delta);
+  for (const points of [constraints.points, ...(constraints.pointGroups ?? [])]) {
+    for (let i = 0; i < points.length; i += 1) {
+      for (let j = i + 1; j < points.length; j += 1) {
+        const a = points[i]!;
+        const b = points[j]!;
+        const delta = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+        if (norm(delta) > tolerance) pointPairs.push(delta);
+      }
     }
   }
   return { axes, directions, axisFigure, meetings, faces: faces, pointPairs: distinctLines(pointPairs) };
