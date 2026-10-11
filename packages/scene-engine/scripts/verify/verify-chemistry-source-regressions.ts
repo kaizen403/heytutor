@@ -545,6 +545,59 @@ check("Duplicate original R remains unsupported even with ambiguous free citatio
  const question="The equilibrium constant of a reaction at 285 K is 7. R = 8.314 J K^-1 mol^-1; R = 8.314 J K^-1 mol^-1. Draw the standard Gibbs relation.";const givens:ChemPlanQuantity[]=[{id:"R",symbol:"R",value:999,unit:"K",origin:"given",sourceText:"R = 8.314"}];assert.equal(buildChemicalThermodynamicsScene(question,givens,false),null);assert.equal(synthesizeFamilyScene({question,turnPlan:{givens},families:["chem_thermo"]}),null);
 });
 
+// BEGIN PR137 V8: request predicates are not numeric equilibrium assignments.
+function v8GibbsPositive(question:string, gJ:number, temperature:number, givens:ChemPlanQuantity[]=[]):void {
+ const k=Math.exp(-gJ/(8.314*temperature));assert.ok(Number.isFinite(k)&&k>0);
+ const kLabel="K="+(Math.abs(k)<.01||Math.abs(k)>=1e6?k.toExponential(3).replace(/0+e/,"e").replace(/\.e/,"e"):k.toFixed(2));
+ const expected=["dGo="+(gJ/1000).toFixed(3),"kJ/mol",kLabel,"dGo=-RT lnK",`T=${temperature} K`];
+ for(const schematic of [false,true]){
+  const direct=compiled(buildChemicalThermodynamicsScene(question,givens,schematic));
+  assert.deepEqual(direct.labels,expected);assert.equal(direct.document.source?.question,question);
+  assert.ok(direct.labels.every(label=>typeof label==="string"&&!/NaN|Infinity/.test(label)));
+ }
+ const ordinary=synthesizeFamilyScene({question,turnPlan:{givens}});assert.ok(ordinary);assert.equal(ordinary.family,"chem_thermo");
+ const live=compiled(ordinary.document);assert.deepEqual(live.labels,expected);assert.equal(live.document.source?.question,question);
+}
+function v8GibbsDecline(question:string,givens:ChemPlanQuantity[]=[]):void {
+ assert.equal(buildChemicalThermodynamicsScene(question,givens,false),null);
+ assert.equal(buildChemicalThermodynamicsScene(question,givens,true),null);
+ assert.equal(synthesizeFamilyScene({question,turnPlan:{givens},families:["chem_thermo"]}),null);
+}
+const v8InverseG="Standard Gibbs energy ΔG° = +7.2 kJ/mol at 315 K. Draw the equilibrium relation. R = 8.314 J K^-1 mol^-1.";
+for(const predicate of ["required","needed","requested"])for(const owner of ["a numerical K","the equilibrium constant"])for(const terminal of [".",""])check("Bare Gibbs request predicate retains finite inverse K: "+owner+predicate+terminal,()=>{
+ const question=v8InverseG+" Only if "+owner+" is "+predicate+terminal;
+ v8GibbsPositive(question,7200,315);
+ const direct=compiled(buildChemicalThermodynamicsScene(question,[],false));
+ const baseline=compiled(buildChemicalThermodynamicsScene(v8InverseG,[],false));assert.deepEqual(direct.render.primitives,baseline.render.primitives);
+});
+check("Bare Gibbs request retains original source-bound R prefix plan",()=>{
+ const question=v8InverseG+" Only if a numerical K is needed.";
+ const givens:ChemPlanQuantity[]=[{id:"R",symbol:"R",value:8.314,unit:"J K^-1 mol^-1",origin:"given",sourceText:"R = 8.314"},{id:"T",symbol:"T",value:315,unit:"K",origin:"given",sourceText:"T = 315"}];
+ const r=resolveChemistryGiven({question,after:/\bR\s*=/,dimension:"gas_constant",targetUnit:"J/(mol K)",aliases:["R"],quantities:givens});assert.ok(r.ok);near(r.reading.value,8.314);assert.equal(r.reading.source.kind,"plan_given");assert.equal(r.reading.source.text,"8.314 J K^-1 mol^-1");
+ v8GibbsPositive(question,7200,315,givens);
+});
+for(const reverse of [false,true])check("Actual K assignment and a bare request keep canonical agreement: "+reverse,()=>{
+ const gJ=-8.314*315*Math.log(2);const roles=["Equilibrium constant is 2.","Only if a numerical K is required."];if(reverse)roles.reverse();
+ const question=`Standard Gibbs energy ΔG° = ${gJ} J/mol at 315 K. `+roles.join(" ")+" Draw the equilibrium relation.";v8GibbsPositive(question,gJ,315);
+});
+for(const tail of [
+ "K is required to be 5.","K is required = 5.","K is required 5.","K is required 1e-.",
+ "K is needed to be 5.","K is requested = 4e-.","K is requested 5.",
+ "K is required, 5.","K is needed; K = unknown.","K is required: 5.",
+ "K = required.","K: requested.","K is unknown.","K = unknown.","K is 4e-.","K is 5.",
+ "K is 2; K is 3.","K is 2; K is 2.","K is required. K is unknown.","K is unknown. K is required.",
+])check("Gibbs request numeric/damaged continuation cannot disappear: "+tail,()=>{
+ v8GibbsDecline(v8InverseG+" "+tail);
+});
+for(const gValue of ["1e307","-1e307"])check("Finite given Gibbs energy cannot publish nonfinite or zero inverse K: "+gValue,()=>{
+ v8GibbsDecline(`Standard Gibbs energy ΔG° = ${gValue} J/mol at 315 K. Draw the equilibrium relation. Only if a numerical K is required.`);
+});
+check("Bare K request cannot hide a bound R prefix conflict",()=>{
+ const question=v8InverseG+" Only if a numerical K is required.";
+ v8GibbsDecline(question,[{id:"R",symbol:"R",value:9,unit:"J K^-1 mol^-1",origin:"given",sourceText:"R = 8.314"}]);
+});
+// END PR137 V8: request predicates are not numeric equilibrium assignments.
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

@@ -321,7 +321,8 @@ function buildEntropy(question: string, stem: string): SceneDocument | null {
 
 // The owner may include a temperature; stop only at its original assignment.
 // A qualitative less/greater-than clause is not a supplied thermodynamic K.
-const EQUILIBRIUM_CONSTANT_CUE = /(?:equilibrium constant(?:\s+(?:of|for)\b(?:[^=,;.\n]|\.(?=\d)){0,85}?)?|\bk\b)\s*(?:\bis\b|=|:)(?!\s*(?:less|greater|more)\s+than\b)/i;
+// A bare request predicate is prose; numeric or damaged continuations remain owners.
+const EQUILIBRIUM_CONSTANT_CUE = /(?:equilibrium constant(?:\s+(?:of|for)\b(?:[^=,;.\n]|\.(?=\d)){0,85}?)?|\bk\b)\s*(?:\bis\b(?!\s*(?:required|needed|requested)\s*(?:[.!?](?=\s|$)|$))|=|:)(?!\s*(?:less|greater|more)\s+than\b)/i;
 
 // A recognized assignment must still belong to K, not another predicate/quantity.
 const EQUILIBRIUM_CONSTANT_OWNER = /^(?:equilibrium constant(?:\s+(?:of|for)\s+(?:(?:a|an|the|this)\s+)?reaction(?:\s+at\b(?:(?!\b(?:and|but|whose|which|where|quotient|pressure|volume)\b)[^=,;.\n]|\.(?=\d)){0,50})?)?|\bk\b)\s*(?:\bis\b|=|:)$/i;
