@@ -49,13 +49,11 @@ for (const declaration of ["hc=unknown; hc=1240 eV nm", "hc=1240 eV nm; hc=unkno
     assert.equal(buildAtomicRadiationScene(question, [], false), null);
     assert.equal(synthesizeFamilyScene({ question }), null);
   });
-for (const [wavelength, expected] of [[300, "K=2.00 eV"], [400, "K=1.00 eV"]] as const)
-  check("source hc changes the computed number: " + wavelength, () => {
-    const question = `For the photoelectric effect wavelength is ${wavelength} nm and work function is 2 eV. hc=1200 eV nm. Find kinetic energy.`;
-    assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes(expected));
-    const synthesis = synthesizeFamilyScene({ question });
-    assert.ok(synthesis);
-    assert.ok(labels(synthesis.document).includes(expected));
+for (const hc of ["1000", "1200", "1500", "2000", "1241"])
+  check("a supplied incompatible hc cannot replace the physical reference: " + hc, () => {
+    const question = `For the photoelectric effect wavelength is 300 nm and work function is 2 eV. hc=${hc} eV nm. Find kinetic energy.`;
+    assert.equal(buildAtomicRadiationScene(question, [], false), null);
+    assert.equal(synthesizeFamilyScene({ question }), null);
   });
 check("SI source hc converts value and unit together", () => {
   const question = "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. Take hc=1.9864458571489286e-25 J m. Find kinetic energy.";
@@ -71,9 +69,9 @@ for (const suffix of ["Options: (a) hc=unknown (b) hc=1240 eV nm", "Options: (a)
     const defaultBody = "For the photoelectric effect wavelength is 300 nm and work function is 2 eV. Find kinetic energy. " + suffix;
     assert.ok(labels(buildAtomicRadiationScene(defaultBody, [], false)).includes("K=2.13 eV"));
     assert.ok(labels(synthesizeFamilyScene({ question: defaultBody })?.document ?? null).includes("K=2.13 eV"));
-    const sourceBody = "For the photoelectric effect wavelength is 300 nm and work function is 2 eV. hc=1200 eV nm. Find kinetic energy. " + suffix;
-    assert.ok(labels(buildAtomicRadiationScene(sourceBody, [], false)).includes("K=2.00 eV"));
-    assert.ok(labels(synthesizeFamilyScene({ question: sourceBody })?.document ?? null).includes("K=2.00 eV"));
+    const sourceBody = "For the photoelectric effect wavelength is 300 nm and work function is 2 eV. hc=1240 eV nm. Find kinetic energy. " + suffix;
+    assert.ok(labels(buildAtomicRadiationScene(sourceBody, [], false)).includes("K=2.13 eV"));
+    assert.ok(labels(synthesizeFamilyScene({ question: sourceBody })?.document ?? null).includes("K=2.13 eV"));
   });
 for (const subject of ["a metal", "the metal", "sodium", "the sodium", "potassium"])
   check("whole work-function owner: " + subject, () => {
@@ -291,6 +289,7 @@ for (const row of thermoLaneRows) check("coordinator thermochemistry lane: " + r
       for (const [id, value, unit] of thermoQuantities[row.id] ?? []) {
         const quantity = document.quantities.find(q => q.id === id);
         assert.ok(quantity, id);
+        assert.ok(typeof quantity.value === "number", id);
         assert.ok(Math.abs(quantity.value - value) <= 1e-8 * Math.max(1, Math.abs(value)), id);
         assert.equal(quantity.unit, unit);
       }

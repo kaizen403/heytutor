@@ -305,6 +305,11 @@ export function buildAtomicRadiationScene(
     if (hcOwners.length !== 1) return null;
     const hc = readChemistryQuantity({ question, after: hcCue, dimension: "energy_length", targetUnit: "eV nm" });
     if (!hc.ok || !(hc.reading.value > 0)) return null;
+    // hc is a physical reference, not an arbitrary tunable constant. Admit
+    // the two usual explicitly stated eV-nm rounding conventions as source
+    // parameters; h/c and the shared exact-agreement policy stay unchanged.
+    const supportedProducts = [hcEvNm, Number(hcEvNm.toFixed(2)), Math.round(hcEvNm)];
+    if (!supportedProducts.some(reference => chemistryCanonicalValuesAgree(hc.reading.value, reference))) return null;
     if (/\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)|\bc\s*=|speed of light\s*(?:is|=)/i.test(sourceBody)
       && !chemistryCanonicalValuesAgree(hc.reading.value, hcEvNm)) return null;
     hcEvNm = hc.reading.value;
