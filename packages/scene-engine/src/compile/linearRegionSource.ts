@@ -15,6 +15,15 @@ import {
   type LinearRegionGeometry,
 } from "./linearRegionGeometry";
 import { snapshotMathSourceData } from "./mathSourceData";
+import type { ExactRational } from "../math/exactRational";
+
+export interface LinearSourceIntervalRole {
+  definition: string;
+  lower?: ExactRational;
+  upper?: ExactRational;
+  lowerIncluded: boolean;
+  upperIncluded: boolean;
+}
 
 interface SourceClause {
   text: string;
@@ -505,7 +514,7 @@ function inequalityLeaves(program: IntervalExpression): string[] {
   return ("union" in program ? program.union : program.intersection).flatMap(inequalityLeaves);
 }
 /** Named real set builders and their explicit Boolean result definitions. */
-function setBuilderSourceProgram(body: string, variable: string): IntervalExpression | null {
+function setBuilderSourceProgram(body: string, variable: string, setAliases?: Set<string>): IntervalExpression | null {
   const bindings = new Map<string, IntervalExpression>();
   const spans: Array<{ start: number; end: number }> = [];
   for (const match of body.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*\{\s*([A-Za-z][A-Za-z0-9_]*)(?:\s+in\s+(?:R|ℝ))?\s*:\s*([^{}]+)\}/g)) {
@@ -580,11 +589,13 @@ function setBuilderSourceProgram(body: string, variable: string): IntervalExpres
       return " ".repeat(whole.length);
     });
   if (clauses(residual, [variable]).length) throw new Error("Additional source comparisons cannot be omitted from a named-set program");
+  for (const label of bindings.keys()) setAliases?.add(label);
   return results[0]!;
 }
 /** Bounded named interval literals are another spelling of the same real sets. */
-function intervalSourceProgram(body: string, variable: string): IntervalExpression | null {
+function intervalSourceProgram(body: string, variable: string, setAliases?: Set<string>, intervalRoles?: Map<string, LinearSourceIntervalRole>): IntervalExpression | null {
   const bindings = new Map<string, IntervalExpression>();
+  const roles = new Map<string, LinearSourceIntervalRole>();
   const spans: Array<{ start: number; end: number }> = [];
   for (const definition of body.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*([[(])/g)) {
     const label = definition[1]!;
@@ -623,6 +634,10 @@ function intervalSourceProgram(body: string, variable: string): IntervalExpressi
     const program: IntervalExpression = leaves.length === 0 ? { inequality: "0<=1" } : leaves.length === 1 ? leaves[0]! : { intersection: leaves };
     if (bindings.has(label)) throw new Error(`Interval ${label} has repeated source definitions`);
     bindings.set(label, program);
+    if (intervalRoles) roles.set(label, { definition: body.slice(definition.index!, end + 1),
+      ...(lower === "-infinity" ? {} : { lower: parseLinearAffine(lower, [variable]).constant }),
+      ...(upper === "infinity" ? {} : { upper: parseLinearAffine(upper, [variable]).constant }),
+      lowerIncluded: opening === "[", upperIncluded: closing === "]" });
     if (bindings.size > 16) throw new Error("Source named intervals exceed 16 definitions");
     if (/^(?:<=|>=|[<>=+*/^%!|[\]{}-])/.test(body.slice(end + 1).trimStart()))
       throw new Error(`Interval ${label} has an unsupported literal operation`);
@@ -668,7 +683,31 @@ function intervalSourceProgram(body: string, variable: string): IntervalExpressi
     residual = residual.slice(0, reference.start) + " ".repeat(reference.end - reference.start) + residual.slice(reference.end);
   const domains = clauses(residual, [variable]);
   if (domains.length) throw new Error("Mixed named-interval and explicit inequality source programs require an explicit shared Boolean grammar");
+  for (const label of bindings.keys()) setAliases?.add(label);
+  for (const [label, role] of roles) intervalRoles?.set(label, role);
   return selected;
+}
+
+/** Whole real-set names from an independently admitted complete source program. */
+export function readLinearSourceSetAliases(question: string): Set<string> {
+  return readLinearSourceSetRoles(question).aliases;
+}
+
+/** Original set types and interval definitions; never planner scalar meanings. */
+export function readLinearSourceSetRoles(question: string): { aliases: Set<string>; intervals: Map<string, LinearSourceIntervalRole> } {
+  const empty = () => ({ aliases: new Set<string>(), intervals: new Map<string, LinearSourceIntervalRole>() });
+  if (buildLinearSourceDocument(question)?.constructions[0]?.operator !== "number_line_set") return empty();
+  try {
+    const normalized = normalize(question);
+    const body = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, ["x"]), ["x"]), ["x"]).maskedQuestion;
+    const aliases = new Set<string>();
+    const intervals = new Map<string, LinearSourceIntervalRole>();
+    if (!setBuilderSourceProgram(body, "x", aliases)) intervalSourceProgram(body, "x", aliases, intervals);
+    for (const name of body.matchAll(/\bsolution\s+set\s+(?:(?:named|called|denoted\s+by)\s+)?([A-Za-z][A-Za-z0-9_]*)\s*(?=of\b|for\b|satisfying\b|=|:|[.;?!]|$)/gi)) {
+      if (name[1] !== "x") aliases.add(name[1]!);
+    }
+    return { aliases, intervals };
+  } catch { return empty(); }
 }
 interface SourceObjective {
   expression: string;

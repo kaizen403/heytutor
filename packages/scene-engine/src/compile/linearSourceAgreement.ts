@@ -3,7 +3,7 @@ import { readSourceLinearCoordinate } from "../ir/linearScalarBinding";
 import { addRational, multiplyRational, compareRational, deserializeRational, divideRational, serializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
 import { parseLinearAffine, parseLinearConstraint, solveLinearFigure, type ExactAffine, type FeasibleRegionSolution } from "../math/linearRegion";
 import type { SceneIssue } from "../types";
-import { buildLinearSourceDocument, readLinearSourceReferencePoints } from "./linearRegionSource";
+import { buildLinearSourceDocument, readLinearSourceReferencePoints, readLinearSourceSetRoles, type LinearSourceIntervalRole } from "./linearRegionSource";
 
 const normalizeSymbol = (symbol: string): string => symbol.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}\s]/g, "");
 const dimensionless = (unit: string | undefined): boolean => unit === undefined || unit.trim() === "" || unit.trim() === "1";
@@ -68,6 +68,26 @@ function fatal(code: string, message: string, path?: string): SceneIssue {
 
 interface NumericRole { key: string; exact: ExactRational | null }
 
+/** An original interval quote plus an explicit endpoint role, not a scalar set claim. */
+function explicitGivenIntervalEndpoint(quantity: { symbol: string; value: number; sourceText?: unknown; unit?: unknown }, role: LinearSourceIntervalRole | undefined): boolean {
+  if (!role || typeof quantity.sourceText !== "string" || quantity.unit !== undefined && (typeof quantity.unit !== "string" || !dimensionless(quantity.unit))) return false;
+  const compact = (text: string) => text.normalize("NFKC").replace(/[−–]/g, "-").replace(/\s/g, "");
+  const definition = compact(role.definition), source = compact(quantity.sourceText);
+  if (!source.startsWith(definition)) return false;
+  const descriptor = /^[;,]\s*(left|right|lower|upper)(?:endpoint|boundary|bound)(.+?)(?:is(included|excluded))?[.]?$/.exec(source.slice(definition.length));
+  if (!descriptor) return false;
+  const lower = descriptor[1] === "left" || descriptor[1] === "lower";
+  const endpoint = lower ? role.lower : role.upper;
+  const included = lower ? role.lowerIncluded : role.upperIncluded;
+  if (!endpoint || descriptor[3] !== undefined && (descriptor[3] === "included") !== included) return false;
+  try {
+    const declared = parseLinearAffine(descriptor[2]!, ["x"]);
+    return deserializeRational(declared.a).n === 0n && deserializeRational(declared.b).n === 0n
+      && compareRational(deserializeRational(declared.constant), deserializeRational(endpoint)) === 0
+      && numericAgreement(quantity.value, endpoint);
+  } catch { return false; }
+}
+
 /** Only an original line label immediately preceding a complete source equation joins an intercept. */
 function labelledEquations(question: string, equations: string[]): Map<string, string> {
   const source = question.replace(/[−–]/g, "-");
@@ -88,6 +108,22 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
   if (rawPlan === undefined || rawPlan === null) return [];
   const document = buildLinearSourceDocument(question);
   const construction = document?.constructions[0];
+  if (construction?.operator === "number_line_set") {
+    const { aliases, intervals } = readLinearSourceSetRoles(question);
+    if (!aliases.size || typeof rawPlan !== "object") return [];
+    // Check this one source-proved type before schema normalization can drop
+    // an unknown's value or reject unrelated fields. No other number-line
+    // role gains a new admission requirement here.
+    return Object.entries(rawPlan).filter(([field]) => ["givens", "derived", "unknowns"].includes(field))
+      .flatMap(([field, values]) => Array.isArray(values) ? values.flatMap((quantity: unknown, index) => {
+        if (!quantity || typeof quantity !== "object" || !("symbol" in quantity) || typeof quantity.symbol !== "string"
+          || !("value" in quantity) || typeof quantity.value !== "number" || !Number.isFinite(quantity.value)
+          || !aliases.has(normalizeSymbol(quantity.symbol))) return [];
+        if (field === "givens" && explicitGivenIntervalEndpoint({ symbol: quantity.symbol, value: quantity.value,
+          sourceText: "sourceText" in quantity ? quantity.sourceText : undefined, unit: "unit" in quantity ? quantity.unit : undefined }, intervals.get(normalizeSymbol(quantity.symbol)))) return [];
+        return [fatal("linear_source_plan_set_scalar", `Original source '${quantity.symbol}' denotes a whole real solution set, not a finite scalar '${quantity.value}'`, `${field}[${index}]`)];
+      }) : []);
+  }
   if (!construction || (construction.operator !== "linear_feasible_region" && construction.operator !== "linear_system")) return [];
   const validation = validateTurnPlanV3(rawPlan, question);
   if (!validation.valid || !validation.plan) return validation.issues.map(issue => fatal("linear_source_plan_invalid", issue.message, issue.path));

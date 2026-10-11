@@ -36,7 +36,7 @@ for (const dir of dirs) for (const file of readdirSync(dir).filter(name => name.
   const source = document ? compileSceneDocument(document) : null;
   const result = evidence?.problemIR ? await provider.solve(evidence.problemIR) : null;
   const audit = result ? checkAudit(evidence.problemIR, result, plan, capture.question) : null;
-  const candidates = (capture.diagram.plannerResponses ?? []).map((response: { rawContent: string }) => {
+  const candidates = (args.includes("--skip-candidates") ? [] : capture.diagram.plannerResponses ?? []).map((response: { rawContent: string }) => {
     const raw = parseScenePlannerResponseJson(response.rawContent);
     const validation = validateSceneDocument(raw);
     const trusted = validation.document?.source.question === capture.question;
