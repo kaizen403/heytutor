@@ -35,6 +35,7 @@ import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 
 import type { PausedLessonRequest, PersistedTurnScene } from "./doubtTurn";
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
+import { classifyEarlyLessonProgress, type EarlyLessonRestartRequest } from "./earlyLessonOpening";
 
 /** `resumeState` is opaque to the server; this is the shape this client writes. */
 export const LESSON_RESUME_STATE_VERSION = 1;
@@ -105,7 +106,11 @@ function turnScene(turn: StoredTurn): PersistedTurnScene {
  * The paused lesson the board's saved turns leave, or null. Pure: the caller
  * offers it (`offerPausedLessonResume`) and never starts it.
  */
-export function pausedLessonFromStoredTurns(
+export type StoredLessonRecovery =
+  | { kind: "continue"; request: PausedLessonRequest }
+  | { kind: "restart"; request: EarlyLessonRestartRequest };
+
+export function lessonRecoveryFromStoredTurns(
   turns: readonly StoredTurn[],
   options: {
     boardId: string;
@@ -118,7 +123,7 @@ export function pausedLessonFromStoredTurns(
     isLiveHere?: (turnId: string) => boolean;
     ownerState?: LessonOwnerState;
   },
-): PausedLessonRequest | null {
+): StoredLessonRecovery | null {
   if (!options.boardId || turns.length === 0) return null;
   const page = pageTurnsEndingAt(turns);
   if (page.length === 0) return null;
@@ -139,7 +144,6 @@ export function pausedLessonFromStoredTurns(
   if (rawLive && (options.ownerState !== "inactive" || last.updatedAt === undefined ||
     (options.now ?? Date.now()) - last.updatedAt <= LIVE_TURN_IDLE_MS)) return null;
   if (lastStatus !== "stopped") return null;
-  if (!chain.some((turn) => turn.segments.some(segmentTaught))) return null;
 
   // The plan lives on the turn that opened the lesson; a resume that had to
   // open a page of its own leaves it on the page before.
@@ -159,6 +163,7 @@ export function pausedLessonFromStoredTurns(
   const planSource = source ?? chain[0]!;
   const rawPlan = isRecord(planSource.sceneArtifacts) ? planSource.sceneArtifacts.turnPlan : null;
   const turnPlan = rawPlan ? validateTurnPlanV3(rawPlan, planSource.question).plan : null;
+  const codeLesson = storedCodeLessonPlan(planSource.sceneArtifacts) !== null;
 
   let solverProjection: unknown = null;
   let hasResumeState = false;
@@ -176,6 +181,28 @@ export function pausedLessonFromStoredTurns(
   const figureDrawn = page.some((turn) =>
     turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)),
   );
+  // Normalize only the blank saved page epoch for explicitly marked, unplanned
+  // openings. Narrated CLEAR, other ink and unknown commands stay substantive.
+  const openingRows = chain.flatMap(orderedSegments).filter((segment) => {
+    const commands = parseStoredSegmentCommands(segment.command);
+    return segment.narration.trim() || segment.spokenText?.trim() ||
+      commands.length !== 1 || commands[0]?.type !== "CLEAR";
+  });
+  if (!turnPlan && !figureDrawn && !codeLesson && isRecord(planSource.resumeState) &&
+    planSource.resumeState.v === LESSON_RESUME_STATE_VERSION && planSource.resumeState.earlyOpeningOnly === true &&
+    classifyEarlyLessonProgress({ earlyOpeningStarted: true,
+      spokenSegments: openingRows, figureDrawn,
+    }) !== "substantive") {
+    return { kind: "restart", request: {
+      boardId: options.boardId,
+      reason: page.indexOf(last) < page.length - 1 ? "doubt" : "stop",
+      parentTraceId: last.traceId ?? null,
+      parentTurnId: last.id,
+      // The page-opening source retains the complete question, including lines.
+      lessonQuestion: planSource.question,
+    } };
+  }
+  if (!chain.some((turn) => turn.segments.some(segmentTaught))) return null;
 
   // The step Stop cut off is the last thing the chain saved (decision 12),
   // with its board line. The resume finishes it in words and never rewrites it.
@@ -184,7 +211,7 @@ export function pausedLessonFromStoredTurns(
     .filter(Boolean)
     .at(-1);
 
-  return {
+  return { kind: "continue", request: {
     boardId: options.boardId,
     // Doubts answered after the stopped turn, on its page.
     reason: page.indexOf(last) < page.length - 1 ? "doubt" : "stop",
@@ -195,10 +222,19 @@ export function pausedLessonFromStoredTurns(
     solverProjection,
     scene: source ? turnScene(source) : null,
     figureDrawn,
-    codeLesson: storedCodeLessonPlan(planSource.sceneArtifacts) !== null,
+    codeLesson,
     lessonBoardRows: chain.flatMap(writtenRows),
     ...(lastNarration ? { interruptedStep: lastNarration } : {}),
-  };
+  } };
+}
+
+/** Backwards-compatible Continue-only view; restart never carries null authority. */
+export function pausedLessonFromStoredTurns(
+  turns: readonly StoredTurn[],
+  options: Parameters<typeof lessonRecoveryFromStoredTurns>[1],
+): PausedLessonRequest | null {
+  const recovery = lessonRecoveryFromStoredTurns(turns, options);
+  return recovery?.kind === "continue" ? recovery.request : null;
 }
 
 /** A stale offer never starts a completed or different same-text page. */
