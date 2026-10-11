@@ -20,10 +20,10 @@ function loadInkSource(sourceFile: string): typeof import("../../features/tutor-
   const compiled = ts.transpileModule(readFileSync(sourceFile, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const module = { exports: {} };
+  const mod = { exports: {} };
   const localRequire = (specifier: string) => requireApp(specifier.startsWith(".") ? path.resolve(path.dirname(inkSource), specifier) : specifier);
-  new Function("require", "module", "exports", compiled)(localRequire, module, module.exports);
-  return module.exports as typeof import("../../features/tutor-session/lib/turn/segmentInk");
+  new Function("require", "module", "exports", compiled)(localRequire, mod, mod.exports);
+  return mod.exports as typeof import("../../features/tutor-session/lib/turn/segmentInk");
 }
 const ink = process.env.LIVE_AUDIO_INK_SOURCE ? loadInkSource(process.env.LIVE_AUDIO_INK_SOURCE) : { drawSegmentInk, planSegmentInk };
 
@@ -101,7 +101,7 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
   const compiled = ts.transpileModule(readFileSync(sourceFile, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const module = { exports: {} };
+  const mod = { exports: {} };
   const localRequire = (specifier: string) => {
     if (specifier === "react") return { useRef: ref, useCallback: <T>(fn: T) => fn };
     if (specifier === "@heytutor/tutor-core") return { ...core, tutorDebug() {}, SpeechSynthesisTTSClient: BrowserVoice };
@@ -112,8 +112,8 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
     if (specifier.endsWith("/turnTelemetry")) return { recordFirstAudible() {}, recordTtsFirstByte() {} };
     return requireApp(specifier.startsWith(".") ? path.resolve(path.dirname(fileURLToPath(new URL("../../features/tutor-session/hooks/turn/useSegmentRunner.ts", import.meta.url))), specifier) : specifier);
   };
-  new Function("require", "module", "exports", compiled)(localRequire, module, module.exports);
-  const { useSegmentRunner } = module.exports as typeof import("../../features/tutor-session/hooks/turn/useSegmentRunner");
+  new Function("require", "module", "exports", compiled)(localRequire, mod, mod.exports);
+  const runnerHooks = mod.exports as typeof import("../../features/tutor-session/hooks/turn/useSegmentRunner");
   const params: UseSegmentRunnerParams = {
     sessionId: "offline-audio-clock", activeVerifiedDiagramRef: ref(null),
     cancellableDelay: async () => {}, ensureTTSClient: () => tts,
@@ -129,7 +129,7 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
     narrationSinceEpochRef: ref(""), currentTraceIdRef: ref(null), setCurrentSegmentText() {},
     narrationDensityRef: ref(0), drawChainRef: ref(Promise.resolve()), reserveTextCommandPlacements: async row => [row],
   };
-  const hook = useSegmentRunner(params);
+  const hook = runnerHooks.useSegmentRunner(params);
   const run = hook.runSegment(segment, 0, [segment], 1);
   // Observe immediately so an intentionally failed transport is never unhandled.
   const joined = run.then(() => undefined, error => error);
