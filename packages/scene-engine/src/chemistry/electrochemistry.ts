@@ -432,6 +432,32 @@ function readPressure(text: string): number | null {
   return literalValue(text, "pressure", "bar");
 }
 
+/** Original reaction participants and '+' positions; neither supplies activities. */
+function originalReactionParticipants(source: string): {operators: Set<number>; species: Set<string>} {
+  const electron = String.raw`e(?:\^?\(?-\)?|⁻)`;
+  const term = String.raw`(?:[1-9]\d*\s*)?(${SPECIES}|${electron})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
+  const side = `${term}(?:\\s*\\+\\s*${term})*`;
+  const arrow = String.raw`(?:->|→|⟶|⇌|⇄|↔|⇒)`;
+  const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*\\+)`, "gu");
+  const operators = new Set<number>();
+  const species = new Set<string>();
+  for (const reaction of source.matchAll(reactions)) {
+    const terms = [...reaction[0].matchAll(new RegExp(`${term}(?=\\s*(?:\\+|${arrow}|$))`, "gu"))];
+    if (!terms.every(part => new RegExp(`^${electron}$`, "u").test(part[1]!)
+      || Boolean(parseFormula(canonicalSpecies(part[1]!) ?? "")))) continue;
+    for (const part of terms) {
+      const canonical = canonicalSpecies(part[1]!);
+      if (canonical) species.add(canonical);
+    }
+    for (let index = 1; index < terms.length; index += 1) {
+      const previousEnd = terms[index - 1]!.index! + terms[index - 1]![0].length;
+      const between = reaction[0].slice(previousEnd, terms[index]!.index);
+      if (/^\s*\+\s*$/.test(between)) operators.add(reaction.index! + previousEnd + between.indexOf("+"));
+    }
+  }
+  return {operators, species};
+}
+
 /** Each supplied activity has its own complete original ion/salt owner. */
 function sourceActivityConcentrations(source: string): Record<string, number> | null {
   const found = findChemistryQuantities({question: source, dimension: "concentration", targetUnit: "mol/L"});
@@ -442,15 +468,17 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
   };
   // Validate each original owner before an aggregate reader can skip a missing
   // declaration and retain a later good one. Electron coefficients are not activities.
-  const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d]|\\.(?=\\d)|unknown|unreadable)`, "gu");
-  const explicitDeclaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)\\s*`, "gu");
+  const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:(?:concentration|activity)\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d]|\\.(?=\\d)|unknown|unreadable)`, "gu");
+  const explicitDeclaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:(?:concentration|activity)\\s*)?(?:is|are|=|:|of|at)\\s*`, "gu");
+  const reactionOperators = originalReactionParticipants(source).operators;
   for (const declared of [...source.matchAll(explicitDeclaration), ...source.matchAll(declaration)]) {
     if (!isActivitySpecies(declared[1]!)) {
       if (/[⁺⁻+−-]/.test(declared[1]!)) return null;
       continue;
     }
     const start = declared.index! + declared[0].length;
-    if (/^\+\s*\d*\s*e(?:\^?\(?-\)?|⁻)?\s*(?:->|=|→|⟶|⇌|⇄|↔|⇒)/.test(source.slice(start))) continue;
+    const ownerTail = declared[0].slice(declared[1]!.length).trim();
+    if ((!ownerTail || /^\(aq\)$/.test(ownerTail)) && reactionOperators.has(start)) continue;
     if (!readChemistryQuantity({question: source, after: /^/, within: {start, end: source.length}, dimension: "concentration", targetUnit: "mol/L"}).ok) return null;
   }
   // Unsupported scalar scripts are still supplied material, never an omitted 1 M activity.
@@ -901,6 +929,11 @@ export function parseCellNotation(text: string): CellSpec | null {
   const finish = (anode: HalfCell | null, cathode: HalfCell | null, kind: CellSpec["source"]): CellSpec | null => {
     if (!anode || !cathode) return null;
     const halves = [anode, cathode];
+    // Recognising punctuation cannot replace an explicit incompatible reaction
+    // with a named cell's table species.
+    for (const species of originalReactionParticipants(source).species) {
+      if (!halves.some(half => half.record?.species.some(participant => participant.formula === species))) return null;
+    }
     const activities = halves.map(half => ({...half.concentrations}));
     for (const [ion, value] of Object.entries(sourceConcentrations)) {
       const owners = halves.flatMap((half, index) => half.record?.species.some(species => species.formula === ion && species.phase === "aq") ? [index] : []);
