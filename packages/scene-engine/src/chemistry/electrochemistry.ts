@@ -435,19 +435,25 @@ function readPressure(text: string): number | null {
 interface OriginalCellReaction {
   readonly left: Readonly<Record<string, number>>;
   readonly right: Readonly<Record<string, number>>;
+  readonly phases: readonly {species: string; phase: string; left: boolean}[];
+  readonly arrow: number;
+  readonly start: number;
   readonly end: number;
 }
 
 /** Original reaction participants and '+' positions; neither supplies activities. */
-function originalReactionParticipants(source: string): {operators: Set<number>; reactions: OriginalCellReaction[]} {
+function originalReactionParticipants(source: string): {operators: Set<number>; reactions: OriginalCellReaction[]; invalid: boolean} {
   const electron = String.raw`e(?:\^?\(?-\)?|⁻)`;
   const term = String.raw`(?:[1-9]\d*\s*)?(${SPECIES}|${electron})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
   const side = `${term}(?:\\s*\\+\\s*${term})*`;
   const arrow = String.raw`(?:->|→|⟶|⇌|⇄|↔|⇒)`;
-  const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*\\+)`, "gu");
+  const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/.-])(?<![+−/\\-\\d]\\s*)${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*\\+)`, "gu");
   const operators = new Set<number>();
   const original: OriginalCellReaction[] = [];
   for (const reaction of source.matchAll(reactions)) {
+    // A complete original coefficient/unknown token cannot be discarded while
+    // retrying at a later species or integer suffix.
+    if (/(?:^|[\s:])(?:[+−/.\-]|\d[\d.eE+−/\-]*|unknown|unreadable)\s*$/i.test(source.slice(0, reaction.index))) continue;
     const terms = [...reaction[0].matchAll(new RegExp(`${term}(?=\\s*(?:\\+|${arrow}|$))`, "gu"))];
     if (!terms.every(part => new RegExp(`^${electron}$`, "u").test(part[1]!)
       || Boolean(parseFormula(canonicalSpecies(part[1]!) ?? "")))) continue;
@@ -455,33 +461,51 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
     if (!coefficients.every(coefficient => Number.isSafeInteger(coefficient) && coefficient > 0)) continue;
     const arrowStart = new RegExp(arrow).exec(reaction[0])!.index;
     const left: Record<string, number> = {}; const right: Record<string, number> = {};
+    const phases: {species: string; phase: string; left: boolean}[] = [];
     terms.forEach((part, index) => {
       const species = canonicalSpecies(part[1]!) ?? "electron";
       const side = part.index! < arrowStart ? left : right;
       side[species] = (side[species] ?? 0) + coefficients[index]!;
+      const phase = /\(\s*(aq|s|g|l)\s*\)$/.exec(part[0])?.[1];
+      if (phase) phases.push({species, phase, left: part.index! < arrowStart});
     });
-    original.push({left, right, end: reaction.index! + reaction[0].length});
+    original.push({left, right, phases, arrow: reaction.index! + arrowStart, start: reaction.index!, end: reaction.index! + reaction[0].length});
     for (let index = 1; index < terms.length; index += 1) {
       const previousEnd = terms[index - 1]!.index! + terms[index - 1]![0].length;
       const between = reaction[0].slice(previousEnd, terms[index]!.index);
       if (/^\s*\+\s*$/.test(between)) operators.add(reaction.index! + previousEnd + between.indexOf("+"));
     }
   }
-  return {operators, reactions: original};
+  // Explicit original equation owners are present data even if the lexer
+  // cannot produce any record. A later valid record cannot replace that owner.
+  let invalid = [...source.matchAll(new RegExp(arrow, "g"))].some(operator => !original.some(reaction => reaction.arrow === operator.index));
+  const owners = /\b(?:(?:cell|half)\s+)?reactions?\b\s*(?:(is|are|takes\s+place)\s*)?([:=])?\s*/gi;
+  for (const owner of source.matchAll(owners)) {
+    const start = owner.index! + owner[0].length;
+    const tail = source.slice(start);
+    const supplied = Boolean(owner[1] || owner[2]) || /^(?:[A-Z]|\d|[+−/.-]\s*\d|unknown\b|unreadable\b|(?:->|→|⟶|⇌|⇄|↔|⇒))/.test(tail);
+    if (supplied && !original.some(reaction => reaction.start === start)) invalid = true;
+  }
+  return {operators, reactions: original, invalid};
 }
 
 /** A stated reaction must retain the chosen cell's direction and stoichiometric scale. */
 function selectedCellReactionsValid(source: string, anode: HalfCell, cathode: HalfCell): boolean {
-  const reactions = originalReactionParticipants(source).reactions;
+  const original = originalReactionParticipants(source);
+  if (original.invalid) return false;
+  const reactions = original.reactions;
   if (!reactions.length) return true;
   if (!anode.record || !cathode.record || anode.n === null || cathode.n === null) return false;
-  const count = (half: HalfCell, reduction: boolean, electrons: number): {left: Record<string, number>; right: Record<string, number>} => {
+  type Counts = {left: Record<string, number>; right: Record<string, number>; leftPhases: Record<string, string>; rightPhases: Record<string, string>};
+  const count = (half: HalfCell, reduction: boolean, electrons: number): Counts => {
     const left: Record<string, number> = {}; const right: Record<string, number> = {};
+    const leftPhases: Record<string, string> = {}; const rightPhases: Record<string, string> = {};
     for (const species of half.record!.species) {
       const side = (species.side === "ox") === reduction ? left : right;
       side[species.formula] = (side[species.formula] ?? 0) + electrons * species.perElectron;
+      ((species.side === "ox") === reduction ? leftPhases : rightPhases)[species.formula] = species.phase;
     }
-    return {left, right};
+    return {left, right, leftPhases, rightPhases};
   };
   const merge = (first: Readonly<Record<string, number>>, second: Readonly<Record<string, number>>): Record<string, number> => {
     const combined = {...first};
@@ -492,10 +516,11 @@ function selectedCellReactionsValid(source: string, anode: HalfCell, cathode: Ha
     return Object.keys(actual).length === Object.keys(expected).length
       && Object.entries(actual).every(([species, coefficient]) => expected[species] !== undefined && chemistryCanonicalValuesAgree(coefficient, expected[species]!));
   };
-  const matches = (reaction: OriginalCellReaction, expected: {left: Readonly<Record<string, number>>; right: Readonly<Record<string, number>>}): boolean => same(reaction.left, expected.left) && same(reaction.right, expected.right);
+  const matches = (reaction: OriginalCellReaction, expected: Counts): boolean => same(reaction.left, expected.left) && same(reaction.right, expected.right)
+    && reaction.phases.every(participant => (participant.left ? expected.leftPhases : expected.rightPhases)[participant.species] === participant.phase);
   const n = (anode.n * cathode.n) / gcd(anode.n, cathode.n);
   const oxidation = count(anode, false, n); const reduction = count(cathode, true, n);
-  const cell = {left: merge(oxidation.left, reduction.left), right: merge(oxidation.right, reduction.right)};
+  const cell = {left: merge(oxidation.left, reduction.left), right: merge(oxidation.right, reduction.right), leftPhases: {...oxidation.leftPhases, ...reduction.leftPhases}, rightPhases: {...oxidation.rightPhases, ...reduction.rightPhases}};
   const halves = [{half: anode, reduction: false}, {half: cathode, reduction: true}];
   return reactions.every(reaction => {
     if (matches(reaction, cell)) return true;
@@ -527,7 +552,9 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
   // declaration and retain a later good one. Electron coefficients are not activities.
   const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:(?:concentration|activity)\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d]|\\.(?=\\d)|unknown|unreadable)`, "gu");
   const explicitDeclaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:(?:concentration|activity)\\s*)?(?:is|are|=|:|of|at)\\s*`, "gu");
-  const reactionOperators = originalReactionParticipants(source).operators;
+  const originalReactions = originalReactionParticipants(source);
+  if (originalReactions.invalid) return null;
+  const reactionOperators = originalReactions.operators;
   for (const declared of [...source.matchAll(explicitDeclaration), ...source.matchAll(declaration)]) {
     if (!isActivitySpecies(declared[1]!)) {
       if (/[⁺⁻+−-]/.test(declared[1]!)) return null;

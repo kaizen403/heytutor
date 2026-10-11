@@ -190,6 +190,208 @@ standardHalfReactions.forEach((text, index) => {
   check(`validated adjacent E° half-reaction role remains separate from cell direction ${index + 1}`, question, () => positive(question));
 });
 
+// BEGIN REACTION OWNER V2: complete original owners, coefficients and phases.
+const reactionOwnerReviewerRows = [
+  [
+    "unread-reaction-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) → unknown."
+  ],
+  [
+    "unread-reaction-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: unknown → Cu(s)."
+  ],
+  [
+    "unread-reaction-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) → ?."
+  ],
+  [
+    "unread-reaction-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Half reaction: Zn(s) → ."
+  ],
+  [
+    "unread-reaction-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) → Xx(s)."
+  ],
+  [
+    "unsupported-coefficient-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: 0 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "unsupported-coefficient-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: -1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "unsupported-coefficient-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: .1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "unsupported-coefficient-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: 1.0 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "unsupported-coefficient-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: 0/1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ]
+] as const;
+for (const [id, question] of reactionOwnerReviewerRows) check(id, question, () => declined(question));
+
+const unreadOwnerOwn = [
+  [
+    "unreadOwnerOwn-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction is unreadable."
+  ],
+  [
+    "unreadOwnerOwn-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction = unknown."
+  ],
+  [
+    "unreadOwnerOwn-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Half reaction: ."
+  ],
+  [
+    "unreadOwnerOwn-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) -> ."
+  ],
+  [
+    "unreadOwnerOwn-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: unknown → unreadable."
+  ]
+] as const;
+for (const [id, question] of unreadOwnerOwn) check(id, question, () => declined(question));
+
+const coefficientOwnerOwn = [
+  [
+    "coefficientOwnerOwn-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: +1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "coefficientOwnerOwn-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: - 1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "coefficientOwnerOwn-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: 1e0 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "coefficientOwnerOwn-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: 1/1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "coefficientOwnerOwn-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: 01 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ]
+] as const;
+for (const [id, question] of coefficientOwnerOwn) check(id, question, () => declined(question));
+
+const unlabeledArrowOwn = [
+  [
+    "unlabeledArrowOwn-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Zn(s) → unknown."
+  ],
+  [
+    "unlabeledArrowOwn-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. unknown → Cu(s)."
+  ],
+  [
+    "unlabeledArrowOwn-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Zn(s) → ."
+  ],
+  [
+    "unlabeledArrowOwn-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. 0 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "unlabeledArrowOwn-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. -1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ]
+] as const;
+for (const [id, question] of unlabeledArrowOwn) check(id, question, () => declined(question));
+
+const phaseOwnerOwn = [
+  [
+    "phaseOwnerOwn-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(g) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "phaseOwnerOwn-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(s) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "phaseOwnerOwn-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(l) + Cu(s)."
+  ],
+  [
+    "phaseOwnerOwn-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(l)."
+  ],
+  [
+    "phaseOwnerOwn-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(aq) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ]
+] as const;
+for (const [id, question] of phaseOwnerOwn) check(id, question, () => declined(question));
+
+const correctPhaseOwn = [
+  [
+    "correctPhaseOwn-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Cu(s) + Zn2+(aq)."
+  ],
+  [
+    "correctPhaseOwn-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Cu2+(aq) + Zn(s) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "correctPhaseOwn-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: 1 Cu2+(aq) + 1 Zn(s) → 1 Cu(s) + 1 Zn2+(aq)."
+  ],
+  [
+    "correctPhaseOwn-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn + Cu2+(aq) → Zn2+(aq) + Cu."
+  ],
+  [
+    "correctPhaseOwn-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu²⁺(aq) ⇒ Cu(s) + Zn²⁺(aq)."
+  ]
+] as const;
+for (const [id, question] of correctPhaseOwn) check(id, question, () => positive(question));
+
+const omittedReactionOwn = [
+  [
+    "omittedReactionOwn-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Draw electron flow and label anode and cathode."
+  ],
+  [
+    "omittedReactionOwn-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Find the standard emf."
+  ],
+  [
+    "omittedReactionOwn-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Write the cell reaction."
+  ],
+  [
+    "omittedReactionOwn-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. What is the cell reaction?"
+  ],
+  [
+    "omittedReactionOwn-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Describe the half reactions."
+  ]
+] as const;
+for (const [id, question] of omittedReactionOwn) check(id, question, () => positive(question));
+
+for (const [id, question] of [
+  [
+    "unlabeled-separated-dot-coefficient",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. . 1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ],
+  [
+    "unlabeled-separated-decimal-coefficient",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. 0. 1 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s)."
+  ]
+] as const) check(id, question, () => declined(question));
+
+// END REACTION OWNER V2: complete original owners, coefficients and phases.
+
 const summary = {total: rows.length, passed: rows.filter(row => row.passed).length, failed: rows.filter(row => !row.passed).length, rows};
 const outIndex = process.argv.indexOf("--out");
 if (outIndex >= 0 && process.argv[outIndex + 1]) writeFileSync(process.argv[outIndex + 1]!, JSON.stringify(summary, null, 2) + "\n");
