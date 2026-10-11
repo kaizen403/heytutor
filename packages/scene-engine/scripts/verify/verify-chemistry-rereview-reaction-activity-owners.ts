@@ -146,6 +146,48 @@ const incompatibleReactions = [
 incompatibleReactions.forEach((text, index) => {
   const question = header + text;
   check(`named cell cannot replace incompatible original reaction species ${index + 1}`, question, () => declined(question));
+  const genericQuestion = "Draw a galvanic cell with its salt bridge. It is a Daniell cell. The standard emf is 1.1 V. At 298 K. " + text;
+  check(`incompatible named reaction cannot escape through generic schematic ${index + 1}`, genericQuestion, () => declined(genericQuestion));
+});
+
+const reversedReactions = [
+  "Cell reaction: Cu(s) + Zn2+(aq) → Cu2+(aq) + Zn(s).",
+  "Cell reaction: Cu + Zn2+ -> Cu2+ + Zn.",
+  "Cell reaction: Cu(s) + Zn²⁺(aq) ⟶ Cu²⁺(aq) + Zn(s).",
+  "Cell reaction: 1 Cu(s) + 1 Zn2+(aq) → 1 Cu2+(aq) + 1 Zn(s).",
+  "Cell reaction: Zn2+(aq) + Cu(s) → Zn(s) + Cu2+(aq).",
+];
+const scaledReactions = [
+  "Cell reaction: 2 Zn(s) + 2 Cu2+(aq) → 2 Zn2+(aq) + 2 Cu(s).",
+  "Cell reaction: 3 Zn + 3 Cu2+ -> 3 Zn2+ + 3 Cu.",
+  "Cell reaction: 4 Zn(s) + 4 Cu²⁺(aq) ⟶ 4 Zn²⁺(aq) + 4 Cu(s).",
+  "Cell reaction: 2 Cu2+(aq) + 2 Zn(s) → 2 Cu(s) + 2 Zn2+(aq).",
+  "Half reaction: 2 Zn(s) → 2 Zn2+(aq) + 4e-.",
+];
+const unbalancedReactions = [
+  "Cell reaction: Zn(s) + Cu2+(aq) → 2 Zn2+(aq) + Cu(s).",
+  "Cell reaction: 2 Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s).",
+  "Cell reaction: Zn(s) + 2 Cu²⁺(aq) → Zn²⁺(aq) + Cu(s).",
+  "Cell reaction: Zn(s) + Cu2+(aq) -> Zn2+(aq) + 2 Cu(s).",
+  "Half reaction: Cu2+(aq) + e- → Cu(s).",
+];
+for (const [kind, examples] of [["reversed", reversedReactions], ["scaled", scaledReactions], ["unbalanced", unbalancedReactions]] as const) {
+  examples.forEach((text, index) => {
+    const question = header + text;
+    check(`${kind} original reaction cannot retain stock positive emf/electron/Gibbs quantities ${index + 1}`, question, () => declined(question));
+  });
+}
+
+const standardHalfReactions = [
+  "Zn2+(aq) + 2e- → Zn(s), E° = -0.76 V; Cu2+(aq) + 2e- → Cu(s), E° = 0.34 V.",
+  "Zn2+ + 2e- -> Zn, E° = -0.76 V; Cu2+ + 2e- -> Cu, E° = 0.34 V.",
+  "Zn²⁺ + 2 e⁻ → Zn; E° = -0.76 V; Cu²⁺ + 2 e⁻ → Cu; E° = 0.34 V.",
+  "Zn²⁺ + 2 e- → Zn; E° = -0.76 V; Cu²⁺ + 2 e- → Cu; E° = 0.34 V.",
+  "Zn2+ + 2 e^- → Zn; E° = -0.76 V; Cu2+ + 2 e^- → Cu; E° = 0.34 V.",
+];
+standardHalfReactions.forEach((text, index) => {
+  const question = header + text;
+  check(`validated adjacent E° half-reaction role remains separate from cell direction ${index + 1}`, question, () => positive(question));
 });
 
 const summary = {total: rows.length, passed: rows.filter(row => row.passed).length, failed: rows.filter(row => !row.passed).length, rows};

@@ -432,30 +432,87 @@ function readPressure(text: string): number | null {
   return literalValue(text, "pressure", "bar");
 }
 
+interface OriginalCellReaction {
+  readonly left: Readonly<Record<string, number>>;
+  readonly right: Readonly<Record<string, number>>;
+  readonly end: number;
+}
+
 /** Original reaction participants and '+' positions; neither supplies activities. */
-function originalReactionParticipants(source: string): {operators: Set<number>; species: Set<string>} {
+function originalReactionParticipants(source: string): {operators: Set<number>; reactions: OriginalCellReaction[]} {
   const electron = String.raw`e(?:\^?\(?-\)?|⁻)`;
   const term = String.raw`(?:[1-9]\d*\s*)?(${SPECIES}|${electron})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
   const side = `${term}(?:\\s*\\+\\s*${term})*`;
   const arrow = String.raw`(?:->|→|⟶|⇌|⇄|↔|⇒)`;
   const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*\\+)`, "gu");
   const operators = new Set<number>();
-  const species = new Set<string>();
+  const original: OriginalCellReaction[] = [];
   for (const reaction of source.matchAll(reactions)) {
     const terms = [...reaction[0].matchAll(new RegExp(`${term}(?=\\s*(?:\\+|${arrow}|$))`, "gu"))];
     if (!terms.every(part => new RegExp(`^${electron}$`, "u").test(part[1]!)
       || Boolean(parseFormula(canonicalSpecies(part[1]!) ?? "")))) continue;
-    for (const part of terms) {
-      const canonical = canonicalSpecies(part[1]!);
-      if (canonical) species.add(canonical);
-    }
+    const coefficients = terms.map(part => Number(/^[1-9]\d*/.exec(part[0])?.[0] ?? 1));
+    if (!coefficients.every(coefficient => Number.isSafeInteger(coefficient) && coefficient > 0)) continue;
+    const arrowStart = new RegExp(arrow).exec(reaction[0])!.index;
+    const left: Record<string, number> = {}; const right: Record<string, number> = {};
+    terms.forEach((part, index) => {
+      const species = canonicalSpecies(part[1]!) ?? "electron";
+      const side = part.index! < arrowStart ? left : right;
+      side[species] = (side[species] ?? 0) + coefficients[index]!;
+    });
+    original.push({left, right, end: reaction.index! + reaction[0].length});
     for (let index = 1; index < terms.length; index += 1) {
       const previousEnd = terms[index - 1]!.index! + terms[index - 1]![0].length;
       const between = reaction[0].slice(previousEnd, terms[index]!.index);
       if (/^\s*\+\s*$/.test(between)) operators.add(reaction.index! + previousEnd + between.indexOf("+"));
     }
   }
-  return {operators, species};
+  return {operators, reactions: original};
+}
+
+/** A stated reaction must retain the chosen cell's direction and stoichiometric scale. */
+function selectedCellReactionsValid(source: string, anode: HalfCell, cathode: HalfCell): boolean {
+  const reactions = originalReactionParticipants(source).reactions;
+  if (!reactions.length) return true;
+  if (!anode.record || !cathode.record || anode.n === null || cathode.n === null) return false;
+  const count = (half: HalfCell, reduction: boolean, electrons: number): {left: Record<string, number>; right: Record<string, number>} => {
+    const left: Record<string, number> = {}; const right: Record<string, number> = {};
+    for (const species of half.record!.species) {
+      const side = (species.side === "ox") === reduction ? left : right;
+      side[species.formula] = (side[species.formula] ?? 0) + electrons * species.perElectron;
+    }
+    return {left, right};
+  };
+  const merge = (first: Readonly<Record<string, number>>, second: Readonly<Record<string, number>>): Record<string, number> => {
+    const combined = {...first};
+    for (const [species, coefficient] of Object.entries(second)) combined[species] = (combined[species] ?? 0) + coefficient;
+    return combined;
+  };
+  const same = (actual: Readonly<Record<string, number>>, expected: Readonly<Record<string, number>>): boolean => {
+    return Object.keys(actual).length === Object.keys(expected).length
+      && Object.entries(actual).every(([species, coefficient]) => expected[species] !== undefined && chemistryCanonicalValuesAgree(coefficient, expected[species]!));
+  };
+  const matches = (reaction: OriginalCellReaction, expected: {left: Readonly<Record<string, number>>; right: Readonly<Record<string, number>>}): boolean => same(reaction.left, expected.left) && same(reaction.right, expected.right);
+  const n = (anode.n * cathode.n) / gcd(anode.n, cathode.n);
+  const oxidation = count(anode, false, n); const reduction = count(cathode, true, n);
+  const cell = {left: merge(oxidation.left, reduction.left), right: merge(oxidation.right, reduction.right)};
+  const halves = [{half: anode, reduction: false}, {half: cathode, reduction: true}];
+  return reactions.every(reaction => {
+    if (matches(reaction, cell)) return true;
+    for (const role of halves) {
+      const half = count(role.half, role.reduction, role.half.n!);
+      (role.reduction ? half.left : half.right).electron = role.half.n!;
+      if (matches(reaction, half)) return true;
+      // A complete adjacent E° assignment owns a reduction-potential half
+      // reaction, independently of its cell's oxidation/reduction direction.
+      const assignment = new RegExp(`^\\s*[,;]?\\s*${E_NAUGHT}\\s*(?:=|is|:)\\s*`, "i").exec(source.slice(reaction.end));
+      if (!assignment || role.half.potentialSource !== "stem") continue;
+      const read = readChemistryQuantity({question: source, after: /^/, within: {start: reaction.end + assignment[0].length, end: source.length}, dimension: "potential", targetUnit: "V"});
+      const reductionHalf = count(role.half, true, role.half.n!); reductionHalf.left.electron = role.half.n!;
+      if (read.ok && role.half.e0 !== null && chemistryCanonicalValuesAgree(read.reading.value, role.half.e0) && matches(reaction, reductionHalf)) return true;
+    }
+    return false;
+  });
 }
 
 /** Each supplied activity has its own complete original ion/salt owner. */
@@ -929,11 +986,7 @@ export function parseCellNotation(text: string): CellSpec | null {
   const finish = (anode: HalfCell | null, cathode: HalfCell | null, kind: CellSpec["source"]): CellSpec | null => {
     if (!anode || !cathode) return null;
     const halves = [anode, cathode];
-    // Recognising punctuation cannot replace an explicit incompatible reaction
-    // with a named cell's table species.
-    for (const species of originalReactionParticipants(source).species) {
-      if (!halves.some(half => half.record?.species.some(participant => participant.formula === species))) return null;
-    }
+    if (!selectedCellReactionsValid(source, anode, cathode)) return null;
     const activities = halves.map(half => ({...half.concentrations}));
     for (const [ion, value] of Object.entries(sourceConcentrations)) {
       const owners = halves.flatMap((half, index) => half.record?.species.some(species => species.formula === ion && species.phase === "aq") ? [index] : []);
@@ -1734,6 +1787,7 @@ function buildGalvanic(question: string, _quantities: ChemPlanQuantity[], schema
     if (!schematic) return null;
     if (sourceActivityConcentrations(question) === null || readTemperature(question) === null
       || readStatedCellPotentials(question) === null
+      || originalReactionParticipants(question).reactions.length > 0
       || !findChemistryQuantities({question, dimension: "pressure"}).ok
       || /\||‖|¦/.test(question) || new RegExp(COUPLE).test(question)) return null;
     return buildSchematicGalvanic(question, lower);
