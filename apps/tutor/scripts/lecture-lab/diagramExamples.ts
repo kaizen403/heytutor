@@ -129,11 +129,16 @@ export function curatedDiagramExemplarSubject(id: string): DiagramExemplarSubjec
  * (null: an old client that sends none, or a turn classified `other`) keeps
  * the whole library, which is what every turn saw before subjects existed.
  */
+/**
+ * Physics and chemistry turns see only their own shelf. Maths keeps the whole library for now: generated
+ * maths shapes (a bare parabola, a quartic) are filed under the physics question they came from, and maths
+ * strict was measured on the whole library.
+ */
 export function filterDiagramExemplarsForSubject(
   exemplars: readonly DiagramExemplar[],
   subject: DiagramExemplarSubject | null,
 ): DiagramExemplar[] {
-  return subject === null ? [...exemplars] : exemplars.filter((exemplar) => exemplar.subject === subject);
+  return subject === null || subject === "maths" ? [...exemplars] : exemplars.filter((exemplar) => exemplar.subject === subject);
 }
 
 /** Stable scoring taxonomy; evaluation labels never enter runtime retrieval. */

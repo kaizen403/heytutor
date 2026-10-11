@@ -1,6 +1,6 @@
 {
   "topic_id": "physics|2|projectile-from-height",
-  "question": "A stone is thrown horizontally at 7 m/s from the edge of a cliff 44.1 m high. Draw its path to the ground below, marking the cliff height, the launch velocity, the landing point and the horizontal distance travelled.",
+  "question": "A stone is thrown horizontally at 7 m/s from the edge of a cliff 44.1 m high (take g = 9.8 m/s²). Draw its path to the ground below, marking the cliff height, the launch velocity, the landing point and the horizontal distance travelled.",
   "figure_kind": "motion_path",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
@@ -9,7 +9,7 @@
       "reason": "stone thrown horizontally off a cliff"
     },
     "source": {
-      "question": "A stone is thrown horizontally at 7 m/s from the edge of a cliff 44.1 m high. Draw its path to the ground below, marking the cliff height, the launch velocity, the landing point and the horizontal distance travelled.",
+      "question": "A stone is thrown horizontally at 7 m/s from the edge of a cliff 44.1 m high (take g = 9.8 m/s²). Draw its path to the ground below, marking the cliff height, the launch velocity, the landing point and the horizontal distance travelled.",
       "archetype": "projectile"
     },
     "quantities": [

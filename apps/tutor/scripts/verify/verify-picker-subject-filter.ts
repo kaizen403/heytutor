@@ -106,7 +106,9 @@ async function main(): Promise<void> {
     assert.deepEqual(wrong.slice(0, 3), [], `${wrong.length} loaded entries carry the wrong subject`);
   });
 
-  for (const subject of SUBJECTS) {
+  // Maths keeps the whole library (some maths shapes are filed under physics); physics and chemistry are shelved.
+  const SHELVED: readonly Subject[] = ["physics", "chemistry"];
+  for (const subject of SHELVED) {
     await check(`a ${subject} turn's picker catalogue holds only ${subject} entries`, () => {
       const ids = pickerCatalogueIds({ plan, subject });
       assert.ok(ids.length > 0, `the ${subject} catalogue is empty`);
@@ -115,9 +117,15 @@ async function main(): Promise<void> {
     });
   }
 
+  await check("a maths turn keeps the whole library, as maths strict was measured", () => {
+    assert.deepEqual(pickerCatalogueIds({ plan, subject: "maths" }), pickerCatalogueIds({ plan }), "the maths catalogue differs from the whole library");
+    const all = SUBJECTS.map((subject) => idsOf(subject)[0]!);
+    assert.deepEqual(serverLibrary.resolveLiveDiagramExamples(QUESTION, all, "maths" as never).map((entry) => entry.id), all);
+  });
+
   await check("a cross-subject id is not resolved for the scene planner", () => {
     const one = Object.fromEntries(SUBJECTS.map((subject) => [subject, idsOf(subject)[0]!])) as Record<Subject, string>;
-    for (const subject of SUBJECTS) {
+    for (const subject of SHELVED) {
       const resolved = serverLibrary.resolveLiveDiagramExamples(QUESTION, Object.values(one), subject as never);
       assert.deepEqual(resolved.map((entry) => entry.id), [one[subject]], `a ${subject} request resolved another subject's id`);
     }
