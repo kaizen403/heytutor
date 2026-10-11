@@ -45,6 +45,9 @@ async function main(): Promise<void> {
   for (const [name, fixture, expectedStatus] of [
     ["withdraw unsupported Unicode alias", bindingFixture("x", "xₘₐₓ"), "incomplete"],
     ["retain equivalent request formatting", bindingFixture("x_max", "x_max", "xₘₐₓ"), "verified"],
+    ["withdraw unsupported mixed Delta plan notation", bindingFixture("Δv", String.raw`\Delta v`), "incomplete"],
+    ["withdraw unsupported reverse mixed Delta plan notation", bindingFixture(String.raw`\Delta v`, "Δv"), "incomplete"],
+    ["retain canonicalized raw Delta markup", bindingFixture("Δv", "Δv", String.raw`\Delta v`), "verified"],
   ] as const) {
     const authority = await normalizeAndAudit(fixture);
     const blockedByAuthority = authority.audit.status === "contradiction";

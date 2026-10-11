@@ -4,6 +4,7 @@ import {
   evaluateMathExpression,
   expressionToSafeSource,
   solveWithDeadline,
+  solverAuthoritySymbolsAgree,
   validateProblemIR,
   validateSolverResult,
   verifyTurnPlanAgainstSolver,
@@ -317,9 +318,12 @@ function normalizeResultBinding(
   const derived = turnPlan.derived.find((candidate) => candidate.id === raw.turnPlanQuantityId);
   const evidenceFactIds = filterIds(raw.evidenceFactIds, factIds);
   if (!unknown || !derived || evidenceFactIds.length === 0) return null;
+  // The raw request canonicalizes to the unknown below. Plan symbols remain
+  // unchanged, so their identity must also be compatible with the real audit.
   if (
     bindingSymbolKey(raw.symbol) !== bindingSymbolKey(unknown.symbol) ||
     bindingSymbolKey(derived.symbol) !== bindingSymbolKey(unknown.symbol) ||
+    !solverAuthoritySymbolsAgree(derived.symbol, unknown.symbol) ||
     normalizeUnitToken(typeof raw.unit === "string" ? raw.unit : undefined) !== normalizeUnitToken(unknown.unit) ||
     normalizeUnitToken(derived.unit) !== normalizeUnitToken(unknown.unit)
   ) return null;
