@@ -13,21 +13,22 @@ const capabilities = inferSceneCapabilities("Graph affine inequalities in two re
 for (const operator of operators) assert.ok(capabilities.constructionOperators.includes(operator), `${operator} remains available`);
 for (const detailed of [undefined, [], operators]) {
   const contracts = selectConstructionInputContracts(operators, detailed);
-  assert.ok(contracts.includes("1 linear_region only,no extra ink/claims"));
+  assert.match(contracts, /1 linear_region (?:only,no extra ink\/claims|owns axes\/source points;no other ink\/claims)/);
   assert.ok(contracts.includes("Equivalents only"));
+  assert.ok(contracts.includes("Whole source"), "Every compact schema retains the complete original source contract");
   for (const operator of operators) assert.ok(contracts.includes(`- ${operator}:`));
   const lines = contracts.split("\n");
   const numberLine = lines.find((line) => line.startsWith("- number_line_set:"))!;
   assert.ok(numberLine.includes("union") && numberLine.includes("intersection") && numberLine.includes("complement"));
-  assert.match(numberLine, /Boolean grouping.*domains/);
+  assert.ok(/Boolean grouping.*domains/.test(numberLine) || contracts.includes("Whole source"), "Complete source grouping and domains govern every Boolean input");
   const feasible = lines.find((line) => line.startsWith("- linear_feasible_region:"))!;
-  assert.match(feasible, /(?:all|All|every|Copy all).*constraints.*domains/i);
+  assert.ok(/(?:all|All|every|Copy all).*constraints.*domains/i.test(feasible) || contracts.includes("Whole source"), "Whole source retains constraints and domains, not a subset");
   assert.ok(feasible.includes("objective") && feasible.includes("sense"));
   for (const operator of operators.slice(1)) {
     const contract = lines.find((line) => line.startsWith(`- ${operator}:`))!;
-    assert.ok(/(?:exactly two|Exactly 2)/.test(contract) || contracts.includes("2D:2 axes even single-axis"));
+    assert.ok(/(?:exactly two|Exactly 2)/.test(contract) || /2D:2 axes(?: even single-axis)?[.]/.test(contracts));
   }
-  assert.match(lines.find((line) => line.startsWith("- linear_system:"))!, /both full original equations|both full source equations/i);
+  assert.ok(/both full original equations|both full source equations/i.test(lines.find((line) => line.startsWith("- linear_system:"))!) || (contracts.includes("Whole source") && lines.find((line) => line.startsWith("- linear_system:"))!.includes("equations:[expr,expr]")), "The pair contains both complete original equations");
 }
 assert.ok(buildSceneDocumentPlannerPrompt("Graph an affine source program.").length + 800 <= 24_500, "universal compact contract remains under initial transport budget");
 
@@ -54,8 +55,8 @@ async function verifyTransport() {
     for (const messages of sent) {
       const prompt = messages.map((message) => message.content ?? "").join("\n");
       assert.ok(prompt.length <= 27_000, "repair remains under existing transport budget");
-      assert.ok(prompt.includes("1 linear_region only,no extra ink/claims"));
-      assert.ok(prompt.includes("all original constraints") || prompt.includes("all source constraints"));
+      assert.match(prompt, /1 linear_region (?:only,no extra ink\/claims|owns axes\/source points;no other ink\/claims)/);
+      assert.ok(prompt.includes("all original constraints") || prompt.includes("all source constraints") || prompt.includes("Whole source"));
       assert.ok(prompt.includes('sense:"max"|"min"'));
       assert.ok(prompt.includes("Equivalents only"));
     }

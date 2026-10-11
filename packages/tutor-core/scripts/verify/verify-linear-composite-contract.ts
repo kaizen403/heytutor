@@ -4,10 +4,10 @@ import { planSceneDocumentWithRepair } from "../../src/planners/scenePlannerV2";
 
 const operators = ["number_line_set", "linear_half_plane", "linear_feasible_region", "linear_system"];
 function verifyContract(prompt: string): void {
-  assert.match(prompt, /engine emits axes and every named source point/i, "contract must describe engine-owned original points, not merely forbid extras");
+  assert.match(prompt, /linear_region owns axes\/source points/i, "contract must retain whole composite ownership of source axes and points");
   assert.ok(prompt.includes("annotations:[]"), "membership narration must not become a protected scene annotation");
-  assert.match(prompt, /membership.*teaching stream/i, "solved membership belongs in verified teaching, not authored figure claims");
-  assert.match(prompt, /one comparison.*literal.*no quantity IDs or chains/i, "number-line leaves must be actual original comparisons");
+  assert.match(prompt, /membership.*teaching only/i, "solved membership belongs in verified teaching, not authored figure claims");
+  assert.match(prompt, /Literal one-comparison leaves;no IDs\/chains;split chains=intersection/i, "number-line leaves must be actual original comparisons");
 }
 for (const detailed of [undefined, [], operators]) verifyContract(selectConstructionInputContracts(operators, detailed));
 const originalFetch = globalThis.fetch;
