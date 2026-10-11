@@ -35,7 +35,7 @@ function parseIds(payload: unknown): string[] {
     const parsed = JSON.parse(content) as { ids?: unknown };
     if (!Array.isArray(parsed.ids)) return [];
     return [...new Set(parsed.ids.filter((id): id is string =>
-      typeof id === "string" && /^[a-z0-9][a-z0-9:_-]{0,127}$/i.test(id)))].slice(0, 3);
+      typeof id === "string" && /^[a-z0-9][a-z0-9:/_-]{0,127}$/i.test(id)))].slice(0, 3);
   } catch {
     return [];
   }

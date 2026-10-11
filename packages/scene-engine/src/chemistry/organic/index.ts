@@ -18,6 +18,8 @@ import { estimatePxPerUnit, renderMolecule, structureCaption } from "./render";
 import { organicFacts } from "./facts";
 import { heavyAtomCount, parseSmiles, type Molecule } from "./smiles";
 
+import { requiresConformationProjection } from "../foundation/conformationRequest";
+
 export const ORGANIC_FAMILY = "chem_organic" as const;
 
 export { moleculeFromName } from "./names";
@@ -369,7 +371,7 @@ export function mentionRole(lower: string, mention: Mention): "reagent" | "produ
 /** True when the stem names a compound the family can draw, or asks for isomers of a tabled formula. */
 export function isOrganicStem(question: string): boolean {
   const stem = chemStem(question);
-  if (NOT_ORGANIC.test(stem)) return false;
+  if (NOT_ORGANIC.test(stem) || requiresConformationProjection(question)) return false;
   const complexes = complexTokens(question);
   const mentions = distinctMentions(findMentions(question));
   const strong = mentions.filter((mention) => !mention.weak);

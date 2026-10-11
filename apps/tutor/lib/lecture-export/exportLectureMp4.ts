@@ -11,8 +11,13 @@ import {
 } from "mediabunny";
 import type { VirtualWhiteboardClock } from "@heytutor/whiteboard";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
+import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { pageTurnsEndingAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { buildReplayTimeline, type ReplayCue } from "@/lib/replay/replayTimeline";
+import { drawReplayDiagramTimeline } from "@/features/tutor-session/lib/replay/completeReplayDiagram";
+import { resetReplayPageAtTurn } from "@/features/tutor-session/lib/replay/replayPageBoundary";
+import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
 import { DSA_CODE_PANEL_RECT, WHITEBOARD_COLOR } from "@/features/tutor-session/constants";
 import { canEncodeLectureMp4 } from "./canExportLectureMp4";
@@ -21,7 +26,7 @@ import {
   codeLessonFrameSpec,
   codeLessonSpanAt,
 } from "./codeLessonExportTrack";
-import { drawLectureTimeline, type ExportExecuteCommand } from "./drawLectureTimeline";
+import type { ExportExecuteCommand } from "./drawLectureTimeline";
 import {
   LECTURE_EXPORT_SAMPLE_RATE,
   buildLectureAudioTrack,
@@ -194,6 +199,9 @@ export async function exportLectureMp4(options: {
   shouldYield?: () => boolean;
   /** Lesson time the drawing may run past the last word. */
   tailLimitMs?: number;
+  /** Keep the hidden command executor on the same verified page as replay. */
+  onTurnStart?: (turn: StoredTurn, diagram: VerifiedDiagram | null) => void;
+  resetBoardLayout?: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
 }): Promise<LectureExportResult> {
   const pageTurns = options.pageTurns && options.pageTurns.length > 0
     ? options.pageTurns
@@ -275,17 +283,40 @@ export async function exportLectureMp4(options: {
     options.whiteboard.setTimeSource(options.clock.source);
     options.whiteboard.setAnimationSpeed(1);
     await options.whiteboard.clearBoard(0);
+    options.resetBoardLayout?.(false, false);
 
     const drawShouldCancel = () => abandoned || options.shouldCancel();
     let drawFailed = false;
     let drawError: unknown = undefined;
-    const drawPromise = drawLectureTimeline({
+    let syncedTurnIndex = -1;
+    let activeDiagram: VerifiedDiagram | null = null;
+    const drawPromise = drawReplayDiagramTimeline({
       cues: timeline.cues,
       executeCommand: options.executeCommand,
       getClockMs: options.clock.now,
       waitForAdvance: options.clock.waitForAdvance,
       shouldCancel: drawShouldCancel,
       setAnimationSpeed: (rate) => options.whiteboard.setAnimationSpeed(rate),
+      getTurn: (turnIndex) => pageTurns[turnIndex],
+      getPageTurns: (turnIndex) => pageTurnsEndingAt(pageTurns, turnIndex),
+      getDiagram: () => activeDiagram,
+      onCueStart: async (cue) => {
+        if (cue.turnIndex === syncedTurnIndex) return;
+        const turn = pageTurns[cue.turnIndex]!;
+        if (!await resetReplayPageAtTurn({
+          turn, previousTurnIndex: syncedTurnIndex, turnIndex: cue.turnIndex,
+          whiteboard: options.whiteboard, resetBoardLayout: options.resetBoardLayout ?? (() => {}),
+          shouldCancel: drawShouldCancel,
+        })) return;
+        // Continuations retain the opening page's verified figure. Their own
+        // scene may be absent; only the shared completion authority can decide
+        // whether a completed resume may release its remaining marks.
+        if (syncedTurnIndex < 0 || !storedTurnContinuesBoard(turn)) {
+          activeDiagram = turn.visualStatus === "validated" ? restoreVerifiedDiagramFromTurn(turn) : null;
+        }
+        syncedTurnIndex = cue.turnIndex;
+        options.onTurnStart?.(turn, activeDiagram);
+      },
     });
     // A drawing that fails early stops the encode then, not after the whole
     // lesson has been recorded around a broken board.

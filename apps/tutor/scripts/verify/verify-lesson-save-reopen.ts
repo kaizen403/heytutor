@@ -112,7 +112,11 @@ const tx = {
       return { userId: owner, reservedBytes, pendingTurns };
     },
   },
+  boardChatMessage: { count: async () => 0 },
   objectDeletionJob: {
+    findFirst: async () => [...cleanup.values()].find(job => job.attempts === 0 &&
+      job.createdAt instanceof Date && job.createdAt.getTime() <= Date.now() - 30 * 60_000 &&
+      job.nextAttemptAt instanceof Date && job.nextAttemptAt.getTime() <= Date.now()) ?? null,
     create: async ({ data }: { data: Data }) => {
       const job = { attempts: 0, ...data };
       cleanup.set(String(data.id), job);
@@ -131,7 +135,7 @@ mock.module(modulePath("lib/db/prisma.ts"), { namedExports: { prisma } });
 mock.module(modulePath("lib/object-store/s3.ts"), {
   namedExports: { uploadAudio: async (key: string) => {
     uploads++;
-    return `/api/media?key=save-reopen-fixture&object=${encodeURIComponent(key)}`;
+    return `/api/media?key=${encodeURIComponent(key)}`;
   } },
 });
 
@@ -388,7 +392,7 @@ async function saveAndReopen(subject: "maths" | "physics", solver?: SolvedIncomp
     `${subject}: server-verified figure ink must survive reopening`);
   assert(reopened.segments.some((segment) => parseStoredSegmentCommands(segment.command).some((command) => command.type === "WRITE")),
     `${subject}: narrated working must survive reopening alongside the figure`);
-  assert(reopened.segments.some((segment) => segment.audioUrl?.startsWith("/api/media?key=save-reopen-fixture")),
+  assert(reopened.segments.some((segment) => segment.audioUrl?.startsWith("/api/media?key=lectures%2F")),
     `${subject}: recording must survive the server intro canonicalization`);
   assert.equal(pendingTurns, 0, "successful saves settle their storage allowance");
   assert.equal(cleanup.size, 0, "successful saves settle their cleanup intent");
@@ -668,7 +672,7 @@ async function progressiveSaveReloadAndContinue(subject: "maths" | "physics"): P
     if (!submitted.audioBytes) continue;
     const replay = stopped.segments.find((segment) => segment.audioRef === index);
     assert(replay?.audioUrl, `${subject}: submitted clip ${index} survives canonical figure-intro insertion`);
-    assert(new URL(`https://save.test${replay.audioUrl}`).searchParams.get("object")?.endsWith(`/${index}.mp3`),
+    assert(new URL(`https://save.test${replay.audioUrl}`).searchParams.get("key")?.endsWith(`/${index}.mp3`),
       "audioRef follows the submitted row, not its shifted canonical order");
   }
   const silentTail = stopped.segments.find((segment) => segment.audioRef === payload.segments.length);
