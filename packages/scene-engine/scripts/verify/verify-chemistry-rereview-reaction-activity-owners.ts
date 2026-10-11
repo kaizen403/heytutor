@@ -392,6 +392,77 @@ for (const [id, question] of [
 
 // END REACTION OWNER V2: complete original owners, coefficients and phases.
 
+// BEGIN REACTION OWNER V3: complete final physical participant boundary.
+const finalPhaseDecline = [
+  [
+    "unsupported-last-phase-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(plasma)."
+  ],
+  [
+    "unsupported-last-phase-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(solid)."
+  ],
+  [
+    "unsupported-last-phase-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu (unknown)."
+  ],
+  [
+    "unsupported-last-phase-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(aqueous)."
+  ],
+  [
+    "unsupported-last-phase-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu[solid]."
+  ],
+  [
+    "own-final-phase-refusal-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu (plasma)."
+  ],
+  [
+    "own-final-phase-refusal-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu [s]."
+  ],
+  [
+    "own-final-phase-refusal-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu( s (unknown))."
+  ],
+  [
+    "own-final-phase-refusal-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu(s."
+  ],
+  [
+    "own-final-phase-refusal-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu{solid}."
+  ]
+] as const;
+for (const [id, question] of finalPhaseDecline) check(id, question, () => declined(question));
+
+const finalPhasePositive = [
+  [
+    "own-final-phase-complete-1",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu (s)."
+  ],
+  [
+    "own-final-phase-complete-2",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu."
+  ],
+  [
+    "own-final-phase-complete-3",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + 1Cu(s)."
+  ],
+  [
+    "own-final-phase-complete-4",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu2+(aq) → Zn2+(aq) + Cu( s )."
+  ],
+  [
+    "own-final-phase-complete-5",
+    "Draw a Daniell cell. The standard emf is 1.1 V. At 298 K. Cell reaction: Zn(s) + Cu²⁺(aq) ⇄ Zn²⁺(aq) + Cu(s)."
+  ]
+] as const;
+for (const [id, question] of finalPhasePositive) check(id, question, () => positive(question));
+
+// END REACTION OWNER V3: complete final physical participant boundary.
+
 const summary = {total: rows.length, passed: rows.filter(row => row.passed).length, failed: rows.filter(row => !row.passed).length, rows};
 const outIndex = process.argv.indexOf("--out");
 if (outIndex >= 0 && process.argv[outIndex + 1]) writeFileSync(process.argv[outIndex + 1]!, JSON.stringify(summary, null, 2) + "\n");

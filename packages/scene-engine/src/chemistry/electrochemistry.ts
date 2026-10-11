@@ -447,7 +447,7 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
   const term = String.raw`(?:[1-9]\d*\s*)?(${SPECIES}|${electron})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
   const side = `${term}(?:\\s*\\+\\s*${term})*`;
   const arrow = String.raw`(?:->|→|⟶|⇌|⇄|↔|⇒)`;
-  const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/.-])(?<![+−/\\-\\d]\\s*)${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*\\+)`, "gu");
+  const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/.-])(?<![+−/\\-\\d]\\s*)${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*(?:\\+|[\\(\\[\\{]))`, "gu");
   const operators = new Set<number>();
   const original: OriginalCellReaction[] = [];
   for (const reaction of source.matchAll(reactions)) {
