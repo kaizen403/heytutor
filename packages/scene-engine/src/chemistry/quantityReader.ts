@@ -357,6 +357,23 @@ export function readChemistryQuantity(input: ChemistryQuantityInput): ChemRead<C
 /** Exponent digits in a complete registered unit or parsed atomic charge are
  * notation, not independent physical scalars. Evidence uses original spans;
  * damaged or continued expressions receive no exemption. */
+function completeAtomicActivityPhase(question: string, start: number, end: number): boolean {
+  const suffix = question.slice(start, end);
+  if (!suffix.startsWith("(")) return false;
+  const close = suffix.indexOf(")");
+  if (close < 0 || !/^(?:[\s,.;:|)\]]|$)/.test(suffix.slice(close + 1))) return false;
+  const inside = suffix.slice(1, close);
+  const qualifier = /^\s*(aq|g|l)\s*,\s*/.exec(inside);
+  const offset = qualifier?.[0].length ?? /^\s*/.exec(inside)![0].length;
+  const scalarStart = start + 1 + offset;
+  const phaseEnd = start + close;
+  const dimensions: readonly ChemistryDimension[] = qualifier?.[1] === "g" ? ["pressure"]
+    : qualifier ? ["concentration"] : ["concentration", "pressure"];
+  return dimensions.some(dimension => {
+    const read = literalAt({question, dimension}, scalarStart, phaseEnd);
+    return read.ok && /^\s*$/.test(question.slice(read.reading.source.span.end, phaseEnd));
+  });
+}
 function inventoryNotationSpans(question: string, end: number): ChemistrySpan[] {
   const spans: ChemistrySpan[] = [];
   const body = question.slice(0, end);
@@ -376,7 +393,8 @@ function inventoryNotationSpans(question: string, end: number): ChemistrySpan[] 
     // A cell potential may name an independently parsed redox partner.
     const partner = /^\/([A-Z][a-z]?)(?=[\s,.;:|)\]]|$)/.exec(tail);
     const cellPair = partner && parseFormula(partner[1]!)?.totalAtoms === 1;
-    const phase = /^\((?:aq|s|l|g)\)(?=[\s,.;:|)\]]|$)/.test(tail);
+    const phase = /^\((?:aq|s|l|g)\)(?=[\s,.;:|)\]]|$)/.test(tail)
+      || completeAtomicActivityPhase(question, finish, end);
     if (!cellPair && !phase && /^[\p{L}\p{N}\p{M}_^+−\-⁺⁻/·*([{}]/u.test(tail)) continue;
     spans.push({ start, end: finish });
   }

@@ -667,6 +667,19 @@ for (const bad of ["E°(Cu^2+/Cu) = 1e- V.","E°(Cu^2+/Cu) = 0.34 V. E°(Cu^2+/C
 });
 // END PR137 V9 REPAIR3: complete bare cathode ends phase scanning before metadata.
 
+// BEGIN PR137 V9 REPAIR4: raw chemistry cues and immediately adjacent complete phases.
+for(const notation of [
+ "Zn | Zn^2+(0.1 M) || Cu^2+(0.01 M) | Cu",
+ "Zn | Zn^(2+)(aq, 0.1 M) || Cu^(2+)(aq, 0.01 M) | Cu",
+ "Zn | Zn^(2+)(0.1 M) || Cu²⁺(0.01 M) | Cu",
+ "Zn | Zn²⁺(0.1 M) || Cu^(2+)(0.01 M) | Cu",
+]) check("Original chemistry source reaches ordinary family without forced family: "+notation,()=>v9CellPositive("Draw the cell "+notation+"."));
+for(const phase of ["Zn^(2+(0.1 M)","Zn^(2+)(aq, 1e- M)","Zn^(2+)(aq, 0.1 m)","Zn^(2+)(0.1 M)x"]) check("Adjacent phase proof preserves physical refusal: "+phase,()=>{
+ const question="Draw the Daniell cell Zn | "+phase+" || Cu²⁺(0.01 M) | Cu.";
+ assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(synthesizeFamilyScene({question}),null);
+});
+// END PR137 V9 REPAIR4: raw chemistry cues and immediately adjacent complete phases.
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

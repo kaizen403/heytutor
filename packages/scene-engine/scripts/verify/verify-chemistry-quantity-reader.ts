@@ -548,5 +548,26 @@ for(const expression of ["ln k = 5 - 2000/t2","ln k = 5 - 2000/t^2","ln k = 5 - 
 });
 // END PR137 V9: complete Unicode cell tokens and lowercase temperature denominator.
 
+// BEGIN PR137 V9 REPAIR4: original complete atomic activities are not charge scalars.
+for (const [question,dimension,expected,text] of [
+ ["Zn^2+(0.1 M)","concentration",.1,"0.1 M"],
+ ["Zn^(2+)(0.1 M)","concentration",.1,"0.1 M"],
+ ["Zn^(2+)(aq, 0.1 M)","concentration",.1,"0.1 M"],
+ ["Cu^(2+)(l, 0.01 M)","concentration",.01,"0.01 M"],
+ ["Zn^(2+)(1 bar)","pressure",100000,"1 bar"],
+ ["Zn^2+(g, 1 bar)","pressure",100000,"1 bar"],
+] as const) check("Complete original atomic activity inventory: "+question,()=>{
+ assert.ok(reader);const read=reader.findChemistryQuantities({question,dimension});assert.ok(read.ok,JSON.stringify(read));assert.equal(read.reading.length,1);
+ const value=read.reading[0];near(value.value,expected);assert.equal(value.source.text,text);assert.equal(question.slice(value.source.span.start,value.source.span.end),text);
+});
+for(const [question,dimension] of [
+ ["Zn^(2+(0.1 M)","concentration"], ["Zn^(2+)(1e- M)","concentration"],
+ ["Zn^(2+)(0.1 M)x","concentration"], ["Zn^(2+)(0.1 M)/s","concentration"],
+ ["Zn^(2+)(0.1 K)","temperature"], ["value = 2^ K","temperature"],
+] as const) check("Atomic phase proof never exempts malformed physical source: "+question,()=>{
+ assert.ok(reader);assert.equal(reader.findChemistryQuantities({question,dimension}).ok,false);
+});
+// END PR137 V9 REPAIR4: original complete atomic activities are not charge scalars.
+
 console.log(JSON.stringify({ passed, failed: failures.length, failures, capturedQA: "unavailable" }, null, 2));
 process.exitCode = failures.length ? 1 : 0;
