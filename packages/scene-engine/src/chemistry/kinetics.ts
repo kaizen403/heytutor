@@ -273,6 +273,18 @@ const HALF_REACTION_TERM = String.raw`(?!(?:unknown|unreadable|is|was|when|with|
 const HALF_REACTION_SIDE = String.raw`${HALF_REACTION_TERM}(?:\s*\+\s*${HALF_REACTION_TERM}){0,5}`;
 const HALF_REACTION = String.raw`${HALF_REACTION_SIDE}\s*(?:->|→|⟶)\s*${HALF_REACTION_SIDE}`;
 const HALF_LIFE_CUE = new RegExp(String.raw`${HALF_LIFE_NAME}(?:${HALF_LIFE_SUBJECT}(?:\s+${HALF_REACTION})?(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?\s+is\b)?`);
+/** A second requested observable owns one complete, independently checked time. */
+function requestedKineticsContinuationValid(question: string, start: number, end: number): boolean {
+  const body = questionBody(question);
+  const tail = body.slice(start, end);
+  const target = /^\s*,?\s*and\s+(?:find|calculate|determine|compute|obtain|evaluate)\s+(?:(?:the|a)\s+)?(?:remaining fraction|fraction remaining|remaining concentration|concentration remaining)\s+(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*/i.exec(tail);
+  if (!target) return false;
+  const timeStart = start + target[0].length;
+  const time = readChemistryQuantity({question, after: /^/, within: {start:timeStart, end}, dimension:"time"});
+  if (!time.ok || !(time.reading.value > 0) || body.slice(time.reading.source.span.end, end).trim() !== "") return false;
+  const asked = readTimesAsked(tail, null);
+  return asked.length === 1 && convertTime(asked[0]!.value, asked[0]!.unit, "s") === time.reading.value;
+}
 /** A conditional input belongs to the requested half-life, not a later copula. */
 function requestedHalfLifeConditionValid(question: string, ownerStart: number, conditionStart: number, predicateRequest = false): boolean {
   const body = questionBody(question);
@@ -306,7 +318,7 @@ function requestedHalfLifeConditionValid(question: string, ownerStart: number, c
   const remainder = body.slice(valueEnd, inputEnd).trim();
   const passive = /^is\s+(?:to\s+be\s+(?:found|calculated|determined)|required|asked)$/i.test(remainder);
   const target = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|a)\s+)?$/i.test(body.slice(0, ownerStart));
-  return passive || ((predicateRequest || target) && remainder === "");
+  return passive || ((predicateRequest || target) && (remainder === "" || requestedKineticsContinuationValid(question, valueEnd, inputEnd)));
 }
 function halfLifeSourceOwnersValid(question: string): boolean {
   const body = questionBody(question);

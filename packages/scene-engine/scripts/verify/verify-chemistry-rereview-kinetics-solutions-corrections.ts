@@ -1006,5 +1006,230 @@ for(const c of halfSubjectCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE HALF-LIFE REACTION-SUBJECT GATES
 
+// BEGIN ADDITIVE COMPOUND HALF-LIFE REQUEST GATES
+interface CompoundHalfRequestCase extends HalfSubjectCase { askTime?:number; askUnit?:string; remaining?:number }
+const compoundHalfRequestCases:CompoundHalfRequestCase[] = [
+  {
+    "id": "review-compound-request-1",
+    "question": "Find the half life of a first order reaction with rate constant k = 0.0231 min^-1, and find the remaining fraction at t = 60 min.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "askTime": 60,
+    "askUnit": "min",
+    "remaining": 0.25007360111209415,
+    "requested": true
+  },
+  {
+    "id": "review-compound-request-2",
+    "question": "Determine the half life of a first order reaction X -> Y whose rate constant is 0.0231 min^-1, and calculate the fraction remaining after 30 min. Draw the decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "askTime": 30,
+    "askUnit": "min",
+    "remaining": 0.5000735956957677,
+    "requested": true
+  },
+  {
+    "id": "review-compound-request-3",
+    "question": "Find the half life for a first order reaction if the time for 75 % completion is 60 min, and find the remaining fraction at t = 30 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "k": 0.023104906018664842,
+    "half": 30.0,
+    "unit": "min",
+    "askTime": 30,
+    "askUnit": "min",
+    "remaining": 0.5,
+    "requested": true
+  },
+  {
+    "id": "review-compound-request-4",
+    "question": "Calculate the half life of a first order reaction with rate constant k = 0.0231 min^-1 and determine the fraction remaining at t = 120 min. Draw the decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "askTime": 120,
+    "askUnit": "min",
+    "remaining": 0.06253680597317077,
+    "requested": true
+  },
+  {
+    "id": "review-compound-request-5",
+    "question": "What is the half life of a first order reaction given rate constant k = 0.0231 min^-1, and calculate the remaining fraction after 90 min? Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "askTime": 90,
+    "askUnit": "min",
+    "remaining": 0.12505520489671404,
+    "requested": true
+  },
+  {
+    "id": "review-compound-request-damaged-1",
+    "question": "Find the half life of a first order reaction with rate constant k = 0.0231 min^-1, and find the remaining fraction at t = unknown. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "review-compound-request-damaged-2",
+    "question": "Determine the half life of a first order reaction X -> Y whose rate constant is 0.0231 min^-1, and calculate the fraction remaining after 1e- min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "review-compound-request-damaged-3",
+    "question": "Find the half life for a first order reaction if the time for 75 % completion is 60 min, and find the remaining fraction at t = 30 kg. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "review-compound-request-damaged-4",
+    "question": "Calculate the half life of a first order reaction with rate constant k = 0.0231 min^-1 and determine the fraction remaining at t = 120 min and rate constant is unknown. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "review-compound-request-damaged-5",
+    "question": "Find the half life of a first order reaction with rate constant k = 0.0231 min^-1, and find the remaining fraction at t = unknown and t = 60 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-supported-1",
+    "question": "Calculate the half life of a first order reaction whose rate constant is 0.0462 min^-1 and determine the fraction remaining after 30 min. Draw the decay curve.",
+    "order": 1,
+    "k": 0.0462,
+    "half": 15.003185726405743,
+    "unit": "min",
+    "askTime": 30,
+    "askUnit": "min",
+    "remaining": 0.25007360111209415,
+    "requested": true
+  },
+  {
+    "id": "own-compound-request-supported-2",
+    "question": "Determine the half life of a first order reaction X -> Y given k = 0.00693 s^-1, and calculate the remaining fraction at the end of 200 s. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "k": 0.00693,
+    "half": 100.02123817603828,
+    "unit": "s",
+    "askTime": 200,
+    "askUnit": "s",
+    "remaining": 0.2500736011120941,
+    "requested": true
+  },
+  {
+    "id": "own-compound-request-supported-3",
+    "question": "Compute the half life of a first order reaction if time for 75 % completion is 60 min, and find the remaining concentration at t = 60 min. Draw the decay curve.",
+    "order": 1,
+    "k": 0.023104906018664842,
+    "half": 30.0,
+    "unit": "min",
+    "askTime": 60,
+    "askUnit": "min",
+    "remaining": 0.25,
+    "requested": true
+  },
+  {
+    "id": "own-compound-request-supported-4",
+    "question": "Find the half life of a first order reaction when rate constant k = 0.0231 min^-1 and evaluate the concentration remaining in the next 90 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "askTime": 90,
+    "askUnit": "min",
+    "remaining": 0.12505520489671404,
+    "requested": true
+  },
+  {
+    "id": "own-compound-request-supported-5",
+    "question": "Obtain the half life of a first order reaction with rate constant k = 0.3465 h^-1, and compute the remaining fraction after 4 h. Draw the decay curve.",
+    "order": 1,
+    "k": 0.3465,
+    "half": 2.000424763520766,
+    "unit": "h",
+    "askTime": 4,
+    "askUnit": "h",
+    "remaining": 0.25007360111209415,
+    "requested": true
+  },
+  {
+    "id": "own-compound-request-strict-1",
+    "question": "Find the half life of a first order reaction with rate constant is unknown and rate constant k = 0.0231 min^-1, and find the remaining fraction at t = 60 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-2",
+    "question": "Determine the half life of a first order reaction whose rate constant is unreadable and k = 0.0231 min^-1, and calculate the fraction remaining after 30 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-3",
+    "question": "Find the half life of a first order reaction if time for 75 % completion is unknown and time for 50 % completion is 20 min, and find the remaining fraction at t = 60 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-4",
+    "question": "Calculate the half life of a first order reaction when time for 75 % completion is 1e- min and time for 50 % completion is 20 min, and determine the fraction remaining after 30 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-5",
+    "question": "Find the half life of a first order reaction with rate constant k = 0.0231 min^-1, and find the remaining fraction at t = 60 min and half life is unknown. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-6",
+    "question": "Compute the half life of a first order reaction given k = 0.0231 min^-1, and find the remaining fraction at t = unreadable. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-7",
+    "question": "Find the half life of a first order reaction with rate constant k = 0.0231 min^-1, and find the remaining fraction at t = 60 minfoo. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-8",
+    "question": "Determine the half life of a first order reaction with rate constant k = 0.0231 min^-1, and calculate the fraction remaining at t = 0 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-9",
+    "question": "Find the half life of a first order reaction with rate constant k = 0.0231 min^-1, and find the remaining fraction at t = -60 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-compound-request-strict-10",
+    "question": "Calculate the half life of a first order reaction given k = 0.0231 min^-1, and determine the remaining fraction after 60 min, rate constant k = 0.0462 min^-1. Draw the decay curve.",
+    "refuse": true
+  }
+];
+for(const c of compoundHalfRequestCases)try {
+ const spec=kineticsFromStem(c.question);
+ const direct=buildKineticsScene(c.question,[],false);
+ const schematic=buildKineticsScene(c.question,[],true);
+ const ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null,"unread input or damaged requested time cannot be omitted");assert.equal(direct,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.order,c.order);assert.equal(spec.tHalf,null,"an asked half-life owns no supplied time");assert.equal(spec.timeUnit,c.unit);
+  assert.deepEqual(spec.timesAsked,[c.askTime],"second request keeps its one exact source instant");
+  const solved=solveKinetics(spec);assert.ok(solved.k!==null && solved.tHalf!==null);
+  assert.ok(Math.abs(solved.k-c.k!)<=Math.abs(c.k!)*1e-12,"independent rate input or completion law");
+  assert.ok(Math.abs(solved.tHalf-c.half!)<=Math.abs(c.half!)*1e-12,"independent first-order half-life");
+  const remaining=solved.remainingAtTimes.find(entry=>entry.time===c.askTime);assert.ok(remaining);
+  assert.ok(Math.abs(remaining.remaining-c.remaining!)<=1e-12,"independent exp(-kt) at the requested instant");
+  assert.ok(direct && schematic && ordinary,"complete compound request must draw through every actual seam");
+  for(const doc of [direct,schematic,ordinary.document]){
+   assert.equal(doc.source.question,c.question);assert.equal(doc.quantities.find(q=>q.id==="t_half")?.value,Number(c.half!.toFixed(6)));
+   assert.equal(doc.quantities.find(q=>q.id==="k")?.value,Number(c.k!.toFixed(6)));
+   const displayed=labels(doc);const requestedLabel=new RegExp(`^t\\s*=\\s*${c.askTime}\\s+${c.askUnit}$`);
+   assert.ok(displayed.some(text=>requestedLabel.test(text)),JSON.stringify(displayed));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE COMPOUND HALF-LIFE REQUEST GATES
+
 console.log(JSON.stringify({total:results.length,passed:results.filter(r=>r.passed).length,rows:results},null,2));
 if(results.some(r=>!r.passed))process.exitCode=1;
