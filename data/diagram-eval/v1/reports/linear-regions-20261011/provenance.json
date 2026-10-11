@@ -1,0 +1,68 @@
+{
+  "schema": "linear-regions-report-evidence/v1",
+  "sourceMain": "216450fcf7e5a88d41341a9e79871e1b9d198c72",
+  "sourceCandidate": "4ea55cc136aa6449b31f2e93760c2946850f2d0c",
+  "evalSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+  "preregistrationSha256": "c790e856596409f3ebc56b51281cea18f95203bd80f159f605ff32f59ce3916f",
+  "files": [
+    {
+      "file": "first-a.jsonl",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/judging/neutral-a/grades.jsonl",
+      "sourceSha256": "56eb169238c0e51d67b0794c290030f35f6edd342ce4e4cda55a529ae830937f",
+      "sha256": "56eb169238c0e51d67b0794c290030f35f6edd342ce4e4cda55a529ae830937f",
+      "transform": "byte-identical"
+    },
+    {
+      "file": "first-b.jsonl",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/judging/neutral-b/grades.jsonl",
+      "sourceSha256": "cf47776cb8f4e560155bc45a0e94f5c54cc9c600ba51eb7799841eebcf038ade",
+      "sha256": "cf47776cb8f4e560155bc45a0e94f5c54cc9c600ba51eb7799841eebcf038ade",
+      "transform": "byte-identical"
+    },
+    {
+      "file": "first-c.jsonl",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/judging/neutral-c/grades.jsonl",
+      "sourceSha256": "42dd15c0d5f4f7ccd880277c892c7c96af0ce85c99446551dbdee9324ecf015d",
+      "sha256": "42dd15c0d5f4f7ccd880277c892c7c96af0ce85c99446551dbdee9324ecf015d",
+      "transform": "byte-identical"
+    },
+    {
+      "file": "consensus.jsonl",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/packets/opaque/consensus/consensus-final.jsonl",
+      "sourceSha256": "c171e3b7eded278115de0c713f3eacd680fa99be0ac6b31258d8f83f3ad36081",
+      "sha256": "c171e3b7eded278115de0c713f3eacd680fa99be0ac6b31258d8f83f3ad36081",
+      "transform": "byte-identical"
+    },
+    {
+      "file": "calibration-consistency.json",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/calibration-consistency.json",
+      "sourceSha256": "154dff69f5dc8a7749207280f6fb72ff1390a7e8028bce7e07f3c90e56111dc0",
+      "sha256": "154dff69f5dc8a7749207280f6fb72ff1390a7e8028bce7e07f3c90e56111dc0",
+      "transform": "byte-identical"
+    },
+    {
+      "file": "summary.json",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/results.json",
+      "sourceSha256": "0f7eeb21260139c853c4acdd99b601cd90345bd8c48a54bb2a47be26b494ce24",
+      "sha256": "150156a264665fa663d9d80abbe2aa0d5370cd6c9bf2f9a24c8d30a11ab91921",
+      "transform": "only gradePath locators changed to portable copied files; all counts/reasons/freezes unchanged"
+    },
+    {
+      "file": "outcomes.jsonl",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/packets/opaque/parent/outcomes.jsonl",
+      "sourceSha256": "9b3bea2b7e1244aeeb345fa935914f7b4956a14b1f5bfe9000a4703366fd949a",
+      "sha256": "08c2590825999ae876994cbb4bf3a0415390534bafca66e012c1d668a848dd51",
+      "transform": "runPath made repository-relative; all160 rows/semantic metadata/digests unchanged"
+    },
+    {
+      "file": "spend-summary.json",
+      "sourceRelativePath": ".context/h3r6/shaded-regions/spend.json",
+      "sourceSha256": "e196f35ead17fd66aced154e97a0b73d0ce97e23c9e41ccaecc2e5a6dcb950e4",
+      "sha256": "2c36af5e5e4852aba6ffdeb3952e4a79f60e0a3cb6edd9592f9cb99bee4e308d",
+      "transform": "aggregate accounting facts; private checkpoint locators omitted"
+    }
+  ],
+  "rootImageViews": 0,
+  "noRuntimeChangesAfterMeasurement": true,
+  "note": "These portable post-unblinding copies preserve original hashes and contain no source/model/example tuning; raw calls, native images, preregistration, receipts and immutable private builds are retained in .context/h3r6/shaded-regions."
+}
