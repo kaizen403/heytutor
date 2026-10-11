@@ -49,6 +49,15 @@ export interface EarlyLessonProgressInput {
 
 export type EarlyLessonProgress = "none" | "opening_only" | "substantive";
 
+/** A fresh lesson attempt, never a Continue without completed authority. */
+export interface EarlyLessonRestartRequest {
+  boardId: string;
+  lessonQuestion: string;
+  reason: "stop" | "doubt";
+  parentTraceId?: string | null;
+  parentTurnId?: string;
+}
+
 /** An opening-only Stop cannot resume past unfinished numeric/scene authority. */
 export function classifyEarlyLessonProgress(input: EarlyLessonProgressInput): EarlyLessonProgress {
   if (input.figureDrawn) return "substantive";
