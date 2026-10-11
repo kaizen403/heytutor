@@ -746,6 +746,2686 @@ for(const given of ["50 % of A is DECOMPOSED IN 20 min.","IN 20 min, the reactio
 });
 // END PR137 temperature/fraction follow-up: duplicate physical givens and original-word case.
 
+// BEGIN PR137 expanded rereview: supplied cell activities and lattice givens.
+// Append before the existing result footer; original 408 assertions and reader93 stay byte-for-byte whole.
+interface ExpandedEcUnitRow {
+ readonly id:string; readonly question:string; readonly family:"chem_unit_cell"|"chem_electrochem";
+ readonly mode:"compile"|"decline"; readonly kind?:"cell"|"electrolysis";
+ readonly edgePm?:number; readonly radiusPm?:number; readonly densityGPerCm3?:number;
+ readonly e0?:number; readonly n?:number; readonly q?:number; readonly activities?:Readonly<Record<string,number>>;
+ readonly observedE?:number; readonly statedE0?:number; readonly expectedInk?:string;
+ readonly reason?:string; readonly sourceQuestionSha256?:string;
+}
+const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
+  {
+    "id": "F1-o1",
+    "question": "The edge length of an fcc unit cell is 508 pm. If the radius of the cation is 110 pm, what is the radius of the anion?",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "b9b4643a73aa15ce2ea8d840d9d43c8ccd56af1c8ced1331faf05330f315abb6",
+    "edgePm": 508,
+    "radiusPm": 110
+  },
+  {
+    "id": "F1-o2",
+    "question": "In an fcc lattice the edge length of the unit cell is 400 pm and the radius of the atom is 141 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "64ab49e5799f823bac576a10250c5874d72f980593fd1c39ec22c3d546ee8b4f",
+    "edgePm": 400,
+    "radiusPm": 141
+  },
+  {
+    "id": "F1-o3",
+    "question": "Silver crystallises in fcc lattice. If edge length of the cell is 4.07 × 10^-8 cm and density is 10.5 g cm^-3, calculate the atomic mass of silver.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "4adafd784e01333389510b04429387b5dd1a52fec182170b106ef02835b78b55",
+    "edgePm": 407
+  },
+  {
+    "id": "F1-v1",
+    "question": "The edge length of the fcc unit cell of NaCl is 508 pm. If the radius of Na+ is 95 pm, find the radius of Cl-.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "84a330773dfe62135290039506d485a2a2c0bfc9f9a2b64737a1d776905a5fd8",
+    "edgePm": 508,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-v2",
+    "question": "The edge length for this cubic unit cell = 4.05 Å. Aluminium forms an fcc lattice with atomic radius 125 pm.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "865016a73cd2ce2c3c33ff12dad4c470771ed62a926c52f318d871de0809d6cb",
+    "edgePm": 405,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-v3",
+    "question": "Copper forms a cubic cell whose edge length is 361 pm in an fcc lattice; the atomic radius is 120 pm. Find the density if the atomic mass is 63.5 g/mol.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "910def984c2535d4f49f73229707c928075451b193f374f6efec4e4ccad3769b",
+    "edgePm": 361,
+    "radiusPm": 120,
+    "densityGPerCm3": 8.965434865595704
+  },
+  {
+    "id": "F1-v4",
+    "question": "The edge length of a face-centered cubic unit cell of copper is 361 pm. The atomic radius of copper is 120 pm. Calculate the density if the molar mass is 63.5 g/mol.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "8d106e657b59f9c78f380a30d1dcff14e1e614eebf5a2ca45ad0ee36db3b217e",
+    "edgePm": 361,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-v5",
+    "question": "The edge length of a face centred cubic unit cell of a metal is 400 pm and the radius of the atom is 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "c28b0f68b2927a4c5098e099b224fa470be8073388cb91f3ddb30979327bcc3e",
+    "edgePm": 400,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-v6",
+    "question": "The edge length of the unit cell of a bcc metal is 288 pm and its atomic radius is 120 pm.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "37d73554da713c3399af9d2a05cf59c3c043dc8f77b17190aa34968aaf739571",
+    "edgePm": 288,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-v7",
+    "question": "In the fcc unit cell, the edge length in the crystal is 408 pm, and the radius of the gold atom is 150 pm. Find the density (M = 197 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "bba2075a4c5d3a1e333f9498730e359bbe8263a0e8c83e3c52eac1fa27a25f2f",
+    "edgePm": 408,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-v8",
+    "question": "An element with molar mass 2.7 × 10^-2 kg mol^-1 forms a cubic unit cell with edge length 405 pm. If its density is 2.7 × 10^3 kg m^-3, what is the nature of the cubic unit cell?",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "32bd31550b30fd01bbffb506c6e758db1889bb4fd9e544179f6686f07e6520ba",
+    "edgePm": 405,
+    "reason": "The source does not name a supported cubic lattice; density-to-lattice inference is unsupported, so the builder must honestly decline."
+  },
+  {
+    "id": "F1-v9",
+    "question": "A bcc metal has a cell edge of 3.5 Å and its atomic radius is 1.6 Å. Find the density if the atomic mass is 39 g/mol.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "dbf587ec108fb8a76f4d8c7fcc50a35b820d02b7066b94ebbfc2932dbf989b04",
+    "edgePm": 350,
+    "radiusPm": 160,
+    "densityGPerCm3": 3.020992996524889
+  },
+  {
+    "id": "F1-v10",
+    "question": "The edge length of the cubic fcc cell measures 352 pm and the radius of the nickel atom is 130 pm.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "58c739b9c8187049fea848a11af08325298b23bfa90068fa55f1426dc4dbf143",
+    "edgePm": 352,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-v11",
+    "question": "For an fcc crystal the unit cell edge length is about 500 pm and the radius of the atom is 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "0e71c1a19eaab4e9f68999f189dc93aec445271dd8e4ed57dc003fd52493c346",
+    "edgePm": 500,
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-v12",
+    "question": "A metal crystallizes in a bcc lattice. The length of the edge of the unit cell is 287 pm and the atomic radius is 100 pm. Find the density (atomic mass 56 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "62c88c8bcce81c1843d59f5a8095b266838b16d45c3371d10f040342691abfdf",
+    "edgePm": 287,
+    "radiusPm": 100,
+    "densityGPerCm3": 7.867406337644186
+  },
+  {
+    "id": "F1-v13",
+    "question": "Edge length (a) of the fcc unit cell = 400 pm; radius of atom = 150 pm; atomic mass 60 g/mol. Find the density.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "dbb467a72117585336c594ac1b3d1e0b89efa8e38eb9f6af94bd797de98a311d",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "F1-v14",
+    "question": "An fcc metal has edge length, a = 400 pm and the radius r = 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "2f54ea14efa011d6c50ca86f117b45681d46b74ffc97b543348a81f253d2f278",
+    "edgePm": 400,
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-v15",
+    "question": "The fcc unit cell of aluminium has an edge length of 405 pm. Atomic radius is 150 pm. Find density with M = 27 g/mol.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "531a02a176c26004e449ccb66f74d65ec902897854743fdefc222a88ca653186",
+    "edgePm": 405,
+    "radiusPm": 150,
+    "densityGPerCm3": 2.699715094004164
+  },
+  {
+    "id": "F1-v16",
+    "question": "Calculate the density of an fcc metal of atomic mass 60 g/mol if its unit cell edge is 4 x 10^-8 cm and its radius is 1.5 x 10^-8 cm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "7b5ff12561ce90f9e8c93a0faac1150f57125c4dd5f55f310aa500dd29a5019d",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "F1-v17",
+    "question": "The edge length of an fcc unit cell is 508 pm. Find the density (molar mass 58.5 g/mol, Avogadro number 6.022 × 10^23 mol^-1).",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "3233f5aee68e3df93d93877e4c6321e95977499869e001e449f4c6465d13f95a",
+    "edgePm": 508,
+    "densityGPerCm3": 2.9640393802240435
+  },
+  {
+    "id": "F1-v18",
+    "question": "A metal crystallizes in fcc structure with edge length of unit cell equal to 400 pm and density 6.23 g/cm3. Find the atomic mass; the atomic radius is 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "d6bc276b5c4b6c8cd698f16247125b50c569c13e3234b947bc9230b296ae544f",
+    "edgePm": 400,
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-v19",
+    "question": "In a bcc unit cell the edge length is 4.29 Å. Find the radius of the sodium atom.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "4869f7c6fe7269d49b2112c0ad1ef78c28a41b4d970c17bff552b9bc3a1aa5a7",
+    "edgePm": 429,
+    "radiusPm": 185.76244911176207
+  },
+  {
+    "id": "F1-v20",
+    "question": "Edge length of unit cell for this bcc crystal is 3.0 Å and the radius of the atom is 1.0 Å.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "67f7ccc7df9c5b236d9e408a7dc3d7f5128b2574f2414ec1a8304c5f2ef1ed3a",
+    "edgePm": 300,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-w1",
+    "question": "An fcc metal has unit cell edge length 400 pm and atomic radius 141 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "a2c35f8b20502c98e81cb4c6dd5c7d2894636d709d501024d184536fa347c6f1",
+    "edgePm": 400,
+    "radiusPm": 141
+  },
+  {
+    "id": "F1-w2",
+    "question": "The unit cell edge length of an fcc metal is 361 pm and its atomic radius is 128 pm. Calculate the density (atomic mass 63.5 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "231d864c62775aa6d84596a567de09295d497a282cfa97b978d214f0de1fad19",
+    "edgePm": 361,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-w3",
+    "question": "Calculate the density of a bcc metal whose unit cell edge length is 287 pm and atomic radius 124 pm (atomic mass 56 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "5557de223549f3a663019212d0c94f47767736fcf422ca2928970229b851995e",
+    "edgePm": 287,
+    "radiusPm": 124,
+    "densityGPerCm3": 7.867406337644186
+  },
+  {
+    "id": "F1-w4",
+    "question": "The edge length (a) of the fcc unit cell is 400 pm and the atomic radius is 141 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "621a8357be0bc0cc8f8cc07fd9bfbb16eb436ceb2c40425d65c13b6cecec2c1c",
+    "edgePm": 400,
+    "radiusPm": 141
+  },
+  {
+    "id": "F1-w5",
+    "question": "Edge length of the fcc unit cell, a = 400 pm. Atomic radius = 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "1380fd4293c4af5772bb6e3191e132d3202bb0dbe1f58459ef73f3416173fef7",
+    "edgePm": 400,
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-w6",
+    "question": "Edge length of an fcc unit cell: 400 pm; atomic radius: 150 pm; atomic mass: 60 g/mol. Find the density.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "62d18cd4fd4ac351843fa01c72499eed29262e4afe7e7b16bc8a3ce77e3de65e",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "F1-w7",
+    "question": "For the fcc lattice, edge length = 4.0 × 10^-8 cm and atomic radius = 1.5 × 10^-8 cm. Find the density for M = 60 g/mol.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "5844fc5d4960d9d0061b825e26d61d29d7131daa24e8a7e6881ceec5cf7760d3",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "F1-w8",
+    "question": "Sodium has a bcc structure with cell edge length 424 pm. Calculate the atomic radius of sodium.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "cdc2035664d0b3adf764d0a203aa89f6f8f2a939f5dbaf575996081d294e94f5",
+    "edgePm": 424,
+    "radiusPm": 183.597385602301
+  },
+  {
+    "id": "F1-w9",
+    "question": "Sodium has a bcc structure with unit cell edge length 424 pm. Calculate the atomic radius of sodium.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "69741b87ec9a132c1e26c5cff7743356c92a88c67ccc3a95cbf35441653bb955",
+    "edgePm": 424,
+    "radiusPm": 183.597385602301
+  },
+  {
+    "id": "F1-w10",
+    "question": "A unit cell of an fcc metal has edge length 0.4 nm and the radius of its atom is 0.15 nm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "8ae756b55d5dd186ba504cbd5be5475c194e5b3915c38f260479564c7ceb22b7",
+    "edgePm": 400,
+    "reason": "Complete original nm edge and radius declarations must bind 400 pm and 150 pm.",
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-w11",
+    "question": "An fcc metal with edge length 400 pm has radius 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "a7cd48d73411f6ae0549096d5c09a6ec386e37d66c64f050bc7040f72feb99f8",
+    "edgePm": 400,
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-w12",
+    "question": "The fcc cell edge is 400 pm and atomic radius 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "63963a8bbbe35ec17c72fa84c26e437501e4c750330e759f15ee6d59e594e5e5",
+    "edgePm": 400,
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-w13",
+    "question": "In an fcc crystal, a = 400 pm. If the atomic radius is 150 pm, find the density (M = 60 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "0a2e0b69e166276c9e90c9a445eb0ba214785dff77f35a43c5443b6ac17e1159",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "F1-w14",
+    "question": "The edge length of a cubic unit cell (fcc) is 400 pm and the atomic radius is 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "d7c1485584b49f16f092b2c4e87eb942d3301cf48fd82ee2116e6e90e661f5fc",
+    "edgePm": 400,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-w15",
+    "question": "The edge length of the fcc unit cell of silver is 408.6 pm. Calculate the density of silver (atomic mass 107.9 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "4e92b5885b8ccefc93603d034edb7705b8b249875a71500e8957efe3abfe6a24",
+    "edgePm": 408.6,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-w16",
+    "question": "The edge length of a bcc unit cell of iron is 286 pm. Calculate the density of iron (atomic mass 56 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "bb5a7e2b60127dcb3859550356a2d2eb1632f79bcd2a08de093a05d074ec9826",
+    "edgePm": 286,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F1-w17",
+    "question": "Edge-length of the fcc unit cell is 400 pm and the atomic radius is 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "5473b772a645d966c7a27840eeab10051861db1454af602b1d2dd63bd33e26f8",
+    "edgePm": 400,
+    "radiusPm": 150
+  },
+  {
+    "id": "F1-w18",
+    "question": "An element crystallises in fcc lattice having edge length of 400 pm. If radius of atom is 150 pm, calculate the density (atomic mass 60 g/mol).",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "93f727ca4ab9e9b70c5371b32d73d534c83442423d78673ae92dd333d63b2a08",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "F1-w19",
+    "question": "An element crystallises in fcc lattice with an edge of 400 pm. Its atomic radius is 150 pm and atomic mass 60 g/mol. Find the density.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "88a619ab261051225d14c5bb88d5250339718a7f174c901526e58d8728be8d6b",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "F1-w20",
+    "question": "An fcc metal: the edge length measured by X-ray is 400 pm and the atomic radius is 150 pm.",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "sourceQuestionSha256": "400225481ab59a3102d4e7a4a9825a040b0b2e6a2d7e1ff9449c0b3c351b52c7",
+    "edgePm": 400,
+    "reason": "Explicit edge/radius declaration lacks a complete cue-owned reading; honest refusal required."
+  },
+  {
+    "id": "F2-o1",
+    "question": "Calculate the emf of a Daniell cell at 298 K in which the Zn2+ concentration is 0.1 M and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "4d83ef7c8372438b8bc0548cbcf854531a5757eb53ee86f42a19c96fa0100060",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-o2",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn2+] = 0.1 M and Cu2+ is 0.001 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "c67dd2b3f5fc43529a41f4f03c52e2d83c507454d4e5c35efb98acdddd1c6362",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 100,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.001
+    }
+  },
+  {
+    "id": "F2-o3",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu2+ ions are 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "5d36f77a44f4a2de8ed36174b1674db3a57206b68649eb95d96659ebb86b4de9",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-o4",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn2+] = 0.1 M and [Cu2+] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "5fbdb66e5c56dfe8be9392783424fb911b1dfdfb813e1663b879e8e44f52e07b",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v1",
+    "question": "Calculate the emf of a Daniell cell at 298 K when the concentration of Zn2+ ions is 0.1 M and that of Cu2+ ions is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "3a78c03c012586ab8788cd9103a55eba0b90bfe23a83835255aa77b73ee6ccfb",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v2",
+    "question": "Calculate the emf of a Daniell cell at 298 K with Zn2+ (0.1 M) and Cu2+ (0.01 M).",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "f9d7862fabf0ce5f3230b4871b7bdce7f84fe62fbb807022d6896b31deab981e",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v3",
+    "question": "Calculate the emf of a Daniell cell at 298 K with 0.1 M Zn2+ and 0.01 M Cu2+.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "f127a88a03c29f41204e32e78634cdaa407f78075618076020c6567fac554a9a",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v4",
+    "question": "Calculate the emf of a Daniell cell at 298 K with 0.1 M ZnSO4 and 0.01 M CuSO4 solutions.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "6aa1c54123575e751e2f3cfcc85eda0b0ffee81e2fa0ae0e208f029db8293121",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v5",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn²⁺] = 0.1 M and [Cu²⁺] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "aa18cc421da9b483886672613b87d928437a7150b83403da2c4198062021c73a",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v6",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn^2+] = 0.1 M and [Cu^2+] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "9dda86469ad20fcdc5e8ea0b11d3b345de290a5c647f950938f7cccd40511e41",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v7",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn+2] = 0.1 M and [Cu+2] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "ae2b7c29a1eca904d7c916c1d91823172c700f3151246e2504e220aefdca54e5",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-v8",
+    "question": "Calculate the emf of a Daniell cell at 298 K if the Zn2+ ion concentration is 0.1 M and the Cu2+ ion concentration is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "97522ad09085c732159b2bd1a9f9bc907cae759a6c299ae765553db6eee5a4d8",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v9",
+    "question": "Calculate the emf of a Daniell cell at 298 K in which the Zn2+ concentration is 0.1 M and the Cu2+ concentration is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "f29222dc6e2e5b0b2362da25ac6a920e8c9bacc7194d5c5c41890dbb7c889e04",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v10",
+    "question": "Calculate the emf of a Daniell cell at 298 K where [Zn2+] is 0.1 M and [Cu2+] is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "b26b5f6ddd80f47c9d646be9cbd0a17c4a3650a1603d7d30278ad2525c0bd46f",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v11",
+    "question": "Calculate the emf of a Daniell cell at 298 K where Zn2+ = 10^-1 M and Cu2+ = 10^-2 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "2aae253e2638eaaf3c8b7928c284804df811f538af38abceb979db02abce96b5",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v12",
+    "question": "Calculate the emf of a Daniell cell at 298 K where Zn2+ = 1 x 10^-1 M and Cu2+ = 1 × 10^-2 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "4cfd5f4434f6a4ce16e228aa26374d329893ccb38c67c78432032c482b307fc3",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v13",
+    "question": "Calculate the emf of a Daniell cell at 298 K where Zn2+ = 1 x 10-1 M and Cu2+ = 1 x 10-2 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "69b01065a5978efde2ce2bdba57bc5d9dacb89c087effb6d203959b89ff94554",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-v14",
+    "question": "Calculate the emf of a Daniell cell at 298 K where Zn2+ = 10⁻¹ M and Cu2+ = 10⁻² M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "bf12e3df16e0c71038e4276883233c9a572a43de44d1379e0fa8228aca190f1c",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-v15",
+    "question": "Calculate the emf of a Daniell cell at 298 K where the concentrations of Zn2+ and Cu2+ are 0.1 M and 0.01 M respectively.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "f3f6f51e207608fcb7c62becbd1275f67489df6594b8d053cc48be0a7d64676f",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-v16",
+    "question": "Calculate the emf of a Daniell cell at 298 K where Zn2+ is 0.1 molar and Cu2+ is 0.01 molar.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "12314ed2e4aae0626fb4625b6e014da23aabaae4947f053cc81c573a1a919d04",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v17",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn2+] = 0.1 mol/L and [Cu2+] = 0.01 mol L-1.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "7f130da633813bdc7d2da45df4d5b11bcef1288eaedbec270f6d59fa19132ec2",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v18",
+    "question": "Calculate the emf of a Daniell cell at 298 K if [Cu2+] = 0.01 M and [Zn2+] = 0.1 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "077934925a4b373da498d0625f4b7b8b84df67caeab7a8eb1b9e28bbf739ef87",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v19",
+    "question": "Calculate the emf of a Daniell cell at 298 K if the zinc ion concentration is 0.1 M and the copper ion concentration is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "cb58610a798be041dcabbde8cba99555a828e337943771265f7f5f362b2933b2",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-v20",
+    "question": "Calculate the emf of a Daniell cell at 298 K if Zn2+ concentration = 0.1 M and Cu2+ concentration = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "c35695ab5b14e6c7035d0887ef38035b2003c0fc7f6bc6e2e38cdcd154644833",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v21",
+    "question": "Calculate the emf of a Daniell cell at 298 K with Zn2+ at 0.1 M and Cu2+ at 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "cd91536fc0746b18d5e6ba8b615bd3f3178384b5d03a91389f9de1c9f96c8189",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v22",
+    "question": "Calculate the emf of a Daniell cell at 298 K where the Zn2+ (aq) concentration is 0.1 M and the Cu2+ (aq) concentration is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "9b82d09c84b262b6ef31379236d90b45665bdd3a13831293ec8e94b7c0233375",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-v23",
+    "question": "Calculate the emf of a Daniell cell at 298 K with [Zn2+]=0.1M, [Cu2+]=0.01M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "9123357b6b32955ed4c65be8e534ab7aac59164cf06b083512925d7838cd9c35",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v24",
+    "question": "Calculate the emf of a Daniell cell at 298 K using Zn2+ of 0.1 M and Cu2+ of 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "56efc4f47762eb13daa12ebc7c7ef83f92d7f2cb3b93ae85207fd11f293e34cb",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v25",
+    "question": "For the Daniell cell, Zn2+ = 0.1 M and Cu2+ = 0.01 M. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "23211d0d789da0f8e75d8b405422cd70148c9321bf3bcf4b1feb417312fd3ad2",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v26",
+    "question": "Daniell cell: Zn | Zn2+ (0.1 M) and Cu2+ (0.01 M) | Cu. Find E.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "53a8babbf641072e4d7650898e62f408d78f2902720c563524a7932af8ce47b6",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v27",
+    "question": "Calculate the emf of a Daniell cell at 298 K in which Zn2+ ions have concentration 0.1 M and Cu2+ ions have concentration 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "98cc3b0cdd31e2e61930c31de673a7b0aa1b9987cf2db6a068bfa775f8eed2fa",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v28",
+    "question": "Calculate the emf of a Daniell cell at 298 K in which Zn2+ ion is 0.1 M and Cu2+ ion is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "7477c2fe71bd29aa8467ff84e58767105948acca3dca42246850153939afb66e",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v29",
+    "question": "Calculate the emf of a Daniell cell at 298 K where the molarity of Zn2+ is 0.1 M and molarity of Cu2+ is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "25c51a2d944f9eba4ad3a7b31007171be125910c1ef4b8bd40fb5b22d9cee459",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-v30",
+    "question": "Calculate the emf of a Daniell cell at 298 K where Zn2+ ion concentration and Cu2+ ion concentration are 0.1 M and 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "00e7acf3c9cebbeeebbdea017f0fc6d1a3c4fc1cc4e05774667f57013c1ec252",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m1",
+    "question": "Calculate the emf of a Daniell cell at 298 K when 0.1 M Zn2+ and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "8ca4d3ddc99816fd9615aeb5b522b17f00bb4a946ec3014a1fdb1a0954243a9f",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m2",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ of 0.1 M and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "2a380779a350e8ab090684dea85e1a2f327b25029597835a2ebd0d878650244f",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m3",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn^2+] = 0.1 M and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "43d28771211054899f2c2a2804895f09855dc5e14ecc38e6dd0b4be2790bca51",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m4",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn+2 = 0.1 M and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "84e77801c034412c687170a72975fbf79213fd90d85c9117a36728d4ca0abdda",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m5",
+    "question": "Calculate the emf of a Daniell cell at 298 K when the zinc ion concentration is 0.1 M and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "c80440b891b1f650eac3d1b2c0ba75ecc6e6d09dafb072c66e6a7a422d426760",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m6",
+    "question": "Calculate the emf of a Daniell cell at 298 K when the concentrations of Zn2+ and Cu2+ ions are 0.1 M and 0.001 M respectively.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "5f91e7fe4f3f0090a4b90932f457e7ad4d90d26c8a0df1b8adba967976dc776f",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m7",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ ion concentration and Cu2+ ion concentration are 0.2 M and 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "1fadc6f4b6488472aa61ed11ea4c2454d9a5e0fa0419f19a83c425b242d0880b",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m8",
+    "question": "The concentrations of Zn2+ and Cu2+ in a Daniell cell are 0.1 M and 0.01 M respectively. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "52602e3794d09d94c8d93e16de80ed2e8b6e80fbde8b078c9ee061a7a713e44c",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m9",
+    "question": "Calculate the emf of a Daniell cell at 298 K when ZnSO4 is 0.1 M and Cu2+ ions are 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "623795e86a92178fc092b66f4ee59aa77bd6b5b3862548d2544cc228e9dcfb49",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m10",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and copper sulphate solution is 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "1a4de7b47eadcb29e37598baaa5734b77e3d42b0723ef5c253f2a186f4657978",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m11",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and CuSO4 = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "ed4377db56c31d3a72575463bccf66ad66bdc3e9230168226e900022945d0ecc",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m12",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu^2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "e853f0e6b21e7993f4b434b1910ba538058d40bb1e315a0a2b9dc2c0eb8982b3",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m13",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu²⁺ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "c5b3d7554f2d5fbc7198549b6279d23683d9c5f8326c61c683ecc6a6b8501dc8",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m14",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn²⁺ = 0.1 M and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "0c01fb93f55df3af5ea061e34fed19c6ca9904504ae601614c991b864a47b0cf",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m15",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu++ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "f0fdffea19d5428c9a0524a5212900821a0ae4eec88250aee97457999006b97c",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m16",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu(2+) = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "6227b0768a108af59092b9e2e7d7f9c370d3b8a525ecd132863d9668cbfa403e",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m17",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu^(2+) = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "4a92d86e1657a82b129701b26ba0a2b5cbf91d0559433557d18b127f0a771480",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m18",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn^(2+) = 0.1 M and Cu^(2+) = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "e50738cd358b9a48a1ae5b902f48602a0240058a1a9586cc4adfe5d5f4768df5",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m19",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M, and in the copper half cell Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "ac26b98e46c7e9e2f893bac61a30fdad8979fc588c9598482a17f2875bc4e434",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m20",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu2+ = 0.01 M. E°(Zn2+/Zn) = −0.76 V and E°(Cu2+/Cu) = +0.34 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "8538c7c9556b1643e43eb25809e78344550ed8dcef43965a5aa5743afe5beb94",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m21",
+    "question": "Calculate the emf of a Daniell cell at 298 K when Zn2+ = 0.1 M and Cu2+ = 0.01 M. E°(Zn2+/Zn) = –0.76 V and E°(Cu2+/Cu) = 0.34 V.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "6a620a6f0026dbe41e2da09ac70ba66617a296380e404835946e39e716d575de",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F2-m22",
+    "question": "Calculate the emf of the Daniell cell at 298 K if E°cell = 1.10 V and [Zn2+] = 0.1 M, [Cu2+] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "356a362f1d5e8d9efeaa9ba3644a3662629a565abbfba6a71b30c927f0810ceb",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "F2-m23",
+    "question": "Find the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K given E°cell = 1.10 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "0316b5bd39ab250d3b5a058deb8e418131898662dd3e49036f5d43c85959a33b",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "F2-m24",
+    "question": "Find the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K. Given: standard emf = 1.10 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "552dabc4ea116d17dbfff075184a0f71d193d28218453a7bc8b6296f39d8f058",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "F2-m25",
+    "question": "Find the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K if the standard emf of the cell is 1.10 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "7e6e14f2cd1a75f5e21245debadea2afae553e684e91b16359cf1688ba83fdc9",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "F2-m26",
+    "question": "Calculate the cell potential of a Daniell cell where Zn2+ = 0.1 M and Cu2+ = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "26c58d402ca2f1b241df6652795e7673f17c99580f59586ff6c3c61fb7b78102",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m27",
+    "question": "Calculate the emf of a Daniell cell at 298 K with [Zn2+] = 0.1 M and [Cu2+] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "dcb71e8688fda51d1bdfd1d4af9c6bb15239959585f6c911876aae1100174a8a",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m28",
+    "question": "Calculate the emf of a Daniell cell at 298 K for [Zn2+] = 0.1 M and [Cu2+] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "afa75710627b321e686a119dce1bbcd529d2f2f70d4e6d7f071a570e39d000e3",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m29",
+    "question": "Calculate E for a Daniell cell at 298 K where [Zn2+] = 0.1 M and [Cu2+] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "1a14db5ed90597ddd4e78080e6646151328262e6dbb602126a742bd7954c3474",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F2-m30",
+    "question": "What is the emf of a Daniell cell in which [Zn2+] = 0.1 M and [Cu2+] = 0.01 M?",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "f2c4c6ef84dfaaf5717d9d14797ca3f09886b19237ae9505947b338ed677975c",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F3-o1",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 Volt at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "a7dd24e464cdc9d858408d6fb9d4e474825d710a0070aebdae8b22d51211baaa",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v1",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 Volts at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "34be7de2ac13d53678415c6bab3923c880532361be2a0a06533feefb5e525751",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v2",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 volt at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "054aa2cc764a3311024056773ef2ffb30ae70bccef62b84383c06a2a4fa2d4cd",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v3",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "229dd6e988d2cfda6cc2856402ef181bdfc89b0c93f0cef901ed048ffc9a1ff7",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v4",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 v at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "b4f837d12eff8339154309c2895c438991176a99a46a6d2459ad08fd46ecb1eb",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F3-v5",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1130 mV at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "c9e962fe6d49de09cb4d355ea3f28f639b4864522ae8750c3335173905cb9f40",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F3-v6",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13V at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "ec50fb6ca5198f80c16262f5970817ef0764672e81643d58ca26cc209c041f24",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v7",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is +1.13 V at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "3874ad7bff9358f6afca504b976420111a49b1e4d23a979af985cd2184bd4985",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v8",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 VOLT at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "353643ee6794955d9f1665f859498aab86f41553649e953edc18139aaebd2239",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "F3-v9",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 volts.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "31d430d85103056be5e8db3875caf78d67773eb5124ac2db61bec8710bed7232",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v10",
+    "question": "The standard emf of the cell Zn|Zn2+||Cu2+|Cu is 1.10 Volt. Draw the cell.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "2a4be72a80ef18104b079f2bc84c7b3c32981f5e86a7e5ef03a2bf31422eb2b2",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 1,
+    "activities": {},
+    "statedE0": 1.1
+  },
+  {
+    "id": "F3-v11",
+    "question": "E°cell = 1.10 Volts for Zn|Zn2+||Cu2+|Cu. Draw the cell.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "4ca8f485917eb6885bd9ea268f7dda493cac3704d8cd4ddfbf095227cc621701",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 1,
+    "activities": {},
+    "statedE0": 1.1
+  },
+  {
+    "id": "F3-v12",
+    "question": "E°cell = 1.1 × 10^0 V for Zn|Zn2+||Cu2+|Cu. Draw the cell.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "663dc4d1cc8e7a2edab99ddf986a7aff1eb5f4dcac22991624b7c8bc96de24b1",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 1,
+    "activities": {},
+    "statedE0": 1.1
+  },
+  {
+    "id": "F3-v13",
+    "question": "The cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu has a voltage of 1.13 Volt.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "11aa766d4e7c0beb7388cea4c10ab6c5b4b8c96bdfffc56dc80baf540b64f94b",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v14",
+    "question": "The cell potential of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 Volt.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "787c7275933bed2fb746b2d70eca72ccdef0a79223274c0bff278e51d8d7d5c7",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v15",
+    "question": "The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V. E°(Zn2+/Zn) = -0.76 Volt, E°(Cu2+/Cu) = 0.34 Volt.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "362d99816860137d67933050f6be474e01f92f4209878aeccd5b48c14779e209",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "F3-v16",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E°(Zn2+/Zn) = -0.76 Volts and E°(Cu2+/Cu) = +0.34 Volts.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "94717e42a1ef59b739931aece9113d98b99d7c898395c6da1b3abec059db0c5e",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "F3-v17",
+    "question": "For the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu, emf = 1.13 Volt.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "cb167c1ab02b4ae0a2eee9aa87268be5213182dd88605b24b98ca04c236ae968",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.1,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 1
+    },
+    "observedE": 1.13
+  },
+  {
+    "id": "R-1",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, given that E°(Zn2+/Zn) = -0.76 V and E°(Cu2+/Cu) = 0.34 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "f8a3b0b771f0bf29e1aff299dda0836fed3b16791e0e30fb62bf3ff3932fef42",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "R-2",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E°cell = 1.10 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "4891975103592444deabaf408d875b733a1cce6dab650841ab356886efb6857d",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "R-3",
+    "question": "Calculate the emf of the following cell at 298 K: Zn|Zn2+(0.001 M)||Cu2+(0.1 M)|Cu, E°cell = 1.10 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "a6a6febbcac7ea46c1c7056b7ed919ff5579a132c5b02986f318b1d640b650fe",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 0.01,
+    "activities": {
+      "Zn2+": 0.001,
+      "Cu2+": 0.1
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "R-4",
+    "question": "Find the emf of the cell Mg|Mg2+(0.001 M)||Cu2+(0.0001 M)|Cu where E°(Mg2+/Mg) = -2.37 V and E°(Cu2+/Cu) = 0.34 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "52098ab9ed56cc7fe6fbccf9a0c00787a3b3126382cdb5c3769000585ffbc45f",
+    "kind": "cell",
+    "e0": 2.71,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Mg2+": 0.001,
+      "Cu2+": 0.0001
+    }
+  },
+  {
+    "id": "R-5",
+    "question": "Calculate the cell potential of Ni|Ni2+(0.01 M)||Ag+(0.1 M)|Ag given E°cell = 1.05 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "3b1472acc54b30e80d0cb27d5c4937e01ccd65df830f7c7bd28037403a80e7b9",
+    "kind": "cell",
+    "e0": 1.05,
+    "n": 2,
+    "q": 1,
+    "activities": {
+      "Ni2+": 0.01,
+      "Ag+": 0.1
+    },
+    "statedE0": 1.05
+  },
+  {
+    "id": "R-6",
+    "question": "Calculate the emf of the cell Ni|Ni2+(0.01 M)||Ag+(0.1 M)|Ag. E°cell = 1.05 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "9857ddfc70705b3ea05e0478faa3f843886b697d214dcb430de8326eafb83fdf",
+    "kind": "cell",
+    "e0": 1.05,
+    "n": 2,
+    "q": 1,
+    "activities": {
+      "Ni2+": 0.01,
+      "Ag+": 0.1
+    },
+    "statedE0": 1.05
+  },
+  {
+    "id": "R-7",
+    "question": "What is the emf of Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu when E°cell is 1.10 V?",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "1cab8884ef08a7a223aa7699b1abf33b1ccdca1d6bd99f00e4b4d465964568a0",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "G-1",
+    "question": "Zn|Zn²⁺(0.1 M)||Cu²⁺(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "11081dfeb19a4107da87ef0ad24ef09ea4685bb1325534eeffef76be7ceb179d",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-2",
+    "question": "Zn | Zn^2+ (0.1 M) || Cu^2+ (0.01 M) | Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "2463d19ab63cdc45ed8ed005b4c026d5dd7ca88ac9da531ed26d8b62984b663c",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-3",
+    "question": "Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "9a8a1ef3ed1cc51fc9c9caeb1beaccc16b0a3dba5c0aad42f605ca057822c0e0",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-4",
+    "question": "Zn(s)|Zn²⁺(aq, 0.1 M)||Cu²⁺(aq, 0.01 M)|Cu(s). Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "b025fdab5d6545e0a593afa465e45e9e18a3e8a644e98cae4a0e6bbcb9c5e3e7",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-5",
+    "question": "Zn|Zn²⁺(0.1 M)||Cu2+(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "3a3930dcdca09d5dd7ad07644af7f2038d2b95c104a843945624d4e1a7c7d895",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-6",
+    "question": "Zn|Zn2+(0.1 M)||Cu²⁺(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "603f501b275e434dc4ad3d82c3139b8652e8e113e8cdf72ff4f9707aca75cc7a",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-7",
+    "question": "Zn|Zn²⁺(0.1 M)||Ag⁺(0.01 M)|Ag. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "80cf9bbe289068460e11f757242a26975c2583ca48d3a9fc3000599473b0e36b",
+    "kind": "cell",
+    "e0": 1.56,
+    "n": 2,
+    "q": 1000,
+    "activities": {
+      "Zn2+": 0.1,
+      "Ag+": 0.01
+    }
+  },
+  {
+    "id": "G-8",
+    "question": "Pt|Fe²⁺(0.1 M),Fe³⁺(0.01 M)||Ag⁺(1 M)|Ag. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "71e855446237f36be8558772939107cb911b93ad366447b10dbb5ea3a7b0588e",
+    "kind": "cell",
+    "e0": 0.03,
+    "n": 1,
+    "q": 0.1,
+    "activities": {
+      "Fe2+": 0.1,
+      "Fe3+": 0.01,
+      "Ag+": 1
+    }
+  },
+  {
+    "id": "G-9",
+    "question": "Zn|Zn²⁺(0.1 M)||Cu²⁺(0.01 M)|Cu. E°(Zn²⁺/Zn) = –0.76 V and E°(Cu²⁺/Cu) = 0.34 V. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "99449fe1f43eb4c5fe9dc3236debcccd7f4b23caf5cf6dfd6594e8e7b69fbf4c",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "G-10",
+    "question": "Zn|Zn²⁺(0.1 M)||Cu²⁺(0.01 M)|Cu. E°(Zn²⁺/Zn) = −0.76 V and E°(Cu²⁺/Cu) = 0.34 V. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "55425ef711fc6cff5571d3efec8f25544d214277047984d43b6e9b4c2cacba04",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-11",
+    "question": "Zn|Zn^(2+)(0.1 M)||Cu^(2+)(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "60583d4dfebe1035e9ab2c27d3276c5f9ea9ecd2d548e99e6c68b37650ac48e1",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-12",
+    "question": "Zn|Zn+2(0.1 M)||Cu+2(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "af36ab5354530ef376eaa17847d8b6763cb64ed7b50a7ec9bc5a000b935e25b6",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "G-13",
+    "question": "Zn|Zn++(0.1 M)||Cu++(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "c9835f862b13aad6a41652356bebb1776fed3e7c275a0109af297ab57246ff6e",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-14",
+    "question": "Zn | Zn2+ (0.1 M) ‖ Cu2+ (0.01 M) | Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "c83771c25192b1e409232527c13e57200d1a768d13ad633eb464c5c79bd910f4",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-15",
+    "question": "Zn|Zn2+(1 x 10^-1 M)||Cu2+(1 × 10^-2 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "bcf3de22d8635a1217feee8218100127d17efb0c25cdd01237b1cb9ccaef1e4b",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-16",
+    "question": "Zn|Zn2+(10⁻¹ M)||Cu2+(10⁻² M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "50508c5736495e2f8386c8a8637973bc158d34e2a34f16acdc576a745abf4fe1",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "G-17",
+    "question": "Zn|Zn2+(0.1M)||Cu2+(0.01M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "1427a7cce56300ad35e5532776d897b22181441c08c6d60c283c8ff6e55c134a",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-18",
+    "question": "Zn|Zn2+ (0.1 mol/L)||Cu2+ (0.01 mol dm-3)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "8380478573773efceca17e21ce8abb167dad0563b16a2cd456863c9087174222",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-19",
+    "question": "Zn|ZnSO4(0.1 M)||CuSO4(0.01 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "8c7cdca09c325568e0faa1724a21fb7a4b5b6673522713b9f97ca89c41a48229",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "G-20",
+    "question": "Mg|Mg²⁺(0.001 M)||Cu²⁺(0.0001 M)|Cu. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "eb8bdd3b80318ff23323303adf4b6a0ca02746bbb881c16fbca88403ad5fabd8",
+    "kind": "cell",
+    "e0": 2.71,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Mg2+": 0.001,
+      "Cu2+": 0.0001
+    }
+  },
+  {
+    "id": "G-21",
+    "question": "Given E° values of Sn2+/Sn and Pb2+/Pb are –0.20 V and –0.10 V respectively, calculate E°cell for Sn | Sn2+ || Pb2+ | Pb.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "d42e3bf612d50b644bd742815eeaae52b8d15372695423c7c781cf64d1001213",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "G-22",
+    "question": "Given E° values of Sn2+/Sn and Pb2+/Pb are −0.20 V and −0.10 V respectively, calculate E°cell for Sn | Sn2+ || Pb2+ | Pb.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "7c31ac242a3cf1a800860e6aaba1e4c7633e191ad33475d11d55b3dfa3fb9f26",
+    "kind": "cell",
+    "e0": 0.1,
+    "n": 2,
+    "q": 1,
+    "activities": {}
+  },
+  {
+    "id": "G-23",
+    "question": "Given E°(Sn2+/Sn) = –0.20 V and E°(Pb2+/Pb) = –0.10 V, calculate E°cell for Sn | Sn2+ || Pb2+ | Pb.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "a121fb269601908d12647ea7aefb8ac8cf756ba1eb137b8200bedc1ae45432ad",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "G-24",
+    "question": "Calculate E°cell for Sn | Sn2+ || Pb2+ | Pb. The standard reduction potentials of Sn2+/Sn and Pb2+/Pb are –0.20 V and –0.10 V.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "02f6b9e2e665f671d5470bb487dd2fe7f8b46cca10dc3e1391b48cbb5d6a1e0f",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "G-25",
+    "question": "Zn|Zn²⁺(0.1 M)||H⁺(0.01 M)|H₂(1 bar)|Pt. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "483df88e2bdea2a9bf395b0177cfd967432f43bf21d47e88a7d3cbe1e506cd25",
+    "kind": "cell",
+    "e0": 0.76,
+    "n": 2,
+    "q": 1000,
+    "activities": {
+      "Zn2+": 0.1,
+      "H+": 0.01
+    }
+  },
+  {
+    "id": "G-26",
+    "question": "Cu|Cu²⁺(0.01 M)||Ag⁺(0.1 M)|Ag. Calculate the emf at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "1f44d55e5a9d6b8c1347e6eb5b02017f0a72402d2f09cf6c8765c1d9610ff0ff",
+    "kind": "cell",
+    "e0": 0.46,
+    "n": 2,
+    "q": 1,
+    "activities": {
+      "Cu2+": 0.01,
+      "Ag+": 0.1
+    }
+  },
+  {
+    "id": "S-1",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(10⁻² M)|Cu at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "68dd8c014d835080d16bc3f9afe1273f3b2c37b02f739d52e9739274c28875c3",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "S-2",
+    "question": "Calculate the emf of the cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "25e0d70c7d4d12ac85c78c5b139aa2bcfbf91bbf38c1db182f622c641d237d98",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "S-3",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 mM)||Cu2+(0.01 M)|Cu at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "5110b1740858207a6c5698e21be1f12b2948a5d9a9f81c1127820fea590ec6e6",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "S-4",
+    "question": "Calculate the emf of the cell Zn|Zn2+ 0.1 M||Cu2+ 0.01 M|Cu at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "2242cff368e1535f764842737ab024050ffabf205a9ad8521496dec8ce99a4cf",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "reason": "The unchanged generic scalar boundary reads the ion charge plus following decimal as a signed token (+ 0.1 or + 0.01) whose original start is attached to a digit. No complete concentration source reading exists; explicitly supplied unread activities must decline, never default to 1 M. Connector/parenthesized controls preserve supported scalar and unit policies."
+  },
+  {
+    "id": "S-5",
+    "question": "Calculate the emf of a Daniell cell at 298 K when [Zn2+] = 10⁻¹ M and [Cu2+] = 0.01 M.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "a7c2807edafa0297a2619a160e2e9638757edebabe6f02259921a0986cb662d3",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M13-1",
+    "question": "How much copper is deposited at the cathode when a current of 2 A is passed through CuSO4 solution for 965 s? (F = 96485 C mol-1)",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "77f47b3d234a3a1913584990ffbee94b792acd7b7475a0bb5615e3ba24c0c679",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M13-2",
+    "question": "How much copper is deposited at the cathode when a current of 2 A is passed through CuSO4 solution for 965 s? (1 F = 96500 C)",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "9dc2db413f3cb6f7b94f1a36609902c40448e1269810af6ea5c5fd46fb95a948",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M13-3",
+    "question": "How much copper is deposited at the cathode when a current of 2 A is passed through CuSO4 solution for 965 s?",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "b5f8b55cc766d4895308f5974e9eb32d0028a42fa738a662ba141b2d4297baec",
+    "kind": "electrolysis",
+    "expectedInk": "0.635 g",
+    "reason": "The source omits the supported electrolysis/cell cue; the existing electrolysis adapter honestly declines this unclassified cathode request."
+  },
+  {
+    "id": "M14-1",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E°(Zn2+/Zn) = –0.76 V.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "283232a8bdba8e13bec454e3be4267808230dd4fd5ee50b761487a4fddcf155b",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M14-2",
+    "question": "Calculate the emf of the cell Zn|Zn²⁺(0.1 M)||Cu²⁺(0.01 M)|Cu at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "fba4e43dd14da1ed0695f3368b758d88c221529ff0b19cd99db818de2f98329c",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "M14-4",
+    "question": "Calculate the emf of the cell Pt|Cr2O7^2-(0.1 M),Cr3+(0.01 M),H+(1 M)||... at 298 K.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "0a2ca98019f0074b5623f01f9fbcac1a4fd6fea59506e19cf92afb137f104851",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M14-5",
+    "question": "A solution of 0.1 M K2Cr2O7 is electrolysed between platinum electrodes. Draw the electrolytic cell.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "7f4d024fe67af13e917d06906d2ddb2b43b61f8ef37a9fd3ec2a45f5470cf318",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M13-d",
+    "question": "A dilute solution of sulphuric acid is electrolysed using a current of 0.10 A for 2 hours to produce hydrogen and oxygen gas. Draw the cell. (F = 96485 C mol-1)",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "1ba9280dc07c25f4e9bb2196a1f64b5f6088d1300a4fff359e1ab8be711742b8",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M13-e",
+    "question": "A dilute solution of sulphuric acid is electrolysed using a current of 0.10 A for 2 hours to produce hydrogen and oxygen gas. Draw the cell. (1 F = 96500 C)",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "dc39f072cef2664495ef932902d346674fc4808ecbb5bfbc96b0151ad907e3b1",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M13-f",
+    "question": "A dilute solution of sulphuric acid is electrolysed using a current of 0.10 A for 2 hours to produce hydrogen and oxygen gas. Draw the cell.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "7fb2b375a24b6db643af0430c1aa269bc45da5dce69b053203c5b36296adb72e",
+    "kind": "electrolysis",
+    "expectedInk": "H_2"
+  },
+  {
+    "id": "M13-g",
+    "question": "CuSO4 solution is electrolysed with platinum electrodes using a current of 2 A for 965 s. Draw the cell and find the mass of copper deposited. (F = 96500 C mol-1)",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "kind": "electrolysis",
+    "expectedInk": "0.635 g",
+    "sourceQuestionSha256": "c7f3ef3d666e11ddd817ab011ebf728503983eb3b217469566ef2dc0f42de91d",
+    "reason": "The supported original F = 96500 C mol-1 constant is accepted; the existing electrolysis calculation must display 0.635 g."
+  },
+  {
+    "id": "M13-h",
+    "question": "CuSO4 solution is electrolysed with platinum electrodes using a current of 2 A for 965 s. Draw the cell and find the mass of copper deposited. (F = 96485 C mol-1)",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "fe51543766310717bf08bb31dfce8e3f197fb89f6acfb7a8acaa9d972169912f",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M14-a",
+    "question": "Draw the cell Zn|Zn²⁺(1 M)||Cu²⁺(1 M)|Cu and find E°cell. E°(Cu²⁺/Cu) = +0.34 V, E°(Zn²⁺/Zn) = –0.76 V.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "86bdff1f8ba927f8b42b9c76885fd7098e52668146f28809f0997b4919a34295",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "M14-c",
+    "question": "A solution contains 0.1 M K2Cr2O7. Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "804f97f8445f4c16c9190b65d494cc4adde75a21a26b24abc39cd273dcea2e2b",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "N-1",
+    "question": "Represent the cell in which the following reaction takes place Mg(s) + 2Ag+(0.0001 M) → Mg2+(0.130 M) + 2Ag(s). Calculate its E(cell) if E°(cell) = 3.17 V.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "8411c8aa67ed406be4d8b5d4a56191866bfe98e8737ba59452757fe116e59333",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "N-2",
+    "question": "Calculate the emf of the cell in which the following reaction takes place: Ni(s) + 2Ag+ (0.002 M) → Ni2+ (0.160 M) + 2Ag(s). Given that E°cell = 1.05 V.",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "sourceQuestionSha256": "132b9f8add4dc6217f8fda27d274d95420be52a4a913f1b9dc8650cb454d2f5e",
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+  },
+  {
+    "id": "N-3",
+    "question": "Calculate the emf of the cell Mg|Mg2+(0.001 M)||Cu2+(0.0001 M)|Cu given that E°(Mg2+/Mg) = -2.37 V and E°(Cu2+/Cu) = +0.34 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "af7d6cee3707887fe79565354c3ade5d918a30fc60653cc549ffe3926b815ffd",
+    "kind": "cell",
+    "e0": 2.71,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Mg2+": 0.001,
+      "Cu2+": 0.0001
+    }
+  },
+  {
+    "id": "N-4",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K. E°(Zn2+/Zn) = -0.76 V and E°(Cu2+/Cu) = 0.34 V.",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "sourceQuestionSha256": "10eeb83883b86feeac07e2203db24ad934dc9ad161b00162fa316e490bfe5da9",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "U-1",
+    "question": "Copper crystallises in an fcc lattice with edge length 361 pm; the radius of a copper atom is 128 pm.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "56d20f4e457ed4b57046f6b76acd2d36670efc25501029d7acf574ff53edf88c",
+    "edgePm": 361,
+    "radiusPm": 128
+  },
+  {
+    "id": "U-2",
+    "question": "An fcc unit cell edge length is 508 pm. If the radius of the cation is 110 pm, find the radius of the anion.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "c0b4c0d85a23ab9be24bf5b184ba6e67c79e4b2d26056419a54a78a57be9a597",
+    "edgePm": 508,
+    "radiusPm": 110
+  },
+  {
+    "id": "U-3",
+    "question": "Gold (atomic mass 197 g/mol) crystallises in an fcc lattice. The unit cell edge length is 407 pm and the atomic radius is 144 pm. Calculate the density of gold.",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "sourceQuestionSha256": "02e890cf4899ab4ec1292380a428f0ef3e22046706a5992df666e2ac736576ce",
+    "edgePm": 407,
+    "radiusPm": 144,
+    "densityGPerCm3": 19.40895882210884
+  }
+];
+function expandedEcUnitRefusal(row:ExpandedEcUnitRow):void {
+ const builder=row.family==="chem_unit_cell"?buildUnitCellScene:buildElectrochemScene;
+ if(row.family==="chem_electrochem")assert.equal(parseCellNotation(row.question),null);
+ assert.equal(builder(row.question,[],false),null,"direct exact figure must decline: "+row.id);
+ assert.equal(builder(row.question,[],true),null,"schematic cannot turn unread givens into defaults: "+row.id);
+ assert.equal(synthesizeFamilyScene({question:row.question}),null,"ordinary compiler cannot draw another figure after supplied-value refusal: "+row.id);
+}
+function expandedEcUnitCompile(row:ExpandedEcUnitRow):void {
+ const builder=row.family==="chem_unit_cell"?buildUnitCellScene:buildElectrochemScene;
+ const direct=compiled(builder(row.question,[],false));
+ const ordinary=synthesizeFamilyScene({question:row.question});assert.ok(ordinary?.renderScene,"ordinary family declined: "+row.id);assert.equal(ordinary.family,row.family);
+ for(const document of [direct.document,ordinary.document]) {
+  for(const quantity of document.quantities)assert.ok(Number.isFinite(quantity.value),"nonfinite quantity: "+row.id);
+  assert.ok(!/NaN|Infinity|∞/.test(JSON.stringify(document.annotations)),"nonfinite source ink: "+row.id);
+  if(row.family==="chem_unit_cell") {
+   near(document.quantities.find(q=>q.id.endsWith("_a"))?.value,row.edgePm!);
+   if(row.radiusPm!==undefined)near(document.quantities.find(q=>q.id.endsWith("_r"))?.value,Number(row.radiusPm.toFixed(6)));
+   if(row.densityGPerCm3!==undefined) {
+    const density=document.quantities.find(q=>q.id.endsWith("_rho"))?.value;assert.ok(typeof density === "number" && Number.isFinite(density) && density>0,"finite positive stored density: "+row.id);
+    near(density,Number(row.densityGPerCm3.toFixed(6)));
+    assert.ok(document.annotations.some(annotation=>{
+     const label=/ρ\s*=\s*([\d.e+−-]+)\s*g\/cm³/.exec(annotation.text??"");return label && Number(label[1])>0 && Number(label[1])===Number(row.densityGPerCm3!.toPrecision(3));
+    }),"independent positive density caption: "+row.id);
+   }
+  }else if(row.kind==="cell") {
+   near(document.quantities.find(q=>q.id==="E0_cell")?.value,row.e0!);
+   if(Object.keys(row.activities??{}).length) {
+    const expectedE=Number((row.e0!-.0591/row.n!*Math.log10(row.q!)).toFixed(4));
+    near(document.quantities.find(q=>q.id==="E_cell")?.value,expectedE);
+   }else assert.equal(document.quantities.find(q=>q.id==="E_cell"),undefined,"standard-only source cannot invent nonstandard E: "+row.id);
+  }
+ }
+ if(row.kind==="cell") {
+  const spec=parseCellNotation(row.question);assert.ok(spec,"original cell must parse: "+row.id);
+  const emf=cellEmf(spec);assert.ok(emf);near(emf.e0,row.e0!);near(emf.n,row.n!);
+  if(Object.keys(row.activities??{}).length) {near(emf.q,row.q!);near(emf.factor,.0591);}else {assert.equal(emf.e,null);assert.equal(emf.q,undefined);}
+  for(const [ion,value] of Object.entries(row.activities??{}))near(({...spec.anode.concentrations,...spec.cathode.concentrations})[ion],value);
+  if(row.observedE!==undefined) {
+   near(spec.statedE,row.observedE);
+   assert.ok(direct.labels.includes("E = 1.13 V"));
+   assert.ok(direct.document.annotations.some(a=>a.text?.includes("emf 1.13 V as given in the question")));
+  }else assert.equal(spec.statedE,undefined,"electrode/standard E° cannot become observed emf: "+row.id);
+  if(row.statedE0!==undefined)near(spec.statedE0,row.statedE0);
+ }
+ if(row.expectedInk!==undefined)assert.ok((direct.labels.join(" ")+" "+direct.document.annotations.map(a=>a.text??"").join(" ")).includes(row.expectedInk));
+}
+for(const row of expandedEcUnitLaneRows)check("Expanded lane source oracle "+row.id+": "+row.question,()=>row.mode==="compile"?expandedEcUnitCompile(row):expandedEcUnitRefusal(row));
+
+// Five independently written variants of each numerical ownership finding.
+for(const [id,question,edgePm,radiusPm,density] of [
+ ["own-edge-1","An fcc metal has a unit-cell edge length of 400 pm and an atomic radius of 150 pm. Draw its unit cell.",400,150,undefined],
+ ["own-edge-2","For the fcc lattice, edge length (a) = 400 pm; atomic radius = 150 pm; atomic mass = 60 g/mol. Find the density.",400,150,4*60/((400e-10)**3*6.022e23)],
+ ["own-edge-3","An fcc unit cell edge length is 508 pm. Its cation radius is 110 pm. Find the anion radius.",508,110,undefined],
+ ["own-edge-4","The fcc metal has an edge-length of 0.4 nm and radius 0.15 nm. Draw the unit cell.",400,150,undefined],
+ ["own-edge-5","An fcc lattice has a = 400 pm and r = 150 pm. Its molar mass is 60 g/mol. Calculate its density.",400,150,4*60/((400e-10)**3*6.022e23)],
+] as const)check("Independent stated edge ownership "+id,()=>expandedEcUnitCompile({id,question,family:"chem_unit_cell",mode:"compile",edgePm,radiusPm,densityGPerCm3:density}));
+for(const quantity of ["edge length (a) = unknown pm","edge length = 1e- pm","edge length = 400 pmfoo","edge length measured by diffraction is unknown pm","edge length is 400 pm; edge length is 420 pm"])check("Unread/conflicting edge cannot be derived: "+quantity,()=>expandedEcUnitRefusal({id:quantity,question:"Draw an fcc unit cell. Its "+quantity+" and its atomic radius is 150 pm.",family:"chem_unit_cell",mode:"decline"}));
+check("Unstated edge is legitimately derived from source radius",()=>{
+ const q="Draw an fcc unit cell with atomic radius 150 pm and calculate the edge length.";
+ const direct=compiled(buildUnitCellScene(q,[],false));near(direct.document.quantities.find(x=>x.id.endsWith("_a"))?.value,Number((4*150/Math.SQRT2).toFixed(6)));
+});
+
+for(const [id,tail] of [
+ ["own-ion-1","[Zn^2+] is 0.1 M while [Cu^2+] is 0.01 M"],
+ ["own-ion-2","Cu2+ of 0.01 M together with 0.1 M Zn2+"],
+ ["own-ion-3","Zn2+ of 0.1 mol/L and Cu2+ of 0.01 mol/L"],
+ ["own-ion-4","Cu2+ has concentration 0.01 M and Zn2+ has concentration 0.1 M"],
+ ["own-ion-5","ZnSO4 is 0.1 M and CuSO4 is 0.01 M"],
+] as const)check("Independent original ion activity ownership "+id,()=>expandedEcUnitCompile({id,question:"Calculate the emf of a Daniell cell at 298 K when "+tail+".",family:"chem_electrochem",mode:"compile",kind:"cell",activities:{"Zn2+":.1,"Cu2+":.01},e0:1.1,n:2,q:10}));
+for(const tail of [
+ "Zn+2 = 0.1 M and Cu2+ = 0.01 M",
+ "Zn2+ = 10⁻¹ M and Cu2+ = 0.01 M",
+ "the concentrations of Zn2+ and Cu2+ are 0.1 M and 0.001 M respectively",
+ "Zn2+ = 1e- M and Cu2+ = 0.01 M",
+ "[Zn2+ = 0.1 M and Cu2+ = 0.01 M",
+ "[[Zn2+]] = 0.1 M and Cu2+ = 0.01 M",
+ "Zn2+ = 0.1 M and Zn2+ = 0.2 M and Cu2+ = 0.01 M",
+ "Zn2+ = 0 M and Cu2+ = 0.01 M",
+ "Zn2+ = unknown M and Cu2+ = 0.01 M",
+])check("Supplied activity cannot become one-molar default: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Calculate the emf of a Daniell cell at 298 K when "+tail+".",family:"chem_electrochem",mode:"decline"}));
+for(const phase of ["Zn2+(10⁻¹ M)","Zn2+(unknown)","Zn2+(1e-)","Zn2+(0.1 M)x"])check("Damaged original phase remains an atomic refusal: "+phase,()=>expandedEcUnitRefusal({id:phase,question:"Draw the galvanic cell Zn|"+phase+"||Cu2+(0.01 M)|Cu with its salt bridge.",family:"chem_electrochem",mode:"decline"}));
+check("Agreeing original concentration readings remain bound",()=>expandedEcUnitCompile({id:"own-ion-agreement",question:"Draw Zn | Zn2+(0.1 M), Zn^2+(1e-1 M) || Cu2+(0.01 M) | Cu at 298 K.",family:"chem_electrochem",mode:"compile",kind:"cell",activities:{"Zn2+":.1,"Cu2+":.01},e0:1.1,n:2,q:10}));
+
+for(const [id,question,e0,activities] of [
+ ["own-electrode-1","Find the emf of Mg|Mg2+(0.001 M)||Cu2+(0.0001 M)|Cu given E°(Mg2+/Mg) = -2.37 V and E°(Cu2+/Cu) = +0.34 V.",2.71,{"Mg2+":.001,"Cu2+":.0001}],
+ ["own-electrode-2","Calculate the cell potential for Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu where E°(Zn2+/Zn) = -0.76 V and E°(Cu2+/Cu) = 0.34 V.",1.1,{"Zn2+":.1,"Cu2+":.01}],
+ ["own-electrode-3","Given E°(Mg2+/Mg) = -2.37 V, E°(Cu2+/Cu) = 0.34 V, draw Mg|Mg2+(0.001 M)||Cu2+(0.0001 M)|Cu and find its emf.",2.71,{"Mg2+":.001,"Cu2+":.0001}],
+ ["own-electrode-4","For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, find the emf if E₀(Zn2+/Zn) is -0.76 V and E₀(Cu2+/Cu) is 0.34 V.",1.1,{"Zn2+":.1,"Cu2+":.01}],
+ ["own-electrode-5","Calculate emf for Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. The reduction potentials are E°(Zn2+/Zn) = -0.76 V and E°(Cu2+/Cu) = 0.34 V.",1.1,{"Zn2+":.1,"Cu2+":.01}],
+] as const)check("Independent electrode E° remains its own role "+id,()=>expandedEcUnitCompile({id,question,family:"chem_electrochem",mode:"compile",kind:"cell",e0,n:2,q:10,activities}));
+for(const [id,tail,e0,q] of [
+ ["own-standard-1","if E°cell = 1.20 V",1.2,10],
+ ["own-standard-2","where E°(cell) is 1.20 V",1.2,10],
+ ["own-standard-3","given that standard emf = 1.20 V",1.2,10],
+ ["own-standard-4","if the standard emf of the cell is 1.20 V",1.2,10],
+ ["own-standard-5","when E°cell = 1.20 V and E°cell = 1.2 V",1.2,10],
+] as const)check("Independent standard E° drives Nernst, never observed E "+id,()=>expandedEcUnitCompile({id,question:"Calculate the emf of Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu "+tail+".",family:"chem_electrochem",mode:"compile",kind:"cell",e0,n:2,q,activities:{"Zn2+":.1,"Cu2+":.01},statedE0:e0}));
+for(const tail of ["E°cell = 1e- V","E°cell = 1.1 V; E°cell = 1.2 V","standard emf = unknown V","E°cell = 1.10 V; E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.52 V"])check("Invalid/conflicting standard-cell potential cannot disappear: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Calculate the emf of Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. "+tail+".",family:"chem_electrochem",mode:"decline"}));
+
+for(const [id,potentials] of [
+ ["own-list-1","E° values of Sn2+/Sn and Pb2+/Pb are –0.20 V and –0.10 V respectively"],
+ ["own-list-2","standard reduction potentials of Sn2+/Sn and Pb2+/Pb are –0.20 V and –0.10 V"],
+ ["own-list-3","electrode potentials for Sn2+/Sn, Pb2+/Pb are 1e- V and -0.10 V"],
+ ["own-list-4","standard potentials for Sn2+/Sn and Pb2+/Pb are -0.20 V and -0.10 V"],
+ ["own-list-5","E° values of Sn2+/Sn and Pb2+/Pb are -0.20 V and unknown V"],
+] as const)check("Independent unread stated list cannot use table E° "+id,()=>expandedEcUnitRefusal({id,question:"Calculate E°cell for Sn|Sn2+||Pb2+|Pb. "+potentials+".",family:"chem_electrochem",mode:"decline"}));
+check("Complete Unicode-minus potential list uses both source values",()=>expandedEcUnitCompile({id:"own-list-positive",question:"Given E° values of Sn2+/Sn and Pb2+/Pb are −0.20 V and −0.10 V respectively, calculate E°cell for Sn|Sn2+||Pb2+|Pb.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:.1,n:2,q:1,activities:{}}));
+
+for(const [id,question,radiusPm] of [
+ ["own-radius-1","Copper forms an fcc lattice with edge length 361 pm; the radius of a copper atom is 128 pm.",128],
+ ["own-radius-2","In the fcc lattice, edge length is 361 pm and the radius of the copper atom is 128 pm.",128],
+ ["own-radius-3","Draw an fcc unit cell: a = 361 pm; atomic radius = 128 pm.",128],
+ ["own-radius-4","An fcc crystal has edge-length 361 pm; its metallic radius is 0.128 nm.",128],
+ ["own-radius-5","An fcc unit cell has edge length 361 pm and radius of atom 128 pm.",128],
+] as const)check("Independent given radius is never replaced with derived127.6 "+id,()=>{
+ expandedEcUnitCompile({id,question,family:"chem_unit_cell",mode:"compile",edgePm:361,radiusPm});
+ const direct=compiled(buildUnitCellScene(question,[],false));const caption=direct.document.annotations.map(a=>a.text??"").join(" ");assert.ok(caption.includes("r = 128 pm as given"));assert.ok(!caption.includes("127.6 pm"));
+});
+for(const radius of ["radius of a copper atom is unknown pm","radius = 1e- pm","radius is 128 pmfoo","radius = 128 pm; radius = 129 pm"])check("Unread/conflicting radius cannot be calculated from edge: "+radius,()=>expandedEcUnitRefusal({id:radius,question:"Draw an fcc unit cell with edge length 361 pm. Its "+radius+".",family:"chem_unit_cell",mode:"decline"}));
+check("Gas pressure literal ownership remains separate from ion concentration",()=>expandedEcUnitCompile({id:"own-pressure-control",question:"Draw Zn|Zn2+(0.1 M)||H+(0.01 M)|H2(0.2 bar)|Pt at 298 K.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:.76,n:2,q:200,activities:{"Zn2+":.1,"H+":.01,"H2":.2}}));
+check("Lowercase E° source still owns its electrode role",()=>expandedEcUnitCompile({id:"own-electrode-lowercase-control",question:"Calculate the emf of Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given e°(Zn2+/Zn) = -0.76 V and e°(Cu2+/Cu) = 0.52 V.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.28,n:2,q:10,activities:{"Zn2+":.1,"Cu2+":.01}}));
+for(const list of ["E° values of Sn2+/Sn, Pb2+/Pb and Ag+/Ag are -0.20 V and -0.10 V and 0.80 V", "E° values of Sn2+/Sn and Pb2+/Pb are -0.20 V and -0.10 V/s"])check("Continued or extra-couple list cannot partially bind: "+list,()=>expandedEcUnitRefusal({id:list,question:"Calculate E°cell for Sn|Sn2+||Pb2+|Pb. "+list+".",family:"chem_electrochem",mode:"decline"}));
+// END PR137 expanded rereview: supplied cell activities and lattice givens.
+const expandedEcUnitChallenges: readonly ExpandedEcUnitRow[] = [
+  {
+    "id": "independent-unit-cell-edge-1",
+    "question": "An fcc crystal has a unit-cell edge length of 508 pm, whereas its cation radius is 110 pm. Determine the anion radius.",
+    "sourceQuestionSha256": "84997c95d765c4d20f410386e206c8ff1d93307d392f664ca4d8bf9e70ca84d4",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "edgePm": 508,
+    "radiusPm": 110
+  },
+  {
+    "id": "independent-unit-cell-edge-2",
+    "question": "For this fcc unit cell, the edge length (a) is 400 pm; the given atomic radius is 150 pm and the atomic mass is 60 g/mol. Find the density.",
+    "sourceQuestionSha256": "7780df7c1c52c92263eec91d350b4b50db8dd662146db8c8472e637025bf7020",
+    "family": "chem_unit_cell",
+    "mode": "compile",
+    "edgePm": 400,
+    "radiusPm": 150,
+    "densityGPerCm3": 6.2271670541348385
+  },
+  {
+    "id": "independent-unit-cell-edge-3",
+    "question": "The lattice parameter of the fcc crystal is 400 pm. Its radius is 150 pm. Draw the unit cell using the given lattice parameter.",
+    "sourceQuestionSha256": "e386b947a91182ce186171b3d8fe16cff80399df7f104ed34e5b7d9e84fb2aad",
+    "family": "chem_unit_cell",
+    "mode": "decline",
+    "edgePm": 400,
+    "radiusPm": 150
+  },
+  {
+    "id": "independent-ion-concentration-ownership-1",
+    "question": "Find the emf at 298 K for a Daniell cell when the zinc ion concentration, [Zn^2+], is 0.1 M and the copper ion concentration, [Cu^2+], is 0.01 M.",
+    "sourceQuestionSha256": "aa1bfe7788587dcc4fa252315e35e4310382a4c4c98454aae1330cee1106a1c0",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "independent-ion-concentration-ownership-2",
+    "question": "For the Daniell cell at 298 K, Cu2+ has concentration 0.001 M while Zn2+ has concentration 0.1 M. Calculate the emf.",
+    "sourceQuestionSha256": "6ca172993c25c2bc02fb4f2ee29ccc03e5a4d481c915e3830a3ae7163abf4fa4",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 100,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.001
+    }
+  },
+  {
+    "id": "independent-ion-concentration-ownership-3",
+    "question": "Calculate the emf of Zn | Zn2+(10⁻¹ M) || Cu2+(0.01 M) | Cu at 298 K.",
+    "sourceQuestionSha256": "b689f4f5e599b6357e0525f98b6165433b61e05c745a5392fe1ccc0d55478249",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "independent-electrode-versus-cell-potential-1",
+    "question": "E°(Mg2+/Mg) = -2.37 V and E°(Cu2+/Cu) = +0.34 V are given. Find the emf of Mg | Mg2+(0.001 M) || Cu2+(0.0001 M) | Cu at 298 K.",
+    "sourceQuestionSha256": "183fc2c756a110efff4c38567445f8c6d9e3330837a8cf06ec23c6056605aae5",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "kind": "cell",
+    "e0": 2.71,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Mg2+": 0.001,
+      "Cu2+": 0.0001
+    }
+  },
+  {
+    "id": "independent-electrode-versus-cell-potential-2",
+    "question": "At 298 K, calculate the emf of Zn | Zn2+(0.1 M) || Cu2+(0.01 M) | Cu. The standard cell potential E°cell is 1.10 V.",
+    "sourceQuestionSha256": "9f36874405df051027496c246055491a27b5b90ad9209e552713ae28e7afdba2",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    },
+    "statedE0": 1.1
+  },
+  {
+    "id": "independent-electrode-versus-cell-potential-3",
+    "question": "Given the standard electrode potentials of zinc and copper, E°(Zn2+/Zn) = -0.76 V and E°(Cu2+/Cu) = +0.34 V, find the actual cell voltage for 0.1 M Zn2+ and 0.01 M Cu2+ at 298 K.",
+    "sourceQuestionSha256": "18f39550753ed8b00784be999976fe5325402ebc224c73fb4a95c75d28dfa06d",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
+  },
+  {
+    "id": "independent-stated-potential-no-table-default-1",
+    "question": "For Sn | Sn2+ || Pb2+ | Pb, the E° values of Sn2+/Sn and Pb2+/Pb are –0.20 V and –0.10 V. Calculate the standard emf.",
+    "sourceQuestionSha256": "5ec6ca3119c11f1e8fdfdb9c6db3b33db1fe3d097dacf0f8698089e3272aae55",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "kind": "cell",
+    "e0": 0.1,
+    "n": 2,
+    "q": 1,
+    "activities": {}
+  },
+  {
+    "id": "independent-stated-potential-no-table-default-2",
+    "question": "The standard potentials are E°(Sn2+/Sn) = -0.20 V and E°(Pb2+/Pb) = -0.10 V. Calculate E°cell for Sn | Sn2+ || Pb2+ | Pb.",
+    "sourceQuestionSha256": "d383455557280a81a3c81454680edad09fed80f14fdb1549add1b396d499ce51",
+    "family": "chem_electrochem",
+    "mode": "compile",
+    "kind": "cell",
+    "e0": 0.1,
+    "n": 2,
+    "q": 1,
+    "activities": {}
+  },
+  {
+    "id": "independent-stated-potential-no-table-default-3",
+    "question": "Calculate E°cell of Sn | Sn2+ || Pb2+ | Pb, given E°(Sn2+/Sn) = unknown and E°(Pb2+/Pb) = -0.10 V.",
+    "sourceQuestionSha256": "268e3c924bbab61f9d1d79a9f1533239742396273a6a39aeb4bee0204e03567d",
+    "family": "chem_electrochem",
+    "mode": "decline",
+    "kind": "cell",
+    "e0": 0.1,
+    "n": 2,
+    "q": 1,
+    "activities": {}
+  }
+];
+for(const row of expandedEcUnitChallenges)check("Independent reviewer source challenge "+row.id,()=>row.mode==="compile"?expandedEcUnitCompile(row):expandedEcUnitRefusal(row));
+// BEGIN PR137 explicit-owner refusal addendum; append after the preserved259 block.
+for(const tail of [
+ "Edge length = unknown pm; edge length = 400 pm; atomic radius = 150 pm.",
+ "Edge length = 400 pm; edge length = unknown pm; atomic radius = 150 pm.",
+ "Edge length = unreadable pm; edge length = 400 pm; atomic radius = 150 pm.",
+ "Edge length is unknown; edge length is 400 pm; atomic radius is 150 pm.",
+ "Edge length is 400 pm; edge length is unreadable; atomic radius is 150 pm.",
+])check("Every declared edge is validated before a valid repeat: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Draw an fcc unit cell. "+tail,family:"chem_unit_cell",mode:"decline"}));
+for(const tail of [
+ "Atomic radius = unknown pm; atomic radius = 128 pm; edge length = 361 pm.",
+ "Atomic radius = 128 pm; atomic radius = unknown pm; edge length = 361 pm.",
+ "Radius of a copper atom is unreadable pm; atomic radius is 128 pm; edge length is 361 pm.",
+ "Radius is unknown; radius is 128 pm; edge length is 361 pm.",
+ "Radius is 128 pm; radius is unreadable; edge length is 361 pm.",
+])check("Every declared radius is validated before a valid repeat: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Draw an fcc unit cell. "+tail,family:"chem_unit_cell",mode:"decline"}));
+for(const tail of [
+ "Zn2+ at 0.1 kg; Cu2+ = 0.01 M.",
+ "Zn2+ of 0.1 kg; Cu2+ = 0.01 M.",
+ "Zn+2 = 0.1 kg; Cu2+ = 0.01 M.",
+ "0.1 kg Zn2+ and Cu2+ = 0.01 M.",
+ "0.1 kgfoo Zn2+ and Cu2+ = 0.01 M.",
+ "Zn2+ concentration = unreadable M; Zn2+ concentration = 0.1 M; Cu2+ = 0.01 M.",
+ "Zn2+ concentration = 0.1 M; Zn2+ concentration = unreadable M; Cu2+ = 0.01 M.",
+ "Zn2+ at unknown; Zn2+ at 0.1 M; Cu2+ = 0.01 M.",
+ "Zn2+ at 0.1 M; Zn2+ at unknown; Cu2+ = 0.01 M.",
+ "Zn2+ concentration is unknown; Zn2+ concentration is 0.1 M; Cu2+ = 0.01 M.",
+ "Zn2+ concentration is 0.1 M; Zn2+ concentration is unknown; Cu2+ = 0.01 M.",
+])check("Every declared ion activity is validated before a valid repeat: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Calculate the emf of a Daniell cell at 298 K. "+tail,family:"chem_electrochem",mode:"decline"}));
+for(const tail of [
+ "standard emf = unknown V.",
+ "E°cell = 1.10 V; E°cell = 1.20 V.",
+ "E°cell = 1.10 V; E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.52 V.",
+ "Temperature is 310 K; temperature is 315 K.",
+ "Temperature is unknown K; temperature is 310 K.",
+ "E°cell = 1e- V.",
+])check("Refused numeric cell cannot become a generic schematic: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Draw the galvanic cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu with its salt bridge. "+tail,family:"chem_electrochem",mode:"decline"}));
+check("Electron coefficient remains a half-reaction coefficient, not concentration",()=>{
+ const question="Draw the galvanic cell from Zn2+ + 2e- → Zn, E° = -0.76 V and Cu2+ + 2e- → Cu, E° = 0.34 V.";
+ const spec=parseCellNotation(question);assert.ok(spec);near(spec.anode.e0,-.76);near(spec.cathode.e0,.34);near(cellEmf(spec)?.e0,1.1);assert.deepEqual(spec.anode.concentrations,{});assert.deepEqual(spec.cathode.concentrations,{});compiled(buildElectrochemScene(question,[],false));
+});
+check("Genuine generic schematic without supplied numerical owners still compiles",()=>{
+ const question="Draw a galvanic cell with its salt bridge, anode and cathode.";
+ assert.equal(parseCellNotation(question),null);const result=compiled(buildElectrochemScene(question,[],true));assert.ok(result.labels.includes("M")&&result.labels.includes("N"));assert.ok(!result.document.quantities.some(q=>q.id==="E_cell"||q.id==="E0_cell"));
+});
+check("Original scalar aliases remain bound to their same edge and radius",()=>expandedEcUnitCompile({id:"unit-alias-owner-control",question:"An fcc metal has edge length, a = 400 pm and the radius r = 150 pm.",family:"chem_unit_cell",mode:"compile",edgePm:400,radiusPm:150}));
+// END PR137 explicit-owner refusal addendum.
+for(const question of [
+ "Draw the cell Zn | Zn2+(0.1 M) || Cu2+(0.01 M) | Cu at 310 K. Temperature is 310 K.",
+ "Draw the cell Zn | Zn2+(0.1 M) || Cu2+(0.01 M) | Cu at 310 K.",
+])check("Exact laneD temperature wordings retain numeric310K authority: "+question,()=>{
+ const spec=parseCellNotation(question);assert.ok(spec);near(spec.temperatureK,310);near(cellEmf(spec)?.factor,.06151);near(cellEmf(spec)?.q,10);near(cellEmf(spec)?.e,1.0692);
+ near(compiled(buildElectrochemScene(question,[],false)).document.quantities.find(q=>q.id==="E_cell")?.value,1.0692);
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_electrochem");near(ordinary.document.quantities.find(q=>q.id==="E_cell")?.value,1.0692);
+});
+check("Exact me-confirm copper density preserves original128pm radius",()=>expandedEcUnitCompile({id:"me-confirm-1",question:"Copper crystallises in an fcc lattice with edge length 361 pm; the radius of a copper atom is 128 pm. Calculate its density (M = 63.5 g/mol).",family:"chem_unit_cell",mode:"compile",edgePm:361,radiusPm:128,densityGPerCm3:4*63.5/((361e-10)**3*6.022e23)}));
+
+// BEGIN PR137 comma-separated supplied declarations: preserve each original owner.
+for(const declaration of [
+ "Edge length, unknown pm; edge length is 400 pm; atomic radius is 150 pm.",
+ "Edge length is 400 pm; edge length, unknown pm; atomic radius is 150 pm.",
+ "Atomic radius, unreadable pm; atomic radius is 150 pm; edge length is 400 pm.",
+ "Atomic radius is 150 pm; atomic radius, unreadable pm; edge length is 400 pm.",
+ "Edge length, 1e- pm; edge length is 400 pm; atomic radius is 150 pm.",
+])check("Comma-separated damaged measurement cannot hide beside a good repeat: "+declaration,()=>expandedEcUnitRefusal({id:declaration,question:"Draw an fcc unit cell. "+declaration,family:"chem_unit_cell",mode:"decline"}));
+for(const [question,edgePm,radiusPm] of [
+ ["Draw an fcc unit cell with edge length 400 pm. Calculate its atomic radius, and explain the relation.",400,Math.SQRT2*400/4],
+ ["Draw an fcc unit cell with atomic radius 150 pm. Calculate its edge length, and explain the relation.",4*150/Math.SQRT2,150],
+ ["A bcc unit cell has edge length 400 pm. Find its atomic radius, then explain the body diagonal.",400,Math.sqrt(3)*400/4],
+] as const)check("Requested measurement punctuation does not declare a scalar: "+question,()=>{
+ const direct=compiled(buildUnitCellScene(question,[],false));const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_unit_cell");
+ for(const document of [direct.document,ordinary.document]){
+  near(document.quantities.find(q=>q.id.endsWith("_a"))?.value,Number(edgePm.toFixed(6)));
+  near(document.quantities.find(q=>q.id.endsWith("_r"))?.value,Number(radiusPm.toFixed(6)));
+ }
+});
+// END PR137 comma-separated supplied declarations.
+// BEGIN EC v5: independent source-role and complete-phase controls.
+const ecV5Activities = {"Zn2+":.1,"Cu2+":.01} as const;
+for(const [id,tail] of [
+ ["standard-role-v5-1","standard emf = 1.10 V"],
+ ["standard-role-v5-2","the standard emf of the cell is 1.10 V"],
+ ["standard-role-v5-3","standard cell potential: 1.10 V"],
+ ["standard-role-v5-4","E°cell = 1.10 V"],
+ ["standard-role-v5-5","E°(cell) is 1.10 V"],
+] as const)check("Complete standard-cell owner never becomes observed E "+id,()=>expandedEcUnitCompile({id,question:"Calculate the emf of Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K. Given "+tail+".",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0:1.1}));
+for(const [id,given] of [
+ ["observed-role-v5-1","E°cell = 1.10 V. The emf is 1.13 V"],
+ ["observed-role-v5-2","standard emf = 1.10 V; observed cell potential = 1.13 V"],
+ ["observed-role-v5-3","E°cell = 1.10 V. The voltage: 1.13 V"],
+ ["observed-role-v5-4","standard emf is 1.10 V. The emf measured as 1.13 V"],
+ ["observed-role-v5-5","E°cell = 1.10 V. The voltage of the cell measured to be 1.13 V"],
+] as const)check("Independent observed emf retains source role beside standard E° "+id,()=>expandedEcUnitCompile({id,question:"Draw Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K. "+given+".",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0:1.1,observedE:1.13}));
+for(const phase of ["Zn2+(0.1 M)x","Zn2+(0.1 M)2","Zn2+(0.1 M)⁺","Zn2+(0.1 M)^2","Zn2+(0.1 M)/s"])check("Attached original phase continuation is not a complete ion activity: "+phase,()=>expandedEcUnitRefusal({id:phase,question:"Draw the galvanic cell Zn|"+phase+"||Cu2+(0.01 M)|Cu with its salt bridge at 298 K.",family:"chem_electrochem",mode:"decline"}));
+for(const [id,zinc,copper] of [
+ ["phase-owner-v5-1","Zn2+(0.1 M)","Cu2+(0.01 M)"],
+ ["phase-owner-v5-2","Zn2+(aq, 0.1 M)","Cu2+(aq, 0.01 M)"],
+ ["phase-owner-v5-3","Zn2+(0.1 molar)","Cu2+(0.01 molar)"],
+ ["phase-owner-v5-4","Zn2+(0.1 mol L-1)","Cu2+(0.01 mol/L)"],
+ ["phase-owner-v5-5","Zn2+(10^(-1) M)","Cu2+(10^(-2) M)"],
+] as const)check("Complete original phase preserves existing source scalar and unit grammar "+id,()=>expandedEcUnitCompile({id,question:"Calculate the emf of the cell Zn|"+zinc+"||"+copper+"|Cu at 298 K.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities}));
+for(const [id,tail] of [
+ ["requested-ion-v5-1","where [Zn2+] is 0.1 M and [Cu2+] is 0.01 M"],
+ ["requested-ion-v5-2","if [Cu2+]=0.01M and [Zn2+]=0.1M"],
+ ["requested-ion-v5-3","with 0.01 M Cu2+ and 0.1 M Zn2+"],
+ ["requested-ion-v5-4","for Zn2+ = 10^-1 M and Cu2+ = 10^-2 M"],
+ ["requested-ion-v5-5","when Zn2+ is 0.1 molar and Cu2+ is 0.01 mol L-1"],
+] as const)check("Requested emf does not own a following ion assignment "+id,()=>expandedEcUnitCompile({id,question:"Calculate the emf of a Daniell cell at 298 K "+tail+".",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities}));
+for(const tail of [
+ "Zn2+ = xyz; Zn2+ = 0.1 M; Cu2+ = 0.01 M",
+ "Zn2+ = . M; Zn2+ = 0.1 M; Cu2+ = 0.01 M",
+ "Cu2+ = 0.01 M; Zn2+ at unreadable; Zn2+ = 0.1 M",
+ "Zn2+ concentration is unknown; Cu2+ = 0.01 M; Zn2+ = 0.1 M",
+ "Zn2+ = 0.1 M; Cu2+ = . M; Cu2+ = 0.01 M",
+])check("Explicit ion assignment damage cannot hide beside good repeats: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Calculate the emf of a Daniell cell at 298 K. "+tail+".",family:"chem_electrochem",mode:"decline"}));
+for(const heading of [
+ "Calculate emf of the following cell at 298 K: ",
+ "Find the cell potential at 298 K: ",
+ "Find voltage of this cell at 298 K: ",
+ "Determine emf for the cell at 298 K: ",
+ "Calculate the potential of the cell at 298 K: ",
+])check("Question heading colon before notation never declares a voltage: "+heading,()=>expandedEcUnitCompile({id:heading,question:heading+"Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E°cell = 1.10 V.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0:1.1}));
+for(const observed of ["emf is unknown V","voltage = 1e- V","cell potential: 1.13 Vfoo","emf = 1.13 V/s","emf = 1.13 V; emf = 1.14 V"])check("Genuine observed voltage owner cannot disappear into standard E°: "+observed,()=>expandedEcUnitRefusal({id:observed,question:"Draw the galvanic cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu with its salt bridge at 298 K. E°cell = 1.10 V. The "+observed+".",family:"chem_electrochem",mode:"decline"}));
+// END EC v5 source-role and complete-phase controls.
+
+// Independent reviewer: standard owner immediately before temperature uses its role.
+check("Independent prose standard emf before temperature never becomes observed E",()=>expandedEcUnitCompile({id:"reviewer-standard-before-temperature",question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, the standard emf of the cell is 1.10 V at 298 K. Calculate the emf.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0:1.1}));
+check("Independent observed E remains distinct beside standard emf before temperature",()=>expandedEcUnitCompile({id:"reviewer-standard-observed-before-temperature",question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, the standard emf of the cell is 1.10 V at 298 K. The observed emf is 1.13 V. Draw the cell.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0:1.1,observedE:1.13}));
+
+// BEGIN EC v6: shortened observed fallback cannot discard symbolic E° owners.
+for(const [id,given,e0,statedE0] of [
+ ["symbolic-owner-v6-1","E°cell = 1.10 V",1.1,1.1],
+ ["symbolic-owner-v6-2","E°(cell) is 1.10 V",1.1,1.1],
+ ["symbolic-owner-v6-3","E₀cell = 1.10 V",1.1,1.1],
+ ["symbolic-owner-v6-4","E°(Cu2+/Cu) = 0.34 V",1.1,undefined],
+ ["symbolic-owner-v6-5","the standard cell potential is 1.20 V",1.2,1.2],
+] as const)check("Original symbolic/prose standard owner survives before temperature "+id,()=>expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. Calculate the emf.",family:"chem_electrochem",mode:"compile",kind:"cell",e0,n:2,q:10,activities:ecV5Activities,statedE0}));
+for(const [id,given,e0,statedE0] of [
+ ["distinct-observed-v6-1","E°cell = 1.10 V",1.1,1.1],
+ ["distinct-observed-v6-2","E°(cell) is 1.10 V",1.1,1.1],
+ ["distinct-observed-v6-3","E₀cell = 1.10 V",1.1,1.1],
+ ["distinct-observed-v6-4","E°(Cu2+/Cu) = 0.34 V",1.1,undefined],
+ ["distinct-observed-v6-5","the standard cell potential is 1.20 V",1.2,1.2],
+] as const)check("Genuine observed owner has a distinct source span from standard E° "+id,()=>expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. The observed emf is 1.13 V. Draw the cell.",family:"chem_electrochem",mode:"compile",kind:"cell",e0,n:2,q:10,activities:ecV5Activities,statedE0,observedE:1.13}));
+// END EC v6 standard-span controls.
+
+// BEGIN EC v7: agreeing repeated electrode values retain every original source owner.
+const ecV7RepeatedStandards = [
+ ["repeat-owner-v7-1","E°(Cu2+/Cu) = 0.34 V. E°(Cu2+/Cu) = 0.34 V",undefined],
+ ["repeat-owner-v7-2","E°(Zn2+/Zn) is -0.76 V. E°(Zn2+/Zn) is -0.76 V",undefined],
+ ["repeat-owner-v7-3","E° Cu2+/Cu = 0.34 V. E° Cu2+/Cu = 0.34 V",undefined],
+ ["repeat-owner-v7-4","E°cell = 1.10 V. E°cell = 1.10 V",1.1],
+ ["repeat-owner-v7-5","Cu2+ + 2e- → Cu, E° = 0.34 V. Cu2+ + 2e- → Cu, E° = 0.34 V",undefined],
+] as const;
+for(const [id,given,statedE0] of ecV7RepeatedStandards)check("Every agreeing repeated E° assignment owns its own source span "+id,()=>expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. Calculate the emf.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0}));
+for(const [id,given,statedE0] of ecV7RepeatedStandards)check("Distinct observed emf survives agreeing repeated E° owners "+id,()=>expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. The observed emf is 1.13 V. Draw the cell.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0,observedE:1.13}));
+// END EC v7 original-repeat owner controls.
+
+// BEGIN EC v8: every supplied observed owner is read or refused, including repeats.
+for(const tail of [
+ "the emf is 1.13 V; the emf measured as 1.14 V",
+ "the emf measured as unknown V",
+ "the voltage measured to be 1e- V",
+ "the cell potential is 1.13 V; the cell potential is measured as unreadable V",
+ "the voltage is measured to be 1.13 V/s",
+])check("Measured observed owner cannot disappear after a valid reading: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Draw the galvanic cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu with its salt bridge at 298 K. E°cell = 1.10 V. "+tail+".",family:"chem_electrochem",mode:"decline"}));
+for(const tail of [
+ "the emf is 1.13 V; the emf measured as 1.13 V",
+ "the emf is measured as 1.13 V",
+ "the voltage is measured to be 1.13 V",
+ "the cell potential measured as 1.13 V; the emf is 1.13 V",
+ "the voltage measured to be 1.13 V; the voltage is 1.13 V",
+])check("Genuine agreeing measured observed owners retain separate E° authority: "+tail,()=>expandedEcUnitCompile({id:tail,question:"Draw Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K. E°cell = 1.10 V. "+tail+".",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0:1.1,observedE:1.13}));
+// END EC v8 observed-source consistency controls.
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
