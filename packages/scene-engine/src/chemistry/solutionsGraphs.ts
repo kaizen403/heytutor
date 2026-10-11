@@ -24,7 +24,8 @@
  * inputs they agree with the exact curve to two decimals.
  */
 import type { SceneDocument } from "../types";
-import { ChemScene, chemStem, planQuantity, numberAfter, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { ChemScene, chemStem, numberAfter, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantity, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
 import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
@@ -248,12 +249,12 @@ const SPECIES: SpeciesEntry[] = [
 ];
 
 const SPECIES_ALTERNATION = SPECIES.map((entry) => `(?:${entry.pattern.source})`).join("|");
-const CONC_UNIT = "(?:m|n|molar|normal)\\b";
+const CONC_UNIT = "(?:M|N|molar|normal)\\b";
 const VOLUME_UNIT = "(?:ml|cm\\^?3|cc)\\b";
 const FILLER = "(?:(?:of|a|an|aqueous|solution|the)\\s+)*";
-const VOL_CONC_SPECIES = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${VOLUME_UNIT}\\s+${FILLER}(\\d+(?:\\.\\d+)?)\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "g");
-const CONC_SPECIES = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "g");
-const BARE_SPECIES = new RegExp(SPECIES_ALTERNATION, "g");
+const VOL_CONC_SPECIES = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*${VOLUME_UNIT}\\s+${FILLER}(${CHEMISTRY_SCALAR_PATTERN})\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "gid");
+const CONC_SPECIES = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "gid");
+const BARE_SPECIES = new RegExp(SPECIES_ALTERNATION, "gd");
 
 function speciesEntry(token: string): SpeciesEntry | null {
   return SPECIES.find((entry) => entry.pattern.test(token)) ?? null;
@@ -280,14 +281,14 @@ function readSpeciesMentions(stem: string): { withVolume: ReadSpecies[]; without
   const withVolume: ReadSpecies[] = [];
   const withoutVolume: ReadSpecies[] = [];
   for (const match of stem.matchAll(VOL_CONC_SPECIES)) {
-    const entry = speciesEntry(match[4]!);
+    const entry = speciesEntry(match[4]!.toLowerCase());
     if (!entry) continue;
     withVolume.push({
       entry,
-      name: genericName(entry, match[4]!),
-      concentration: Number(match[2]),
-      normal: /^n/.test(match[3]!),
-      volume: Number(match[1]),
+      name: genericName(entry, match[4]!.toLowerCase()),
+      concentration: matchedChemistryQuantity(stem, match, 2, /^n/i.test(match[3]!) ? "normality" : "concentration") ?? NaN,
+      normal: /^n/i.test(match[3]!),
+      volume: matchedChemistryQuantity(stem, match, 1, "volume", "mL") ?? NaN,
       index: match.index ?? 0,
       end: (match.index ?? 0) + match[0].length,
     });
@@ -295,13 +296,13 @@ function readSpeciesMentions(stem: string): { withVolume: ReadSpecies[]; without
   for (const match of stem.matchAll(CONC_SPECIES)) {
     const index = match.index ?? 0;
     if (withVolume.some((seen) => index >= seen.index && index < seen.end)) continue;
-    const entry = speciesEntry(match[3]!);
+    const entry = speciesEntry(match[3]!.toLowerCase());
     if (!entry) continue;
     withoutVolume.push({
       entry,
-      name: genericName(entry, match[3]!),
-      concentration: Number(match[1]),
-      normal: /^n/.test(match[2]!),
+      name: genericName(entry, match[3]!.toLowerCase()),
+      concentration: matchedChemistryQuantity(stem, match, 1, /^n/i.test(match[2]!) ? "normality" : "concentration") ?? NaN,
+      normal: /^n/i.test(match[2]!),
       index,
       end: index + match[0].length,
     });
@@ -318,15 +319,12 @@ function firstNumber(stem: string, patterns: RegExp[]): number | null {
 }
 
 /** pKa from the stem or plan: written directly, or from a stated Ka. */
-function statedPK(stem: string, quantities: readonly ChemPlanQuantity[], which: "a" | "b"): number | null {
-  const direct = planQuantity(quantities, [`pK${which}`, `pK_${which}`, `pk${which}`]);
-  if (direct !== null && direct > 0 && direct < 14) return direct;
+function statedPK(stem: string, _quantities: readonly ChemPlanQuantity[], which: "a" | "b"): number | null {
   const fromStem = firstNumber(stem, [
     new RegExp(`\\bpk_?${which}\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`),
   ]);
   if (fromStem !== null && fromStem > 0 && fromStem < 14) return fromStem;
-  const constant = planQuantity(quantities, [`K${which}`, `K_${which}`, `k${which}`])
-    ?? firstNumber(stem, [new RegExp(`(?<![a-z])k_?${which}\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`)]);
+  const constant = firstNumber(stem, [new RegExp(`(?<![a-z])k_?${which}\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`)]);
   if (constant !== null && constant > 0 && constant < 1) return -Math.log10(constant);
   return null;
 }
@@ -581,7 +579,7 @@ function titrationScene(
 /* ------------------------------------------------------------------------- */
 
 const PRESSURE_UNIT = "(torr|mm\\s*(?:of\\s*)?hg|mmhg|kpa|bar|atm|pa\\b|mm\\b)";
-const COMPONENT_FILLER = "(?:(?:the|two|pure|volatile|liquids?|components?|solvents?|of|a)\\s+)*";
+const COMPONENT_FILLER = "(?:(?:the|two|pure|volatile|liquids?|components?|solvents?|of|a(?=\\s+(?:liquid|component|solvent)))\\s+)*";
 
 interface RaoultReading {
   names: [string, string];
@@ -593,70 +591,87 @@ interface RaoultReading {
 
 function normaliseUnit(raw: string | undefined): string {
   const unit = (raw ?? "").replace(/\s+/g, " ").trim();
-  if (/mm/.test(unit)) return "mm Hg";
-  if (/kpa/.test(unit)) return "kPa";
+  if (/mm/i.test(unit)) return "torr";
+  if (/kpa/i.test(unit)) return "kPa";
   if (/bar/.test(unit)) return "bar";
   if (/atm/.test(unit)) return "atm";
   if (/^pa$/.test(unit)) return "Pa";
   return unit || "";
 }
 
-function readRaoult(stem: string, quantities: readonly ChemPlanQuantity[]): RaoultReading | null {
-  const bindings: Array<{ name: string; value: number; unit: string }> = [];
-  const number = "(\\d+(?:\\.\\d+)?)";
+function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): RaoultReading | null {
+  const bindings: Array<{ name: string; sourceSpan: ChemistrySpan; value: number; unit: string }> = [];
+  const componentSpan = (match: RegExpMatchArray, group: number): ChemistrySpan => ({start:match.indices![group]![0],end:match.indices![group]![1]});
+  const pressureAt = (match: RegExpMatchArray, group: number, commonUnit?: string): number => {
+    const token = match[group]!; const start = match.indices?.[group]?.[0];
+    if (start === undefined) return NaN;
+    const commonAt = commonUnit ? match.index! + match[0].lastIndexOf(commonUnit) : -1;
+    const read = readChemistryLiteral({question: stem, scalarSpan: {start, end: start + token.length}, dimension: "pressure", targetUnit: "torr", ...(commonAt >= 0 ? {unitConvention: {unit: normaliseUnit(commonUnit) as ChemistryUnit, sourceSpan: {start: commonAt, end: commonAt + commonUnit!.length}}} : {})});
+    return read.ok ? read.reading.value : NaN;
+  };
+  const number = `(${CHEMISTRY_SCALAR_PATTERN})`;
   const name = "([a-z][a-z0-9]*)";
   // "vapour pressures of pure A and B are 200 torr and 100 torr"
-  const pair = new RegExp(`vapou?r pressures? of ${COMPONENT_FILLER}${name}\\s+and\\s+${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:are|is|=|:|,)?\\s*${number}\\s*${PRESSURE_UNIT}?\\s*(?:and|,)\\s*${number}\\s*${PRESSURE_UNIT}?`, "g");
+  const pair = new RegExp(`vapou?r pressures? of ${COMPONENT_FILLER}${name}\\s+and\\s+${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:are|is|=|:|,)?\\s*${number}\\s*${PRESSURE_UNIT}?\\s*(?:and|,)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(pair)) {
-    bindings.push({ name: match[1]!, value: Number(match[3]), unit: normaliseUnit(match[4] ?? match[6]) });
-    bindings.push({ name: match[2]!, value: Number(match[5]), unit: normaliseUnit(match[6] ?? match[4]) });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, match[4] ?? match[6]), unit: normaliseUnit(match[4] ?? match[6]) || "torr" });
+    bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, match[6] ?? match[4]), unit: normaliseUnit(match[6] ?? match[4]) || "torr" });
   }
   // "vapour pressure of pure A is 200 torr", "that of pure B is 100 torr"
-  const single = new RegExp(`(?:vapou?r pressure|that) of ${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:is|=|:|are)\\s*${number}\\s*${PRESSURE_UNIT}?`, "g");
+  const single = new RegExp(`(?:vapou?r pressure|that) of ${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:is|=|:|are)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(single)) {
-    if (bindings.some((binding) => binding.name === match[1])) continue;
     if (/^(?:the|pure|liquid|solution|solvent|mixture|water)$/.test(match[1]!) && !/^water$/.test(match[1]!)) continue;
-    bindings.push({ name: match[1]!, value: Number(match[2]), unit: normaliseUnit(match[3]) });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: normaliseUnit(match[3]) || "torr" });
   }
   // "p°A = 200 torr", "p_A^0 = 200"
-  const symbolic = new RegExp(`\\bp\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*_?\\s*([a-z])\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*(?:=|is|:)\\s*${number}\\s*${PRESSURE_UNIT}?`, "g");
+  const symbolic = new RegExp(`\\bp\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*_?\\s*([a-z])\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*(?:=|is|:)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(symbolic)) {
-    if (bindings.some((binding) => binding.name === match[1])) continue;
-    bindings.push({ name: match[1]!, value: Number(match[2]), unit: normaliseUnit(match[3]) });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: normaliseUnit(match[3]) || "torr" });
   }
-  const planA = planQuantity(quantities, ["pA0", "p_A0", "pA°", "p°A", "P_A^0", "pA"]);
-  const planB = planQuantity(quantities, ["pB0", "p_B0", "pB°", "p°B", "P_B^0", "pB"]);
-  if (bindings.length < 2 && planA !== null && planB !== null && planA > 0 && planB > 0) {
-    bindings.length = 0;
-    bindings.push({ name: "a", value: planA, unit: "" }, { name: "b", value: planB, unit: "" });
-  }
-  const distinct = bindings.filter((binding, index) => bindings.findIndex((other) => other.name === binding.name) === index);
+  if (new Set(bindings.map(binding => binding.name)).size !== bindings.length) return null;
+  const distinct = bindings;
   if (distinct.length !== 2) return null;
   const [first, second] = distinct as [typeof distinct[number], typeof distinct[number]];
   if (!(first.value > 0) || !(second.value > 0)) return null;
-  const unit = first.unit || second.unit;
+  // Preserve a common declared pressure unit; mixed-unit inputs retain the
+  // canonical torr display. Values and axes are converted together.
+  const unit = first.unit === second.unit ? first.unit : "torr";
+  const a = convertChemistryValue(first.value, "torr", unit as ChemistryUnit, "pressure");
+  const b = convertChemistryValue(second.value, "torr", unit as ChemistryUnit, "pressure");
+  if (!a.ok || !b.ok) return null;
+  first.value = a.reading; second.value = b.reading;
   const names: [string, string] = [first.name, second.name];
   let xA: number | null = null;
-  const fraction = "(0?\\.\\d+|1(?:\\.0+)?|0)";
+  const fraction = `(${CHEMISTRY_SCALAR_PATTERN})`;
   const compositionPatterns: Array<{ pattern: RegExp; name: (m: RegExpExecArray) => string; value: (m: RegExpExecArray) => number }> = [
-    { pattern: new RegExp(`mole fraction of ${COMPONENT_FILLER}${name}(?: in (?:the )?(?:liquid|solution)(?: phase)?)?\\s*(?:is|=|:|of)?\\s*${fraction}`), name: (m) => m[1]!, value: (m) => Number(m[2]) },
-    { pattern: new RegExp(`${fraction}\\s*mole fraction of ${COMPONENT_FILLER}${name}`), name: (m) => m[2]!, value: (m) => Number(m[1]) },
-    { pattern: new RegExp(`\\bx_?\\(?([a-z])\\)?\\s*(?:=|is)\\s*${fraction}`), name: (m) => m[1]!, value: (m) => Number(m[2]) },
+    { pattern: new RegExp(`mole fraction of ${COMPONENT_FILLER}${name}(?: in (?:the )?(?:liquid|solution)(?: phase)?)?\\s*(?:is|=|:|of)?\\s*${fraction}`, "id"), name: (m) => m[1]!, value: (m) => matchedChemistryScalar(stem, m, 2) ?? NaN },
+    { pattern: new RegExp(`${fraction}\\s*mole fraction of ${COMPONENT_FILLER}${name}`, "id"), name: (m) => m[2]!, value: (m) => matchedChemistryScalar(stem, m, 1) ?? NaN },
+    { pattern: new RegExp(`\\bx_?\\(?([a-z])\\)?\\s*(?:=|is)\\s*${fraction}`, "id"), name: (m) => m[1]!, value: (m) => matchedChemistryScalar(stem, m, 2) ?? NaN },
   ];
   for (const candidate of compositionPatterns) {
     const match = candidate.pattern.exec(stem);
     if (!match) continue;
-    const who = candidate.name(match);
+    const who = candidate.name(match).toLowerCase();
     const value = candidate.value(match);
-    if (!(value >= 0 && value <= 1)) continue;
+    if (!(value >= 0 && value <= 1)) return null;
     if (who === names[0]) { xA = value; break; }
     if (who === names[1]) { xA = 1 - value; break; }
   }
   if (xA === null && /equimolar/.test(stem)) xA = 0.5;
   if (xA === null) {
-    const moles = new RegExp(`${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}[^.]{0,60}?${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}`).exec(stem);
-    if (moles && moles[2] === names[0] && moles[4] === names[1]) xA = Number(moles[1]) / (Number(moles[1]) + Number(moles[3]));
-    if (moles && moles[2] === names[1] && moles[4] === names[0]) xA = Number(moles[3]) / (Number(moles[1]) + Number(moles[3]));
+    const moles = new RegExp(`${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}[^.]{0,60}?${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}`, "id").exec(stem);
+    if (moles) {
+      const firstName = moles[2]!.toLowerCase(); const secondName = moles[4]!.toLowerCase();
+      const firstComponent = bindings.find(binding=>binding.name===firstName);
+      const secondComponent = bindings.find(binding=>binding.name===secondName);
+      if (!firstComponent || !secondComponent || firstComponent === secondComponent) return null;
+      const firstMoles = matchedChemistryComponentAmount(stem,moles,1,2,firstComponent);
+      const secondMoles = matchedChemistryComponentAmount(stem,moles,3,4,secondComponent);
+      if (firstMoles === null || secondMoles === null || firstMoles < 0 || secondMoles < 0 || firstMoles + secondMoles <= 0) return null;
+      if (firstName === names[0] && secondName === names[1]) xA = firstMoles/(firstMoles+secondMoles);
+      else if (firstName === names[1] && secondName === names[0]) xA = secondMoles/(firstMoles+secondMoles);
+      else return null;
+    }
   }
   return { names, pA0: first.value, pB0: second.value, unit, xA };
 }
@@ -801,16 +816,13 @@ function idealQualitativeScene(question: string): SceneDocument | null {
 /* Colligative vapour pressure diagram                                        */
 /* ------------------------------------------------------------------------- */
 
-function statedDeltaT(stem: string, quantities: readonly ChemPlanQuantity[], which: "b" | "f"): number | null {
-  const plan = planQuantity(quantities, [`ΔT${which}`, `deltaT${which}`, `dT${which}`, `ΔT_${which}`, `delta_T_${which}`]);
-  if (plan !== null && plan > 0) return plan;
+function statedDeltaT(stem: string, _quantities: readonly ChemPlanQuantity[], which: "b" | "f"): number | null {
   const phrases = which === "b"
     ? [/(?:elevation (?:in|of) (?:the )?boiling point|boiling point elevation|(?:δ|Δ|delta ?)t_?b)(?:\s*of (?:the |a |an |this )?(?:[a-z]+ )?(?:solution|water|solvent|benzene))?(?:\s+(?:is|was|of|=|:))?(?:\s+found to be|\s+observed(?: to be)?)?/]
     : [/(?:depression (?:in|of) (?:the )?freezing point|freezing point depression|(?:δ|Δ|delta ?)t_?f)(?:\s*of (?:the |a |an |this )?(?:[a-z]+ )?(?:solution|water|solvent|benzene))?(?:\s+(?:is|was|of|=|:))?(?:\s+found to be|\s+observed(?: to be)?)?/];
-  const value = firstNumber(stem, phrases);
+  const value = numberAfter(stem, phrases[0]!, "temperature_delta", "K");
   if (value === null || !(value > 0) || value > 50) return null;
-  const unitMatch = new RegExp(`${String(value)}\\s*(k\\b|°\\s*c|kelvin|degree)`).test(stem);
-  return unitMatch ? value : null;
+  return value;
 }
 
 function colligativeScene(question: string, mode: "boiling" | "freezing", deltaT: number | null): SceneDocument | null {
@@ -886,11 +898,27 @@ export function buildSolutionsGraphScene(
   schematic: boolean,
 ): SceneDocument | null {
   void schematic;
+  if (!chemistryPlanBindingsValid(question, quantities)) return null;
   const stem = chemStem(question);
   if (FIGURE_PRESENT.test(stem)) return null;
   if (claimsSolutionLesson(question)) return buildSolutionLessonScene(question, quantities, schematic);
   if (titrationCue(stem)) {
-    const numeric = readTitration(stem, quantities);
+    // A stated acid/base constant is not permission to fall back to a table
+    // or qualitative stock curve after a failed/duplicate literal.
+    for (const which of ["a", "b"]) {
+      let suppliedPK: number | null = null; let suppliedK: number | null = null;
+      for (const [role,limit] of [[`pk_?${which}`,14],[`(?<![a-z])k_?${which}`,1]] as const) {
+        const cue = new RegExp(`(?<![a-z])${role}\\b\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`,"i");
+        if (!cue.test(question)) continue;
+        const read = readChemistryQuantity({question,after:cue,dimension:"dimensionless"});
+        if (!read.ok || !(read.reading.value > 0 && read.reading.value < limit)) return null;
+        if (limit === 14) suppliedPK = read.reading.value; else suppliedK = read.reading.value;
+      }
+      if (suppliedPK !== null && suppliedK !== null && !chemistryCanonicalValuesAgree(suppliedPK,-Math.log10(suppliedK))) return null;
+    }
+    const mentions = readSpeciesMentions(question);
+    if ([...mentions.withVolume, ...mentions.withoutVolume].some(m => !Number.isFinite(m.concentration) || m.concentration <= 0 || (m.volume !== undefined && (!Number.isFinite(m.volume) || m.volume <= 0)))) return null;
+    const numeric = readTitration(question, quantities);
     if (numeric) return titrationScene(question, numeric.curve, numeric.spec, { numeric: true, normalisedVolume: numeric.normalisedVolume });
     const kind = qualitativeTitrationKind(stem);
     if (!kind) return null;
@@ -913,13 +941,16 @@ export function buildSolutionsGraphScene(
     const freezingAt = stem.search(/depression (?:in|of) (?:the )?freezing point|freezing point depression|cryoscop/);
     if (boilingAt < 0 && freezingAt < 0) return null;
     const mode: "boiling" | "freezing" = boilingAt >= 0 && (freezingAt < 0 || boilingAt < freezingAt) ? "boiling" : "freezing";
-    return colligativeScene(question, mode, statedDeltaT(stem, quantities, mode === "boiling" ? "b" : "f"));
+    return colligativeScene(question, mode, statedDeltaT(question, quantities, mode === "boiling" ? "b" : "f"));
   }
   if (RAOULT_CUE.test(stem)) {
     if (/azeotrope/.test(stem) && !/minimum boiling|maximum boiling|azeotropic composition/.test(stem)) return null;
     const positive = /positive deviation|deviates? positively/.test(stem);
     const negative = /negative deviation|deviates? negatively/.test(stem);
-    const reading = readRaoult(stem, quantities);
+    const reading = readRaoult(question, quantities);
+    // Numeric source statements that failed binding cannot become a stock graph.
+    const pressureGiven = /(?:vapou?r pressures?|that)\s+of\b|\bp\s*(?:°|\^0|\^\(0\)|0)\s*_?\s*[A-Za-z]\s*(?:=|is|:)/i.test(question);
+    if (!reading && pressureGiven) return null;
     if (reading && !positive && !negative) return raoultScene(question, reading);
     if (positive && !negative) return deviationScene(question, 1, stem);
     if (negative && !positive) return deviationScene(question, -1, stem);
