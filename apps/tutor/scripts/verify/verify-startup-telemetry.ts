@@ -73,6 +73,132 @@ function harness(start = 0) {
 
 const settle = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 
+type BoardCommitOutcome = "created" | "not_created" | "failed" | "not_called";
+interface MeasuredBoardCommit {
+  committed: boolean;
+  metadata: {
+    board_commit_ms: number;
+    board_commit_total_ms: number | null;
+    board_commit_called: boolean;
+    board_commit_result: BoardCommitOutcome;
+  };
+}
+
+/** Execute the production measurement and payload expressions, not a test copy. */
+function loadBoardCommitMeasurement(source: string) {
+  const file = ts.createSourceFile("useQuestionHandler.ts", source, ts.ScriptTarget.Latest, true);
+  const declarations = new Map<string, ts.VariableStatement>();
+  let wait: ts.ExpressionStatement | undefined;
+  let payload: ts.ObjectLiteralExpression | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableStatement(node)) {
+      for (const declaration of node.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name)) declarations.set(declaration.name.text, node);
+      }
+    }
+    if (ts.isExpressionStatement(node) && ts.isAwaitExpression(node.expression) &&
+      node.expression.expression.getText(file) === "boardCommitted") wait = node;
+    if (ts.isCallExpression(node) && node.expression.getText(file) === "tel.mark" &&
+      node.arguments[0]?.getText(file) === '"startup-ask"' &&
+      node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) payload = node.arguments[1];
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  const declaration = (name: string) => {
+    const node = declarations.get(name);
+    assert(node, `the actual handler owns the ${name} measurement`);
+    return node;
+  };
+  const start = declaration("boardCommitStartedAt");
+  const commit = declaration("boardCommitted");
+  const waitStart = declaration("boardCommitWaitStartedAt");
+  const waitEnd = declaration("beginTurnStartedAt");
+  assert(wait && payload, "execute the actual board await and startup-ask payload");
+  assert(start.pos < commit.pos && commit.pos < waitStart.pos && waitStart.pos < wait.pos && wait.pos < waitEnd.pos,
+    "callback starts before setup work; remaining wait is measured only around its await");
+  const startupPayload = payload;
+  const properties = ["board_commit_ms", "board_commit_total_ms", "board_commit_called", "board_commit_result"].map((name) => {
+    const property = startupPayload.properties.find((node) => ts.isPropertyAssignment(node) && node.name.getText(file) === name);
+    assert(property, `the production payload must expose ${name}`);
+    return property.getText(file);
+  });
+  const compiled = ts.transpileModule(`return (async () => {
+    ${source.slice(start.getStart(file), commit.end)}
+    workBeforeAwait();
+    ${waitStart.getText(file)}
+    ${wait.getText(file)}
+    ${waitEnd.getText(file)}
+    return { metadata: { ${properties.join(",")} }, committed: await boardCommitted };
+  })();`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  return new Function("commitDraftBoard", "performance", "workBeforeAwait", compiled) as (
+    commitDraftBoard: (() => Promise<boolean>) | undefined,
+    performance: { now(): number },
+    workBeforeAwait: () => void,
+  ) => Promise<MeasuredBoardCommit>;
+}
+
+async function checkBoardCommitOutcome(source: string, outcome: BoardCommitOutcome) {
+  const measure = loadBoardCommitMeasurement(source);
+  const clock = { now: 1_000 };
+  let resolve!: (created: boolean) => void;
+  let reject!: (error: unknown) => void;
+  const callbackPromise = new Promise<boolean>((yes, no) => { resolve = yes; reject = no; });
+  const originalError = new Error(STUDENT_TEXT);
+  let called = 0;
+  let work = 0;
+  const callback = outcome === "not_called" ? undefined : () => {
+    called++;
+    assert.equal(work, 0, "the actual callback starts immediately, before setup work or await");
+    return callbackPromise;
+  };
+  const pending = measure(callback, { now: () => clock.now }, () => {
+    work++;
+    clock.now += 350; // UI/title/ref setup overlaps the already-running callback.
+  });
+  assert.equal(called, outcome === "not_called" ? 0 : 1, "measurement never repeats the callback");
+  assert.equal(work, 1, "setup work happens before the commit await");
+  if (outcome !== "not_called") {
+    clock.now += 300;
+    if (outcome === "failed") reject(originalError);
+    else resolve(outcome === "created");
+  }
+  const result = await pending;
+  assert.equal(result.committed, outcome === "created", "true/false and the existing rejection-to-false behavior remain unchanged");
+  assert.deepEqual(result.metadata, {
+    board_commit_ms: outcome === "not_called" ? 0 : 300,
+    board_commit_total_ms: outcome === "not_called" ? null : 650,
+    board_commit_called: outcome !== "not_called",
+    board_commit_result: outcome,
+  }, `${outcome}: actual callback total includes work before await; remaining wait does not`);
+  assert(!JSON.stringify(result.metadata).includes(STUDENT_TEXT), "callback failures expose only the allowlisted outcome, never error text");
+  return result;
+}
+
+async function verifyBoardCommitMeasurement() {
+  const source = readFileSync(path.resolve(import.meta.dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+  for (const outcome of ["created", "not_created", "failed", "not_called"] as const) {
+    await checkBoardCommitOutcome(source, outcome);
+  }
+  const originalError = new Error(STUDENT_TEXT);
+  await assert.rejects(loadBoardCommitMeasurement(source)(() => { throw originalError; }, { now: () => 0 }, () => {}),
+    (error: unknown) => error === originalError, "a synchronous callback throw retains its exact original error identity");
+
+  // These mutants passed the old hardcoded report tests. Execute the same
+  // production seam to prove the new callback/payload assertions reject them.
+  const mutants: Array<[string, string, string, BoardCommitOutcome]> = [
+    ["remaining wait as total", "board_commit_total_ms: boardCommitTotalMs", "board_commit_total_ms: Math.round(beginTurnStartedAt - boardCommitWaitStartedAt)", "created"],
+    ["swapped boolean outcomes", 'created ? "created" : "not_created"', 'created ? "not_created" : "created"', "created"],
+    ["mislabelled rejection", 'boardCommitResult = "failed"', 'boardCommitResult = "not_created"', "failed"],
+    ["mislabelled absent callback", '= "not_called";', '= "not_created";', "not_called"],
+    ["absent callback counted as called", "board_commit_called: Boolean(commitDraftBoard)", "board_commit_called: true", "not_called"],
+  ];
+  for (const [name, before, after, outcome] of mutants) {
+    assert(source.includes(before), `${name}: the mutation must target the real production expression`);
+    await assert.rejects(checkBoardCommitOutcome(source.replace(before, after), outcome), assert.AssertionError,
+      `${name}: the measurement gate must fail, not accept a fabricated callback duration/outcome`);
+  }
+}
+
 /** Completion diagnostics never become a candidate or student-text authority. */
 async function verifyCandidateValidationTiming() {
   assert.equal(typeof measureSceneCandidateValidation, "function", "candidate timing helper must exist before instrumentation can claim this stage");
@@ -790,6 +916,7 @@ function verifyHandlerPrivacy() {
 }
 
 async function main() {
+  await verifyBoardCommitMeasurement();
   await verifyCandidateValidationTiming();
   await verifyOriginAtAsk();
   await verifyCheckpointOnce();
@@ -802,7 +929,7 @@ async function main() {
   await verifyStreamingClientSeam();
   verifyReportParsing();
   verifyHandlerPrivacy();
-  console.log("verified candidate timing identity/error/privacy, full versus remaining board commit, repeated measured intervals, Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, report parsing, and no question text");
+  console.log("verified actual board callback true/false/reject/absent and five rejected measurement mutants, candidate timing identity/error/privacy, full versus remaining board commit, repeated measured intervals, Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, report parsing, and no question text");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
