@@ -29,11 +29,22 @@ const nextConfig: NextConfig = {
     // Custom server (server.ts) reads compiled route modules from .next/server in dev.
     // In-memory webpack cache can leave those files missing → ENOENT / PageNotFoundError.
     if (dev && isServer) {
+      // Next disables filesystem cache's extra in-memory generations in dev.
+      // Replacing its options restores Webpack's default of five generations
+      // alongside Next's own memory cache, retaining repeated route builds.
+      const inheritedCache = config.cache && typeof config.cache === "object" && config.cache.type === "filesystem"
+        ? config.cache
+        : undefined;
       config.cache = {
+        ...inheritedCache,
         type: "filesystem",
         cacheDirectory: path.join(process.cwd(), ".next/cache/webpack"),
         buildDependencies: {
-          config: [path.join(process.cwd(), "next.config.ts")],
+          ...inheritedCache?.buildDependencies,
+          config: [...new Set([
+            ...(inheritedCache?.buildDependencies?.config ?? []),
+            path.join(process.cwd(), "next.config.ts"),
+          ])],
         },
       };
     }
