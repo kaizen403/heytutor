@@ -692,6 +692,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       labelId: primitive.id, entityId: primitive.id, anchor: primitive.points[0]!, text: primitive.text!,
       viewBounds: transformPlan.viewportFor(primitive.entityId), useOwnerBounds: false,
       pinToAnchor: primitive.provenance?.linearRole === "caption", allowLeader: primitive.provenance?.linearRole !== "caption",
+      ...(primitive.provenance?.linearRole === "source_reference_label" && isPointIdentifierText(primitive.text!)
+        ? { tetherPx: pointLabelTether(primitive.text!), allowLeader: false } : {}),
       leaderGeometrySafe: true,
     }));
     const obstacles = [...obstaclesFromPrimitives(primitives.filter((primitive) => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()];

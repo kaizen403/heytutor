@@ -39,6 +39,26 @@ function normalize(text: string): string {
     .replace(/∧|∩|\\(?:land|wedge|cap)\b/g, " and ")
     .replace(/¬|\\(?:neg|lnot)\b/g, " not ");
 }
+/** Real-domain declarations are syntax, never additional affine operands. */
+function sourceNotation(text: string, names: readonly string[]): string {
+  let result = text;
+  if (names.length === 2 && names[0] === "x" && names[1] === "y") {
+    result = result.replace(/\b(?:in|over)\s+(?:R|ℝ)(?:\^2|²)\s*(?=[,;:.]|$)/gi, " ");
+    result = result.replace(/\b(?:real\s+)?pairs?\s*\(\s*x\s*,\s*y\s*\)/gi, "real pairs");
+    // A Cartesian set builder explicitly declares canonical x/y order. The
+    // complete body is retained for the same affine/Boolean clause reader.
+    result = result.replace(/(?:\b[A-Za-z][A-Za-z0-9_]*\s*=\s*)?\{\s*\(\s*x\s*,\s*y\s*\)\s*:\s*([^{}]+)\}/g, " $1 ");
+  }
+  const variables = names.join("|");
+  result = result.replace(new RegExp(`\\b(?:there\\s+is\\s+)?no\\s+constraint\\s+on\\s+(?:${variables})\\s*(?=[.;?!]|$)`, "gi"), " ");
+  // Explicit continuous-domain disclaimers do not apply Boolean complement
+  // to the preceding region. Restrict to these complete noun phrases; an
+  // actual integer restriction or mathematical NOT remains visible.
+  result = result.replace(/\b(?:the\s+)?domain\s+is\s+continuous,\s*not\s+integer-valued\s*(?=[.;?!]|$)/gi, "the domain is continuous ");
+  result = result.replace(/\bnot\s+an?\s+integer\s+problem\s*(?=[.;?!]|$)/gi, " ");
+  result = result.replace(/\bdo\s+not\s+impose\s+an?\s+integer\s+restriction\s*(?=[.;?!]|$)/gi, " ");
+  return result;
+}
 /** Explicit variable-domain grammar; these givens are never assumed by convention. */
 function explicitDomains(text: string, names: readonly string[]): string {
   const name = `(?:${names.join("|")})`;
@@ -94,7 +114,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
     return " ";
   };
   result = result.replace(
-    new RegExp(`\\breal\\s+(?:variables?\\s+)?(${list})\\b(?!\\s*(?:<=|>=|[<>=]))`, "gi"),
+    new RegExp(`\\breal\\s+(?:(?:variables?|quantities)\\s+)?(${list})\\b(?!\\s*(?:<=|>=|[<>=]|,\\s*${name}\\b|and\\s+${name}\\b))`, "gi"),
     (_, variables: string) => realDomain(variables),
   );
   result = result.replace(
@@ -349,6 +369,11 @@ function booleanProgram(
     // The article in "and a horizontal line" is not a Boolean variable a.
     // This bounded display instruction cannot hide a mathematical clause.
     gap = gap.replace(/\band\s+(?:a|the)\s+(?:vertical|horizontal)\s+line\b/gi, " ");
+    if (sourcePointLabels.length) {
+      const names = `(?:${sourcePointLabels.join("|")})`;
+      gap = gap.replace(new RegExp(`\\band\\s+${names}\\s+at\\s+(?:every|each)\\s+corner\\b`, "g"), " ");
+      gap = gap.replace(new RegExp(`\\band\\s+${names}\\s+value\\b`, "g"), " ");
+    }
     // A complete bare x/y result request is outside the set's Boolean program.
     // The sentence boundary prevents a comparison or arithmetic tail hiding
     // behind this noun phrase; those still remain mathematical source input.
@@ -479,6 +504,84 @@ function inequalityLeaves(program: IntervalExpression): string[] {
   if ("complement" in program) return inequalityLeaves(program.complement);
   return ("union" in program ? program.union : program.intersection).flatMap(inequalityLeaves);
 }
+/** Named real set builders and their explicit Boolean result definitions. */
+function setBuilderSourceProgram(body: string, variable: string): IntervalExpression | null {
+  const bindings = new Map<string, IntervalExpression>();
+  const spans: Array<{ start: number; end: number }> = [];
+  for (const match of body.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*\{\s*([A-Za-z][A-Za-z0-9_]*)(?:\s+in\s+(?:R|ℝ))?\s*:\s*([^{}]+)\}/g)) {
+    if (match[2] !== variable || match[1] === variable || bindings.has(match[1]!)) throw new Error("Named set builders require one unambiguous declared real variable");
+    const content = match[3]!;
+    bindings.set(match[1]!, booleanProgram(content, clauses(content, [variable])));
+    spans.push({ start: match.index!, end: match.index! + match[0].length });
+    if (bindings.size > 16) throw new Error("Source named sets exceed 16 definitions");
+  }
+  if (!bindings.size) return null;
+  const mask = (text: string, ranges: Array<{ start: number; end: number }>): string => {
+    for (const span of ranges.slice().sort((a, b) => b.start - a.start)) text = text.slice(0, span.start) + " ".repeat(span.end - span.start) + text.slice(span.end);
+    return text;
+  };
+  let residual = mask(body, spans);
+  if (/[{}[\]]/.test(residual)) throw new Error("Every original set builder must be consumed completely");
+  const read = (text: string): { program: IntervalExpression; end: number } => {
+    const tokens = [...text.matchAll(/[A-Za-z][A-Za-z0-9_]*|[^\s]/g)];
+    let cursor = 0;
+    const word = () => tokens[cursor]?.[0].toLowerCase();
+    const atom = (): IntervalExpression => {
+      if (word() === "not" || word() === "complement") {
+        cursor++; if (word() === "of") cursor++;
+        return { complement: atom() };
+      }
+      if (word() === "(") { cursor++; const value = union(); if (word() !== ")") throw new Error("Unbalanced named-set expression"); cursor++; return value; }
+      const token = tokens[cursor++];
+      if (!token || !bindings.has(token[0])) throw new Error(`Unknown original named-set operand ${token?.[0]}`);
+      return bindings.get(token[0])!;
+    };
+    const intersection = (): IntervalExpression => {
+      let value = atom();
+      while (["and", "intersect", "intersection", "minus"].includes(word() ?? "")) {
+        const operation = word(); cursor++;
+        const next = atom();
+        value = { intersection: [value, operation === "minus" ? { complement: next } : next] };
+      }
+      return value;
+    };
+    const union = (): IntervalExpression => {
+      let value = intersection();
+      while (["or", "union"].includes(word() ?? "")) { cursor++; value = { union: [value, intersection()] }; }
+      return value;
+    };
+    const program = union(), last = tokens[cursor - 1]!;
+    const rest = text.slice(last.index! + last[0].length);
+    if (rest.trimStart() && !/^(?:\s*[,;:.?!]|\s+(?:on|with|where|and\s+(?:draw|label|mark|state|classify))\b)/i.test(rest))
+      throw new Error("Unsupported continuation of complete named-set expression");
+    return { program, end: last.index! + last[0].length };
+  };
+  const results: IntervalExpression[] = [], resultSpans: Array<{ start: number; end: number }> = [];
+  for (const definition of residual.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*/g)) {
+    const label = definition[1]!;
+    if (label === variable || bindings.has(label)) throw new Error("A source set result cannot redefine its givens");
+    const start = definition.index! + definition[0].length;
+    const selected = read(residual.slice(start));
+    bindings.set(label, selected.program); results.push(selected.program);
+    resultSpans.push({ start: definition.index!, end: start + selected.end });
+  }
+  if (results.length !== 1) throw new Error("Named set builders require one explicit complete result expression");
+  residual = mask(residual, resultSpans);
+  // A stated definition of set difference/intersection is independently
+  // checked before its membership prose can be removed from the math spans.
+  residual = residual.replace(/\b(?:Here\s+)?([A-Za-z][A-Za-z0-9_]*)\s+(minus|union|intersect(?:ion)?)\s+([A-Za-z][A-Za-z0-9_]*)\s+means\s+x\s+is\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s+(AND|OR)\s+x\s+is\s+(not\s+)?in\s+([A-Za-z][A-Za-z0-9_]*)\s*(?=[.;?!]|$)/gi,
+    (whole, a: string, operation: string, b: string, c: string, connective: string, negation: string | undefined, d: string) => {
+      if (![a, b, c, d].every(name => bindings.has(name))) throw new Error("Set membership explanation uses an unknown source set");
+      const lhs: IntervalExpression = /union/i.test(operation) ? { union: [bindings.get(a)!, bindings.get(b)!] } : { intersection: [bindings.get(a)!, /minus/i.test(operation) ? { complement: bindings.get(b)! } : bindings.get(b)!] };
+      const right = negation ? { complement: bindings.get(d)! } : bindings.get(d)!;
+      const rhs: IntervalExpression = /or/i.test(connective) ? { union: [bindings.get(c)!, right] } : { intersection: [bindings.get(c)!, right] };
+      const solve = (expression: IntervalExpression) => solveLinearFigure({ kind: "number_line_set", variable, expression });
+      if (!same(solve(lhs), solve(rhs))) throw new Error("Original set-membership explanation contradicts its Boolean definition");
+      return " ".repeat(whole.length);
+    });
+  if (clauses(residual, [variable]).length) throw new Error("Additional source comparisons cannot be omitted from a named-set program");
+  return results[0]!;
+}
 /** Bounded named interval literals are another spelling of the same real sets. */
 function intervalSourceProgram(body: string, variable: string): IntervalExpression | null {
   const bindings = new Map<string, IntervalExpression>();
@@ -572,6 +675,7 @@ interface SourceObjective {
   sense: "max" | "min";
   start: number;
   end: number;
+  label?: string;
 }
 /** Read an affine objective completely, separately from its prose direction. */
 function sourceObjective(body: string, names: readonly string[]): SourceObjective {
@@ -579,7 +683,7 @@ function sourceObjective(body: string, names: readonly string[]): SourceObjectiv
   const directions = [...body.matchAll(directionPattern)];
   if (!directions.length) throw new Error("Objective direction is not explicit in source");
   const sense = (word: string): "max" | "min" => /^max/i.test(word) ? "max" : "min";
-  const targetOf = (direction: RegExpMatchArray): string | undefined => /^\s*(?:(?:the|objective|function|constant|value|of)\s+)*([A-Za-z][A-Za-z0-9_]*)\b/i.exec(body.slice(direction.index! + direction[0].length))?.[1];
+  const targetOf = (direction: RegExpMatchArray): string | undefined => /^\s*(?:(?:the|objective|function|constant|value|of)\s+)*(?:(?:profit|cost|revenue)\s+(?=[A-Za-z][A-Za-z0-9_]*\s*=))?([A-Za-z][A-Za-z0-9_]*)\b/i.exec(body.slice(direction.index! + direction[0].length))?.[1];
   const aliasesFor = (label: string | undefined): string[] => label ? [...body.matchAll(new RegExp(`\\b([A-Za-z][A-Za-z0-9_]*)\\s+(?:is|=)\\s+${label}\\s*=`, "g"))].map((alias) => alias[1]!.toLowerCase()) : [];
   const postfixDirection = (direction: RegExpMatchArray, expressionEnd: number): boolean => direction.index! >= expressionEnd && /^\s*(?:is|are)?\s*$/i.test(body.slice(expressionEnd, direction.index!));
   const readExpression = (start: number): { expression: string; end: number } | null => {
@@ -607,7 +711,7 @@ function sourceObjective(body: string, names: readonly string[]): SourceObjectiv
   const candidates: SourceObjective[] = [];
   for (const direction of directions) {
     const after = direction.index! + direction[0].length;
-    const descriptor = /^\s*(?:(?:the|objective|function|constant|value|of)\s+)*(?:[A-Za-z][A-Za-z0-9_]*\s*=\s*)?/i.exec(body.slice(after))!;
+    const descriptor = /^\s*(?:(?:the|objective|function|constant|value|of)\s+)*(?:(?:profit|cost|revenue)\s+(?=[A-Za-z][A-Za-z0-9_]*\s*=))?(?:[A-Za-z][A-Za-z0-9_]*\s*=\s*)?/i.exec(body.slice(after))!;
     const expression = readExpression(after + descriptor[0].length);
     if (expression) candidates.push({ ...expression, sense: sense(direction[0]), start: direction.index! });
   }
@@ -648,7 +752,7 @@ function sourceObjective(body: string, names: readonly string[]): SourceObjectiv
     if ((explicitAction || requested) && direction.index! !== selected.start && target && !names.includes(target) && !boundReference && !postfix && !derivedResult)
       throw new Error(`Additional source objective request is unresolved: ${direction[0]} ${target}`);
   }
-  return selected;
+  return { ...selected, ...(objectiveLabel ? { label: objectiveLabel } : {}) };
 }
 /**
  * Independently reconstruct a complete affine source program. No rejected
@@ -661,26 +765,30 @@ export function buildLinearSourceDocument(question: string): SceneDocument | nul
   if (typeof question !== "string" || question.length > 8192) return null;
   try {
     const normalized = normalize(question);
-    const numberLineRequested = /\bnumber[ -]line\b/i.test(normalized);
+    const numberLineRequested = /\bnumber[ -]line\b/i.test(normalized)
+      || /\breal\s+x\b/i.test(normalized) && !/\by\b|\b(?:half[ -]plane|coordinate\s+plane|pairs?)\b|(?:R|ℝ)(?:\^2|²)/i.test(normalized);
     let operator: string;
     let inputs: Record<string, unknown>;
     if (numberLineRequested) {
-      const body = explicitDomains(normalized, ["x"]);
-      const program = intervalSourceProgram(body, "x") ?? booleanProgram(body, clauses(body, ["x"]));
+      const points = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, ["x"]), ["x"]), ["x"]);
+      const body = points.maskedQuestion;
+      const program = setBuilderSourceProgram(body, "x") ?? intervalSourceProgram(body, "x") ?? booleanProgram(body, clauses(body, ["x"]), points.points.map(point => point.label));
       operator = "number_line_set";
       inputs = { variable: "x", expression: program };
     } else {
       const names = ["x", "y"];
-      const points = readLinearSourceReferencePoints(explicitDomains(normalized, names), names);
+      const points = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, names), names), names);
       let body = points.maskedQuestion;
+      const proseLabels = points.points.map(point => point.label);
       let objective: { expression: string; sense: "max" | "min" } | undefined;
       if (/\b(?:maximi[sz](?:e[ds]?|ing|ation)|minimi[sz](?:e[ds]?|ing|ation)|maximum|minimum|max|min)\b/i.test(body)) {
         const source = sourceObjective(body, names);
+        if (source.label) proseLabels.push(source.label);
         objective = { expression: source.expression, sense: source.sense };
         body = body.slice(0, source.start) + " ".repeat(source.end - source.start) + body.slice(source.end);
       }
       const source = clauses(body, names, points.points.map(point => point.label));
-      if (!source.length || !isIntersectionProgram(booleanProgram(body, source, points.points.map(point => point.label)))) return null;
+      if (!source.length || !isIntersectionProgram(booleanProgram(body, source, proseLabels))) return null;
       if (source.length === 2 && source.every(clause => clause.equality) && !objective) {
         operator = "linear_system";
         inputs = { variables: names, equations: source.map(clause => clause.text) };
@@ -747,14 +855,24 @@ export function validateLinearSourceBinding(
         input.kind === "number_line_set"
           ? [input.variable ?? "x"]
           : (input.variables ?? ["x", "y"]);
+      // A stated free coordinate must really be absent from the complete
+      // affine constraints; domain prose cannot erase a later restriction.
+      if (geometry.solution.kind !== "number_line_set") {
+        const rows = geometry.solution.kind === "linear_system" ? geometry.solution.equations : geometry.solution.constraints;
+        for (const free of document.source.question.matchAll(/\bno\s+constraint\s+on\s+([xy])\s*(?=[.;?!]|$)/gi)) {
+          const coefficient = free[1]!.toLowerCase() === "x" ? "a" : "b";
+          if (rows.some(row => row[coefficient].numerator !== "0")) throw new Error("An original free-coordinate declaration contradicts a source constraint");
+        }
+      }
       if (input.kind !== "number_line_set" && names.includes("x") && names.includes("y")
         && (names[0] !== "x" || names[1] !== "y"))
         throw new Error("Source x/y coordinates require canonical axis order ['x','y'] for boundary, corner and solution tuples");
       let question = explicitDomains(
-        normalize(document.source.question),
+        sourceNotation(normalize(document.source.question), names),
         names,
       );
-      const sourcePoints = input.kind !== "number_line_set" ? readLinearSourceReferencePoints(question, names) : null;
+      const sourcePoints = readLinearSourceReferencePoints(question, names);
+      const proseLabels = sourcePoints.points.map(point => point.label);
       if (input.kind === "linear_system" && sourcePoints) {
         const intersectionNames = readLinearSourceIntersectionNames(question);
         const intersectionGivens = sourcePoints.points.filter(point => intersectionNames.has(point.label));
@@ -782,7 +900,7 @@ export function validateLinearSourceBinding(
       if (/[∈∉]/.test(question))
         throw new Error("Unsupported mathematical source domain");
       if (
-        /\b(?:integers?|natural\s+numbers?|whole\s+numbers?)\b/i.test(question)
+        /\bintegers?\b(?![- ]coefficients?\b)|\b(?:natural\s+numbers?|whole\s+numbers?)\b/i.test(question)
       )
         throw new Error(
           "Continuous linear figures require a real-valued source domain",
@@ -798,6 +916,9 @@ export function validateLinearSourceBinding(
         /\bif\b(?!\s+possible\b)|\b(?:implies|otherwise|iff)\b/i.test(question)
       )
         throw new Error("Unsupported conditional source program");
+      const hasStrictBoundary = geometry.solution.kind !== "number_line_set" && geometry.solution.kind !== "linear_system"
+        && geometry.solution.constraints.some(constraint => constraint.strict);
+      if (hasStrictBoundary) question = question.replace(/\bstrict[- ]boundary\s+exclusion\b/gi, " ");
       if (/\b(?:exclud(?:e[ds]?|ing)|exclusions?|without)\b/i.test(question))
         throw new Error("Unsupported source exclusion cannot be omitted from the complete linear program");
       if (
@@ -831,6 +952,7 @@ export function validateLinearSourceBinding(
       let body = question;
       if (input.kind === "linear_feasible_region" && input.objective) {
         const objective = sourceObjective(body, names);
+        if (objective.label) proseLabels.push(objective.label);
         if (
           objective.sense !== input.objective.sense ||
           !same(
@@ -849,7 +971,7 @@ export function validateLinearSourceBinding(
       )
         throw new Error("Source objective cannot be omitted");
       if (input.kind === "number_line_set") {
-        const program = intervalSourceProgram(body, names[0]!) ?? booleanProgram(body, clauses(body, names));
+        const program = setBuilderSourceProgram(body, names[0]!) ?? intervalSourceProgram(body, names[0]!) ?? booleanProgram(body, clauses(body, names), proseLabels);
         if (!same(signatures(inequalityLeaves(program), names), signatures(inequalityLeaves(input.expression), names)))
           throw new Error(`Number-line constraints differ from original source: source ${JSON.stringify(inequalityLeaves(program))}, proposed ${JSON.stringify(inequalityLeaves(input.expression))}`);
         const result = solveLinearFigure({
@@ -881,7 +1003,7 @@ export function validateLinearSourceBinding(
           throw new Error(
             "System must represent the complete two source equations",
           );
-        if (!isIntersectionProgram(booleanProgram(body, source, sourcePoints?.points.map((point) => point.label))))
+        if (!isIntersectionProgram(booleanProgram(body, source, proseLabels)))
           throw new Error(
             "A planar intersection or system cannot replace a source union or complement",
           );

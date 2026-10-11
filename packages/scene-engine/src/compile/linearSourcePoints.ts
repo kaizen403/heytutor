@@ -1,5 +1,6 @@
 import { parseLinearAffine } from "../math/linearRegion";
 import type { ExactRational } from "../math/exactRational";
+import { Q_ZERO, serializeRational } from "../math/exactRational";
 
 export interface LinearSourceReferencePoint {
   label: string;
@@ -14,6 +15,7 @@ export function readLinearSourceIntersectionNames(question: string): Set<string>
     /\b(?:meets?|intersects?|cross(?:es)?)(?:\s+(?:each\s+other|one\s+another))?\s+at\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi,
     /\bintersection(?:\s+point)?\s+(?:is|at|named|called)\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi,
     /\b(?:point\s+of\s+intersection|intersection\s+point)\s+(?:(?:the\s+)?point\s+)?(?!is\b|at\b|named\b|called\b|of\b|and\b|the\b)([A-Za-z][A-Za-z0-9_]*)\b/gi,
+    /\bintersection(?:\s+point)?\s+(?!(?:is|at|named|called|of|and|the|coordinates?)\b)([A-Za-z][A-Za-z0-9_]*)\s*(?=[,.;?!]|$)/gi,
   ]) for (const match of question.matchAll(pattern)) names.add(match[1]!);
   return names;
 }
@@ -32,6 +34,47 @@ export function readLinearSourceReferencePoints(
     .replace(/\\(?:cdot|times)\b/g, "*")
     .replace(/\\frac\s*\{\s*([+-]?\d+)\s*\}\s*\{\s*([+-]?\d+)\s*\}/g, "($1/$2)")
     .replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/").replace(/\$/g, "");
+  if (variables.length === 1) {
+    for (const match of normalized.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*/g)) {
+      const label = match[1]!;
+      if (variables.includes(label)) continue;
+      const start = match.index! + match[0].length;
+      const tail = normalized.slice(start);
+      // Set builders, named-set operations and variable expressions remain
+      // unmasked for the complete set grammar. Only literal scalar givens
+      // can become independently owned positions on the number line.
+      if (!/^[+\-\d.(]/.test(tail)) continue;
+      if (tail.startsWith("(")) {
+        let depth = 0, interval = false;
+        for (const character of tail) {
+          if (character === "(") depth++;
+          if (character === "," && depth === 1 || character === "]" && depth === 1) { interval = true; break; }
+          if (character === ")" && --depth === 0) break;
+        }
+        if (interval) continue;
+      }
+      const tokens = [...tail.matchAll(/(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[^\s]/g)];
+      let end = 0;
+      for (const token of tokens) {
+        if (/^(?:\d|\.\d)/.test(token[0]) || /^[()+*/-]$/.test(token[0])) end = token.index! + token[0].length;
+        else break;
+      }
+      const remainder = tail.slice(end);
+      if (!end || !/^(?:\s*[,;:.?!]|\s+(?:and|with|in|on|for|whose|which|is|are|belongs|lies)\b|\s*$)/i.test(remainder))
+        throw new Error(`Source position ${label} has an unsupported scalar operation`);
+      const affine = parseLinearAffine(tail.slice(0, end), variables);
+      if (affine.a.numerator !== "0" || affine.b.numerator !== "0") throw new Error(`Source position ${label} must be an exact scalar given`);
+      const point = { label, x: affine.constant, y: serializeRational(Q_ZERO) };
+      const previous = points.find(entry => entry.label === label);
+      if (previous && JSON.stringify(previous.x) !== JSON.stringify(point.x)) throw new Error(`Source position ${label} has conflicting givens`);
+      if (!previous) points.push(point);
+      if (label.length > 32 || points.length > 16) throw new Error("Source positions exceed label or count bounds");
+      spans.push({ start: match.index!, end: start + end });
+    }
+    let maskedQuestion = normalized;
+    for (const span of spans.reverse()) maskedQuestion = maskedQuestion.slice(0, span.start) + " ".repeat(span.end - span.start) + maskedQuestion.slice(span.end);
+    return { points, maskedQuestion };
+  }
   for (const match of normalized.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*\(/g)) {
     const label = match[1]!;
     if (label.length > 32) throw new Error("Source point labels exceed 32 characters");

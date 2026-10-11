@@ -251,8 +251,8 @@ export function evaluateLinearRegionConstruction(
   const proof = verifyLinearFigureSolution(input, solution);
   if (proof.length)
     throw new Error(proof.map((issue) => issue.message).join("; "));
-  const references = solution.kind === "number_line_set" || !originalQuestion
-    ? [] : readLinearSourceReferencePoints(originalQuestion, solution.variables).points;
+  const references = !originalQuestion ? [] : readLinearSourceReferencePoints(originalQuestion,
+    solution.kind === "number_line_set" ? [solution.variable] : solution.variables).points;
   const geometry: LinearRegionGeometry = {
     kind: "linear_region",
     input,
@@ -392,8 +392,8 @@ export function linearRegionPrimitives(
 ): RenderPrimitive[] {
   const { solution, view } = geometry;
   const references = geometry.referencePoints ?? [];
-  const expectedReferences = solution.kind === "number_line_set" || !geometry.referencePointQuestion
-    ? [] : readLinearSourceReferencePoints(geometry.referencePointQuestion, solution.variables).points;
+  const expectedReferences = !geometry.referencePointQuestion ? [] : readLinearSourceReferencePoints(geometry.referencePointQuestion,
+    solution.kind === "number_line_set" ? [solution.variable] : solution.variables).points;
   if (JSON.stringify(references) !== JSON.stringify(expectedReferences))
     throw new Error("Source reference points must preserve every original exact label and coordinate");
   const primitives: RenderPrimitive[] = [];
@@ -513,6 +513,18 @@ export function linearRegionPrimitives(
         ? `Solution: ${intervals.join(" union ")}`
         : "Solution: empty set",
     );
+    for (const reference of references) {
+      const value = read(reference.x);
+      const membership = solution.intervals.some(interval => {
+        const lower = interval.lower ? cmp(value, read(interval.lower.value)) : 1;
+        const upper = interval.upper ? cmp(value, read(interval.upper.value)) : -1;
+        return (lower > 0 || lower === 0 && interval.lower?.included === true)
+          && (upper < 0 || upper === 0 && interval.upper?.included === true);
+      });
+      const exact = { x: reference.x, y: reference.y };
+      emit("point", [exact], "source_reference_point", { linearSourcePoint: reference, linearMembership: membership, pointStyle: membership ? "filled" : "open" });
+      label(exact, `${reference.label}=${text(reference.x)} ${membership ? "included" : "excluded"}`, "source_reference_label");
+    }
   } else {
     const rows =
       solution.kind === "linear_system"
@@ -599,12 +611,35 @@ export function linearRegionPrimitives(
           summary.push(source);
       }
     });
+    const salientPoints = references.map(reference => ({ x: reference.x, y: reference.y }));
+    if (solution.kind === "linear_feasible_region") salientPoints.push(...solution.closureVertices.map(corner => corner.point));
+    if (solution.kind === "linear_system" && solution.intersection) salientPoints.push(solution.intersection);
+    salientPoints.push(point(Z, Z));
+    const boundaryAnchor = (boundary: { points: ExactPoint[] }): ExactPoint => {
+      const [start, end] = boundary.points as [ExactPoint, ExactPoint];
+      const width = number(out(w)), height = number(out(h));
+      const lineKey = boundary.points.map(pointKey).sort().join(";");
+      let best = start, bestClearance = -1;
+      // Choose an exact location on the same boundary away from crossings,
+      // source points and corners. Normal label placement still proves ink
+      // clearance and frame/attachment safety after projection.
+      for (const numerator of [4, 2, 6, 1, 3, 5, 7]) {
+        const fraction = parseRational(`${numerator}/8`);
+        const candidate = point(add(read(start.x), mul(sub(read(end.x), read(start.x)), fraction)), add(read(start.y), mul(sub(read(end.y), read(start.y)), fraction)));
+        const x = number(candidate.x), y = number(candidate.y);
+        let clearance = Math.min(...salientPoints.map(p => Math.hypot((x - number(p.x)) / width, (y - number(p.y)) / height)));
+        for (const row of rows) {
+          if (boundarySegment(row, view).map(pointKey).sort().join(";") === lineKey) continue;
+          const a = number(row.a), b = number(row.b), norm = Math.hypot(a * width, b * height);
+          if (norm > 0) clearance = Math.min(clearance, Math.abs(a * x + b * y - number(row.rhs)) / norm);
+        }
+        if (clearance > bestClearance) { best = candidate; bestClearance = clearance; }
+      }
+      return best;
+    };
     for (const boundary of boundaryLabels.values())
       label(
-        point(
-          mid(read(boundary.points[0]!.x), read(boundary.points[1]!.x)),
-          mid(read(boundary.points[0]!.y), read(boundary.points[1]!.y)),
-        ),
+        boundaryAnchor(boundary),
         boundary.texts.join("; "),
         "boundary_label",
       );
@@ -614,7 +649,11 @@ export function linearRegionPrimitives(
         ? rows.every(row => cmp(add(mul(read(row.a), read(reference.x)), mul(read(row.b), read(reference.y))), read(row.rhs)) === 0)
         : linearPointSatisfies(rows, exact);
       emit("point", [exact], "source_reference_point", { linearSourcePoint: reference, linearMembership: membership, pointStyle: membership ? "filled" : "open" });
-      label(exact, `${reference.label}=(${text(reference.x)}, ${text(reference.y)}) ${membership ? "included" : "excluded"}`, "source_reference_label");
+      // A long tuple plus membership cannot fit inside a narrow feasible
+      // cell without crossing its verified boundaries. Keep the exact point
+      // name beside the mark and its complete factual legend above the plot.
+      label(exact, reference.label, "source_reference_label");
+      summary.push(`${reference.label}=(${text(reference.x)}, ${text(reference.y)}) ${membership ? "included" : "excluded"}`);
     }
     if (solution.kind === "linear_half_plane")
       summary.push(
@@ -637,7 +676,10 @@ export function linearRegionPrimitives(
             pointStyle: corner.included ? "filled" : "open",
             linearCorner: corner,
           });
-          label(
+          // An original named corner already has its exact tuple and
+          // membership in the source legend and its name beside the mark.
+          // Retain the corner proof/point without a duplicate tuple label.
+          if (!references.some(reference => pointKey(reference) === pointKey(corner.point))) label(
             corner.point,
             `(${text(corner.point.x)}, ${text(corner.point.y)})${corner.included ? "" : " excluded"}`,
             "corner_label",
