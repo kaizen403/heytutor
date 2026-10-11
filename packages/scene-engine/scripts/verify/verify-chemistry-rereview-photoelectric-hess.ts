@@ -283,7 +283,8 @@ for (const row of thermoLaneRows) check("coordinator thermochemistry lane: " + r
       assert.ok(parts, "complete numeric K label");
       const decimals = parts[1]!.split(".")[1]?.length ?? 0;
       const quantum = 10 ** (Number(parts[2] ?? 0) - decimals);
-      assert.ok(k > 0 && Math.abs(k - eq.K) <= quantum / 2 + Math.abs(eq.K) * 1e-12);
+      assert.ok(Number.isFinite(k) && k > 0 && Number.isFinite(quantum) && quantum > 0
+        && Math.abs(k - eq.K) <= quantum / 2 + Math.abs(eq.K) * 1e-12);
       assert.ok(Math.abs(Number(gLabel.slice(4)) - eq.G) <= 0.00051);
       assert.ok(text.includes(`T=${eq.T} K`));
     } else {
