@@ -634,6 +634,39 @@ for(const expression of ["ln k = 5 - 2000/t2","ln k = 5 - 2000/t^2","ln k = 5 - 
 });
 // END PR137 V9: original Unicode charged phases and lowercase Arrhenius source.
 
+// BEGIN PR137 V9 REPAIR3: complete bare cathode ends phase scanning before metadata.
+const v9r3Potentials = "E°(Zn^2+/Zn) = -0.76 V, E°(Cu^2+/Cu) = +0.34 V and 2.303RT/F = 0.059 V.";
+for (const question of [
+ "Find the emf at 298 K of Zn | Zn^2+ (1.0 M) || Cu^2+ (0.01 M) | Cu. " + v9r3Potentials,
+ "Zn | Zn^2+ (1.0 M) || Cu^2+ (0.01 M) | Cu. " + v9r3Potentials,
+ "Draw the cell Zn | Zn²⁺ (1.0 M) || Cu²⁺ (0.01 M) | Cu. " + v9r3Potentials,
+ "Draw the cell Zn | Zn^(2+) (1.0 M) || Cu^(2+) (0.01 M) | Cu. " + v9r3Potentials,
+ "Draw the cell Zn(s) | Zn²⁺ (1.0 M) || Cu²⁺ (0.01 M) | Cu(s). " + v9r3Potentials,
+]) check("Complete bare cathode preserves independently sourced metadata: " + question, () => {
+ const spec = parseCellNotation(question); assert.ok(spec);
+ assert.equal(spec.anode.couple,"Zn2+/Zn"); assert.equal(spec.cathode.couple,"Cu2+/Cu");
+ near(spec.anode.concentrations["Zn2+"],1); near(spec.cathode.concentrations["Cu2+"],.01);
+ near(spec.anode.e0,-.76); near(spec.cathode.e0,.34); near(spec.nernstFactor,.059);
+ assert.equal(spec.anode.potentialSource,"stem"); assert.equal(spec.cathode.potentialSource,"stem");
+ for(const half of [spec.anode,spec.cathode]) { assert.ok(half.potentialSourceSpan); assert.equal(question.slice(half.potentialSourceSpan.start,half.potentialSourceSpan.end),half.potentialSourceText); }
+ near(cellEmf(spec)?.q,100); near(cellEmf(spec)?.e,1.041);
+ const direct=compiled(buildElectrochemScene(question,[],false)); near(direct.document.quantities.find(q=>q.id==="E_cell")?.value,1.041);
+ const ordinary=synthesizeFamilyScene({question}); assert.ok(ordinary?.renderScene); assert.equal(ordinary.family,"chem_electrochem"); near(ordinary.document.quantities.find(q=>q.id==="E_cell")?.value,1.041);
+});
+for (const electrode of ["Cu²⁺","Cu⁺","Cu^2+","Cu^2+)","Cu²⁺⁺","Cu/s","Cu_x","Cuα","Cu(s)O","Cu(s))","Cu(s","Cu[aq]","Cu 2+"]) check("Incomplete cathode cannot end phase or named-fallback: " + electrode, () => {
+ const question="Draw the Daniell cell Zn | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | "+electrode+". "+v9r3Potentials;
+ assert.equal(parseCellNotation(question),null); assert.equal(buildElectrochemScene(question,[],false),null); assert.equal(buildElectrochemScene(question,[],true),null); assert.equal(synthesizeFamilyScene({question}),null);
+});
+for (const phase of ["Cu²⁺/Cu(0.01 M)","Cu³⁺(0.01 M)","Cu²⁺⁺(0.01 M)","Cu²⁺(0.01 M), Cu²⁺(0.02 M)","Cu²⁺(1e- M)"]) check("Actual ion phase remains complete even before valid cathode: " + phase, () => {
+ const question="Draw the Daniell cell Zn | Zn²⁺(0.1 M) || "+phase+" | Cu. "+v9r3Potentials;
+ assert.equal(parseCellNotation(question),null); assert.equal(buildElectrochemScene(question,[],false),null); assert.equal(synthesizeFamilyScene({question}),null);
+});
+for (const bad of ["E°(Cu^2+/Cu) = 1e- V.","E°(Cu^2+/Cu) = 0.34 V. E°(Cu^2+/Cu) = 0.52 V."]) check("Post-cathode metadata retains raw quantity failure: " + bad, () => {
+ const question="Draw the cell Zn | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | Cu. "+bad;
+ assert.equal(parseCellNotation(question),null); assert.equal(buildElectrochemScene(question,[],false),null); assert.equal(synthesizeFamilyScene({question}),null);
+});
+// END PR137 V9 REPAIR3: complete bare cathode ends phase scanning before metadata.
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

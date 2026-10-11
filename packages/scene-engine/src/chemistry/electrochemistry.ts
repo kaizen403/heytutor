@@ -494,8 +494,14 @@ function trailingElectrode(text: string): string | null {
 
 /** Leading bare metal of a token ("Cu(s) is 1.10 V" gives "Cu"; "Cu2+" and "AgCl" give null). */
 function leadingElectrode(text: string): string | null {
-  const match = /^\s*([A-Z][a-z]?)\s*(?:\(\s*s\s*\))?(?![A-Za-z0-9+\-^])/.exec(text);
+  const match = /^\s*([A-Z][a-z]?)(?:\s*\(\s*s\s*\))?/.exec(text);
   if (!match) return null;
+  const following = text.slice(match[0].length);
+  // Prove the complete original bare electrode before ending phase scanning.
+  // Unicode charges/scripts, attached names and grouped/unit continuations
+  // cannot be reinterpreted as post-electrode potential metadata.
+  if (/^[\p{L}\p{N}\p{M}_^⁺⁻+−/\-()[\]]/u.test(following)
+    || /^\s*[\p{N}\p{M}_^⁺⁻+−/\-()[\]]/u.test(following)) return null;
   return ELECTRODE_METALS.has(match[1]!) ? match[1]! : null;
 }
 
@@ -766,12 +772,12 @@ export function parseCellNotation(text: string): CellSpec | null {
     for (let index = 0; index < rightTokens.length && index < 4; index += 1) {
       const token = rightTokens[index]!;
       const lead = leadingElectrode(token);
-      const species = readSpeciesTokens(token);
-      if (!species) return null;
-      if (lead && (species.length === 0 || species[0]!.formula === lead)) {
+      if (lead) {
         cathodeElectrode = lead;
         break;
       }
+      const species = readSpeciesTokens(token);
+      if (!species) return null;
       const embedded = embeddedElectrode(species);
       if (embedded) {
         cathodeElectrode = embedded;
@@ -788,6 +794,9 @@ export function parseCellNotation(text: string): CellSpec | null {
       // phase cannot be replaced by a named cell's stock concentrations.
       return finish(anode, cathode, "notation");
     }
+    // A written cell that has no complete electrode cannot be replaced by
+    // named-cell defaults after its phase/species source was rejected.
+    return null;
   }
 
   const lower = source.toLowerCase();
