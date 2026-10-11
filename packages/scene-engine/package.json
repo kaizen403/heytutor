@@ -27,7 +27,7 @@
     "verify:coverage-eval": "tsx scripts/verify/verify-coverage-eval-v1.ts",
     "verify:instrument-authority": "pnpm build && tsx scripts/verify/verify-instrument-source-units.ts --compiled-boundary && tsx scripts/verify/verify-incline-acceleration-basis.ts --compiled-boundary",
     "verify:symbolic-planner": "tsx scripts/verify/verify-symbolic-planner-tier.ts && tsx scripts/verify/verify-measurement-agreement.ts && tsx scripts/verify/verify-symbolic-measurement-tokens.ts",
-    "verify:linear": "tsx scripts/verify/verify-linear-region-math.ts && tsx scripts/verify/verify-linear-region-operators.ts && tsx scripts/verify/verify-linear-source-equivalence.ts && tsx scripts/verify/verify-linear-source-points.ts"
+    "verify:linear": "tsx scripts/verify/verify-linear-region-math.ts && tsx scripts/verify/verify-linear-region-operators.ts && tsx scripts/verify/verify-linear-source-equivalence.ts && tsx scripts/verify/verify-linear-source-points.ts && tsx scripts/verify/verify-linear-composite-contract.ts && tsx scripts/verify/verify-linear-solver-binding.ts && tsx scripts/verify/verify-cartesian-reveal-frame.ts && tsx scripts/verify/verify-linear-source-completion.ts && tsx scripts/verify/verify-linear-source-plan.ts"
   },
   "dependencies": {
     "@heytutor/drawing": "workspace:*"

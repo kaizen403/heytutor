@@ -1179,6 +1179,17 @@ function constructionComponents(document: SceneDocument, geometry: Map<string, G
     const firstId = ids[0];
     if (firstId) ids.slice(1).forEach((id) => union(firstId, id));
   }
+  // A lone Cartesian axes construction defines the world frame for sampled
+  // function graphs. Reveal groups control time, not new coordinate frames:
+  // fitting the graph into another group slot would detach correct world math
+  // from its axes. Multiple axes retain the existing explicit connection
+  // policy; construction references establish connections without guessing.
+  const axesIds = [...geometry].filter(([, value]) => value.kind === "axes").map(([id]) => id);
+  if (axesIds.length === 1) {
+    for (const [id, value] of geometry) {
+      if (value.kind === "path" && value.sampledCurve?.curveKind === "function") union(axesIds[0]!, id);
+    }
+  }
   const byRoot = new Map<string, string[]>();
   geometry.forEach((_, id) => byRoot.set(find(id), [...(byRoot.get(find(id)) ?? []), id]));
   return [...byRoot.values()];

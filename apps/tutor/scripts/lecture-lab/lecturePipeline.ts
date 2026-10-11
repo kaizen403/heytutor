@@ -93,6 +93,7 @@ import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
+import { retainSolverEvidence, type SolverEvidence } from "./solverEvidence";
 
 export interface LectureStep {
   index: number;
@@ -163,6 +164,8 @@ export interface LectureRun {
     issueCodes: string[];
     hasProjection: boolean;
     projection: unknown;
+    /** Missing on historical captures; bounded full numeric-authority evidence. */
+    evidence?: SolverEvidence;
   } | null;
   planner?: PlannerUsageSummary;
   examplePicker?: LectureExamplePickerRecord;
@@ -735,12 +738,7 @@ export async function runLecture(
       assumptions: turnPlan.assumptions,
     };
     run.solver = problemAuthority
-      ? {
-          status: problemAuthority.audit.status,
-          issueCodes: problemAuthority.audit.issues.map((issue) => issue.code),
-          hasProjection: Boolean(problemAuthority.projection),
-          projection: problemAuthority.projection ?? null,
-        }
+      ? retainSolverEvidence(problemAuthority, question, turnPlan)
       : null;
 
     let diagramPromptAddon: string | null = null;

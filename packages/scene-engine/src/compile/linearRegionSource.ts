@@ -5,8 +5,9 @@ import {
   linearConstraintSignature,
   parseLinearAffine,
   type IntervalExpression,
+  type LinearFigureInput,
 } from "../math/linearRegion";
-import { readLinearSourceReferencePoints } from "./linearSourcePoints";
+import { readLinearSourceIntersectionNames, readLinearSourceReferencePoints } from "./linearSourcePoints";
 export { readLinearSourceReferencePoints } from "./linearSourcePoints";
 import {
   evaluateLinearRegionConstruction,
@@ -147,7 +148,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
   return result;
 }
 /** A lexical math-span reader, independent of chapters, cue words and planner claims. */
-function clauses(text: string, variables: readonly string[]): SourceClause[] {
+function clauses(text: string, variables: readonly string[], sourcePointLabels: readonly string[] = []): SourceClause[] {
   const tokens = [
     ...text.matchAll(
       /(?:\d+(?:\.\d+|\.(?=[eE][+-]?\d))?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|<=|>=|[<>=()+*/-]|[^\s]/g,
@@ -155,6 +156,26 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
   ];
   const output: SourceClause[] = [];
   let chunk: RegExpMatchArray[] = [];
+  const requestedAtom = (): boolean => {
+    const first = chunk[0]!, last = chunk.at(-1)!;
+    const before = text.slice(0, first.index);
+    const after = text.slice(last.index! + last[0].length);
+    if (chunk.length === 1 && variables.includes(first[0])) {
+      const name = `(?:${variables.join("|")})`;
+      const list = `${name}(?:\\s*(?:,|and)\\s*${name})*(?:\\s*(?:,|and)\\s*)?`;
+      // Bare coordinate requests are nouns in a bounded request clause, not a
+      // second graph expression. Arithmetic and display verbs cannot match.
+      if (new RegExp(`\\b(?:find|determine|give|report|state|calculate|compute|solve)\\s+(?:(?:for|the|exact|values?|of|both)\\s+)*(?:${list})?$`, "i").test(before)
+        && new RegExp(`^(?:\\s*(?:,|and)\\s*${name})*\\s*(?=[.;?!]|$)`, "i").test(after)) return true;
+    }
+    // Number-line membership questions may name a literal source scalar. It
+    // is a query about the already-read set, not another source comparison.
+    return variables.length === 1
+      && (chunk.length === 1 && /^(?:\d|\.\d)/.test(first[0])
+        || chunk.length === 2 && /^[+-]$/.test(first[0]) && /^(?:\d|\.\d)/.test(last[0]))
+      && /\b(?:whether|is|does|do)\s*$/i.test(before)
+      && /^\s*(?:belongs?|lies?|included|is|in|on)\b/i.test(after);
+  };
   const flush = (): void => {
     if (!chunk.length) return;
     const relations = chunk.flatMap((token, i) =>
@@ -199,11 +220,12 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
           equality: relation === "=",
         });
       });
-    }
+    } else if (chunk.some((token) => !/^[()]$/.test(token[0])) && !requestedAtom())
+      throw new Error("An additional source mathematical expression cannot be omitted from the complete linear program");
     chunk = [];
   };
   const prose = new Set(
-    "graph graphically solve shade show plot represent draw illustrate choose chooses choosing consider considering of for where when satisfy satisfies satisfying and or not with to solution set points in on at as subject such under given over using by then find determine state give report real if possible the a an all values xaxis yaxis coordinate plane line lines region common simultaneously respectively including whether has is are belongs".split(
+    "graph graphs graphically solve shade show plot represent draw illustrate choose chooses choosing consider considering of for where when satisfy satisfies satisfying and or not with to solution set points in on at as subject such under given over using by then find determine state give report real if possible the a an all values xaxis yaxis coordinate plane line lines region common simultaneously respectively including whether has have is are belongs pair why meet cross its".split(
       " ",
     ),
   );
@@ -214,6 +236,20 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
     // affine term. Require an empty math chunk, adjacent multi-letter unknown
     // words and no math continuation; x-y, x<=foo-bar and foo-bar+x still fail.
     const previous = tokens[i - 1], next = tokens[i + 1];
+    // A requested coordinate is a prose noun, not the affine subtraction
+    // x-coordinate. Restrict to a complete request sentence, an empty math
+    // chunk and a possessive/article; arithmetic continuations still refuse.
+    const coordinateOffset = next?.[0] === "-" ? 2 : 1;
+    const coordinate = tokens[i + coordinateOffset];
+    const coordinateSuffix = coordinate ? text.slice(coordinate.index! + coordinate[0].length).split(/[.;?!]/)[0]!.trim() : "";
+    if (variables.includes(value) && chunk.length === 0
+      && /^(?:its|the)$/i.test(previous?.[0] ?? "")
+      && coordinate?.[0] === "coordinate"
+      && !/^(?:<=|>=|[<>=()+*/-])$/.test(tokens[i + coordinateOffset + 1]?.[0] ?? "")
+      && /^(?:of\s+(?:(?:the|their)\s+intersection|[A-Za-z][A-Za-z0-9_]*))?$/i.test(coordinateSuffix)
+      && /\b(?:find|determine|give|report|state|calculate|compute)\s+(?:its|the)\s*$/i.test(text.slice(0, token.index))) {
+      flush(); i += coordinateOffset; continue;
+    }
     if (value === "-" && chunk.length === 0 && previous && next
       && /^[A-Za-z]{2,}$/.test(previous[0]) && /^[A-Za-z]{2,}$/.test(next[0])
       && !variables.includes(previous[0]) && !variables.includes(next[0])
@@ -259,6 +295,8 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
       if (
         /^[\p{L}_]/u.test(value) &&
         (mathematicalJoin ||
+          (value.length === 1 && !prose.has(value.toLowerCase()) && !sourcePointLabels.includes(value)
+            && /\b(?:graph|plot|draw|show|represent)\s+(?:(?:the|function|expression|graph|of)\s+)*$/i.test(text.slice(0, token.index))) ||
           (!prose.has(value.toLowerCase()) &&
             ((last && (/^(?:\d|\.\d)/.test(last[0]) || value.length === 1)) ||
               /^[+*/(]$/.test(tokens[i + 1]?.[0] ?? "") ||
@@ -308,6 +346,13 @@ function booleanProgram(
   // mathematical program, while "or x" and "or (x+y)" are incomplete math.
   const gaps = [text.slice(0, groups[0]![0]!.start), ...groups.map((group, index) => text.slice(group.at(-1)!.end, groups[index + 1]?.[0].start ?? text.length))];
   for (let gap of gaps) {
+    // The article in "and a horizontal line" is not a Boolean variable a.
+    // This bounded display instruction cannot hide a mathematical clause.
+    gap = gap.replace(/\band\s+(?:a|the)\s+(?:vertical|horizontal)\s+line\b/gi, " ");
+    // A complete bare x/y result request is outside the set's Boolean program.
+    // The sentence boundary prevents a comparison or arithmetic tail hiding
+    // behind this noun phrase; those still remain mathematical source input.
+    gap = gap.replace(/\b(?:find|determine|give|report|state|calculate|compute|solve)\s+(?:(?:for|the|exact|values?|of|both)\s+)*[xy](?:\s*(?:,|and)\s*[xy])*\s*(?=[.;?!]|$)/gi, " ");
     if (sourcePointLabels.length) {
       const labels = `(?:${sourcePointLabels.join("|")})`;
       // Proven original point labels in a membership question are references,
@@ -605,6 +650,75 @@ function sourceObjective(body: string, names: readonly string[]): SourceObjectiv
   }
   return selected;
 }
+/**
+ * Independently reconstruct a complete affine source program. No rejected
+ * candidate, planner scalar, mark, annotation or display window is consumed.
+ * The ordinary compiler must still prove and compile this whole document.
+ * The supported coordinate grammar is deliberately x/y; unknown names and
+ * ambiguous dimensions are refused rather than guessed from planner output.
+ */
+export function buildLinearSourceDocument(question: string): SceneDocument | null {
+  if (typeof question !== "string" || question.length > 8192) return null;
+  try {
+    const normalized = normalize(question);
+    const numberLineRequested = /\bnumber[ -]line\b/i.test(normalized);
+    let operator: string;
+    let inputs: Record<string, unknown>;
+    if (numberLineRequested) {
+      const body = explicitDomains(normalized, ["x"]);
+      const program = intervalSourceProgram(body, "x") ?? booleanProgram(body, clauses(body, ["x"]));
+      operator = "number_line_set";
+      inputs = { variable: "x", expression: program };
+    } else {
+      const names = ["x", "y"];
+      const points = readLinearSourceReferencePoints(explicitDomains(normalized, names), names);
+      let body = points.maskedQuestion;
+      let objective: { expression: string; sense: "max" | "min" } | undefined;
+      if (/\b(?:maximi[sz](?:e[ds]?|ing|ation)|minimi[sz](?:e[ds]?|ing|ation)|maximum|minimum|max|min)\b/i.test(body)) {
+        const source = sourceObjective(body, names);
+        objective = { expression: source.expression, sense: source.sense };
+        body = body.slice(0, source.start) + " ".repeat(source.end - source.start) + body.slice(source.end);
+      }
+      const source = clauses(body, names, points.points.map(point => point.label));
+      if (!source.length || !isIntersectionProgram(booleanProgram(body, source, points.points.map(point => point.label)))) return null;
+      if (source.length === 2 && source.every(clause => clause.equality) && !objective) {
+        operator = "linear_system";
+        inputs = { variables: names, equations: source.map(clause => clause.text) };
+      } else if (source.length === 1 && !source[0]!.equality && !objective) {
+        operator = "linear_half_plane";
+        inputs = { variables: names, inequality: source[0]!.text };
+      } else if (source.every(clause => !clause.equality)) {
+        operator = "linear_feasible_region";
+        inputs = { variables: names, constraints: source.map(clause => clause.text), ...(objective ? { objective } : {}) };
+      } else return null;
+    }
+    const document: SceneDocument = {
+      schemaVersion: "scene-document/v2",
+      visualDecision: { mode: "scene", reason: "Complete original affine source program with engine-owned geometry and claims" },
+      source: { question, representationTier: "exact_verified", nonMetric: false },
+      quantities: [],
+      entities: [{ id: "source_linear_region", kind: "linear_region", role: "solution" }],
+      constructions: [{ id: "build_source_linear_region", operator, inputs, outputs: ["source_linear_region"] }],
+      relations: [], assertions: [], annotations: [], requiredEntityIds: ["source_linear_region"],
+      revealGroups: [{ id: "source_linear_setup", entityIds: ["source_linear_region"], dependsOn: [], narrationCue: "Explain the verified graphical solution and original reference points." }],
+      teachingTimeline: [{ id: "show_source_linear_setup", action: "reveal", targetId: "source_linear_setup", dependsOn: [], narrationIntent: "Explain only the independently verified original source program." }],
+    };
+    return validateLinearSourceBinding(document).some(issue => issue.severity === "fatal") ? null : document;
+  } catch { return null; }
+}
+
+/** Complete original two-equation authority for deterministic solver binding. */
+export function readLinearSystemSource(question: string): Extract<LinearFigureInput, { kind: "linear_system" }> | null {
+  const document = buildLinearSourceDocument(question);
+  const construction = document?.constructions[0];
+  if (!construction || construction.operator !== "linear_system") return null;
+  const equations = construction.inputs.equations;
+  if (!Array.isArray(equations) || equations.length !== 2) return null;
+  const [first, second] = equations;
+  if (typeof first !== "string" || typeof second !== "string") return null;
+  return { kind: "linear_system", variables: ["x", "y"], equations: [first, second] };
+}
+
 export function validateLinearSourceBinding(
   document: SceneDocument,
 ): SceneIssue[] {
@@ -641,6 +755,15 @@ export function validateLinearSourceBinding(
         names,
       );
       const sourcePoints = input.kind !== "number_line_set" ? readLinearSourceReferencePoints(question, names) : null;
+      if (input.kind === "linear_system" && sourcePoints) {
+        const intersectionNames = readLinearSourceIntersectionNames(question);
+        const intersectionGivens = sourcePoints.points.filter(point => intersectionNames.has(point.label));
+        const solution = geometry.solution;
+        if (intersectionGivens.length && (solution.kind !== "linear_system"
+          || solution.relation !== "unique" || !solution.intersection
+          || intersectionGivens.some(point => !same(point.x, solution.intersection!.x) || !same(point.y, solution.intersection!.y))))
+          throw new Error("An original named intersection tuple contradicts the complete source system");
+      }
       if (sourcePoints) question = sourcePoints.maskedQuestion;
       if (
         /[∖⇒⇐⇔→↔⊕ℤℕ]|\\(?:setminus|implies|iff|mathbb\s*\{?[ZN])\b/.test(
@@ -675,6 +798,8 @@ export function validateLinearSourceBinding(
         /\bif\b(?!\s+possible\b)|\b(?:implies|otherwise|iff)\b/i.test(question)
       )
         throw new Error("Unsupported conditional source program");
+      if (/\b(?:exclud(?:e[ds]?|ing)|exclusions?|without)\b/i.test(question))
+        throw new Error("Unsupported source exclusion cannot be omitted from the complete linear program");
       if (
         /\b(?:non[- ]?negative|non[- ]?positive|positive|negative)\s+(?:real\s+)?(?:variables?\b|[A-Za-z]\b)|\b[A-Za-z]\s+(?:and\s+[A-Za-z]\s+)?(?:are\s+|is\s+|both\s+)?(?:non[- ]?negative|non[- ]?positive|positive|negative)\b/i.test(
           question,
@@ -741,7 +866,7 @@ export function validateLinearSourceBinding(
             "Number-line Boolean solution differs from original source",
           );
       } else {
-        const source = clauses(body, names);
+        const source = clauses(body, names, sourcePoints?.points.map(point => point.label));
         if (
           input.kind === "linear_half_plane" &&
           (source.length !== 1 || source[0]!.equality)

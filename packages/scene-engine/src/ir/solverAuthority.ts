@@ -2,6 +2,7 @@ import { expressionToSafeSource, validateProblemIR, type ProblemIR } from "./pro
 import { evaluateMathExpression } from "../math/expression";
 import { validateSolverResult, type SolverResult, type SolverValue } from "./solver";
 import { validateTurnPlanV3, type TurnPlanV3 } from "../contracts/contractsV3";
+import { selectSourceLinearScalar, type SourceLinearScalarSelection } from "./linearScalarBinding";
 
 export type SolverAuthorityStatus =
   | "verified"
@@ -24,6 +25,7 @@ export interface SolverAuthorityBinding {
   approximate: number | number[];
   exact?: SolverValue["exact"];
   errorBound: number;
+  selection?: SourceLinearScalarSelection;
 }
 
 export interface SolverAuthorityAudit {
@@ -98,6 +100,16 @@ export function verifyTurnPlanAgainstSolver(
   const validatedProblem = problemValidation.problem;
   const validatedPlan = planValidation.plan;
   const valuesByRequest = new Map(solverValidation.result.values.map((value) => [value.requestId, value]));
+  const selectionsByRequest = new Map<string, SourceLinearScalarSelection>();
+  for (const request of validatedProblem.solveRequests) {
+    const value = valuesByRequest.get(request.id);
+    if (!value) continue;
+    const selected = selectSourceLinearScalar(validatedProblem, request, value, expectedQuestion);
+    if (selected) {
+      valuesByRequest.set(request.id, selected.value);
+      selectionsByRequest.set(request.id, selected.selection);
+    }
+  }
   const seenQuantityIds = new Set<string>();
   const bindings: SolverAuthorityBinding[] = [];
   const issues: SolverAuthorityIssue[] = [];
@@ -184,6 +196,7 @@ export function verifyTurnPlanAgainstSolver(
       approximate: value.approximate,
       ...(value.exact !== undefined ? { exact: value.exact } : {}),
       errorBound: value.errorBound,
+      ...(selectionsByRequest.has(request.id) ? { selection: selectionsByRequest.get(request.id)! } : {}),
     });
   }
 
@@ -298,6 +311,17 @@ export function reconcileTurnPlanWithSolver(
   result: SolverResult,
 ): TurnPlanV3 {
   const valuesByRequest = new Map(result.values.map((value) => [value.requestId, value]));
+  // Reconciliation consumes the same independently source-certified scalar
+  // selection as the audit. A forged/partial provider result is not a scalar
+  // correction source merely because its array happens to have one element.
+  const validatedProblem = validateProblemIR(problem, plan.question).problem;
+  const validatedResult = validatedProblem ? validateSolverResult(result, validatedProblem).result : null;
+  if (validatedProblem && validatedResult?.status === "solved") for (const request of validatedProblem.solveRequests) {
+    const value = valuesByRequest.get(request.id);
+    if (!value) continue;
+    const selected = selectSourceLinearScalar(validatedProblem, request, value, plan.question);
+    if (selected) valuesByRequest.set(request.id, selected.value);
+  }
   const unknownsById = new Map(plan.unknowns.map((unknown) => [unknown.id, unknown]));
   let changed = false;
   const derived = plan.derived.map((quantity) => {

@@ -7,6 +7,17 @@ export interface LinearSourceReferencePoint {
   y: ExactRational;
 }
 
+/** Explicit source names for the intersection, independent of planner aliases. */
+export function readLinearSourceIntersectionNames(question: string): Set<string> {
+  const names = new Set<string>();
+  for (const pattern of [
+    /\b(?:meets?|intersects?|cross(?:es)?)(?:\s+(?:each\s+other|one\s+another))?\s+at\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi,
+    /\bintersection(?:\s+point)?\s+(?:is|at|named|called)\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi,
+    /\b(?:point\s+of\s+intersection|intersection\s+point)\s+(?:(?:the\s+)?point\s+)?(?!is\b|at\b|named\b|called\b|of\b|and\b|the\b)([A-Za-z][A-Za-z0-9_]*)\b/gi,
+  ]) for (const match of question.matchAll(pattern)) names.add(match[1]!);
+  return names;
+}
+
 /** Original scalar tuple givens only; no planner coordinates or derived names. */
 export function readLinearSourceReferencePoints(
   question: string,
@@ -23,7 +34,6 @@ export function readLinearSourceReferencePoints(
     .replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/").replace(/\$/g, "");
   for (const match of normalized.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*\(/g)) {
     const label = match[1]!;
-    if (variables.includes(label)) throw new Error("An axis variable cannot be redefined as a source point");
     if (label.length > 32) throw new Error("Source point labels exceed 32 characters");
     const open = match.index! + match[0].length - 1;
     let depth = 1, end = open + 1;
@@ -35,9 +45,10 @@ export function readLinearSourceReferencePoints(
       else if (ch === "," && depth === 1) commas.push(end);
       if (depth > 24) throw new Error("Source point tuple nesting exceeds 24");
     }
-    // A parenthesized scalar objective is not a tuple. Leave it completely
-    // unmasked so the objective/affine source reader must consume it instead.
+    // A parenthesized scalar objective or affine equation is not a tuple.
+    // Leave it entirely unmasked for the objective/affine source reader.
     if (commas.length === 0) continue;
+    if (variables.includes(label)) throw new Error("An axis variable cannot be redefined as a source point");
     if (depth !== 0 || commas.length !== 1)
       throw new Error(`Source point ${label} requires one complete two-coordinate tuple`);
     if (variables.length !== 2 || variables[0] !== "x" || variables[1] !== "y")

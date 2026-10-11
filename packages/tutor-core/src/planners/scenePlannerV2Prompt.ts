@@ -483,6 +483,6 @@ export function selectConstructionInputContracts(operators: readonly string[], d
       } else output.push(line);
     }
   }
-  const linear=operators.some((operator)=>LINEAR_COMPACT_CONTRACTS[operator])?'Linear:1 linear_region only,no extra ink/claims. 2D:2 axes even single-axis. Equivalents only.\n':'';
+  const linear=operators.some((operator)=>LINEAR_COMPACT_CONTRACTS[operator])?'Linear:1 linear_region only,no extra ink/claims. 2D:2 axes even single-axis. Equivalents only. Engine emits axes and every named source point with exact coordinates/membership. Never add axes/point entities or marks; annotations:[]. Explain membership in teaching stream only. Each inequality leaf:one comparison with literal source bounds,no quantity IDs or chains; split chains into intersection.\n':'';
   return linear + (usedCompactTypes ? "Compact types: @name=entity ID; @path=line/segment/vector; @surface=line/circle/arc; positive/nonzero=finite scalars; int/oddA..B=bounded integer.\n" : "") + output.join("\n");
 }

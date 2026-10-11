@@ -1,6 +1,7 @@
 import {
   SCENE_ENGINE_VERSION,
   buildMatrixSourceDocument,
+  buildLinearSourceDocument,
   compileSceneDocument,
   detectArchetype,
   isRiverBoatStem,
@@ -15,6 +16,7 @@ import {
   tierForForeignDocument,
   validateSceneDocument,
   validateSceneQuantityAgreement,
+  validateLinearSourcePlan,
   validateTurnPlanSceneProofs,
   validateTurnPlanV3,
   type ProblemStructureView,
@@ -187,6 +189,14 @@ export function selectVerifiedRepresentation(
     const textOnly = buildTextOnlySelected(input.question);
     return { ...textOnly, reason: motionConflict };
   }
+  const linearConflict = linearSourcePlanConflict(input.question, input.turnPlan);
+  if (linearConflict) return { ...buildTextOnlySelected(input.question), reason: linearConflict };
+  // The source reader supplies a complete affine program, including original
+  // reference points, rather than inheriting a generic candidate's partial
+  // graph or repairing any rejected marks. Normal compilation proves every
+  // boundary, corner, objective and membership before this path can win.
+  const linear = compileLinearSourceRepresentation(input.question);
+  if (linear) return linear;
   const currentCompile = input.exact
     ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
     : null;
@@ -357,14 +367,20 @@ function buildTextOnlySelected(question: string): SelectedRepresentation {
 }
 
 /**
- * Produce a conservative scene from source facts only. This function never
- * consumes TurnPlan.derived, never computes requested answers, and never
- * infers topology or bounded regions.
+ * Produce a scene from original source facts only. Complete supported affine
+ * programs are solved and independently proved by the linear operators;
+ * other source representations do not derive requested answers or topology.
+ * Planner values may veto a contradictory narrated answer, but neither path
+ * consumes them or rejected candidate fragments to create geometry.
  */
 export function buildSourceGroundedRepresentation(
   question: string,
   turnPlan?: TurnPlanV3 | unknown | null,
 ): SelectedRepresentation {
+  const linearConflict = linearSourcePlanConflict(question, turnPlan);
+  if (linearConflict) throw new Error(linearConflict);
+  const linear = compileLinearSourceRepresentation(question);
+  if (linear) return linear;
   const normalizedQuestion = question.trim();
   const functionFacts = extractExplicitFunctionFacts(normalizedQuestion);
   const groundedClaims = extractGroundedRelationshipFacts(normalizedQuestion);
@@ -409,6 +425,32 @@ export function buildSourceGroundedRepresentation(
       : tier === "qualitative_verified"
         ? "rendered source-grounded qualitative relationships without metric claims"
         : "rendered only entities and equations explicitly present in the question",
+  };
+}
+
+function linearSourcePlanConflict(question: string, turnPlan: unknown): string | null {
+  const issues = validateLinearSourcePlan(question, turnPlan).filter(issue => issue.severity === "fatal");
+  return issues.length ? issues.map(issue => `${issue.code}: ${issue.message}`).join("; ") : null;
+}
+
+function compileLinearSourceRepresentation(question: string): SelectedRepresentation | null {
+  const document = buildLinearSourceDocument(question);
+  if (!document) return null;
+  // Keep the existing shared tier rule: engine-owned exact solution metadata
+  // cannot masquerade as a planner-authored fatal metric assertion.
+  const decision = tierForForeignDocument(document);
+  document.source = { ...document.source, representationTier: decision.tier, nonMetric: decision.nonMetric };
+  const compiled = compileSceneDocument(document);
+  if (!compiled.ok || !compiled.renderScene || !compiled.report.valid) return null;
+  return {
+    tier: decision.tier,
+    nonMetric: decision.nonMetric,
+    sceneDocument: document,
+    renderScene: compiled.renderScene,
+    validationReport: compiled.report,
+    figureSource: "linear_source",
+    reason: `engine independently compiled the complete original linear source program; ${decision.reason}`,
+    family: document.constructions[0]?.operator,
   };
 }
 
