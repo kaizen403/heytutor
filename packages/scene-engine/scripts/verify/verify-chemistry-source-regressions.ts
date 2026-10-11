@@ -680,6 +680,30 @@ for(const phase of ["Zn^(2+(0.1 M)","Zn^(2+)(aq, 1e- M)","Zn^(2+)(aq, 0.1 m)","Z
 });
 // END PR137 V9 REPAIR4: raw chemistry cues and immediately adjacent complete phases.
 
+// BEGIN PR137 V9 REPAIR6: complete anode separates preceding potential metadata.
+const v9r6SnPbPotentials = "E°(Sn2+/Sn) = −0.20 V and E°(Pb2+/Pb) = −0.10 V";
+for(const question of [
+ "Given "+v9r6SnPbPotentials+", calculate E°cell for Sn | Sn2+ || Pb2+ | Pb.",
+ "Given "+v9r6SnPbPotentials+", calculate E°cell for Sn(s) | Sn2+ || Pb2+ | Pb(s).",
+ "Given E°(Sn²⁺/Sn) = −0.20 V and E°(Pb²⁺/Pb) = −0.10 V, calculate E°cell for Sn | Sn²⁺ || Pb²⁺ | Pb.",
+ "Given E₀(Sn^2+/Sn) = −0.20 V and E₀(Pb^2+/Pb) = −0.10 V, calculate E°cell for Sn | Sn^2+ || Pb^2+ | Pb.",
+ "Calculate E°cell for Sn | Sn2+ || Pb2+ | Pb. Given "+v9r6SnPbPotentials+".",
+]) check("Complete original anode retains independently given potentials: "+question,()=>{
+ const spec=parseCellNotation(question);assert.ok(spec);assert.equal(spec.anode.couple,"Sn2+/Sn");assert.equal(spec.cathode.couple,"Pb2+/Pb");
+ near(spec.anode.e0,-.20);near(spec.cathode.e0,-.10);near(cellEmf(spec)?.e0,.10);
+ for(const half of [spec.anode,spec.cathode]) {assert.equal(half.potentialSource,"stem");assert.ok(half.potentialSourceSpan);assert.equal(question.slice(half.potentialSourceSpan.start,half.potentialSourceSpan.end),half.potentialSourceText);}
+ const direct=compiled(buildElectrochemScene(question,[],false));near(direct.document.quantities.find(q=>q.id==="E_cell")?.value,.10);assert.ok(direct.labels.includes("Sn^(2+)") && direct.labels.includes("Pb^(2+)"));
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_electrochem");near(ordinary.document.quantities.find(q=>q.id==="E_cell")?.value,.10);
+});
+for(const electrode of ["Zn²⁺","Zn^2+","Zn^(2+)","Zn²⁺⁺","Zn/s","Zn_x","αZn","Cu/Zn","Zn(s)x","Zn(s))","(Zn)","Cu²⁺ Zn","Cu / Zn"]) check("Trailing bare electrode cannot certify a charged or incomplete suffix: "+electrode,()=>{
+ const question="Given E°(Zn2+/Zn) = −0.76 V and E°(Cu2+/Cu) = +0.34 V, draw the Daniell cell "+electrode+" | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | Cu.";
+ assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(buildElectrochemScene(question,[],true),null);assert.equal(synthesizeFamilyScene({question}),null);
+});
+for(const metadata of ["E°(Sn2+/Sn) = 1e- V and E°(Pb2+/Pb) = −0.10 V","E°(Sn2+/Sn) = −0.20 V and E°(Sn2+/Sn) = −0.25 V and E°(Pb2+/Pb) = −0.10 V"]) check("Pre-anode potential metadata still rejects malformed/conflicting quantities: "+metadata,()=>{
+ const question="Given "+metadata+", calculate E°cell for Sn | Sn2+ || Pb2+ | Pb.";assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(synthesizeFamilyScene({question}),null);
+});
+// END PR137 V9 REPAIR6: complete anode separates preceding potential metadata.
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

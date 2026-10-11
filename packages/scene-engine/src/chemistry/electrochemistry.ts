@@ -489,6 +489,12 @@ const ELECTRODE_METALS = new Set(["Pt", "C", "Zn", "Cu", "Ag", "Fe", "Ni", "Mg",
 function trailingElectrode(text: string): string | null {
   const match = /(?<![A-Za-z])([A-Z][a-z]?)\s*(?:\(\s*s\s*\))?\s*$/.exec(text);
   if (!match) return null;
+  const preceding = text.slice(0, match.index);
+  // Heading/potential metadata ends before this independently complete bare
+  // electrode. Attached or spaced charge/script/group/unit continuations do
+  // not certify a suffix as an electrode.
+  if (/[\p{L}\p{N}\p{M}_^⁺⁻+−/()[\]-]$/u.test(preceding)
+    || /[\p{N}\p{M}_^⁺⁻+−/()[\]-]\s*$/u.test(preceding)) return null;
   return ELECTRODE_METALS.has(match[1]!) ? match[1]! : null;
 }
 
@@ -750,13 +756,13 @@ export function parseCellNotation(text: string): CellSpec | null {
     const anodeSpecies: SpeciesToken[] = [];
     for (let index = leftTokens.length - 1; index >= 0 && index >= leftTokens.length - 4; index -= 1) {
       const token = leftTokens[index]!;
-      const species = readSpeciesTokens(token);
-      if (!species) return null;
       const tail = trailingElectrode(token);
       if (tail) {
         anodeElectrode = tail;
         break;
       }
+      const species = readSpeciesTokens(token);
+      if (!species) return null;
       const embedded = embeddedElectrode(species);
       if (embedded) {
         anodeElectrode = embedded;
