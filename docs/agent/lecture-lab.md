@@ -449,3 +449,85 @@ like the model being down. `docker compose up -d postgres` first.
 - `questionStatesValue` treats a power-of-ten rescaling as stated, because
   0.5 mm and 0.0005 m are the same given. A fixture value that happens to be a
   rescaling of a number in the question will therefore look grounded.
+
+## Experimental parallel teaching (lab only, default off)
+
+`runLecture` accepts `parallelTeaching: true`; omitted or false keeps the existing
+request order. The stock CLI exposes `--parallel-teaching true` for full lectures
+(`--figure-only false`) and records the flag and `setup-actions/v1` contract in
+execution identity. It defaults off and is not a live environment switch. Use
+the existing required `--max-usd` for every paid run, including retries; never
+mix flags or contract versions on resume. The stock lab does not call TTS.
+
+On a final scene-planner callback, after numeric authority, the experiment asks
+for bounded JSON choosing one or two unique IDs from a closed setup-operation
+menu. Only host-rendered procedural instructions become a narration-only STEP;
+no free-form model prose, question values, laws or requested results are rendered.
+The old digit/source-word checks admitted qualitative requested answers, even
+when correct. A prompt or a correct governing law is not a setup-only boundary.
+The experiment skips held speculative
+planning, authority contradictions, figure-only and DSA runs. It does not add a
+call on deterministic-only paths. Admission rejects unknown/duplicate action IDs,
+extra parsed keys, free-text payloads, oversized data and non-JSON output. Host
+templates contain no answer assertions or figure promises, in English/Hinglish.
+Independent judging must still assess action fit and usefulness; neither a
+generic setup nor the previous free-prose grades prove useful teaching.
+
+`onParallelPrefix` receives only a completely admitted prefix. Until then no
+prefix is delivered or counted as useful. Selection freezes acceptance and
+aborts a pending prefix without waiting. The verified scene request, selector,
+source, validation and reveal/focus presentation are unchanged. Normal teaching
+retains the full generated verified prompt, the exact prefix in history, and an
+instruction not to repeat it; private raw teaching includes it once.
+The main explanation is parsed independently before adding the prefix, so its
+unmarked narration, WRITE and verified FOCUS beats remain in the graded steps.
+At most one prefix plus three normal logical teaching calls are made, but transport
+retries can cause more paid upstream attempts. Provider usage must be counted
+at the proxy, not inferred from the planner usage field.
+
+Public `parallelTeaching` evidence records states, reasons, timings and character
+counts, not question or prefix text. `timings.firstSetupReadyMs` is complete host
+setup admission; `firstMainStepReadyMs` is the first narration segment emitted by
+the existing incremental parser during the main stream. These are availability
+proxies, not acoustic playback or independently proven useful teaching. This
+prototype does not implement live Stop/save/Continue ownership. Lab-only
+`stopSignal` returns promptly while selection is pending, even if an external
+port ignores abort. It freezes an incomplete artifact with no committed figure,
+no decline cause and a private `pendingFigureCheckpoint`. The checkpoint carries
+the exact original question (at most 8 KiB), execution policy, selector version,
+host-renderer SHA-256 and admitted setup operation IDs only; total JSON is bounded
+to 16 KiB. Identity admission checks the fully JSON-escaped checkpoint size,
+reserving room for the largest legal two-action payload before provider I/O,
+so a raw input inside 8 KiB cannot make Stop lose its checkpoint. It contains
+no plan, IR, scene or model prose. Keep it ignored.
+
+After persisting that checkpoint in private local JSON, pass it back via
+`reopenPendingFigure` with the same execution options. Validation rejects unknown
+keys, mismatched identity and oversized data before provider I/O. Reopen rebuilds
+all numeric and scene authority. Previously admitted setup enters history and
+raw teaching exactly once, without a second setup callback or a new setup timing.
+The receipt proves lab admission, not that the student heard the words. Stopping
+after a completed figure decision does not create a pending-figure checkpoint.
+The gate exercises disk JSON and a fresh source VM, not browser reload, database
+persistence, native Stop/Continue or audio replay. No live flag is ready on this
+evidence alone.
+
+The existing
+lab's contradiction behavior (teaching continues where live stops) is explicitly
+tested as a mismatch, not claimed as production parity or silently changed.
+
+Free source-integration and protocol gates run in publication checks:
+
+```bash
+pnpm --filter @heytutor/tutor verify:parallel-teaching
+```
+
+The integration gate freezes provider I/O only, loads workspace source rather
+than dist, verifies identical OFF/ON authority and geometry, tests pending/failing
+prefixes and four-call continuations, and checks that the independently observed
+full verified teaching prompt survives. Its history, figure, prompt and stall
+mutation flags must fail. No HTTP, model, TTS or Jev request is made by the gate.
+
+The pending-figure gate additionally covers Stop before/after setup, uncooperative
+late results, exact original-input preservation, fresh reopen, strict identity and
+size bounds, no setup replay, default-off parity and Stop after verified commit.

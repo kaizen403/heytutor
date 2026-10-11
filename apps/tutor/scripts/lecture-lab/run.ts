@@ -88,6 +88,8 @@ export interface Options {
   /** Evaluation-only end-to-end scene planning budget. */
   scenePlannerLimitMs: 60_000 | 120_000;
   figureOnly: boolean;
+  /** Default-off, lab-only closed setup phase during admitted figure planning. */
+  parallelTeaching: boolean;
   yes: boolean;
   maxUsd: number;
   spendMode: LabSpendMode;
@@ -286,7 +288,10 @@ export function parseOptions(argv: string[]): Options {
         index += 1;
         continue;
       }
-      if (booleans.has(name) || !next || next.startsWith("--")) {
+      if (booleans.has(name) && (next === "true" || next === "false")) {
+        flags.set(name, next);
+        index += 1;
+      } else if (booleans.has(name) || !next || next.startsWith("--")) {
         flags.set(name, "true");
       } else {
         flags.set(name, next);
@@ -349,6 +354,11 @@ export function parseOptions(argv: string[]): Options {
     throw new Error("--max-usd must be a positive number");
   }
   const resume = flags.get("resume") === "true";
+  const figureOnly = flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0;
+  const parallelRaw = flags.get("parallel-teaching") ?? "false";
+  if (parallelRaw !== "true" && parallelRaw !== "false") throw new Error("--parallel-teaching must be true or false");
+  const parallelTeaching = parallelRaw === "true";
+  if (parallelTeaching && figureOnly) throw new Error("--parallel-teaching requires a full lecture (--figure-only false)");
   if ((flags.has("visual-need-replay") || flags.has("example-exclusions")) && evalFiles.length === 0) {
     throw new Error("--visual-need-replay and --example-exclusions are evaluation-only");
   }
@@ -390,7 +400,8 @@ export function parseOptions(argv: string[]): Options {
     arm,
     model,
     scenePlannerLimitMs: parsedScenePlannerLimit,
-    figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
+    figureOnly,
+    parallelTeaching,
     yes: flags.get("yes") === "true",
     maxUsd,
     spendMode,
@@ -770,6 +781,7 @@ async function main(): Promise<void> {
   const executionConfig = {
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
+    parallelTeaching: options.parallelTeaching, parallelTeachingContract: "setup-actions/v1",
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
@@ -1012,6 +1024,7 @@ async function main(): Promise<void> {
           difficulty: probe.difficulty,
           arm: options.arm,
           figureOnly: options.figureOnly,
+          parallelTeaching: options.parallelTeaching,
           fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
           scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
           subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
