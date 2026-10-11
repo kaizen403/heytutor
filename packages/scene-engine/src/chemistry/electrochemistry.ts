@@ -441,7 +441,7 @@ interface OriginalCellReaction {
   readonly end: number;
 }
 
-/** Original reaction participants and '+' positions; neither supplies activities. */
+/** Original reaction participants and operator positions; none supplies activities. */
 function originalReactionParticipants(source: string): {operators: Set<number>; reactions: OriginalCellReaction[]; invalid: boolean} {
   const electron = String.raw`e(?:\^?\(?-\)?|⁻)`;
   const term = String.raw`(?:[1-9]\d*\s*)?(${SPECIES}|${electron})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
@@ -470,6 +470,7 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
       if (phase) phases.push({species, phase, left: part.index! < arrowStart});
     });
     original.push({left, right, phases, arrow: reaction.index! + arrowStart, start: reaction.index!, end: reaction.index! + reaction[0].length});
+    operators.add(reaction.index! + arrowStart);
     for (let index = 1; index < terms.length; index += 1) {
       const previousEnd = terms[index - 1]!.index! + terms[index - 1]![0].length;
       const between = reaction[0].slice(previousEnd, terms[index]!.index);

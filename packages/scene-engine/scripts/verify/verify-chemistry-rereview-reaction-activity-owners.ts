@@ -463,6 +463,27 @@ for (const [id, question] of finalPhasePositive) check(id, question, () => posit
 
 // END REACTION OWNER V3: complete final physical participant boundary.
 
+// BEGIN ASCII ARROW OWNERS: retain the original125 cases and assertions whole.
+const asciiArrowSupported = [
+  ["own-ascii-arrow-supported-1", header + "Cell reaction: Zn(s) + Cu^2+(aq) -> Zn^2+(aq) + Cu(s)."],
+  ["own-ascii-arrow-supported-2", header + "Cell reaction: Zn(s) + Cu²⁺(aq) -> Zn²⁺(aq) + Cu(s)."],
+  ["own-ascii-arrow-supported-3", header + "Cell reaction: 1 Zn(s) + 1 Cu2+(aq) -> 1 Zn2+(aq) + 1 Cu(s)."],
+  ["own-ascii-arrow-supported-4", header + "Cell reaction: Zn + Cu2+ -> Zn2+ + Cu."],
+] as const;
+for (const [id, question] of asciiArrowSupported) check(id, question, () => positive(question));
+const asciiArrowActivities = header + "Zn2+ concentration is 0.1 M; Cu2+ concentration is 0.01 M. Cell reaction: Zn(s) + Cu2+(aq) -> Zn2+(aq) + Cu(s).";
+check("own-ascii-arrow-supported-5", asciiArrowActivities, () => positive(asciiArrowActivities, true));
+const asciiArrowRefused = [
+  ["own-ascii-arrow-refusal-1", header + "Cell reaction: Zn(s) + Cu2+(aq) --> Zn2+(aq) + Cu(s)."],
+  ["own-ascii-arrow-refusal-2", header + "Cell reaction: Zn(s) + Cu2+(aq) -> unknown."],
+  ["own-ascii-arrow-refusal-3", header + "Cu2+ activity is -> unknown; Cu2+ = 0.01 M; Zn2+ = 0.1 M. Cell reaction: Zn(s) + Cu2+(aq) -> Zn2+(aq) + Cu(s)."],
+  ["own-ascii-arrow-refusal-4", header + "Cu2+ concentration is 0.01 kg; Cu2+ = 0.01 M; Zn2+ = 0.1 M. Cell reaction: Zn(s) + Cu2+(aq) -> Zn2+(aq) + Cu(s)."],
+  ["own-ascii-arrow-refusal-5", header + "Cell reaction: Cu(s) + Zn2+(aq) -> Cu2+(aq) + Zn(s)."],
+  ["own-ascii-arrow-refusal-6", header + "Cell reaction: 2 Zn(s) + 2 Cu2+(aq) -> 2 Zn2+(aq) + 2 Cu(s)."],
+] as const;
+for (const [id, question] of asciiArrowRefused) check(id, question, () => declined(question));
+// END ASCII ARROW OWNERS: retain the original125 cases and assertions whole.
+
 const summary = {total: rows.length, passed: rows.filter(row => row.passed).length, failed: rows.filter(row => !row.passed).length, rows};
 const outIndex = process.argv.indexOf("--out");
 if (outIndex >= 0 && process.argv[outIndex + 1]) writeFileSync(process.argv[outIndex + 1]!, JSON.stringify(summary, null, 2) + "\n");
