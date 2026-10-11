@@ -5,7 +5,7 @@ correctly plotted literal `c`. Scalar quantity agreement alone cannot prove
 that role. The engine exports `parseComplexDistanceExpression` and
 `validateComplexDistanceSourceInputs` from `src/ir/complexDistanceSource.ts`.
 Candidate and final/save admission apply the same source guard. Evaluation
-identity is `production-scene-selection/v3`; do not resume older rounds into it.
+identity is `production-scene-selection/v4`; do not resume older rounds into it.
 
 The bounded complete-expression parser supports one complex variable with
 coefficient +1 and finite numeric real/imaginary sums, signs, parentheses,
@@ -30,8 +30,20 @@ cannot silently change the reference. Standalone reference roles do not infer
 an unrelated path frame.
 
 This is not topic routing or an extra scene compiler. It checks only explicit
-distance-reference point roles and source-modulus-labelled segment/vector/
-dimension outputs with one explicitly named variable endpoint. A true literal
+distance-reference point roles and source-modulus-claiming segment/vector/
+dimension outputs with one explicitly named variable endpoint. A path opts in
+through a complete supported affine-modulus label, or explicit arithmetic label
+containing the declared complex-variable token, with an explicitly complex
+variable endpoint; a source-modulus role; an
+explicitly expression-bound complex-distance role, or
+`semantic.complexDistanceExpression`. Ordinary bar notation such as `|AB|` or
+vector magnitude `|v|`, generic path distance roles and complex fixed-point
+producers alone do not opt a path in. An unbound generic point-reference role
+requires a complex producer; a qualified or expression-bound reference role
+requires source proof. Generic world-coordinate reference points remain outside
+this complex-source audit.
+Unsupported explicit source claims still require proof rather than bypassing
+the guard. Role, semantic and label source bindings must agree. A true literal
 `w` or origin-to-`w` vector is not reclassified as a wrong given. Literal-only
 relevance failures still require separate prompt/representation obligations;
 this change does not claim the historical sign/relevance incident fully fixed

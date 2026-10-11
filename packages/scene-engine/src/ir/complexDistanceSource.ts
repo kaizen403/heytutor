@@ -11,6 +11,7 @@ const SCALAR = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i;
 const SCALAR_FULL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 const UNITS = new Set(["", "1", "unit", "units", "unitless", "dimensionless", "scalar"]);
 const REFERENCE_ROLE = /^(?:(?:complex|modulus) )?distance reference(?: point)?(?: for (\|[^|]+\|))?$|^reference point for (\|[^|]+\|)$/i;
+const SOURCE_DISTANCE_ROLE = /^source modulus distance(?: for (\|[^|]+\|))?$|^complex(?: modulus)? distance for (\|[^|]+\|)$/i;
 type Rational = { n: bigint; d: bigint };
 type Affine = { variable: string | null; count: number; coefficient: number; real: Rational; imaginary: Rational };
 
@@ -103,10 +104,17 @@ export function parseComplexDistanceExpression(expression: unknown): ComplexDist
 
 /**
  * Source authority ONLY for explicit distance-reference points, or a segment /
- * vector / dimension explicitly labelled by a source modulus with one named
+ * vector / dimension explicitly claiming a source modulus with one named
  * variable endpoint. Literal w, O→w and extrema radii do not assert this role
  * and remain untouched. `semantic.complexDistanceExpression` optionally binds
  * an explicit reference role when the question contains multiple moduli.
+ * A supported affine-modulus or explicit arithmetic label with a declared
+ * complex-variable endpoint, a source-modulus role, a bound complex-distance role, or
+ * complexDistanceExpression opts a path in. Bars alone (ordinary |AB| or
+ * vector |v|), generic distance roles and complex fixed-point producers do
+ * not. Generic unbound reference-point roles require a complex producer;
+ * complex/modulus-qualified or expression-bound roles require source proof.
+ * Explicit unsupported claims still require proof/decline.
  * The caller supplies the trusted question; document.source is never read.
  */
 export function validateComplexDistanceSourceInputs(document: SceneDocument, question: unknown): SceneIssue[] {
@@ -117,14 +125,28 @@ export function validateComplexDistanceSourceInputs(document: SceneDocument, que
     const match = REFERENCE_ROLE.exec(role);
     if (!match) return [];
     const semantic = plain(entity.semantic) ? own(entity.semantic, "complexDistanceExpression") : undefined;
+    const complexProducer = document.constructions.some((construction) => construction.outputs.includes(entity.id) && (COMPLEX_OPERATORS as readonly string[]).includes(construction.operator));
+    if (semantic === undefined && !match[1] && !match[2] && !/^(?:complex|modulus) /.test(role.toLowerCase()) && !complexProducer) return [];
     const expressions = [semantic, match[1] ?? match[2]].filter((expression) => expression !== undefined);
     return [{ id: entity.id, expressions, path: `entities[${index}].role` }];
   });
   const distances = document.constructions.flatMap((construction, index) => {
     if (!["segment", "vector", "dimension"].includes(construction.operator)) return [];
-    const labels = construction.outputs.flatMap((id) => document.entities.filter((entity) => entity.id === id).map((entity) => entity.label));
-    return labels.filter((label) => typeof label === "string" && /^\|[^|]+\|$/.test(normalize(label)))
-      .map((expression) => ({ construction, expression, path: `constructions[${index}].inputs` }));
+    const expressions = construction.outputs.flatMap((id) => document.entities.filter((entity) => entity.id === id).flatMap((entity) => {
+      const role = typeof entity.role === "string" ? normalize(entity.role).split("|").map((part, partIndex) => partIndex % 2 === 0 ? part.replace(/[_-]/g, " ") : part).join("|").trim().replace(/\s+/g, " ") : "";
+      const marker = SOURCE_DISTANCE_ROLE.exec(role);
+      const semantic = plain(entity.semantic) ? own(entity.semantic, "complexDistanceExpression") : undefined;
+      const label = typeof entity.label === "string" && /^\|[^|]+\|$/.test(normalize(entity.label)) ? entity.label : undefined;
+      const parsedLabel = parseComplexDistanceExpression(label);
+      const complexEndpoint = label && plain(construction.inputs) && [endpoint(construction.inputs, ["start", "from", "a", ...(construction.operator === "vector" ? ["origin"] : [])]), endpoint(construction.inputs, ["end", "to", "b"])].some((id) => typeof id === "string" && document.entities.some((point) => {
+        const variable = complexVariableSymbol(point);
+        return point.id === id && variable !== null && (parsedLabel ? variable === parsedLabel.variable : explicitArithmeticLabel(label, variable));
+      }));
+      if (!marker && semantic === undefined && !complexEndpoint) return [];
+      const bindings = [semantic, marker?.[1] ?? marker?.[2], label].filter((expression) => expression !== undefined);
+      return bindings.length > 0 ? bindings : [undefined];
+    }));
+    return expressions.length > 0 ? [{ construction, expressions, path: `constructions[${index}].inputs` }] : [];
   });
   if (references.length === 0 && distances.length === 0) return [];
   const source = sourceModuli(question);
@@ -159,9 +181,15 @@ export function validateComplexDistanceSourceInputs(document: SceneDocument, que
       issue("complex_distance_source_binding_unsupported", reference.path, "Reference role and semantic expression bindings disagree; no binding overrides another.");
     } else if (expected) audit(reference.id, expected, reference.path);
   }
-  for (const { construction, expression, path } of distances) {
-    const expected = bind(expression, path);
+  for (const { construction, expressions, path } of distances) {
+    const bindings = expressions.map((expression) => bind(expression, path));
+    const expected = bindings[0];
+    if (bindings.some((binding) => binding === null)) continue;
     if (!expected) continue;
+    if (bindings.some((binding) => binding && !sameSource(expected, binding))) {
+      issue("complex_distance_source_binding_unsupported", path, "Path role, semantic and label bindings disagree; no source variable or expression overrides another.");
+      continue;
+    }
     const startKeys = ["start", "from", "a", ...(construction.operator === "vector" ? ["origin"] : [])];
     const endKeys = ["end", "to", "b"];
     if (!plain(construction.inputs) || Object.keys(construction.inputs).some((key) => ![...startKeys, ...endKeys].includes(key))) {
@@ -265,6 +293,19 @@ function endpoint(inputs: Record<string, unknown>, keys: string[]): unknown {
 }
 function variablePoint(entity: SceneEntity, variable: string): boolean {
   return entity.kind === "point" && (entity.label?.trim() === variable || ["complex variable", "variable complex point", "variable point"].some((role) => entity.role === `${role} ${variable}`));
+}
+function complexVariableSymbol(entity: SceneEntity): string | null {
+  const role = typeof entity.role === "string" ? normalize(entity.role).replace(/[_-]/g, " ").replace(/\s+/g, " ").trim() : "";
+  const match = /^(?:complex variable|variable complex point) ([a-hj-z])$/i.exec(role);
+  return entity.kind === "point" && match ? match[1]! : null;
+}
+// This is an opt-in marker, never a fallback expression parser. Arithmetic
+// containing the declared complex variable must still pass the complete,
+// bounded source parser; unsupported syntax/precision cannot escape proof.
+// Plain point-pair/identifier bars remain ordinary length or norm notation.
+function explicitArithmeticLabel(label: string, variable: string): boolean {
+  const body = normalize(label).slice(1, -1);
+  return /[+\-*/^()\d]/.test(body) && new RegExp(`(?:^|[^a-zA-Z])${variable}(?:$|[^a-zA-Z])`).test(body);
 }
 function normalize(value: string): string { return value.replace(/−/g, "-").replace(/\\(?:left|right)\s*/g, "").replace(/\\[lr]vert/g, "|").trim(); }
 function rational(n: bigint, d: bigint): Rational {

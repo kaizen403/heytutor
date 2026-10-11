@@ -49,6 +49,110 @@ function sourceRejected(row: ReturnType<typeof fixture>, reason: string, code?: 
   const issues = validateComplexDistanceSourceInputs(row.document, row.question);
   check(issues.some((issue) => issue.severity === "fatal" && (!code || issue.code === code)), true, reason);
 }
+function ordinaryLengthFixture(operator: string, sourceBars: boolean, complexEndpoints = false) {
+  const question = sourceBars ? "Show the length |AB| between the two marked points." : "Show the length AB between the two marked points.";
+  const plan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, visualRequirement: "required", givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [] };
+  const point = (id: string, x: number, y: number) => ({ id: `make${id}`, operator: complexEndpoints ? "complex_point" : "point", inputs: complexEndpoints ? { real: x, imaginary: y, origin: [0, 0], displayScale: 1 } : { x, y, coordinateSpace: "world" }, outputs: [id] });
+  const document: SceneDocument = { schemaVersion: "scene-document/v2", source: { question }, visualDecision: { mode: "scene", reason: "ordinary point-pair length notation" }, quantities: [],
+    entities: [{ id: "A", kind: "point", role: "fixed point", label: "A" }, { id: "B", kind: "point", role: "fixed point", label: "B" }, { id: "AB", kind: operator, role: "ordinary geometric length", label: "|AB|" }],
+    constructions: [point("A", 0, 0), point("B", 3, 4), { id: "makeAB", operator, inputs: { start: "A", end: "B" }, outputs: ["AB"] }], relations: [], assertions: [], annotations: [], requiredEntityIds: ["A", "B", "AB"], revealGroups: [{ id: "ordinary", entityIds: ["A", "B", "AB"], dependsOn: [], narrationCue: "The marked point-pair length." }], teachingTimeline: [] };
+  return { question, plan, document };
+}
+for (const sourceBars of [false, true]) for (const role of ["distance reference", "distance reference point"]) {
+  const row = ordinaryLengthFixture("segment", sourceBars);
+  row.document.entities[0]!.role = role;
+  row.document.entities[2]!.label = "AB";
+  check(compileSceneDocument(row.document).ok, true, "ordinary world-coordinate distance-reference point fully compiles");
+  check(candidate(row).valid, true, "RED: a generic unbound world distance-reference role is not a complex source-modulus claim");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }), null, "generic ordinary reference points survive shared save admission without a complex modulus source");
+  sourceAccepted(row, "generic reference-point wording alone does not opt world geometry in");
+}
+for (const role of ["complex distance reference point", "modulus distance reference point"]) {
+  const row = ordinaryLengthFixture("segment", false);
+  row.document.entities[0]!.role = role;
+  check(compileSceneDocument(row.document).ok, true, "explicit qualified reference role fully compiles before source proof");
+  sourceRejected(row, "an explicit complex/modulus reference role still requires supported source proof");
+  check(candidate(row).valid, false, "qualified unsupported reference refuses candidate admission");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }) !== null, true, "qualified unsupported reference refuses shared save admission");
+}
+for (const sourceBars of [false, true]) for (const operator of ["segment", "vector", "dimension"]) {
+  const row = ordinaryLengthFixture(operator, sourceBars);
+  const compiled = compileSceneDocument(row.document);
+  const validation = candidate(row);
+  const save = sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" });
+  check(compiled.ok, true, "ordinary |AB| witness fully compiles independently of source admission");
+  check({ candidateValid: validation.valid, saveFailure: save }, { candidateValid: true, saveFailure: null }, "RED: ordinary bar-delimited point-pair lengths must survive production candidate and shared save admission");
+  sourceAccepted(row, "unsupported bar notation alone is not an explicit complex-distance claim");
+}
+for (const sourceBars of [false, true]) for (const operator of ["segment", "vector"]) {
+  const row = ordinaryLengthFixture(operator, sourceBars, true);
+  check(compileSceneDocument(row.document).ok, true, "ordinary fixed-Argand-point |AB| length compiles without dimension measurement claims");
+  check(candidate(row).valid, true, "complex point producers alone do not make ordinary |AB| notation a complex-variable distance claim");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }), null, "ordinary fixed-complex-endpoint length passes shared save admission");
+  for (const role of ["distance", "complex distance", "complex modulus distance"]) {
+    row.document.entities[2]!.role = role;
+    sourceAccepted(row, "generic fixed-point distance roles do not assert a source complex modulus");
+    check(candidate(row).valid, true, "generic complex-distance role preserves actual ordinary |AB| candidate");
+    check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }), null, "generic complex-distance role preserves ordinary |AB| save admission");
+  }
+}
+for (const sourceBars of [false, true]) {
+  const row = ordinaryLengthFixture("segment", sourceBars, true);
+  row.document.entities[0]!.role = "complex variable A";
+  check(compileSceneDocument(row.document).ok, true, "ordinary point-pair length with a declared complex point fully compiles");
+  sourceAccepted(row, "plain |AB| remains point-pair length notation even with a complex-variable A endpoint");
+  check(candidate(row).valid, true, "plain complex-point |AB| length preserves candidate admission");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }), null, "plain complex-point |AB| length preserves shared save admission");
+}
+for (const sourceBars of [false, true]) for (const symbol of ["v", "F"]) for (const endpointMode of ["ordinary", "generic_variable", "fixed_complex"]) {
+  const row = ordinaryLengthFixture("vector", false, endpointMode === "fixed_complex");
+  row.question = sourceBars ? `Show the vector magnitude |${symbol}| between the marked points.` : `Show the magnitude of vector ${symbol} between the marked points.`;
+  row.plan.question = row.question;
+  row.document.source.question = row.question;
+  row.document.entities[2]!.label = `|${symbol}|`;
+  if (endpointMode === "generic_variable") row.document.entities[0]!.role = `variable point ${symbol}`;
+  check(compileSceneDocument(row.document).ok, true, "ordinary vector-norm witness fully compiles before source admission");
+  check(candidate(row).valid, true, "RED: bare affine-looking vector magnitude notation does not assert a complex source reference");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }), null, "ordinary vector magnitudes survive shared save admission with and without source bars");
+  sourceAccepted(row, "ordinary norms, generic variable-point roles and fixed complex producers alone do not opt in");
+}
+for (const sourceBars of [false, true]) for (const symbol of ["v", "F"]) {
+  const row = ordinaryLengthFixture("vector", false);
+  row.question = sourceBars ? `Show the vector magnitude |${symbol}| between the marked points.` : `Show the magnitude of vector ${symbol} between the marked points.`;
+  row.plan.question = row.question;
+  row.document.source.question = row.question;
+  row.document.entities[0]!.role = "complex variable z";
+  row.document.entities[2]!.label = `|${symbol}|`;
+  check(compileSceneDocument(row.document).ok, true, "ordinary vector norm with an unrelated complex-variable endpoint fully compiles");
+  sourceAccepted(row, "ordinary norm symbols do not become complex expressions for an unrelated declared variable");
+  check(candidate(row).valid, true, "unrelated complex-variable role does not reject ordinary vector-norm candidate");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }), null, "unrelated complex-variable role does not reject ordinary vector-norm save admission");
+}
+for (const sourceBars of [false, true]) {
+  const row = ordinaryLengthFixture("segment", sourceBars, true);
+  row.document.entities[2]!.role = "source modulus distance";
+  check(compileSceneDocument(row.document).ok, true, "ordinary-looking unsupported source marker compiles independently of source proof");
+  sourceRejected(row, "an explicit source-modulus marker cannot bypass proof with an unsupported |AB| label");
+  check(candidate(row).valid, false, "unsupported explicit source role still refuses the actual candidate");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }) !== null, true, "unsupported explicit source role still refuses shared save admission");
+}
+for (const role of ["complex distance for |z*w|", "complex modulus distance for |z*w|"]) {
+  const row = ordinaryLengthFixture("segment", false);
+  row.question = "Show the source distance |z*w|."; row.plan.question = row.question; row.document.source.question = row.question;
+  row.document.entities[2]!.role = role;
+  row.document.entities[2]!.label = "distance";
+  check(compileSceneDocument(row.document).ok, true, "unsupported explicitly bound complex role is not masked by a compile failure");
+  sourceRejected(row, "an unsupported explicitly bound complex-distance role remains fatal without a bar label");
+  check(candidate(row).valid, false, "bound unsupported role refuses candidate admission");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }) !== null, true, "bound unsupported role refuses save admission");
+}
+const unsupportedBinding = ordinaryLengthFixture("segment", false);
+unsupportedBinding.question = "Show the source distance |z*w|."; unsupportedBinding.plan.question = unsupportedBinding.question; unsupportedBinding.document.source.question = unsupportedBinding.question;
+unsupportedBinding.document.entities[2]!.label = "distance";
+unsupportedBinding.document.entities[2]!.semantic = { complexDistanceExpression: "|z*w|" };
+sourceRejected(unsupportedBinding, "unsupported explicit semantic binding never becomes an ordinary bar-notation exception");
+check(candidate(unsupportedBinding).valid, false, "unsupported semantic source claim refuses candidate admission");
+check(sceneSaveAdmissionFailure({ document: unsupportedBinding.document, question: unsupportedBinding.question, turnPlan: unsupportedBinding.plan, tier: "question_representation" }) !== null, true, "unsupported semantic source claim refuses save admission");
 for (const [expression, real, imaginary] of [
   ["|z+(4-3i)|", -4, 3], ["|z-(4-3i)|", 4, -3], ["|z+6−8i|", -6, 8],
   ["|z-3-4i|", 3, 4], ["|z+7i|", 0, -7], ["|z-i|", 0, 1], ["|z+4|", -4, 0],
@@ -149,6 +253,18 @@ function distanceFixture(valid: boolean, worldEndpoints = false) {
 sourceAccepted(distanceFixture(true), "a complete source-labelled distance with a named z endpoint binds −w");
 sourceRejected(distanceFixture(false), "a wrong +w endpoint contradicts the explicitly labelled source distance", "complex_distance_reference_mismatch");
 check(candidate(distanceFixture(false)).valid, false, "explicitly wrong source-distance endpoints are rejected by production");
+for (const binding of ["supported_label", "semantic_binding"]) {
+  const row = distanceFixture(false, true);
+  row.document.entities.at(-1)!.role = "ordinary geometric length";
+  if (binding === "semantic_binding") {
+    row.document.entities.at(-1)!.label = "distance";
+    row.document.entities.at(-1)!.semantic = { complexDistanceExpression: "|z+(4-3i)|" };
+  }
+  check(compileSceneDocument(row.document).ok, true, "explicit wrong affine source path fully compiles before source proof");
+  sourceRejected(row, "a complete affine-modulus label or semantic claim still proves the reference without requiring a role marker", "complex_distance_reference_mismatch");
+  check(candidate(row).valid, false, "wrong explicitly claimed source distance refuses production candidate");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }) !== null, true, "wrong explicitly claimed source distance refuses shared save admission");
+}
 function zeroDistanceFixture(operator = "segment", variableFrame = { origin: [0, 0], displayScale: 1 }, referenceFrame = variableFrame) {
   const row = distanceFixture(true);
   row.question = "For |z| = 2, show the distance |z| on an Argand diagram.";
@@ -163,6 +279,50 @@ function zeroDistanceFixture(operator = "segment", variableFrame = { origin: [0,
   row.document.constructions[3]!.inputs = { real: 2, imaginary: 0, ...variableFrame };
   return row;
 }
+for (const expression of ["|z*w|", "|z+1e-13i|"]) {
+  const row = zeroDistanceFixture();
+  row.question = `For |z|=2, show the distance ${expression}.`;
+  row.plan.question = row.question;
+  row.document.source.question = row.question;
+  row.document.entities.at(-1)!.role = "ordinary geometric length";
+  row.document.entities.at(-1)!.label = expression;
+  row.document.constructions[2] = { id: "makeReference", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["reference"] };
+  row.document.constructions[3] = { id: "makeVariable", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "world" }, outputs: ["variable"] };
+  check(parseComplexDistanceExpression(expression), null, "unsupported arithmetic syntax and below-bound precision remain outside the source parser");
+  check(compileSceneDocument(row.document).ok, true, "unsupported complex arithmetic path fully compiles before source admission");
+  check({ candidateValid: candidate(row).valid, saveAccepted: sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }) === null }, { candidateValid: false, saveAccepted: false }, "RED: unsupported explicitly complex arithmetic must refuse actual candidate and shared save admission");
+  sourceRejected(row, "unsupported arithmetic label with an explicit complex-variable endpoint cannot bypass source proof", "complex_distance_source_binding_unsupported");
+}
+const conflictingPath = zeroDistanceFixture();
+conflictingPath.question = "For |z|=2 and |t|=2, show the distances |z| and |t|.";
+conflictingPath.plan.question = conflictingPath.question;
+conflictingPath.document.source.question = conflictingPath.question;
+conflictingPath.document.entities.find((entity) => entity.id === "variable")!.role = "complex variable t";
+conflictingPath.document.entities.at(-1)!.semantic = { complexDistanceExpression: "|t|" };
+check(compileSceneDocument(conflictingPath.document).ok, true, "conflicting path-binding witness is not masked by a numeric-label compile block");
+sourceRejected(conflictingPath, "RED: path label and semantic bindings cannot claim different source variables with the same numeric reference", "complex_distance_source_binding_unsupported");
+check(candidate(conflictingPath).valid, false, "conflicting source bindings refuse actual candidate admission");
+check(sceneSaveAdmissionFailure({ document: conflictingPath.document, question: conflictingPath.question, turnPlan: conflictingPath.plan, tier: "question_representation" }) !== null, true, "conflicting source bindings refuse shared save admission");
+const conflictingRole = structuredClone(conflictingPath);
+delete conflictingRole.document.entities.at(-1)!.semantic;
+conflictingRole.document.entities.at(-1)!.role = "complex distance for |t|";
+check(compileSceneDocument(conflictingRole.document).ok, true, "conflicting role and label bindings also compile independently of source admission");
+sourceRejected(conflictingRole, "a role expression cannot silently override a different source-variable label", "complex_distance_source_binding_unsupported");
+check(candidate(conflictingRole).valid, false, "conflicting role and label bindings refuse actual candidate admission");
+check(sceneSaveAdmissionFailure({ document: conflictingRole.document, question: conflictingRole.question, turnPlan: conflictingRole.plan, tier: "question_representation" }) !== null, true, "conflicting role and label bindings refuse shared save admission");
+const equivalentPath = zeroDistanceFixture();
+equivalentPath.question = "For |z|=2, show the source distance |z+0.5|.";
+equivalentPath.plan.question = equivalentPath.question;
+equivalentPath.document.source.question = equivalentPath.question;
+equivalentPath.document.constructions[2] = { id: "makeReference", operator: "point", inputs: { x: -0.5, y: 0, coordinateSpace: "world" }, outputs: ["reference"] };
+equivalentPath.document.constructions[3] = { id: "makeVariable", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "world" }, outputs: ["variable"] };
+equivalentPath.document.entities.at(-1)!.label = "|z+0.5|";
+equivalentPath.document.entities.at(-1)!.role = "complex distance for |z+0.500|";
+equivalentPath.document.entities.at(-1)!.semantic = { complexDistanceExpression: "|z+1/2|" };
+check(compileSceneDocument(equivalentPath.document).ok, true, "equivalent decimal/fraction path bindings fully compile with world endpoints");
+sourceAccepted(equivalentPath, "equivalent role, semantic and label expressions share retained source identity");
+check(candidate(equivalentPath).valid, true, "equivalent decimal/fraction bindings preserve candidate admission");
+check(sceneSaveAdmissionFailure({ document: equivalentPath.document, question: equivalentPath.question, turnPlan: equivalentPath.plan, tier: "question_representation" }), null, "equivalent decimal/fraction bindings preserve shared save admission");
 const frameBoundaryRows = [
   { variableFrame: { origin: [0, 0], displayScale: 1 }, referenceFrame: { origin: [10, 0], displayScale: 1 } },
   { variableFrame: { origin: [0, 0], displayScale: 1 }, referenceFrame: { origin: [0, 0], displayScale: 3 } },

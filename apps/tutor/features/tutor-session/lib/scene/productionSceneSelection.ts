@@ -19,7 +19,7 @@ import { resolveVisualRequirement } from "./visualRequirement";
 import { selectVerifiedRepresentation, type SelectedRepresentation } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v3";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v4";
 
 export interface ProductionSceneInput {
   question: string;
