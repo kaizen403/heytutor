@@ -169,8 +169,10 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
     const group = archetype ? `archetype:${archetype}` : `family:${synthesized.family}`;
     if ((groupCounts.get(group) ?? 0) >= 2) continue;
     const id = stableSynthesizedId(group, stem.question);
-    // Physics and maths builder output is admitted only after a figure audit kept it;
-    // chemistry families are outside that review and keep the old behaviour.
+    // Physics and maths builder output is admitted only after a figure audit kept it.
+    // Scope follows the group the entry is filed under (archetype first, as its figure
+    // kind does): chemistry output filed under a physics or maths archetype reaches
+    // those pickers as that kind, so it is audited; chemistry-filed entries are untouched.
     const reviewScope = archetype ?? synthesized.family;
     if (review && !reviewScope.startsWith("chem_") && !review.keep.has(review.verdicts[id] ?? "")) continue;
     const family = synthesized.family;
