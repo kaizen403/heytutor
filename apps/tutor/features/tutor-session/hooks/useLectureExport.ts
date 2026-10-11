@@ -378,6 +378,12 @@ export function useLectureExport({
           executeCommand: executeCommandWithCancel,
           clock,
           shouldCancel,
+          resetBoardLayout,
+          onTurnStart: (turn, diagram) => {
+            exportQuestionRef.current = storedTurnPageQuestion(turn);
+            diagramRef.current = diagram;
+            fbdStartedRef.current = Boolean(diagram);
+          },
           cueBytes: lectureExportCueBytes(source),
           shouldYield: () => phaseRef.current !== "idle",
           onProgress: (progress) => {
