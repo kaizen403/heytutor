@@ -55,7 +55,7 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import { createTurnTelemetry, measureSceneCandidateValidation } from "@/lib/obs/turnTelemetry";
+import { createTurnTelemetry, measureSceneCandidateValidation, measureSceneSelection } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
@@ -94,6 +94,7 @@ import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
+import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
@@ -764,6 +765,22 @@ export function useQuestionHandler(
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
       const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
+      const earlyOpeningStarted = STREAM_SEGMENTS_LIVE && shouldStartEarlyLessonOpening({
+        kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+        isDsa: dsaClassification.isDsa,
+        admitted: true,
+        current: isCurrentTurn(),
+        paused: isPausedRef.current,
+      });
+      if (earlyOpeningStarted) {
+        // Fixed acknowledgement only: figure selection and useful teaching
+        // below still receive the same original inputs and authority gates.
+        page.earlyOpeningStarted = true;
+        liveTurnSave().setResumeState(cancelRef, turnGeneration, { v: 1, earlyOpeningOnly: true });
+        tel.mark("early-lesson-opening-queued", { early_opening: true });
+        tel.meta({ early_lesson_opening: true });
+        enqueueSegment(buildEarlyLessonOpeningSegment(turnNarrationLanguage), turnGeneration);
+      }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
@@ -1128,12 +1145,12 @@ export function useQuestionHandler(
           diagramStrategy: ReturnType<typeof liveDiagramStrategyDecision>;
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
-        let validationIndex = 0;
+        let validationCallIndex = 0;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
-          measureSceneCandidateValidation(tel, { candidateIndex: ++validationIndex, context }, () =>
+          measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
             validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
@@ -1280,12 +1297,12 @@ export function useQuestionHandler(
               }],
             };
           },
-          selectFast: (planningTurnPlan, authority, gate) => selectFastVerifiedRepresentation({
+          selectFast: (planningTurnPlan, authority, gate) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
             question,
             turnPlan: planningTurnPlan,
             problemIR: authority?.problemIR ?? null,
             families: gate.sceneCapabilities.families,
-          }),
+          })),
           planScene: (gate, planningTurnPlan, run) => {
             const { diagramExampleIds: pickedIds = [], ...plannerRequest } = gate.request;
             return planSceneDocumentWithRepair(
@@ -1381,8 +1398,9 @@ export function useQuestionHandler(
             candidateCount: result?.candidates.length ?? 0,
           };
         }
-        const sceneSelection = selectProductionScene({
-          question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+        const selectionTurnPlan = turnPlan;
+        const sceneSelection = measureSceneSelection(tel, "final", () => selectProductionScene({
+          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
@@ -1390,7 +1408,7 @@ export function useQuestionHandler(
             preferPlanner: diagramStrategyDecision.strategy === "strict",
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
           },
-        });
+        }));
         const selected = sceneSelection.representation;
         const attempted = sceneSelection.attemptedRepresentation;
         if (sceneSelection.reason === "the question asks for no figure") {
@@ -1805,7 +1823,7 @@ export function useQuestionHandler(
       throwIfTurnCancelled();
       setPhaseIfCurrent("thinking");
       if (!isPausedRef.current) tts.unlockAudio?.();
-      if (STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
+      if (!earlyOpeningStarted && STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
         tts.prefetchSegment?.(openingSegment.narration, {
           traceId: turnTraceId ?? undefined,
           sessionId: sessionId ?? undefined,
@@ -1897,7 +1915,7 @@ export function useQuestionHandler(
           // First, before any row and before the figure: what this question is
           // and what we are about to do with it. A lesson that opens on
           // "Given... u equals twenty" has started in the middle of itself.
-          if (openingSegment) {
+          if (openingSegment && !earlyOpeningStarted) {
             enqueueSegment(openingSegment, turnGeneration);
           }
           for (const segment of givenSegments) {

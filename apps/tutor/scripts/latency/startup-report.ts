@@ -79,6 +79,9 @@ const MARK_STAGES = [
   "first-audible",
 ] as const;
 
+/** Completion marks whose metadata measures combined synchronous callbacks. */
+const SELECTION_STAGES = ["scene-fast-selection", "scene-final-selection"] as const;
+
 const RETRY_PATTERN = /retry|hedge|recovery|repair|continuation/i;
 
 interface ObservationLike {
@@ -96,6 +99,17 @@ function record(value: unknown): Record<string, unknown> {
 
 function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function intervalMs(value: unknown): number | null {
+  const milliseconds = num(value);
+  return milliseconds !== null && milliseconds >= 0 ? milliseconds : null;
+}
+
+/** Unknown/missing calls cannot be filled with zero or a partial known sum. */
+function sumRecordedIntervals(values: Array<number | null>): number | null {
+  return values.length > 0 && values.every((value) => value !== null)
+    ? num(values.reduce<number>((sum, value) => sum + value!, 0)) : null;
 }
 
 function timeMs(value: unknown): number | null {
@@ -162,7 +176,7 @@ export function parseLangfuseTrace(trace: { id?: unknown; observations?: unknown
     return [...list].sort((a, b) => (timeMs(a.startTime) ?? 0) - (timeMs(b.startTime) ?? 0))[0]!;
   };
 
-  const known = [...SPAN_STAGES, ...MARK_STAGES, "startup-ask", "scene-candidate-validation"].some((name) => byName.has(name));
+  const known = [...SPAN_STAGES, ...MARK_STAGES, ...SELECTION_STAGES, "startup-ask", "scene-candidate-validation"].some((name) => byName.has(name));
   if (!known) return null;
 
   const startupAsk = first("startup-ask");
@@ -215,19 +229,38 @@ export function parseLangfuseTrace(trace: { id?: unknown; observations?: unknown
     const duration = name === "tts-first-byte" ? num(metadata.since_request_ms) : null;
     stages.push(stageRow(name, at === null ? null : at - originAt, duration, metadata));
   }
-  // A mark lands at completion, not at validation start. Preserve every local
-  // interval; concurrent candidates must not be collapsed into the first mark.
+  for (const name of SELECTION_STAGES) {
+    const callbacks = byName.get(name);
+    if (!callbacks?.length) continue;
+    const metadata = callbacks.map((callback) => record(callback.metadata));
+    const starts = metadata.map((value) => intervalMs(value.start_since_ask_ms));
+    stages.push(stageRow(name, starts.every((start) => start !== null) ? Math.min(...starts) : null,
+      sumRecordedIntervals(metadata.map((value) => intervalMs(value.duration_ms)))));
+  }
+  // A mark lands at completion, not at validation start. This counts calls:
+  // the same document may be revalidated. Keep detail, but compare turn totals.
+  const validations: Array<{ context: string; durationMs: number | null }> = [];
   for (const candidate of byName.get("scene-candidate-validation") ?? []) {
     const metadata = record(candidate.metadata);
-    const index = num(metadata.candidate_index);
+    // #148's candidate_index was also a call index; preserve old traces honestly.
+    const index = num(metadata.validation_call_index) ?? num(metadata.candidate_index);
     const context = metadata.context;
     const safeContext = context === "search" || context === "revalidate" || context === "recovery"
       ? context : "unknown";
+    validations.push({ context: safeContext, durationMs: intervalMs(metadata.duration_ms) });
     stages.push(stageRow(
-      `scene-candidate-validation:${index !== null && Number.isInteger(index) && index > 0 ? index : "unknown"}:${safeContext}`,
+      `scene-candidate-validation:call-${index !== null && Number.isInteger(index) && index > 0 ? index : "unknown"}:${safeContext}`,
       num(metadata.start_since_ask_ms),
-      num(metadata.duration_ms),
+      validations.at(-1)!.durationMs,
     ));
+  }
+  if (validations.length > 0) {
+    const total = (rows: typeof validations): number | null => sumRecordedIntervals(rows.map((row) => row.durationMs));
+    stages.push(stageRow("scene-candidate-validation-total", null, total(validations)));
+    for (const context of new Set(validations.map((row) => row.context))) {
+      stages.push(stageRow(`scene-candidate-validation-total:${context}`, null,
+        total(validations.filter((row) => row.context === context))));
+    }
   }
 
   const firstAudible = first("first-audible");
@@ -326,12 +359,15 @@ export function summarizeTurns(turns: TurnLatency[]): { askToFirstAudible: Stage
   const caps = new Map<string, number>();
   for (const turn of turns) {
     for (const stage of turn.stages) {
+      // Call positions can represent different documents or repeated work in
+      // different turns. Their details remain above; only totals get percentiles.
+      if (stage.name.startsWith("scene-candidate-validation:")) continue;
       if (!values.has(stage.name)) {
         order.push(stage.name);
         values.set(stage.name, []);
       }
       // A mark's offset after Ask is its number; a span's is its duration.
-      const value = stage.name.startsWith("scene-candidate-validation:")
+      const value = SELECTION_STAGES.some((name) => name === stage.name) || stage.name.startsWith("scene-candidate-validation-total")
         ? stage.durationMs : stage.durationMs ?? stage.startMs;
       if (value !== null) values.get(stage.name)!.push(value);
       if (stage.hitCap) caps.set(stage.name, (caps.get(stage.name) ?? 0) + 1);
@@ -359,6 +395,8 @@ export function summarizeTurns(turns: TurnLatency[]): { askToFirstAudible: Stage
 }
 
 const cell = (value: number | null) => (value === null ? "." : String(value));
+const CALLBACK_TIMING_NOTE = "  scene totals sum recorded call intervals only (capture may be incomplete); callback/planner/revalidate intervals may overlap and are not additive wall time.";
+const USEFUL_AUDIO_NOTE = "  first useful teaching audio is not measured; teaching-first-step is a parser mark, not an audio clock.";
 
 export function formatTurn(turn: TurnLatency): string {
   const lines = [
@@ -371,6 +409,7 @@ export function formatTurn(turn: TurnLatency): string {
     );
   }
   lines.push(`  retries and hedges: ${turn.retries.length > 0 ? turn.retries.join(", ") : "none"}`);
+  lines.push(CALLBACK_TIMING_NOTE, USEFUL_AUDIO_NOTE);
   return lines.join("\n");
 }
 
@@ -383,6 +422,8 @@ export function formatSummary(turns: TurnLatency[]): string {
     `  ${"stage".padEnd(26)}${"n".padStart(6)}${"p50".padStart(9)}${"p90".padStart(9)}${"capped".padStart(8)}`,
     row(summary.askToFirstAudible),
     ...summary.stages.map(row),
+    CALLBACK_TIMING_NOTE,
+    USEFUL_AUDIO_NOTE,
   ].join("\n");
 }
 
