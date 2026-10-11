@@ -442,7 +442,7 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
   };
   // Validate each original owner before an aggregate reader can skip a missing
   // declaration and retain a later good one. Electron coefficients are not activities.
-  const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^()⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d.]|unknown|unreadable)`, "gu");
+  const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d.]|unknown|unreadable)`, "gu");
   for (const declared of source.matchAll(declaration)) {
     if (!isActivitySpecies(declared[1]!)) {
       if (/[⁺⁻+−-]/.test(declared[1]!)) return null;
@@ -721,6 +721,15 @@ function readTemperature(text: string): number | undefined | null {
   // Validate each owner in the original source separately. Repeated wording
   // can corroborate one temperature, but damage must not become a 298 K default.
   for (const cue of text.matchAll(/\bat\b|\b(?:temperature|T)\s*(?:=|is|:)/gi)) {
+    // A complete charged-ion "at 0.1 M" owner declares activity, not temperature.
+    // Its concentration and every repeat are independently validated below.
+    if (/^at$/i.test(cue[0])) {
+      const owner = new RegExp(`(?:^|[\\s,;|])([\\[]?${SPECIES}[\\]]?)\\s*$`, "u").exec(text.slice(0, cue.index!))?.[1];
+      const species = owner && canonicalSpecies(owner.replace(/^\[|\]$/g, ""));
+      const activity = species && parseFormula(species)?.charge
+        ? readChemistryQuantity({question: text, after: /^/, within: {start: cue.index! + cue[0].length, end: text.length}, dimension: "concentration", targetUnit: "mol/L"}) : null;
+      if (activity?.ok) continue;
+    }
     const read = readChemistryQuantity({question: text, after: /^/,
       within: {start: cue.index! + cue[0].length, end: text.length}, dimension: "temperature", targetUnit: "K"});
     if (!read.ok) {
