@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { kineticsFromStem, solveKinetics, buildKineticsScene } from "../../src/chemistry/kinetics";
 import { parseCellNotation, cellEmf, buildElectrochemScene } from "../../src/chemistry/electrochemistry";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
-import { readChemistryArrheniusEquation, parseChemistryScalar, readChemistryQuantity, chemistryCanonicalValuesAgree } from "../../src/chemistry/quantityReader";
+import { resolveChemistryGiven, readChemistryArrheniusEquation, parseChemistryScalar, readChemistryQuantity, chemistryCanonicalValuesAgree } from "../../src/chemistry/quantityReader";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { SceneDocument } from "../../src/types";
@@ -507,6 +507,42 @@ for(const gValue of ["-5 kJ/mol","5.681366318742795 kJ/mol","-5681.366318742795 
 for(const gValue of ["4e- kJ/mol","1e999 kJ/mol","-5 J","unknown","","unknown; ΔG° = -5681.366318742795 J/mol","-5681.366318742795 J/mol; ΔG° = unknown"])check("Present damaged Gibbs energy cannot become K-derived energy: "+gValue,()=>{
  const question="At 275 K. Equilibrium constant is 12. Standard Gibbs energy ΔG° = "+gValue+". Draw the equilibrium relation.";
  assert.equal(buildChemicalThermodynamicsScene(question,[],false),null);assert.equal(buildChemicalThermodynamicsScene(question,[],true),null);assert.equal(synthesizeFamilyScene({question,families:["chem_thermo"]}),null);
+});
+
+
+// Public real-wording plans cite complete scalars before original physical units.
+for(const suffix of [""," and discuss a reaction whose equilibrium constant is less than 1"])check("Literal R prefix retains ordinary compiled Gibbs relation: "+suffix,()=>{
+ const question="The equilibrium constant of a reaction at 285 K is 7. R = 8.314 J K^-1 mol^-1. Draw the standard Gibbs energy relation"+suffix+".";
+ const givens:ChemPlanQuantity[]=[{id:"T",symbol:"T",value:285,unit:"K",origin:"given",sourceText:"T = 285"},{id:"K",symbol:"K",value:7,unit:"1",origin:"given",sourceText:"K = 7"},{id:"R",symbol:"R",value:8.314,unit:"J K^-1 mol^-1",origin:"given",sourceText:"R = 8.314"}];
+ const r=resolveChemistryGiven({question,after:/\bR\s*=/,dimension:"gas_constant",targetUnit:"J/(mol K)",aliases:["R"],quantities:givens});assert.ok(r.ok);near(r.reading.value,8.314);assert.equal(r.reading.source.text,"8.314 J K^-1 mol^-1");assert.equal(r.reading.source.kind,"plan_given");
+ const direct=compiled(buildChemicalThermodynamicsScene(question,givens,false));const expected=(-8.314*285*Math.log(7)/1000).toFixed(3);assert.ok(direct.labels.includes("dGo="+expected));assert.ok(direct.labels.includes("K=7.00"));assert.ok(direct.labels.includes("T=285 K"));
+ const ordinary=synthesizeFamilyScene({question,turnPlan:{givens}});assert.ok(ordinary);assert.equal(ordinary.family,"chem_thermo");const live=compiled(ordinary.document);assert.ok(live.labels.includes("dGo="+expected));assert.ok(live.labels.includes("K=7.00"));assert.ok(live.labels.includes("T=285 K"));
+});
+for(const [value,unit] of [[42,"kJ/mol"],[42000,"J/mol"]] as const)check("Complete Ea scalar prefix preserves canonical energy: "+value+unit,()=>{
+ const question="Draw an energy profile. Ea = 42 kJ/mol.";const givens:ChemPlanQuantity[]=[{id:"Ea",symbol:"Ea",value,unit,origin:"given",sourceText:"Ea = 42"}];
+ const read=resolveChemistryGiven({question,after:/Ea\s*=/,dimension:"molar_energy",targetUnit:"kJ/mol",aliases:["Ea"],quantities:givens});assert.ok(read.ok);near(read.reading.value,42);assert.equal(read.reading.source.kind,"plan_given");assert.equal(read.reading.rawUnit,"kJ/mol");
+ const direct=compiled(buildThermoGraphScene(question,givens,false));near(direct.document.quantities.find(q=>q.id==="Ea_forward")?.value,42);assert.ok(direct.labels.some(l=>typeof l==="string"&&l.includes("42")&&l.includes("kJ/mol")));
+ const ordinary=synthesizeFamilyScene({question,turnPlan:{givens}});assert.ok(ordinary);assert.equal(ordinary.family,"chem_thermo");near(compiled(ordinary.document).document.quantities.find(q=>q.id==="Ea_forward")?.value,42);
+});
+for(const [sourceText,value,unit,span] of [
+ ["R = 8.314",9,"J K^-1 mol^-1",false],
+ ["R = 8.314",8.314,"K",false],
+ ["R = 8.31",8.314,"J K^-1 mol^-1",false],
+ ["R = 8.314 J",8.314,"J K^-1 mol^-1",false],
+ ["R = 8.314",8.314,"J K^-1 mol^-1",true],
+] as const)check("Bound R damage or mismatch cannot be masked by default: "+sourceText+value+unit+span,()=>{
+ const question="The equilibrium constant of a reaction at 285 K is 7. R = 8.314 J K^-1 mol^-1. Draw the standard Gibbs relation.";const start=question.indexOf(sourceText);const given:ChemPlanQuantity={id:"R",symbol:"R",value,unit,origin:"given",sourceText,...(span?{sourceSpan:{start,end:start+sourceText.length}}:{})};
+ assert.equal(buildChemicalThermodynamicsScene(question,[given],false),null);assert.equal(synthesizeFamilyScene({question,turnPlan:{givens:[given]},families:["chem_thermo"]}),null);
+});
+for(const value of ["8.314 J K^-1 mol^-", "8.314 J K^-1 mol^-1 s", "8.314 J K^-1 mo"])check("Truncated original R unit never receives planner unit authority: "+value,()=>{
+ const question="The equilibrium constant of a reaction at 285 K is 7. R = "+value+". Draw the standard Gibbs relation.";const given:ChemPlanQuantity={id:"R",symbol:"R",value:8.314,unit:"J K^-1 mol^-1",origin:"given",sourceText:"R = 8.314"};assert.equal(buildChemicalThermodynamicsScene(question,[given],false),null);assert.equal(synthesizeFamilyScene({question,turnPlan:{givens:[given]},families:["chem_thermo"]}),null);
+});
+check("Nonliteral R prose cannot override original source or gain provenance",()=>{
+ const question="The equilibrium constant of a reaction at 285 K is 7. R = 8.314 J K^-1 mol^-1. Draw the standard Gibbs relation.";const givens:ChemPlanQuantity[]=[{id:"R",symbol:"R",value:999,unit:"K",origin:"given",sourceText:"R = 8.314 elsewhere"}];
+ const read=resolveChemistryGiven({question,after:/\bR\s*=/,dimension:"gas_constant",aliases:["R"],quantities:givens});assert.ok(read.ok);near(read.reading.value,8.314);assert.equal(read.reading.source.kind,"stem_given");assert.equal(read.reading.source.planQuantityId,undefined);compiled(buildChemicalThermodynamicsScene(question,givens,false));assert.ok(synthesizeFamilyScene({question,turnPlan:{givens}}));
+});
+check("Duplicate original R remains unsupported even with ambiguous free citation",()=>{
+ const question="The equilibrium constant of a reaction at 285 K is 7. R = 8.314 J K^-1 mol^-1; R = 8.314 J K^-1 mol^-1. Draw the standard Gibbs relation.";const givens:ChemPlanQuantity[]=[{id:"R",symbol:"R",value:999,unit:"K",origin:"given",sourceText:"R = 8.314"}];assert.equal(buildChemicalThermodynamicsScene(question,givens,false),null);assert.equal(synthesizeFamilyScene({question,turnPlan:{givens},families:["chem_thermo"]}),null);
 });
 
 const output=process.argv.indexOf("--out");

@@ -416,7 +416,23 @@ function bindingSpan(question: string, quantity: ChemPlanQuantity): ChemistrySpa
   if (quantity.sourceSpan) return quantity.sourceSpan.end <= chemistryQuestionSpan(question).end && validSpan(question, quantity.sourceSpan) && (!quantity.sourceText || question.slice(quantity.sourceSpan.start, quantity.sourceSpan.end) === quantity.sourceText) ? quantity.sourceSpan : null;
   if (!quantity.sourceText) return null;
   const start = question.indexOf(quantity.sourceText);
-  return start >= 0 && start + quantity.sourceText.length <= chemistryQuestionSpan(question).end && question.indexOf(quantity.sourceText, start + 1) < 0 ? { start, end: start + quantity.sourceText.length } : null;
+  if (start < 0 || start + quantity.sourceText.length > chemistryQuestionSpan(question).end || question.indexOf(quantity.sourceText, start + 1) >= 0) return null;
+  const cited = { start, end: start + quantity.sourceText.length };
+  const scalarEnd = cited.end - (quantity.sourceText.length - quantity.sourceText.trimEnd().length);
+  const notation = inventoryNotationSpans(question, chemistryQuestionSpan(question).end);
+  // Free prose may stop after a complete scalar. Its immediately contiguous
+  // original unit corroborates the citation; explicit spans above never grow.
+  for (const match of question.matchAll(new RegExp(SCALAR, "g"))) {
+    const span = { start: match.index! + match[0].length - match[0].trimStart().length, end: match.index! + match[0].trimEnd().length };
+    if (span.start < cited.start || span.end !== scalarEnd || notation.some(unit => span.start > unit.start && span.end <= unit.end)) continue;
+    if (!parseChemistryScalar(question, span).ok) break;
+    const originalUnit = unitAt(question.slice(span.end).trimStart());
+    if (!originalUnit) break;
+    const reading = literalAt({ question, dimension: originalUnit.def.dimensions[0]! }, span.start, chemistryQuestionSpan(question).end);
+    if (reading.ok && reading.reading.rawUnit && reading.reading.source.span.end > cited.end) return { start: cited.start, end: reading.reading.source.span.end };
+    break;
+  }
+  return cited;
 }
 const key = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
 function valuesAgree(actual: number, expected: number): boolean {

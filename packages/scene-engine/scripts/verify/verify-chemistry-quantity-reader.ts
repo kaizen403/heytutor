@@ -486,5 +486,49 @@ check("Sensitive semantic symbol cue is opt-in and default word parity is retain
  assert.equal(reader.chemistryQuantityCuesValid("k=4",[{after:/k/,dimensions:["rate_constant_first"],cueCaseSensitive:true}]),false);
 });
 
+
+// A free complete-scalar citation corroborates only its contiguous original unit.
+for(const [question,sourceText,value,unit,dimension,targetUnit,expected] of [
+ ["Ea = 42 kJ/mol.","Ea = 42",42,"kJ/mol","molar_energy","kJ/mol",42],
+ ["Ea = 42 kJ/mol.","Ea = 42",42000,"J/mol","molar_energy","J/mol",42000],
+ ["R = 8.314 J K^-1 mol^-1.","R = 8.314",8.314,"J/(mol K)","gas_constant","J/(mol K)",8.314],
+ ["Ea = 1.25e3 J/mol.","Ea = 1.25e3",1.25,"kJ/mol","molar_energy","J/mol",1250],
+ ["Ea = 42   kJ/mol.","Ea = 42 ",42,"kJ/mol","molar_energy","kJ/mol",42],
+ ["Ea = 42 kJ/mol.","Ea = 42 kJ/mol",42,"kJ/mol","molar_energy","kJ/mol",42],
+] as const)check("Original-unit complete free citation: "+question+sourceText+unit,()=>{
+ assert.ok(reader);const given={id:"x",symbol:"x",value,unit,origin:"given",sourceText};
+ assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+ const result=reader.resolveChemistryGiven({question,after:/=/,dimension,targetUnit,quantities:[given],aliases:["x"]});assert.ok(result.ok,JSON.stringify(result));near(result.reading.value,expected);
+ assert.equal(result.reading.source.kind,"plan_given");assert.equal(result.reading.source.planQuantityId,"x");assert.ok(result.reading.rawUnit);assert.equal(result.reading.source.text,question.slice(result.reading.source.span.start,result.reading.source.span.end));
+});
+for(const [question,sourceText,value,unit] of [
+ ["Ea = 42 kJ/mol.","Ea = 42",43,"kJ/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42",42,"J/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42",42,"K"],
+ ["Ea = 42 kJ/mol.","Ea = 4",42,"kJ/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42 kJ",42,"kJ/mol"],
+ ["R = 8.314 J K^-1 mol^-1.","R = 8.31",8.314,"J/(mol K)"],
+ ["R = 8.314 J K^-1 mol^-1.","R = 8.314 J K^-1",8.314,"J/(mol K)"],
+ ["Ea = 42 kJ/mo.","Ea = 42",42,"kJ/mol"],
+ ["Ea = 42 kJ/mol s.","Ea = 42",42,"kJ/mol"],
+ ["Ea = 4e- kJ/mol.","Ea = 4",4,"kJ/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42",Infinity,"kJ/mol"],
+] as const)check("Damaged or contradictory free citation refuses: "+question+sourceText+unit+value,()=>{
+ assert.ok(reader);const given={id:"x",symbol:"x",value,unit,origin:"given",sourceText};assert.equal(reader.chemistryPlanBindingsValid(question,[given]),false);
+ assert.equal(reader.resolveChemistryGiven({question,after:/=/,dimension:question.startsWith("R")?"gas_constant":"molar_energy",quantities:[given],aliases:["x"]}).ok,false);
+});
+for(const sourceSpan of [{start:0,end:7},{start:0,end:6},{start:-1,end:7}])check("Explicit span remains a hard citation boundary: "+JSON.stringify(sourceSpan),()=>{
+ assert.ok(reader);const question="Ea = 42 kJ/mol.";const given={id:"x",symbol:"x",value:42,unit:"kJ/mol",origin:"given",sourceSpan,sourceText:question.slice(sourceSpan.start,sourceSpan.end)};
+ assert.equal(reader.chemistryPlanBindingsValid(question,[given]),false);assert.equal(reader.resolveChemistryGiven({question,after:/=/,dimension:"molar_energy",quantities:[given],aliases:["x"]}).ok,false);
+});
+for(const sourceText of ["Ea = 42 elsewhere","Ea = 41",undefined])check("Absent or nonliteral free citation has no authority: "+sourceText,()=>{
+ assert.ok(reader);const question="Ea = 42 kJ/mol.";const given={id:"x",symbol:"x",value:999,unit:"K",origin:"given",sourceText};assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+ const result=reader.resolveChemistryGiven({question,after:/=/,dimension:"molar_energy",targetUnit:"kJ/mol",quantities:[given],aliases:["x"]});assert.ok(result.ok);near(result.reading.value,42);assert.equal(result.reading.source.kind,"stem_given");assert.equal(result.reading.source.planQuantityId,undefined);
+});
+check("Duplicate free citation is ambiguous prose and creates no authority",()=>{
+ assert.ok(reader);const question="Ea = 42 kJ/mol; Ea = 42 kJ/mol.";const given={id:"x",symbol:"x",value:999,unit:"K",origin:"given",sourceText:"Ea = 42"};assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+ const result=reader.resolveChemistryGiven({question,after:/=/,dimension:"molar_energy",quantities:[given],aliases:["x"]});assert.equal(result.ok,false);assert.equal(result.code,"ambiguous");
+});
+
 console.log(JSON.stringify({ passed, failed: failures.length, failures, capturedQA: "unavailable" }, null, 2));
 process.exitCode = failures.length ? 1 : 0;
