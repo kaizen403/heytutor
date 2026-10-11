@@ -1,0 +1,139 @@
+{
+  "MAIN1": {
+    "rows": 60,
+    "unique": 60,
+    "missing": [],
+    "identityMismatch": [],
+    "transportRows": [],
+    "deadlineRows": [],
+    "healthy": true,
+    "decision": "admit whole run"
+  },
+  "regions1": {
+    "rows": 60,
+    "unique": 60,
+    "expected": 60,
+    "missing": [],
+    "extra": [],
+    "identityMismatch": [],
+    "transportRows": [],
+    "errorRows": [],
+    "deadlineRows": [],
+    "configurationMismatch": [],
+    "healthy": true,
+    "decision": "admit whole run",
+    "advisoryAccountingTransportLabels": 3,
+    "advisoryAssessmentDeadlineRows": [
+      "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+      "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+      "maths|h3r6-shaded-regions|nl03-mixed-interval|q1"
+    ],
+    "healthReview": "Independent audit: these three accounting transport labels are stock fetch-wrapper catch-all labels for the advisory client 3000ms timeout. The client assessments explicitly record deadline; corresponding local server responses were HTTP200 after approximately5040ms. No failed provider fetch, HTTP>=400, noncancel planner error, row error, or scene-planner deadline is recorded. Existing health rule unchanged; admit the whole run, preserve all three accounting records and all quality outcomes. One separate stock picker timeout used its normal fallback."
+  },
+  "MAIN2": {
+    "rows": 60,
+    "unique": 60,
+    "expected": 60,
+    "missing": [],
+    "extra": [],
+    "identityMismatch": [],
+    "transportRows": [],
+    "errorRows": [],
+    "deadlineRows": [
+      "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1"
+    ],
+    "configurationMismatch": [],
+    "advisoryAccountingTransportLabels": 3,
+    "advisoryAssessmentDeadlineRows": [
+      "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+      "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+      "maths|h3r6-shaded-regions|nl03-mixed-interval|q1"
+    ],
+    "noncancelPlannerErrors": [],
+    "healthy": true,
+    "decision": "admit whole run",
+    "qualitySubjectMisses": [
+      {
+        "id": "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+        "productionStrategy": {
+          "classifiedSubject": "maths",
+          "strategy": "current"
+        }
+      },
+      {
+        "id": "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+        "productionStrategy": {
+          "classifiedSubject": "other",
+          "strategy": "current"
+        }
+      }
+    ],
+    "healthReview": "Independent server/source audit: two stock25000ms per-attempt TimeoutError events on nl06 primary/alternate, one unique planner-deadline row; serial fallback returned HTTP200 and committed. Count this row against the existing<=4-row deadline allowance. Generic provider fetch failed log label is not a connection/HTTP failure. Three advisory accounting transport labels are client-assessed3000ms deadlines, as in branch1. Configured settings unchanged; subject/strategy misses remain quality. No other provider-fetch exception, transient/network cause or HTTP>=400 response found. Admit all60, preserve all attempts/outcomes.",
+    "providerAttemptDeadlineEvents": [
+      {
+        "traceId": "f5d03685-bb85-4c46-a8e6-3dc2677c2fdf",
+        "id": "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+        "serverElapsedMs": 832572,
+        "message": "Planner attempt timed out",
+        "attempt": 1,
+        "model": "st-gpt-6-sol-h3",
+        "traceAttribution": "temporal inference; event has no trace ID"
+      },
+      {
+        "traceId": "f5d03685-bb85-4c46-a8e6-3dc2677c2fdf",
+        "id": "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+        "serverElapsedMs": 832573,
+        "message": "Planner attempt timed out",
+        "attempt": 1,
+        "model": "st-gpt-6-sol-h3",
+        "traceAttribution": "temporal inference; event has no trace ID"
+      }
+    ],
+    "deadlineRowUpperBound": 2,
+    "deadlineAttribution": "Both events temporally match nl06 primary/alternate requests, but retry logs omit trace IDs. Treat as at most2 affected rows for the fixed<=4 deadline health test."
+  },
+  "regions2_excluded": {
+    "rows": 60,
+    "unique": 60,
+    "expected": 60,
+    "missing": [],
+    "extra": [],
+    "identityMismatch": [],
+    "transportRows": [
+      "maths|h3r8-finish-regions|shifted-triangle-minimum|q1"
+    ],
+    "errorRows": [],
+    "deadlineRows": [],
+    "configurationMismatch": [],
+    "noncancelPlannerErrors": [
+      {
+        "id": "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+        "outcome": {
+          "phase": "plan",
+          "lane": "primary",
+          "httpStatus": null,
+          "error": "fetch failed",
+          "bodyParsed": false,
+          "promptChars": 25350,
+          "elapsedMs": 5449,
+          "declineReason": null
+        }
+      }
+    ],
+    "advisoryAccountingTransportLabels": 0,
+    "advisoryAssessmentDeadlineRows": [],
+    "qualitySubjectMisses": [
+      {
+        "id": "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+        "productionStrategy": {
+          "classifiedSubject": "maths",
+          "strategy": "current"
+        }
+      }
+    ],
+    "healthy": false,
+    "decision": "exclude whole60-row run; unchanged zero-transport rule fails; whole retry cannot fit remaining real20 cap",
+    "deadlineRowUpperBound": 0,
+    "healthReview": "Independent audit confirms noncancel local primary plan fetch failed at5449ms, HTTPnull. Underlying socket cause not retained. No explicit planner deadline/retry or HTTP>=400 event; alternate success does not erase the failure. All60 input/config/provider fingerprints match. Preserve whole run ungraded and excluded. No retry/source/setting change."
+  }
+}
