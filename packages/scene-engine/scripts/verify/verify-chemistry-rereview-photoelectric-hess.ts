@@ -7,6 +7,7 @@ import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 
 let checks = 0;
+const failures: string[] = [];
 function labels(document: SceneDocument | null): string[] {
   assert.ok(document, "expected a source-grounded scene");
   const compiled = compileSceneDocument(document);
@@ -16,7 +17,7 @@ function labels(document: SceneDocument | null): string[] {
   return text;
 }
 function check(name: string, run: () => void): void {
-  try { run(); checks++; } catch (error) { throw new Error(name, { cause: error }); }
+  try { run(); checks++; } catch (error) { failures.push(name + ": " + String(error)); }
 }
 const sourceHcStems = [
   "Light of wavelength 300 nm falls on a metal of work function 2.0 eV. Take hc = 1240 eV nm. Find the stopping potential in volts.",
@@ -82,4 +83,5 @@ for (const value of ["4e- kJ", "1e999 kJ", "unknown", "20 kg", "20 kJ/mol"])
     const question = `Using Hess's law, step 1 has ΔH=-394 kJ. Step 2 has ΔH=${value} and is reversed. Draw the enthalpy sum.`;
     assert.equal(buildThermoGraphScene(question, [], false), null);
   });
-console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed`);
+console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
+if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
