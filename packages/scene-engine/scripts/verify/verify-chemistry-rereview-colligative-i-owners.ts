@@ -102,5 +102,33 @@ for(const c of supported)check(c.id,c.question,()=>{
   assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_solutions");
   verifyDocument(ordinary.document,c);
 });
+// BEGIN named factor owners: retain the original34 cases as an exact prefix.
+const namedRejects = [
+  ["named-unknown", "A solute has true molar mass 180 g/mol and van't Hoff factor is unknown. Calculate its apparent molar mass."],
+  ["named-unknown-derived", "A solute of true molar mass 180 g/mol dissociates into 2 particles with alpha = 0.5 and van’t Hoff factor (i) = unknown. Calculate apparent molar mass."],
+  ["named-wrong-unit", "A solute has true molar mass 180 g/mol and van't Hoff factor is 1.5 kg. Calculate its apparent molar mass."],
+  ["named-conflicting-repeat", "A solute has true molar mass 180 g/mol. Its van't Hoff factor is 1.5; van’t Hoff factor (i) = 2. Calculate apparent molar mass."],
+  ["named-unread-before-valid", "A solute of true molar mass 180 g/mol dissociates into 2 particles with alpha = 0.5. Its van't Hoff factor is unknown; i = 1.5. Calculate apparent molar mass."],
+] as const;
+const namedSupported: readonly Supported[] = [
+  {id:"named-plain",question:"A solute has true molar mass 180 g/mol and van't Hoff factor is 1.5. Calculate its apparent molar mass.",label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"named-parenthetical",question:"A solute has true molar mass 180 g/mol and van’t Hoff factor (i) = 1.5. Calculate its apparent molar mass.",label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"named-symbol",question:"A solute has true molar mass 180 g/mol and van't Hoff factor i = 1.5. Calculate its apparent molar mass.",label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"named-agreeing-repeat",question:"A solute has true molar mass 180 g/mol. Its van't Hoff factor is 1.5; i = 1.50. Calculate apparent molar mass.",label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"named-source-scope",question:"The van't Hoff factor is 1.5; the true molar mass is 180 g/mol. Calculate the apparent molar mass.",label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+];
+for(const [id,question] of namedRejects)check(id,question,()=>{
+  assert.equal(buildSolutionLessonScene(question,[],false),null);
+  assert.equal(buildSolutionLessonScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+});
+for(const c of namedSupported)check(c.id,c.question,()=>{
+  verifyDocument(buildSolutionLessonScene(c.question,[],false),c);
+  verifyDocument(buildSolutionLessonScene(c.question,[],true),c);
+  const ordinary=synthesizeFamilyScene({question:c.question});
+  assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_solutions");
+  verifyDocument(ordinary.document,c);
+});
+// END named factor owners: retain the original34 cases as an exact prefix.
 console.log(JSON.stringify({total:rows.length,passed:rows.filter(r=>r.passed).length,rows},null,2));
 process.exitCode=rows.every(r=>r.passed)?0:1;
