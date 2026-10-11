@@ -32,6 +32,23 @@ let prefixReads = 0;
 const storage = () => ({ userId, reservedBytes, pendingTurns });
 const db = {
   $queryRaw: async () => [{ id: userId }],
+  $executeRaw: async (sql: TemplateStringsArray, encodedRows: string, owner: string) => {
+    assert.equal(owner, userId);
+    const rows: Array<{ id: string; storageBytes: string; metadataBytes?: string }> = JSON.parse(encodedRows);
+    const statement = sql.join("?");
+    assert(statement.includes("jsonb_to_recordset") && statement.includes("retained.user_id"), "receipt batches remain parameterized and account-scoped");
+    if (statement.includes("UPDATE turns")) {
+      for (const row of rows) {
+        const turn = turns.find(candidate => candidate.id === row.id)!;
+        assert.equal(typeof row.metadataBytes, "string");
+        turn.storageBytes = BigInt(row.storageBytes); turn.metadataBytes = BigInt(row.metadataBytes!);
+      }
+    } else {
+      assert(statement.includes("UPDATE board_chat_messages"));
+      for (const row of rows) notes.find(note => note.id === row.id)!.storageBytes = BigInt(row.storageBytes);
+    }
+    return rows.length;
+  },
   board: { findFirst: async () => ({ id: boardId, userId }), findMany: async () => [{ id: boardId }] },
   turn: {
     findMany: async () => structuredClone(turns),

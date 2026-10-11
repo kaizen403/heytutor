@@ -34,6 +34,7 @@ import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { checkpointAttemptPrefix, checkpointAudioKey } from "@/lib/object-store/keys";
 import { uploadAudio } from "@/lib/object-store/s3";
+import { allowsMetadataOnlyLectureAudio } from "@/lib/object-store/lectureAudioPersistence";
 import { mediaProxyUrl } from "@/lib/object-store/mediaUrl";
 import { turnMetadataStorageBytes } from "@/lib/boards/storageAccounting";
 import { readBoundedFormData, readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
@@ -678,9 +679,11 @@ async function applyCheckpoint(
       return reject("audio_format_mismatch", "audio content does not match its declared format", 415);
     }
   }
-  const newAudioBytes = [...uploads.values()].reduce((sum, file) => sum + file.size, 0);
+  const submittedAudioBytes = [...uploads.values()].reduce((sum, file) => sum + file.size, 0);
+  const metadataOnlyAudio = allowsMetadataOnlyLectureAudio();
+  const newAudioBytes = metadataOnlyAudio ? 0 : submittedAudioBytes;
   const chargedAudio = before ? Number(before.storageBytes - before.metadataBytes) : 0;
-  if (Math.max(0, chargedAudio) + newAudioBytes > MAX_TURN_AUDIO_TOTAL_BYTES) {
+  if (Math.max(0, chargedAudio) + submittedAudioBytes > MAX_TURN_AUDIO_TOTAL_BYTES) {
     return reject("turn_audio_oversized", "turn audio exceeds the total size limit", 413);
   }
 
@@ -715,7 +718,7 @@ async function applyCheckpoint(
   const attemptDir = attemptDirName();
   const prefix = checkpointAttemptPrefix(boardId, turnId, attemptDir);
   const expectedHeld = merged.map((row, index) => uploads.has(index) ? {
-    ...row, audioUrl: mediaProxyUrl(checkpointAudioKey(boardId, turnId, attemptDir, index, uploads.get(index)!.type)),
+    ...row, audioUrl: metadataOnlyAudio ? null : mediaProxyUrl(checkpointAudioKey(boardId, turnId, attemptDir, index, uploads.get(index)!.type)),
     audioFormat: uploads.get(index)!.type,
   } : row);
   const expectedSegments = canonicalRows.map(row => {
@@ -763,6 +766,10 @@ async function applyCheckpoint(
     const uploaded = new Map<number, { url: string | null; format: string }>();
     for (const [index, file] of [...uploads].sort((a, b) => a[0] - b[0])) {
       if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
+      if (metadataOnlyAudio) {
+        uploaded.set(index, { url: null, format: file.type });
+        continue;
+      }
       const key = checkpointAudioKey(boardId, turnId, attemptDir, index, file.type);
       const url = await uploadAudio(key, new Uint8Array(await file.arrayBuffer()), file.type, uploadSignal);
       if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
@@ -855,7 +862,7 @@ async function applyCheckpoint(
           if (current && current.storageBytes - current.metadataBytes + BigInt(newAudioBytes) > BigInt(MAX_TURN_AUDIO_TOTAL_BYTES)) {
             throw new StorageQuotaError("turn audio exceeds the total size limit", 413, "turn_audio_oversized");
           }
-          if (retainedGrowth > (reservation?.bytes ?? 0)) throw new StorageQuotaError("storage accounting changed; try saving again", 409);
+          if (retainedGrowth > (reservation?.bytes ?? 0)) throw new StorageQuotaError("storage accounting changed; try saving again", 409, "storage_accounting_changed");
           let turn: Turn;
           if (!current) {
             if (production) {

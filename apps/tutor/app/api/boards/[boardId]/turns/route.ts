@@ -4,6 +4,7 @@ import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { lectureAudioKey } from "@/lib/object-store/keys";
 import { uploadAudio } from "@/lib/object-store/s3";
+import { allowsMetadataOnlyLectureAudio } from "@/lib/object-store/lectureAudioPersistence";
 import { readBoundedFormData, RequestBodyError } from "@/lib/http/requestBody";
 import { abandonTurnStorage, reserveTurnStorage, settleTurnStorage, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { turnMetadataStorageBytes } from "@/lib/boards/storageAccounting";
@@ -203,13 +204,14 @@ export async function POST(request: Request, context: RouteContext) {
     const file = source === null ? null : formData.get(`audio-${source}`);
     return file instanceof File && file.size > 0 ? file : null;
   };
+  const metadataOnlyAudio = allowsMetadataOnlyLectureAudio();
   const plannedSegments = segmentMeta.map(segment => {
     const file = audioFileFor(segment);
     return { ...segment, audioRef: segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex,
-      audioUrl: file ? mediaProxyUrl(lectureAudioKey(boardId, turnId, segment.orderIndex, file.type)) : null,
+      audioUrl: file && !metadataOnlyAudio ? mediaProxyUrl(lectureAudioKey(boardId, turnId, segment.orderIndex, file.type)) : null,
       audioFormat: file?.type ?? "audio/mpeg" };
   });
-  const audioBytes = segmentMeta.reduce((sum, segment) => sum + (audioFileFor(segment)?.size ?? 0), 0);
+  const audioBytes = metadataOnlyAudio ? 0 : segmentMeta.reduce((sum, segment) => sum + (audioFileFor(segment)?.size ?? 0), 0);
   const storedBytes = turnMetadataStorageBytes({ ...metadata, segments: plannedSegments }) + audioBytes;
   let reservation;
   try {
@@ -232,8 +234,12 @@ export async function POST(request: Request, context: RouteContext) {
     const source = segment.sourceOrderIndex === undefined ? segment.orderIndex : segment.sourceOrderIndex;
     const file = source === null ? null : formData.get(`audio-${source}`);
     if (file instanceof File && file.size > 0) {
-      const bytes = new Uint8Array(await file.arrayBuffer());
       audioFormats.set(segment.orderIndex, file.type);
+      if (metadataOnlyAudio) {
+        audioUrls.set(segment.orderIndex, null);
+        continue;
+      }
+      const bytes = new Uint8Array(await file.arrayBuffer());
       const key = lectureAudioKey(boardId, turnId, segment.orderIndex, file.type);
       const audioUrl = await uploadAudio(key, bytes, file.type, uploadSignal);
       if (uploadSignal.aborted) throw new StorageQuotaError("turn upload canceled or expired", 409);
@@ -249,7 +255,7 @@ export async function POST(request: Request, context: RouteContext) {
     ...segment, audioUrl: audioUrls.get(segment.orderIndex) ?? null,
   })) });
   const retainedBytes = retainedMetadataBytes + audioBytes;
-  if (retainedBytes > reservation.bytes) throw new StorageQuotaError("storage accounting changed; try saving again", 409);
+  if (retainedBytes > reservation.bytes) throw new StorageQuotaError("storage accounting changed; try saving again", 409, "storage_accounting_changed");
 
   const MAX_INSERT_ATTEMPTS = 3;
   let saved: { turn: Turn; insertedSegments: Segment[] } | null = null;

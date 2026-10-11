@@ -19,7 +19,7 @@ export const BOARD_PAGE_SIZE = 100;
 
 export class StorageQuotaError extends Error {
   constructor(message: string, public readonly status: 400 | 403 | 404 | 409 | 413 | 429 | 503 = 413,
-    public readonly code?: "storage_verification_failed" | "turn_storage_limit_reached" | "turn_audio_oversized") {
+    public readonly code?: "storage_verification_failed" | "storage_accounting_changed" | "turn_storage_limit_reached" | "turn_audio_oversized") {
     super(message);
     this.name = "StorageQuotaError";
   }
@@ -29,12 +29,13 @@ export class StorageQuotaError extends Error {
 export async function withUserStorageLock<T>(
   userId: string,
   run: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { timeout: number; maxWait: number },
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
     const users = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
     if (!users.length) throw new StorageQuotaError("account not found", 404);
     return run(tx);
-  });
+  }, options);
 }
 
 async function storageRow(tx: Prisma.TransactionClient, userId: string) {
@@ -55,32 +56,48 @@ async function storageRow(tx: Prisma.TransactionClient, userId: string) {
 async function withMeasuredStorageLock<T>(userId: string, incomingBytes: number, run: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
   checkBytes(0n, incomingBytes);
   const measurementSignal = AbortSignal.timeout(15_000);
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (measurementSignal.aborted) throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
-    const now = new Date();
-    const [storage, legacy, legacyNotes, expiredJob] = await Promise.all([
-      prisma.userStorage.findUnique({ where: { userId } }),
-      prisma.turn.count({ where: { userId, storageBytes: 0 } }),
-      prisma.boardChatMessage.count({ where: { userId, storageBytes: 0, content: { not: "" } } }),
-      prisma.objectDeletionJob.findFirst({ where: { userId, attempts: 0, nextAttemptAt: { lte: now },
-        createdAt: { lte: new Date(now.getTime() - 30 * 60_000) } }, select: { id: true } }),
-    ]);
-    const needsMeasurement = !storage || legacy > 0 || legacyNotes > 0 || expiredJob !== null ||
-      storage.reservedBytes + BigInt(incomingBytes) > BigInt(MAX_ACCOUNT_STORAGE_BYTES);
-    let prepared: { snapshot: Awaited<ReturnType<typeof readStorageAccountingSnapshot>>; plan: Awaited<ReturnType<typeof measureStorageAccounting>> } | null = null;
-    if (needsMeasurement) {
-      try {
-        const snapshot = await prisma.$transaction(tx => readStorageAccountingSnapshot(tx, userId));
-        prepared = { snapshot, plan: await measureStorageAccounting(snapshot, { signal: measurementSignal }) };
-      } catch {
-        throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (measurementSignal.aborted) throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+      const now = new Date();
+      const [storage, legacy, legacyNotes, expiredJob] = await Promise.all([
+        prisma.userStorage.findUnique({ where: { userId } }),
+        prisma.turn.count({ where: { userId, storageBytes: 0 } }),
+        prisma.boardChatMessage.count({ where: { userId, storageBytes: 0, content: { not: "" } } }),
+        prisma.objectDeletionJob.findFirst({ where: { userId, attempts: 0, nextAttemptAt: { lte: now },
+          createdAt: { lte: new Date(now.getTime() - 30 * 60_000) } }, select: { id: true } }),
+      ]);
+      const needsMeasurement = !storage || legacy > 0 || legacyNotes > 0 || expiredJob !== null ||
+        storage.reservedBytes + BigInt(incomingBytes) > BigInt(MAX_ACCOUNT_STORAGE_BYTES);
+      let prepared: { snapshot: Awaited<ReturnType<typeof readStorageAccountingSnapshot>>; plan: Awaited<ReturnType<typeof measureStorageAccounting>> } | null = null;
+      let measurementFailed = false;
+      if (needsMeasurement) {
+        // Query failures cannot prove a ledger safe; only provider measurement
+        // uncertainty may fall back to an already-held conservative balance.
+        const snapshot = await prisma.$transaction(tx => readStorageAccountingSnapshot(tx, userId), { timeout: 30_000, maxWait: 5_000 });
+        try {
+          prepared = { snapshot, plan: await measureStorageAccounting(snapshot, { signal: measurementSignal }) };
+        } catch {
+          measurementFailed = true;
+        }
       }
+      const outcome = await withUserStorageLock(userId, async tx => {
+        if (measurementFailed) {
+          // Re-read after acquiring the same lock used by every admission. Never
+          // refund unverified objects or bootstrap a missing ledger from guesses.
+          const existing = await tx.userStorage.findUnique({ where: { userId } });
+          if (!existing || (incomingBytes > 0 && existing.reservedBytes + BigInt(incomingBytes) > BigInt(MAX_ACCOUNT_STORAGE_BYTES))) {
+            throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+          }
+        }
+        if (prepared && !await applyStorageAccountingPlan(tx, prepared.snapshot, prepared.plan)) return { retry: true as const };
+        return { retry: false as const, value: await run(tx) };
+      }, { timeout: 30_000, maxWait: 5_000 });
+      if (!outcome.retry) return outcome.value;
     }
-    const outcome = await withUserStorageLock(userId, async tx => {
-      if (prepared && !await applyStorageAccountingPlan(tx, prepared.snapshot, prepared.plan)) return { retry: true as const };
-      return { retry: false as const, value: await run(tx) };
-    });
-    if (!outcome.retry) return outcome.value;
+  } catch (error) {
+    if (error instanceof StorageQuotaError) throw error;
+    throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
   }
   throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
 }
@@ -264,8 +281,9 @@ export async function settleTurnStorage(reservation: TurnStorageReservation, ref
 export async function refundTurnMetadataStorage(tx: Prisma.TransactionClient, userId: string, bytes: bigint): Promise<void> {
   if (bytes <= 0n) return;
   const storage = await tx.userStorage.findUnique({ where: { userId } });
-  if (!storage || storage.reservedBytes < bytes) throw new StorageQuotaError("storage accounting changed; try saving again", 409);
-  await tx.userStorage.update({ where: { userId }, data: { reservedBytes: storage.reservedBytes - bytes } });
+  if (!storage) return;
+  const remaining = storage.reservedBytes - bytes;
+  await tx.userStorage.update({ where: { userId }, data: { reservedBytes: remaining > 0n ? remaining : 0n } });
 }
 
 /** Leave bytes charged and make the pre-existing cleanup intent due. If the

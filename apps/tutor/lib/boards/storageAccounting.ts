@@ -1,7 +1,7 @@
 import type { Prisma, Turn, Segment, BoardChatMessage, ObjectDeletionJob } from "@prisma/client";
 import { createHash } from "node:crypto";
-import { parseStoredObjectKey, isSafeObjectDeletionPrefix } from "@/lib/object-store/keys";
-import { mediaKeyFromUrl } from "@/lib/object-store/mediaUrl";
+import { parseStoredObjectKey, isSafeObjectDeletionPrefix, isOwnedTurnStorageObjectKey } from "@/lib/object-store/keys";
+import { lectureKeyForStorageMeasurement } from "@/lib/object-store/mediaUrl";
 import { headObjectSize, listObjectSizes } from "@/lib/object-store/s3";
 
 type StoredTurn = Turn & { segments: Segment[] };
@@ -98,7 +98,7 @@ export async function measureStorageAccounting(snapshot: StorageAccountingSnapsh
     const ownedBoards = new Set(snapshot.boards.map(board => board.id));
     for (const turn of snapshot.turns) {
       for (const url of retainedAudioUrls(turn)) {
-        const key = mediaKeyFromUrl(url);
+        const key = lectureKeyForStorageMeasurement(url, { boardId: turn.boardId, turnId: turn.id });
         const ref = key ? parseStoredObjectKey(key) : null;
         if (!key || ref?.kind !== "lecture" || ref.boardId !== turn.boardId || ref.turnId !== turn.id ||
           !ownedBoards.has(turn.boardId) || turn.userId !== snapshot.userId) throw new StorageVerificationError();
@@ -119,8 +119,7 @@ export async function measureStorageAccounting(snapshot: StorageAccountingSnapsh
         const prefix = `lectures/${turn.boardId}/${turn.id}/`;
         if (!ownedBoards.has(turn.boardId) || turn.userId !== snapshot.userId || !isSafeObjectDeletionPrefix(prefix)) throw new StorageVerificationError();
         for (const object of await listObjectSizes(prefix, signal)) {
-          const ref = parseStoredObjectKey(object.key);
-          if (ref?.kind !== "lecture" || ref.boardId !== turn.boardId || ref.turnId !== turn.id ||
+          if (!isOwnedTurnStorageObjectKey(object.key, { boardId: turn.boardId, turnId: turn.id }) ||
             !Number.isSafeInteger(object.bytes) || object.bytes < 0) throw new StorageVerificationError();
           if (!isReservedObject(object.key)) objects.set(object.key, { turnId: turn.id, bytes: BigInt(object.bytes) });
         }
@@ -206,11 +205,27 @@ export async function applyStorageAccountingPlan(tx: Prisma.TransactionClient, s
   await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE user_id = ${snapshot.userId} FOR UPDATE`;
   const current = await readStorageAccountingSnapshot(tx, snapshot.userId);
   if (storageAccountingFingerprint(current) !== storageAccountingFingerprint(snapshot)) return false;
-  for (const update of plan.turnUpdates) {
-    await tx.turn.update({ where: { id: update.id }, data: { storageBytes: update.storageBytes, metadataBytes: update.metadataBytes,
-      updatedAt: snapshot.turns.find(turn => turn.id === update.id)!.updatedAt } });
+  // Parameterized batches keep the locked apply bounded even for 1,000 old
+  // lessons. Only accounting columns change: Prisma's @updatedAt must not
+  // make receipt migration look like new lesson activity.
+  if (plan.turnUpdates.length) {
+    const rows = JSON.stringify(plan.turnUpdates, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value);
+    const changed = await tx.$executeRaw`
+      UPDATE turns AS retained
+      SET storage_bytes = receipt."storageBytes", metadata_bytes = receipt."metadataBytes"
+      FROM jsonb_to_recordset(${rows}::jsonb) AS receipt(id uuid, "storageBytes" bigint, "metadataBytes" bigint)
+      WHERE retained.id = receipt.id AND retained.user_id = ${snapshot.userId}`;
+    if (changed !== plan.turnUpdates.length) throw new StorageVerificationError();
   }
-  for (const update of plan.noteUpdates) await tx.boardChatMessage.update({ where: { id: update.id }, data: { storageBytes: update.storageBytes } });
+  if (plan.noteUpdates.length) {
+    const rows = JSON.stringify(plan.noteUpdates, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value);
+    const changed = await tx.$executeRaw`
+      UPDATE board_chat_messages AS retained
+      SET storage_bytes = receipt."storageBytes"
+      FROM jsonb_to_recordset(${rows}::jsonb) AS receipt(id uuid, "storageBytes" bigint)
+      WHERE retained.id = receipt.id AND retained.user_id = ${snapshot.userId}`;
+    if (changed !== plan.noteUpdates.length) throw new StorageVerificationError();
+  }
   if (plan.expiredEmptyJobs.length) await tx.objectDeletionJob.deleteMany({ where: { userId: snapshot.userId, id: { in: plan.expiredEmptyJobs } } });
   const data = { reservedBytes: plan.afterBytes, pendingTurns: plan.pendingTurnsAfter };
   if (current.storage) await tx.userStorage.update({ where: { userId: snapshot.userId }, data });

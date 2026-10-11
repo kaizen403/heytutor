@@ -269,6 +269,7 @@ export function classifySaveFailure(status: number, body: Record<string, unknown
   if (status === 413) return body?.code === "storage_admission_rejected" || body?.code === "storage_commit_rejected" || /quota/i.test(error)
     ? fail("quota", false) : fail("too_large", false);
   if (status === 409) {
+    if (body?.code === "storage_accounting_changed") return fail("storage_verification", true);
     if (body?.code === "trace_saved") return fail("trace_saved", false);
     if (typeof body?.serverCount === "number") return fail("conflict", true);
     if (/expired|canceled/i.test(error)) return fail("server", true);
@@ -351,7 +352,8 @@ export async function saveTurnResult(boardId: string, payload: SaveTurnPayload):
         attempt,
         error: errorText.slice(0, 300),
       });
-      if (res.status < 500 && res.status !== 429) {
+      if (res.status < 500 && res.status !== 429 &&
+        !(res.status === 409 && body?.code === "storage_accounting_changed")) {
         return failure;
       }
     } catch (error) {

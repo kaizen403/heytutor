@@ -208,6 +208,8 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@/lib/auth": { getUserId: async () => userId, ensureUser: async () => {} },
   "@/lib/db/prisma": { prisma },
   "@/lib/object-store/keys": keys,
+  // This fixture supplies a configured, durable object-storage adapter.
+  "@/lib/object-store/lectureAudioPersistence": { allowsMetadataOnlyLectureAudio: () => false },
   "@/lib/object-store/mediaUrl": mediaUrl,
   "@/lib/boards/storageAccounting": { turnMetadataStorageBytes },
   "@/lib/object-store/s3": {

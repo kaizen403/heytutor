@@ -108,6 +108,8 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
   "@/lib/boards/storageAccounting": { turnMetadataStorageBytes },
   "@/lib/object-store/mediaUrl": mediaUrl,
   "@/lib/object-store/keys": objectKeys,
+  // This fixture supplies a configured, durable object-storage adapter.
+  "@/lib/object-store/lectureAudioPersistence": { allowsMetadataOnlyLectureAudio: () => false },
   "@/lib/boards/turnSaveRejection": turnSaveRejection,
   "@/lib/object-store/s3": { uploadAudio: async (key: string, bytes: Uint8Array) => {
     uploads++;

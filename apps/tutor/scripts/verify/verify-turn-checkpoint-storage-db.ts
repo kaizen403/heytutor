@@ -32,6 +32,9 @@ async function main() {
     }
   }
   process.env.DATABASE_URL = input;
+  // This gate provides a durable fake object store; it must not select the
+  // separate unconfigured-development metadata-only persistence policy.
+  process.env.S3_BUCKET = "checkpoint-storage-fixture";
   const load = createRequire(import.meta.url);
   const root = resolve(import.meta.dirname, "../..");
 

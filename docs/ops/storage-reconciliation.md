@@ -6,6 +6,26 @@ pending object/upload reservations. Historical audio references no longer mean
 an automatic 8 MiB charge each. Existing content is retained; this tool never
 deletes lesson content or objects.
 
+Deployment also enables automatic correction on an account's next save, note,
+or photo admission when its receipts need measurement. This correction writes
+accounting receipts and balances under the account lock even when the operator
+has never run this CLI's `--write` mode. Measurement happens before that lock;
+turn and note receipts are applied in two parameterized batches, with a 30-second
+transaction timeout, and retain the original lesson activity timestamps.
+
+If object measurement fails, admission may use an existing ledger that already
+has enough room, after re-reading it under the same account lock. It does not
+refund uncertain bytes or create a guessed ledger. Missing ledgers and accounts
+that need unverified refunds receive the retryable storage verification message.
+The object metadata lookup recognizes owned historical public URLs, their
+`/api/lecture-audio?src=` wrappers, and configured bucket URL forms without
+fetching arbitrary hosts or changing playback/deletion authorization.
+
+Explicit development/test environments without an object store can save lesson
+metadata without audio. Production and configured-store upload failures still
+retain the visible retryable error; unavailable audio is never represented as
+stored audio or given an invented URL.
+
 ## Report first
 
 Run from the repository root with `DATABASE_URL` explicitly supplied in the
@@ -64,6 +84,12 @@ prove that those bytes are stale. Active upload reservations and cleanup jobs
 remain charged. A stale job is released only when its entire owned prefix is
 confirmed empty and its receipt is unchanged; the job and its charge are then
 removed together. No active upload or worker lease is bypassed.
+
+Near capacity, admission still compares the complete source and job snapshot
+before applying measured receipts. A future smaller fingerprint would need to
+preserve these concurrency guarantees. Ambiguous historical residual charges,
+including notes without a durable charge receipt, cannot be refunded safely;
+cleaning those up requires evidence of their original reservation lifecycle.
 
 Board deletion remains available when storage measurement fails. Recorded
 charges and recognizable historical reservations transfer to a durable cleanup
