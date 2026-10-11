@@ -99,9 +99,9 @@ export interface ChemistryArrheniusEquation {
 export function readChemistryArrheniusEquation(question: string): ChemRead<ChemistryArrheniusEquation> {
   const end = chemistryQuestionSpan(question).end;
   const patterns = [
-    { pattern: new RegExp(String.raw`\b(ln|log)\s*k\s*=\s*(${SCALAR})\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*T\b`, "gd"), group: 3 },
-    { pattern: new RegExp(String.raw`\be\s*\^?\s*\(\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*T\s*\)`, "gd"), group: 1 },
-    { pattern: new RegExp(String.raw`\be\s*\^?\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*T\b`, "gd"), group: 1 },
+    { pattern: new RegExp(String.raw`\b(ln|log)\s*k\s*=\s*(${SCALAR})\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 3 },
+    { pattern: new RegExp(String.raw`\be\s*\^?\s*\(\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\s*\)`, "gd"), group: 1 },
+    { pattern: new RegExp(String.raw`\be\s*\^?\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 1 },
   ];
   const readings: ChemistryArrheniusEquation[] = [];
   for (const {pattern, group} of patterns) for (const match of question.slice(0, end).matchAll(pattern)) {

@@ -442,15 +442,33 @@ function splitTopLevel(text: string): string[] {
   return parts.map((part) => part.trim()).filter(Boolean);
 }
 
-const SPECIES_IN_TOKEN = /(?<![A-Za-z])([A-Z][a-z]?(?:[A-Za-z0-9]|\([A-Z][A-Za-z0-9]*\)\d*)*(?:\^?\(?\d*[+-]\)?|\+{2,}|-{2,})?)(?![a-z])/g;
+const SPECIES_IN_TOKEN = /(?<![A-Za-z])([A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]|\([A-Z][A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]*\)\d*)*(?:\+{2,}|-{2,}|\^?\(?\d*[+-]\)?|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])?)(?![a-z])/g;
+
+/** Notation normalization applies only after an entire original species was
+ * read. A charge/name/script continuation cannot be a separate source token. */
+function completeSpeciesToken(part: string, match: RegExpMatchArray): boolean {
+  const start = match.index!; const stop = start + match[1]!.length;
+  if (/[\p{L}\p{N}\p{M}_^⁺⁻]$/u.test(part.slice(0, start))
+    || /^[\p{L}\p{N}\p{M}_^⁺⁻+−/\-]/u.test(part.slice(stop))) return false;
+  const raw = match[1]!;
+  // Explicit charge parentheses must close in the original source, and a
+  // superscript zero or repeated sign is not a supported ion charge.
+  if (/\^\(/.test(raw) && !/\^\(\d*[+-]\)$/.test(raw)) return false;
+  const superscript = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+$/.exec(raw)?.[0];
+  return !superscript || /^(?:[¹²³⁴⁵⁶⁷⁸⁹][⁰¹²³⁴⁵⁶⁷⁸⁹]*)?[⁺⁻]$/.test(superscript);
+}
 
 /** One phase of a half cell: "Zn2+ (aq, 0.1 M)", "H2(g, 1 bar)", "Fe2+, Fe3+". */
-function readSpeciesTokens(text: string): SpeciesToken[] {
+function readSpeciesTokens(text: string): SpeciesToken[] | null {
   const tokens: SpeciesToken[] = [];
   for (const part of splitTopLevel(text)) {
     for (const match of part.matchAll(SPECIES_IN_TOKEN)) {
+      if (!completeSpeciesToken(part, match)) return null;
       const formula = canonicalSpecies(match[1]!);
-      if (!formula) continue;
+      if (!formula) {
+        if (/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻^+-]/.test(match[1]!)) return null;
+        continue;
+      }
       const phaseMatch = /\(\s*(aq|s|g|l)\b/.exec(part);
       tokens.push({
         formula,
@@ -546,6 +564,9 @@ function resolveHalfCell(electrode: string, tokens: SpeciesToken[], overrides: M
   record = findCouple(key);
   const canonical = record ? record.key : key;
   const override = overrides.get(canonical) ?? overrides.get(reverseKey(canonical));
+  // A complete but unsupported charged couple must not become a generic
+  // common-ion/default cell. Explicitly sourced custom potentials still work.
+  if (!record && !override) return null;
   const e0 = override ? override.e0 : record ? record.e0 : null;
   const n = record ? record.n : override?.n ?? (() => {
     const [ox, red] = canonical.split("/");
@@ -554,8 +575,12 @@ function resolveHalfCell(electrode: string, tokens: SpeciesToken[], overrides: M
   })();
   const concentrations: Record<string, number> = {};
   for (const token of tokens) {
-    if (token.concentration !== null) concentrations[token.formula] = token.concentration;
-    if (token.pressure !== null) concentrations[token.formula] = token.pressure;
+    const activity = token.concentration ?? token.pressure;
+    if (activity !== null) {
+      const previous = concentrations[token.formula];
+      if (previous !== undefined && !chemistryCanonicalValuesAgree(previous, activity)) return null;
+      concentrations[token.formula] = activity;
+    }
   }
   // A concentration written on a salt belongs to its cation.
   for (const token of tokens) {
@@ -719,6 +744,7 @@ export function parseCellNotation(text: string): CellSpec | null {
     for (let index = leftTokens.length - 1; index >= 0 && index >= leftTokens.length - 4; index -= 1) {
       const token = leftTokens[index]!;
       const species = readSpeciesTokens(token);
+      if (!species) return null;
       const tail = trailingElectrode(token);
       if (tail) {
         anodeElectrode = tail;
@@ -740,6 +766,7 @@ export function parseCellNotation(text: string): CellSpec | null {
       const token = rightTokens[index]!;
       const lead = leadingElectrode(token);
       const species = readSpeciesTokens(token);
+      if (!species) return null;
       if (lead && (species.length === 0 || species[0]!.formula === lead)) {
         cathodeElectrode = lead;
         break;
@@ -756,8 +783,9 @@ export function parseCellNotation(text: string): CellSpec | null {
     if (anodeElectrode && cathodeElectrode) {
       const anode = resolveHalfCell(anodeElectrode, anodeSpecies, overrides);
       const cathode = resolveHalfCell(cathodeElectrode, cathodeSpecies, overrides);
-      const spec = finish(anode, cathode, "notation");
-      if (spec) return spec;
+      // Recognized notation owns these half cells. An invalid/unsupported
+      // phase cannot be replaced by a named cell's stock concentrations.
+      return finish(anode, cathode, "notation");
     }
   }
 

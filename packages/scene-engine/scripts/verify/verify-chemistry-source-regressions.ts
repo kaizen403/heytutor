@@ -598,6 +598,41 @@ check("Bare K request cannot hide a bound R prefix conflict",()=>{
 });
 // END PR137 V8: request predicates are not numeric equilibrium assignments.
 
+// BEGIN PR137 V9: original Unicode charged phases and lowercase Arrhenius source.
+function v9CellPositive(question:string):void {
+ const spec=parseCellNotation(question);assert.ok(spec,"original complete ion notation must parse");
+ assert.equal(spec.anode.couple,"Zn2+/Zn");assert.equal(spec.cathode.couple,"Cu2+/Cu");
+ near(spec.anode.concentrations["Zn2+"],.1);near(spec.cathode.concentrations["Cu2+"],.01);near(cellEmf(spec)?.q,10);near(cellEmf(spec)?.e,1.0705);
+ const direct=compiled(buildElectrochemScene(question,[],false));near(direct.document.quantities.find(q=>q.id==="E_cell")?.value,1.0705);
+ assert.ok(direct.labels.includes("Zn^(2+)") && direct.labels.includes("Cu^(2+)"));assert.ok(direct.labels.includes("0.1 M") && direct.labels.includes("0.01 M"));
+ const ordinary=synthesizeFamilyScene(question,[]);assert.ok(ordinary?.renderScene,"ordinary family synthesis declined");assert.equal(ordinary.family,"chem_electrochem");near(ordinary.document.quantities.find(q=>q.id==="E_cell")?.value,1.0705);
+}
+for(const notation of [
+ "Zn | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | Cu",
+ "Zn | Zn2+(0.1 M) || Cu²⁺(0.01 M) | Cu",
+ "Zn | Zn²⁺(aq, 0.1 M) || Cu2+(aq, 0.01 M) | Cu",
+ "Zn | Zn²⁺(aq, 0.1 M) ‖ Cu²⁺(aq, 0.01 M) | Cu",
+ "Zn | Zn2+(0.1 M) || Cu2+(0.01 M) | Cu",
+])check("Complete raw charged cell phase and owner parity: "+notation,()=>v9CellPositive("Draw the cell "+notation+"."));
+for(const ion of ["Zn²⁺⁺","Zn²⁺x","Zn³⁺","Zn²+","Zn⁰⁺","Zn²⁺/s","Zn²⁺_x","Zn^(2+"])check("Malformed or unsupported original charged phase cannot default: "+ion,()=>{
+ const question="Draw the Daniell cell Zn | "+ion+"(0.1 M) || Cu²⁺(0.01 M) | Cu.";
+ assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(buildElectrochemScene(question,[],true),null);assert.equal(synthesizeFamilyScene(question,[]),null);
+});
+for(const phase of ["Zn²⁺(0.1 M), Zn²⁺(0.2 M)","Zn²⁺(1e- M)"])check("Unicode ion concentration conflict/damage cannot named-fallback: "+phase,()=>{
+ const question="Draw the Daniell cell Zn | "+phase+" || Cu²⁺(0.01 M) | Cu.";assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(synthesizeFamilyScene(question,[]),null);
+});
+check("Equivalent repeated Unicode concentration retains complete owner",()=>v9CellPositive("Draw the cell Zn | Zn²⁺(0.1 M), Zn²⁺(1e-1 M) || Cu²⁺(0.01 M) | Cu."));
+for(const [expression,expected] of [["ln k = 5 - 2000/t",16628],["log k = 5 - 2000/t",38287.38492630499],["k = A e^(-2000/t)",16628],["k = A e(-2000/t)",16628],["k = A e^-2000/t",16628],["ln k = 5 - 2×10^3 K/t",16628]] as const)check("Lowercase original temperature equation compiles: "+expression,()=>{
+ const question="For an Arrhenius reaction, "+expression+". Draw the Arrhenius plot.";
+ const read=readChemistryArrheniusEquation(question);assert.ok(read.ok);assert.equal(question.slice(read.reading.coefficient.span.start,read.reading.coefficient.span.end),read.reading.coefficient.text);
+ const spec=kineticsFromStem(question);assert.ok(spec);near(solveKinetics(spec).Ea,expected);const direct=compiled(buildKineticsScene(question,[],false));const expectedCaption=expression.startsWith("log")?"E_a = 38.3 kJ/mol":"E_a = 16.6 kJ/mol";assert.ok(direct.document.annotations.some(a=>a.text?.includes(expectedCaption)));
+ const ordinary=synthesizeFamilyScene(question,[]);assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_kinetics");assert.ok(ordinary.document.annotations.some(a=>a.text?.includes(expectedCaption)));
+});
+for(const expression of ["ln k = 5 - 2000/t2","ln k = 5 - 2000/t^2","ln k = 5 - 2000/tα","ln k = 5 - 2000/t ÷2","ln k = 5 - 2000/t ∕2","ln k = 5 - 2000/t; ln k = 5 - 2000/T"])check("Lowercase expression cannot hide unknown term: "+expression,()=>{
+ const question="For an Arrhenius reaction, "+expression+". Draw the Arrhenius plot.";assert.equal(readChemistryArrheniusEquation(question).ok,false);assert.equal(kineticsFromStem(question),null);assert.equal(buildKineticsScene(question,[],false),null);
+});
+// END PR137 V9: original Unicode charged phases and lowercase Arrhenius source.
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

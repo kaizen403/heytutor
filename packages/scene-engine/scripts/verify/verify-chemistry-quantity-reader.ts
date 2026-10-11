@@ -530,5 +530,23 @@ check("Duplicate free citation is ambiguous prose and creates no authority",()=>
  const result=reader.resolveChemistryGiven({question,after:/=/,dimension:"molar_energy",quantities:[given],aliases:["x"]});assert.equal(result.ok,false);assert.equal(result.code,"ambiguous");
 });
 
+// BEGIN PR137 V9: complete Unicode cell tokens and lowercase temperature denominator.
+check("Raw Unicode cell concentrations retain independent owners and UTF-16 spans",()=>{
+ assert.ok(reader);
+ const question="🧪 Draw the cell Zn | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | Cu.";
+ const spec=parseCellNotation(question);assert.ok(spec);near(spec.anode.concentrations["Zn2+"],.1);near(spec.cathode.concentrations["Cu2+"],.01);near(cellEmf(spec)?.q,10);near(cellEmf(spec)?.e,1.0705);
+ const inventory=reader.findChemistryQuantities({question,dimension:"concentration",targetUnit:"mol/L"});assert.ok(inventory.ok);assert.equal(inventory.reading.length,2);
+ for(const [index,literal] of [[0,"0.1 M"],[1,"0.01 M"]] as const){const value=inventory.reading[index]!;assert.equal(value.source.text,literal);assert.equal(value.source.span.start,question.indexOf(literal));assert.equal(question.slice(value.source.span.start,value.source.span.end),literal);}
+ compiled("unicode-cell-raw-concentrations",buildElectrochemScene(question,[],false));
+});
+for(const expression of ["ln k = 5 - 2000/t","log k = 5 - 2000/t","k = A e^(-2000/t)","k = A e(-2000/t)","k = A e^-2000/t","ln k = 5 - 2×10^3 K/t"])check("Complete original lowercase temperature equation: "+expression,()=>{
+ assert.ok(reader);const question="For an Arrhenius reaction, "+expression+". Draw the Arrhenius plot.";const read=reader.readChemistryArrheniusEquation(question);assert.ok(read.ok,JSON.stringify(read));
+ near(read.reading.coefficient.value,2000);assert.equal(read.reading.coefficient.text,expression.includes("×")?"2×10^3":"2000");assert.equal(question.slice(read.reading.coefficient.span.start,read.reading.coefficient.span.end),read.reading.coefficient.text);assert.equal(question.slice(read.reading.source.span.start,read.reading.source.span.end),read.reading.source.text);assert.ok(read.reading.source.text.includes("/t"));
+});
+for(const expression of ["ln k = 5 - 2000/t2","ln k = 5 - 2000/t^2","ln k = 5 - 2000/tα","ln k = 5 - 2000/t ÷2","ln k = 5 - 2000/t ∕2","ln k = 5 - 2000/t; ln k = 5 - 2000/T"])check("Lowercase equation retains full expression refusal: "+expression,()=>{
+ assert.ok(reader);assert.equal(reader.readChemistryArrheniusEquation(expression).ok,false);
+});
+// END PR137 V9: complete Unicode cell tokens and lowercase temperature denominator.
+
 console.log(JSON.stringify({ passed, failed: failures.length, failures, capturedQA: "unavailable" }, null, 2));
 process.exitCode = failures.length ? 1 : 0;
