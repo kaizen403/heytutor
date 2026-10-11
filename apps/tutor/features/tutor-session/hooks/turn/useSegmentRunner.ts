@@ -494,6 +494,10 @@ export function useSegmentRunner({
               estimatedSpeechMs: estimateSpeechMs,
               msPerChar: speechMsPerChar,
               getAudioPositionMs: liveAudioPositionMs,
+              // This segment owns the provider clock through short buffering
+              // stalls. Accepted onEnd and the bounded speech finally path
+              // release it; browser recovery has only an estimated wall clock.
+              isAudioActive: () => !speechComplete && !speechAborted && audioStartedAtMs !== null && !usingBrowserFallback,
               getPlaybackRate: segmentPlaybackRate,
               isSpeechComplete: () => speechComplete,
               canAdvanceAfterSpeech: () => !isPausedRef.current,
