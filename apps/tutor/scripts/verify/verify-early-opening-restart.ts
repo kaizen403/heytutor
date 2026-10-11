@@ -56,7 +56,7 @@ function reactSlots() {
 function mount(codeLesson = false) {
   const slots = reactSlots();
   const speaking = ref(opening.narration);
-  const page = ref<BoardPageRecord>({ ...lessonPageRecord("restart-board", question), earlyOpeningStarted: true });
+  const page = ref<BoardPageRecord | null>({ ...lessonPageRecord("restart-board", question), earlyOpeningStarted: true });
   const params = {
     sessionId: "restart-board", phase: "speaking", isReplaying: false, boardLoaded: true, enableKeyboardControls: false,
     whiteboardRef: ref({ cancelAnimations: noop, setPaused: noop, clearSpotlight: noop }),
@@ -79,6 +79,8 @@ function mount(codeLesson = false) {
   };
   const asked: Array<{ question: string; options?: HandleQuestionOptions }> = [];
   const owner = ref("inactive");
+  const ownerProbes: string[] = [];
+  const probeOwner = ref(async () => { ownerProbes.push(params.sessionId); return owner.current; });
   const admissionPending = ref(false);
   const handle = ref(async (text: string, options?: HandleQuestionOptions) => { asked.push({ question: text, options }); });
   const filename = path.join(app, "features/tutor-session/hooks/turn/useTurnControl.ts");
@@ -89,13 +91,13 @@ function mount(codeLesson = false) {
   const localRequire = (specifier: string) => {
     if (specifier === "react") return slots.api;
     if (specifier.endsWith("/turn/liveTurnSave")) return { liveTurnSave: () => ({ captureShown: noop, closeOwner: noop, turnIdFor: () => "opening-parent", isLiveHere: () => false, resumeTurns: (_board: string, turns: unknown) => turns }) };
-    if (specifier.endsWith("/turn/lessonOwnership")) return { lessonAdmission: () => ({ probe: async () => owner.current, cancel: noop, hasAttempt: () => admissionPending.current }) };
+    if (specifier.endsWith("/turn/lessonOwnership")) return { lessonAdmission: () => ({ probe: () => probeOwner.current(), cancel: noop, hasAttempt: () => admissionPending.current }) };
     if (specifier === "./useSegmentRunner") return { useSegmentRunner: () => ({ runSegment: async () => {}, pauseFallbackSpeech: noop, resumeFallbackSpeech: noop, stopFallbackSpeech: noop, speakingNarrationRef: speaking }) };
     return requireApp(specifier.startsWith("@/") ? path.join(app, specifier.slice(2)) : specifier.startsWith(".") ? path.resolve(path.dirname(filename), specifier) : specifier);
   };
   new Function("require", "module", "exports", "setTimeout", "clearTimeout", compiled)(localRequire, mod, mod.exports, () => 1, noop);
   const render = () => slots.render(() => mod.exports.useTurnControl!({ ...params, phase: params.phaseRef.current }, handle));
-  return { params, asked, render, handle, owner, admissionPending, speaking, control: render() };
+  return { params, asked, render, handle, owner, ownerProbes, probeOwner, admissionPending, speaking, control: render() };
 }
 
 function restartButton(control: TurnControlApi) {
@@ -209,7 +211,7 @@ async function main() {
     if (progress === "substantive") {
       shell.params.recordedSegmentsRef.current = [opening, { narration: "The horizontal speed stays constant.", command: null }];
     }
-    if (progress === "code-lesson") shell.params.boardPageRef.current.earlyOpeningStarted = false;
+    if (progress === "code-lesson") shell.params.boardPageRef.current!.earlyOpeningStarted = false;
     shell.control.stopTurn();
     const stopped = shell.render();
     assert.equal(stopped.earlyLessonRestartOffer, progress === "opening-only");
@@ -331,7 +333,58 @@ async function main() {
     shell.params.boardPageRef.current = lessonPageRecord("successor-board", "A new question");
     shell.render(); receipt!(false); assert.equal(shell.render().earlyLessonRestartOffer, false);
   }
-  for (const guard of ["replay", "stopped-replay", "rewound", "admission", "different-page", "same-text-page", "completed-saved", "newer-saved", "live-saved", "fresh-question"] as const) {
+  // Playback invalidates the live page, not the trusted original restart.
+  // Both natural completion and Stop may leave a null page behind.
+  for (const stopped of [false, true]) {
+    const shell = mount(); shell.control.stopTurn();
+    shell.params.isReplaying = true; shell.params.phaseRef.current = "speaking";
+    shell.params.boardPageRef.current = null; shell.params.replayGenerationRef.current += 1;
+    const replaying = shell.render(); replaying.restartEarlyLesson();
+    assert.equal(shell.asked.length, 0, "an active replay still blocks restarting");
+    if (stopped) replaying.stopTurn();
+    shell.params.isReplaying = false; shell.params.rewoundRef.current = true; idleRuntime(shell);
+    const idle = shell.render();
+    assert.equal(idle.earlyLessonRestartOffer, true, "playback preserves the explicit original restart offer");
+    const before = structuredClone(shell.params.boardLayoutRef.current);
+    shell.handle.current = async (text, options) => {
+      shell.asked.push({ question: text, options });
+      // The ordinary handler clears stale offers before admission. A declined
+      // attempt must retain this replay-scoped request, not erase itself.
+      shell.render().clearPausedLesson(); options?.onAdmission?.(false);
+    };
+    restartButton(idle)();
+    assert.equal(shell.asked.length, 1, `${stopped ? "stopped" : "completed"} replay permits exactly one fresh restart`);
+    assert.equal(shell.asked[0]!.question, question);
+    assert(!shell.asked[0]!.options?.resume && !shell.asked[0]!.options?.doubt);
+    assert.deepEqual(shell.params.boardLayoutRef.current, before, "restart itself does not clear replay ink before admission");
+    assert.equal(shell.render().earlyLessonRestartOffer, true, "declined admission keeps the replay-scoped restart visible");
+    shell.handle.current = async (text, options) => {
+      shell.asked.push({ question: text, options }); shell.render().clearPausedLesson(); options?.onAdmission?.(true);
+    };
+    restartButton(shell.render())();
+    assert.equal(shell.asked.length, 2, "the retained restart permits a later fresh admitted attempt");
+    assert.equal(shell.render().earlyLessonRestartOffer, false, "accepted admission consumes the offer exactly once");
+  }
+  {
+    const shell = mount(); idleRuntime(shell); shell.params.boardShowsStoppedReplayRef.current = true;
+    const beforePage = shell.params.boardPageRef.current;
+    assert.equal(await shell.control.restorePausedLesson([savedLesson]), null);
+    assert.equal(shell.ownerProbes.length, 0, "stopped-replay restoration must stop before even probing stored ownership");
+    assert.equal(shell.render().earlyLessonRestartOffer, false, "stored recovery cannot replace the stopped replay's page");
+    assert.equal(shell.params.boardPageRef.current, beforePage);
+  }
+  {
+    const shell = mount(); idleRuntime(shell);
+    let finishProbe!: (owner: string) => void;
+    shell.probeOwner.current = () => new Promise<string>((resolve) => { finishProbe = resolve; });
+    const recovery = shell.control.restorePausedLesson([savedLesson]);
+    shell.params.boardShowsStoppedReplayRef.current = true;
+    shell.params.boardPageRef.current = null;
+    finishProbe("inactive"); await recovery;
+    assert.equal(shell.render().earlyLessonRestartOffer, false,
+      "a stopped replay reached during an ownership read invalidates that stale restore");
+  }
+  for (const guard of ["replay", "stopped-replay", "rewound", "unobserved-null-page", "new-generation", "admission", "different-page", "same-text-page", "completed-saved", "newer-saved", "live-saved", "fresh-question"] as const) {
     const shell = mount();
     if (guard === "completed-saved" || guard === "newer-saved" || guard === "live-saved") {
       idleRuntime(shell); shell.params.storedTurnsRef.current = [savedLesson];
@@ -341,6 +394,8 @@ async function main() {
     if (guard === "replay") { shell.params.isReplaying = true; shell.render(); }
     if (guard === "stopped-replay") shell.params.boardShowsStoppedReplayRef.current = true;
     if (guard === "rewound") shell.params.rewoundRef.current = true;
+    if (guard === "unobserved-null-page") shell.params.boardPageRef.current = null;
+    if (guard === "new-generation") shell.params.turnGenerationRef.current += 1;
     if (guard === "admission") shell.admissionPending.current = true;
     if (guard === "different-page") shell.params.boardPageRef.current = lessonPageRecord("restart-board", "A different question");
     if (guard === "same-text-page") shell.params.boardPageRef.current = lessonPageRecord("restart-board", question);
@@ -350,6 +405,19 @@ async function main() {
     if (guard === "live-saved") shell.params.storedTurnsRef.current = [{ ...savedLesson, status: "live", persistedStatus: "live", updatedAt: Date.now() }];
     if (guard === "fresh-question") idle.clearPausedLesson();
     idle.restartEarlyLesson(); assert.equal(shell.asked.length, 0, `${guard} blocks a stale restart click`);
+  }
+  for (const guard of ["generation", "different-page", "different-board", "newer-receipt"] as const) {
+    const shell = mount(); idleRuntime(shell); shell.params.storedTurnsRef.current = [savedLesson];
+    await shell.control.restorePausedLesson([savedLesson]);
+    shell.params.isReplaying = true; shell.params.boardPageRef.current = null; shell.render();
+    shell.params.isReplaying = false; shell.render();
+    if (guard === "generation") shell.params.turnGenerationRef.current += 1;
+    if (guard === "different-page") shell.params.boardPageRef.current = lessonPageRecord("restart-board", question);
+    if (guard === "different-board") { shell.params.sessionId = "successor-board"; shell.render(); }
+    if (guard === "newer-receipt") shell.params.storedTurnsRef.current = [savedLesson,
+      { ...savedLesson, id: "newer-page", orderIndex: 2, status: "complete", persistedStatus: "complete" }];
+    shell.render().restartEarlyLesson();
+    assert.equal(shell.asked.length, 0, `observed replay does not bypass ${guard} authority`);
   }
   await settle();
   console.log("verify-early-opening-restart: mounted Stop/doubt/reload state, rendered native button, exact fresh dispatch and stale/admission guards passed");

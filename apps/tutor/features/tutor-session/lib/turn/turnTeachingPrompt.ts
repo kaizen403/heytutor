@@ -80,6 +80,8 @@ export interface TurnTeachingPromptInput {
   alwaysStateLawFirst?: boolean;
   /** "hinglish" when the Sarvam voice speaks: the narration changes, the board does not. */
   narrationLanguage?: NarrationLanguage;
+  /** The runtime spoke only its safe acknowledgement, not question framing. */
+  earlyOpeningAcknowledgement?: boolean;
 }
 
 export interface TurnTeachingPrompt {
@@ -740,7 +742,11 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
   const lessonBudget = resolveLessonBudget(question, input.familiarity);
 
   const runtimeAddon = [
-    openingSegment ? LESSON_OPENING_PROMPT_ADDON : "",
+    openingSegment
+      ? input.earlyOpeningAcknowledgement
+        ? "THE RUNTIME SPOKE ONLY AN ACKNOWLEDGEMENT\nIt has not named this question or its target. In your first teaching step, briefly identify what this question asks, then begin the teaching. Do not greet again, give the requested answer before deriving it, or promise a figure."
+        : LESSON_OPENING_PROMPT_ADDON
+      : "",
     codeLesson
       ? dsaOpeningPromptAddon(givenSegments.length > 0, input.codeLessonIncludeCode)
       : givenValuesPromptAddon(givenSegments.length > 0),
