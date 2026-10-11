@@ -61,7 +61,7 @@ export function createLecturePipelineVm(input) {
     if (teachingCalls > 4) throw new Error('prototype teaching call budget exceeded');
     const isPrefix = request.systemPrompt.includes('PENDING_FIGURE_PREFIX');
     if (isPrefix) {
-      record('prefix-dispatched', { call: teachingCalls });
+      record('prefix-dispatched', { call: teachingCalls, systemPrompt: request.systemPrompt });
       prefixSignal = request.signal ?? null;
       prefixCalls++;
       if (prefixCalls > 1) throw new Error('prototype dispatched a second prefix');
@@ -211,6 +211,7 @@ export function createLecturePipelineVm(input) {
           visualNeedReplay: { decision: null, source: 'unavailable', unavailableReason: 'missing_gateway_key', usage: null, provenance: null },
           traceId: 'synthetic-parallel-prefix',
           parallelTeaching: Boolean(input.parallelEnabled),
+          narrationLanguage: input.narrationLanguage,
           onParallelPrefix: observeAcceptedPrefix,
           onPresentation(presentation) {
             verifiedPromptAddon = presentation.diagram?.promptAddon ?? null;

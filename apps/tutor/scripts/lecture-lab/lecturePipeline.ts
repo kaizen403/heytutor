@@ -449,7 +449,7 @@ export async function runLecture(
       // Same proxy, trace, admission and upstream cap as every normal teaching
       // call. No client hedge/retry/continuation; transport retries still count.
       const reply = await streamLLMResponse({
-        systemPrompt: parallelPrefixPrompt(), userPrompt: question,
+        systemPrompt: parallelPrefixPrompt(options.narrationLanguage), userPrompt: question,
         conversationHistory: [], proxyUrl: plannerUrl, hasAuthoritativePlan: true,
         fastMode, traceId, question, signal,
       });
@@ -973,26 +973,27 @@ export async function runLecture(
     run.teaching.incomplete = incomplete;
     // The live turn repairs this same text before the pen and the voice, so
     // the grade is the lesson a student would have heard.
-    fullResponse = (acceptedPrefix?.raw ?? "") + repairLectureMarkup(fullResponse);
+    fullResponse = repairLectureMarkup(fullResponse);
+    // Parse the main response independently: an accepted prefix's STEP marker
+    // must not hide a valid unmarked main response from the graded lesson.
+    const blocks = stepBlocks(fullResponse);
+    const parsedMain = parseDrawingCommands(fullResponse);
+    const mainSteps = blocks.length > 0
+      ? blocks.map((block, index) => {
+          const parsed = parseDrawingCommands(block);
+          return { index: index + 1, speech: parsed.narration.trim(), tags: parsed.commands.map(commandTags) };
+        })
+      : stepsFromSegments(parsedMain);
+    fullResponse = (acceptedPrefix?.raw ?? "") + fullResponse;
     run.teaching.rawText = fullResponse;
     run.timings.teachMs = Date.now() - teachStartedAt;
 
-    const blocks = stepBlocks(fullResponse);
     const parsedAll = parseDrawingCommands(fullResponse);
-    run.teaching.usedStepMarkers = blocks.length > 0;
-    run.teaching.steps = blocks.length > 0
-      ? blocks.map((block, index) => {
-          const parsed = parseDrawingCommands(block);
-          return {
-            index: index + 1,
-            speech: parsed.narration.trim(),
-            tags: parsed.commands.map(commandTags),
-          };
-        })
-      // A response can teach perfectly and simply not wrap its steps in [STEP].
-      // The live parser emits a segment per tag either way, so the lesson runs;
-      // grading it as "no lesson" measured the markup, not the teaching.
-      : stepsFromSegments(parsedAll);
+    run.teaching.usedStepMarkers = Boolean(acceptedPrefix) || blocks.length > 0;
+    run.teaching.steps = acceptedPrefix
+      ? [{ index: 1, speech: acceptedPrefix.narration, tags: [] },
+          ...mainSteps.map(step => ({ ...step, index: step.index + 1 }))]
+      : mainSteps;
     for (const command of parsedAll.commands) {
       if (command.type === "WRITE") {
         run.teaching.writes.push({

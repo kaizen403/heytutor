@@ -465,14 +465,18 @@ call on deterministic-only paths. Admission rejects commands, figure references
 and promises, newly introduced digit literals, generic acknowledgements and
 incomplete/multiple STEPs. These are structural checks, **not factual proof**;
 an independent reviewer must judge the actual accepted explanations.
+The prefix honors the lesson's English/Hinglish narration option; this does not
+prove generated language quality. Picture/image/photo promises are also refused.
 
 `onParallelPrefix` receives only a completely admitted prefix. Until then no
 prefix is delivered or counted as useful. Selection freezes acceptance and
 aborts a pending prefix without waiting. The verified scene request, selector,
 source, validation and reveal/focus presentation are unchanged. Normal teaching
 retains the full generated verified prompt, the exact prefix in history, and an
-instruction not to repeat it; private raw teaching includes it once. At most
-one prefix plus three normal logical teaching calls are made, but transport
+instruction not to repeat it; private raw teaching includes it once.
+The main explanation is parsed independently before adding the prefix, so its
+unmarked narration, WRITE and verified FOCUS beats remain in the graded steps.
+At most one prefix plus three normal logical teaching calls are made, but transport
 retries can cause more paid upstream attempts. Provider usage must be counted
 at the proxy, not inferred from the planner usage field.
 

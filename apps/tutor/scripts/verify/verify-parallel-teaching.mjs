@@ -43,7 +43,8 @@ const mutateWaitForPrefix = process.argv.includes('--mutate-wait-prefix');
 const mutateDropVerifiedPrompt = process.argv.includes('--mutate-drop-verified-prompt');
 
 async function scenario(name, { enabled = true, prefixMode = 'good', sceneMode = 'valid',
-  exhaustContinuations = false, figureOnly = false, blocked = false, speculationEnabled = false } = {}) {
+  exhaustContinuations = false, figureOnly = false, blocked = false, speculationEnabled = false,
+  unmarkedTeaching = false, narrationLanguage = 'english' } = {}) {
   let now = 1_000;
   const scene = deferred();
   const prefixReply = deferred();
@@ -53,12 +54,14 @@ async function scenario(name, { enabled = true, prefixMode = 'good', sceneMode =
   const vm = createLecturePipelineVm({
     plan: scenarioPlan, sceneDocument: sceneMode === 'invalid' ? { schemaVersion: 'invalid' } : sceneDocument,
     parallelEnabled: enabled, figureOnly, speculationEnabled,
+    narrationLanguage,
     mutateDropPrefixHistory, mutateDropSelectedFigure, mutateWaitForPrefix, mutateDropVerifiedPrompt,
     now: () => now, advance: ms => { now += ms; }, scene: () => scene.promise,
     authority: () => speculationEnabled ? authorityReply.promise : authorityFixture(),
     teachPrefix: () => prefixReply.promise,
     teachFull: async (_request, call) => reply(exhaustContinuations && call < 3
-      ? `[STEP]The segment has endpoints and continues with ${call === 1 ? 'the first explanation' : 'a different explanation'}` : teaching),
+      ? `[STEP]The segment has endpoints and continues with ${call === 1 ? 'the first explanation' : 'a different explanation'}`
+      : unmarkedTeaching ? teaching.replace('[STEP]', '').replace('[/STEP]', '') : teaching),
   });
   if (speculationEnabled) {
     const core = vm.load('packages/tutor-core/src/index.ts');
@@ -185,6 +188,19 @@ async function scenario(name, { enabled = true, prefixMode = 'good', sceneMode =
     assert(fullCalls.length > 0, 'KNOWN mismatch: unchanged lab teaches where live stops'); checks++;
   }
   if (exhaustContinuations) { assert.equal(stats.teachingCalls, 4, 'one prefix plus three normal teaching calls'); checks++; }
+  if (unmarkedTeaching) {
+    assert(run.teaching.steps.some(step => step.speech.includes('The endpoints are A and B')),
+      'accepted prefix cannot hide an unmarked main explanation'); checks++;
+    assert(run.teaching.steps.some(step => step.tags.some(tag => tag.type === 'WRITE')),
+      'unmarked main board work remains in the graded lesson'); checks++;
+    assert(run.teaching.steps.some(step => step.tags.some(tag => tag.type === 'FOCUS')),
+      'unmarked main verified focus remains in the graded lesson'); checks++;
+    assert.deepEqual(run.teaching.steps.map(step => step.index), run.teaching.steps.map((_step, index) => index + 1)); checks++;
+  }
+  if (useful.length && narrationLanguage === 'hinglish') {
+    assert.match(vm.events.find(event => event.name === 'prefix-dispatched').systemPrompt,
+      /every sentence is Hinglish/i,'actual prefix dispatch honors the chosen narration language'); checks++;
+  }
   const selected = vm.selections[0]?.selected.representation;
   const result = { name, committed: run.diagram.committed, source: run.diagram.figureSource,
     planSHA256: hash(run.plan), solverSHA256: hash(run.solver),
@@ -216,4 +232,6 @@ await scenario('invalid scene remains verified-only', { sceneMode: 'invalid' });
 await scenario('figure-only skip', { figureOnly: true });
 await scenario('speculation holds prefix', { speculationEnabled: true });
 await scenario('authority block explicitly differs from live', { blocked: true });
+await scenario('accepted prefix preserves unmarked teaching', { unmarkedTeaching: true });
+await scenario('Hinglish prefix dispatch', { narrationLanguage: 'hinglish' });
 console.log(JSON.stringify({ status: 'PASS', checks, actualSourceExecution: true, providerAttempts: 0, results }, null, 2));

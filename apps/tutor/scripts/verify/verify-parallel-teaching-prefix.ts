@@ -10,12 +10,16 @@ let checks = 0;
 async function main() {
   const accepted = acceptParallelPrefix(response, question);
   assert(accepted.accepted); checks++;
+  assert(acceptParallelPrefix("[STEP]In the photoelectric effect, photons transfer energy to electrons at the metal surface. Compare that photon energy with the work function to decide whether electrons can escape.[/STEP]",
+    "Explain the photoelectric effect and the role of photons and work function.").accepted); checks++;
   for (const raw of [
     "Okay, let's take this question one step at a time.",
     "[STEP]Okay, let's take this question one step at a time.[/STEP]",
     "[STEP]We will draw the figure to prove this, then read the roots from it.[/STEP]",
     "[STEP]For the quadratic we will plot a graph so the real roots are visible, and use that to solve the question.[/STEP]",
     "[STEP]As you can see, the diagram already proves exactly where the roots occur.[/STEP]",
+    ...["picture", "image", "photo", "photograph"].map(noun => `[STEP]The quadratic roots will be shown in a ${noun} shortly, so we can use it to read the real solutions.[/STEP]`),
+    "[STEP]Quadratic roots की तस्वीर जल्दी आएगी, तब हम real solutions को उससे समझेंगे और answer निकालेंगे.[/STEP]",
     ...["FOCUS:root", "WRITE:x=2,20,20", "DRAW:line:400,100,900,100", "ANNOTATE:root|answer", "TYPE:root", "FRAME:1"].map(command => response.replace("[/STEP]", `[${command}][/STEP]`)),
     response + "[STEP]A second explanation cannot enter early playback.[/STEP]",
     response + " [FOCUS:unverified]",
@@ -24,6 +28,9 @@ async function main() {
     "[STEP]This is an extremely important question which we shall now carefully solve together with a clear and helpful method.[/STEP]",
   ]) { assert.equal(acceptParallelPrefix(raw, question).accepted, false); checks++; }
   const prompt = parallelPrefixPrompt();
+  assert.match(parallelPrefixPrompt("hinglish"), /Hindi words in Devanagari/); checks++;
+  assert.match(parallelPrefixPrompt("hinglish"), /every sentence is Hinglish/i); checks++;
+  assert.match(parallelPrefixPrompt("english"), /Speak English/); checks++;
   for (const expected of [/PENDING_FIGURE_PREFIX/, /one complete/, /not yet been selected or verified/, /original question/, /No WRITE/]) {
     assert.match(prompt, expected); checks++;
   }
