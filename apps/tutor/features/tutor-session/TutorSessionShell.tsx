@@ -1913,7 +1913,7 @@ export function TutorSessionShell({
               lastError={lastError}
               saveFailure={
                 can.appChrome && saveStatus.kind === "failed" && !saveBannerDismissed
-                  ? { onRetrySave: retrySave, onDismiss: () => setSaveBannerDismissed(true) }
+                  ? { message: saveStatus.message, onRetrySave: retrySave, onDismiss: () => setSaveBannerDismissed(true) }
                   : null
               }
               isReplaying={isReplaying}

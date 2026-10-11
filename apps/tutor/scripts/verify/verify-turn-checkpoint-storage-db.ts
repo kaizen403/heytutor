@@ -32,19 +32,26 @@ async function main() {
     }
   }
   process.env.DATABASE_URL = input;
+  // This gate provides a durable fake object store; it must not select the
+  // separate unconfigured-development metadata-only persistence policy.
+  process.env.S3_BUCKET = "checkpoint-storage-fixture";
   const load = createRequire(import.meta.url);
   const root = resolve(import.meta.dirname, "../..");
 
   const objects = new Map<string, number>();
   const deleted: string[] = [];
+  const uploadAttempts: string[] = [];
   let failUploadsWith: string | null = null;
   let uploadPause: ((key: string) => Promise<void>) | null = null;
   mock.module(resolve(root, "lib/object-store/s3.ts"), { namedExports: {
+    headObjectSize: async (key: string) => objects.has(key) ? { status: "found", bytes: objects.get(key)! } : { status: "missing" },
+    listObjectSizes: async (prefix: string) => [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, bytes]) => ({ key, bytes })),
     uploadAudio: async (key: string, bytes: Uint8Array) => {
+      uploadAttempts.push(key);
       await uploadPause?.(key);
       if (failUploadsWith) throw new Error(failUploadsWith);
       objects.set(key, bytes.byteLength);
-      return `/api/lecture-audio?key=${encodeURIComponent(key)}`;
+      return `/api/media?key=${encodeURIComponent(key)}`;
     },
     deletePrefix: async (prefix: string) => {
       deleted.push(prefix);
@@ -60,6 +67,7 @@ async function main() {
 
   const { prisma } = load(resolve(root, "lib/db/prisma.ts")) as typeof import("../../lib/db/prisma");
   const storage = load(resolve(root, "lib/boards/storageQuota.ts")) as typeof import("../../lib/boards/storageQuota");
+  const { turnMetadataStorageBytes } = load(resolve(root, "lib/boards/storageAccounting.ts")) as typeof import("../../lib/boards/storageAccounting");
   const { runObjectDeletionBatch } = load(resolve(root, "lib/object-store/deletionJobs.ts")) as typeof import("../../lib/object-store/deletionJobs");
   const { handleTurnCheckpoint, handleTurnClose } = load(resolve(root, "lib/boards/turnCheckpoint.ts")) as typeof import("../../lib/boards/turnCheckpoint");
   const boardRoute = load(resolve(root, "app/api/boards/[boardId]/route.ts")) as typeof import("../../app/api/boards/[boardId]/route");
@@ -174,6 +182,75 @@ async function main() {
     assert.ok(objects.has(retryKey), "cleaning up the first attempt keeps the retry's clip");
     assert.equal((await balance()).pendingTurns, 0);
 
+    // A status-only close changes no sequence or receipt while voice uploads.
+    // Its reachable stopped envelope must be admitted before the first PUT.
+    let liveAdmissionBytes = 0n;
+    for (const mode of ["live-close", "stopped-close", "complete-close", "live-no-close"] as const) {
+      const id = randomUUID();
+      assert.equal((await put(id, { seq: 1, baseCount: 0, rawResponse: "Opening.", appendSegments: [row(0, "Opening.")] })).status, 200);
+      const prior = await turnRow(id), heldBalance = (await balance()).reservedBytes;
+      let began!: () => void, release!: () => void;
+      const beganUpload = new Promise<void>(resolve => { began = resolve; });
+      const heldUpload = new Promise<void>(resolve => { release = resolve; });
+      uploadPause = async key => { if (key.includes(`/${id}/`)) { began(); await heldUpload; } };
+      try {
+        const status = mode === "complete-close" ? "complete" : mode === "stopped-close" ? "stopped" : "live";
+        const pending = put(id, { seq: 2, baseCount: 1, status, rawResponse: "Opening. Arriving voice.",
+          appendSegments: [row(1, "Arriving voice.")] }, { 1: MP3(1_000) });
+        await Promise.race([beganUpload, pending.then(result => assert.fail(`voice must reach held upload: ${JSON.stringify(result)}`))]);
+        const intent = await prisma.objectDeletionJob.findFirstOrThrow({ where: { userId, prefix: { startsWith: `lectures/${boardId}/${id}/` } } });
+        const reservedDuringUpload = (await balance()).reservedBytes;
+        assert.equal(reservedDuringUpload, heldBalance + intent.bytes);
+        assert(reservedDuringUpload <= BigInt(storage.MAX_ACCOUNT_STORAGE_BYTES), "status envelope is admitted within the account cap");
+        assert.equal(await prisma.segment.count({ where: { turnId: id } }), 1, "the uploading step is not reported saved prematurely");
+        assert.equal((await prisma.segment.findFirstOrThrow({ where: { turnId: id } })).audioUrl, null);
+        if (mode !== "live-no-close") {
+          const closed = await close(id, { seq: 1, status: "stopped" });
+          assert.equal(closed.status, 200, JSON.stringify(closed.body));
+          const stopped = await turnRow(id);
+          assert.equal(stopped.status, "stopped");
+          assert.equal(stopped.checkpointSeq, prior.checkpointSeq);
+          assert.equal(stopped.metadataBytes, prior.metadataBytes, "status-only fast close leaves the old byte receipt");
+          assert.equal((await balance()).reservedBytes, reservedDuringUpload);
+        }
+        release();
+        const saved = await pending;
+        assert.equal(saved.status, 200, `${mode}: first audio checkpoint commits without a retry: ${JSON.stringify(saved.body)}`);
+        const retained = await prisma.turn.findUniqueOrThrow({ where: { id }, include: { segments: { orderBy: { orderIndex: "asc" } } } });
+        assert.equal(retained.status, mode === "live-close" ? "stopped" : status, "status only moves forward through the close race");
+        assert.equal(retained.metadataBytes, BigInt(turnMetadataStorageBytes(retained as unknown as Record<string, unknown>)));
+        assert.equal(retained.storageBytes - retained.metadataBytes, 1_000n, "one valid uploaded clip is charged once");
+        assert.equal(uploadAttempts.filter(key => key.includes(`/${id}/`)).length, 1);
+        const clipKey = keyOf(retained.segments[1]!.audioUrl)!;
+        assert.equal(objects.get(clipKey), 1_000, "the stored URL points to the one actual uploaded object");
+        assert.equal([...objects.keys()].filter(key => key.includes(`/${id}/`)).length, 1, "no earlier charged audio attempt needs cleanup");
+        assert.equal(await prisma.objectDeletionJob.count({ where: { userId } }), 0, "first-commit success settles the intent without an abandoned upload");
+        const exactGrowth = retained.storageBytes - prior.storageBytes;
+        assert.equal((await balance()).reservedBytes, heldBalance + exactGrowth);
+        assert.equal(reservedDuringUpload - (await balance()).reservedBytes, intent.bytes - exactGrowth, "settlement refunds unused status envelope exactly");
+        if (mode === "live-no-close") {
+          liveAdmissionBytes = intent.bytes;
+          assert.equal(intent.bytes - exactGrowth, 3n, "a live checkpoint refunds the unused stopped status bytes");
+        }
+        console.log(`PASS checkpoint status envelope: ${mode}, one upload, exact receipt and settlement`);
+      } finally { release(); uploadPause = null; }
+    }
+    const capped = randomUUID();
+    assert.equal((await put(capped, { seq: 1, baseCount: 0, rawResponse: "Opening.", appendSegments: [row(0, "Opening.")] })).status, 200);
+    const cappedBefore = await turnRow(capped), realBalance = (await balance()).reservedBytes;
+    const capBalance = BigInt(storage.MAX_ACCOUNT_STORAGE_BYTES) - liveAdmissionBytes + 1n;
+    await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: capBalance } });
+    try {
+      const refused = await put(capped, { seq: 2, baseCount: 1, status: "live", rawResponse: "Opening. Arriving voice.",
+        appendSegments: [row(1, "Arriving voice.")] }, { 1: MP3(1_000) });
+      assert.equal(refused.status, 413, "a cap that admits live bytes but lacks stopped headroom refuses before upload");
+      assert.equal(uploadAttempts.filter(key => key.includes(`/${capped}/`)).length, 0);
+      assert.deepEqual(await turnRow(capped), cappedBefore);
+      assert.equal((await balance()).reservedBytes, capBalance);
+      assert.equal(await prisma.objectDeletionJob.count({ where: { userId } }), 0);
+      console.log("PASS checkpoint status envelope: unavailable cap headroom refuses before upload");
+    } finally { await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: realBalance } }); }
+
     // --- board GET: status, kind, trace; no submitted rows; idle live is stopped
     const get = async () => {
       const turns: Array<Record<string, unknown>> = [];
@@ -222,7 +299,10 @@ async function main() {
       await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: heldBalance } });
     }
     assert.equal((await close(headerTurn, { seq: 3, status: "stopped", rawResponse: "Short.", resumeState: null })).status, 200);
-    assert.equal((await balance()).reservedBytes, heldBalance, "clearing metadata keeps the allocated high-water charge");
+    const headerCleared = await turnRow(headerTurn);
+    assert(headerCleared.storageBytes < headerAtQuota.storageBytes, "clearing metadata releases its former high-water allocation");
+    assert.equal(heldBalance - (await balance()).reservedBytes, headerAtQuota.storageBytes - headerCleared.storageBytes,
+      "clearing metadata refunds exactly the removed retained bytes to the account");
     assert.equal((await turnRow(headerTurn)).resumeState, null);
     const [closeA, closeB] = await Promise.all([
       close(headerTurn, { seq: 4, status: "stopped", rawResponse: "older".repeat(1000), resumeState: { older: true } }),
