@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, chemistryQuantityCuesValid, chemistryQuestionSpan } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -326,6 +326,8 @@ const EQUILIBRIUM_CONSTANT_CUE = /(?:equilibrium constant(?:\s+(?:of|for)\b(?:[^
 // A recognized assignment must still belong to K, not another predicate/quantity.
 const EQUILIBRIUM_CONSTANT_OWNER = /^(?:equilibrium constant(?:\s+(?:of|for)\s+(?:(?:a|an|the|this)\s+)?reaction(?:\s+at\b(?:(?!\b(?:and|but|whose|which|where|quotient|pressure|volume)\b)[^=,;.\n]|\.(?=\d)){0,50})?)?|\bk\b)\s*(?:\bis\b|=|:)$/i;
 
+const STANDARD_GIBBS_ENERGY_CUE = /(?:δ|∆|Δ)\s*g\s*(?:°|º)\s*=|standard gibbs[^.]{0,40}?=/i;
+
 function buildEquilibrium(question: string, _stem: string): SceneDocument | null {
   const temperature = temperatureKelvin(question);
   if (temperature === null || !(temperature > 0)) return null;
@@ -338,10 +340,16 @@ function buildEquilibrium(question: string, _stem: string): SceneDocument | null
   const hasStatedK = kOwners.length > 0;
   if (!kRead.ok && (kRead.code !== "missing" || hasStatedK)) return null;
   const kGiven = kRead.ok ? kRead.reading.value : null;
-  const gGiven = numberAfter(question, /(?:δ|∆|Δ)\s*g\s*(?:°|º)\s*=|standard gibbs[^.]{0,40}?=/, "molar_energy", "kJ/mol");
+  const gOwners = [...source.matchAll(new RegExp(STANDARD_GIBBS_ENERGY_CUE.source, "gi"))];
+  if (gOwners.length > 1 || !chemistryQuantityCuesValid(question, [{ after: STANDARD_GIBBS_ENERGY_CUE, dimensions: ["molar_energy"] }])) return null;
+  const gRead = readChemistryQuantity({ question, after: STANDARD_GIBBS_ENERGY_CUE, dimension: "molar_energy", targetUnit: "J/mol" });
+  if (!gRead.ok && (gRead.code !== "missing" || gOwners.length > 0)) return null;
+  const gJ = gRead.ok ? gRead.reading.value : null;
+  const gGiven = gJ === null ? null : gJ / 1000;
   if (kGiven !== null && !(kGiven > 0)) return null;
   if (kGiven === null && gGiven === null) return null;
-  const gJ = gGiven === null ? null : gGiven * 1000;
+  // Both source-given operands must agree in the same canonical molar-energy unit.
+  if (kGiven !== null && gJ !== null && !chemistryCanonicalValuesAgree(gJ, -R_J * temperature * Math.log(kGiven))) return null;
   const k = kGiven ?? (gJ === null ? null : Math.exp(-gJ / (R_J * temperature)));
   const gKj = gGiven ?? (k === null ? null : (-R_J * temperature * Math.log(k)) / 1000);
   if (k === null || gKj === null || !Number.isFinite(k) || !Number.isFinite(gKj) || !(k > 0)) return null;

@@ -492,6 +492,23 @@ check("Finite Gibbs inputs cannot publish overflowed derived energy",()=>{
  assert.equal(buildChemicalThermodynamicsScene(question,[],false),null);assert.equal(synthesizeFamilyScene({question,families:["chem_thermo"]}),null);
 });
 
+
+// Independently stated K and Gibbs energy must describe the same relation.
+for(const gValue of ["-5681.366318742795 J/mol","-5.681366318742795 kJ/mol"])for(const reverse of [false,true])check("Canonical Gibbs/K dual-source agreement: "+gValue+" / "+reverse,()=>{
+ const roles=["Equilibrium constant of this reaction is 12.","Standard Gibbs energy ΔG° = "+gValue+"."];if(reverse)roles.reverse();
+ const question="At 275 K. "+roles.join(" ")+" Draw the equilibrium relation.";
+ const result=compiled(buildChemicalThermodynamicsScene(question,[],false));assert.ok(result.labels.includes("dGo=-5.681"));assert.ok(result.labels.includes("K=12.00"));
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary);assert.equal(ordinary.family,"chem_thermo");const live=compiled(ordinary.document);assert.ok(live.labels.includes("dGo=-5.681"));assert.ok(live.labels.includes("K=12.00"));
+});
+for(const gValue of ["-5 kJ/mol","5.681366318742795 kJ/mol","-5681.366318742795 kJ/mol"])for(const reverse of [false,true])check("Incompatible Gibbs/K dual givens refuse: "+gValue+" / "+reverse,()=>{
+ const roles=["Equilibrium constant of this reaction is 12.","Standard Gibbs energy ΔG° = "+gValue+"."];if(reverse)roles.reverse();
+ const question="At 275 K. "+roles.join(" ")+" Draw the equilibrium relation.";assert.equal(buildChemicalThermodynamicsScene(question,[],false),null);assert.equal(buildChemicalThermodynamicsScene(question,[],true),null);assert.equal(synthesizeFamilyScene({question,families:["chem_thermo"]}),null);
+});
+for(const gValue of ["4e- kJ/mol","1e999 kJ/mol","-5 J","unknown","","unknown; ΔG° = -5681.366318742795 J/mol","-5681.366318742795 J/mol; ΔG° = unknown"])check("Present damaged Gibbs energy cannot become K-derived energy: "+gValue,()=>{
+ const question="At 275 K. Equilibrium constant is 12. Standard Gibbs energy ΔG° = "+gValue+". Draw the equilibrium relation.";
+ assert.equal(buildChemicalThermodynamicsScene(question,[],false),null);assert.equal(buildChemicalThermodynamicsScene(question,[],true),null);assert.equal(synthesizeFamilyScene({question,families:["chem_thermo"]}),null);
+});
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
