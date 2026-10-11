@@ -6,7 +6,7 @@
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "dipole couple at 50° to the field"
+      "reason": "dipole couple in a uniform field"
     },
     "source": {
       "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts aligned with a uniform 45 kN/C field and is turned slowly about its centre until its axis makes 50° with the field. In the final position show the forces on the charges, the angle θ between p and E, and the torque, then find the torque and the external work done.",
@@ -42,7 +42,7 @@
       {
         "id": "O",
         "kind": "point",
-        "role": "pivot, centre of the dipole"
+        "role": "pivot"
       },
       {
         "id": "A",
@@ -69,13 +69,12 @@
       {
         "id": "p",
         "kind": "vector",
-        "role": "moment, −q to +q",
-        "label": "p, d = 7.5 mm"
+        "role": "dipole moment, −q to +q"
       },
       {
         "id": "p0",
         "kind": "vector",
-        "role": "moment at start, along E",
+        "role": "p at start, along E",
         "label": "p₀"
       },
       {
@@ -112,16 +111,31 @@
         "label": "−qE"
       },
       {
-        "id": "tau",
-        "kind": "polyline",
-        "role": "torque, into page",
-        "label": "tau"
+        "id": "T",
+        "kind": "point",
+        "role": "anchor for ×"
+      },
+      {
+        "id": "tau_torque",
+        "kind": "label",
+        "role": "torque τ, into page",
+        "label": "×"
+      },
+      {
+        "id": "T2",
+        "kind": "point",
+        "role": "anchor for τ"
       },
       {
         "id": "th",
         "kind": "angle_mark",
-        "role": "angle θ turned from E to p",
+        "role": "angle θ from E to p",
         "label": "θ = 50°"
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "anchor for p"
       }
     ],
     "constructions": [
@@ -130,8 +144,7 @@
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": 0,
-          "coordinateSpace": "world"
+          "y": 0
         },
         "outputs": [
           "O"
@@ -142,8 +155,7 @@
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": -3.75,
-          "coordinateSpace": "world"
+          "y": 3.75
         },
         "outputs": [
           "A0"
@@ -154,8 +166,7 @@
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": 3.75,
-          "coordinateSpace": "world"
+          "y": -3.75
         },
         "outputs": [
           "B0"
@@ -215,13 +226,12 @@
         "inputs": {
           "start": [
             -9,
+            5.5
+          ],
+          "end": [
+            -9,
             -5.5
-          ],
-          "direction": [
-            0,
-            1
-          ],
-          "length": 11
+          ]
         },
         "outputs": [
           "E1"
@@ -233,13 +243,12 @@
         "inputs": {
           "start": [
             -7,
+            5.5
+          ],
+          "end": [
+            -7,
             -5.5
-          ],
-          "direction": [
-            0,
-            1
-          ],
-          "length": 11
+          ]
         },
         "outputs": [
           "E2"
@@ -251,13 +260,12 @@
         "inputs": {
           "start": [
             7,
+            5.5
+          ],
+          "end": [
+            7,
             -5.5
-          ],
-          "direction": [
-            0,
-            1
-          ],
-          "length": 11
+          ]
         },
         "outputs": [
           "E3"
@@ -269,13 +277,12 @@
         "inputs": {
           "start": [
             9,
+            5.5
+          ],
+          "end": [
+            9,
             -5.5
-          ],
-          "direction": [
-            0,
-            1
-          ],
-          "length": 11
+          ]
         },
         "outputs": [
           "E4"
@@ -306,23 +313,36 @@
         ]
       },
       {
-        "id": "ctau",
-        "operator": "planar_torque",
+        "id": "cT",
+        "operator": "point",
         "inputs": {
-          "leverArm": [
-            -5.7453,
-            4.8209
-          ],
-          "force": [
-            0,
-            0.000144
-          ],
-          "lengthUnit": "mm",
-          "forceUnit": "N",
-          "displayLength": 1
+          "x": -1.6,
+          "y": -0.9
         },
         "outputs": [
-          "tau"
+          "T"
+        ]
+      },
+      {
+        "id": "ctau",
+        "operator": "label",
+        "inputs": {
+          "target": "T",
+          "text": "×"
+        },
+        "outputs": [
+          "tau_torque"
+        ]
+      },
+      {
+        "id": "cT2",
+        "operator": "point",
+        "inputs": {
+          "x": -2.35,
+          "y": -0.9
+        },
+        "outputs": [
+          "T2"
         ]
       },
       {
@@ -332,10 +352,21 @@
           "vertex": "O",
           "a": "B0",
           "b": "B",
-          "radius": 1.6
+          "radius": 2.6
         },
         "outputs": [
           "th"
+        ]
+      },
+      {
+        "id": "cM",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "O",
+          "b": "B"
+        },
+        "outputs": [
+          "M"
         ]
       }
     ],
@@ -351,8 +382,7 @@
         "expected": {
           "value": 50,
           "unit": "degrees"
-        },
-        "severity": "fatal"
+        }
       },
       {
         "id": "a2",
@@ -361,8 +391,7 @@
           "p0",
           "E1"
         ],
-        "expected": true,
-        "severity": "fatal"
+        "expected": true
       },
       {
         "id": "a3",
@@ -371,8 +400,7 @@
           "FB",
           "FA"
         ],
-        "expected": true,
-        "severity": "fatal"
+        "expected": true
       }
     ],
     "annotations": [
@@ -383,6 +411,30 @@
           "B"
         ],
         "text": "q = 3.2 nC"
+      },
+      {
+        "id": "tau_l",
+        "kind": "label",
+        "targetIds": [
+          "T2"
+        ],
+        "text": "τ"
+      },
+      {
+        "id": "p_l",
+        "kind": "label",
+        "targetIds": [
+          "M"
+        ],
+        "text": "p"
+      },
+      {
+        "id": "dcap",
+        "kind": "callout",
+        "targetIds": [
+          "p"
+        ],
+        "text": "d = 7.5 mm"
       }
     ],
     "requiredEntityIds": [
@@ -393,8 +445,8 @@
       "E1",
       "FA",
       "FB",
-      "tau",
-      "th"
+      "th",
+      "tau_torque"
     ],
     "revealGroups": [
       {
@@ -413,11 +465,11 @@
           "E4",
           "FB",
           "FA",
-          "tau",
-          "th"
+          "th",
+          "tau_torque"
         ],
         "dependsOn": [],
-        "narrationCue": "field, angle θ, couple, torque"
+        "narrationCue": "field, couple, θ, τ"
       }
     ],
     "teachingTimeline": [
@@ -426,7 +478,7 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "field, angle θ, couple, torque"
+        "narrationIntent": "field, couple, θ, τ"
       }
     ]
   }

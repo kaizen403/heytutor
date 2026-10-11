@@ -1,6 +1,6 @@
 {
   "topic_id": "physics|11|multiple-charges-and-superposition",
-  "question": "Point charges qA = −1.5 μC and qB = +1.5 μC are fixed 0.80 m apart, A to the left of B. Point P lies on line AB extended, 0.50 m beyond B. Show the force each charge exerts on the other, the dipole moment, and the field of each charge at P, then find the net field at P. Use the standard Coulomb constant.",
+  "question": "Charges −q and +q, with q = 1.5 μC, are fixed 0.80 m apart, −q on the left. Point P lies on the line through them, 0.50 m to the right of +q. Show the force each charge exerts on the other, the dipole moment, and the field of each charge at P, then find the net field at P. Use the standard Coulomb constant.",
   "figure_kind": "vectors_fbd",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
@@ -9,19 +9,13 @@
       "reason": "dipole force pair and opposing axial fields"
     },
     "source": {
-      "question": "Point charges qA = −1.5 μC and qB = +1.5 μC are fixed 0.80 m apart, A to the left of B. Point P lies on line AB extended, 0.50 m beyond B. Show the force each charge exerts on the other, the dipole moment, and the field of each charge at P, then find the net field at P. Use the standard Coulomb constant.",
+      "question": "Charges −q and +q, with q = 1.5 μC, are fixed 0.80 m apart, −q on the left. Point P lies on the line through them, 0.50 m to the right of +q. Show the force each charge exerts on the other, the dipole moment, and the field of each charge at P, then find the net field at P. Use the standard Coulomb constant.",
       "archetype": "two_point_charges"
     },
     "quantities": [
       {
-        "id": "qA",
-        "symbol": "q_A",
-        "value": -1.5,
-        "unit": "μC"
-      },
-      {
-        "id": "qB",
-        "symbol": "q_B",
+        "id": "q",
+        "symbol": "q",
         "value": 1.5,
         "unit": "μC"
       },
@@ -50,19 +44,29 @@
         "role": "positive point charge"
       },
       {
+        "id": "ringA",
+        "kind": "circle",
+        "role": "negative charge outline"
+      },
+      {
+        "id": "ringB",
+        "kind": "circle",
+        "role": "positive charge outline"
+      },
+      {
         "id": "P",
         "kind": "point",
-        "role": "axial point beyond the positive charge"
+        "role": "axial point beyond +q"
       },
       {
         "id": "F_A",
         "kind": "vector",
-        "role": "force on A by B, toward B"
+        "role": "force on −q, toward +q"
       },
       {
         "id": "F_B",
         "kind": "vector",
-        "role": "force on B by A, toward A"
+        "role": "force on +q, toward −q"
       },
       {
         "id": "pT",
@@ -82,12 +86,12 @@
       {
         "id": "E_A",
         "kind": "vector",
-        "role": "field of A at P, toward A"
+        "role": "field of −q at P, toward −q"
       },
       {
         "id": "E_B",
         "kind": "vector",
-        "role": "field of B at P, away from B"
+        "role": "field of +q at P, away from +q"
       },
       {
         "id": "sep",
@@ -125,6 +129,28 @@
         },
         "outputs": [
           "B"
+        ]
+      },
+      {
+        "id": "cringA",
+        "operator": "circle",
+        "inputs": {
+          "center": "A",
+          "radius": 0.035
+        },
+        "outputs": [
+          "ringA"
+        ]
+      },
+      {
+        "id": "cringB",
+        "operator": "circle",
+        "inputs": {
+          "center": "B",
+          "radius": 0.035
+        },
+        "outputs": [
+          "ringB"
         ]
       },
       {
@@ -302,16 +328,8 @@
         "targetIds": [
           "A"
         ],
-        "text": "qA",
-        "placementIntent": "below"
-      },
-      {
-        "id": "cqA",
-        "kind": "callout",
-        "targetIds": [
-          "A"
-        ],
-        "text": "qA = −1.5 μC"
+        "text": "−q",
+        "placementIntent": "left"
       },
       {
         "id": "lB",
@@ -319,16 +337,17 @@
         "targetIds": [
           "B"
         ],
-        "text": "qB",
+        "text": "+q",
         "placementIntent": "right"
       },
       {
-        "id": "cqB",
-        "kind": "callout",
+        "id": "lq",
+        "kind": "label",
         "targetIds": [
-          "B"
+          "ringB"
         ],
-        "text": "qB = +1.5 μC"
+        "text": "q = 1.5 μC",
+        "placementIntent": "above-right"
       },
       {
         "id": "lP",
@@ -345,7 +364,7 @@
         "targetIds": [
           "F_A"
         ],
-        "text": "F on A",
+        "text": "F on −q",
         "placementIntent": "right"
       },
       {
@@ -354,7 +373,7 @@
         "targetIds": [
           "F_B"
         ],
-        "text": "F on B",
+        "text": "F on +q",
         "placementIntent": "left"
       },
       {
@@ -363,7 +382,7 @@
         "targetIds": [
           "E_A"
         ],
-        "text": "E_A",
+        "text": "E(−q)",
         "placementIntent": "above"
       },
       {
@@ -372,7 +391,7 @@
         "targetIds": [
           "E_B"
         ],
-        "text": "E_B",
+        "text": "E(+q)",
         "placementIntent": "above"
       },
       {
@@ -388,6 +407,8 @@
     "requiredEntityIds": [
       "A",
       "B",
+      "ringA",
+      "ringB",
       "P",
       "F_A",
       "F_B",
@@ -405,6 +426,8 @@
         "entityIds": [
           "A",
           "B",
+          "ringA",
+          "ringB",
           "P",
           "F_A",
           "F_B",

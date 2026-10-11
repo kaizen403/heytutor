@@ -1,6 +1,6 @@
 {
   "topic_id": "physics|10|series-and-parallel-springs",
-  "question": "Two light springs, of force constants 240 N/m and 720 N/m, are joined end to end. The first is fixed to a wall and the second is attached to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
+  "question": "Two light springs are joined end to end. A 240 N/m spring is fixed to a wall, and a 720 N/m spring joins it to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
   "figure_kind": "apparatus",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
@@ -9,7 +9,7 @@
       "reason": "series spring oscillator"
     },
     "source": {
-      "question": "Two light springs, of force constants 240 N/m and 720 N/m, are joined end to end. The first is fixed to a wall and the second is attached to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
+      "question": "Two light springs are joined end to end. A 240 N/m spring is fixed to a wall, and a 720 N/m spring joins it to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
       "archetype": "spring_mass"
     },
     "quantities": [
@@ -58,7 +58,7 @@
       {
         "id": "s1",
         "kind": "polyline",
-        "role": "series spring k1",
+        "role": "spring k1 at wall",
         "label": "k₁ = 240 N/m"
       },
       {
@@ -69,7 +69,7 @@
       {
         "id": "s2",
         "kind": "polyline",
-        "role": "series spring k2",
+        "role": "spring k2 at block",
         "label": "k₂ = 720 N/m"
       },
       {
@@ -337,7 +337,7 @@
             -1,
             0
           ],
-          "length": 1.2
+          "length": 1.0
         },
         "outputs": [
           "F"
@@ -370,7 +370,7 @@
             -1,
             0
           ],
-          "length": 1.0
+          "length": 0.8
         },
         "outputs": [
           "v"

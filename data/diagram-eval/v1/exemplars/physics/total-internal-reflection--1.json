@@ -1,15 +1,15 @@
 {
   "topic_id": "physics|16|total-internal-reflection",
-  "question": "A small lamp S is set inside a glass block of refractive index 1.50, below its flat top face, which is in contact with air. Find the critical angle C for the glass-air face. One ray from S meets the face at exactly C and another meets it at 65° to the normal. Draw the face, the normal at each point of incidence, the ray that leaves grazing along the face and the ray that is totally internally reflected, and mark C and the equal angles of incidence and reflection.",
+  "question": "A small lamp S is set inside a glass block of refractive index 1.50, below its flat top face, which is in contact with air. Find the critical angle C for the glass-air face. One ray from S meets the face at exactly C and another meets it at 65° to the normal. Draw the face, the normal at each point of incidence, the ray that leaves grazing along the face and the ray BD that is totally internally reflected, and mark C, the angle of incidence i and the equal angle of reflection r.",
   "figure_kind": "ray_optics",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "critical angle and total internal reflection"
+      "reason": "critical angle and TIR"
     },
     "source": {
-      "question": "A small lamp S is set inside a glass block of refractive index 1.50, below its flat top face, which is in contact with air. Find the critical angle C for the glass-air face. One ray from S meets the face at exactly C and another meets it at 65° to the normal. Draw the face, the normal at each point of incidence, the ray that leaves grazing along the face and the ray that is totally internally reflected, and mark C and the equal angles of incidence and reflection.",
+      "question": "A small lamp S is set inside a glass block of refractive index 1.50, below its flat top face, which is in contact with air. Find the critical angle C for the glass-air face. One ray from S meets the face at exactly C and another meets it at 65° to the normal. Draw the face, the normal at each point of incidence, the ray that leaves grazing along the face and the ray BD that is totally internally reflected, and mark C, the angle of incidence i and the equal angle of reflection r.",
       "archetype": "total_internal_reflection"
     },
     "quantities": [
@@ -35,7 +35,7 @@
       {
         "id": "surf",
         "kind": "line",
-        "role": "glass-air face"
+        "role": "top face"
       },
       {
         "id": "S",
@@ -106,6 +106,12 @@
         "role": "reflected ray"
       },
       {
+        "id": "D",
+        "kind": "point",
+        "role": "mirror of S",
+        "label": "D"
+      },
+      {
         "id": "aC",
         "kind": "angle_mark",
         "role": "critical angle",
@@ -126,13 +132,7 @@
         "id": "ai2",
         "kind": "angle_mark",
         "role": "reflection",
-        "label": "i′"
-      },
-      {
-        "id": "air",
-        "kind": "label",
-        "role": "medium",
-        "label": "air"
+        "label": "r = 65°"
       }
     ],
     "constructions": [
@@ -297,13 +297,14 @@
       },
       {
         "id": "c_graze",
-        "operator": "ray",
+        "operator": "vector",
         "inputs": {
           "start": "A",
           "direction": [
             -1,
             0
-          ]
+          ],
+          "length": 1.2
         },
         "outputs": [
           "graze"
@@ -322,13 +323,24 @@
         ]
       },
       {
+        "id": "c_D",
+        "operator": "reflect_point",
+        "inputs": {
+          "point": "S",
+          "line": "nB"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
         "id": "c_aC",
         "operator": "angle_mark",
         "inputs": {
           "vertex": "A",
           "a": "inc1",
           "b": "NAb",
-          "radius": 0.6
+          "radius": 0.9
         },
         "outputs": [
           "aC"
@@ -354,7 +366,7 @@
           "vertex": "B",
           "a": "inc2",
           "b": "NBb",
-          "radius": 0.6
+          "radius": 0.9
         },
         "outputs": [
           "ai"
@@ -367,21 +379,10 @@
           "vertex": "B",
           "a": "NBb",
           "b": "refl",
-          "radius": 0.8
+          "radius": 0.9
         },
         "outputs": [
           "ai2"
-        ]
-      },
-      {
-        "id": "c_air",
-        "operator": "label",
-        "inputs": {
-          "target": "surf",
-          "text": "air"
-        },
-        "outputs": [
-          "air"
         ]
       }
     ],
@@ -422,24 +423,41 @@
           "unit": "degrees"
         },
         "severity": "fatal"
+      },
+      {
+        "id": "onD",
+        "predicate": "on",
+        "entities": [
+          "D",
+          "refl"
+        ],
+        "severity": "fatal"
       }
     ],
     "annotations": [
       {
-        "id": "glass",
+        "id": "air",
         "kind": "label",
         "targetIds": [
           "surf"
         ],
-        "text": "glass n = 1.50",
-        "placementIntent": "below"
+        "text": "air",
+        "placementIntent": "above"
+      },
+      {
+        "id": "glass",
+        "kind": "label",
+        "targetIds": [
+          "inc1"
+        ],
+        "text": "glass, n = 1.50",
+        "placementIntent": "right"
       }
     ],
     "requiredEntityIds": [
       "L",
       "surf",
       "S",
-      "air",
       "A",
       "inc1",
       "NAt",
@@ -454,6 +472,7 @@
       "NBb",
       "nB",
       "refl",
+      "D",
       "ai",
       "ai2"
     ],
@@ -464,7 +483,6 @@
           "L",
           "surf",
           "S",
-          "air",
           "A",
           "inc1",
           "NAt",
@@ -479,11 +497,12 @@
           "NBb",
           "nB",
           "refl",
+          "D",
           "ai",
           "ai2"
         ],
         "dependsOn": [],
-        "narrationCue": "grazing at C, total reflection beyond C"
+        "narrationCue": "grazing at C, TIR at B"
       }
     ],
     "teachingTimeline": [
@@ -492,7 +511,7 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "grazing at C, total reflection beyond C"
+        "narrationIntent": "grazing at C, TIR at B"
       }
     ]
   }
