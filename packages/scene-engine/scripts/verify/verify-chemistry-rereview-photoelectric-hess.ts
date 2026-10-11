@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
 import { compileSceneDocument } from "../../src/compile/compiler";
+import { inferChemistryFamilies } from "../../src/chemistry/router";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 
@@ -111,6 +112,12 @@ for (const value of ["4e- kJ", "1e999 kJ", "unknown", "20 kg", "20 kJ/mol"])
     assert.equal(buildThermoGraphScene(question, [], false), null);
     assert.equal(synthesizeFamilyScene({ question }), null);
   });
+check("current-main multiple-metal comparison retains its subject and honestly declines single-metal ink", () => {
+  const question = "Two metals A and B have work functions 2.0 eV and 3.0 eV. Find a single incident wavelength that makes A’s maximum photoelectron kinetic energy twice B’s, with both emitting. Compute their stopping potentials and threshold wavelengths. At 500 nm determine which metal still emits. Use hc=1240 eV nm and the one-photon model.";
+  assert.ok(inferChemistryFamilies(question).includes("chem_orbital"));
+  assert.equal(buildAtomicRadiationScene(question, [], false), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+});
 const atomicLaneRows = [
   {
     "id": "M13-4",

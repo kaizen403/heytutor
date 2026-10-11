@@ -49,7 +49,11 @@ function photonEnergyEv(question: string, hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / 
 function isPhotoelectricStem(question: string): boolean {
   const stem = chemStem(question);
   if (!/(?:photoelectric|photoelectron|work function)/.test(stem)) return false;
-  return workFunctionEv(question) !== null || photonEnergyEv(question) !== null;
+  // Multiple stated work functions still describe a photoelectric question.
+  // The single-metal builder may decline this comparison; subject ownership
+  // must not depend on silently selecting one of the metals for a figure.
+  const statedWorkFunctions = numberAfter(question, /work functions/, "energy", "eV");
+  return workFunctionEv(question) !== null || photonEnergyEv(question) !== null || statedWorkFunctions !== null;
 }
 
 function hydrogenicZ(stem: string): number | null {
