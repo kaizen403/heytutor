@@ -1,0 +1,827 @@
+{
+  "schema": "h3r8-prospective-cumulative-spend/v1",
+  "preregistrationSha256": "b593d942c3230abfed57c70a26c0de0262df3b685f43d247656286ae5f8842f4",
+  "job": "h3r8-finish-regions-prospective-one-row-followup",
+  "originalProtocolStatus": "incomplete_not_ready",
+  "originalSpend": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/SPEND.json",
+    "sha256": "c88cd8028fb50babd6262f3f99f2f4ee99dbe904753557075bc155c439d4642f"
+  },
+  "originalSettlement": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/metrics/final-settlement.json",
+    "sha256": "0e4761b9b19e7e022b72369fdf217199a273e63cd202717c9644b2405b380146"
+  },
+  "followupSettlement": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/metrics/final-settlement.json",
+    "sha256": "5a5e95128c901f391e612da4ffd47585a2eed31c9cd30e350075c12b269d2f17"
+  },
+  "carryFloorUsd": 15.45706,
+  "AzureTokenEstimate": {
+    "promptTokens": 3561570.0,
+    "generatedTokens": 833392.0,
+    "usd": 15.45706
+  },
+  "postOriginalSettlementAzureUsd": 0.0,
+  "realCapUsd": 20,
+  "stopAtUsd": 19.5,
+  "hardIncrementWithinBudget": true,
+  "previousJobInformationalUsd": 25.35188,
+  "cumulativeIncludingPreviousJobUsd": 40.80894,
+  "originalResponseUsage": {
+    "knownUsageUsd": 13.027606,
+    "unresolvedAllowanceUsd": 21.419452,
+    "checkpointReservedUsd": 1.268992,
+    "checkpointInFlightCalls": 5,
+    "ledgers": [
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r1-candidate-b1/spend-checkpoint.json",
+        "sha256": "bcbdcab52226a9e5dd227982fc0eb48642ff4f6eb493b46e31d9e8739d896f3c",
+        "knownUsageUsd": 1.388971,
+        "unresolvedAllowanceUsd": 3.351616,
+        "reservedUsd": 0,
+        "inFlightCalls": 0,
+        "unresolvedCalls": [
+          {
+            "traceId": "3241f32d-8612-4674-b87e-1b3d0f765bcf",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.230912,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "28adee5f-f958-4373-a46d-ccd6645a7a29",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.238836,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "28adee5f-f958-4373-a46d-ccd6645a7a29",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.238992,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "1e014394-5e28-4419-b833-eadff4b68e82",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.238744,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d042ccc2-5a8f-4b9b-84ff-c2da3d012e07",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.236112,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d042ccc2-5a8f-4b9b-84ff-c2da3d012e07",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.236268,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "eead99a0-0c29-4837-ad7c-4a6ad980c156",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.234944,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "eead99a0-0c29-4837-ad7c-4a6ad980c156",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.2351,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "cef853d8-83ed-4ab8-a724-184745e13336",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.230028,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "2d5c6615-7f93-4ee3-8b6c-257369507d16",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.231052,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e49907d2-2600-43ac-8f70-33291050797a",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.23534,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "1dca70ed-d820-46db-b687-9937dac03dc5",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.2524,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "fd5dd02c-afdd-41fe-98e6-8518f1f9a53d",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.26788,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "913a6782-a7c1-44bc-ac8e-786be27ed59f",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.245008,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      },
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r1-candidate-b2/spend-checkpoint.json",
+        "sha256": "7027ae30132662deb30e75b4229c58a2f5bb4cd5debf62e6de3d94cc2f4e6e8a",
+        "knownUsageUsd": 1.596826,
+        "unresolvedAllowanceUsd": 3.48028,
+        "reservedUsd": 0,
+        "inFlightCalls": 0,
+        "unresolvedCalls": [
+          {
+            "traceId": "ac131415-931b-46a7-84a7-4a3711ba24a4",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.252348,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "eb95205c-c695-4e8c-b1be-8671f3ec1bae",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.259376,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "eb95205c-c695-4e8c-b1be-8671f3ec1bae",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.259532,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "918f60b9-bb39-44fc-bc9f-f21b4942effb",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.262444,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e42d8889-e7c1-4c0a-a1ac-bbfaa49a07c8",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.23494,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "28367540-9a99-4e9b-95dd-76c76f1d75ca",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.239528,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "c94a82b0-a0f1-4d66-9613-a080ab1c32bf",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.256124,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "c94a82b0-a0f1-4d66-9613-a080ab1c32bf",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.25628,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "441d0a16-aedd-4703-a238-da2a8bb2364e",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.248856,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "441d0a16-aedd-4703-a238-da2a8bb2364e",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.249012,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "2b8f69d5-6cb8-4186-91fd-ce6d4e613893",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.23948,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "f17b5c29-b8bb-4477-8161-63117825af52",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.239796,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "253f412b-5819-4a81-82a4-4ad015c9c547",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.241204,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "253f412b-5819-4a81-82a4-4ad015c9c547",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.24136,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      },
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r2-candidate-b1/spend-checkpoint.json",
+        "sha256": "163af1329d324cf368b73b91a4fe915d66e3ccd92dc6b827ee1eb4c3c959a7d9",
+        "knownUsageUsd": 0.979641,
+        "unresolvedAllowanceUsd": 3.142988,
+        "reservedUsd": 1.268992,
+        "inFlightCalls": 5,
+        "unresolvedCalls": [
+          {
+            "traceId": "e39ca05c-1f76-4504-8f7c-1299c597ac17",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.239748,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d1c529ed-6a27-44bf-8f9c-1764200197d3",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.235528,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d1c529ed-6a27-44bf-8f9c-1764200197d3",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.235684,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e13198f8-b3bd-4c68-9269-96e495b57ddc",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.23782,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e13198f8-b3bd-4c68-9269-96e495b57ddc",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.237976,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "77ff38b7-6818-44c3-ab81-1274a560a814",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.239316,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "88ca73ea-438d-4d6d-bc21-195c414f0e2e",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.236652,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "88ca73ea-438d-4d6d-bc21-195c414f0e2e",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.236808,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "32393d32-0ddd-4b0b-8ebf-1ec99edaa738",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.235788,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d106afdd-9519-4d57-9882-db750f3ce149",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.257236,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d106afdd-9519-4d57-9882-db750f3ce149",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.257392,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "378cf0f7-31e4-423e-9e45-477c8503d63f",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.236368,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "39a57f9d-b9f1-45cb-a443-3270aafc7d9e",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.256672,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      },
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r1-candidate-b1/spend-checkpoint.json",
+        "sha256": "c6ce1faf5e31976a3476f0f245d4470d61903d779e945aa6b044b066bfcdffce",
+        "knownUsageUsd": 2.764709,
+        "unresolvedAllowanceUsd": 1.719924,
+        "reservedUsd": 0,
+        "inFlightCalls": 0,
+        "unresolvedCalls": [
+          {
+            "traceId": "d9a32e19-25e3-4251-b8e1-2d3e52cedbd6",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.184964,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d9a32e19-25e3-4251-b8e1-2d3e52cedbd6",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.246116,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "d9a32e19-25e3-4251-b8e1-2d3e52cedbd6",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.246272,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "784f956f-d7b1-4ec7-a63d-781abda078b5",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.183276,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "0d1aa362-3d43-46b9-8fd3-10967ff6ce62",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.185352,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "fb5199d5-640f-4ae2-89e7-0289e3461c39",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.184988,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "f3efc6bc-44c3-4569-ae72-849a96d96a16",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.247004,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "fb5199d5-640f-4ae2-89e7-0289e3461c39",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.241952,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      },
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r1-main-b1/spend-checkpoint.json",
+        "sha256": "29cc03d3ab7aea0ea786ba9cc732a5a02ef482d299954f946588c4dbe44588a5",
+        "knownUsageUsd": 1.613123,
+        "unresolvedAllowanceUsd": 3.364672,
+        "reservedUsd": 0,
+        "inFlightCalls": 0,
+        "unresolvedCalls": [
+          {
+            "traceId": "66d1fe15-fa1c-4429-aa30-1d26befc9bfe",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.23172,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "916598fc-1a1f-417c-90e1-0896a910c841",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.184764,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "46cc6394-1e14-4572-869f-3e36e07b8258",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.23742,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "916598fc-1a1f-417c-90e1-0896a910c841",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.27222,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "6aec1466-7748-444f-98aa-7b11211ccd63",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.184888,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "ef5bdbb8-1f7b-4f08-8fdf-ea4b91bbd475",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.275464,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "ef5bdbb8-1f7b-4f08-8fdf-ea4b91bbd475",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.27562,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "6f0eff84-4c21-4ad0-bb55-ff8946f90406",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.274904,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "48383183-28f4-4a45-a4b6-88f795155996",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.26264,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "1d7db8c7-635b-4c33-a697-5680a94c2969",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.250928,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "8a3c8ecd-89aa-49ad-8348-669d210d81dc",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.185096,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e858b1e4-5a66-420d-82bc-237c9e0383d1",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.241676,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "eb4b57ff-acb0-4820-ade5-1a8128794505",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.242336,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "07b5f466-50c5-4614-8306-41f9c2e21788",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.244996,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      },
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r2-candidate-b1/spend-checkpoint.json",
+        "sha256": "68fee48337a06db609b89ad1ebe840601abe0aff78812c3eb1f191944abe9c33",
+        "knownUsageUsd": 2.85537,
+        "unresolvedAllowanceUsd": 1.231052,
+        "reservedUsd": 0,
+        "inFlightCalls": 0,
+        "unresolvedCalls": [
+          {
+            "traceId": "bd8dc2ca-b420-49c9-b7f2-4c27287045c6",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.275636,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "bd8dc2ca-b420-49c9-b7f2-4c27287045c6",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.275792,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "aaa4bb5c-4cd3-41b5-9424-22dc08244a32",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.185112,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "62b4bd77-1e05-4173-954f-51e7309a6211",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.247164,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "7a4acff2-40fd-484d-a0bb-94df7a4a0e4c",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.247348,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      },
+      {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r2-main-b1/spend-checkpoint.json",
+        "sha256": "7c2dce48c229a3da73c3e2c0e0b85f25f4a4bbbae2da4374f85258038925e3c6",
+        "knownUsageUsd": 1.828966,
+        "unresolvedAllowanceUsd": 5.12892,
+        "reservedUsd": 0,
+        "inFlightCalls": 0,
+        "unresolvedCalls": [
+          {
+            "traceId": "be682bc1-1344-499e-a37c-6927706fb82a",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.2311,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e9040845-8d16-4679-b31e-5fce7131567f",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.24528,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "e9040845-8d16-4679-b31e-5fce7131567f",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.245436,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "387f483d-1063-4ae6-8073-6689d8f95836",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.233336,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "0c9328e4-9468-4d17-8ffe-06e316a93811",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.296496,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "0c9328e4-9468-4d17-8ffe-06e316a93811",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.296652,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "a9aa9a02-af03-4e6f-8e40-913a1562d7d5",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.288152,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "6adae683-18a6-46e5-abdf-4bf503a57cfe",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.248092,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "6865a763-3eba-4d81-893d-1ec1af90b293",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.255148,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "f55f4015-5f71-4b40-b8d1-32bc8a715ad4",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.256452,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "25edb3d4-cbc0-41a1-bfc5-b6b4f3e37e93",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.291092,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "25edb3d4-cbc0-41a1-bfc5-b6b4f3e37e93",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.291248,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "624f8724-344b-4d03-a35d-5a1e7d64056c",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.185108,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "ed1392d5-0031-44a8-9c4d-435628fe95b4",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.268188,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "ed1392d5-0031-44a8-9c4d-435628fe95b4",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.268344,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "624f8724-344b-4d03-a35d-5a1e7d64056c",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.2485,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "ffa3e100-bc4e-42c8-a8a5-5a0a55599c00",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.245168,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "623baf18-e887-4be5-addb-b39685f82f2b",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.24182,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "7ed60755-e77c-44e7-9efc-ec1f78a0e981",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.245524,
+            "reason": "response_usage_missing_or_incomplete"
+          },
+          {
+            "traceId": "73771582-aa18-43f1-aa72-dd815048f564",
+            "kind": "planner",
+            "model": "st-gpt-6-sol-h3",
+            "attempts": 2,
+            "allowanceUsd": 0.247784,
+            "reason": "response_usage_missing_or_incomplete"
+          }
+        ]
+      }
+    ],
+    "missingCheckpoints": [
+      "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r2-candidate-b2/spend-checkpoint.json"
+    ],
+    "scope": "registered eight physical block ledgers only, including aborted prefixes; canonical copies contain no ledgers",
+    "missingAreNeverStartedBlocks": true,
+    "allLogicalArmsComplete": false
+  },
+  "newResponseLedgers": [],
+  "newResponseKnownUsd": 0,
+  "newResponseUnresolvedAllowanceUsd": 0,
+  "newCheckpointReservedUsd": 0,
+  "newCheckpointInFlightCalls": 0,
+  "originalFiveOrphanedSlotsPreserved": true,
+  "allFailedPrefixSpendCharged": true,
+  "canonicalCopiesCountedForSpend": false,
+  "note": "Deployment and response estimates overlap and are never summed. Original job15.457060 is a floor, not a new budget. Every later exclusive-deployment token counts against same20cap, including late old completions. Orphaned checkpoint slots remain unchanged. Tokens/rates estimate, not invoice; native agent billing unexposed."
+}

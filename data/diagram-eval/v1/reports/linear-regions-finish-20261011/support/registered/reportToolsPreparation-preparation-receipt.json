@@ -1,0 +1,89 @@
+{
+  "executionRelease": "Actual assembly/recount/secondary aggregation only after root releases all three complete independent first freezes.",
+  "files": [
+    {
+      "bytes": 29498,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/recount.py",
+      "sha256": "f8bb366f2f2631693965cdc6a92fad090fdc2b02110d9559409ad6b5ccfbb3ff"
+    },
+    {
+      "bytes": 5615,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/assemble-evidence.py",
+      "sha256": "4756625a91b214828b5d2317e505a2a01525e91880a8a4bb93d34f61703d2365"
+    },
+    {
+      "bytes": 29777,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/test_offline.py",
+      "sha256": "dbf9005b9bcbf6b9df3fc060ed6174e682278a339bc349cbca7a0b8046904a9d"
+    },
+    {
+      "bytes": 8933,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/README.md",
+      "sha256": "6c7229f323371aa5073867bb41c3a421154b8525e19b8aa35924e82faeb18e83"
+    },
+    {
+      "bytes": 8329,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/evidence-manifest.schema.json",
+      "sha256": "2663d7f568c6a9c94b01bc8cdc562f82a54a2ba3f7fae16341076f4ec68eced5"
+    },
+    {
+      "bytes": 7232,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/assembly-plan.template.json",
+      "sha256": "9d7d4e103e2bab28b960bf30bf1667f1b598ba2cc70c9ad4cece47ceafd923a2"
+    },
+    {
+      "bytes": 3371,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/verify-secondary-evidence.py",
+      "sha256": "74d8572fb00cd46c83150c93aedd3b3dabbf5d242a928bce77ae144ab5b30a78"
+    },
+    {
+      "bytes": 11009,
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/aggregate-secondary-results.py",
+      "sha256": "a089e434891240edf38182525e6c2c5c346777e8e4da26b234b6a23820dc6900"
+    }
+  ],
+  "preparation": {
+    "actualQualityFilesRead": false,
+    "apiCalls": 0,
+    "delegation": false,
+    "goldOrCalibrationScoresRead": false,
+    "imageViews": 0,
+    "networkCalls": 0,
+    "originalProtocolChanged": false,
+    "questionBodiesRead": false,
+    "sourceRuntimeChanged": false
+  },
+  "preparedAt": "2026-10-11T16:42:29.367274+00:00",
+  "schema": "finish-regions-portable-tools-preparation/v1",
+  "scopeModes": {
+    "primary240": {
+      "cohortRepeatsPerJudge": 4,
+      "gatedJudges": [
+        "a",
+        "b",
+        "consensus"
+      ],
+      "logicalCells": 8,
+      "outcomes": 240
+    },
+    "secondary200": {
+      "logicalCells": 7,
+      "missingCell": {
+        "arm": "candidate",
+        "cohort": "development",
+        "rep": 2
+      },
+      "outcomes": 200,
+      "prEligible": false,
+      "ready": false
+    }
+  },
+  "supportEvidenceLimit": "Support and image bytes are SHA-verified; calibration scores, original raw run bodies and cumulative deployment spend are not independently reconstructed by the portable recount.",
+  "tests": {
+    "actualMeasurementExecuted": false,
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -q test_offline.py",
+    "failed": 0,
+    "passed": 38,
+    "syntheticTests": 38
+  }
+}

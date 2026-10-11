@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-11T17:36:10.995167Z",
+  "cohort": "development",
+  "rep": 2,
+  "arm": "candidate",
+  "block": 1,
+  "reason": "Metrics unreadable, stale or mismatched",
+  "sourceTuning": false,
+  "selectiveRetry": false,
+  "allPartialBlocksUngraded": true
+}

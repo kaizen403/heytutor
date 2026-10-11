@@ -1,0 +1,20 @@
+{
+  "format": "heldout-author-freeze/v1",
+  "frozen_at_utc": "2026-10-11T14:22:37.029550+00:00",
+  "author_outputs_frozen": true,
+  "row_count": 20,
+  "required_figure_denominator": 20,
+  "families": {
+    "number_line": 5,
+    "half_plane": 5,
+    "feasible_region": 5,
+    "linear_system": 5
+  },
+  "ask_styles": {
+    "topic_ask": 10,
+    "exam_stem": 10
+  },
+  "exposed_api_spend_usd": 0,
+  "native_billing": "unexposed",
+  "post_freeze_policy": "Do not change author inputs, exact oracles, or rubric based on source capabilities or outcomes."
+}

@@ -1,0 +1,9 @@
+{
+  "judge": "c",
+  "agentIdentity": "/root/r8_ship_blind_c",
+  "sourceNaive": true,
+  "forkTurns": "none",
+  "referenceConsistencyReportedAs": "consistency, not human accuracy",
+  "noQualityFeedbackBeforeFinalFreeze": true,
+  "rootImagesViewed": 0
+}

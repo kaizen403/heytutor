@@ -1,0 +1,37 @@
+{
+  "schema": "h3r8-two-zero-call-startups-cleanup/v1",
+  "observedAt": "2026-10-11T17:22:48.299276+00:00",
+  "latestControllerPid": 47779,
+  "latestControllerAlive": false,
+  "portsReleased": [
+    3530,
+    3534
+  ],
+  "modelRequests": 0,
+  "savedRows": 0,
+  "requestLedgers": 0,
+  "jobAzureFloorUsd": 15.45706,
+  "firstStartupCleanup": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/ZERO-CALL-STARTUP-CLEANUP.json",
+    "sha256": "05d4ebbe8e0f300fca7e6eeb441a79b1a31a2472dea6fbc009cf06e1fdcf2a39"
+  },
+  "secondStartupPreregistration": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/preregistration.json",
+    "sha256": "e2d0bf312c1aff355b6d2790887132fbf1d07caf29e038785cd66ddf02e24579"
+  },
+  "secondStartupAbort": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/whole-arm-abort.json",
+    "sha256": "0ba923ddee5e61346b37e71682a76bbc79f53fd398df2f4665569b3e63b2502d"
+  },
+  "secondStartupSpend": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/SPEND.json",
+    "sha256": "1556c82e0c743bf2fb41abe8457a442d4ab8fe462d5d26abbed62ba2a978128f"
+  },
+  "secondStartupSettlement": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/metrics/final-settlement.json",
+    "sha256": "8cefe2f319b22a027503d915ded6fdb133929569a47ac8b1d0ef6439ee2f1129"
+  },
+  "newSourceChanges": false,
+  "qualityRead": false,
+  "imagesViewed": 0
+}

@@ -1,0 +1,95 @@
+{
+  "preregistrationSha256": "83705d87db5744000e2aba2ac975cc0fb256b3416d3c070194f1b98784e68491",
+  "arms": [
+    {
+      "rep": 1,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/eval40.jsonl",
+      "sampleSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+      "n": 40,
+      "cohort": "development",
+      "reusedImmutableMain": true
+    },
+    {
+      "rep": 2,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/eval40.jsonl",
+      "sampleSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+      "n": 40,
+      "cohort": "development",
+      "reusedImmutableMain": true
+    },
+    {
+      "cohort": "development",
+      "rep": 1,
+      "arm": "candidate",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/eval40.jsonl",
+      "sampleSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+      "n": 40,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/canonical-copy.json",
+        "sha256": "585cfa6735dcabc780119a4adfe6a2edfc97479fe06433a43381fbd031b88ed0"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 1,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/canonical-copy.json",
+        "sha256": "1c25e17d85baf7cf46fbc895328e61039acd7b4c2902184c0cf5fbfa0217e4ab"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 1,
+      "arm": "candidate",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/canonical-copy.json",
+        "sha256": "19671bd489f8887fae4bd6e9d58785347229dde764ecea56a4e7b1830e40ba21"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 2,
+      "arm": "candidate",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/canonical-copy.json",
+        "sha256": "15e1449ea1aea4c91e8d01caf792bed6c95a3a2853fa27e1f8976c5b067b655e"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 2,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/canonical-copy.json",
+        "sha256": "ca384b2942c33437d709d9b5f02be5057d6703a72af333860ca3b54858db9709"
+      }
+    }
+  ]
+}

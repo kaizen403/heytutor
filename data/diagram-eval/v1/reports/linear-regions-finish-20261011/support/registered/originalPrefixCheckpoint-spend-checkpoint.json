@@ -1,0 +1,190 @@
+{
+ "maxUsd": 20,
+ "chargedUsd": 0.979641,
+ "reservedUsd": 1.268992,
+ "stoppedForBudget": false,
+ "rowsDone": 15,
+ "rowsPlanned": 20,
+ "spendMode": "response_usage",
+ "knownUsageUsd": 0.979641,
+ "unresolvedCalls": [
+  {
+   "traceId": "e39ca05c-1f76-4504-8f7c-1299c597ac17",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.239748,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "d1c529ed-6a27-44bf-8f9c-1764200197d3",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.235528,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "d1c529ed-6a27-44bf-8f9c-1764200197d3",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.235684,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "e13198f8-b3bd-4c68-9269-96e495b57ddc",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.23782,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "e13198f8-b3bd-4c68-9269-96e495b57ddc",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.237976,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "77ff38b7-6818-44c3-ab81-1274a560a814",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.239316,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "88ca73ea-438d-4d6d-bc21-195c414f0e2e",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.236652,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "88ca73ea-438d-4d6d-bc21-195c414f0e2e",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.236808,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "32393d32-0ddd-4b0b-8ebf-1ec99edaa738",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.235788,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "d106afdd-9519-4d57-9882-db750f3ce149",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.257236,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "d106afdd-9519-4d57-9882-db750f3ce149",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.257392,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "378cf0f7-31e4-423e-9e45-477c8503d63f",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.236368,
+   "reason": "response_usage_missing_or_incomplete"
+  },
+  {
+   "traceId": "39a57f9d-b9f1-45cb-a443-3270aafc7d9e",
+   "kind": "planner",
+   "model": "st-gpt-6-sol-h3",
+   "attempts": 2,
+   "allowanceUsd": 0.256672,
+   "reason": "response_usage_missing_or_incomplete"
+  }
+ ],
+ "unresolvedAllowanceUsd": 3.142988,
+ "inFlightCalls": 5,
+ "arm": "planner_examples_strict",
+ "providerConfig": {
+  "provider": "azure",
+  "deployment": "st-gpt-6-sol-h3",
+  "model": "st-gpt-6-sol-h3"
+ },
+ "scenePlannerLimitMs": 60000,
+ "probeIds": [
+  "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+  "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+  "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+  "maths|h3r6-shaded-regions|nl04-disjoint-union|q1",
+  "maths|h3r6-shaded-regions|nl05-overlap-intersection|q1",
+  "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+  "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+  "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+  "maths|h3r6-shaded-regions|nl09-union-puncture|q1",
+  "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+  "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+  "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+  "maths|h3r6-shaded-regions|hp03-vertical-negative-closed|q1",
+  "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+  "maths|h3r6-shaded-regions|hp05-origin-on-boundary|q1",
+  "maths|h3r6-shaded-regions|hp06-positive-strict-membership|q1",
+  "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+  "maths|h3r6-shaded-regions|hp08-vertical-strict-rational|q1",
+  "maths|h3r6-shaded-regions|hp09-horizontal-closed|q1",
+  "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1"
+ ],
+ "sampleFingerprint": "e294fdd2834cc25738763fb52939313af3c701647593fdece43a18af761812fa",
+ "executionConfig": {
+  "figureSelectionPolicy": "production-scene-selection/v2",
+  "figureOnly": true,
+  "scenePlannerLimitMs": 60000,
+  "familiarity": "normal",
+  "narrationLanguage": "english",
+  "exampleLibraryFingerprint": "4149c4e8319bb44175646142992b8c5eeaad7b51d0b7e191a561b6d13463ba5b",
+  "sceneDeclinePolicy": "unchanged",
+  "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+  "visualNeedPolicy": {
+   "evidenceVersion": "live-visual-need/v1",
+   "model": "typesafe-ai/jev",
+   "rubricVersion": "visual-need/v1",
+   "policyVersion": "advisory/v1",
+   "clientTimeoutMs": 3000,
+   "serverTimeoutMs": 2400
+  },
+  "visualNeedReplayFingerprint": "176c12f3a090f289ce425e56d67eb631268dec31c8e88ee83f6ee27e6caf5801",
+  "productionStrictSubjects": [
+   "maths"
+  ],
+  "examplePickerProfile": "live-client-4000ms/v1",
+  "subjectClassification": "existing-turn-plan",
+  "spendMode": "response_usage",
+  "pricing": {
+   "lane": "gpt-6.1-sol",
+   "inputUsdPer1M": 2,
+   "outputUsdPer1M": 10,
+   "cachedInputUsdPer1M": 0.1
+  },
+  "visualNeedPricing": {
+   "lane": "jev",
+   "inputUsdPer1M": 0.042,
+   "outputUsdPer1M": 0,
+   "cachedInputUsdPer1M": 0.042
+  },
+  "plannerOutputCap": 8096,
+  "teachingOutputCap": 18144
+ },
+ "sceneDeclinePolicy": "unchanged",
+ "exampleExclusionFingerprint": "5615b026bbc2b13518c0cc48fcdb3f21d2ba7fe83852747a78d6e6eb497adc02",
+ "visualNeedCalls": []
+}

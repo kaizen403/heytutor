@@ -1,0 +1,40 @@
+{
+  "schema": "shaded-regions-opaque-packet/v1",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "manifestMode": "secondary200",
+  "createdAt": "2026-10-11T17:45:40.960Z",
+  "preregistrationSha256": "83705d87db5744000e2aba2ac975cc0fb256b3416d3c070194f1b98784e68491",
+  "cohorts": {
+    "development": 40,
+    "heldout": 20
+  },
+  "outcomes": 200,
+  "cards": 146,
+  "queueSha256": "a8207617175ffafeaf43e10c66eba0ea9c10e475b28411488a43958861d4a92a",
+  "outcomesSha256": "ab83601e0d2c785af211f26dd9a2c97949c08e9e3cdfac79387b209fa0d8a4d4",
+  "imageMapSha256": "d89389f69b876913c09ff3807fa1732d25e9ad27ba4f9878b1180065e08d4d44",
+  "crop": {
+    "left": 400,
+    "top": 0,
+    "width": 760,
+    "height": 700
+  },
+  "rejectionDiagnosticsSha256": "442eebccc9c25a5618a59a51d4492c1f026eee074037bca4517c0ea69332fbc9",
+  "newModelOutcomes": 120,
+  "reusedMainOutcomes": 80,
+  "prospectiveReplacement": true,
+  "thisFollowupPaidOutcomes": 0,
+  "importedOutcomes": 200,
+  "abortedPrefixExcluded": true,
+  "secondaryReportOnly": true,
+  "originalProtocolStatus": "incomplete_not_ready",
+  "readinessEligible": false,
+  "missingCell": {
+    "cohort": "development",
+    "rep": 2,
+    "arm": "candidate"
+  },
+  "identityReuse": "complete semantic rubric plus exact native PNG",
+  "rootImageViews": 0,
+  "qualityUnblinded": false
+}

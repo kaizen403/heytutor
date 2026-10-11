@@ -1,0 +1,2599 @@
+{
+  "format": "independent-region-oracles/v1",
+  "arithmetic": "fractions.Fraction only",
+  "domain_policy": "R means all real scalars; R^2 means all real ordered pairs. Additional domain constraints are explicit in constraints; none are integer-valued.",
+  "boolean_policy": "all is conjunction; any is inclusive disjunction; not is Boolean negation over the declared real domain. Interval difference I minus J is I AND NOT J.",
+  "rows": {
+    "maths|h3r8-finish-regions|negative-strict-ray|q1": {
+      "constraints": [
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "-6",
+            "0",
+            "3"
+          ],
+          "original_relation": ">",
+          "original_expanded_rhs": [
+            "1",
+            "0",
+            "17"
+          ],
+          "canonical": {
+            "a": [
+              "7",
+              "0"
+            ],
+            "b": "-14",
+            "op": "<"
+          }
+        }
+      ],
+      "boolean": "c1",
+      "intervals": [
+        {
+          "lower": null,
+          "upper": "-2",
+          "lower_closed": false,
+          "upper_closed": false
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "-3",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "-2",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|negative-strict-ray|q1",
+      "curriculum": "CBSE class 11 inequalities",
+      "family": "number_line",
+      "domain": "R",
+      "label_requirements": [
+        "x",
+        "-2",
+        "P = -3",
+        "Q = -2",
+        "R = 0"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|interval-intersection|q1": {
+      "constraints": [
+        {
+          "id": "I",
+          "original_expanded_lhs": [
+            "-2",
+            "0",
+            "5"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "1",
+            "0",
+            "1"
+          ],
+          "canonical": {
+            "a": [
+              "-3",
+              "0"
+            ],
+            "b": "-4",
+            "op": "<="
+          }
+        },
+        {
+          "id": "J",
+          "original_expanded_lhs": [
+            "3",
+            "0",
+            "-7"
+          ],
+          "original_relation": "<",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "2"
+          ],
+          "canonical": {
+            "a": [
+              "3",
+              "0"
+            ],
+            "b": "9",
+            "op": "<"
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "I",
+          "J"
+        ]
+      },
+      "intervals": [
+        {
+          "lower": "4/3",
+          "upper": "3",
+          "lower_closed": true,
+          "upper_closed": false
+        }
+      ],
+      "named_sets": {
+        "I": "I",
+        "J": "J",
+        "K": {
+          "all": [
+            "I",
+            "J"
+          ]
+        }
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "4/3",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "5/2",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "1",
+            "0"
+          ],
+          "member": false
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|interval-intersection|q1",
+      "curriculum": "CBSE class 11 inequalities",
+      "family": "number_line",
+      "domain": "R",
+      "label_requirements": [
+        "x",
+        "K",
+        "4/3",
+        "3",
+        "A = 4/3",
+        "B = 5/2",
+        "C = 3",
+        "D = 1"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|separated-boolean-union|q1": {
+      "constraints": [
+        {
+          "id": "left",
+          "original_expanded_lhs": [
+            "4",
+            "0",
+            "5"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "7",
+            "0",
+            "8"
+          ],
+          "canonical": {
+            "a": [
+              "3",
+              "0"
+            ],
+            "b": "-3",
+            "op": "<="
+          }
+        },
+        {
+          "id": "right",
+          "original_expanded_lhs": [
+            "-6",
+            "0",
+            "2"
+          ],
+          "original_relation": "<",
+          "original_expanded_rhs": [
+            "-1",
+            "0",
+            "-21"
+          ],
+          "canonical": {
+            "a": [
+              "-5",
+              "0"
+            ],
+            "b": "-23",
+            "op": "<"
+          }
+        }
+      ],
+      "boolean": {
+        "any": [
+          "left",
+          "right"
+        ]
+      },
+      "intervals": [
+        {
+          "lower": null,
+          "upper": "-1",
+          "lower_closed": false,
+          "upper_closed": true
+        },
+        {
+          "lower": "23/5",
+          "upper": null,
+          "lower_closed": false,
+          "upper_closed": false
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "-1",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "23/5",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "T",
+          "coordinates": [
+            "5",
+            "0"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|separated-boolean-union|q1",
+      "curriculum": "SAT inequalities",
+      "family": "number_line",
+      "domain": "R",
+      "label_requirements": [
+        "x",
+        "-1",
+        "23/5",
+        "P = -1",
+        "Q = 0",
+        "R = 23/5",
+        "T = 5"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|named-interval-difference|q1": {
+      "constraints": [
+        {
+          "id": "I_lower",
+          "original_expanded_lhs": [
+            "0",
+            "0",
+            "-5"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "3",
+            "0",
+            "-1"
+          ],
+          "canonical": {
+            "a": [
+              "-3",
+              "0"
+            ],
+            "b": "4",
+            "op": "<="
+          }
+        },
+        {
+          "id": "I_upper",
+          "original_expanded_lhs": [
+            "3",
+            "0",
+            "-1"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "8"
+          ],
+          "canonical": {
+            "a": [
+              "3",
+              "0"
+            ],
+            "b": "9",
+            "op": "<="
+          }
+        },
+        {
+          "id": "J_lower",
+          "original_expanded_lhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "original_relation": "<",
+          "original_expanded_rhs": [
+            "2",
+            "0",
+            "1"
+          ],
+          "canonical": {
+            "a": [
+              "-2",
+              "0"
+            ],
+            "b": "1",
+            "op": "<"
+          }
+        },
+        {
+          "id": "J_upper",
+          "original_expanded_lhs": [
+            "2",
+            "0",
+            "1"
+          ],
+          "original_relation": "<",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "5"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "0"
+            ],
+            "b": "4",
+            "op": "<"
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "I_lower",
+          "I_upper",
+          {
+            "not": {
+              "all": [
+                "J_lower",
+                "J_upper"
+              ]
+            }
+          }
+        ]
+      },
+      "named_sets": {
+        "I": {
+          "all": [
+            "I_lower",
+            "I_upper"
+          ]
+        },
+        "J": {
+          "all": [
+            "J_lower",
+            "J_upper"
+          ]
+        },
+        "K": {
+          "all": [
+            "I_lower",
+            "I_upper",
+            {
+              "not": {
+                "all": [
+                  "J_lower",
+                  "J_upper"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "intervals": [
+        {
+          "lower": "-4/3",
+          "upper": "-1/2",
+          "lower_closed": true,
+          "upper_closed": true
+        },
+        {
+          "lower": "2",
+          "upper": "3",
+          "lower_closed": true,
+          "upper_closed": true
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "-4/3",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "-1/2",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "2",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "E",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|named-interval-difference|q1",
+      "curriculum": "SAT inequalities and sets",
+      "family": "number_line",
+      "domain": "R",
+      "label_requirements": [
+        "x",
+        "K",
+        "-4/3",
+        "-1/2",
+        "2",
+        "3",
+        "A",
+        "B",
+        "C = 0",
+        "D",
+        "E"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|singleton-intersection|q1": {
+      "constraints": [
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "-2",
+            "0",
+            "6"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "1",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "-3",
+              "0"
+            ],
+            "b": "-6",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c2",
+          "original_expanded_lhs": [
+            "4",
+            "0",
+            "-1"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "7"
+          ],
+          "canonical": {
+            "a": [
+              "4",
+              "0"
+            ],
+            "b": "8",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "c1",
+          "c2"
+        ]
+      },
+      "intervals": [
+        {
+          "lower": "2",
+          "upper": "2",
+          "lower_closed": true,
+          "upper_closed": true
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|singleton-intersection|q1",
+      "curriculum": "CBSE class 11 inequalities",
+      "family": "number_line",
+      "domain": "R",
+      "label_requirements": [
+        "x",
+        "2",
+        "S = {2}",
+        "A = 1",
+        "B = 2",
+        "C = 3"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|strict-oblique-half-plane|q1": {
+      "constraints": [
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "2",
+            "-3",
+            "0"
+          ],
+          "original_relation": "<",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "6"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "-3"
+            ],
+            "b": "6",
+            "op": "<"
+          }
+        }
+      ],
+      "boolean": "c1",
+      "boundary": {
+        "a": [
+          "2",
+          "-3"
+        ],
+        "b": "6",
+        "included": false,
+        "axis_intercepts": [
+          [
+            "3",
+            "0"
+          ],
+          [
+            "0",
+            "-2"
+          ]
+        ],
+        "side_description": "y > (2/3)x - 2"
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "0",
+            "-2"
+          ],
+          "member": false
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "0",
+            "-3"
+          ],
+          "member": false
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+      "curriculum": "CBSE class 11 inequalities",
+      "family": "half_plane",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "2x - 3y = 6",
+        "(3,0)",
+        "(0,-2)",
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|negative-scale-half-plane|q1": {
+      "constraints": [
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "-4",
+            "2",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "3",
+            "-9"
+          ],
+          "canonical": {
+            "a": [
+              "4",
+              "1"
+            ],
+            "b": "9",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": "c1",
+      "boundary": {
+        "a": [
+          "4",
+          "1"
+        ],
+        "b": "9",
+        "included": true,
+        "axis_intercepts": [
+          [
+            "9/4",
+            "0"
+          ],
+          [
+            "0",
+            "9"
+          ]
+        ],
+        "side_description": "y <= 9 - 4x"
+      },
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "1",
+            "4"
+          ],
+          "member": true
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "2",
+            "2"
+          ],
+          "member": false
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "2",
+            "1"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+      "curriculum": "SAT inequalities",
+      "family": "half_plane",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "4x + y = 9",
+        "(9/4,0)",
+        "(0,9)",
+        "P = (1,4)",
+        "Q = (2,2)",
+        "R = (2,1)"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1": {
+      "constraints": [
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "3/2",
+            "-3",
+            "0"
+          ],
+          "original_relation": "<",
+          "original_expanded_rhs": [
+            "-1",
+            "0",
+            "5"
+          ],
+          "canonical": {
+            "a": [
+              "5/2",
+              "-3"
+            ],
+            "b": "5",
+            "op": "<"
+          }
+        }
+      ],
+      "boolean": "c1",
+      "boundary": {
+        "a": [
+          "5",
+          "-6"
+        ],
+        "b": "10",
+        "included": false,
+        "axis_intercepts": [
+          [
+            "2",
+            "0"
+          ],
+          [
+            "0",
+            "-5/3"
+          ]
+        ],
+        "side_description": "y > (5/6)x - 5/3"
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "-1",
+            "-3"
+          ],
+          "member": false
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "2",
+            "1"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+      "curriculum": "CBSE class 11 inequalities",
+      "family": "half_plane",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "5x - 6y = 10",
+        "(2,0)",
+        "(0,-5/3)",
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1": {
+      "constraints": [
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "-3",
+            "0",
+            "5"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "2",
+            "0",
+            "-10"
+          ],
+          "canonical": {
+            "a": [
+              "-5",
+              "0"
+            ],
+            "b": "-15",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": "c1",
+      "boundary": {
+        "a": [
+          "1",
+          "0"
+        ],
+        "b": "3",
+        "included": true,
+        "axis_intercepts": [
+          [
+            "3",
+            "0"
+          ]
+        ],
+        "side_description": "x >= 3"
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "3",
+            "-2"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "4"
+          ],
+          "member": false
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "5",
+            "-1"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+      "curriculum": "SAT inequalities",
+      "family": "half_plane",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "x = 3",
+        "3",
+        "A",
+        "B",
+        "C"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1": {
+      "constraints": [
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "0",
+            "-4",
+            "-4"
+          ],
+          "original_relation": ">",
+          "original_expanded_rhs": [
+            "0",
+            "2",
+            "-10"
+          ],
+          "canonical": {
+            "a": [
+              "0",
+              "6"
+            ],
+            "b": "6",
+            "op": "<"
+          }
+        }
+      ],
+      "boolean": "c1",
+      "boundary": {
+        "a": [
+          "0",
+          "1"
+        ],
+        "b": "1",
+        "included": false,
+        "axis_intercepts": [
+          [
+            "0",
+            "1"
+          ]
+        ],
+        "side_description": "y < 1"
+      },
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "0",
+            "1"
+          ],
+          "member": false
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "-2",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "3",
+            "2"
+          ],
+          "member": false
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+      "curriculum": "CBSE class 11 inequalities",
+      "family": "half_plane",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "y = 1",
+        "1",
+        "P",
+        "Q",
+        "R"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|rational-unique-max|q1": {
+      "constraints": [
+        {
+          "id": "x_nonnegative",
+          "original_expanded_lhs": [
+            "1",
+            "0",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "-1",
+              "0"
+            ],
+            "b": "0",
+            "op": "<="
+          }
+        },
+        {
+          "id": "y_nonnegative",
+          "original_expanded_lhs": [
+            "0",
+            "1",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "0",
+              "-1"
+            ],
+            "b": "0",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "2",
+            "3",
+            "0"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "11"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "3"
+            ],
+            "b": "11",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c2",
+          "original_expanded_lhs": [
+            "4",
+            "1",
+            "0"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "9"
+          ],
+          "canonical": {
+            "a": [
+              "4",
+              "1"
+            ],
+            "b": "9",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "x_nonnegative",
+          "y_nonnegative",
+          "c1",
+          "c2"
+        ]
+      },
+      "vertices_ccw": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "9/4",
+          "0"
+        ],
+        [
+          "8/5",
+          "13/5"
+        ],
+        [
+          "0",
+          "11/3"
+        ]
+      ],
+      "objective": {
+        "a": [
+          "5",
+          "4"
+        ],
+        "sense": "max",
+        "values": [
+          "0",
+          "45/4",
+          "92/5",
+          "44/3"
+        ],
+        "optimal_value": "92/5",
+        "optimum_type": "unique_vertex",
+        "optimal_vertices": [
+          [
+            "8/5",
+            "13/5"
+          ]
+        ],
+        "optimal_edges": []
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "8/5",
+            "13/5"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|rational-unique-max|q1",
+      "curriculum": "CBSE class 12 linear programming",
+      "family": "feasible_region",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "2x + 3y = 11",
+        "4x + y = 9",
+        "(0,0)",
+        "(9/4,0)",
+        "(8/5,13/5)",
+        "(0,11/3)",
+        "Z = 5x + 4y",
+        "0",
+        "45/4",
+        "92/5",
+        "44/3",
+        "A",
+        "B",
+        "C"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|multiple-optimum-edge|q1": {
+      "constraints": [
+        {
+          "id": "x_nonnegative",
+          "original_expanded_lhs": [
+            "1",
+            "0",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "-1",
+              "0"
+            ],
+            "b": "0",
+            "op": "<="
+          }
+        },
+        {
+          "id": "y_nonnegative",
+          "original_expanded_lhs": [
+            "0",
+            "1",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "0",
+              "-1"
+            ],
+            "b": "0",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "3",
+            "2",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "7"
+          ],
+          "canonical": {
+            "a": [
+              "-3",
+              "-2"
+            ],
+            "b": "-7",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c2",
+          "original_expanded_lhs": [
+            "1",
+            "1",
+            "0"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "5"
+          ],
+          "canonical": {
+            "a": [
+              "1",
+              "1"
+            ],
+            "b": "5",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "x_nonnegative",
+          "y_nonnegative",
+          "c1",
+          "c2"
+        ]
+      },
+      "vertices_ccw": [
+        [
+          "7/3",
+          "0"
+        ],
+        [
+          "5",
+          "0"
+        ],
+        [
+          "0",
+          "5"
+        ],
+        [
+          "0",
+          "7/2"
+        ]
+      ],
+      "objective": {
+        "a": [
+          "6",
+          "4"
+        ],
+        "sense": "min",
+        "values": [
+          "14",
+          "30",
+          "20",
+          "14"
+        ],
+        "optimal_value": "14",
+        "optimum_type": "closed_edge",
+        "optimal_vertices": [
+          [
+            "7/3",
+            "0"
+          ],
+          [
+            "0",
+            "7/2"
+          ]
+        ],
+        "optimal_edges": [
+          [
+            [
+              "0",
+              "7/2"
+            ],
+            [
+              "7/3",
+              "0"
+            ]
+          ]
+        ]
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": false
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "1"
+          ],
+          "member": true
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "0",
+            "7/2"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+      "curriculum": "CBSE class 12 linear programming",
+      "family": "feasible_region",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "3x + 2y = 7",
+        "x + y = 5",
+        "(7/3,0)",
+        "(5,0)",
+        "(0,5)",
+        "(0,7/2)",
+        "C = 6x + 4y",
+        "14",
+        "30",
+        "20",
+        "optimal segment",
+        "A",
+        "B",
+        "D"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|variables-both-sides-region|q1": {
+      "constraints": [
+        {
+          "id": "x_nonnegative",
+          "original_expanded_lhs": [
+            "1",
+            "0",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "-1",
+              "0"
+            ],
+            "b": "0",
+            "op": "<="
+          }
+        },
+        {
+          "id": "y_nonnegative",
+          "original_expanded_lhs": [
+            "0",
+            "1",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "0",
+              "-1"
+            ],
+            "b": "0",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "-2",
+            "-4",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "1",
+            "-12"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "5"
+            ],
+            "b": "12",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c2",
+          "original_expanded_lhs": [
+            "3",
+            "-1",
+            "0"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "1",
+            "0",
+            "4"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "-1"
+            ],
+            "b": "4",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "x_nonnegative",
+          "y_nonnegative",
+          "c1",
+          "c2"
+        ]
+      },
+      "vertices_ccw": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "2",
+          "0"
+        ],
+        [
+          "8/3",
+          "4/3"
+        ],
+        [
+          "0",
+          "12/5"
+        ]
+      ],
+      "objective": {
+        "a": [
+          "3",
+          "2"
+        ],
+        "sense": "max",
+        "values": [
+          "0",
+          "6",
+          "32/3",
+          "24/5"
+        ],
+        "optimal_value": "32/3",
+        "optimum_type": "unique_vertex",
+        "optimal_vertices": [
+          [
+            "8/3",
+            "4/3"
+          ]
+        ],
+        "optimal_edges": []
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "3",
+            "1"
+          ],
+          "member": false
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "8/3",
+            "4/3"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+      "curriculum": "CBSE class 12 linear programming",
+      "family": "feasible_region",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "2x + 5y = 12",
+        "2x - y = 4",
+        "(0,0)",
+        "(2,0)",
+        "(8/3,4/3)",
+        "(0,12/5)",
+        "P = 3x + 2y",
+        "0",
+        "6",
+        "32/3",
+        "24/5",
+        "A",
+        "B",
+        "C"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|lower-bound-resource-region|q1": {
+      "constraints": [
+        {
+          "id": "x_lower",
+          "original_expanded_lhs": [
+            "1",
+            "0",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "1/2"
+          ],
+          "canonical": {
+            "a": [
+              "-1",
+              "0"
+            ],
+            "b": "-1/2",
+            "op": "<="
+          }
+        },
+        {
+          "id": "y_nonnegative",
+          "original_expanded_lhs": [
+            "0",
+            "1",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "0"
+          ],
+          "canonical": {
+            "a": [
+              "0",
+              "-1"
+            ],
+            "b": "0",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "1",
+            "2",
+            "0"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "7"
+          ],
+          "canonical": {
+            "a": [
+              "1",
+              "2"
+            ],
+            "b": "7",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c2",
+          "original_expanded_lhs": [
+            "3",
+            "1",
+            "0"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "8"
+          ],
+          "canonical": {
+            "a": [
+              "3",
+              "1"
+            ],
+            "b": "8",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "x_lower",
+          "y_nonnegative",
+          "c1",
+          "c2"
+        ]
+      },
+      "vertices_ccw": [
+        [
+          "1/2",
+          "0"
+        ],
+        [
+          "8/3",
+          "0"
+        ],
+        [
+          "9/5",
+          "13/5"
+        ],
+        [
+          "1/2",
+          "13/4"
+        ]
+      ],
+      "objective": {
+        "a": [
+          "4",
+          "5"
+        ],
+        "sense": "max",
+        "values": [
+          "2",
+          "32/3",
+          "101/5",
+          "73/4"
+        ],
+        "optimal_value": "101/5",
+        "optimum_type": "unique_vertex",
+        "optimal_vertices": [
+          [
+            "9/5",
+            "13/5"
+          ]
+        ],
+        "optimal_edges": []
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "0",
+            "1"
+          ],
+          "member": false
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "9/5",
+            "13/5"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+      "curriculum": "CBSE class 12 linear programming",
+      "family": "feasible_region",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "x = 1/2",
+        "x + 2y = 7",
+        "3x + y = 8",
+        "(1/2,0)",
+        "(8/3,0)",
+        "(9/5,13/5)",
+        "(1/2,13/4)",
+        "F = 4x + 5y",
+        "2",
+        "32/3",
+        "101/5",
+        "73/4",
+        "A",
+        "B",
+        "C"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|shifted-triangle-minimum|q1": {
+      "constraints": [
+        {
+          "id": "x_lower",
+          "original_expanded_lhs": [
+            "1",
+            "0",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "1"
+          ],
+          "canonical": {
+            "a": [
+              "-1",
+              "0"
+            ],
+            "b": "-1",
+            "op": "<="
+          }
+        },
+        {
+          "id": "y_lower",
+          "original_expanded_lhs": [
+            "0",
+            "1",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "1"
+          ],
+          "canonical": {
+            "a": [
+              "0",
+              "-1"
+            ],
+            "b": "-1",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c1",
+          "original_expanded_lhs": [
+            "1",
+            "2",
+            "0"
+          ],
+          "original_relation": ">=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "6"
+          ],
+          "canonical": {
+            "a": [
+              "-1",
+              "-2"
+            ],
+            "b": "-6",
+            "op": "<="
+          }
+        },
+        {
+          "id": "c2",
+          "original_expanded_lhs": [
+            "2",
+            "1",
+            "0"
+          ],
+          "original_relation": "<=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "9"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "1"
+            ],
+            "b": "9",
+            "op": "<="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "x_lower",
+          "y_lower",
+          "c1",
+          "c2"
+        ]
+      },
+      "vertices_ccw": [
+        [
+          "1",
+          "5/2"
+        ],
+        [
+          "4",
+          "1"
+        ],
+        [
+          "1",
+          "7"
+        ]
+      ],
+      "objective": {
+        "a": [
+          "2",
+          "3"
+        ],
+        "sense": "min",
+        "values": [
+          "19/2",
+          "11",
+          "23"
+        ],
+        "optimal_value": "19/2",
+        "optimum_type": "unique_vertex",
+        "optimal_vertices": [
+          [
+            "1",
+            "5/2"
+          ]
+        ],
+        "optimal_edges": []
+      },
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "2",
+            "2"
+          ],
+          "member": true
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "1",
+            "2"
+          ],
+          "member": false
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "1",
+            "5/2"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+      "curriculum": "CBSE class 12 linear programming",
+      "family": "feasible_region",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "x = 1",
+        "y = 1",
+        "x + 2y = 6",
+        "2x + y = 9",
+        "(1,5/2)",
+        "(4,1)",
+        "(1,7)",
+        "Z = 2x + 3y",
+        "19/2",
+        "11",
+        "23",
+        "A",
+        "B",
+        "C"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|system-x-coordinate|q1": {
+      "constraints": [
+        {
+          "id": "L1",
+          "original_expanded_lhs": [
+            "3",
+            "2",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "7"
+          ],
+          "canonical": {
+            "a": [
+              "3",
+              "2"
+            ],
+            "b": "7",
+            "op": "="
+          }
+        },
+        {
+          "id": "L2",
+          "original_expanded_lhs": [
+            "2",
+            "-3",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "1"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "-3"
+            ],
+            "b": "1",
+            "op": "="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "L1",
+          "L2"
+        ]
+      },
+      "system_kind": "unique",
+      "solution_point": [
+        "23/13",
+        "11/13"
+      ],
+      "requested_coordinate": {
+        "axis": "x",
+        "value": "23/13"
+      },
+      "line_intercepts": {
+        "L1": [
+          [
+            "7/3",
+            "0"
+          ],
+          [
+            "0",
+            "7/2"
+          ]
+        ],
+        "L2": [
+          [
+            "1/2",
+            "0"
+          ],
+          [
+            "0",
+            "-1/3"
+          ]
+        ]
+      },
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "23/13",
+            "11/13"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|system-x-coordinate|q1",
+      "curriculum": "SAT linear systems",
+      "family": "linear_system",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "L1",
+        "L2",
+        "3x + 2y = 7",
+        "2x - 3y = 1",
+        "P = (23/13,11/13)",
+        "(7/3,0)",
+        "(0,7/2)",
+        "(1/2,0)",
+        "(0,-1/3)",
+        "x = 23/13"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|parallel-system-no-solution|q1": {
+      "constraints": [
+        {
+          "id": "L1",
+          "original_expanded_lhs": [
+            "-4",
+            "2",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "-6"
+          ],
+          "canonical": {
+            "a": [
+              "-4",
+              "2"
+            ],
+            "b": "-6",
+            "op": "="
+          }
+        },
+        {
+          "id": "L2",
+          "original_expanded_lhs": [
+            "6",
+            "-3",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "12"
+          ],
+          "canonical": {
+            "a": [
+              "6",
+              "-3"
+            ],
+            "b": "12",
+            "op": "="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "L1",
+          "L2"
+        ]
+      },
+      "system_kind": "parallel_distinct",
+      "solution_set": "empty",
+      "line_intercepts": {
+        "L1": [
+          [
+            "3/2",
+            "0"
+          ],
+          [
+            "0",
+            "-3"
+          ]
+        ],
+        "L2": [
+          [
+            "2",
+            "0"
+          ],
+          [
+            "0",
+            "-4"
+          ]
+        ]
+      },
+      "test_points": [
+        {
+          "name": "L1_y_intercept",
+          "coordinates": [
+            "0",
+            "-3"
+          ],
+          "member": false
+        },
+        {
+          "name": "L2_y_intercept",
+          "coordinates": [
+            "0",
+            "-4"
+          ],
+          "member": false
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+      "curriculum": "SAT linear systems",
+      "family": "linear_system",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "L1",
+        "L2",
+        "y = 2x - 3",
+        "y = 2x - 4",
+        "(3/2,0)",
+        "(0,-3)",
+        "(2,0)",
+        "(0,-4)",
+        "no solution"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|coincident-system-all-points|q1": {
+      "constraints": [
+        {
+          "id": "L1",
+          "original_expanded_lhs": [
+            "3",
+            "-6",
+            "4"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "2",
+            "-1",
+            "9"
+          ],
+          "canonical": {
+            "a": [
+              "1",
+              "-5"
+            ],
+            "b": "5",
+            "op": "="
+          }
+        },
+        {
+          "id": "L2",
+          "original_expanded_lhs": [
+            "-2",
+            "10",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "-10"
+          ],
+          "canonical": {
+            "a": [
+              "-2",
+              "10"
+            ],
+            "b": "-10",
+            "op": "="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "L1",
+          "L2"
+        ]
+      },
+      "system_kind": "coincident",
+      "solution_set": {
+        "parameter_domain": "R",
+        "x": "t",
+        "y": "(t-5)/5"
+      },
+      "x_is_unique": false,
+      "line_intercepts": {
+        "L1": [
+          [
+            "5",
+            "0"
+          ],
+          [
+            "0",
+            "-1"
+          ]
+        ],
+        "L2": [
+          [
+            "5",
+            "0"
+          ],
+          [
+            "0",
+            "-1"
+          ]
+        ]
+      },
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "0",
+            "-1"
+          ],
+          "member": true
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "5",
+            "0"
+          ],
+          "member": true
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+      "curriculum": "SAT linear systems",
+      "family": "linear_system",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "L1",
+        "L2",
+        "x - 5y = 5",
+        "P = (0,-1)",
+        "Q = (5,0)",
+        "R = (0,0)",
+        "infinitely many solutions",
+        "x not unique"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|vertical-line-system|q1": {
+      "constraints": [
+        {
+          "id": "L1",
+          "original_expanded_lhs": [
+            "4",
+            "0",
+            "3"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "2",
+            "0",
+            "8"
+          ],
+          "canonical": {
+            "a": [
+              "2",
+              "0"
+            ],
+            "b": "5",
+            "op": "="
+          }
+        },
+        {
+          "id": "L2",
+          "original_expanded_lhs": [
+            "-1",
+            "2",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "0",
+            "0",
+            "7"
+          ],
+          "canonical": {
+            "a": [
+              "-1",
+              "2"
+            ],
+            "b": "7",
+            "op": "="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "L1",
+          "L2"
+        ]
+      },
+      "system_kind": "unique",
+      "solution_point": [
+        "5/2",
+        "19/4"
+      ],
+      "line_intercepts": {
+        "L1": [
+          [
+            "5/2",
+            "0"
+          ]
+        ],
+        "L2": [
+          [
+            "-7",
+            "0"
+          ],
+          [
+            "0",
+            "7/2"
+          ]
+        ]
+      },
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "5/2",
+            "19/4"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|vertical-line-system|q1",
+      "curriculum": "SAT linear systems",
+      "family": "linear_system",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "L1",
+        "L2",
+        "x = 5/2",
+        "2y - x = 7",
+        "(5/2,0)",
+        "(-7,0)",
+        "(0,7/2)",
+        "P = (5/2,19/4)",
+        "one solution"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    },
+    "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1": {
+      "constraints": [
+        {
+          "id": "L1",
+          "original_expanded_lhs": [
+            "-3",
+            "3",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "2",
+            "4",
+            "-11"
+          ],
+          "canonical": {
+            "a": [
+              "-5",
+              "-1"
+            ],
+            "b": "-11",
+            "op": "="
+          }
+        },
+        {
+          "id": "L2",
+          "original_expanded_lhs": [
+            "2",
+            "4",
+            "0"
+          ],
+          "original_relation": "=",
+          "original_expanded_rhs": [
+            "-1",
+            "1",
+            "8"
+          ],
+          "canonical": {
+            "a": [
+              "3",
+              "3"
+            ],
+            "b": "8",
+            "op": "="
+          }
+        }
+      ],
+      "boolean": {
+        "all": [
+          "L1",
+          "L2"
+        ]
+      },
+      "system_kind": "unique",
+      "solution_point": [
+        "25/12",
+        "7/12"
+      ],
+      "requested_coordinate": {
+        "axis": "x",
+        "value": "25/12"
+      },
+      "line_intercepts": {
+        "L1": [
+          [
+            "11/5",
+            "0"
+          ],
+          [
+            "0",
+            "11"
+          ]
+        ],
+        "L2": [
+          [
+            "8/3",
+            "0"
+          ],
+          [
+            "0",
+            "8/3"
+          ]
+        ]
+      },
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "25/12",
+            "7/12"
+          ],
+          "member": true
+        }
+      ],
+      "row_id": "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1",
+      "curriculum": "SAT linear systems",
+      "family": "linear_system",
+      "domain": "R^2",
+      "label_requirements": [
+        "x",
+        "y",
+        "L1",
+        "L2",
+        "5x + y = 11",
+        "x + y = 8/3",
+        "(11/5,0)",
+        "(0,11)",
+        "(8/3,0)",
+        "(0,8/3)",
+        "P = (25/12,7/12)",
+        "x = 25/12"
+      ],
+      "exact_forms": "Fractions are exact; equivalent exact forms are acceptable."
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-11T16:09:02.837054Z",
+  "cohort": "development",
+  "rep": 2,
+  "arm": "candidate",
+  "block": 1,
+  "reason": "Whole-block transport/budget failure",
+  "sourceTuning": false,
+  "selectiveRetry": false,
+  "allPartialBlocksUngraded": true
+}

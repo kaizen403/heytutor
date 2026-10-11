@@ -1,0 +1,414 @@
+{
+  "job": "h3r8-finish-regions",
+  "deployment": "st-gpt-6-sol-h3",
+  "filter": "ModelDeploymentName eq 'st-gpt-6-sol-h3'",
+  "resource": "/subscriptions/efcbe580-2ef4-4bde-9d15-3c8708543e6f/resourceGroups/heytutor-ai/providers/Microsoft.CognitiveServices/accounts/heytutor-foundry",
+  "windowStart": "2026-10-10T00:00:00Z",
+  "observedAt": "2026-10-11T15:24:03.723525Z",
+  "metricReadable": true,
+  "cumulative": {
+    "promptTokens": 49500875.0,
+    "generatedTokens": 13148876.0
+  },
+  "realCapUsd": 20.0,
+  "stopAtUsd": 19.5,
+  "stopRequired": false,
+  "rates": {
+    "inputPerMillion": 2,
+    "outputPerMillion": 10
+  },
+  "buckets": {
+    "ProcessedPromptTokens": [
+      {
+        "timeStamp": "2026-10-10T00:00:00Z",
+        "total": 985038.0
+      },
+      {
+        "timeStamp": "2026-10-10T01:00:00Z",
+        "total": 931882.0
+      },
+      {
+        "timeStamp": "2026-10-10T02:00:00Z",
+        "total": 1654747.0
+      },
+      {
+        "timeStamp": "2026-10-10T03:00:00Z",
+        "total": 465345.0
+      },
+      {
+        "timeStamp": "2026-10-10T04:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T05:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T06:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T07:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T08:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T09:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T10:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T11:00:00Z",
+        "total": 922721.0
+      },
+      {
+        "timeStamp": "2026-10-10T12:00:00Z",
+        "total": 1616498.0
+      },
+      {
+        "timeStamp": "2026-10-10T13:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T14:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T15:00:00Z",
+        "total": 947297.0
+      },
+      {
+        "timeStamp": "2026-10-10T16:00:00Z",
+        "total": 5767263.0
+      },
+      {
+        "timeStamp": "2026-10-10T17:00:00Z",
+        "total": 314862.0
+      },
+      {
+        "timeStamp": "2026-10-10T18:00:00Z",
+        "total": 1346858.0
+      },
+      {
+        "timeStamp": "2026-10-10T19:00:00Z",
+        "total": 3612339.0
+      },
+      {
+        "timeStamp": "2026-10-10T20:00:00Z",
+        "total": 5683466.0
+      },
+      {
+        "timeStamp": "2026-10-10T21:00:00Z",
+        "total": 2109632.0
+      },
+      {
+        "timeStamp": "2026-10-10T22:00:00Z",
+        "total": 5311014.0
+      },
+      {
+        "timeStamp": "2026-10-10T23:00:00Z",
+        "total": 10185500.0
+      },
+      {
+        "timeStamp": "2026-10-11T00:00:00Z",
+        "total": 1205783.0
+      },
+      {
+        "timeStamp": "2026-10-11T01:00:00Z",
+        "total": 1584947.0
+      },
+      {
+        "timeStamp": "2026-10-11T02:00:00Z",
+        "total": 2641048.0
+      },
+      {
+        "timeStamp": "2026-10-11T03:00:00Z",
+        "total": 2214635.0
+      },
+      {
+        "timeStamp": "2026-10-11T04:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T05:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T06:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T07:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T08:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T09:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T10:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T11:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T12:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T13:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T14:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T15:00:00Z",
+        "total": 0.0
+      }
+    ],
+    "GeneratedTokens": [
+      {
+        "timeStamp": "2026-10-10T00:00:00Z",
+        "total": 230078.0
+      },
+      {
+        "timeStamp": "2026-10-10T01:00:00Z",
+        "total": 200245.0
+      },
+      {
+        "timeStamp": "2026-10-10T02:00:00Z",
+        "total": 517132.0
+      },
+      {
+        "timeStamp": "2026-10-10T03:00:00Z",
+        "total": 97385.0
+      },
+      {
+        "timeStamp": "2026-10-10T04:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T05:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T06:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T07:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T08:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T09:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T10:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T11:00:00Z",
+        "total": 195518.0
+      },
+      {
+        "timeStamp": "2026-10-10T12:00:00Z",
+        "total": 426204.0
+      },
+      {
+        "timeStamp": "2026-10-10T13:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T14:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-10T15:00:00Z",
+        "total": 280750.0
+      },
+      {
+        "timeStamp": "2026-10-10T16:00:00Z",
+        "total": 1577709.0
+      },
+      {
+        "timeStamp": "2026-10-10T17:00:00Z",
+        "total": 69971.0
+      },
+      {
+        "timeStamp": "2026-10-10T18:00:00Z",
+        "total": 388820.0
+      },
+      {
+        "timeStamp": "2026-10-10T19:00:00Z",
+        "total": 1049850.0
+      },
+      {
+        "timeStamp": "2026-10-10T20:00:00Z",
+        "total": 1518090.0
+      },
+      {
+        "timeStamp": "2026-10-10T21:00:00Z",
+        "total": 538565.0
+      },
+      {
+        "timeStamp": "2026-10-10T22:00:00Z",
+        "total": 1679043.0
+      },
+      {
+        "timeStamp": "2026-10-10T23:00:00Z",
+        "total": 2750675.0
+      },
+      {
+        "timeStamp": "2026-10-11T00:00:00Z",
+        "total": 381779.0
+      },
+      {
+        "timeStamp": "2026-10-11T01:00:00Z",
+        "total": 319253.0
+      },
+      {
+        "timeStamp": "2026-10-11T02:00:00Z",
+        "total": 531595.0
+      },
+      {
+        "timeStamp": "2026-10-11T03:00:00Z",
+        "total": 396214.0
+      },
+      {
+        "timeStamp": "2026-10-11T04:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T05:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T06:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T07:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T08:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T09:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T10:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T11:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T12:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T13:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T14:00:00Z",
+        "total": 0.0
+      },
+      {
+        "timeStamp": "2026-10-11T15:00:00Z",
+        "total": 0.0
+      }
+    ]
+  },
+  "preregistrationSha256": "c6b7b12870b28f127f8d7340f02ed36e9c84816e712e412127002219824fd689",
+  "exclusiveOwnershipAsserted": true,
+  "stableObservations": [
+    {
+      "observedAt": "2026-10-11T15:22:11.576020Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 1
+    },
+    {
+      "observedAt": "2026-10-11T15:22:28.757750Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 2
+    },
+    {
+      "observedAt": "2026-10-11T15:22:44.560527Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 3
+    },
+    {
+      "observedAt": "2026-10-11T15:23:00.403795Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 4
+    },
+    {
+      "observedAt": "2026-10-11T15:23:16.123471Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 5
+    },
+    {
+      "observedAt": "2026-10-11T15:23:32.018861Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 6
+    },
+    {
+      "observedAt": "2026-10-11T15:23:47.899635Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 7
+    },
+    {
+      "observedAt": "2026-10-11T15:24:03.723525Z",
+      "cumulative": {
+        "promptTokens": 49500875.0,
+        "generatedTokens": 13148876.0
+      },
+      "stableCount": 8
+    }
+  ]
+}

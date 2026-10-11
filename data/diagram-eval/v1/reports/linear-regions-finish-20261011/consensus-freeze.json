@@ -1,0 +1,32 @@
+{
+  "schema": "shaded-regions-consensus-freeze/v1",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "queueSha256": "a8207617175ffafeaf43e10c66eba0ea9c10e475b28411488a43958861d4a92a",
+  "count": 146,
+  "firstInputs": {
+    "a": {
+      "freezeSha256": "8fd706b837d518ea96ca98216f56ff33d560f67a93fe7bfc7d0d313e8ca502b5",
+      "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-a/grades.jsonl",
+      "gradeSha256": "9601ef01bd6205314d74eba584b84b8da5c53703c09e421b355172e24fe4c99a",
+      "agentIdentity": "/root/r8_ship_blind_a"
+    },
+    "b": {
+      "freezeSha256": "aff0cf66fa6fa8dc9e190d061129cfab7ebf5ac663c537bcfe869999b06e3180",
+      "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-b/grades.jsonl",
+      "gradeSha256": "e30a690012a175d7b6951cd1f6992cefcf51226100dbf856542ff5607b744061",
+      "agentIdentity": "/root/r8_ship_blind_b"
+    },
+    "c": {
+      "freezeSha256": "4a35ee3c4e8b8d34780a5502b4b8f50d168897585d045a821f7f01293eaf3ba0",
+      "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-c/grades.jsonl",
+      "gradeSha256": "38aab6fce060e2a966b654728fb9f4e853782e20d6b078404a6e41c471b4afa2",
+      "agentIdentity": "/root/r8_ship_blind_c"
+    }
+  },
+  "consensusSha256": "c86aff3fac59f1a0e5a721b1cd195e6a03ca183fcd703c267704cdf589fb7377",
+  "agreed": 124,
+  "discordant": 22,
+  "threeWayConservativeWrong": 1,
+  "armMapsRead": false,
+  "rule": "A/B agreement stands; complete blind C resolves disagreement; three different verdicts are wrong"
+}

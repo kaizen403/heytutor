@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-11T17:04:52.116374Z",
+  "cohort": "development",
+  "rep": 2,
+  "arm": "candidate",
+  "block": 1,
+  "reason": "Owned wrapper binding did not arrive",
+  "sourceTuning": false,
+  "selectiveRetry": false,
+  "allPartialBlocksUngraded": true
+}

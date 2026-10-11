@@ -1,0 +1,9 @@
+{
+  "schema": "owned-watch-stop/v1",
+  "at": "2026-10-11T17:48:51.629077+00:00",
+  "pid": 57388,
+  "command": "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python .context/h3r8/finish-regions/followup-settlement-repaired/metrics-poll.py --preregistration /Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/preregistration.json --watch",
+  "signal": "SIGTERM",
+  "onlyExactOwnedWatcherStopped": true,
+  "modelCalls": 0
+}

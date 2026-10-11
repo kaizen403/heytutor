@@ -1,0 +1,8 @@
+{
+  "schema": "h3r8-owned-node-absence/v1",
+  "observedAt": "2026-10-11T16:28:24.165850+00:00",
+  "nodePid": 4712,
+  "alive": false,
+  "originalCleanupReceiptSha256": "a6b911bb2afd4e5c841473c571469b6f9e967b77f3d8814e57f9a86c0a5ba726",
+  "rootImageViews": 0
+}

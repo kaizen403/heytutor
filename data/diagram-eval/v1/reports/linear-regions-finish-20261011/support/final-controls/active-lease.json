@@ -1,0 +1,20 @@
+{
+  "state": "consumed",
+  "updatedAt": "2026-10-11T17:31:11.506499Z",
+  "proposal": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/leases/h3r8f-development-r2-candidate-b01/proposal.json",
+    "sha256": "83543af772acc86eaba462b59bbf3fe17fd57ac94851717127b6ebe26a97365b"
+  },
+  "launch": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/leases/h3r8f-development-r2-candidate-b01/launch.json",
+    "sha256": "11fd05fbda8d0802406a362c1e25538ee55998375cb9e28004dcae5e07f0cc77"
+  },
+  "binding": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/leases/h3r8f-development-r2-candidate-b01/binding.json",
+    "sha256": "602205b942e86feeb037cd184dab84bcdca77031c3f3635863cda827350bbb75"
+  },
+  "revocation": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/leases/h3r8f-development-r2-candidate-b01/revocation.json",
+    "sha256": "c1c09712b4d1125a2a971d39e3107475ec7efb1f617a3a6cb774be346dccb38a"
+  }
+}

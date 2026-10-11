@@ -1,0 +1,18 @@
+{
+  "schema": "finish-regions-source-build-freeze/v1",
+  "at": "2026-10-11T15:21:49.811320+00:00",
+  "candidateCommit": "689338462ae3d6ee54c5049c3b285b592b6b738d",
+  "candidateBuildReceipt": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/nonpaid/candidate-689338462ae3.json",
+    "sha256": "aabfbd2b9189312093718fe88906e3d4f1fa0617553cf1ef0a4a6e0e93ea417b"
+  },
+  "nonpaidPackageBuilds": 5,
+  "nonpaidChecks": 27,
+  "implementerFreshQuestionAccessBeforeThisFreeze": false,
+  "rootImageViews": 0,
+  "paidCalls": 0,
+  "sourceFreezePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/SOURCE-FREEZE-2.json",
+  "frozenHistoricalMainCommit": "216450fcf7e5a88d41341a9e79871e1b9d198c72",
+  "latestOriginMainParityScope": "changes limited to chemistry, exemplar-builder/gate and catalogue; maths runtime authority/selection unchanged; original212 catalogue pinned in both measurement builds",
+  "latestOriginMain": "0e372c0b2ff3dbd88866afbbb19cccaca9e2a64d"
+}

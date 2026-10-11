@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-11T17:29:26.116936Z",
+  "preregistrationSha256": "83705d87db5744000e2aba2ac975cc0fb256b3416d3c070194f1b98784e68491",
+  "oneFullReplacementOnly": true,
+  "controllerIdentity": {
+    "pid": 57915,
+    "ppid": 86532,
+    "pgid": 57915,
+    "started": "Sun Oct 11 22:59:25 2026"
+  },
+  "controllerNonce": "2feed42e63d61942d99ce8a34318c0d59e20a6bbf7e1190ce3a767086db61cfc",
+  "originalProtocolStatus": "incomplete_not_ready",
+  "allOldFailedSpendCharged": true
+}

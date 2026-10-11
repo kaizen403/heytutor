@@ -1,0 +1,28 @@
+{
+  "schema": "h3r8-final-control-amendment-freeze/v1",
+  "at": "2026-10-11T17:27:21.230328+00:00",
+  "preregistration": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/preregistration.json",
+    "sha256": "83705d87db5744000e2aba2ac975cc0fb256b3416d3c070194f1b98784e68491"
+  },
+  "sourceRuntimeCommit": "689338462ae3d6ee54c5049c3b285b592b6b738d",
+  "review": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/SETTLEMENT-CONTROL-REVIEW.md",
+    "sha256": "9d6bddf9e7d5a7ea63968e4f6db38190de5f447c319c4e8d6c400c7220bf13dd"
+  },
+  "tests": {
+    "python": 78,
+    "pythonSkips": 0,
+    "node": 57
+  },
+  "priorTwoStartupRequests": 0,
+  "onlyChangedExistingHelper": "eight-cell-controller.py",
+  "runtimeBudgetQualityControlsIdentical": true,
+  "sameOriginalJobCapUsd": 20,
+  "stopAtUsd": 19.5,
+  "carryFloorUsd": 15.45706,
+  "newSourceOrPromptChanges": false,
+  "rootImagesViewed": 0,
+  "newQualityRead": false,
+  "newModelCalls": 0
+}

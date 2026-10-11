@@ -1,0 +1,99 @@
+{
+  "scope_version": "h3r6-shaded-regions-v1",
+  "frozen_at_utc": "2026-10-11T00:47:53.641433+00:00",
+  "row_count": 40,
+  "topic_id_count": 40,
+  "figure_need_counts": {
+    "required": 40
+  },
+  "family_counts": {
+    "nl": 10,
+    "hp": 10,
+    "lpp": 10,
+    "sys": 10
+  },
+  "ask_style_counts": {
+    "topic_ask": 20,
+    "exam_stem": 20
+  },
+  "family_style_counts": {
+    "nl": {
+      "topic_ask": 5,
+      "exam_stem": 5
+    },
+    "hp": {
+      "topic_ask": 5,
+      "exam_stem": 5
+    },
+    "lpp": {
+      "topic_ask": 5,
+      "exam_stem": 5
+    },
+    "sys": {
+      "topic_ask": 5,
+      "exam_stem": 5
+    }
+  },
+  "row_ids": [
+    "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+    "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+    "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+    "maths|h3r6-shaded-regions|nl04-disjoint-union|q1",
+    "maths|h3r6-shaded-regions|nl05-overlap-intersection|q1",
+    "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+    "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+    "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+    "maths|h3r6-shaded-regions|nl09-union-puncture|q1",
+    "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+    "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+    "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+    "maths|h3r6-shaded-regions|hp03-vertical-negative-closed|q1",
+    "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+    "maths|h3r6-shaded-regions|hp05-origin-on-boundary|q1",
+    "maths|h3r6-shaded-regions|hp06-positive-strict-membership|q1",
+    "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+    "maths|h3r6-shaded-regions|hp08-vertical-strict-rational|q1",
+    "maths|h3r6-shaded-regions|hp09-horizontal-closed|q1",
+    "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1",
+    "maths|h3r6-shaded-regions|lpp01-bounded-unique|q1",
+    "maths|h3r6-shaded-regions|lpp02-rational-corner|q1",
+    "maths|h3r6-shaded-regions|lpp03-redundant-constraint|q1",
+    "maths|h3r6-shaded-regions|lpp04-unbounded-region-finite-min|q1",
+    "maths|h3r6-shaded-regions|lpp05-bounded-multiple-optima|q1",
+    "maths|h3r6-shaded-regions|lpp06-resource-pentagon|q1",
+    "maths|h3r6-shaded-regions|lpp07-unbounded-objective|q1",
+    "maths|h3r6-shaded-regions|lpp08-infeasible|q1",
+    "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+    "maths|h3r6-shaded-regions|lpp10-negative-objective-strip|q1",
+    "maths|h3r6-shaded-regions|sys01-unique-integer|q1",
+    "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+    "maths|h3r6-shaded-regions|sys03-distinct-parallel|q1",
+    "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+    "maths|h3r6-shaded-regions|sys05-vertical-horizontal|q1",
+    "maths|h3r6-shaded-regions|sys06-cbse10-unique|q1",
+    "maths|h3r6-shaded-regions|sys07-negative-coefficients|q1",
+    "maths|h3r6-shaded-regions|sys08-distinct-vertical|q1",
+    "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+    "maths|h3r6-shaded-regions|sys10-opposite-slopes-rational|q1"
+  ],
+  "hashes": {
+    ".context/h3r6/shaded-regions/eval40.jsonl": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+    ".context/h3r6/shaded-regions/EVAL-SCOPE.md": "c0c6bc1b42b5b8e033405d60f5e2ab528a05b8808d921947b68be04d15533b0e",
+    ".context/h3r6/shaded-regions/ORACLE-EXACT.json": "53e68ed815d17159940aa816717c7784da2c1179dfb1df84e8ee0e15f58a9b56",
+    ".context/h3r6/shaded-regions/author_eval40.py": "ed016677db8b612ff3ac175e88064c2592c2f85921ff5110d166d721ced156ae",
+    ".context/h3r6/shaded-regions/EVIDENCE.md": "50d1520a758da62468c5a9b00617eed89cd657b429bac85ccf96674d4bea0908",
+    "docs/plans/diagram-topic-matrix/work-logs/H3R6-shaded-eval40-independent-20261011.md": "50d1520a758da62468c5a9b00617eed89cd657b429bac85ccf96674d4bea0908"
+  },
+  "independence": {
+    "existing_eval_rows_read": 1,
+    "implementation_inspected": false,
+    "prior_outcomes_inspected": false,
+    "paid_calls": 0,
+    "live_calls": 0,
+    "image_grading_calls": 0,
+    "examples_library_edits": 0
+  },
+  "status": "authored_and_frozen_only; implementation_and_live_grading_not_run",
+  "accepted_ledger_count_change": 0,
+  "oracle_ambiguities": []
+}

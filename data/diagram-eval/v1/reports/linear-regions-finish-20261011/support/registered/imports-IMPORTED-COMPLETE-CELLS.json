@@ -1,0 +1,2433 @@
+{
+  "schema": "h3r8-seven-complete-cell-import/v1",
+  "originalProtocolStatus": "incomplete_not_ready",
+  "originalPreregistration": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/preregistration.json",
+    "sha256": "c6b7b12870b28f127f8d7340f02ed36e9c84816e712e412127002219824fd689"
+  },
+  "originalCompletedArms": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/completed-arms.json",
+    "sha256": "57a390381e7322b51cbafd12138cd4e7c419637eae33c68588886267e7f6388f"
+  },
+  "arms": [
+    {
+      "rep": 1,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/eval40.jsonl",
+      "sampleSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+      "n": 40,
+      "cohort": "development",
+      "reusedImmutableMain": true
+    },
+    {
+      "rep": 2,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/eval40.jsonl",
+      "sampleSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+      "n": 40,
+      "cohort": "development",
+      "reusedImmutableMain": true
+    },
+    {
+      "cohort": "development",
+      "rep": 1,
+      "arm": "candidate",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/eval40.jsonl",
+      "sampleSha256": "7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f",
+      "n": 40,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/canonical-copy.json",
+        "sha256": "585cfa6735dcabc780119a4adfe6a2edfc97479fe06433a43381fbd031b88ed0"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 1,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/canonical-copy.json",
+        "sha256": "1c25e17d85baf7cf46fbc895328e61039acd7b4c2902184c0cf5fbfa0217e4ab"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 1,
+      "arm": "candidate",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/canonical-copy.json",
+        "sha256": "19671bd489f8887fae4bd6e9d58785347229dde764ecea56a4e7b1830e40ba21"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 2,
+      "arm": "candidate",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/canonical-copy.json",
+        "sha256": "15e1449ea1aea4c91e8d01caf792bed6c95a3a2853fa27e1f8976c5b067b655e"
+      }
+    },
+    {
+      "cohort": "heldout",
+      "rep": 2,
+      "arm": "main",
+      "round": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main",
+      "sample": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/eval20.jsonl",
+      "sampleSha256": "6a74433f4c8dcac5de6323f6e4da3456ab58dedc080da741ca248acc7df8bdea",
+      "n": 20,
+      "reusedImmutableMain": false,
+      "canonicalReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/canonical-copy.json",
+        "sha256": "ca384b2942c33437d709d9b5f02be5057d6703a72af333860ca3b54858db9709"
+      }
+    }
+  ],
+  "outcomes": 200,
+  "artifacts": [
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.json",
+      "sha256": "f66ba2072ae6e7c915507d393a7c269eb68768f417572c61fe480301bd963e14"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.json",
+      "sha256": "32a1bdda066233a74217adf4ff285a9241ae8024678c2eba932686ca55a161c8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.json",
+      "sha256": "bcc1526d6fb2e41a17306e6b52e4c2fb48e931f51d581d4158c66bb2c4f0b126"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.json",
+      "sha256": "a58989cf752091f34b49b15817460fa588b50054fc61f15864b943a8c36a91ec"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.json",
+      "sha256": "fd8b81fcdc78b247a94864b7b5a613f487ad8bb949c0279c88d1c7399755ef19"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.json",
+      "sha256": "01429648dbd684f2cd94ff7f207d224de5a4dc9926aa5ce74291d4ed217fc6a7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.json",
+      "sha256": "ad9299bde1273f1cf668a9f428082c9073c916e2848965564a0217abcd8c1467"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.json",
+      "sha256": "71bc12b716dc86e6532cd68cdf48eb3ce2c055387aa81b93a1cf374a61c1b7a3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.json",
+      "sha256": "7eace4641f593d6542ede3ff90af4c952bccb3cc6c7ab013de5da3b300d77ee6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.json",
+      "sha256": "b54a937ad1598b60bd138fc144f8d7f92bcaf8f73bc9a12368b5c8ec39fb8747"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.json",
+      "sha256": "f2739de6f30a4968c938d7fa07544f2d5739225c7db9567f173f1c30bb47cd63"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.json",
+      "sha256": "a3fb5c5b94295468a5da2b1f6e617ae8ffb9d22f0fbdb77025d1ad65568280d7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.json",
+      "sha256": "6e6327eb1005010c366c23c529913df6b46fd28b7a86ab13525c89b19c38257f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.json",
+      "sha256": "07996a841ee78def9d057130dbb38881953daa0c314d6a69266ce09a52a79106"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.json",
+      "sha256": "f1032edf81a2bf98d25bc8aafaf97f81140749c44f8cb2d8484a856e3d7c7794"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.json",
+      "sha256": "6b3881d5b11cff0988838eda0e14e97f5a77269c31e25b3dda3251aa6ae01e5f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.json",
+      "sha256": "d6971d1b5ec7e8c29165c661fc9a1e9c831217a4bb7c94f58c145237d3bf6ab8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp08_infeasible_q1.json",
+      "sha256": "5efd7a226c9f25a3bd11c7fd7c15ec89bdde0383ea677e68338d7e4f2f203139"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.json",
+      "sha256": "1672b363abefbb1363ea40e981972f66fa21f9943d5b0d558b2619812d2aa2d2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.json",
+      "sha256": "33e3ed5ba46aaff161ed91fdf0101907527de2dcbc76669793dfbfa4aa627861"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl01_negative_strict_q1.json",
+      "sha256": "805eaba3fbda04f22981a2d734364e604357da1c4838f94a17650e260e3cc53f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.json",
+      "sha256": "fca673c06baa482b538d6f15140561e4e5668c737f272bc1c4b4ab5880054d18"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.json",
+      "sha256": "d8e7c06ef6ae3580ed44c95e21698c35dc04003eb256bfb0f83b41ed15afcab0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.json",
+      "sha256": "b3b74879f2e4ecfc1ac1da1b32e16dab8c1d1ed4b2a9f212861b191a62056de4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.json",
+      "sha256": "fd8a6a12acba80810070e1374ec6878e9f6ff470e136cda36d2c34018ced555d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.json",
+      "sha256": "9ab894bea92a422bfc3bf55e9510d7d4f1470e27d3e51302c2962f0789f52850"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.json",
+      "sha256": "20ad969e94918d6d0fe430628854e601584ecf97272d391c459c1c14602745fe"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.json",
+      "sha256": "52cdc835636e71ba877c0010677674ccb196589d3740c98358834e05e9debf0f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl09_union_puncture_q1.json",
+      "sha256": "ab6718f9c99c74db0f7f5fa8deddedf787c666801372098199f87c1cbbef3ac9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.json",
+      "sha256": "b18111ea4daaa2d600eb45c91cb5acd8cb8cde9b496a85f859a96ac173d6083f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys01_unique_integer_q1.json",
+      "sha256": "6334273a9b0fd7482f21fc8fbd0269cc971a4999d4891b1d592137099a92ddc7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys02_unique_rational_q1.json",
+      "sha256": "a9df21acae2973d0bdc6648bc73707311ca63d7c64a6f3bcb17449fc558f0a21"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.json",
+      "sha256": "6ce811f742504b0f0f5159026c5ba0a2073db2f68fe7e1d19b67b4972ad73883"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.json",
+      "sha256": "7f3fe3dc453b0ebe70ac2a7f1412302cc56a3c8f4b68d9b627740f0098a8f558"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.json",
+      "sha256": "4205a8045cbf034c85dce312b83c2f5ee13400e6abbc03f6729b448f2c5322d8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.json",
+      "sha256": "0e0e84f8e3aa474ac7e19c67887d17045d3f40ac7778377d0cce68f78dc68be8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.json",
+      "sha256": "4e1799cdfe096adcaef16bd82a23666e251d144a34d1cda17d6bae094d6604a0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.json",
+      "sha256": "18932c77194fa6b77df854865d1654e06652ce5dc5c77f129eb3dddc65096231"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.json",
+      "sha256": "4b651c3c83acbd50512651f093e03344ef133027b04b14972fee2f6f0f439ee1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/runs/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.json",
+      "sha256": "bad9dd4b0bf7d23ca78cbbe1421d66c05a8e714236e7fda48f3dbd15698f82ae"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.png",
+      "sha256": "de08d77e46db8e250ef420478010e56a8448f10dd79f3945e915a0b226f32a62"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.render.json",
+      "sha256": "4ca316e2c38600c84f00ef3b92643ec2ba3808dbe820d118faca870f9f06d4fa"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.svg",
+      "sha256": "9b2b9b58bbfa04abb3f2bc77391881b85cc1af5713d715327ad87b5338da3d23"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.png",
+      "sha256": "141614e13bd4dc0cc7db51516c1cb780e3e9884a14434ccefc3b34ddf5499ef4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.render.json",
+      "sha256": "21b4c4c219ab376f7728698b5d4896210c381d89761e6b627aa38f6b3849403a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.svg",
+      "sha256": "928564bc0a2250e08bc469935d943749932b3fc0c028617577022b15ac6e1939"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.png",
+      "sha256": "34a030248b7cf5f6b08e9b71d5ef6b10c17437b4282071531e79d8d6e6192c17"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.render.json",
+      "sha256": "bb99baab82f6e19e953bd180ac99c2e076c6b513e51f7b765e0f056dea5942dc"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.svg",
+      "sha256": "456e54c74b111a7f0927eda3f48d6853622a5c513cb7f526fba3fcaf1d571dae"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.png",
+      "sha256": "0042130b8af575b641df54ae7c1b8d006bc2ba81480c3dc3187e9755fee33182"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.render.json",
+      "sha256": "d15eb8570f8ddcb48cf7702e4fac5d8364369fa1222a827216c21e273459867a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.svg",
+      "sha256": "ef3f201b0d84f5511380e4ee85237a0899e46fa68a575ba667ad9cd31fba3a56"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.png",
+      "sha256": "b009e39db35cd86ced15872adc18613c1d341e08d0102a95c81dbc4739d8835c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.render.json",
+      "sha256": "a76150d42b2e62329bd0db27038b28a3f712ba538684397638a98780ea09eef3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.svg",
+      "sha256": "33f11c80b2aa2e35c5a4af0d995c36f771336d0ff915ad770bccd075cbefa29e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.png",
+      "sha256": "5a4dc639ebe704f6b3ba935657661a238f1ba7218aecfe858e6de46ec497d661"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.render.json",
+      "sha256": "594cec283684b318250e5ed0f2bb8f2d0725ec54bea982283069ae2d3593ae46"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.svg",
+      "sha256": "afe17946b36b8a5b50b331c19c962530b3c8fc8ce986ca6712cbd398608c3e65"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.png",
+      "sha256": "b8a2be1f8f81de16c089fff145c11e28695a4b4f72a0a58d11291c3ce47464d9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.render.json",
+      "sha256": "f95659465c9190797c013f19cfc15a36ccc605bdf57361f9410664c3dbbb5b83"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.svg",
+      "sha256": "6b521faf8d045c9505a490a157c3a9507e14700757d6714fdd04aaf0a4c864ed"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.png",
+      "sha256": "ee536faaefaf4e80e59eb73c66aa8e6740b184e4bcc2e312eb428ebca20dae4c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.render.json",
+      "sha256": "d6c2e3f6dad1037ae55862a076b57fa8eb091541264d9c7e2c3f6dad20c24829"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.svg",
+      "sha256": "39b74e7465217b248bbf872999b10fa466457daf36acbe097ed5d1fa128ec59a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.png",
+      "sha256": "9a8b46dea0d72302dbb593f5788dbbaa0b8edd0ac32bf7b87520cb8ee9e78d1c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.render.json",
+      "sha256": "3148b423fe9850459936c8f9e606e1021744577339b08b41397743046e024051"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.svg",
+      "sha256": "c3d309b4b4e10296c57bc8499ef8441977979b51be86abfe2318aae2ee701517"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.png",
+      "sha256": "90f3d15826b12123b0ab518e749a18c63c4ac0f9fdf56e81433f2e3a56a3ca26"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.render.json",
+      "sha256": "109a5166de9c71bb4a92bde865a5a1a76312174642eb05c04eff69ae1e935453"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.svg",
+      "sha256": "0387d800fc761e2032e11d2c62f81f13ffe29c01fb3edfb5e0384c06cf54e854"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.png",
+      "sha256": "74f0dde6a53a8f9cf9f752ddc8d70d34a7a618867a754e64e2b4503b717aae55"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.render.json",
+      "sha256": "3e424f7416c1638131499b484f05ffb09026c2f8003f39edc8b92a9ad67277ed"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.svg",
+      "sha256": "f87fef5bcdff6249b40f928f38b5ff27fa626507586b23637ef137ae71e88c87"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.png",
+      "sha256": "d87ca29a80e55275baef3166e2bec3c3081d55a9f3eb246ec087ac190fd52849"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.render.json",
+      "sha256": "d2580f72e3358e3b73e90d49e49b1236f9c2b49a4a285665ff6850e67923cac1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.svg",
+      "sha256": "d1a60ec4bb03fc806da6a81e07e92861ca5c04fb329e9a23b819cf37f245ee21"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.png",
+      "sha256": "bc0d614c11eb5f104dbdc0c0dffa1c83d442e5b7bb96077ff1f9f66302b98649"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.render.json",
+      "sha256": "6f8e8a55e291c88cf98fe789f976a95f046c09c554d35c887e4f6d61de7d97b9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.svg",
+      "sha256": "d22b5094513cbc264c8c965512b8a15f9f34f46d2c55d83ae233c8f5269a6d10"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.png",
+      "sha256": "307a769c0051266b0481d19f25bf7612dbf18d724368b53a749b374a3cb1d434"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.render.json",
+      "sha256": "0a60ea8715130e23d7656999aff3cf933cbf3a45a50f52446afdf787166a0573"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.svg",
+      "sha256": "d5c4305b28c312b71a584b41240212d0d9bb187ee6daabe630025f62895e6772"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.png",
+      "sha256": "d31b0baa36e622719e9a84be1d1d0f9fe5a26d3d2d083233fd9ac0525b998d57"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.render.json",
+      "sha256": "9eb69496c14de143c15ca1d9a4c99d93663a8879671e0b9aaa32321c72767e3b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.svg",
+      "sha256": "f7b7cbf18d4cd8a8022624e3a8b1f4c75463cf487467dbd942b7826038ccd427"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.png",
+      "sha256": "c6219cb7f05e2ff09a9b0ec239d151c41ec87b6cf4caeb2c1b6c360947a61a18"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.render.json",
+      "sha256": "42044b409bc8e0b71cdc5a71df8077ac0cf8bc28e54cbfba8d342fc50d2c9c32"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.svg",
+      "sha256": "7681221d05bcb40addf1522c02afc9f2d261ec7487131ce1f7a09eff6457967e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.png",
+      "sha256": "f885c2aaf9fc300302ec6b0a4ab2436e5d5f21e5e7587b010bd7e7fa0897e1fd"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.render.json",
+      "sha256": "883c394e00f1ffd8b066684724d6f1c03860164f5c46582b1584d85f215a19cb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.svg",
+      "sha256": "8d9a1860eefa0aebac6fd07b91fc88bb7f8791e10ea5d43c3477d0d786963c70"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.png",
+      "sha256": "8918f529239cc652b0bb7136dcfc3fdfd58487be4f517c8cba9e478c924952d9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.render.json",
+      "sha256": "4ac0c5f860b8086bd84bae80c218a5da165f9b4425531bcd1a3381aec277e144"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.svg",
+      "sha256": "54afbb1f43ae4398a26a0b3de44738778d5e40171938ea6ff8bb3edfb7f8d605"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.png",
+      "sha256": "d41f4d7f1a7226362585ce7069fed5a114320c1552f0e95e03c2d78c8c1552b3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.render.json",
+      "sha256": "df76bd2096db312b67381420af29579a552197ca4589257406ecb1f7720d1493"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.svg",
+      "sha256": "7ebb16ec69d452832849c097bfcd90c06061411b0a31ca4f5a7c3eb05b892168"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.png",
+      "sha256": "3a4b354c6c553539198622cf03a62a0179d1c39550a03b4dbdb30fb4d7f7b077"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.render.json",
+      "sha256": "ae7970775573251d54e9410c43ee189670d10369cfcd623a40c44697ef076b3a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.svg",
+      "sha256": "6a779f24e97dd365d88442a9250dd3b1641c0081fe6cc7cfecab51767302353f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.png",
+      "sha256": "fb7392bd1ee6e120ce8b1023c70e4e12b4f8527185d637bbd57d317e3018c0ba"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.render.json",
+      "sha256": "88d4eaac0b61a113a64736f5ed25cdac031f80a830ea38bb5b3446c62fd3a245"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.svg",
+      "sha256": "cf4bbe87833408c547690083695727278c6581d782193f87520129ff944905b2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.png",
+      "sha256": "fc5ae80ce4af1d29a5950f6b424f10d7c589ba232511427806385fbaa5da51e7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.render.json",
+      "sha256": "19889b3db19133742242da6c939b30c1f8a9320496ac42328376dd987dbe8340"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.svg",
+      "sha256": "3285b4349852b2b519e2c9ca573e01db3d3579224dbe2b480b0fbf3322e03f93"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.png",
+      "sha256": "51fb60dd63ce432387d5470a2d696ce53efef30ab182a306c8c5621ca8668eb6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.render.json",
+      "sha256": "8343aea53b9c49d54a7e3a7bf2389ebdea0f7a9c99e95e2f5550d3e9ed940674"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.svg",
+      "sha256": "9aef7e257948501e44b04c5a7bb0bf58fc890e730d481576309895d5802ee3a8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.png",
+      "sha256": "776e7c165e8957066c91c3fe451a0bc7ad043f9d90a7f6158f579c786c3a9579"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.render.json",
+      "sha256": "77d1a7e1d16e1cb76eaeb3dcbb3f51ae233e874e4fdcea11bd4f9a0d84ab95a3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.svg",
+      "sha256": "91e28b555e4d8fcdc17cd478852b7b4c3288b9ad9e1732471b6b0bd627f9ccbb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.png",
+      "sha256": "a2b1652be227f06986298078e05479f09ce29a638f470aa5e001d4e68b9225ab"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.render.json",
+      "sha256": "4e76f727e5d99553307bd7e589e17116c18d21f932c3fb7d7bb787d5ad910803"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.svg",
+      "sha256": "9afb60d40bf8ba1f7a1ab72a8593f6fdad9df93c45b6dc6cc2ee7517964c670b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.png",
+      "sha256": "e9b6ed98efc0986fe4a4499621e900ce02fe482770f2305ef27fcf3115b38d84"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.render.json",
+      "sha256": "ef3f768d4f86511a38a5202a4fc1607aab7b71e7c6e976cae0f40026a0db592e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.svg",
+      "sha256": "7b0ebc0ae6977d907b3fb7ad6b649acb54660a6b5e8888d77a4f4ba755d9fd37"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.png",
+      "sha256": "85951ef580e7ce20e662275316896126793b5f705c2cd294d67de8260f2828b9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.render.json",
+      "sha256": "faf275ebda09bc43ad917db7cd03fca8c032a9fdb87b178d52763723085046f3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.svg",
+      "sha256": "ee1c1f65a72c1dac260c8a1dc3a8d442c652ef58c18272d2ee9a439851973e0b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.png",
+      "sha256": "8d016d62cfacf1a89cfb3c9b917e6afe784b82ff9116c58c3e0bc79460d401f4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.render.json",
+      "sha256": "49153c234adcf2f2a21f256400b7e249f577883e1eae170bc912060849e96678"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.svg",
+      "sha256": "18d338cb23988b55520df2325bf0ff96bada9a0fcb2aee05820d456694ed6d83"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.png",
+      "sha256": "17bb7c4abea1836bfaf17b99c9d8cf60d56e241b0409c1f2555850c34788aa39"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.render.json",
+      "sha256": "4ddc0251527d1065897be86a2b448bfd92e219cab441e7e7f6bbc8b85c9260d0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.svg",
+      "sha256": "aa8edb087a38754533e8d2daff66944b5f8a94bf28010183d56cfac015002456"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.png",
+      "sha256": "3024026562b71a91e716b2d80d3dd2b693f136f0419ca0ed67278cf1905a8281"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.render.json",
+      "sha256": "e987afd8bfed4080eefb6111b2f358fff47af38279693b5b06d6d556b71d3823"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.svg",
+      "sha256": "2c077d3547a602254a09c7678d18d905fe1e34aada0e8d0fd94d807c6ffdfa70"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.png",
+      "sha256": "58762bbe42f4efcb49548d9fab69981c9578dc32d3a19ee2a81b772d529cc26d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.render.json",
+      "sha256": "8951cdd976127cd53eaac141f7723eca13251ef4e681aa8db0f8d7b5565eb75a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.svg",
+      "sha256": "5f7bfefa531a7328ba202a2fcc18e4a0c4cd56f4aa0c5505ef1cdb4a15f2c599"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.png",
+      "sha256": "563ffe788da4efd697572fb81c24ff84302ae719d99bf130a7c52ade8f7a776b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.render.json",
+      "sha256": "0ef5a524f7764a1997a87b25a7559225e642af999a766d19e3fea438d80bb834"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.svg",
+      "sha256": "eb7d434b340a170860fb6776bcaeef9a19fee91f45f28da506779f7e88985f19"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.png",
+      "sha256": "2ab5a689954931ee3956b487398e2dd55cda3bbcb4a5ae5dcfbcd6c2525574fb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.render.json",
+      "sha256": "79102be9bc87c411b912e4492cf80928785e154a089c231052473296e2255e73"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.svg",
+      "sha256": "73d12ecd9822ff06f0e530ed8f8b7a30d8d96b91e2dfd6fc6eced3ca837d31e7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.png",
+      "sha256": "d0fc965473697055eddcc9f5bdfc0eba2b347ba12519decf1c4fbaf4af95f356"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.render.json",
+      "sha256": "c69e48b56516254c7006ef4846360b5a9df6b4c18c3b26a500de472b382efe1c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.svg",
+      "sha256": "2b4654fbca0bba4ad7e73910984768948dff4b7abb79c728e18f73bc0202c2b7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.png",
+      "sha256": "665e72273449c3cf120b11ee8de1b3c1f4109bef479d84193359106c4d5cc44b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.render.json",
+      "sha256": "5d2ff845f6f83705463a2a3c442df61c46c0c5d9e402f9c77804c244e7703b13"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.svg",
+      "sha256": "6f79d85c825842247e5ad7bc7bfa34052b6e7796b55a421b2d80f1b09ea99311"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.png",
+      "sha256": "78b61f2f79bbccab77d188a24bbb9c9d42899912c6a7304cfbc71fb7786ba477"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.render.json",
+      "sha256": "89195a03498adacbab95e150fd441e4d8868c7c9193d9784205de538ccfcb9cb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.svg",
+      "sha256": "a090c13ed9e0ee4333ee7c0575415447dc5463647ab07ae43afe0f359da85dac"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.png",
+      "sha256": "e478ea4541c94aececb9c8b5d51647c695ea18b6ca8e152d468ec1db3f797854"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.render.json",
+      "sha256": "1d9a2426187e6a953ec5c74eb69aed5b51c99467a9fad1285a95e9e6083d1843"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.svg",
+      "sha256": "0827965f713b8a3b3f7e59f90e1a3f7d18c72481f492e279e48602be594e64e9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.png",
+      "sha256": "ced5a7d8969573909d77d05c32e48b212ec734e34d833db3d479ba2a1f040095"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.render.json",
+      "sha256": "69d8f23910c3e5fa5339d9b5a67de6c771fde9f7f9d0a66969de4bb4b04477cb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.svg",
+      "sha256": "e84225e80a4885198f33ac3098f9e8a7de1fcec87be55b11082e688de651db5c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.png",
+      "sha256": "b62ab13a5f0091e49ab6ec2666674c18a468f213678f38c9854511f9aed4e1b8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.render.json",
+      "sha256": "bc03c60dd133491cf17ed01e78962d0248ab1a5ef47377d9f1d4e07bf6af207e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r1-main/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.svg",
+      "sha256": "0970fb430c5ea0088cbe0278e78b226debb6a44ff60d637ba92bf97dd20dee0d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.json",
+      "sha256": "f3db21715bcccfe9a286323a817ceef883033c549400f3ac1934dad6dbe034f4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.json",
+      "sha256": "c39eb3284864c76fc0e9c5b747bf6bea1818250c7172ac0397c00a6bc523a7bb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.json",
+      "sha256": "3295891cd0f3deef6737604ee8ef9a16544419838a21179c5fc612a2ea5aecf5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.json",
+      "sha256": "fd9573d38d219cd22ddb3f86e3ba92d5c2122d248b4fc95f086f94012316adb4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.json",
+      "sha256": "4dbfc80cfdc6214a3f2ef594d0d6b46452c20dae51f9ebe9a30b3cc763a6ffe6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.json",
+      "sha256": "46d4489887e2e0cda59190eecd7c42958ecdc7f9b09f41242b9758ac7ec990aa"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.json",
+      "sha256": "dec6cb9c0c7886a8aa5b9ff05b5c6bbbda9cb3ece7a815f639d0266b11db2846"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.json",
+      "sha256": "ceeb8c6d671ab77fd2d54ff6de90863411d617495f3d8a2eddd337fc74606b68"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.json",
+      "sha256": "58b2662e8767ee3972d650cd6e9029192647d3bab765a6054befd100862a07b7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.json",
+      "sha256": "e601e8fea98bc621f55b65de033de863927fec37385b4d2bf1f83db90f8e3284"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.json",
+      "sha256": "b3a5462173c8cc152bc9f52bc4b79861973aa61cff8e2a9b0cb6c62c7ecdd063"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.json",
+      "sha256": "8a0c6cdf14d46e1395661482abf34397b609df7dbe17a1a38a529e5603d391d9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.json",
+      "sha256": "52879606eeab1c414b2a4656688c86af99e4849d2fc4a5e175a16a8c0daa1852"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.json",
+      "sha256": "177eb5d0d62dd85c1c982e0686029bdb8008500e1057dc662ea56d94ebb216bc"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.json",
+      "sha256": "c28c5e5c489ee138c363e62d7c40eabda5f70539f224819973ae4bf123dd3e93"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.json",
+      "sha256": "41626ce81ec10ba6f509b0cc9049f6cf3192bffb8a9bfea7b2f11eed02b37233"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.json",
+      "sha256": "06ab8cdbd09157cb2904dfa3324ee1a6bd39ca8c69db19f8c2adb2e2f8211f58"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp08_infeasible_q1.json",
+      "sha256": "81b673686777767c0bf63bae427a1a7a2e6d4a6c053f9f8ba40a4af41b7d20b7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.json",
+      "sha256": "c97a76c677fbef32e39e35fc95ead442b6181ad12ce5ed74c34a4725b8070f9d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.json",
+      "sha256": "cf5095a5e4b564eb19caa5e67391d7e9ed3554963f97575151f2d6d377d52f31"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl01_negative_strict_q1.json",
+      "sha256": "46fdf7b5a99307e0fd583387dc3aaa58919899e136b96fa7480dd7ff37dbc250"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.json",
+      "sha256": "94b0ed0054fbb8631208e5574739a07cd7485a82418f08ea49ddb07384e654ee"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.json",
+      "sha256": "e56afd64ebc717fa4674c995e9dc2ac8b60b61d6fb7acaf684d3f071381bce3d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.json",
+      "sha256": "160a2951f6820a3553585754832eb85b03ed817654b10458b5d76bf3b348e30b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.json",
+      "sha256": "7e7c4e588890d57d612cff7d45f85210cab3265e038bcbd6ccdd35e5c1fc512f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.json",
+      "sha256": "932657f9f48ce5bac562ee595a26e65081ee4e416bd152f1806be233d31fb3ff"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.json",
+      "sha256": "e7894297505c4073de2790f3b871655f561e4c4fdab7da8b27a2d48714dc65e6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.json",
+      "sha256": "595c67ddce475ee83c9b8dd8bb2c05d125b9d8d728fa8080d60bdde6fdf677cb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl09_union_puncture_q1.json",
+      "sha256": "feb41a1546ac7cbbc23f8eaa7157b164e4368373ca87eb16a27f8b97fd914ddc"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.json",
+      "sha256": "bf95d1de1450c6b394c073af9002723f9d528fc82fbfc061c207e2b6798e9a06"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys01_unique_integer_q1.json",
+      "sha256": "de6a0d5fa67d111beb91d37d310a8a5f2b9b82adb1587420b7d17a8749135fa9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys02_unique_rational_q1.json",
+      "sha256": "2b1de37397fe1b6640838fb10264fb10d725cba27c8d5bc1206521e29606cb00"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.json",
+      "sha256": "f6618ae18a36ae21a16b8c7144a14f3262ca9ce4f6084bb3f4a237caa47fe31d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.json",
+      "sha256": "28e216cc060ed39c52b202817756bf24578bd4b333d32a6802b8221b77d38f05"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.json",
+      "sha256": "9b28ee0f59c70f80a8d9dbde818257390716ebcc4828125a915f8cf3783f878f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.json",
+      "sha256": "c9225eeef7533664c76f003d09e427d19192dcf3bbd4aeec5ff4f854872cf16f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.json",
+      "sha256": "995853878fc1737e786eda2fe3e8941abf50c3e69736837e0186666a5ff73b8f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.json",
+      "sha256": "2c0e6cd9d070aed423dbcea515dcdb3caa02ef309a3c73b7cb4d17acc94f7673"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.json",
+      "sha256": "a36d2d5dbfa365ed6f2c471b7c6647a4467d4e7ace90bbc67147d40d7c50a154"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/runs/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.json",
+      "sha256": "b8b3b8fcb88ab29af987b88062eb1b298fd66caf960d865ce45e93bdf4da3b82"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.png",
+      "sha256": "85b1ce8c33121bbae9ceb569184774b7ee6cc5cfee4c3fac99c8cc517bf55e79"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.render.json",
+      "sha256": "c70dcaf44a9ef41bdd2667b7937a52001e1e94f9a844e33a8daa9f5ac2d6a77e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.svg",
+      "sha256": "121db3d02f113234c8b018233789dc31506aa8e5064797719d1b644ae356dfe8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.png",
+      "sha256": "4d4cdb8f7c4c35d487de7d8abd9e1b076f57f670b7d0d958d853954e9d77bf12"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.render.json",
+      "sha256": "52bd5041cbfb6e64f4ffede86b1d829c4edf701349c7233e8a682628eea93040"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.svg",
+      "sha256": "661b28aecc41681aaafbfe8a9655aaf5318440b4231abe32f29d9c916abe7d7f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.png",
+      "sha256": "55e35f7dadf37aaa6d58b68b89abc15a14365d4d4b949214709ec825223d5b85"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.render.json",
+      "sha256": "a0b8c93f2aefac5306fe228482c15e980a7e8c909116b31a1b9667aaa5796030"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.svg",
+      "sha256": "3c41d66b74b40545aaf5aabdf975acd70255715c9ff1c2f6bab585c0914c9018"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.png",
+      "sha256": "2e02dd56149bb23e4206a0d03ba4ca157e071b4bcda8cfcc5f66f9a16a2b3669"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.render.json",
+      "sha256": "3a826e8a187c4e798308ef0db92646ed0c1f479df96e1402c7ce02046b5cb42b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.svg",
+      "sha256": "7629de3ca5f5e0c253ab57d0b57ffd5668a31474e796214a41ec456b175ae30a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.png",
+      "sha256": "fe902b1042d9a01cea07f5609a9ce32bcc08c63f6d6e64ea6654ec21ce840334"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.render.json",
+      "sha256": "a0854a2e5b73d824c916a71d153993c3acd655399b09dd06d491d96145b8a730"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.svg",
+      "sha256": "3ee6870d3c4f82c383fe06d874afb9c76039a4fa0ba7ac27dc78064e2b2b8f9b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.png",
+      "sha256": "1f15dd801809226182e3d4b5bf81131c3cd539557f9a51594a733179de9dc01b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.render.json",
+      "sha256": "0fc611623847a137986227722c443ea0968a7ad6bac7df66bfc2034ddad6cfa9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.svg",
+      "sha256": "e117245b315b0bb22edbd4c81d1e1c7a1dc89212988e85b9212f4e9f8eb95f8b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.png",
+      "sha256": "2d3c35addf2f995db70aaf69d369fba7fdd63e770ff3d5277ad4147ee98a1ee1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.render.json",
+      "sha256": "e6983e36e8336c65ff895f1951404d3d5e81d47b60546b7101c4b71ee23e3bcb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.svg",
+      "sha256": "362c13d714192c8b6612d81c39155182ce74cf676a8da7adc2f32e305c1e3e36"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.png",
+      "sha256": "e91f3c3120681a04e845e240cbb94747fca5defccbbadc42eb37d44c481cc1bb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.render.json",
+      "sha256": "c8bc1927a57b20f7a1521f703c49bd0bd30ce9173fde20fc7bd86d7764633fd0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.svg",
+      "sha256": "853b01d9b9ec085efd5b18058059929e22b3829799c5b944d69d6c6b0952d590"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.png",
+      "sha256": "2b936f5c9ee0480ad9cf75662d485a980e3f683ff1e75ac1a6af60701e1fc9e7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.render.json",
+      "sha256": "a6fc98bf2c479a916dda9c38e9e1b2b36f5020846b9056c8d64059544e307cc3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.svg",
+      "sha256": "ff236b979be50ff7a6933c734c7328ebee3344b2ca105f6630569e4ed8fb8660"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.png",
+      "sha256": "ac87e64aacec0c3a9db9144d2830f1073101e708f61da58bde65cbdaf49a15f1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.render.json",
+      "sha256": "1aea16ac4bf854bdb3c04751abb6a6e34b12a2eeb45ba5af8420bfa15b7dff48"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.svg",
+      "sha256": "9057c6d8a2d2b841f386b64db6fbf26fdd6b3788f2eda4fc188b291755796086"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.png",
+      "sha256": "168b9a432a98cdddb979ec7e8dfcc6128c723f9265d85f847d8649e3094b0f69"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.render.json",
+      "sha256": "314ed8d1939a900fee73fa41cbf8f7a2b3e1bf7c08e41951a86041ded4b9fda9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.svg",
+      "sha256": "c22f2a125b3a028ad7bf55e69c3f92905ce4e0849023b341b66b71fd6a1e6f56"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.png",
+      "sha256": "886d3621c246691eb9410671275b7fd9dc5edf4d52b2ad37932e78dff9ed5e4c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.render.json",
+      "sha256": "d2f038c8a647eb83b2b4ed02eac76ce5765bd9fa7e91d933fc397057f74705e2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.svg",
+      "sha256": "5778e96d6fe3f068720e90239194e0beae29fee23dde62794e34e70619e9335a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.png",
+      "sha256": "dcf3e36b1ed5635142bb92d9f850cfc4051908e4e820021cbad3d5a9aeb010eb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.render.json",
+      "sha256": "5bf357c0e49949210b7c2ae7d6ac7877f14e59f331b64739b62f6d3ca28c23b4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.svg",
+      "sha256": "4d278303f04b9324a0c2e33616da29742201df715cddc466a8bd42bc971c1a1e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.png",
+      "sha256": "37ce32c1831da46fea5cb799fa951fb113d51bfd190dfb3df2a5d3b40ed3ddd3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.render.json",
+      "sha256": "e19865056e8aad89f4d45f7999f9b511a9a1a0f7658162c5394e51c58e4ebe0c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.svg",
+      "sha256": "3a7b5b972c7facdc86b75ac73960eb147bd7c313c3ab91ac02abcfcc371a5f1f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.png",
+      "sha256": "ff2cc79ab2bbacae0f95b5392fe12235e0db90ffd9cd9fc7f2d0a166bcad2611"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.render.json",
+      "sha256": "2943e53562480fe40f2ca9e078b632c8ed0a2a897af5eb13e8237a4e4ac77c88"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.svg",
+      "sha256": "6cfa1d97eb559eedd3827197fc36568e9e9906029625f73b5ed6a62c4eb2e580"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.png",
+      "sha256": "90f1f0a629ff5c1decacb85ef0e3a4156b394415d42cc4d86895e3c8ebd63402"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.render.json",
+      "sha256": "9aea96120fb2e1683678ef4dd396af7f585ceeec1cf8b74f0dac608b1d2a5e9d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.svg",
+      "sha256": "e692945921f0b8b5a394fa9e0f09c87f093b2332efd57599a50c1258354a7fba"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.png",
+      "sha256": "dffc35922612b1cd85be0ca50b2bccf12b14d25fba769aa96f6e27e84ad694cc"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.render.json",
+      "sha256": "685e73748cec359359107de62dae888496dab26026b28522fa04b5562c24c691"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.svg",
+      "sha256": "0b4ee297a05631bf036ddcc09a6d8045c2bab636f3864bcb38366e5c83ebf86b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.png",
+      "sha256": "5963cd21b757554109fd4738209e04e6d917169929b95be7131c852b9ee47fc1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.render.json",
+      "sha256": "2d6ac58da22dce9916b285e2fd9bde1c633e0593ce0f5edddff1bdf68ebd7037"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.svg",
+      "sha256": "16cdf20948c1192b3a3b1a37026a4ee2cd5137a028d6d05e7368bbf6f6813be9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.png",
+      "sha256": "8229a8d905042cadc572bbe737a646aa3d3fcb31a7227bdad804605f3a049294"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.render.json",
+      "sha256": "ca753f4b07781f5235ee8edc8c432591bc2baf2bfe7268bb7d8cefbc7d2c6d2c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.svg",
+      "sha256": "ee6891896c7449cf90b1b0daca96aed909a9373b8f0bd23f3b740915b69a2bf7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.png",
+      "sha256": "df0e538c268ed9a626c0ae85520795f25508cec715aa48a96c75d5b48f275d42"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.render.json",
+      "sha256": "1d740ea919b130db2299addd321ed777cdbbb9475c59114b3b88ec41aca9faf8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.svg",
+      "sha256": "9b94a079760b5e082a92e8a130d6d0686beb96737c1ed95b8d2e070c56fdd61a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.png",
+      "sha256": "195a3c931c36ebf38f2fead3bef9615459c028fc16ba14a0f25f2f5c1dc13849"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.render.json",
+      "sha256": "8caaf029da0c1b948df7c37eba406c1c002f2fbd42ab9e5e70750712295e613c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.svg",
+      "sha256": "eff82233d9f19479123e254d9ad798b71349e89167f8df82d1769e1db21d2bed"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.png",
+      "sha256": "c550832eda68402f230e9fcc12a88ea9b64442005184ec9af96e70d22e2b3cb2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.render.json",
+      "sha256": "856c576ec38aba0f5dc544a40b49e054d3df0d5e3b254793292f7b8861e30a37"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.svg",
+      "sha256": "5d3df17539826deee365f958f8069dedcda793a316f9b6c2eba7350a0aa4031b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.png",
+      "sha256": "0836279f483d4f83513e1f712b9482b3f6cd6892f5686827c29566867b302275"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.render.json",
+      "sha256": "4013dffa1f53aff061690e9bf6f5ca05c274a7fb29f5bce25599b6e7d9edf5d2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.svg",
+      "sha256": "74f6fad8911968ad6a604500d82ef5b945415852f4f53c64a420016382b3e788"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.png",
+      "sha256": "227049060756a6ce7209e6ca1853da90b1afd8363c1643d6d8cfd1fb66201f6b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.render.json",
+      "sha256": "9ef35ac36446f8380c5b2e9c63067f4fc1ee67b7bac6b7bc89e35c1ad281719c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.svg",
+      "sha256": "2f73ef12885703d9a3962d0cca9262407491327cf6579a17bf67da5668501237"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.png",
+      "sha256": "50d987d5643a170371892ccc1016af0ec2e6d74d8b833f33f52b38da604a71a9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.render.json",
+      "sha256": "114a448b0b2d5010592edaec9543a4fb1fca601dd21547c0e27ead63da72095b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.svg",
+      "sha256": "47b3c5530bb59d5224789d30d39fcac3e67fd716ce1b3986db0fd3b7cc67c5da"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.png",
+      "sha256": "164c07a2fdeb68807532445e94b7b296a05c3883c8bd152c554bdb6958cb66a8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.render.json",
+      "sha256": "fb792e27a9fd0a72dddc4005fb4fe2e06e92c540fe519cd4e81a235a15a3f98c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.svg",
+      "sha256": "d79941f68ef28402883875b0bb4716add093e19c310536f36495efbc45ea3824"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.png",
+      "sha256": "94b336d7e6664b83dfd4d25a6f28cfe770f80789ae9dd153b0cac813ca4800b0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.render.json",
+      "sha256": "bc7a5394d20b11c6a64d299b2c37554cbd6270fffd97f5612ae76de59540f225"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.svg",
+      "sha256": "8ab055873f3efc56003e1ce2e1020f5a35dd7ea3024918b77c8fddbe76b82d81"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.png",
+      "sha256": "45025dc85ae4ca5683f9ad9cdd805d635a26d00b4069f70c0e2f60e8ffd69567"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.render.json",
+      "sha256": "e7339d9a09047fad1e304ba2b59eef93e786b386ae00d6f1b2bd38bf40d50e43"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.svg",
+      "sha256": "f3aea9bb11cb226ce64d7fd51854df4ef63261f4e4c77918c7333dcef5bc97c6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.png",
+      "sha256": "17bb7c4abea1836bfaf17b99c9d8cf60d56e241b0409c1f2555850c34788aa39"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.render.json",
+      "sha256": "be9ab16b401716ab52afeb8a325a03dc89d1e8dee7737df0682f89eb5a0f223d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.svg",
+      "sha256": "aa8edb087a38754533e8d2daff66944b5f8a94bf28010183d56cfac015002456"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.png",
+      "sha256": "a23072a732e6f858aa6b1320f29cf3af673192f4f47905c8ee8606e27cb082a6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.render.json",
+      "sha256": "d4b738237edc2db308c297fb46f1d69e021133293747e23fade2ad8bc68bc1b8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.svg",
+      "sha256": "33d3e8b7c8923f79ad634c3f89b57fdb99f560836cedb55cb0753d71910f1c4c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.png",
+      "sha256": "4e949957dd257fc55dcb684bbb67810536195c74bd1b93cde37752326b9960d3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.render.json",
+      "sha256": "d76357620e94c5bd5ad1a1174e1f61fa45bd7a5d9750e4db70def9f979168991"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.svg",
+      "sha256": "53e3a804e6255a982bba2dc41d66ff60cc0bd9c0726eabbe8f5d83ec6817bcd6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.png",
+      "sha256": "a86046c0aac4564c8537b8128fa0d2bc04f50ac572ec2ee5ec7c027947fa3083"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.render.json",
+      "sha256": "88e374040daf9c60eca98741495f446d196041c647645880b642aff9183cd080"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys02_unique_rational_q1.svg",
+      "sha256": "ad7f913203d0ad20e02f55ebf1716d11600b6590397ccd2ac32014e3249af8f8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.png",
+      "sha256": "f867ac9ebca57036140e91131816e4f8febfdd07be2c9c71dc05315c851bb289"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.render.json",
+      "sha256": "203a4e9521891188778ae76b309fa718d74124ae1968085ba073c72db7f18356"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.svg",
+      "sha256": "d3ffdbd48b9913fcc045092bf6f5713d9bbdd56ac2347167ff672b757417ee27"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.png",
+      "sha256": "b176cfdea4ebb308a749df92f3896b490662c741deadc1aef573d534637040d4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.render.json",
+      "sha256": "b4d3da2b9fcc2dc4853170822d7e262922e9ff39236c2fd6a64420a7f71c5967"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.svg",
+      "sha256": "da8c96dd35e07d2e8efde32134d3bb806d718f1a04542c0850dc9693dfac80d7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.png",
+      "sha256": "62e373b81e780bdaac0ef41584270678e06f1870c1053e67911f1c1821e0fe8c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.render.json",
+      "sha256": "322965d2493e6b96333a769e9bf076609235e55a8c38e725f4bbf1c2084887cf"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.svg",
+      "sha256": "0d3d4ae23ac4c57b3718b2336c6ba0221127ad77bb3058df234104125025ee4a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.png",
+      "sha256": "9846b3ebef711f0e2a4e77bb082bab05bd5b1bce0f74842babab7f41b3bb4d9c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.render.json",
+      "sha256": "bed6fea833a521ca7a8240364d151e7c6bf7823d9f7f5d43cc1aa6329f00902a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.svg",
+      "sha256": "23b0c2d8914287583b00bad1db7771609dd7c7495f5fee099a7449ddef4a3a4a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.png",
+      "sha256": "724dcaec12124260cbac9052120b8f401a8f7799d8e5f536eeac11b2c789c7b7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.render.json",
+      "sha256": "8bde78a14a3b372385b14b96585c793f42ca0b94cc7417be22f31e9ce585b8dc"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.svg",
+      "sha256": "9f1ce62e8ec5f19da37a660283d313a8b725213c4a152eb07cd463d4bdd164cc"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.png",
+      "sha256": "d1c08a2fb75bf3916d09301807e695d6c055cf11e66dcff2b3aefb6c049c116e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.render.json",
+      "sha256": "e6ba7617ad5e8d82761d799a6d33a6e4cb35447c9645eac5d312c48cc498ff6b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.svg",
+      "sha256": "f22577609bdd8cf656e57be9ef6cda387306d89dd2a311fb573ba638c6843ddd"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.png",
+      "sha256": "7145f0cd8ac885750ea2396ae5de93d94deb5153dde10804f16efd9b82340f44"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.render.json",
+      "sha256": "7f733b21a10987061b9caa261e8e406f822db17e8b3aae1e0947c000aaa9d586"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/live-outputs/r2-main/frames/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.svg",
+      "sha256": "62d00327f8e94372807490552d8b2a0b7c10a11703fca63363687f55dcce7ff1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.json",
+      "sha256": "32733873306b1ef15460e3ab982e48d5eee228732fd63c46c7c7292b33aca78b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.json",
+      "sha256": "53e9f31550806ace062e2dc04deb2ba7f38f3f12a0ab550cef5356604ffd976f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.json",
+      "sha256": "408a233a15b028c3ea88de1889ff0fd3259113160477cbe1ddd4ed38b2a813dc"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.json",
+      "sha256": "34500e43fc46607a73e9f1d1810cd3a9bbf4b084f52beb6011cc5d035bca6b9b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.json",
+      "sha256": "ea17ce72cefae291c12d51aa49fc0b409215c2d361dcfb720eb3ec229e1810ef"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.json",
+      "sha256": "c0b615daba3b67613022d04052ece9c166a612fbae7c499adf78b02723f6941d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.json",
+      "sha256": "b679d47780885ca456c1ca4eb7dc940b9f18cb64a9bdba9b491bcb248f0fdef9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.json",
+      "sha256": "3eb5b00711b3f88c269d9e730b88e0bc61ceea1fbe5977676f77de6a499ddcea"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.json",
+      "sha256": "19acacd2e0f5c09b33b9ed035e58577c70769fdc69a687cff513af7a8d7053d1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.json",
+      "sha256": "1ce0351dc86220e5729a6e73f2682ef3f42dd8e3c718e1d0566a6c2d37251d2e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp01_bounded_unique_q1.json",
+      "sha256": "f55685ebe52a8d799ff1262895fb42f32d4b17ea5512eedcc9534514131c1080"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp02_rational_corner_q1.json",
+      "sha256": "a275c10b130dcfd2af780e4a8f6b722efa9098c1425913ec181f39e12ad96666"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp03_redundant_constraint_q1.json",
+      "sha256": "e8eee0adf1d458473b0570366b42364ddd94be8cb30e4cc8501e18be04894d6a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp04_unbounded_region_finite_min_q1.json",
+      "sha256": "3f1c1f4d96f26109e43867dd1fde12904f9662aee98436ad53a5fde7dc66598c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp05_bounded_multiple_optima_q1.json",
+      "sha256": "50a5218e9e04173d416e6f4cdb6c77e1a1011fc303f05846c167328f635e0600"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp06_resource_pentagon_q1.json",
+      "sha256": "9800d1bf6c9faab29f388f87eda698767f4c8de0f888f382b8143f674eb45176"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp07_unbounded_objective_q1.json",
+      "sha256": "b0de3f1f9f688ddd59eeea55909080ec60d8dad6e0f82d2c2f881d6cb7c18ffe"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp08_infeasible_q1.json",
+      "sha256": "798a2f2b06f2a1f529ca591aef8cf1be6e1d50c888567039f5b556bbda826d7a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp09_shifted_quadrant_finite_min_q1.json",
+      "sha256": "cc438a6a655f585c67726757c18ef994e40b78bf2e1a293daf5cdaaa1f8391b8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_lpp10_negative_objective_strip_q1.json",
+      "sha256": "2adb2a5af85d1544ee181290f2bbe4fa5bd13b5c3f4c418e384f479602cc0ed3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl01_negative_strict_q1.json",
+      "sha256": "598829b8e64e758ec0bfeee720dabc0c4a6c11987a67cee7f190b0bd4e0bb2de"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.json",
+      "sha256": "d3782ca28c47c213cc5f5123f983574d81c075c5a34747be0199bcac93fbeb33"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.json",
+      "sha256": "a6439a98d42dd804576c6e7bfef11caff4225a596a52d1a7b2334b63c8f52718"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.json",
+      "sha256": "e2ee7fb8fc725fe87ea962c9334c2451c3ed3e33345076cc103c313274fe5150"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.json",
+      "sha256": "a84d396d29c1c8aadcb7558a0d563b64851540a6ccac2983d19813634c39eebe"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.json",
+      "sha256": "3b37c4c73c16b70ddbb73528526f0ec9761711b8f289af7de7b8342aa9ef8e75"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.json",
+      "sha256": "7f53a41bfa0471cdb6ac54280b28b5d7a9ca8096d4f696fcb4ad1aa1e464a42b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.json",
+      "sha256": "480783d0eee37eb21315c0e44d37699f3a21e11d538f03ba97a4ba972378ac36"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl09_union_puncture_q1.json",
+      "sha256": "dfd07ecad46e8a2741e3578eb284411ae085c5a632e2586b0b81feae9ee946b5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.json",
+      "sha256": "ce88c6e5809260983eba5f8b7519bc8be74848d00b214128202179e647ab1ff5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys01_unique_integer_q1.json",
+      "sha256": "bd676ee426b57070b603fe6905eb8285c9af45e1e638e190a4da745427da2f53"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys02_unique_rational_q1.json",
+      "sha256": "197f769c8de15d2f61a4d8cd3d0d5d367664fad1a6e0b4f02d948e2f2075fded"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.json",
+      "sha256": "14b6395feee9758d9024da647b265eb89ba91667c2b2003250eba9cc61a4e281"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.json",
+      "sha256": "b2be4b7acc901c09b44f64c6f8779e1efb01ac043bb7f22d349cc87c1cd61e77"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys05_vertical_horizontal_q1.json",
+      "sha256": "e75c6ac48097e7dc2a667a6252bbd3e73e69e1e5314df2d9a54e0057be6e6de8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys06_cbse10_unique_q1.json",
+      "sha256": "7659c1bf8ec8c5ae68af325cceb3646451ac53778f7797ba0dcf632dc16eeb33"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.json",
+      "sha256": "549af7b1ce194cce32c071db770b0ac0fb75c9edec15770a4c352a780b4f436c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys08_distinct_vertical_q1.json",
+      "sha256": "927a32fb448d3179e10b007778b5770c3a84de371a096835d83d1973aab291b5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys09_coincident_horizontal_q1.json",
+      "sha256": "44cd750763173c1c0fdb52b9b3cef940a7243b6a2a00b5e57eb6ebe8d93e1189"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/runs/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.json",
+      "sha256": "f9efd48def87854410666e913534d96bce3cd6e769edea31f1e267435d98fa7c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.png",
+      "sha256": "53dfdbb7cb745678a14a5175272ee2899a21ff1a7b9da549ac6b8142f7642b42"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp01_negative_both_closed_q1.svg",
+      "sha256": "0a1943e681a8672a05a49445a99e2004aee05fb670790fb1caef61ba859fd50b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.png",
+      "sha256": "24232e1beb7b885f6377ca7e50c82b70995354b09149617e3e294a61f8640781"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp02_negative_y_strict_q1.svg",
+      "sha256": "3791c289d4833696cf1b3d95adc2ccf4732b6e598adb6a8d5a0b29c2dfd9d5c8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.png",
+      "sha256": "e2dcfc11d74974b098c15a17a21810f070e43c9f81fa4b150787e54edaae4b57"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp03_vertical_negative_closed_q1.svg",
+      "sha256": "1e77af7c467aec84a969b159daa385cca0b0deec005df944411caeb52c52cf16"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.png",
+      "sha256": "d9657f43a2f0567f8b60b8e841e6bea8a372117973d30ee950d2b2f26018e45f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp04_horizontal_negative_strict_q1.svg",
+      "sha256": "9970b143a340881721b40b24d5bf17c4efadbd9c1c40e6b00b69afb66c3d3fcf"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.png",
+      "sha256": "4155711cb460093ed304ad004b9becf766af97ab9c782c5fc36b27ba8a4a8be5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp05_origin_on_boundary_q1.svg",
+      "sha256": "57cd5d1888db772d9e3a5b1f2eee44c4b4f40385717e8b445446f3921326bc29"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.png",
+      "sha256": "aa9b0c645a6488a711efc08c8c25bd74d6b248af9afe36f5b4fc9af70f4bec5c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp06_positive_strict_membership_q1.svg",
+      "sha256": "ed6807e26182f973bb47bad245636a7af4d10dfd4a223467b1411299d7f93c6d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.png",
+      "sha256": "6268276b3c7ff01c911ec444f88e70f39adb25d420f065e588511a2c03b14c15"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp07_negative_constant_membership_q1.svg",
+      "sha256": "c7b0ef95d228c8c9b20f9aa3a4eee6db33e38e0335bb789ca590767e189968da"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.png",
+      "sha256": "5388ca9d1e2a61f742308f7020f9bcbf41577d4eaba85ec90d0fdff3e8d157b9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp08_vertical_strict_rational_q1.svg",
+      "sha256": "760c151408224e0c838d9d1c311270ca0e293aee1c1069eee100874eec457d81"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.png",
+      "sha256": "794440d5b792221cd271326786b7b455280a190842ccb60a9eaea3cd6e51a29f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp09_horizontal_closed_q1.svg",
+      "sha256": "f9a6d4ecc5571036c20675f78feb47646962b986f39d02114a2d53b1d41026da"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.png",
+      "sha256": "360ba960de8da2f5e3c12748c21b514d1fd1274d33d9caeaa1243f6d6b48fc46"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_hp10_strict_boundary_point_q1.svg",
+      "sha256": "a7bff55c4a9094dacd3642f996a00aa62c76604c75061e3613f82c7de3b8d1ae"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.png",
+      "sha256": "0b6cb94da1702c2917e770f3dd3c4568df2e0dca4847d053d093135ae30d78c2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_lpp08_infeasible_q1.svg",
+      "sha256": "aee8fc9d8271d61ed323bfe3b9355f7f3af9b5d90d0b58cd8240396937016fc7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.png",
+      "sha256": "41ebee010996edbad1fb2092b817a5ad55aca79d0206e3a72dca4fc25514458f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl01_negative_strict_q1.svg",
+      "sha256": "c3c40615941d0fe17a071972b7c4b2a59f26e8355d6939a8fac63982fdaf86e4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.png",
+      "sha256": "203a432ed52d6eed0f5e59d71073cc66493c005bb16dde90a5fd89d72e4462fd"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl02_negative_closed_rational_q1.svg",
+      "sha256": "4c36c401e53142798f006b9b7863573beb4f68bf0c59770abf0e5d6a369e1be2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.png",
+      "sha256": "5cf1bfc20fd20f78c0e64f9e55b59d5da5ee628aea883dd70709f94734cccba5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl03_mixed_interval_q1.svg",
+      "sha256": "9f005ede0971c91279be334635758d156548239995a0f4797c120935c34fe70f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.png",
+      "sha256": "47aa4882dc792f0f3d764c83a13050cd78bc9f354fe980a2f7485108320e7f86"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl04_disjoint_union_q1.svg",
+      "sha256": "e445e78cdb3e7b8b6771d87fde0f3310f55be436685ac1e144eb7264db9bd7d7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.png",
+      "sha256": "9192fffafce2dd06316fc53eeda10d3c2af7e539e25b71ada9e6f0159babc3d2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl05_overlap_intersection_q1.svg",
+      "sha256": "363770e770bbe1d84bf230111b818679e5bef7b222eae1fa0b93105488e08827"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.png",
+      "sha256": "305c7b0c102ccd7eddae5003f1507f6416dcd457f53b52b76040fc7a15fbc254"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl06_fractional_inequality_q1.svg",
+      "sha256": "b6d44d3b097a43a9fcad4faa9cfa3866afe2e635996f7cf648028b0d698b08e6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.png",
+      "sha256": "41b6e0119269365aa2bd73f0201d284e8306780b2be6775f3d98c93be6a95f68"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl07_empty_intersection_q1.svg",
+      "sha256": "616b73ee81ef2fe3c972dcae625aefeadeef72630441226c49aadca53d00e7a1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.png",
+      "sha256": "92c79f84102bed52b73e09176d164b9bc8b79db3156718819d56c7ec7bb4b68a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl08_all_real_identity_q1.svg",
+      "sha256": "0860e628558c8c5072aca5295b46e9d48600323f019777bce15bca06e8ba427e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.png",
+      "sha256": "195e1034799b69874b302e86b84ac156b865dcc4ae68306f3ac336ef9e05aa14"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl09_union_puncture_q1.svg",
+      "sha256": "e4d3d5ff90c89012c56628e289f399490795ec38813ec92369fe376098a9ba3b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.png",
+      "sha256": "1c02c26a8a6265200c9ddad53cba6eb52817691239aef50869149d36fac69146"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_nl10_singleton_intersection_q1.svg",
+      "sha256": "a1489a799f510a668ed26435387de93e472952251c5f2959df4db625649c2658"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.png",
+      "sha256": "253bce73a379927fdc8aa6545cf2a4c8efd752f540d365a9ab9669c3a9a7168d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys01_unique_integer_q1.svg",
+      "sha256": "f1e28c14c223c77bfda8b27d29d64deb4f999e19506235c0e1239f3d14279e0a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.png",
+      "sha256": "b8dfa695be1d19006e81f7330a46062154efc6191bfe6e4003a9c39d9d307b33"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys03_distinct_parallel_q1.svg",
+      "sha256": "ada825e0fbd63bb6c455ec16bffca297a9310b8050493cba7cdfaa87544526ad"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.png",
+      "sha256": "5029e39c5c5be177eaa067e6d5c44f41b9cdefb436ece037762c37c1670e5bda"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys04_coincident_negative_scale_q1.svg",
+      "sha256": "06ec6f4266a69a327a1ea72f57b410b17933f665ee5d6eedbb45b83cf818eefe"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.png",
+      "sha256": "c9708ebab10eeb9d12de98429879f8654c731bfa1a4011b355655d93c4db7a12"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys07_negative_coefficients_q1.svg",
+      "sha256": "58a2c90fdb1a5efa207485c49487bc46c105e39e74424dadf16f4b022ff66512"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.png",
+      "sha256": "84866b2291fbd67f0d315c73119ce1a668308b722b8211b84e2c8f3cc29cf782"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/frames/maths_h3r6_shaded_regions_sys10_opposite_slopes_rational_q1.svg",
+      "sha256": "29cfe54fa013b5c0cbfa21329a4570755082937c5d534d6e910295c77aad0a4d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/development-r1-candidate/canonical-copy.json",
+      "sha256": "585cfa6735dcabc780119a4adfe6a2edfc97479fe06433a43381fbd031b88ed0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_coincident_system_all_points_q1.json",
+      "sha256": "b0874f2ac5774d40415371cdd70354d2f6bb84a65d8bca54680e1d6fd3fad0f0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.json",
+      "sha256": "8da3c1c185c68ffe157bcd8d8519f5b159d4bffbf30112e9b101af0f533dcb59"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_interval_intersection_q1.json",
+      "sha256": "5988721d813662161e7c43feadd902a6f7bde52274ef23c8bc5ef920415c7aac"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_lower_bound_resource_region_q1.json",
+      "sha256": "294f6169a5ce265d6e2ab0ead8c1e9d926785e444a71aade3a4fda6dd261c96f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_multiple_optimum_edge_q1.json",
+      "sha256": "018012bfe02007a7f87bea33e9e67f351b4c66a6052cfd1583237e7342f4cfc6"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_named_interval_difference_q1.json",
+      "sha256": "70c8bb1e6cc16cd3735b52c69ef6e5cc722271125171b81cec870bf90acb182f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_negative_scale_half_plane_q1.json",
+      "sha256": "69cf17e2b57aa49839e9e9615228a84fcbba38a2f38e646766fc6fbf9e536972"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_negative_strict_ray_q1.json",
+      "sha256": "b7964da6b28e7021336450d33d4fd21bedafa4bbefbfc77d230d9e02161891be"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_parallel_system_no_solution_q1.json",
+      "sha256": "8243ade234ce4237c9b6a6a748864bccef37c31a6cb38a4851875efdf743df6d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.json",
+      "sha256": "3f79ff70638293919874b452af626752b1ef00764a985eb60c8db925fd8f0442"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_rational_unique_max_q1.json",
+      "sha256": "7535450a1847b6f753b2afe970eb8cf1ec2285b2b5b3b4c0283f398967cd8060"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.json",
+      "sha256": "5e269ebe539c6be575eb9ca59e9cfe2ae3fb9cfc14b442e6152dc680aa47f467"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_separated_boolean_union_q1.json",
+      "sha256": "9c75c9d465aa2621dc3bb5575fef02632065b38934890878b8af0d04ffb0a8d4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_shifted_triangle_minimum_q1.json",
+      "sha256": "a4aefc2a6759d654c582048a4ce4f9b4517ab9a8340a5ba920c9cc15b03c5b5f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_singleton_intersection_q1.json",
+      "sha256": "009545b7d7fdfb5755e7a5e2a93858a2274d4bee65ef4ea582a0e078cb1a3887"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.json",
+      "sha256": "6d55459363fb43822951e79c6f653f2a9fe191b761504b0ed4e61a3daa85349e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_system_x_coordinate_q1.json",
+      "sha256": "1f98b48e5b83a4c8fb6285c014c360c5175d1f1f9507d4409e14d3ff3e449c13"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_variables_both_sides_region_q1.json",
+      "sha256": "3c9ec7734004695540b408e774b47a0d14f2a64e0ec7df3b17b0bfdc09aeebc3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.json",
+      "sha256": "0492e306b3475e37d3392aff04cd84dd2a4ad545ab74a5c332025990065a6fb1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/runs/maths_h3r8_finish_regions_vertical_line_system_q1.json",
+      "sha256": "eef027631ce5735949f533071ad8da41fcd99144fb17e6fcef85f8079ce1c415"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.png",
+      "sha256": "fc7520e99b4b14c48abf9ebb69ca377ac0d7df1a33eecaa81a0cd98175bd6f1f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.svg",
+      "sha256": "a01c76e2d25d72d4d6878c67086db72bc6b06a9d9b8b26d7c2313c98dbbb27b4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_interval_intersection_q1.png",
+      "sha256": "ed1854bc28546b9765717b725ca5d154513cfc764db0f0e743bee1707b34109c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_interval_intersection_q1.svg",
+      "sha256": "dbb2b94268949a4c63163df13c7a751452f7bdf5289c1f350023e29a699aa271"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_lower_bound_resource_region_q1.png",
+      "sha256": "e3110b1875e47f11337d0ee70aea3c4e1758be078f9424483827b9da6bff30bb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_lower_bound_resource_region_q1.svg",
+      "sha256": "25d8dffcc2dadae93dfd52265f40fbbb372dfdae86fde449efaa746730abf394"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_multiple_optimum_edge_q1.png",
+      "sha256": "54d9ac844ba7846e6af8ebb21a1459c9023396c688b5187b9f642486940808a9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_multiple_optimum_edge_q1.svg",
+      "sha256": "086cc6c0048035d56696073361d458ae09ece00c0c3fc45c8ad8167db75bd975"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_named_interval_difference_q1.png",
+      "sha256": "0dfefeb561dbbd7dbdaf0d5274b78b18a65486b64a7f51d3b00f3ca19d68d71a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_named_interval_difference_q1.svg",
+      "sha256": "7a34ed31298724c9b5d4251a7d4d919f336087109d3ba4519cd6873b214e38cb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.png",
+      "sha256": "a9969c0515ed5f3dcda8ed8f47d31fc330428e579cb19810504af5f024538be4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.svg",
+      "sha256": "b6ed398cb209c1fdd95031fd67453976ed8a437754bfee043f13cf89c7a720fe"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.png",
+      "sha256": "7e23dd40cad172709afc44ef942ff11b802a1c280732988ff47dff702580dde1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.svg",
+      "sha256": "60c800120f636b89adb2e67d765007c2f8c38637e7c4c3ad2612bd9cc3929779"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.png",
+      "sha256": "0f34e34b2688f8c08f01e44f755d49667810bf0c8ec077042bcf4c2b8f1d4d82"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.svg",
+      "sha256": "ba0ba6a5825068f7b060b485b1155643c5d5e74566e2aa4a95d88dc9f6d7ef9f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_rational_unique_max_q1.png",
+      "sha256": "cd35b79792480d0cb25c3478d459cf1db4d270ea8a2bc8933524eb15ae3609e8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_rational_unique_max_q1.svg",
+      "sha256": "e40d74bb9c5de7f1ff072dd18b4e7a6d20ded4c753728f13ffd08e02a205f37c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_separated_boolean_union_q1.png",
+      "sha256": "ce75388b155ed033d22398447e6cde90deef15d384459b1ac67a45dd23970e04"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_separated_boolean_union_q1.svg",
+      "sha256": "550a64062697d9bca18f6efb7a8abf2c97d34b8ea3aac46d9ccbd22030d69430"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_singleton_intersection_q1.png",
+      "sha256": "43c8eeb34b4e85041f0dd69728316242c19ee071e115aebe3d29989b51d6fee0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_singleton_intersection_q1.svg",
+      "sha256": "5130d3843057349fb9fc64c85e738462fb6cd012aa9bf6fcf3ec7b18abaa9aef"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.png",
+      "sha256": "17cb51cd8addbd6cc3898f86943744b2127d526a965a14dfb4bf2e82c52bd9e4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.svg",
+      "sha256": "dc1c81736743aa513c9793db11ad91d021e7d1d58ffd23b016a9ce0a630f79ef"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.png",
+      "sha256": "cac36a793598ab5b54cfebe45b135f812e4e8084b600a9f8da730d916e13a99b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.svg",
+      "sha256": "ba4eab14e79eb2ca59ac84c2981be578080b33581d6c39a4e88592d1d36e7344"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.png",
+      "sha256": "9ed67468c25478b665184331f80e6bfc01aadf41c3d00dd8e37a9cd55d85d0f4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.svg",
+      "sha256": "ced5ed4fd3ebd407aada897cc9c19d897dc23087ba73b6d1d0df850a220913c4"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.png",
+      "sha256": "6ea3638d6bbcf1259b4183641022ee88fa522be9c0adbf0a4f52e84b9f7c3d2a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.svg",
+      "sha256": "5f72b82681895a7f7cfd311bd306c602a7e0207f6fd40eb74797e0f67b62794e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_vertical_line_system_q1.png",
+      "sha256": "63370b15037c9571a33aeecab5e9837a263cd678a9cd7899c6b28eaace986896"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/frames/maths_h3r8_finish_regions_vertical_line_system_q1.svg",
+      "sha256": "1fb641e5eb6f03c6a7f58250ecfdba5b4cbd6c0844ff40c1a23cafe4ac6d7b61"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-main/canonical-copy.json",
+      "sha256": "1c25e17d85baf7cf46fbc895328e61039acd7b4c2902184c0cf5fbfa0217e4ab"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_coincident_system_all_points_q1.json",
+      "sha256": "cc36ba529928e9853266315a30aa344189bd83e2177937b09297957c9ae777f3"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.json",
+      "sha256": "1fb98b95b3f73ec5c4db8463788d5be27674dfc712c2c886a0411cfc1afb4186"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_interval_intersection_q1.json",
+      "sha256": "2c0cc4017e6c9093461452443583dd5a783bafce713ca499d855b8435ad6275d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_lower_bound_resource_region_q1.json",
+      "sha256": "983323c6e6235a2e8c6201d3a697dc05e45d4ac97277f5198e6875d364cadbec"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_multiple_optimum_edge_q1.json",
+      "sha256": "7ff6853cf62e56513f2d66e24a6498ddc8e42300bdaf4e198eb953e8adf0cbc0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_named_interval_difference_q1.json",
+      "sha256": "653181c794bb4aac217be0c721ae636f32a80542ae070081b15e7c5e8a0d407f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_negative_scale_half_plane_q1.json",
+      "sha256": "148506344da0126238670f2f5f7fce52d336061746f5305bc20a9df7230b7115"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_negative_strict_ray_q1.json",
+      "sha256": "6d09b807ddd51ca55e4330cc502176f861f59227491183f8d70f493f87906a50"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_parallel_system_no_solution_q1.json",
+      "sha256": "cb2e8900dcb0b4bac18cdc4917f34fe0b092b2557caaec25727695298287400c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.json",
+      "sha256": "7156691f899e2693b6ff3831c835aded4ac1850b427e3c6b7906842bbe142780"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_rational_unique_max_q1.json",
+      "sha256": "008135474dab976db3f1480e600261829099f4e82849b9fd4ea5f9acd7dbe42e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.json",
+      "sha256": "6c20f158f52db1ac657810d190d9b246e0ad597d593a25e1868cf2ed066cea68"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_separated_boolean_union_q1.json",
+      "sha256": "ba94b0be5228e0477a51144d0f65d75dd0759698fddbb803f264d3b1013b489f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_shifted_triangle_minimum_q1.json",
+      "sha256": "667760bb82ee82a07556283f3eea272752beb71f672f37a03b757bc31f8a95b9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_singleton_intersection_q1.json",
+      "sha256": "58a065447f99af79fe7ef27daa1ad5d5fc39f66005fc4e56ad8e1e3a7de1a934"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.json",
+      "sha256": "ae90c0a24a211d290103a1eec1b10058092d261fb1238655da081182b8eca2e0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_system_x_coordinate_q1.json",
+      "sha256": "d5cf7a3e8ccaffde694f0b81a9cc11c3ed1e17a1124a1f31bc9bbcef5bd2d3c1"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_variables_both_sides_region_q1.json",
+      "sha256": "e97d042ab637b6e96658240dd0fb288a2cd7a4894c027105a83dcdaf74557c9d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.json",
+      "sha256": "972b8b8579552b2e2a022f5e65646bb0e8edeb4fa8aafaf8b1d6a2860d366131"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/runs/maths_h3r8_finish_regions_vertical_line_system_q1.json",
+      "sha256": "0e7da5a196f0b5180209c20c8ce2ee3d7c9aa7b647e8ddcf5a2015cc35c24758"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.png",
+      "sha256": "1e0d0dc84fa78e7014b49ab0db69736191a3b7e33b4acbe7d7e019ab15e6f996"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.svg",
+      "sha256": "444e1e83e5882eab9b2ef62a06fdaac0eb089ef2d4e49b022a8d35dd29acdffa"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_named_interval_difference_q1.png",
+      "sha256": "061cc683a49b75d336bc9bfd36d393bdcaf9d7497da10ac88c8e2e9ccf236523"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_named_interval_difference_q1.svg",
+      "sha256": "b563bf60fa0f24c8297f413ae0331c7568135662b786fa13cc45eb181fec08af"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.png",
+      "sha256": "78d0b6899ab5d9449ac02e50edf5baf21d96196c3e49994f3c0c9846403052e7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.svg",
+      "sha256": "7426d2e868bb28f227e615522293840377865446218abc6728d5539f4644c898"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.png",
+      "sha256": "0a1d15e98c3b184e20df1561cc84dbce7dd23b0c280815b5abaec614acdc2813"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.svg",
+      "sha256": "7f0e623392204e6f2833351a51a784a041d108e7e7930f6a87421ccdc0db85d9"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.png",
+      "sha256": "8e7f43ad55bb91718ee1f9a62b593a8a0966a5ce612575e681b799e99d49033c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.svg",
+      "sha256": "666bed78c5a139fe252382a42e0e406b00b11e75c739cd16c9144e69eb39f52a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.png",
+      "sha256": "5f1c6766eb31152aa8e81bb5a83ae2ee141098abbafc6805f4933f21a3027e7c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.svg",
+      "sha256": "d26bd65bd665dd0c42f805528f86d94a9c74fd56449a4d9c27604a0c039a7e31"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r1-candidate/canonical-copy.json",
+      "sha256": "19671bd489f8887fae4bd6e9d58785347229dde764ecea56a4e7b1830e40ba21"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_coincident_system_all_points_q1.json",
+      "sha256": "03465eef81021b965b27d5b6bb912d41763fb556ca02e29fe06c917f8a01b593"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.json",
+      "sha256": "5a82ca124345e3da64024668a26de571773ad9ab066798e43474a93b3552ee48"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_interval_intersection_q1.json",
+      "sha256": "de153432a4cca3365f2e0c0044ab5cce5224201e96b953042ae890e94cadf962"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_lower_bound_resource_region_q1.json",
+      "sha256": "b6c0a8eec86c07a58eabbb21d17e50a80a6a94657aff60502db3542daa72e165"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_multiple_optimum_edge_q1.json",
+      "sha256": "e78a38207f2718fab0e4aad68f946795d9a3b2c22907d8180b19194d7cfce43b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_named_interval_difference_q1.json",
+      "sha256": "dc918124534f1a21285aeb2c958add7b3cb2f3e0726e10b39aa9a0e3e4a1ba4f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_negative_scale_half_plane_q1.json",
+      "sha256": "e0f8b63bdb70489ae3d645ddfcb8ba2839e58bf471ae056c12b2b2dcb581364b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_negative_strict_ray_q1.json",
+      "sha256": "be2aa1baafbe794464d8a5f9c06a89dab50b48a5be0f88080c5bae73b0fa247c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_parallel_system_no_solution_q1.json",
+      "sha256": "2c778d92dbee340cf94f1607666ff33ddc11c8686b02504771985622ee5d0db0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.json",
+      "sha256": "fa146c07bf63458248c480b95f04a7bb8011e45ddc486386f99ec986889f3eae"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_rational_unique_max_q1.json",
+      "sha256": "7d793a9484fa801052e658336d0c5b43069a865f4be72c9090e81479b1195136"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.json",
+      "sha256": "93092941363e94d3e2bf2ea9374eac63d25ca7d67fcf52cd9c3e67ed65abadc8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_separated_boolean_union_q1.json",
+      "sha256": "e9bfb95b0b259574f755f41978e6d095906e880c61ae430c6c11b6cefd06e2fe"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_shifted_triangle_minimum_q1.json",
+      "sha256": "4403a97425c1b89e5c5e55bbd8cbaecd5b4608a6a856f10b2a5c56c322108272"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_singleton_intersection_q1.json",
+      "sha256": "feff638bc9854c86b3b936b7d6aff728d696ea9b231f44fac4cf3b33544d443e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.json",
+      "sha256": "9bcb53e67ce0a1953ae4013039a94fde6be18706f333f42dc1e476d3c39b25e0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_system_x_coordinate_q1.json",
+      "sha256": "eada6ccbea2266e12aa363e0543c4ee70da4a2cb6e015b42e2f5271a3701c2c5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_variables_both_sides_region_q1.json",
+      "sha256": "f7f9e4be904cc832ef52f709720de07ea2299bfae26c298f55738e59c7cea7b0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.json",
+      "sha256": "27205d4aa8185decbc96c3f096ee5832ab63b310b7f1c0f45a2f3c561b376627"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/runs/maths_h3r8_finish_regions_vertical_line_system_q1.json",
+      "sha256": "2c783b8869755d00bb256ba14439374ce56cd06dc7060ccd8e705db16ec01f6e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.png",
+      "sha256": "38a2d2169babb6adebdf7eb234ae8e7a127f5b493bf59da15b75779178f10efb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.svg",
+      "sha256": "446960d4784e7257518c92213f6dbfd2a46ad93d8519dadc86b322ac84e6e451"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.png",
+      "sha256": "78d0b6899ab5d9449ac02e50edf5baf21d96196c3e49994f3c0c9846403052e7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.svg",
+      "sha256": "7426d2e868bb28f227e615522293840377865446218abc6728d5539f4644c898"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.png",
+      "sha256": "0788554dab8f80efd8615cc57a2a836f024853272eaf63d2a8a78ab61b37fe9f"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.svg",
+      "sha256": "934b90a103f028085c615224c05156449fa4c01fc1798c15d41edd02e2a113fb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.png",
+      "sha256": "1b0f6c7fb0f92d8dceeefefae0c468a7ffb4b7e73ae4a525ca88af0ac6361f7d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.svg",
+      "sha256": "3390b18db4288af5ebf541bc5231e1160aa2d9cb55d2d6cc2ef5a42367de96cb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.png",
+      "sha256": "5ec39017aca651749da1391c80c52f80e52b2cfe4bff994f7f455edc245e200d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.svg",
+      "sha256": "cb4ce336846a889815b34ceb0194f11cb295c70e8a220d9a8f2cd3214a323ca7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-candidate/canonical-copy.json",
+      "sha256": "15e1449ea1aea4c91e8d01caf792bed6c95a3a2853fa27e1f8976c5b067b655e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_coincident_system_all_points_q1.json",
+      "sha256": "0db5d2e54199b29aa34959d03de57fbcab996bf4319ecdcb42cd40a7646bb0ed"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.json",
+      "sha256": "672379975b4720447bcc25db2420ef008515dbe207f02c0befd2cfc862164d49"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_interval_intersection_q1.json",
+      "sha256": "9d76ac6b58885c55f0754d78da9ef3f05e925d49682bfc3843057363ea618566"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_lower_bound_resource_region_q1.json",
+      "sha256": "5f9e9d2394f99e38fcb8c2efd8d3e42a809fe54a93d1dbdf339f79e199c19f59"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_multiple_optimum_edge_q1.json",
+      "sha256": "2e0c6c2d8578c55cea9abb7a2109e38014917260aa7ff6ab4507f02dde4d7c9c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_named_interval_difference_q1.json",
+      "sha256": "fcf42a9775568564e5c905a4429b4b64a86d4133b589cb866a58866e3ec89863"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_negative_scale_half_plane_q1.json",
+      "sha256": "b851e961c7a9f38aa3ffc5602dcc1038e677254d9e8198afa15cc68c38a6080e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_negative_strict_ray_q1.json",
+      "sha256": "545b86d08f9e2c4af86004ab07b2c3d2548a5abdce7332b379fef02c2a57ec8b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_parallel_system_no_solution_q1.json",
+      "sha256": "f05fbd5e814f40fdd393fa293952fd9e7322d59995495c0776ff3f7fb39d2d1b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.json",
+      "sha256": "49c899f1b46616bf58a0ba4e55e60326917175a320466184bce57688d4977b2d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_rational_unique_max_q1.json",
+      "sha256": "a28db62390845a954ff538ea916d43e1f228bd6aa87d0324d63d4411b7ffcdee"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.json",
+      "sha256": "416c085ad16fd07043b833a56785ba73913b41ffe57dee530a37dececd7b9e7d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_separated_boolean_union_q1.json",
+      "sha256": "6834ae6300abd8f2d98fd41e7d0a0fea2c89876297d335fdce7d56a855296705"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_shifted_triangle_minimum_q1.json",
+      "sha256": "186084425fadf8e5cc77326a974cfa82dbe8273146d9078dd11637a250c0aaf0"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_singleton_intersection_q1.json",
+      "sha256": "69f1ca4a8d7f22f6b5546b02138a2195b6c33ec40bb11376fc9f9331d8132253"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.json",
+      "sha256": "823e06baaa19a49f95015ef9618b20a0e06ba6822e6922a0865255790bb6ba90"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_system_x_coordinate_q1.json",
+      "sha256": "4574db5606937c31ee176c6c4a5353f0b93dd1bb8a49286ef9a4df7bee6f617d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_variables_both_sides_region_q1.json",
+      "sha256": "b58a3b29136b3f6b22b5e7481345c9c044fb31f45e3e14cd7cd00971e3b9b45a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.json",
+      "sha256": "04df0a8f123256bce6d91667e88c0ccb30e2cb3133e17cbe1ee64dcb3bbaa525"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/runs/maths_h3r8_finish_regions_vertical_line_system_q1.json",
+      "sha256": "1ba81487121033f358e36d81f05a09843aa14c0e4f34a2cce0b96594f88a3d90"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.png",
+      "sha256": "1e0d0dc84fa78e7014b49ab0db69736191a3b7e33b4acbe7d7e019ab15e6f996"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_coincident_system_all_points_q1.svg",
+      "sha256": "444e1e83e5882eab9b2ef62a06fdaac0eb089ef2d4e49b022a8d35dd29acdffa"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.png",
+      "sha256": "f0fad5f683fa62b8adf40e766d5acad8a34cf621c70342b6290cd67d2034feeb"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_horizontal_strict_half_plane_q1.svg",
+      "sha256": "6fbc3af8c8beb8ff6bdae4db48a10133f625cbd1569aa62522c7be0a7d11b783"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_interval_intersection_q1.png",
+      "sha256": "419939e83696f030dd2cd7a05510bf3a71a2e1c6c9d943ae92f2fcb609cf216a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_interval_intersection_q1.svg",
+      "sha256": "983a8a1cea7e1b12b67f39246114b7df880069de2f922a20b8ea1e6574ea3cb5"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_lower_bound_resource_region_q1.png",
+      "sha256": "39398cb20334a8f9724b4eb78a4b92c72b24d91e045977ddeaa2cc52e71ab218"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_lower_bound_resource_region_q1.svg",
+      "sha256": "1aba64e3f73d4bfa3f2a37296da05c64161104f548434006ae2c0be2bfe460aa"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_named_interval_difference_q1.png",
+      "sha256": "a700696088dc51c11a7c0d95d2583132eb6ec6aa2c5fb9bf759c6ca510975d9c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_named_interval_difference_q1.svg",
+      "sha256": "ff6e4287310165f639ddceda5b9e832a30b30fbe0225dd876f14ad0f367f6b26"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.png",
+      "sha256": "59cd37bfd5060cd6edc2757c732960498b2968b233cfe531f4c6b131d6275e12"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_negative_scale_half_plane_q1.svg",
+      "sha256": "2180e59849e2cea425ba9421c748c1ad577ad415f2f8f43f5053b9f009758d1a"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.png",
+      "sha256": "247872bcfb66cd8c41dfc945136995a46cb43ed7638da4228235f93b0a4c5243"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_parallel_system_no_solution_q1.svg",
+      "sha256": "0eb8bf37efacf7d4b5281865154f2ade1cd6381282c9ca7e825920fab2c0e1d2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.png",
+      "sha256": "fc803933c5333c0d7c4918df9ecef90848246850d2a22316c305a5a4142e0f0b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_rational_scaled_strict_half_plane_q1.svg",
+      "sha256": "ea82bb8e9cd8fa64f2c0df20400e931f05d0665f8290335bfe0512b09cba5607"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_rational_unique_max_q1.png",
+      "sha256": "99792ab9ff4d6476d0ce93fb91725502ddb46c078e8d31ada55e7fe9dc481969"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_rational_unique_max_q1.svg",
+      "sha256": "6e7051650d1e71d7a00e0cbd96d2d5f815d2ce75d3263d9acba931b7d348202d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.png",
+      "sha256": "fcfae54869d568a13677fc53c59047545633ab674518948552860639f7ba4525"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_scaled_system_x_coordinate_q1.svg",
+      "sha256": "2fdb5610304b13919227904442679d3198ad094dc04231ec73bf57b1658b3fef"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_separated_boolean_union_q1.png",
+      "sha256": "6bf4a731231c90388d37d2084dcb661a9f0bea15784efb2995850471fe8484b2"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_separated_boolean_union_q1.svg",
+      "sha256": "de620f67f94285df8430398add2ab5def937eb342ede179fa64e86e4a96518db"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_shifted_triangle_minimum_q1.png",
+      "sha256": "bb9afa30f5ecb0e0a58e174d1781585fabb3a89f3c59c217e2bafb1afa343331"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_shifted_triangle_minimum_q1.svg",
+      "sha256": "ed3813d3390f61121118bed82ea6cfa64f939333a7739a865658d95a9ebfcdbf"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_singleton_intersection_q1.png",
+      "sha256": "b8e2478cd9f34dd67d195fac425f671d0161e725fb41fb095e8912f6e69b03c8"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_singleton_intersection_q1.svg",
+      "sha256": "4503b82363adf5a1cf957b8716d2776e629c7399e3282c3c4b3dc1bc1b11360e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.png",
+      "sha256": "7c877ef998e0b124d573f7ddb0a4c80a20fdeeca4699a55124ab498e47182983"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_strict_oblique_half_plane_q1.svg",
+      "sha256": "416020074e6ecdc942e80eab2779bdfab410244f8dee072bf505dac8a47c7da7"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.png",
+      "sha256": "8eb7fb6b68fec7991adf2f88f97c022e14e6089ba996fb3b994523803c7d4394"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_system_x_coordinate_q1.svg",
+      "sha256": "84313fdf3d2e2b1b1f77fadc935f6476862bdfdfe6c1dbdbdfa3135cd626bb3e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.png",
+      "sha256": "7c2a25de4f0bbe42cfcd1f7eb99c9e3c8a653d7bfe050040f11f03bbe482ffee"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_variables_both_sides_region_q1.svg",
+      "sha256": "9eec1bcc93eacb302bb273272866083b61262e1cd7311abeda5119d53d99ca68"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.png",
+      "sha256": "d48857d68d31e078a82463ddfc5874dc812619f0e2161ecba0e022eceb00e26d"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_vertical_inclusive_half_plane_q1.svg",
+      "sha256": "2644d2ef7aaeca213a055acda557c9d39e60de8bd2efa18db751724fe33c779c"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_vertical_line_system_q1.png",
+      "sha256": "1e79f8edac93c50b498d695ca647741294104012752c0d6844c2377b9e97f26b"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/frames/maths_h3r8_finish_regions_vertical_line_system_q1.svg",
+      "sha256": "d7b3fed1e6e9ef9d0d8d2ef700728eaf71b2862734a92668e546311e2f2a722e"
+    },
+    {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/canonical-outputs/heldout-r2-main/canonical-copy.json",
+      "sha256": "ca384b2942c33437d709d9b5f02be5057d6703a72af333860ca3b54858db9709"
+    }
+  ],
+  "copiedAccountingLedgers": false,
+  "abortedPrefixExcluded": true
+}

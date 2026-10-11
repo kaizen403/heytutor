@@ -1,0 +1,2465 @@
+{
+  "allVisualsRequired": true,
+  "arms": [
+    "main",
+    "candidate"
+  ],
+  "budget": {
+    "capUsd": 20,
+    "includesDiscardedAndInterruptedAttempts": true,
+    "scope": "cumulative-job",
+    "spentUsd": 15.520774000000001
+  },
+  "cohorts": {
+    "development": 40,
+    "heldout": 20
+  },
+  "credentialsAndEnvExcluded": true,
+  "files": [
+    {
+      "bytes": 8933,
+      "path": "README.md",
+      "role": "documentation",
+      "sha256": "6c7229f323371aa5073867bb41c3a421154b8525e19b8aa35924e82faeb18e83",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/README.md",
+      "sourceSha256": "6c7229f323371aa5073867bb41c3a421154b8525e19b8aa35924e82faeb18e83"
+    },
+    {
+      "bytes": 5615,
+      "path": "assemble-evidence.py",
+      "role": "helper",
+      "sha256": "4756625a91b214828b5d2317e505a2a01525e91880a8a4bb93d34f61703d2365",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/assemble-evidence.py",
+      "sourceSha256": "4756625a91b214828b5d2317e505a2a01525e91880a8a4bb93d34f61703d2365"
+    },
+    {
+      "bytes": 4481,
+      "path": "calibration/consistency.json",
+      "role": "calibrationConsistency",
+      "sha256": "b1afed450c44874f21564cb1ccf8ad538d4fda23acf1023e50c7462188f46f03",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/calibration-consistency.json",
+      "sourceSha256": "b1afed450c44874f21564cb1ccf8ad538d4fda23acf1023e50c7462188f46f03"
+    },
+    {
+      "bytes": 8140,
+      "path": "calibration/grades-a.jsonl",
+      "role": "calibrationGrade",
+      "sha256": "b89ce44ec28e1c56c32e70cebf976c8fcb4ba12920615418b726c4ac03d498d9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/calibration-a/grades.jsonl",
+      "sourceSha256": "b89ce44ec28e1c56c32e70cebf976c8fcb4ba12920615418b726c4ac03d498d9"
+    },
+    {
+      "bytes": 9449,
+      "path": "calibration/grades-b.jsonl",
+      "role": "calibrationGrade",
+      "sha256": "bfd7f07377b204d314d413aec748f498124d74e68c6d9207470eb22783604d98",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/calibration-b/grades.jsonl",
+      "sourceSha256": "bfd7f07377b204d314d413aec748f498124d74e68c6d9207470eb22783604d98"
+    },
+    {
+      "bytes": 9066,
+      "path": "calibration/grades-c.jsonl",
+      "role": "calibrationGrade",
+      "sha256": "9089a5d1a926854c8247e787b879ea6955f737094bfc3af6722b649836325838",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/calibration-c/grades.jsonl",
+      "sourceSha256": "9089a5d1a926854c8247e787b879ea6955f737094bfc3af6722b649836325838"
+    },
+    {
+      "bytes": 23774,
+      "path": "calibration/images/reference-08978cee79dc13d6a76abeaa.png",
+      "role": "calibrationImage",
+      "sha256": "3b5fd8f24ec6514f08bd796f6461d3305970b60d6f54f61607257ba269b41b58",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-08978cee79dc13d6a76abeaa.png",
+      "sourceSha256": "3b5fd8f24ec6514f08bd796f6461d3305970b60d6f54f61607257ba269b41b58"
+    },
+    {
+      "bytes": 19112,
+      "path": "calibration/images/reference-0fb7c4907a14f03db5190399.png",
+      "role": "calibrationImage",
+      "sha256": "04d5d3281bc2ec0c7070472663ec4f5631c548bf4fb2a14bf0ad539bc6c7c573",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-0fb7c4907a14f03db5190399.png",
+      "sourceSha256": "04d5d3281bc2ec0c7070472663ec4f5631c548bf4fb2a14bf0ad539bc6c7c573"
+    },
+    {
+      "bytes": 12145,
+      "path": "calibration/images/reference-13fff3eebc4a802fc880278b.png",
+      "role": "calibrationImage",
+      "sha256": "586d1c0f17e145bdd5b0f4f59d34eae894887f018c9008efd279accab3134f5a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-13fff3eebc4a802fc880278b.png",
+      "sourceSha256": "586d1c0f17e145bdd5b0f4f59d34eae894887f018c9008efd279accab3134f5a"
+    },
+    {
+      "bytes": 25037,
+      "path": "calibration/images/reference-17ecd9d16398d2d34025f356.png",
+      "role": "calibrationImage",
+      "sha256": "f32ca42524c1de2a19a195ce7362fc4a620a5d9d4f0c16bb2a2044303adc1c6a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-17ecd9d16398d2d34025f356.png",
+      "sourceSha256": "f32ca42524c1de2a19a195ce7362fc4a620a5d9d4f0c16bb2a2044303adc1c6a"
+    },
+    {
+      "bytes": 27399,
+      "path": "calibration/images/reference-1cec7843c5c0e80242c2ad5c.png",
+      "role": "calibrationImage",
+      "sha256": "349339b5bd7b36da5a42c4492a4814eb30f9e2a2139574efe6ae927a8db63328",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-1cec7843c5c0e80242c2ad5c.png",
+      "sourceSha256": "349339b5bd7b36da5a42c4492a4814eb30f9e2a2139574efe6ae927a8db63328"
+    },
+    {
+      "bytes": 19156,
+      "path": "calibration/images/reference-48e284b8c877687eb50d9cae.png",
+      "role": "calibrationImage",
+      "sha256": "cb2925728cbbd499d0d5dc79b9ae3e804abab6ffaa38fd0aae7336acc2432321",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-48e284b8c877687eb50d9cae.png",
+      "sourceSha256": "cb2925728cbbd499d0d5dc79b9ae3e804abab6ffaa38fd0aae7336acc2432321"
+    },
+    {
+      "bytes": 16866,
+      "path": "calibration/images/reference-5cdd7d5790a0de6a5ca2321c.png",
+      "role": "calibrationImage",
+      "sha256": "9db7b818fcbd4576c31ec6d93f4ddbb708cab39209131c78ce027b34996f09d2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-5cdd7d5790a0de6a5ca2321c.png",
+      "sourceSha256": "9db7b818fcbd4576c31ec6d93f4ddbb708cab39209131c78ce027b34996f09d2"
+    },
+    {
+      "bytes": 19862,
+      "path": "calibration/images/reference-5ff12ddaf334027165136015.png",
+      "role": "calibrationImage",
+      "sha256": "8eb363e3d3af984e3511235b95e924a7a183f8562278e2a2fb27820e0d597db5",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-5ff12ddaf334027165136015.png",
+      "sourceSha256": "8eb363e3d3af984e3511235b95e924a7a183f8562278e2a2fb27820e0d597db5"
+    },
+    {
+      "bytes": 26990,
+      "path": "calibration/images/reference-633986b84215edd72383e232.png",
+      "role": "calibrationImage",
+      "sha256": "364c84303186e68b32d77ea45869c2b02bed85086e209c316b4ace07a4010120",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-633986b84215edd72383e232.png",
+      "sourceSha256": "364c84303186e68b32d77ea45869c2b02bed85086e209c316b4ace07a4010120"
+    },
+    {
+      "bytes": 20345,
+      "path": "calibration/images/reference-6401205a76513bbc90fdde6c.png",
+      "role": "calibrationImage",
+      "sha256": "098c55c6e0dec1f227aab7fe745656f97f2ed1a2188a68db9beaa4372525e994",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-6401205a76513bbc90fdde6c.png",
+      "sourceSha256": "098c55c6e0dec1f227aab7fe745656f97f2ed1a2188a68db9beaa4372525e994"
+    },
+    {
+      "bytes": 18228,
+      "path": "calibration/images/reference-70cb97f739722d1b8f99ecfd.png",
+      "role": "calibrationImage",
+      "sha256": "5b8a174d313a595631c4e851259dd321247df5d3453415c957d3419ef4938c57",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-70cb97f739722d1b8f99ecfd.png",
+      "sourceSha256": "5b8a174d313a595631c4e851259dd321247df5d3453415c957d3419ef4938c57"
+    },
+    {
+      "bytes": 10545,
+      "path": "calibration/images/reference-73641c97e53ce760f59de8b5.png",
+      "role": "calibrationImage",
+      "sha256": "42c63c8ea4d6c3bc991df745bf123f25ab99b631d5afefcbb0dea7ef8c6dcabc",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-73641c97e53ce760f59de8b5.png",
+      "sourceSha256": "42c63c8ea4d6c3bc991df745bf123f25ab99b631d5afefcbb0dea7ef8c6dcabc"
+    },
+    {
+      "bytes": 17325,
+      "path": "calibration/images/reference-7533454a280f9c4b731997fd.png",
+      "role": "calibrationImage",
+      "sha256": "330488a5bb22e1448c8418b3c913c3499fcb48a365276b266d81a9c4115aa592",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-7533454a280f9c4b731997fd.png",
+      "sourceSha256": "330488a5bb22e1448c8418b3c913c3499fcb48a365276b266d81a9c4115aa592"
+    },
+    {
+      "bytes": 19438,
+      "path": "calibration/images/reference-790589788e2d7a4370519b17.png",
+      "role": "calibrationImage",
+      "sha256": "37e2273d8b812795fbe1cdf4ced82e7e86bfab837b147deb7d1a10af8dc21f71",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-790589788e2d7a4370519b17.png",
+      "sourceSha256": "37e2273d8b812795fbe1cdf4ced82e7e86bfab837b147deb7d1a10af8dc21f71"
+    },
+    {
+      "bytes": 11932,
+      "path": "calibration/images/reference-7bfd5028eb5735f04197c287.png",
+      "role": "calibrationImage",
+      "sha256": "4b9474182bd80fa130979ef96a468147d5ff016c03f1dcb4d2f30cd5881648de",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-7bfd5028eb5735f04197c287.png",
+      "sourceSha256": "4b9474182bd80fa130979ef96a468147d5ff016c03f1dcb4d2f30cd5881648de"
+    },
+    {
+      "bytes": 23270,
+      "path": "calibration/images/reference-7c9f220cdfa5353705959d1e.png",
+      "role": "calibrationImage",
+      "sha256": "739f19121e9b2137e1ae6852af10a47495c57880b9555149baeffad7f5f4ea2e",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-7c9f220cdfa5353705959d1e.png",
+      "sourceSha256": "739f19121e9b2137e1ae6852af10a47495c57880b9555149baeffad7f5f4ea2e"
+    },
+    {
+      "bytes": 20762,
+      "path": "calibration/images/reference-7d9a6d50e2b2638b71cabda3.png",
+      "role": "calibrationImage",
+      "sha256": "5f1e72259d289c46235d1e5e6b026124f04bfe8eaa907ed3786db0ce51614e92",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-7d9a6d50e2b2638b71cabda3.png",
+      "sourceSha256": "5f1e72259d289c46235d1e5e6b026124f04bfe8eaa907ed3786db0ce51614e92"
+    },
+    {
+      "bytes": 11795,
+      "path": "calibration/images/reference-829cc7cdb53164a64e6f61c3.png",
+      "role": "calibrationImage",
+      "sha256": "31cbf67494c1b7e6b5691e94b7f80aba1227e1fa4a9f39fdc4f93942fb43054d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-829cc7cdb53164a64e6f61c3.png",
+      "sourceSha256": "31cbf67494c1b7e6b5691e94b7f80aba1227e1fa4a9f39fdc4f93942fb43054d"
+    },
+    {
+      "bytes": 18822,
+      "path": "calibration/images/reference-8c28be39316e530d2ce5b536.png",
+      "role": "calibrationImage",
+      "sha256": "372b44f7032e7543fb5ca0dea37d0a7227f3b7b4658b21cba2cee985f7fc87ef",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-8c28be39316e530d2ce5b536.png",
+      "sourceSha256": "372b44f7032e7543fb5ca0dea37d0a7227f3b7b4658b21cba2cee985f7fc87ef"
+    },
+    {
+      "bytes": 26517,
+      "path": "calibration/images/reference-9adcd829314987f3abde6db3.png",
+      "role": "calibrationImage",
+      "sha256": "a12f2c6412434a9630465d269a4232a757da32b7ff0823da74a9fe5199170aa6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-9adcd829314987f3abde6db3.png",
+      "sourceSha256": "a12f2c6412434a9630465d269a4232a757da32b7ff0823da74a9fe5199170aa6"
+    },
+    {
+      "bytes": 10120,
+      "path": "calibration/images/reference-acebfd3157fbb54fa6a5a9a3.png",
+      "role": "calibrationImage",
+      "sha256": "da135bfdcb78773d4fad986bc91841a116e9167b4331c17ed366f176915c6fb6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-acebfd3157fbb54fa6a5a9a3.png",
+      "sourceSha256": "da135bfdcb78773d4fad986bc91841a116e9167b4331c17ed366f176915c6fb6"
+    },
+    {
+      "bytes": 18657,
+      "path": "calibration/images/reference-adc81619e4a1d316d7650917.png",
+      "role": "calibrationImage",
+      "sha256": "7fea2c797a26ae8dde15c5e4426379b674001ff6d3d62a41236e12718cb05f9b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-adc81619e4a1d316d7650917.png",
+      "sourceSha256": "7fea2c797a26ae8dde15c5e4426379b674001ff6d3d62a41236e12718cb05f9b"
+    },
+    {
+      "bytes": 13907,
+      "path": "calibration/images/reference-d9a06161eb07d49e2e250ab8.png",
+      "role": "calibrationImage",
+      "sha256": "d0d4078be4742e9198e410ed68c574ad47cc35a0492dc10c13cb6a16e01cd1ac",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-d9a06161eb07d49e2e250ab8.png",
+      "sourceSha256": "d0d4078be4742e9198e410ed68c574ad47cc35a0492dc10c13cb6a16e01cd1ac"
+    },
+    {
+      "bytes": 18691,
+      "path": "calibration/images/reference-fb751ff1b5f67599c4628f78.png",
+      "role": "calibrationImage",
+      "sha256": "ac003370b414a1f7a0fedffb09a21b7b1dc9e65724888b385336d7fb6e6088e3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/images/reference-fb751ff1b5f67599c4628f78.png",
+      "sourceSha256": "ac003370b414a1f7a0fedffb09a21b7b1dc9e65724888b385336d7fb6e6088e3"
+    },
+    {
+      "bytes": 870,
+      "path": "calibration/judge-a-first-freeze.json",
+      "role": "calibrationFirstFreeze",
+      "sha256": "7b7a86b850e14cc22a2ef6bf3684b190062cc91e66ffc1e00383c093379dd6ac",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/judge-a-first-freeze.json",
+      "sourceSha256": "7b7a86b850e14cc22a2ef6bf3684b190062cc91e66ffc1e00383c093379dd6ac"
+    },
+    {
+      "bytes": 251,
+      "path": "calibration/judge-a-identity.json",
+      "role": "calibrationIdentity",
+      "sha256": "03dec5d7f4e94acc0abb372ed1d7e6564b8f309dd3b9eb60c1fab6fcd0a78438",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/judge-a-identity.json",
+      "sourceSha256": "03dec5d7f4e94acc0abb372ed1d7e6564b8f309dd3b9eb60c1fab6fcd0a78438"
+    },
+    {
+      "bytes": 870,
+      "path": "calibration/judge-b-first-freeze.json",
+      "role": "calibrationFirstFreeze",
+      "sha256": "ab2f174a9a3129b27feebbdfda33c9eb6edd25de663bb5e4c4a7b25b3ad45206",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/judge-b-first-freeze.json",
+      "sourceSha256": "ab2f174a9a3129b27feebbdfda33c9eb6edd25de663bb5e4c4a7b25b3ad45206"
+    },
+    {
+      "bytes": 251,
+      "path": "calibration/judge-b-identity.json",
+      "role": "calibrationIdentity",
+      "sha256": "e3ddbe31c2a4b27dc7c3fdd77385bea7d18872cc9d588f76335db67d8061773d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/judge-b-identity.json",
+      "sourceSha256": "e3ddbe31c2a4b27dc7c3fdd77385bea7d18872cc9d588f76335db67d8061773d"
+    },
+    {
+      "bytes": 870,
+      "path": "calibration/judge-c-first-freeze.json",
+      "role": "calibrationFirstFreeze",
+      "sha256": "3768dad98fe9b2f3f3071fd2aa201127ab189ee20a2285a75b1a13c58ba06c41",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/judge-c-first-freeze.json",
+      "sourceSha256": "3768dad98fe9b2f3f3071fd2aa201127ab189ee20a2285a75b1a13c58ba06c41"
+    },
+    {
+      "bytes": 251,
+      "path": "calibration/judge-c-identity.json",
+      "role": "calibrationIdentity",
+      "sha256": "c2d60cd6f0f8f3ef408d25199c3b0f03453e69ffac341b9edaa3dce2744824d3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/judge-c-identity.json",
+      "sourceSha256": "c2d60cd6f0f8f3ef408d25199c3b0f03453e69ffac341b9edaa3dce2744824d3"
+    },
+    {
+      "bytes": 936,
+      "path": "calibration/packet-freeze.json",
+      "role": "calibrationFreeze",
+      "sha256": "6c6923fd614d5929c9682780ba5d03be4ff53a726bd3b81df756097f3cc1f1dd",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/freeze.json",
+      "sourceSha256": "6c6923fd614d5929c9682780ba5d03be4ff53a726bd3b81df756097f3cc1f1dd"
+    },
+    {
+      "bytes": 21006,
+      "path": "calibration/queue.jsonl",
+      "role": "calibrationQueue",
+      "sha256": "cd53f84d8d2effac7c200775197cb3e82a14b1ab4048503597445820d772f27f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/queue.jsonl",
+      "sourceSha256": "cd53f84d8d2effac7c200775197cb3e82a14b1ab4048503597445820d772f27f"
+    },
+    {
+      "bytes": 1726,
+      "path": "consensus-freeze.json",
+      "role": "consensusFreeze",
+      "sha256": "e6b1f96daa9517b04abbfca93035ef5399b742b6efa92d11ab8b8a81c112f50c",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/consensus/consensus-freeze.json",
+      "sourceSha256": "e6b1f96daa9517b04abbfca93035ef5399b742b6efa92d11ab8b8a81c112f50c"
+    },
+    {
+      "bytes": 8329,
+      "path": "evidence-manifest.schema.json",
+      "role": "documentation",
+      "sha256": "2663d7f568c6a9c94b01bc8cdc562f82a54a2ba3f7fae16341076f4ec68eced5",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/evidence-manifest.schema.json",
+      "sourceSha256": "2663d7f568c6a9c94b01bc8cdc562f82a54a2ba3f7fae16341076f4ec68eced5"
+    },
+    {
+      "bytes": 55846,
+      "path": "grades-a.jsonl",
+      "role": "grade-a",
+      "sha256": "9601ef01bd6205314d74eba584b84b8da5c53703c09e421b355172e24fe4c99a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-a/grades.jsonl",
+      "sourceSha256": "9601ef01bd6205314d74eba584b84b8da5c53703c09e421b355172e24fe4c99a"
+    },
+    {
+      "bytes": 62357,
+      "path": "grades-b.jsonl",
+      "role": "grade-b",
+      "sha256": "e30a690012a175d7b6951cd1f6992cefcf51226100dbf856542ff5607b744061",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-b/grades.jsonl",
+      "sourceSha256": "e30a690012a175d7b6951cd1f6992cefcf51226100dbf856542ff5607b744061"
+    },
+    {
+      "bytes": 64220,
+      "path": "grades-c.jsonl",
+      "role": "grade-c",
+      "sha256": "38aab6fce060e2a966b654728fb9f4e853782e20d6b078404a6e41c471b4afa2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-c/grades.jsonl",
+      "sourceSha256": "38aab6fce060e2a966b654728fb9f4e853782e20d6b078404a6e41c471b4afa2"
+    },
+    {
+      "bytes": 67430,
+      "path": "grades-consensus.jsonl",
+      "role": "consensus",
+      "sha256": "c86aff3fac59f1a0e5a721b1cd195e6a03ca183fcd703c267704cdf589fb7377",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/consensus/consensus-final.jsonl",
+      "sourceSha256": "c86aff3fac59f1a0e5a721b1cd195e6a03ca183fcd703c267704cdf589fb7377"
+    },
+    {
+      "bytes": 102999,
+      "path": "image-map.jsonl",
+      "role": "outcomeMap",
+      "sha256": "d89389f69b876913c09ff3807fa1732d25e9ad27ba4f9878b1180065e08d4d44",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/parent/image-map.jsonl",
+      "sourceSha256": "d89389f69b876913c09ff3807fa1732d25e9ad27ba4f9878b1180065e08d4d44"
+    },
+    {
+      "bytes": 25028,
+      "path": "images/figure-0039579b9bb965012dbb3ca1.png",
+      "role": "image",
+      "sha256": "5d40f4a5338daae0763fda7f64777e1c8599e248f7c67cd10ed0d6e2e6a8c301",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0039579b9bb965012dbb3ca1.png",
+      "sourceSha256": "5d40f4a5338daae0763fda7f64777e1c8599e248f7c67cd10ed0d6e2e6a8c301"
+    },
+    {
+      "bytes": 9866,
+      "path": "images/figure-0309a3fe22a55515d261e973.png",
+      "role": "image",
+      "sha256": "10e912ea0a52d3561d2aedb1036eaa1b5d2eec5e74e4c062010249beb5edfe48",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0309a3fe22a55515d261e973.png",
+      "sourceSha256": "10e912ea0a52d3561d2aedb1036eaa1b5d2eec5e74e4c062010249beb5edfe48"
+    },
+    {
+      "bytes": 9513,
+      "path": "images/figure-034e260dd183d923d747571c.png",
+      "role": "image",
+      "sha256": "cfc559f4d1c6756e3bbb88b524a0ff31500c3cbe5bda332725620637fff8072c",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-034e260dd183d923d747571c.png",
+      "sourceSha256": "cfc559f4d1c6756e3bbb88b524a0ff31500c3cbe5bda332725620637fff8072c"
+    },
+    {
+      "bytes": 21189,
+      "path": "images/figure-060686fa645e0a077536dbbe.png",
+      "role": "image",
+      "sha256": "56c2df65f2c6fc5fbbe8658a99e17cf6e4ca3803f8db5ee491a1fc9a2233ddf1",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-060686fa645e0a077536dbbe.png",
+      "sourceSha256": "56c2df65f2c6fc5fbbe8658a99e17cf6e4ca3803f8db5ee491a1fc9a2233ddf1"
+    },
+    {
+      "bytes": 24263,
+      "path": "images/figure-0750525940b66106d40bf505.png",
+      "role": "image",
+      "sha256": "d0c776d2b3277befcac797f17c942619b89b333619462322ce95f90e9eb2c137",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0750525940b66106d40bf505.png",
+      "sourceSha256": "d0c776d2b3277befcac797f17c942619b89b333619462322ce95f90e9eb2c137"
+    },
+    {
+      "bytes": 21710,
+      "path": "images/figure-0a22747c7e7dee95ba8340ee.png",
+      "role": "image",
+      "sha256": "72156dd7d50436ac32a46de09cb71d4442bd4ca301ac96df1bce345b0c1f9af4",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0a22747c7e7dee95ba8340ee.png",
+      "sourceSha256": "72156dd7d50436ac32a46de09cb71d4442bd4ca301ac96df1bce345b0c1f9af4"
+    },
+    {
+      "bytes": 19213,
+      "path": "images/figure-0a33be61ad59e0b8b664a4ec.png",
+      "role": "image",
+      "sha256": "03e28c6bd9282650bf71b25affd5ec4ebc37a52ec6a5340fc9af0e6e559de72f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0a33be61ad59e0b8b664a4ec.png",
+      "sourceSha256": "03e28c6bd9282650bf71b25affd5ec4ebc37a52ec6a5340fc9af0e6e559de72f"
+    },
+    {
+      "bytes": 24218,
+      "path": "images/figure-0a40ad579943705c89f1493b.png",
+      "role": "image",
+      "sha256": "d89367f9320c75cb367c9411ecfb2d0b9ade62ad2a2df1450fcc7a4106524ad7",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0a40ad579943705c89f1493b.png",
+      "sourceSha256": "d89367f9320c75cb367c9411ecfb2d0b9ade62ad2a2df1450fcc7a4106524ad7"
+    },
+    {
+      "bytes": 19280,
+      "path": "images/figure-0e91fa895f793ff7396d625f.png",
+      "role": "image",
+      "sha256": "a0657ef4ef259799c3e30cdae80a99c61f22ca5e87aeb5d626c890c83da77082",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0e91fa895f793ff7396d625f.png",
+      "sourceSha256": "a0657ef4ef259799c3e30cdae80a99c61f22ca5e87aeb5d626c890c83da77082"
+    },
+    {
+      "bytes": 13020,
+      "path": "images/figure-0f7f9ff9cdac9df9ec714bce.png",
+      "role": "image",
+      "sha256": "f9d9339bc0f1642ff2717e5721bad13ffb6e178fabe228feddf3f7a73622feb0",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-0f7f9ff9cdac9df9ec714bce.png",
+      "sourceSha256": "f9d9339bc0f1642ff2717e5721bad13ffb6e178fabe228feddf3f7a73622feb0"
+    },
+    {
+      "bytes": 24339,
+      "path": "images/figure-11d5c62601eefeb8c41b8b70.png",
+      "role": "image",
+      "sha256": "4cad1ec2f558beae3f38f6774c59e92ff93e4e8b973342ec0fcececf480210ab",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-11d5c62601eefeb8c41b8b70.png",
+      "sourceSha256": "4cad1ec2f558beae3f38f6774c59e92ff93e4e8b973342ec0fcececf480210ab"
+    },
+    {
+      "bytes": 24489,
+      "path": "images/figure-1624047bdb3162c4805507b6.png",
+      "role": "image",
+      "sha256": "4b8d1226e4666393164692871a72aaaddbc27776863973f9a74e1c889f4127a2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-1624047bdb3162c4805507b6.png",
+      "sourceSha256": "4b8d1226e4666393164692871a72aaaddbc27776863973f9a74e1c889f4127a2"
+    },
+    {
+      "bytes": 22824,
+      "path": "images/figure-1896726fd5e5e5cded846a89.png",
+      "role": "image",
+      "sha256": "af07d43425675c72de2e41fc4b8f368ef72b5d3f90e2f95cebc7a54cedd07a34",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-1896726fd5e5e5cded846a89.png",
+      "sourceSha256": "af07d43425675c72de2e41fc4b8f368ef72b5d3f90e2f95cebc7a54cedd07a34"
+    },
+    {
+      "bytes": 20444,
+      "path": "images/figure-199287c01fa602b0ae7c3081.png",
+      "role": "image",
+      "sha256": "6932dc6140d477559ce2fe7bbfb2b61b1a7d239f44d6f2e42acdb569967a0800",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-199287c01fa602b0ae7c3081.png",
+      "sourceSha256": "6932dc6140d477559ce2fe7bbfb2b61b1a7d239f44d6f2e42acdb569967a0800"
+    },
+    {
+      "bytes": 23440,
+      "path": "images/figure-1a2fd9d04dfadfe751796ef2.png",
+      "role": "image",
+      "sha256": "5b8da2c9d6b95fbbebfc8b794354a659ccdf995530f344678ea173e8de14bed3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-1a2fd9d04dfadfe751796ef2.png",
+      "sourceSha256": "5b8da2c9d6b95fbbebfc8b794354a659ccdf995530f344678ea173e8de14bed3"
+    },
+    {
+      "bytes": 22471,
+      "path": "images/figure-1d31ff4102d054d9dee80970.png",
+      "role": "image",
+      "sha256": "d72e9642d147f80616a396c352bec5b4086a9d6e9394ed0dc323ee33edf0026a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-1d31ff4102d054d9dee80970.png",
+      "sourceSha256": "d72e9642d147f80616a396c352bec5b4086a9d6e9394ed0dc323ee33edf0026a"
+    },
+    {
+      "bytes": 12604,
+      "path": "images/figure-1fe4b7aa0182cf385d6220f9.png",
+      "role": "image",
+      "sha256": "cc41c0281f55b719519d7092c07f0e5015e0fe873710d7031dbcd02ddf5fb3d9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-1fe4b7aa0182cf385d6220f9.png",
+      "sourceSha256": "cc41c0281f55b719519d7092c07f0e5015e0fe873710d7031dbcd02ddf5fb3d9"
+    },
+    {
+      "bytes": 13337,
+      "path": "images/figure-209f5f429f1787df043b3e87.png",
+      "role": "image",
+      "sha256": "3602d05ff5b06b7e4ec5c0e5f69b64e000f6b2fb94515e19a82fc93cfa99d318",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-209f5f429f1787df043b3e87.png",
+      "sourceSha256": "3602d05ff5b06b7e4ec5c0e5f69b64e000f6b2fb94515e19a82fc93cfa99d318"
+    },
+    {
+      "bytes": 10121,
+      "path": "images/figure-219dea50375fc9edc385f732.png",
+      "role": "image",
+      "sha256": "628acbfd58d7346372aad2274037e8a47a986ad0e48445bf1b75e8305c725939",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-219dea50375fc9edc385f732.png",
+      "sourceSha256": "628acbfd58d7346372aad2274037e8a47a986ad0e48445bf1b75e8305c725939"
+    },
+    {
+      "bytes": 18609,
+      "path": "images/figure-2884e8c33f92c1cfb47d5c64.png",
+      "role": "image",
+      "sha256": "3f6441d2834a50c1158cdfe9189159e62fe49be111edbae915c02806591f785c",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-2884e8c33f92c1cfb47d5c64.png",
+      "sourceSha256": "3f6441d2834a50c1158cdfe9189159e62fe49be111edbae915c02806591f785c"
+    },
+    {
+      "bytes": 10818,
+      "path": "images/figure-28a49c10d6aa5530d7967432.png",
+      "role": "image",
+      "sha256": "3d76220e639d79aa7d68545636bffd4fec01bc10dba27cea856d94e7586114a4",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-28a49c10d6aa5530d7967432.png",
+      "sourceSha256": "3d76220e639d79aa7d68545636bffd4fec01bc10dba27cea856d94e7586114a4"
+    },
+    {
+      "bytes": 12841,
+      "path": "images/figure-2ae956226b953011e4a0d831.png",
+      "role": "image",
+      "sha256": "27cf4f25efe0efdeff68882d09e3f4692819537aaeb947296e7dba6f903bacf7",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-2ae956226b953011e4a0d831.png",
+      "sourceSha256": "27cf4f25efe0efdeff68882d09e3f4692819537aaeb947296e7dba6f903bacf7"
+    },
+    {
+      "bytes": 27198,
+      "path": "images/figure-2c1f14b793f446609c965ec6.png",
+      "role": "image",
+      "sha256": "4faa363bc003eb01a2753645340c213399f59cd89d55e310930287b977350bae",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-2c1f14b793f446609c965ec6.png",
+      "sourceSha256": "4faa363bc003eb01a2753645340c213399f59cd89d55e310930287b977350bae"
+    },
+    {
+      "bytes": 21185,
+      "path": "images/figure-2e552b1fccea5703ba816c04.png",
+      "role": "image",
+      "sha256": "421e9961528ef0fb0b96fd327e56982748e4d0edda7a5380df41fe1fac91a736",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-2e552b1fccea5703ba816c04.png",
+      "sourceSha256": "421e9961528ef0fb0b96fd327e56982748e4d0edda7a5380df41fe1fac91a736"
+    },
+    {
+      "bytes": 20201,
+      "path": "images/figure-2f321bf740caf56ce32e0792.png",
+      "role": "image",
+      "sha256": "2af59b28df6679b96e23e1c04ad9a649475412423e39eaa4981d175206de05fa",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-2f321bf740caf56ce32e0792.png",
+      "sourceSha256": "2af59b28df6679b96e23e1c04ad9a649475412423e39eaa4981d175206de05fa"
+    },
+    {
+      "bytes": 13096,
+      "path": "images/figure-2f4a6dc6ded0aa5ce36293d3.png",
+      "role": "image",
+      "sha256": "4129640f63a7ba7562a114a2e0a38044eabf7bc0d7c1faccf17706673fa1d775",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-2f4a6dc6ded0aa5ce36293d3.png",
+      "sourceSha256": "4129640f63a7ba7562a114a2e0a38044eabf7bc0d7c1faccf17706673fa1d775"
+    },
+    {
+      "bytes": 16551,
+      "path": "images/figure-2fc182013a31c4eb4be31fa7.png",
+      "role": "image",
+      "sha256": "edbc3bb19956b16a4fa7444225f195c37dcc652063e14299c3b4b4eda2a5c1a7",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-2fc182013a31c4eb4be31fa7.png",
+      "sourceSha256": "edbc3bb19956b16a4fa7444225f195c37dcc652063e14299c3b4b4eda2a5c1a7"
+    },
+    {
+      "bytes": 9915,
+      "path": "images/figure-30438faa903f01d8a7415912.png",
+      "role": "image",
+      "sha256": "2d55c1cb930cb71c239d14b03d6e8878075c5edae14d99bf17a92d9fb6c24f4b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-30438faa903f01d8a7415912.png",
+      "sourceSha256": "2d55c1cb930cb71c239d14b03d6e8878075c5edae14d99bf17a92d9fb6c24f4b"
+    },
+    {
+      "bytes": 24082,
+      "path": "images/figure-306fe747a4588efd608565ce.png",
+      "role": "image",
+      "sha256": "e7580ad1ce67734bc57cff8d77e810521d2ddab148035020f29dea4c5daf92a7",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-306fe747a4588efd608565ce.png",
+      "sourceSha256": "e7580ad1ce67734bc57cff8d77e810521d2ddab148035020f29dea4c5daf92a7"
+    },
+    {
+      "bytes": 17936,
+      "path": "images/figure-328828180e83e3c5ce2b279a.png",
+      "role": "image",
+      "sha256": "041f9e2306448a28a7946d4263382ee8e1b86a338c6e48b9cb94601c566d0e79",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-328828180e83e3c5ce2b279a.png",
+      "sourceSha256": "041f9e2306448a28a7946d4263382ee8e1b86a338c6e48b9cb94601c566d0e79"
+    },
+    {
+      "bytes": 18467,
+      "path": "images/figure-330e92262164a597c838cf29.png",
+      "role": "image",
+      "sha256": "fb68db40368738d1ddff640b5fc712b7883d5f43a03e4d49187f056b3ee2c6e3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-330e92262164a597c838cf29.png",
+      "sourceSha256": "fb68db40368738d1ddff640b5fc712b7883d5f43a03e4d49187f056b3ee2c6e3"
+    },
+    {
+      "bytes": 20469,
+      "path": "images/figure-34a561929d6fe81fd42d228b.png",
+      "role": "image",
+      "sha256": "d473f64ebc4c5bcf680905a3349c2dc9b8a69dadc1c1dbde330b41903355c5b2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-34a561929d6fe81fd42d228b.png",
+      "sourceSha256": "d473f64ebc4c5bcf680905a3349c2dc9b8a69dadc1c1dbde330b41903355c5b2"
+    },
+    {
+      "bytes": 18466,
+      "path": "images/figure-36400f45b394a59234d14ce9.png",
+      "role": "image",
+      "sha256": "b06f0e1c3ca32d1e12c8fd7ca26dd2203a4c1c1a244561efb32060e9cc6a3288",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-36400f45b394a59234d14ce9.png",
+      "sourceSha256": "b06f0e1c3ca32d1e12c8fd7ca26dd2203a4c1c1a244561efb32060e9cc6a3288"
+    },
+    {
+      "bytes": 12942,
+      "path": "images/figure-39ad4a945723c8bb85c76bb2.png",
+      "role": "image",
+      "sha256": "94e2b5700870a74ede4d7f25f3921b932c6690a042a531ce3348519e33470614",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-39ad4a945723c8bb85c76bb2.png",
+      "sourceSha256": "94e2b5700870a74ede4d7f25f3921b932c6690a042a531ce3348519e33470614"
+    },
+    {
+      "bytes": 11983,
+      "path": "images/figure-3a7743a0bff7e852f3f0511f.png",
+      "role": "image",
+      "sha256": "7bf823425ec64ff2d5bb2e9795284bd17092ca669fa625df4e4517a8b07b4eff",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-3a7743a0bff7e852f3f0511f.png",
+      "sourceSha256": "7bf823425ec64ff2d5bb2e9795284bd17092ca669fa625df4e4517a8b07b4eff"
+    },
+    {
+      "bytes": 14816,
+      "path": "images/figure-4d7311674bda3562479d08d1.png",
+      "role": "image",
+      "sha256": "c2979cf04c14cb382b7be934eeae6526b37a769a7f684f79614027111a7c9d11",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-4d7311674bda3562479d08d1.png",
+      "sourceSha256": "c2979cf04c14cb382b7be934eeae6526b37a769a7f684f79614027111a7c9d11"
+    },
+    {
+      "bytes": 18622,
+      "path": "images/figure-4f88b042f6dadf9c12398504.png",
+      "role": "image",
+      "sha256": "eb6a9661df6c53066add89525a67231da248d927d02a62ceb4ce9e62a0d18118",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-4f88b042f6dadf9c12398504.png",
+      "sourceSha256": "eb6a9661df6c53066add89525a67231da248d927d02a62ceb4ce9e62a0d18118"
+    },
+    {
+      "bytes": 20715,
+      "path": "images/figure-4fdce25b30e0a71a106fb189.png",
+      "role": "image",
+      "sha256": "0a2c2e3f0ada33fe7609a8bba29923b2a31141bac4a22079e26f15bea374ca52",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-4fdce25b30e0a71a106fb189.png",
+      "sourceSha256": "0a2c2e3f0ada33fe7609a8bba29923b2a31141bac4a22079e26f15bea374ca52"
+    },
+    {
+      "bytes": 13302,
+      "path": "images/figure-524918a4d68cc864bde3f57e.png",
+      "role": "image",
+      "sha256": "2646cae730b4516d77e4d963ff7dc02ce039d5efd160c9a1b7e41a3992797697",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-524918a4d68cc864bde3f57e.png",
+      "sourceSha256": "2646cae730b4516d77e4d963ff7dc02ce039d5efd160c9a1b7e41a3992797697"
+    },
+    {
+      "bytes": 12481,
+      "path": "images/figure-55fd3fa336b40454fc3209d9.png",
+      "role": "image",
+      "sha256": "a0a5392c9f5e8a3189d986067e5997a20e25c4870f2dc9fbe7230536254c1239",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-55fd3fa336b40454fc3209d9.png",
+      "sourceSha256": "a0a5392c9f5e8a3189d986067e5997a20e25c4870f2dc9fbe7230536254c1239"
+    },
+    {
+      "bytes": 13732,
+      "path": "images/figure-5708ac9627327cbbb2cada67.png",
+      "role": "image",
+      "sha256": "ed9428e676f1b7e409c1fdadbb9e559c172adbfac414b2b4188e341819814d52",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-5708ac9627327cbbb2cada67.png",
+      "sourceSha256": "ed9428e676f1b7e409c1fdadbb9e559c172adbfac414b2b4188e341819814d52"
+    },
+    {
+      "bytes": 22289,
+      "path": "images/figure-5ca300d64d823e693456c016.png",
+      "role": "image",
+      "sha256": "e62f4e55c451c99a082169f703cdbbd68e50cc14b1679f12108070ea776a7392",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-5ca300d64d823e693456c016.png",
+      "sourceSha256": "e62f4e55c451c99a082169f703cdbbd68e50cc14b1679f12108070ea776a7392"
+    },
+    {
+      "bytes": 25082,
+      "path": "images/figure-5fe64008e5256e8945bbb0e6.png",
+      "role": "image",
+      "sha256": "f1300d4e155aa2884c2841fa459712e501d5541afa08c1feefe4d8385bbc629c",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-5fe64008e5256e8945bbb0e6.png",
+      "sourceSha256": "f1300d4e155aa2884c2841fa459712e501d5541afa08c1feefe4d8385bbc629c"
+    },
+    {
+      "bytes": 11304,
+      "path": "images/figure-60f88b14b62b49ae037773e4.png",
+      "role": "image",
+      "sha256": "56ab9f4755034b46f2796e9fae3b365e3479c7179c3a8563a522df7ff42176e4",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-60f88b14b62b49ae037773e4.png",
+      "sourceSha256": "56ab9f4755034b46f2796e9fae3b365e3479c7179c3a8563a522df7ff42176e4"
+    },
+    {
+      "bytes": 22322,
+      "path": "images/figure-617bb9a60d93e4239c30b023.png",
+      "role": "image",
+      "sha256": "ddc2d585985a9dce845efa261c4860a9dbdceae49459dc670100536cee8d6097",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-617bb9a60d93e4239c30b023.png",
+      "sourceSha256": "ddc2d585985a9dce845efa261c4860a9dbdceae49459dc670100536cee8d6097"
+    },
+    {
+      "bytes": 9595,
+      "path": "images/figure-61eb8fa03aba5d55e338cbd4.png",
+      "role": "image",
+      "sha256": "60fbb7529e084619e31efa117dbf6f0558c9c38bc8402329b734ff8fff89b83f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-61eb8fa03aba5d55e338cbd4.png",
+      "sourceSha256": "60fbb7529e084619e31efa117dbf6f0558c9c38bc8402329b734ff8fff89b83f"
+    },
+    {
+      "bytes": 12411,
+      "path": "images/figure-637e434e4b93f29411d8aae9.png",
+      "role": "image",
+      "sha256": "796fee48f20a0d009f075ce2708c7aa025757057ffd21d8429342a5b5d5e5f28",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-637e434e4b93f29411d8aae9.png",
+      "sourceSha256": "796fee48f20a0d009f075ce2708c7aa025757057ffd21d8429342a5b5d5e5f28"
+    },
+    {
+      "bytes": 10653,
+      "path": "images/figure-65899f1a034af5225e6bbe53.png",
+      "role": "image",
+      "sha256": "31ed6ed41f5651ba36cf57c280a3983ef58a469f48e32a333a18ba129e18bcf7",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-65899f1a034af5225e6bbe53.png",
+      "sourceSha256": "31ed6ed41f5651ba36cf57c280a3983ef58a469f48e32a333a18ba129e18bcf7"
+    },
+    {
+      "bytes": 18291,
+      "path": "images/figure-67011005cd087e0059abbe1f.png",
+      "role": "image",
+      "sha256": "ea194b96add3725a783743eee9d85ecae74e113c93f899d34449dfe9f303c014",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-67011005cd087e0059abbe1f.png",
+      "sourceSha256": "ea194b96add3725a783743eee9d85ecae74e113c93f899d34449dfe9f303c014"
+    },
+    {
+      "bytes": 18512,
+      "path": "images/figure-68e83075c9a8a64180350553.png",
+      "role": "image",
+      "sha256": "9b610df608033d0503b5a084b21557c2fc58af3d194227fbb6c0fa3bdf46ba6c",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-68e83075c9a8a64180350553.png",
+      "sourceSha256": "9b610df608033d0503b5a084b21557c2fc58af3d194227fbb6c0fa3bdf46ba6c"
+    },
+    {
+      "bytes": 20332,
+      "path": "images/figure-6a24c31df7a9b848d9012bf3.png",
+      "role": "image",
+      "sha256": "572ad9cc4c7e17996f2acd5e5df856f0c7e94230e6e473586094a80395dfcf3b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-6a24c31df7a9b848d9012bf3.png",
+      "sourceSha256": "572ad9cc4c7e17996f2acd5e5df856f0c7e94230e6e473586094a80395dfcf3b"
+    },
+    {
+      "bytes": 11770,
+      "path": "images/figure-6a673afb83ea06c4fc8fb919.png",
+      "role": "image",
+      "sha256": "0c7d5b9e9e9918c6b88f686bd288ef07684ec33b94c77613727d3f02c013af3e",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-6a673afb83ea06c4fc8fb919.png",
+      "sourceSha256": "0c7d5b9e9e9918c6b88f686bd288ef07684ec33b94c77613727d3f02c013af3e"
+    },
+    {
+      "bytes": 13879,
+      "path": "images/figure-6a8c7ef5e8c96f134ee1e270.png",
+      "role": "image",
+      "sha256": "488905d64d25447c6407c39db012e236220b072e38342f990ed9386f74442135",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-6a8c7ef5e8c96f134ee1e270.png",
+      "sourceSha256": "488905d64d25447c6407c39db012e236220b072e38342f990ed9386f74442135"
+    },
+    {
+      "bytes": 22935,
+      "path": "images/figure-6e253355d2a0c6405907eaac.png",
+      "role": "image",
+      "sha256": "c4125e2a4dbd48182f18162c547766a4f2fb62a327823f6f6e546d04aebfcbfc",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-6e253355d2a0c6405907eaac.png",
+      "sourceSha256": "c4125e2a4dbd48182f18162c547766a4f2fb62a327823f6f6e546d04aebfcbfc"
+    },
+    {
+      "bytes": 20180,
+      "path": "images/figure-74edec450e6d96bcf9af3d19.png",
+      "role": "image",
+      "sha256": "f0789e482939ec1aff4138553be79842826b87d54848ea073b7a8259f4b98396",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-74edec450e6d96bcf9af3d19.png",
+      "sourceSha256": "f0789e482939ec1aff4138553be79842826b87d54848ea073b7a8259f4b98396"
+    },
+    {
+      "bytes": 20820,
+      "path": "images/figure-753e4d1694494829e4bde54d.png",
+      "role": "image",
+      "sha256": "b364f734a0a18c9f7d818dda5640081176fef4c90368ef0654b173d5516761c0",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-753e4d1694494829e4bde54d.png",
+      "sourceSha256": "b364f734a0a18c9f7d818dda5640081176fef4c90368ef0654b173d5516761c0"
+    },
+    {
+      "bytes": 22119,
+      "path": "images/figure-7864cecff7130a01ed34d43c.png",
+      "role": "image",
+      "sha256": "c4841b1cc1d05f480ad6a55350d813d949b0ad7d75b44902182b64e5ca789770",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-7864cecff7130a01ed34d43c.png",
+      "sourceSha256": "c4841b1cc1d05f480ad6a55350d813d949b0ad7d75b44902182b64e5ca789770"
+    },
+    {
+      "bytes": 19192,
+      "path": "images/figure-7b0ab8428400abe88e1b64e5.png",
+      "role": "image",
+      "sha256": "a500ec6aa21256acd95c6a3e988e4dae3ea5942233969dbfe590aa57f062b751",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-7b0ab8428400abe88e1b64e5.png",
+      "sourceSha256": "a500ec6aa21256acd95c6a3e988e4dae3ea5942233969dbfe590aa57f062b751"
+    },
+    {
+      "bytes": 11663,
+      "path": "images/figure-7b5baed03f3cb69a7bce1a0a.png",
+      "role": "image",
+      "sha256": "8d810d497ca663a2a420eeba227557271e35f73d1231faea438c573df60d5b31",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-7b5baed03f3cb69a7bce1a0a.png",
+      "sourceSha256": "8d810d497ca663a2a420eeba227557271e35f73d1231faea438c573df60d5b31"
+    },
+    {
+      "bytes": 26999,
+      "path": "images/figure-7e161f008797ed4d3ddef0f7.png",
+      "role": "image",
+      "sha256": "3db2f1e3bc22264ecb9f607eaf27c16c7204e41a777965b1eb9c7ef0b4553b84",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-7e161f008797ed4d3ddef0f7.png",
+      "sourceSha256": "3db2f1e3bc22264ecb9f607eaf27c16c7204e41a777965b1eb9c7ef0b4553b84"
+    },
+    {
+      "bytes": 11920,
+      "path": "images/figure-7e82734d0d55c9c738ead518.png",
+      "role": "image",
+      "sha256": "fc77dd75578550cb0349e31a4e018a426dd779f5a97c6b5fb47b86fb1b93a267",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-7e82734d0d55c9c738ead518.png",
+      "sourceSha256": "fc77dd75578550cb0349e31a4e018a426dd779f5a97c6b5fb47b86fb1b93a267"
+    },
+    {
+      "bytes": 28726,
+      "path": "images/figure-7f0481ae48289fd64a3a6f58.png",
+      "role": "image",
+      "sha256": "5f62987737fd4991240e42d84eaaea36cdc6b6ddc88577251cc9fcbcaf14811c",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-7f0481ae48289fd64a3a6f58.png",
+      "sourceSha256": "5f62987737fd4991240e42d84eaaea36cdc6b6ddc88577251cc9fcbcaf14811c"
+    },
+    {
+      "bytes": 24478,
+      "path": "images/figure-7f4ff18449ed6b31de8e8b49.png",
+      "role": "image",
+      "sha256": "b5a3d5939d918b533bf298d9e7477ea5ac029d4dea4afc0b2997f396d99871c9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-7f4ff18449ed6b31de8e8b49.png",
+      "sourceSha256": "b5a3d5939d918b533bf298d9e7477ea5ac029d4dea4afc0b2997f396d99871c9"
+    },
+    {
+      "bytes": 19737,
+      "path": "images/figure-804b7fe17014f58c9faed205.png",
+      "role": "image",
+      "sha256": "5f8abb77965aec9ce0a4474b644875c88e80371d945f2d343be4b385a2c803e0",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-804b7fe17014f58c9faed205.png",
+      "sourceSha256": "5f8abb77965aec9ce0a4474b644875c88e80371d945f2d343be4b385a2c803e0"
+    },
+    {
+      "bytes": 19786,
+      "path": "images/figure-80b6b5767dd69c0abef4f08b.png",
+      "role": "image",
+      "sha256": "da9210b4aa0b758a2e370579466ab4c8a3127ce781853b510b88d388860262e3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-80b6b5767dd69c0abef4f08b.png",
+      "sourceSha256": "da9210b4aa0b758a2e370579466ab4c8a3127ce781853b510b88d388860262e3"
+    },
+    {
+      "bytes": 23279,
+      "path": "images/figure-814ae8220fe8c85c5ac197a0.png",
+      "role": "image",
+      "sha256": "321e612bfe79818603179769084d0ea53083883e88f245f7816f4bef64a3f352",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-814ae8220fe8c85c5ac197a0.png",
+      "sourceSha256": "321e612bfe79818603179769084d0ea53083883e88f245f7816f4bef64a3f352"
+    },
+    {
+      "bytes": 11185,
+      "path": "images/figure-836514aef8088962ce3e447a.png",
+      "role": "image",
+      "sha256": "3c06f1862829a4ff3eed191fbe442f8284d9aa582b5233176808ba686bca5755",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-836514aef8088962ce3e447a.png",
+      "sourceSha256": "3c06f1862829a4ff3eed191fbe442f8284d9aa582b5233176808ba686bca5755"
+    },
+    {
+      "bytes": 15552,
+      "path": "images/figure-8b24686ada8350a0f141c232.png",
+      "role": "image",
+      "sha256": "061e776b0a16ed942a0471f7416ff56232aab86e36f7b1cf41401f3e0fec5d2f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-8b24686ada8350a0f141c232.png",
+      "sourceSha256": "061e776b0a16ed942a0471f7416ff56232aab86e36f7b1cf41401f3e0fec5d2f"
+    },
+    {
+      "bytes": 12820,
+      "path": "images/figure-8b48d63e9d89da9e474cfc1d.png",
+      "role": "image",
+      "sha256": "d1025ba5268c710d1928e5b88336524f2603e4cac5051665d13eb755cec96b3a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-8b48d63e9d89da9e474cfc1d.png",
+      "sourceSha256": "d1025ba5268c710d1928e5b88336524f2603e4cac5051665d13eb755cec96b3a"
+    },
+    {
+      "bytes": 11245,
+      "path": "images/figure-8f3a92bec78ec546cc4bef1e.png",
+      "role": "image",
+      "sha256": "4d10bb0abe27f63ce1fce850fcb08ad5122e9cc37b494cf85c7045f7c287fe97",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-8f3a92bec78ec546cc4bef1e.png",
+      "sourceSha256": "4d10bb0abe27f63ce1fce850fcb08ad5122e9cc37b494cf85c7045f7c287fe97"
+    },
+    {
+      "bytes": 17087,
+      "path": "images/figure-8f85356fd11913d7f2955049.png",
+      "role": "image",
+      "sha256": "c8048f2014c579412d3b18beace61ad2ecb644675935566d6129f518a619d6fc",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-8f85356fd11913d7f2955049.png",
+      "sourceSha256": "c8048f2014c579412d3b18beace61ad2ecb644675935566d6129f518a619d6fc"
+    },
+    {
+      "bytes": 12993,
+      "path": "images/figure-90bb35bbc00447d362fa7fa1.png",
+      "role": "image",
+      "sha256": "b3a5cc1bde1a5197f4899e0e8d9a4427be74a7abb062116a058b66235783c9f6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-90bb35bbc00447d362fa7fa1.png",
+      "sourceSha256": "b3a5cc1bde1a5197f4899e0e8d9a4427be74a7abb062116a058b66235783c9f6"
+    },
+    {
+      "bytes": 20305,
+      "path": "images/figure-914c60f24526b9f562dfb3e6.png",
+      "role": "image",
+      "sha256": "6148afe3f4ae974333329cffac4d6d48814e4ff0f9fe2ac28576760fca8f399c",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-914c60f24526b9f562dfb3e6.png",
+      "sourceSha256": "6148afe3f4ae974333329cffac4d6d48814e4ff0f9fe2ac28576760fca8f399c"
+    },
+    {
+      "bytes": 11013,
+      "path": "images/figure-9210e087008ce7ffd38427fa.png",
+      "role": "image",
+      "sha256": "166695ae9445741a76529b632eeb6ce7706ea572a41ffea2f243d4d1b0677768",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-9210e087008ce7ffd38427fa.png",
+      "sourceSha256": "166695ae9445741a76529b632eeb6ce7706ea572a41ffea2f243d4d1b0677768"
+    },
+    {
+      "bytes": 23956,
+      "path": "images/figure-953ef77df0273a1dcb4bb4ff.png",
+      "role": "image",
+      "sha256": "472047676395d484890e43dff244e84b8a2a90b3737409d3c8915dbd9f16915b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-953ef77df0273a1dcb4bb4ff.png",
+      "sourceSha256": "472047676395d484890e43dff244e84b8a2a90b3737409d3c8915dbd9f16915b"
+    },
+    {
+      "bytes": 16255,
+      "path": "images/figure-979eebccfc06b22693614802.png",
+      "role": "image",
+      "sha256": "7698339e09ac6cfca7b546be90a3cecf8d51e37c613cf0574a0b2aafd98014a6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-979eebccfc06b22693614802.png",
+      "sourceSha256": "7698339e09ac6cfca7b546be90a3cecf8d51e37c613cf0574a0b2aafd98014a6"
+    },
+    {
+      "bytes": 11444,
+      "path": "images/figure-97b9158a7f1d54f4f7690c71.png",
+      "role": "image",
+      "sha256": "57b824016792f64ba9f8d1384d5fa930bc3e780f6ad341d4a64b86384f973357",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-97b9158a7f1d54f4f7690c71.png",
+      "sourceSha256": "57b824016792f64ba9f8d1384d5fa930bc3e780f6ad341d4a64b86384f973357"
+    },
+    {
+      "bytes": 16210,
+      "path": "images/figure-9d026056f257b8f54906ea75.png",
+      "role": "image",
+      "sha256": "a074a329150f570972aff3b74e854a64667ceacd8fbcdd106ddfbca242968dea",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-9d026056f257b8f54906ea75.png",
+      "sourceSha256": "a074a329150f570972aff3b74e854a64667ceacd8fbcdd106ddfbca242968dea"
+    },
+    {
+      "bytes": 23576,
+      "path": "images/figure-9fa8ede4e5de50062f04d5bd.png",
+      "role": "image",
+      "sha256": "7e0f066970db4e236c1436b1cd3a7340b45f08ac17965e1c754f50f485f92af6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-9fa8ede4e5de50062f04d5bd.png",
+      "sourceSha256": "7e0f066970db4e236c1436b1cd3a7340b45f08ac17965e1c754f50f485f92af6"
+    },
+    {
+      "bytes": 14003,
+      "path": "images/figure-a1167b3ff0902e90e514e895.png",
+      "role": "image",
+      "sha256": "a7a93699103fa0f893adb3d1e452d9ee0ae97eeb58551f105dd88e3e9554acf2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-a1167b3ff0902e90e514e895.png",
+      "sourceSha256": "a7a93699103fa0f893adb3d1e452d9ee0ae97eeb58551f105dd88e3e9554acf2"
+    },
+    {
+      "bytes": 20714,
+      "path": "images/figure-a137dfdba48a6916c24f3ccb.png",
+      "role": "image",
+      "sha256": "3f38db0e4c98d0c6d44446c9cb657d63665ba987e1e17af900f3d9b5fb9112fe",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-a137dfdba48a6916c24f3ccb.png",
+      "sourceSha256": "3f38db0e4c98d0c6d44446c9cb657d63665ba987e1e17af900f3d9b5fb9112fe"
+    },
+    {
+      "bytes": 11590,
+      "path": "images/figure-a23e0813eabc8a473e398b37.png",
+      "role": "image",
+      "sha256": "bcf33e0159eb72a337589e4a14a8d0aecdfc17f5ea58086c9fbaeebdfb9eb60a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-a23e0813eabc8a473e398b37.png",
+      "sourceSha256": "bcf33e0159eb72a337589e4a14a8d0aecdfc17f5ea58086c9fbaeebdfb9eb60a"
+    },
+    {
+      "bytes": 23596,
+      "path": "images/figure-a4a296a2c5eebb8541620c25.png",
+      "role": "image",
+      "sha256": "7710de441b7bb7427ffff95bcc967becd8f2aab1517c177263f17b101a61a736",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-a4a296a2c5eebb8541620c25.png",
+      "sourceSha256": "7710de441b7bb7427ffff95bcc967becd8f2aab1517c177263f17b101a61a736"
+    },
+    {
+      "bytes": 20023,
+      "path": "images/figure-a7316f907e6d4e6937edc1f6.png",
+      "role": "image",
+      "sha256": "cacff4269a4e6fa499c1bbcccfd16fb174e61eb0660a0501d5d110ec67e4a069",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-a7316f907e6d4e6937edc1f6.png",
+      "sourceSha256": "cacff4269a4e6fa499c1bbcccfd16fb174e61eb0660a0501d5d110ec67e4a069"
+    },
+    {
+      "bytes": 24405,
+      "path": "images/figure-a8e1609630e6d92c88caadfb.png",
+      "role": "image",
+      "sha256": "4b0b44c2554215920ba978bb77f880410452c555df4340f61ec200badac3e307",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-a8e1609630e6d92c88caadfb.png",
+      "sourceSha256": "4b0b44c2554215920ba978bb77f880410452c555df4340f61ec200badac3e307"
+    },
+    {
+      "bytes": 13990,
+      "path": "images/figure-aa20015c2f0d86152af71e37.png",
+      "role": "image",
+      "sha256": "ba47ca73c66137f2c9d3603cb4c4786b8f7552810b15b6bdd4bd62a400d78415",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-aa20015c2f0d86152af71e37.png",
+      "sourceSha256": "ba47ca73c66137f2c9d3603cb4c4786b8f7552810b15b6bdd4bd62a400d78415"
+    },
+    {
+      "bytes": 23123,
+      "path": "images/figure-ac6c91c101dc42cf949649ff.png",
+      "role": "image",
+      "sha256": "3eda66b6aaecb8a14f1ddd2dab3db426da5453f0023684bc8b1d417b9ed8b8d9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ac6c91c101dc42cf949649ff.png",
+      "sourceSha256": "3eda66b6aaecb8a14f1ddd2dab3db426da5453f0023684bc8b1d417b9ed8b8d9"
+    },
+    {
+      "bytes": 13762,
+      "path": "images/figure-ac874c4a00fbb302512344e4.png",
+      "role": "image",
+      "sha256": "d436161a20f5e63d329cf27c44010665a6d0f28e815849d71568ed541dc41d43",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ac874c4a00fbb302512344e4.png",
+      "sourceSha256": "d436161a20f5e63d329cf27c44010665a6d0f28e815849d71568ed541dc41d43"
+    },
+    {
+      "bytes": 20894,
+      "path": "images/figure-aceea985b4de12afd4cf425b.png",
+      "role": "image",
+      "sha256": "caf87c5c2906effd8ab7aa49cd1cecea8d6dd6067acda0511f25dadf8efe413d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-aceea985b4de12afd4cf425b.png",
+      "sourceSha256": "caf87c5c2906effd8ab7aa49cd1cecea8d6dd6067acda0511f25dadf8efe413d"
+    },
+    {
+      "bytes": 18093,
+      "path": "images/figure-ae0ceec2c0b80e84938e3ba1.png",
+      "role": "image",
+      "sha256": "867c858cab933181f8772c1a4080d3730a55bf32cbf115b6f1b219623dfbf77d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ae0ceec2c0b80e84938e3ba1.png",
+      "sourceSha256": "867c858cab933181f8772c1a4080d3730a55bf32cbf115b6f1b219623dfbf77d"
+    },
+    {
+      "bytes": 9868,
+      "path": "images/figure-b0140a57619b33b14c05fb5e.png",
+      "role": "image",
+      "sha256": "84d13531b27aef47b96508c735543a92044e4cb9fd0522d9ee92cdbfa435bcc8",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b0140a57619b33b14c05fb5e.png",
+      "sourceSha256": "84d13531b27aef47b96508c735543a92044e4cb9fd0522d9ee92cdbfa435bcc8"
+    },
+    {
+      "bytes": 22926,
+      "path": "images/figure-b0451ae635a6f7e0ecc4723a.png",
+      "role": "image",
+      "sha256": "740afb558caffc675abc6212d703fef842159bbaa80929ff9b5d4fbd653dc390",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b0451ae635a6f7e0ecc4723a.png",
+      "sourceSha256": "740afb558caffc675abc6212d703fef842159bbaa80929ff9b5d4fbd653dc390"
+    },
+    {
+      "bytes": 20009,
+      "path": "images/figure-b1c621626506e41318c06902.png",
+      "role": "image",
+      "sha256": "527fd0b99e88739da0d31e9731168245ca463bb1b855f6b57f19e10c17de16c5",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b1c621626506e41318c06902.png",
+      "sourceSha256": "527fd0b99e88739da0d31e9731168245ca463bb1b855f6b57f19e10c17de16c5"
+    },
+    {
+      "bytes": 27256,
+      "path": "images/figure-b2d0c5af8dc4cc5708001910.png",
+      "role": "image",
+      "sha256": "09b041e7affba5ef9c38c649550bbf96ed4c775bd919dcae7ee6c8caa2febc43",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b2d0c5af8dc4cc5708001910.png",
+      "sourceSha256": "09b041e7affba5ef9c38c649550bbf96ed4c775bd919dcae7ee6c8caa2febc43"
+    },
+    {
+      "bytes": 14609,
+      "path": "images/figure-b38269e43ce9125ad7bab294.png",
+      "role": "image",
+      "sha256": "355951211ffa4fe2d0f1eec159d8f83d02f5e5ef44f4c522f2d4fa9bc3a47885",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b38269e43ce9125ad7bab294.png",
+      "sourceSha256": "355951211ffa4fe2d0f1eec159d8f83d02f5e5ef44f4c522f2d4fa9bc3a47885"
+    },
+    {
+      "bytes": 21883,
+      "path": "images/figure-b4d5b042be23a4f8a9ed4077.png",
+      "role": "image",
+      "sha256": "a5107cfb502ebbfb05e5bea1183d1b75aa2b6ec99eef1d82936c8e48d70549e5",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b4d5b042be23a4f8a9ed4077.png",
+      "sourceSha256": "a5107cfb502ebbfb05e5bea1183d1b75aa2b6ec99eef1d82936c8e48d70549e5"
+    },
+    {
+      "bytes": 10932,
+      "path": "images/figure-b531159cf63f20ca471cd431.png",
+      "role": "image",
+      "sha256": "32117f5ab6009231c476b5e4802f4298db10e80c61838261a1e84ae0ad8ebada",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b531159cf63f20ca471cd431.png",
+      "sourceSha256": "32117f5ab6009231c476b5e4802f4298db10e80c61838261a1e84ae0ad8ebada"
+    },
+    {
+      "bytes": 12112,
+      "path": "images/figure-b5e6b2197c16b89ee8b83cf2.png",
+      "role": "image",
+      "sha256": "5e73696ee479445f1d89bcfe99d92c2cf5c75b9b0834b08cd2d2c31db7880fbe",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b5e6b2197c16b89ee8b83cf2.png",
+      "sourceSha256": "5e73696ee479445f1d89bcfe99d92c2cf5c75b9b0834b08cd2d2c31db7880fbe"
+    },
+    {
+      "bytes": 11021,
+      "path": "images/figure-b672214fe97bc72e939937f4.png",
+      "role": "image",
+      "sha256": "44a2bff7c3139f7ee0340108d9e4b005d92ed200ad934719f1e27ad4a0c2eaee",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b672214fe97bc72e939937f4.png",
+      "sourceSha256": "44a2bff7c3139f7ee0340108d9e4b005d92ed200ad934719f1e27ad4a0c2eaee"
+    },
+    {
+      "bytes": 15177,
+      "path": "images/figure-b67df1b3fd4a463ff0f41e6d.png",
+      "role": "image",
+      "sha256": "f2b375cf4bd26a76783cf9fc69e8a73689e417ca23ef22ce933816ba57d1280b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b67df1b3fd4a463ff0f41e6d.png",
+      "sourceSha256": "f2b375cf4bd26a76783cf9fc69e8a73689e417ca23ef22ce933816ba57d1280b"
+    },
+    {
+      "bytes": 20869,
+      "path": "images/figure-b710e8cc0a58cf6249fcb3a4.png",
+      "role": "image",
+      "sha256": "95ed7acce23ed5965ee5c3101670e6106d47943861f9797db7a24a10fe765442",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b710e8cc0a58cf6249fcb3a4.png",
+      "sourceSha256": "95ed7acce23ed5965ee5c3101670e6106d47943861f9797db7a24a10fe765442"
+    },
+    {
+      "bytes": 23838,
+      "path": "images/figure-b713d52bc61c4da75a59b1a7.png",
+      "role": "image",
+      "sha256": "0949d83c59ffa0ac785be7defca61fe44654938e0854294eddf0fc55f5942907",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-b713d52bc61c4da75a59b1a7.png",
+      "sourceSha256": "0949d83c59ffa0ac785be7defca61fe44654938e0854294eddf0fc55f5942907"
+    },
+    {
+      "bytes": 20691,
+      "path": "images/figure-ba87169b1dd285fa79754a24.png",
+      "role": "image",
+      "sha256": "9c6268a11caa603a50626b9b8ed7f43e6181d79d17922646f7de4f951d8f74cb",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ba87169b1dd285fa79754a24.png",
+      "sourceSha256": "9c6268a11caa603a50626b9b8ed7f43e6181d79d17922646f7de4f951d8f74cb"
+    },
+    {
+      "bytes": 21337,
+      "path": "images/figure-bb1aed242c75d1b844b65990.png",
+      "role": "image",
+      "sha256": "d1b3432abd6b461d16529d6a4a7423abfee919f1b5846e39d67f72cf71ce2337",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-bb1aed242c75d1b844b65990.png",
+      "sourceSha256": "d1b3432abd6b461d16529d6a4a7423abfee919f1b5846e39d67f72cf71ce2337"
+    },
+    {
+      "bytes": 15475,
+      "path": "images/figure-bba868bd3a3f7552f99da8b4.png",
+      "role": "image",
+      "sha256": "5e0a3ada692d89fc19411ff8258028bc569d0bb4dc1a6984d1643eec6d0534cf",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-bba868bd3a3f7552f99da8b4.png",
+      "sourceSha256": "5e0a3ada692d89fc19411ff8258028bc569d0bb4dc1a6984d1643eec6d0534cf"
+    },
+    {
+      "bytes": 12051,
+      "path": "images/figure-bd909fa287f3ae49ad2a7436.png",
+      "role": "image",
+      "sha256": "33afe874f299acd2380ca56ad24f5e3dfb9c6054308c6fc7122fb1b079dea49f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-bd909fa287f3ae49ad2a7436.png",
+      "sourceSha256": "33afe874f299acd2380ca56ad24f5e3dfb9c6054308c6fc7122fb1b079dea49f"
+    },
+    {
+      "bytes": 31106,
+      "path": "images/figure-bfbe6619d486783fcdea9e46.png",
+      "role": "image",
+      "sha256": "f170c5b01a92fa3e3adcd1bb19884ae145e65767e4ee51468995657d357d175d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-bfbe6619d486783fcdea9e46.png",
+      "sourceSha256": "f170c5b01a92fa3e3adcd1bb19884ae145e65767e4ee51468995657d357d175d"
+    },
+    {
+      "bytes": 17424,
+      "path": "images/figure-c437e937b1c51e76387ce477.png",
+      "role": "image",
+      "sha256": "5fee3dcbbd5da8b6c62da2cb109b740d81f81209ccadc2fafb243552c409a899",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-c437e937b1c51e76387ce477.png",
+      "sourceSha256": "5fee3dcbbd5da8b6c62da2cb109b740d81f81209ccadc2fafb243552c409a899"
+    },
+    {
+      "bytes": 25149,
+      "path": "images/figure-c5bdf8ed6d36abb86169d8cd.png",
+      "role": "image",
+      "sha256": "8e1d8df61eae6ba0f7f86d22b8878ed35d7a66155d4e86dbc3c3f8853421099b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-c5bdf8ed6d36abb86169d8cd.png",
+      "sourceSha256": "8e1d8df61eae6ba0f7f86d22b8878ed35d7a66155d4e86dbc3c3f8853421099b"
+    },
+    {
+      "bytes": 10242,
+      "path": "images/figure-c5e9d0da03086203198219ef.png",
+      "role": "image",
+      "sha256": "ac4a86f08e5caa37cd38b1706042af3fe3c6d81d175cba2f481e96f660f5e249",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-c5e9d0da03086203198219ef.png",
+      "sourceSha256": "ac4a86f08e5caa37cd38b1706042af3fe3c6d81d175cba2f481e96f660f5e249"
+    },
+    {
+      "bytes": 20164,
+      "path": "images/figure-c9d57bf3d98d519611adb6f1.png",
+      "role": "image",
+      "sha256": "6d1b9713ab95d1f02d80faddab9ebddc576e57669cee853b1dffb2cd416f34c8",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-c9d57bf3d98d519611adb6f1.png",
+      "sourceSha256": "6d1b9713ab95d1f02d80faddab9ebddc576e57669cee853b1dffb2cd416f34c8"
+    },
+    {
+      "bytes": 21421,
+      "path": "images/figure-c9ddff2fbfb8e5b2aac593ba.png",
+      "role": "image",
+      "sha256": "90ef948159f1edbb34467135072e565fa3f11aee3937a25405a3b3e6f9de4759",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-c9ddff2fbfb8e5b2aac593ba.png",
+      "sourceSha256": "90ef948159f1edbb34467135072e565fa3f11aee3937a25405a3b3e6f9de4759"
+    },
+    {
+      "bytes": 13844,
+      "path": "images/figure-cb14b56f6ca784f6e4de038a.png",
+      "role": "image",
+      "sha256": "08c2fb0f5859b3a3e6b27143894b159e2f9e8256aef744ac84dbca82342e408b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-cb14b56f6ca784f6e4de038a.png",
+      "sourceSha256": "08c2fb0f5859b3a3e6b27143894b159e2f9e8256aef744ac84dbca82342e408b"
+    },
+    {
+      "bytes": 9562,
+      "path": "images/figure-cc4b4849ac08b88753cfb05a.png",
+      "role": "image",
+      "sha256": "a482385c3fdb93c230073d169fb0813a01690cc8b2b505862c80740d00ce3536",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-cc4b4849ac08b88753cfb05a.png",
+      "sourceSha256": "a482385c3fdb93c230073d169fb0813a01690cc8b2b505862c80740d00ce3536"
+    },
+    {
+      "bytes": 13171,
+      "path": "images/figure-ccb9ae1aa86a34483209a67d.png",
+      "role": "image",
+      "sha256": "a7fb21b67ffa6b02aec470d6bff394c4ca7ebbab34a5e7e6078f8d81a3b1d08a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ccb9ae1aa86a34483209a67d.png",
+      "sourceSha256": "a7fb21b67ffa6b02aec470d6bff394c4ca7ebbab34a5e7e6078f8d81a3b1d08a"
+    },
+    {
+      "bytes": 12229,
+      "path": "images/figure-ce2f941adf3da3d9a1585528.png",
+      "role": "image",
+      "sha256": "62667e762b7b60d28e8fcdf93faf27cabad0ea36ae2d664cd471bef5555895c1",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ce2f941adf3da3d9a1585528.png",
+      "sourceSha256": "62667e762b7b60d28e8fcdf93faf27cabad0ea36ae2d664cd471bef5555895c1"
+    },
+    {
+      "bytes": 14489,
+      "path": "images/figure-cf280dd3d1ebc2fa730cfd92.png",
+      "role": "image",
+      "sha256": "3c111baa672db50ae0ea01c679bdace7354680952b8cd9bc317470dcf3f26710",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-cf280dd3d1ebc2fa730cfd92.png",
+      "sourceSha256": "3c111baa672db50ae0ea01c679bdace7354680952b8cd9bc317470dcf3f26710"
+    },
+    {
+      "bytes": 23180,
+      "path": "images/figure-cfe54d71689edd48ca4b1c68.png",
+      "role": "image",
+      "sha256": "80ac2afbc99ff1fd05a36f91b19e77564ea166b8b0c04cff92b2a620bfc0728d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-cfe54d71689edd48ca4b1c68.png",
+      "sourceSha256": "80ac2afbc99ff1fd05a36f91b19e77564ea166b8b0c04cff92b2a620bfc0728d"
+    },
+    {
+      "bytes": 19770,
+      "path": "images/figure-d1b5bdb91411aab8e15b8f5a.png",
+      "role": "image",
+      "sha256": "48197e9d78f51a7eeb53bca85e80e1baeeb3f8eb11fe08d0f9f50204c1101ffd",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-d1b5bdb91411aab8e15b8f5a.png",
+      "sourceSha256": "48197e9d78f51a7eeb53bca85e80e1baeeb3f8eb11fe08d0f9f50204c1101ffd"
+    },
+    {
+      "bytes": 18775,
+      "path": "images/figure-d25f0443feee99ed26be81a3.png",
+      "role": "image",
+      "sha256": "7921a9b8932def854cb6982679e41a90e126425ed36136d56f7ba78adb43b9db",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-d25f0443feee99ed26be81a3.png",
+      "sourceSha256": "7921a9b8932def854cb6982679e41a90e126425ed36136d56f7ba78adb43b9db"
+    },
+    {
+      "bytes": 15351,
+      "path": "images/figure-d56b745ccb37a1b72da051d8.png",
+      "role": "image",
+      "sha256": "8ee5001da0f122496cee1f2a1b0c51e1ee5a236000c136d12b5f0d410e346118",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-d56b745ccb37a1b72da051d8.png",
+      "sourceSha256": "8ee5001da0f122496cee1f2a1b0c51e1ee5a236000c136d12b5f0d410e346118"
+    },
+    {
+      "bytes": 12122,
+      "path": "images/figure-d584e71fc3c734f62055cdb1.png",
+      "role": "image",
+      "sha256": "ff06a50aec912285363e5aef56c83b8f2cf49d699a263a153c78d734dfffb91a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-d584e71fc3c734f62055cdb1.png",
+      "sourceSha256": "ff06a50aec912285363e5aef56c83b8f2cf49d699a263a153c78d734dfffb91a"
+    },
+    {
+      "bytes": 18588,
+      "path": "images/figure-d7070f3fc537d9f0651dade6.png",
+      "role": "image",
+      "sha256": "1c35dcfedfa9b3ce884dc129c45c794e9c3d244a794ac0f0f986daddaf66a294",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-d7070f3fc537d9f0651dade6.png",
+      "sourceSha256": "1c35dcfedfa9b3ce884dc129c45c794e9c3d244a794ac0f0f986daddaf66a294"
+    },
+    {
+      "bytes": 18209,
+      "path": "images/figure-d7961cda92e10d144b149733.png",
+      "role": "image",
+      "sha256": "1707ab3b190714f8c343b8e3cd81f6b0f04de8326f99b60d0c81e34399b1fa9d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-d7961cda92e10d144b149733.png",
+      "sourceSha256": "1707ab3b190714f8c343b8e3cd81f6b0f04de8326f99b60d0c81e34399b1fa9d"
+    },
+    {
+      "bytes": 17336,
+      "path": "images/figure-daa5b9df07579d80aefc08dd.png",
+      "role": "image",
+      "sha256": "728d8fb34686fcc86237fd691e7e7fadb41f3133e1e61d08ef2eb1461efb20ac",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-daa5b9df07579d80aefc08dd.png",
+      "sourceSha256": "728d8fb34686fcc86237fd691e7e7fadb41f3133e1e61d08ef2eb1461efb20ac"
+    },
+    {
+      "bytes": 25947,
+      "path": "images/figure-e1e602b04904690d7142203b.png",
+      "role": "image",
+      "sha256": "44123a8b7eb039db71e30ffa55a14ec70959198de487c6df3c7769250b95584d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-e1e602b04904690d7142203b.png",
+      "sourceSha256": "44123a8b7eb039db71e30ffa55a14ec70959198de487c6df3c7769250b95584d"
+    },
+    {
+      "bytes": 22234,
+      "path": "images/figure-e765024fae3e1fbd5469ee51.png",
+      "role": "image",
+      "sha256": "7f98034c33ef375d3acce96e7eebaccf70b62b6ff9c94ce92a545c32b56b50eb",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-e765024fae3e1fbd5469ee51.png",
+      "sourceSha256": "7f98034c33ef375d3acce96e7eebaccf70b62b6ff9c94ce92a545c32b56b50eb"
+    },
+    {
+      "bytes": 16259,
+      "path": "images/figure-e77b546458b23aab4b1a86c1.png",
+      "role": "image",
+      "sha256": "ab081172433eabe7a4d97f3a9a55ae400323caeccd006cb9116f92d54696141d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-e77b546458b23aab4b1a86c1.png",
+      "sourceSha256": "ab081172433eabe7a4d97f3a9a55ae400323caeccd006cb9116f92d54696141d"
+    },
+    {
+      "bytes": 17714,
+      "path": "images/figure-e7e0e4a21745ff8de77c7507.png",
+      "role": "image",
+      "sha256": "37cd74d7ab3bce1ef907e519d8b16964ab4308c0b95cf61cb46790271e2e2604",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-e7e0e4a21745ff8de77c7507.png",
+      "sourceSha256": "37cd74d7ab3bce1ef907e519d8b16964ab4308c0b95cf61cb46790271e2e2604"
+    },
+    {
+      "bytes": 21270,
+      "path": "images/figure-e9700b749d1ffc074ed8c0a0.png",
+      "role": "image",
+      "sha256": "2c6319c8d56b68257faf9e8c58d31473ec6fe759c873725b01c2ae78c55ee36f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-e9700b749d1ffc074ed8c0a0.png",
+      "sourceSha256": "2c6319c8d56b68257faf9e8c58d31473ec6fe759c873725b01c2ae78c55ee36f"
+    },
+    {
+      "bytes": 13024,
+      "path": "images/figure-ed8c6f5fda067a1ecb4a86a1.png",
+      "role": "image",
+      "sha256": "94008e2feb50f3d22949af53ed4cc90af3afd9438b81932a6a9e6498b19ebfef",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ed8c6f5fda067a1ecb4a86a1.png",
+      "sourceSha256": "94008e2feb50f3d22949af53ed4cc90af3afd9438b81932a6a9e6498b19ebfef"
+    },
+    {
+      "bytes": 14611,
+      "path": "images/figure-ee2d528339bf21aec730b925.png",
+      "role": "image",
+      "sha256": "91416be618029b147fa0dc407a8c1ccd5b107cd39e93da0ee63213158d7c61c9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ee2d528339bf21aec730b925.png",
+      "sourceSha256": "91416be618029b147fa0dc407a8c1ccd5b107cd39e93da0ee63213158d7c61c9"
+    },
+    {
+      "bytes": 12752,
+      "path": "images/figure-eee1d046531e22567e5d774e.png",
+      "role": "image",
+      "sha256": "c136be6b0f21ca6292cd97ca21b10745e17069216902deb0d30f195c45e470ec",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-eee1d046531e22567e5d774e.png",
+      "sourceSha256": "c136be6b0f21ca6292cd97ca21b10745e17069216902deb0d30f195c45e470ec"
+    },
+    {
+      "bytes": 9877,
+      "path": "images/figure-ef9d11a2d60c8a9bd4aa668a.png",
+      "role": "image",
+      "sha256": "790b3ce95d01dff95b2addfa31803d67d6424c4b2f9f97ee3f43ef81e202bcc3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-ef9d11a2d60c8a9bd4aa668a.png",
+      "sourceSha256": "790b3ce95d01dff95b2addfa31803d67d6424c4b2f9f97ee3f43ef81e202bcc3"
+    },
+    {
+      "bytes": 20357,
+      "path": "images/figure-efb1149e540be9ea10fb85ec.png",
+      "role": "image",
+      "sha256": "4b423e75cf80f31822ca7594f64444a73f45cdc3e6751a72337774afecf40a10",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-efb1149e540be9ea10fb85ec.png",
+      "sourceSha256": "4b423e75cf80f31822ca7594f64444a73f45cdc3e6751a72337774afecf40a10"
+    },
+    {
+      "bytes": 9810,
+      "path": "images/figure-efc98570173cc4bc9f256a35.png",
+      "role": "image",
+      "sha256": "bd107ea1842a921726453fb27da37b4ed22362f42ccfda3bc7c6a2414086512a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-efc98570173cc4bc9f256a35.png",
+      "sourceSha256": "bd107ea1842a921726453fb27da37b4ed22362f42ccfda3bc7c6a2414086512a"
+    },
+    {
+      "bytes": 23440,
+      "path": "images/figure-f274cac917f15f3078c75132.png",
+      "role": "image",
+      "sha256": "67cab43e141a00856f2e44bfaf1b622dba9c8f1569264f1bac22601f1f1572b6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-f274cac917f15f3078c75132.png",
+      "sourceSha256": "67cab43e141a00856f2e44bfaf1b622dba9c8f1569264f1bac22601f1f1572b6"
+    },
+    {
+      "bytes": 21279,
+      "path": "images/figure-f40e5684195f4d6b7806a533.png",
+      "role": "image",
+      "sha256": "6e680d3eb609aecc6f25e363e9c94311299ef67c6738bd5d69aff9963b91ed36",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-f40e5684195f4d6b7806a533.png",
+      "sourceSha256": "6e680d3eb609aecc6f25e363e9c94311299ef67c6738bd5d69aff9963b91ed36"
+    },
+    {
+      "bytes": 9859,
+      "path": "images/figure-f4f98fabb6263df610aced98.png",
+      "role": "image",
+      "sha256": "d129177addf911f78e60ca54dc3a5f0184f8bacabac130926e76a030ed614c0f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-f4f98fabb6263df610aced98.png",
+      "sourceSha256": "d129177addf911f78e60ca54dc3a5f0184f8bacabac130926e76a030ed614c0f"
+    },
+    {
+      "bytes": 25469,
+      "path": "images/figure-f71905c9e7717cc097c84b03.png",
+      "role": "image",
+      "sha256": "50554ed0714d52618b73d422f4728dd47c0374c281b7a1581fa19d5412880788",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-f71905c9e7717cc097c84b03.png",
+      "sourceSha256": "50554ed0714d52618b73d422f4728dd47c0374c281b7a1581fa19d5412880788"
+    },
+    {
+      "bytes": 19429,
+      "path": "images/figure-f73a4d7fb3adb9baf41a77c2.png",
+      "role": "image",
+      "sha256": "01d7faccaccb47e592a39a7c10dcd7e71b4cc9245bcd2d44ba9e4bbb2602ca8f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-f73a4d7fb3adb9baf41a77c2.png",
+      "sourceSha256": "01d7faccaccb47e592a39a7c10dcd7e71b4cc9245bcd2d44ba9e4bbb2602ca8f"
+    },
+    {
+      "bytes": 21369,
+      "path": "images/figure-f9e541a0c0e799bf86dc38cd.png",
+      "role": "image",
+      "sha256": "059c405275440d3a4caff0e1363943062c2202959c9e85d3e4bd3278fbcc4110",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-f9e541a0c0e799bf86dc38cd.png",
+      "sourceSha256": "059c405275440d3a4caff0e1363943062c2202959c9e85d3e4bd3278fbcc4110"
+    },
+    {
+      "bytes": 14907,
+      "path": "images/figure-faa80cf06596b2a98a0de0f2.png",
+      "role": "image",
+      "sha256": "7d260528362ef183bbd992b15746b0ccd4d19ee2d4af45ed17cb625e22a661af",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-faa80cf06596b2a98a0de0f2.png",
+      "sourceSha256": "7d260528362ef183bbd992b15746b0ccd4d19ee2d4af45ed17cb625e22a661af"
+    },
+    {
+      "bytes": 12198,
+      "path": "images/figure-fe1355c340474b8acabdbf90.png",
+      "role": "image",
+      "sha256": "aa1b09f8c483b0e176ad90bef40f3dc5ac2ae4d4c2401620e94faa56b903b038",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-fe1355c340474b8acabdbf90.png",
+      "sourceSha256": "aa1b09f8c483b0e176ad90bef40f3dc5ac2ae4d4c2401620e94faa56b903b038"
+    },
+    {
+      "bytes": 20370,
+      "path": "images/figure-fea70f888eef65414ca86e81.png",
+      "role": "image",
+      "sha256": "4ed6b15f39a4ea0df9df410a36075fd939aca0fd281ebdb36ce6f70981a932e6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-fea70f888eef65414ca86e81.png",
+      "sourceSha256": "4ed6b15f39a4ea0df9df410a36075fd939aca0fd281ebdb36ce6f70981a932e6"
+    },
+    {
+      "bytes": 25890,
+      "path": "images/figure-fee7c5201a254f969c6f1f4d.png",
+      "role": "image",
+      "sha256": "42e011f2a0f60ef535e6582b4aba8d466914c8b8061563dd182fbdd2a178f59e",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/images/figure-fee7c5201a254f969c6f1f4d.png",
+      "sourceSha256": "42e011f2a0f60ef535e6582b4aba8d466914c8b8061563dd182fbdd2a178f59e"
+    },
+    {
+      "bytes": 1234,
+      "path": "judge-a-first-freeze.json",
+      "role": "firstFreeze-a",
+      "sha256": "8fd706b837d518ea96ca98216f56ff33d560f67a93fe7bfc7d0d313e8ca502b5",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/judge-a-first-freeze.json",
+      "sourceSha256": "8fd706b837d518ea96ca98216f56ff33d560f67a93fe7bfc7d0d313e8ca502b5"
+    },
+    {
+      "bytes": 623,
+      "path": "judge-a-identity.json",
+      "role": "identity-a",
+      "sha256": "54ee9dc31e998e8fbb8323e29a10dadacff0512c9693ab0f0862297b4ed77a93",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/judge-a-identity.json",
+      "sourceSha256": "54ee9dc31e998e8fbb8323e29a10dadacff0512c9693ab0f0862297b4ed77a93"
+    },
+    {
+      "bytes": 1234,
+      "path": "judge-b-first-freeze.json",
+      "role": "firstFreeze-b",
+      "sha256": "aff0cf66fa6fa8dc9e190d061129cfab7ebf5ac663c537bcfe869999b06e3180",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/judge-b-first-freeze.json",
+      "sourceSha256": "aff0cf66fa6fa8dc9e190d061129cfab7ebf5ac663c537bcfe869999b06e3180"
+    },
+    {
+      "bytes": 623,
+      "path": "judge-b-identity.json",
+      "role": "identity-b",
+      "sha256": "9ce18ba74759fe081d6a2e947e8a5433c087ad13ca4c1c051b56388b6ea6fd6f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/judge-b-identity.json",
+      "sourceSha256": "9ce18ba74759fe081d6a2e947e8a5433c087ad13ca4c1c051b56388b6ea6fd6f"
+    },
+    {
+      "bytes": 1234,
+      "path": "judge-c-first-freeze.json",
+      "role": "firstFreeze-c",
+      "sha256": "4a35ee3c4e8b8d34780a5502b4b8f50d168897585d045a821f7f01293eaf3ba0",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/judge-c-first-freeze.json",
+      "sourceSha256": "4a35ee3c4e8b8d34780a5502b4b8f50d168897585d045a821f7f01293eaf3ba0"
+    },
+    {
+      "bytes": 623,
+      "path": "judge-c-identity.json",
+      "role": "identity-c",
+      "sha256": "d81dc6817f25674b6f514f3b77f4da3e8107df8502f0bdb3e1e36e25dedd4880",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/judge-c-identity.json",
+      "sourceSha256": "d81dc6817f25674b6f514f3b77f4da3e8107df8502f0bdb3e1e36e25dedd4880"
+    },
+    {
+      "bytes": 2226,
+      "path": "operational-abort.md",
+      "role": "documentation",
+      "sha256": "696e856762f36656db68accbbafa96a74fa0a3e111e77a20ec2da22b76eb7f91",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/OPERATIONAL-ABORT-NOTE.md",
+      "sourceSha256": "696e856762f36656db68accbbafa96a74fa0a3e111e77a20ec2da22b76eb7f91"
+    },
+    {
+      "bytes": 132466,
+      "path": "outcomes.jsonl",
+      "role": "outcomes",
+      "sha256": "ab83601e0d2c785af211f26dd9a2c97949c08e9e3cdfac79387b209fa0d8a4d4",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/parent/outcomes.jsonl",
+      "sourceSha256": "ab83601e0d2c785af211f26dd9a2c97949c08e9e3cdfac79387b209fa0d8a4d4"
+    },
+    {
+      "bytes": 1318,
+      "path": "packet-freeze.json",
+      "role": "packetFreeze",
+      "sha256": "2f332531d7a16d1a4d495486a305ff4b4ac0367460f7688d8171d02d1e8d6151",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/freeze.json",
+      "sourceSha256": "2f332531d7a16d1a4d495486a305ff4b4ac0367460f7688d8171d02d1e8d6151"
+    },
+    {
+      "bytes": 507198,
+      "path": "preregistration.json",
+      "role": "preregistration",
+      "sha256": "83705d87db5744000e2aba2ac975cc0fb256b3416d3c070194f1b98784e68491",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/preregistration.json",
+      "sourceSha256": "83705d87db5744000e2aba2ac975cc0fb256b3416d3c070194f1b98784e68491"
+    },
+    {
+      "bytes": 201346,
+      "path": "queue.jsonl",
+      "role": "queue",
+      "sha256": "a8207617175ffafeaf43e10c66eba0ea9c10e475b28411488a43958861d4a92a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/queue.jsonl",
+      "sourceSha256": "a8207617175ffafeaf43e10c66eba0ea9c10e475b28411488a43958861d4a92a"
+    },
+    {
+      "bytes": 29498,
+      "path": "recount.py",
+      "role": "helper",
+      "sha256": "f8bb366f2f2631693965cdc6a92fad090fdc2b02110d9559409ad6b5ccfbb3ff",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/recount.py",
+      "sourceSha256": "f8bb366f2f2631693965cdc6a92fad090fdc2b02110d9559409ad6b5ccfbb3ff"
+    },
+    {
+      "bytes": 3072839,
+      "path": "rejection-diagnostics.jsonl",
+      "role": "rejectionDiagnostics",
+      "sha256": "442eebccc9c25a5618a59a51d4492c1f026eee074037bca4517c0ea69332fbc9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/parent/rejection-diagnostics.jsonl",
+      "sourceSha256": "442eebccc9c25a5618a59a51d4492c1f026eee074037bca4517c0ea69332fbc9"
+    },
+    {
+      "bytes": 29681,
+      "path": "results.json",
+      "role": "results",
+      "sha256": "3a1816bb6d0603ab36242aeec8c34265e505f300e3caace68a8120284568a86b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/secondary-results.json",
+      "sourceSha256": "3a1816bb6d0603ab36242aeec8c34265e505f300e3caace68a8120284568a86b"
+    },
+    {
+      "bytes": 4746,
+      "path": "support/calibration/summarize-calibration.py",
+      "role": "helper",
+      "sha256": "c92728fea8d067257676c93938bc42387bef9e4b5331119f6764484a15498bb8",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/summarize-calibration.py",
+      "sourceSha256": "c92728fea8d067257676c93938bc42387bef9e4b5331119f6764484a15498bb8"
+    },
+    {
+      "bytes": 1228,
+      "path": "support/final-controls/FINAL-OWNED-CLEANUP.json",
+      "role": "protocol",
+      "sha256": "e87372df511c26a3ebf10f91bfbabcde1eb173ad53c915bda4b2ad342531297a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/FINAL-OWNED-CLEANUP.json",
+      "sourceSha256": "e87372df511c26a3ebf10f91bfbabcde1eb173ad53c915bda4b2ad342531297a"
+    },
+    {
+      "bytes": 1080,
+      "path": "support/final-controls/ROOT-FINAL-CONTROL-FREEZE.json",
+      "role": "protocol",
+      "sha256": "e0f65490c62ba82f66d4860680155462942436c08c099b209277018c9d683cb4",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/ROOT-FINAL-CONTROL-FREEZE.json",
+      "sourceSha256": "e0f65490c62ba82f66d4860680155462942436c08c099b209277018c9d683cb4"
+    },
+    {
+      "bytes": 31224,
+      "path": "support/final-controls/SPEND.json",
+      "role": "spend",
+      "sha256": "6653e967af62c84ed1c26af769115379fb7752a5b8111237133a2a4b6ee209bf",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/SPEND.json",
+      "sourceSha256": "6653e967af62c84ed1c26af769115379fb7752a5b8111237133a2a4b6ee209bf"
+    },
+    {
+      "bytes": 550,
+      "path": "support/final-controls/WATCHER-STOP-RECEIPT.json",
+      "role": "protocol",
+      "sha256": "58a68dde00aaf25f6cf3d90af0fbbf9746396b9af05289b3070516c5354cdef1",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/WATCHER-STOP-RECEIPT.json",
+      "sourceSha256": "58a68dde00aaf25f6cf3d90af0fbbf9746396b9af05289b3070516c5354cdef1"
+    },
+    {
+      "bytes": 1194,
+      "path": "support/final-controls/active-lease.json",
+      "role": "protocol",
+      "sha256": "6437b28a84760842645cb8ba4adb1f024b23b4f4a7034275f5e9b2950a4dad81",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/active-lease.json",
+      "sourceSha256": "6437b28a84760842645cb8ba4adb1f024b23b4f4a7034275f5e9b2950a4dad81"
+    },
+    {
+      "bytes": 3932,
+      "path": "support/final-controls/aggregate-results.py",
+      "role": "helper",
+      "sha256": "405376262bf04925405b74cf96dab7b251e203c35e912848e3ac0efa55ff1061",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/aggregate-results.py",
+      "sourceSha256": "405376262bf04925405b74cf96dab7b251e203c35e912848e3ac0efa55ff1061"
+    },
+    {
+      "bytes": 11009,
+      "path": "support/final-controls/aggregate-secondary-results.py",
+      "role": "helper",
+      "sha256": "a089e434891240edf38182525e6c2c5c346777e8e4da26b234b6a23820dc6900",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/aggregate-secondary-results.py",
+      "sourceSha256": "a089e434891240edf38182525e6c2c5c346777e8e4da26b234b6a23820dc6900"
+    },
+    {
+      "bytes": 8840,
+      "path": "support/final-controls/budget_guard.py",
+      "role": "helper",
+      "sha256": "105028f3420de5ddd0a138ab7e07ea2c18ab123dccc4b196c723ba6db6da5e82",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/budget_guard.py",
+      "sourceSha256": "105028f3420de5ddd0a138ab7e07ea2c18ab123dccc4b196c723ba6db6da5e82"
+    },
+    {
+      "bytes": 10465,
+      "path": "support/final-controls/canonical_evidence.py",
+      "role": "helper",
+      "sha256": "11357b2327a128321da3870e093e7cce226f50ff58f65a75b03e2c24c48d463f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/canonical_evidence.py",
+      "sourceSha256": "11357b2327a128321da3870e093e7cce226f50ff58f65a75b03e2c24c48d463f"
+    },
+    {
+      "bytes": 4914,
+      "path": "support/final-controls/completed-arms.json",
+      "role": "protocol",
+      "sha256": "60cadca8e1fd475bdaac9de3d17f233b9923bdb0777418216a523f0a0c39c79d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/completed-arms.json",
+      "sourceSha256": "60cadca8e1fd475bdaac9de3d17f233b9923bdb0777418216a523f0a0c39c79d"
+    },
+    {
+      "bytes": 114,
+      "path": "support/final-controls/completed-blocks.json",
+      "role": "protocol",
+      "sha256": "0fa0b85783b4405b9ff908db647cc466b92e7276aaaf9adac855778559c19b8d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/completed-blocks.json",
+      "sourceSha256": "0fa0b85783b4405b9ff908db647cc466b92e7276aaaf9adac855778559c19b8d"
+    },
+    {
+      "bytes": 9170,
+      "path": "support/final-controls/controlled-run.ts",
+      "role": "helper",
+      "sha256": "86d9502769755ca3a50a4e13559524307b58bdc2955bc8d00975305bcfbeafd7",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/controlled-run.ts",
+      "sourceSha256": "86d9502769755ca3a50a4e13559524307b58bdc2955bc8d00975305bcfbeafd7"
+    },
+    {
+      "bytes": 3140,
+      "path": "support/final-controls/controller.log",
+      "role": "protocol",
+      "sha256": "c308fbf5664842b8e4ff43a0c745c1ea8c16f722ce1236e75b66949894b087a8",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/controller.log",
+      "sourceSha256": "c308fbf5664842b8e4ff43a0c745c1ea8c16f722ce1236e75b66949894b087a8"
+    },
+    {
+      "bytes": 2150,
+      "path": "support/final-controls/copy-calibration-packet.py",
+      "role": "helper",
+      "sha256": "2b4e2c5af7d1379230505c416bb4e1c7c2e11bd5091c96c9e45c38ba15ec695f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/copy-calibration-packet.py",
+      "sourceSha256": "2b4e2c5af7d1379230505c416bb4e1c7c2e11bd5091c96c9e45c38ba15ec695f"
+    },
+    {
+      "bytes": 1848,
+      "path": "support/final-controls/dispatch-contract.mjs",
+      "role": "helper",
+      "sha256": "0df0767af4a0b6d09ed8a49fc1dc4832b36209dbc5efce5754f3da82bf49bc57",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/dispatch-contract.mjs",
+      "sourceSha256": "0df0767af4a0b6d09ed8a49fc1dc4832b36209dbc5efce5754f3da82bf49bc57"
+    },
+    {
+      "bytes": 110,
+      "path": "support/final-controls/dispatch-stop.json",
+      "role": "protocol",
+      "sha256": "1e00dceebc4915960bb1961dd1e1ce2b5e6ecad93ac98e85ffa0dc53eaa483d9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/dispatch-stop.json",
+      "sourceSha256": "1e00dceebc4915960bb1961dd1e1ce2b5e6ecad93ac98e85ffa0dc53eaa483d9"
+    },
+    {
+      "bytes": 15174,
+      "path": "support/final-controls/eight-cell-controller.py",
+      "role": "helper",
+      "sha256": "b49f1003b55ab32c6d57753da0c4ca1a0cb31f511a5c621661d0eec366e9dd55",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/eight-cell-controller.py",
+      "sourceSha256": "b49f1003b55ab32c6d57753da0c4ca1a0cb31f511a5c621661d0eec366e9dd55"
+    },
+    {
+      "bytes": 477,
+      "path": "support/final-controls/execution-start.json",
+      "role": "protocol",
+      "sha256": "277d02c371dc17501f84428fd9a37725005aeb850bb12393b548252f4996c015",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/execution-start.json",
+      "sourceSha256": "277d02c371dc17501f84428fd9a37725005aeb850bb12393b548252f4996c015"
+    },
+    {
+      "bytes": 872,
+      "path": "support/final-controls/final-settle.log",
+      "role": "protocol",
+      "sha256": "6907a39e106bd876ad63173299a2602e1ca1445311ee487a3755fd96d8b4d3c5",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/final-settle.log",
+      "sourceSha256": "6907a39e106bd876ad63173299a2602e1ca1445311ee487a3755fd96d8b4d3c5"
+    },
+    {
+      "bytes": 2982,
+      "path": "support/final-controls/freeze-consensus.py",
+      "role": "helper",
+      "sha256": "67f950c69937d2efedd61d502eea3e5ca9ad0bcffed79150d038b3c3b913175e",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/freeze-consensus.py",
+      "sourceSha256": "67f950c69937d2efedd61d502eea3e5ca9ad0bcffed79150d038b3c3b913175e"
+    },
+    {
+      "bytes": 4730,
+      "path": "support/final-controls/freeze-first-grades.py",
+      "role": "helper",
+      "sha256": "fdfb7cc2852426c6f33c9fd3f1e2135b2911e0e2475a3dd59073a37e1fc7e68f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/freeze-first-grades.py",
+      "sourceSha256": "fdfb7cc2852426c6f33c9fd3f1e2135b2911e0e2475a3dd59073a37e1fc7e68f"
+    },
+    {
+      "bytes": 9067,
+      "path": "support/final-controls/imported_canonical.py",
+      "role": "helper",
+      "sha256": "e429424644109861dd7df1181e3fef5a21c6e771c5863c9589b9988f7e6b789b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/imported_canonical.py",
+      "sourceSha256": "e429424644109861dd7df1181e3fef5a21c6e771c5863c9589b9988f7e6b789b"
+    },
+    {
+      "bytes": 1251,
+      "path": "support/final-controls/initialize.py",
+      "role": "helper",
+      "sha256": "41126df913cb26db92b610002e262dcbb21988e8b533ad19c05e43997ff94f40",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/initialize.py",
+      "sourceSha256": "41126df913cb26db92b610002e262dcbb21988e8b533ad19c05e43997ff94f40"
+    },
+    {
+      "bytes": 10312,
+      "path": "support/final-controls/lease_guard.py",
+      "role": "helper",
+      "sha256": "9af6b680ef86b79cd36104c25d5a6aff2c2cb52a94328e259842166f4d490673",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/lease_guard.py",
+      "sourceSha256": "9af6b680ef86b79cd36104c25d5a6aff2c2cb52a94328e259842166f4d490673"
+    },
+    {
+      "bytes": 11656,
+      "path": "support/final-controls/make-opaque-packets.mjs",
+      "role": "helper",
+      "sha256": "a28a3c435089fbf745eb3b6bc976847908bc3f5ed9dd9d2a7f11bec2a65812a2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/make-opaque-packets.mjs",
+      "sourceSha256": "a28a3c435089fbf745eb3b6bc976847908bc3f5ed9dd9d2a7f11bec2a65812a2"
+    },
+    {
+      "bytes": 34739,
+      "path": "support/final-controls/measurement_core.py",
+      "role": "helper",
+      "sha256": "19127fe767579eafb34e3bc38057a3590969e89e2fc33f1aad2c0f49b4592613",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/measurement_core.py",
+      "sourceSha256": "19127fe767579eafb34e3bc38057a3590969e89e2fc33f1aad2c0f49b4592613"
+    },
+    {
+      "bytes": 7726,
+      "path": "support/final-controls/metrics-poll.py",
+      "role": "helper",
+      "sha256": "b632fb842296d61d209fb0ca67671131330c7a7256327aeac89db16397616395",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/metrics-poll.py",
+      "sourceSha256": "b632fb842296d61d209fb0ca67671131330c7a7256327aeac89db16397616395"
+    },
+    {
+      "bytes": 6500,
+      "path": "support/final-controls/metrics-watch.log",
+      "role": "protocol",
+      "sha256": "b7aa7392604c1b447ff41b43a58e3e710339d87ef33c10360cb9630ecb304995",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/metrics-watch.log",
+      "sourceSha256": "b7aa7392604c1b447ff41b43a58e3e710339d87ef33c10360cb9630ecb304995"
+    },
+    {
+      "bytes": 9489,
+      "path": "support/final-controls/metrics/baseline.json",
+      "role": "protocol",
+      "sha256": "05be6608ff9b0b28cecc5d2039052460fda7c360995d3f6936725792198e8c7d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/metrics/baseline.json",
+      "sourceSha256": "05be6608ff9b0b28cecc5d2039052460fda7c360995d3f6936725792198e8c7d"
+    },
+    {
+      "bytes": 234,
+      "path": "support/final-controls/metrics/budget-anchor.json",
+      "role": "protocol",
+      "sha256": "f72e3c6b258ab8f70f47bf54c2eebeed17ddd04b33da873c1fb85accb34a6237",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/metrics/budget-anchor.json",
+      "sourceSha256": "f72e3c6b258ab8f70f47bf54c2eebeed17ddd04b33da873c1fb85accb34a6237"
+    },
+    {
+      "bytes": 10788,
+      "path": "support/final-controls/metrics/final-settlement.json",
+      "role": "settlement",
+      "sha256": "e458b6bd9b381aa89df8c42eb11ed9330c85b60e1b46d3eb2a237d47b08d127a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/metrics/final-settlement.json",
+      "sourceSha256": "e458b6bd9b381aa89df8c42eb11ed9330c85b60e1b46d3eb2a237d47b08d127a"
+    },
+    {
+      "bytes": 19208,
+      "path": "support/final-controls/metrics/history.jsonl",
+      "role": "protocol",
+      "sha256": "e89006b2db91a5bb10fd60cc8e6e5ee1f96a9428716dc28ec8a70dbb191cf470",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/metrics/history.jsonl",
+      "sourceSha256": "e89006b2db91a5bb10fd60cc8e6e5ee1f96a9428716dc28ec8a70dbb191cf470"
+    },
+    {
+      "bytes": 504,
+      "path": "support/final-controls/original_bridge.py",
+      "role": "helper",
+      "sha256": "ea4052db9709e68b3e16fb3bee44ad7c4ed38149944a5c248cdd29e854a455fc",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/original_bridge.py",
+      "sourceSha256": "ea4052db9709e68b3e16fb3bee44ad7c4ed38149944a5c248cdd29e854a455fc"
+    },
+    {
+      "bytes": 5490,
+      "path": "support/final-controls/paid-events.jsonl",
+      "role": "protocol",
+      "sha256": "0c4e7a72cc8b33bf050634e57f7cc2214d7ee5792463fd83053c0daeb772c8b2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/paid-events.jsonl",
+      "sourceSha256": "0c4e7a72cc8b33bf050634e57f7cc2214d7ee5792463fd83053c0daeb772c8b2"
+    },
+    {
+      "bytes": 1511,
+      "path": "support/final-controls/prepare-judge-directory.py",
+      "role": "helper",
+      "sha256": "8ef45fb40de5ba610add06303e4c1ab927005d3e3b940a2323c3b94b475b51f6",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/prepare-judge-directory.py",
+      "sourceSha256": "8ef45fb40de5ba610add06303e4c1ab927005d3e3b940a2323c3b94b475b51f6"
+    },
+    {
+      "bytes": 9489,
+      "path": "support/final-controls/prepare.py",
+      "role": "helper",
+      "sha256": "cdee78d85f3917526c69851d335c284a58196203fb82ccaef3e88a5fbcad2c6d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/prepare.py",
+      "sourceSha256": "cdee78d85f3917526c69851d335c284a58196203fb82ccaef3e88a5fbcad2c6d"
+    },
+    {
+      "bytes": 3178,
+      "path": "support/final-controls/summarize-spend.py",
+      "role": "helper",
+      "sha256": "615c59b6e8cbc7832cabcd7afd9ecc9b3cf22adfe0c900a0903235dc8276a797",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/summarize-spend.py",
+      "sourceSha256": "615c59b6e8cbc7832cabcd7afd9ecc9b3cf22adfe0c900a0903235dc8276a797"
+    },
+    {
+      "bytes": 2685,
+      "path": "support/final-controls/test_dispatch.mjs",
+      "role": "helper",
+      "sha256": "6a14e0dcf96fbff9945efae5eb27d01fd369de2907654db252f63cdd134f6fca",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/test_dispatch.mjs",
+      "sourceSha256": "6a14e0dcf96fbff9945efae5eb27d01fd369de2907654db252f63cdd134f6fca"
+    },
+    {
+      "bytes": 14191,
+      "path": "support/final-controls/test_followup.py",
+      "role": "helper",
+      "sha256": "ac095fcdfa6363d33693561f7ca72be090e059d4b82a303a7bda8fc9e8c5ad3a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/test_followup.py",
+      "sourceSha256": "ac095fcdfa6363d33693561f7ca72be090e059d4b82a303a7bda8fc9e8c5ad3a"
+    },
+    {
+      "bytes": 8865,
+      "path": "support/final-controls/test_leases.py",
+      "role": "helper",
+      "sha256": "1b78e8852974026da75d0dcef389bb315c146780f2cb9d9da764a7f87cf1a333",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/test_leases.py",
+      "sourceSha256": "1b78e8852974026da75d0dcef389bb315c146780f2cb9d9da764a7f87cf1a333"
+    },
+    {
+      "bytes": 5745,
+      "path": "support/final-controls/test_secondary_integration.py",
+      "role": "helper",
+      "sha256": "d94df2aed2ea209242ee9aeac4a4632353ac35ea1d7b320c08c048ae663dbb7d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/test_secondary_integration.py",
+      "sourceSha256": "d94df2aed2ea209242ee9aeac4a4632353ac35ea1d7b320c08c048ae663dbb7d"
+    },
+    {
+      "bytes": 20208,
+      "path": "support/final-controls/test_settlement_transition.py",
+      "role": "helper",
+      "sha256": "623a7321746f6f7405c792ff1fe019f6d8f62160a6da61b907ba6e1125f56ac2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/test_settlement_transition.py",
+      "sourceSha256": "623a7321746f6f7405c792ff1fe019f6d8f62160a6da61b907ba6e1125f56ac2"
+    },
+    {
+      "bytes": 1400,
+      "path": "support/final-controls/verify-completed-evidence.py",
+      "role": "helper",
+      "sha256": "5947d69e8c072ca6c712d9635ee261939b54cb1a71a0723d1983baf232280322",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/verify-completed-evidence.py",
+      "sourceSha256": "5947d69e8c072ca6c712d9635ee261939b54cb1a71a0723d1983baf232280322"
+    },
+    {
+      "bytes": 3371,
+      "path": "support/final-controls/verify-secondary-evidence.py",
+      "role": "helper",
+      "sha256": "74d8572fb00cd46c83150c93aedd3b3dabbf5d242a928bce77ae144ab5b30a78",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/verify-secondary-evidence.py",
+      "sourceSha256": "74d8572fb00cd46c83150c93aedd3b3dabbf5d242a928bce77ae144ab5b30a78"
+    },
+    {
+      "bytes": 260,
+      "path": "support/final-controls/whole-arm-abort.json",
+      "role": "protocol",
+      "sha256": "625ff06a339f612b895620f3f16fef32d74fa911f287f40cce80d43eb13be958",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/whole-arm-abort.json",
+      "sourceSha256": "625ff06a339f612b895620f3f16fef32d74fa911f287f40cce80d43eb13be958"
+    },
+    {
+      "bytes": 64655,
+      "path": "support/heldout-author/ARITHMETIC-EVIDENCE.json",
+      "role": "protocol",
+      "sha256": "fe6bef3069bf97c9f6c9eff16514198d9486e574d13cf3fffd3944b37a364f22",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/ARITHMETIC-EVIDENCE.json",
+      "sourceSha256": "fe6bef3069bf97c9f6c9eff16514198d9486e574d13cf3fffd3944b37a364f22"
+    },
+    {
+      "bytes": 3183,
+      "path": "support/heldout-author/AUTHOR-DECLARATION.md",
+      "role": "protocol",
+      "sha256": "90db2ef7346a936e1d6c9359c6a4132f0114c4b818fc90128f1d38addab9a7f2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/AUTHOR-DECLARATION.md",
+      "sourceSha256": "90db2ef7346a936e1d6c9359c6a4132f0114c4b818fc90128f1d38addab9a7f2"
+    },
+    {
+      "bytes": 3043,
+      "path": "support/heldout-author/IMAGE-RUBRIC.md",
+      "role": "protocol",
+      "sha256": "2ccfbe72b13e6b35c3c61dc6d2308e484b4cfe2ef33ec229eaa57b34b29e9718",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/IMAGE-RUBRIC.md",
+      "sourceSha256": "2ccfbe72b13e6b35c3c61dc6d2308e484b4cfe2ef33ec229eaa57b34b29e9718"
+    },
+    {
+      "bytes": 51944,
+      "path": "support/heldout-author/ORACLE-EXACT.json",
+      "role": "protocol",
+      "sha256": "4adf0464a0fada5eff8d834c0d071ffcc59b30ce2dae918edf88e854870b1a4e",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/ORACLE-EXACT.json",
+      "sourceSha256": "4adf0464a0fada5eff8d834c0d071ffcc59b30ce2dae918edf88e854870b1a4e"
+    },
+    {
+      "bytes": 665,
+      "path": "support/heldout-author/SHA256SUMS",
+      "role": "protocol",
+      "sha256": "f974e3d56d63a73030b67c210e382e6d66b955d36d1d07a9af00b43122055e7f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/SHA256SUMS",
+      "sourceSha256": "f974e3d56d63a73030b67c210e382e6d66b955d36d1d07a9af00b43122055e7f"
+    },
+    {
+      "bytes": 32129,
+      "path": "support/heldout-author/author_eval.py",
+      "role": "protocol",
+      "sha256": "32b7a73aa2ce96271a43d632ea582ce02a53eadc890557c0365b83c284b2a36d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/author_eval.py",
+      "sourceSha256": "32b7a73aa2ce96271a43d632ea582ce02a53eadc890557c0365b83c284b2a36d"
+    },
+    {
+      "bytes": 13438,
+      "path": "support/heldout-author/verify_exact.py",
+      "role": "protocol",
+      "sha256": "bf6835e8417ff1df66380132a24121aae820b353c0a16a159586fe36148aeabd",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/verify_exact.py",
+      "sourceSha256": "bf6835e8417ff1df66380132a24121aae820b353c0a16a159586fe36148aeabd"
+    },
+    {
+      "bytes": 20838,
+      "path": "support/judge-queues/calibration-a.jsonl",
+      "role": "protocol",
+      "sha256": "021f5908da6e37978427f4df167a65ae6d1ef02ae8c5659262c44b1bd2eb9dfe",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/calibration-a/queue.jsonl",
+      "sourceSha256": "021f5908da6e37978427f4df167a65ae6d1ef02ae8c5659262c44b1bd2eb9dfe"
+    },
+    {
+      "bytes": 20838,
+      "path": "support/judge-queues/calibration-b.jsonl",
+      "role": "protocol",
+      "sha256": "ed6be37214bc386f8068e9d82ee18a6aca9fcc52bb08832eacd27ce1415be8c3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/calibration-b/queue.jsonl",
+      "sourceSha256": "ed6be37214bc386f8068e9d82ee18a6aca9fcc52bb08832eacd27ce1415be8c3"
+    },
+    {
+      "bytes": 20838,
+      "path": "support/judge-queues/calibration-c.jsonl",
+      "role": "protocol",
+      "sha256": "167220deee23b2bdad74cde97f9ba00300f943a924706b8c9fc8b09c177a8692",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/calibration-c/queue.jsonl",
+      "sourceSha256": "167220deee23b2bdad74cde97f9ba00300f943a924706b8c9fc8b09c177a8692"
+    },
+    {
+      "bytes": 199886,
+      "path": "support/judge-queues/final-a.jsonl",
+      "role": "protocol",
+      "sha256": "d48d6aee89e197857ee88ae7a3c253ce4311ec25c8ec3994a020107ba97d4376",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-a/queue.jsonl",
+      "sourceSha256": "d48d6aee89e197857ee88ae7a3c253ce4311ec25c8ec3994a020107ba97d4376"
+    },
+    {
+      "bytes": 199886,
+      "path": "support/judge-queues/final-b.jsonl",
+      "role": "protocol",
+      "sha256": "e7060c48711c79a1c849b763f76c72727e0c93d78e8544a303f969907810e950",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-b/queue.jsonl",
+      "sourceSha256": "e7060c48711c79a1c849b763f76c72727e0c93d78e8544a303f969907810e950"
+    },
+    {
+      "bytes": 199886,
+      "path": "support/judge-queues/final-c.jsonl",
+      "role": "protocol",
+      "sha256": "377ca109a83ed5bf22e36c8a7bb63a6aa39812f75bb7c64cd703fef440aa84b7",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-c/queue.jsonl",
+      "sourceSha256": "377ca109a83ed5bf22e36c8a7bb63a6aa39812f75bb7c64cd703fef440aa84b7"
+    },
+    {
+      "bytes": 1183,
+      "path": "support/registered/calibrationContract-CALIBRATION-CONTRACT-FREEZE.json",
+      "role": "protocol",
+      "sha256": "18a32910257775b507baedeb623ba2a51e1b0409544655720a05d2bef25ef0ad",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/calibration/CALIBRATION-CONTRACT-FREEZE.json",
+      "sourceSha256": "18a32910257775b507baedeb623ba2a51e1b0409544655720a05d2bef25ef0ad"
+    },
+    {
+      "bytes": 51639,
+      "path": "support/registered/calibrationGenerator-GENERATOR-FREEZE-v4.json",
+      "role": "protocol",
+      "sha256": "0068a07a55ec3a637cefb3e87bfb3fb0a65014259b3041e8bbfe33593110757d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/calibration/GENERATOR-FREEZE-v4.json",
+      "sourceSha256": "0068a07a55ec3a637cefb3e87bfb3fb0a65014259b3041e8bbfe33593110757d"
+    },
+    {
+      "bytes": 7890,
+      "path": "support/registered/calibrationGold-parent-reference-grades.jsonl",
+      "role": "calibrationReference",
+      "sha256": "756e460f38a0d4555f5886daa20df97d3091712381013c0ea93b9fcb2f040e66",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/calibration/parent-reference-grades.jsonl",
+      "sourceSha256": "756e460f38a0d4555f5886daa20df97d3091712381013c0ea93b9fcb2f040e66"
+    },
+    {
+      "bytes": 13299,
+      "path": "support/registered/calibrationImageProof-CALIBRATION-IMAGE-PROOF-FREEZE-v4.json",
+      "role": "calibrationReferenceFreeze",
+      "sha256": "e5146558c2af6d41152078bc6fdce5ef44adbe4cff97d74e96cdf1c06de9d3c3",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/calibration/CALIBRATION-IMAGE-PROOF-FREEZE-v4.json",
+      "sourceSha256": "e5146558c2af6d41152078bc6fdce5ef44adbe4cff97d74e96cdf1c06de9d3c3"
+    },
+    {
+      "bytes": 482,
+      "path": "support/registered/calibrationPacket-freeze.json",
+      "role": "calibrationFreeze",
+      "sha256": "523e610394d9f70392b67bb1417d6a3d0b3b6e3513048ee3184c557504ccd56d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/packets/calibration-neutral/freeze.json",
+      "sourceSha256": "523e610394d9f70392b67bb1417d6a3d0b3b6e3513048ee3184c557504ccd56d"
+    },
+    {
+      "bytes": 20310,
+      "path": "support/registered/calibrationQueue-queue.jsonl",
+      "role": "calibrationQueue",
+      "sha256": "fa8f7aa94e64e0a52d4ab36940a7775b61e788f26ac3be0fcb9677128467a726",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/packets/calibration-neutral/queue.jsonl",
+      "sourceSha256": "fa8f7aa94e64e0a52d4ab36940a7775b61e788f26ac3be0fcb9677128467a726"
+    },
+    {
+      "bytes": 228885,
+      "path": "support/registered/candidateBuildReceipt-candidate-689338462ae3.json",
+      "role": "protocol",
+      "sha256": "aabfbd2b9189312093718fe88906e3d4f1fa0617553cf1ef0a4a6e0e93ea417b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/nonpaid/candidate-689338462ae3.json",
+      "sourceSha256": "aabfbd2b9189312093718fe88906e3d4f1fa0617553cf1ef0a4a6e0e93ea417b"
+    },
+    {
+      "bytes": 4290,
+      "path": "support/registered/developmentManifest-FREEZE-MANIFEST.json",
+      "role": "protocol",
+      "sha256": "75bd8b6a63661fd8c1c58205cd902f5ac18fc593fd9918112097e84baa9f7f4d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/FREEZE-MANIFEST.json",
+      "sourceSha256": "75bd8b6a63661fd8c1c58205cd902f5ac18fc593fd9918112097e84baa9f7f4d"
+    },
+    {
+      "bytes": 550,
+      "path": "support/registered/heldoutManifest-FREEZE.json",
+      "role": "protocol",
+      "sha256": "36204173e31fab2e6e288a873ba1d29f9c665f0ce52faff960133451732fe42e",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/heldout-author/FREEZE.json",
+      "sourceSha256": "36204173e31fab2e6e288a873ba1d29f9c665f0ce52faff960133451732fe42e"
+    },
+    {
+      "bytes": 175561,
+      "path": "support/registered/imports-IMPORTED-COMPLETE-CELLS.json",
+      "role": "protocol",
+      "sha256": "0765e32164135d9e3828b659a8e2fc3736a7d8e30402a9f4b041889c543c94c2",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/IMPORTED-COMPLETE-CELLS.json",
+      "sourceSha256": "0765e32164135d9e3828b659a8e2fc3736a7d8e30402a9f4b041889c543c94c2"
+    },
+    {
+      "bytes": 19939,
+      "path": "support/registered/initialAuditedHelperPreparation-PREPARATION.FINAL-DRAFT.json",
+      "role": "protocol",
+      "sha256": "ed3323ef9287f1d02b4a31344ee60065aaab4578b4c530db13451c4ab77821cc",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/PREPARATION.FINAL-DRAFT.json",
+      "sourceSha256": "ed3323ef9287f1d02b4a31344ee60065aaab4578b4c530db13451c4ab77821cc"
+    },
+    {
+      "bytes": 738,
+      "path": "support/registered/inputsFreeze-INPUTS-FREEZE.json",
+      "role": "protocol",
+      "sha256": "0558fc8c6d628123c33aa4666c6fe67544454ddd73dd4a0a709ebe58421af4df",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/frozen-inputs/INPUTS-FREEZE.json",
+      "sourceSha256": "0558fc8c6d628123c33aa4666c6fe67544454ddd73dd4a0a709ebe58421af4df"
+    },
+    {
+      "bytes": 103060,
+      "path": "support/registered/mainReuse-MAIN-REUSE.json",
+      "role": "baselineReuse",
+      "sha256": "11784e86c9f36cff55660d425099ea733cfdd8cc16276e16446dbcd2cb2e7341",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r7/source-equivalence/MAIN-REUSE.json",
+      "sourceSha256": "11784e86c9f36cff55660d425099ea733cfdd8cc16276e16446dbcd2cb2e7341"
+    },
+    {
+      "bytes": 257,
+      "path": "support/registered/originalAbort-whole-arm-abort.json",
+      "role": "protocol",
+      "sha256": "fbb9129960ebb5055ccc8d15fb89f2c367b96486a273cc52e38798792c1cc82b",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/whole-arm-abort.json",
+      "sourceSha256": "fbb9129960ebb5055ccc8d15fb89f2c367b96486a273cc52e38798792c1cc82b"
+    },
+    {
+      "bytes": 9261,
+      "path": "support/registered/originalBaseline-baseline.json",
+      "role": "protocol",
+      "sha256": "8200fd198ce426c070dbd36aad7e3dd28ec645712745697aa3a69cdf83d97718",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/metrics/baseline.json",
+      "sourceSha256": "8200fd198ce426c070dbd36aad7e3dd28ec645712745697aa3a69cdf83d97718"
+    },
+    {
+      "bytes": 3498,
+      "path": "support/registered/originalCleanup-ORIGINAL-CLEANUP-RECONCILIATION.json",
+      "role": "protocol",
+      "sha256": "a6b911bb2afd4e5c841473c571469b6f9e967b77f3d8814e57f9a86c0a5ba726",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/ORIGINAL-CLEANUP-RECONCILIATION.json",
+      "sourceSha256": "a6b911bb2afd4e5c841473c571469b6f9e967b77f3d8814e57f9a86c0a5ba726"
+    },
+    {
+      "bytes": 4914,
+      "path": "support/registered/originalCompletedArms-completed-arms.json",
+      "role": "protocol",
+      "sha256": "57a390381e7322b51cbafd12138cd4e7c419637eae33c68588886267e7f6388f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/completed-arms.json",
+      "sourceSha256": "57a390381e7322b51cbafd12138cd4e7c419637eae33c68588886267e7f6388f"
+    },
+    {
+      "bytes": 12382,
+      "path": "support/registered/originalCompletedBlocks-completed-blocks.json",
+      "role": "protocol",
+      "sha256": "81dd9bb26e2110031229da7727b2096d3acc125374d517fd72d16a32058e57c8",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/completed-blocks.json",
+      "sourceSha256": "81dd9bb26e2110031229da7727b2096d3acc125374d517fd72d16a32058e57c8"
+    },
+    {
+      "bytes": 5982,
+      "path": "support/registered/originalPrefixCheckpoint-spend-checkpoint.json",
+      "role": "protocol",
+      "sha256": "163af1329d324cf368b73b91a4fe915d66e3ccd92dc6b827ee1eb4c3c959a7d9",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r2-candidate-b1/spend-checkpoint.json",
+      "sourceSha256": "163af1329d324cf368b73b91a4fe915d66e3ccd92dc6b827ee1eb4c3c959a7d9"
+    },
+    {
+      "bytes": 478861,
+      "path": "support/registered/originalPreregistration-preregistration.json",
+      "role": "protocol",
+      "sha256": "c6b7b12870b28f127f8d7340f02ed36e9c84816e712e412127002219824fd689",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/preregistration.json",
+      "sourceSha256": "c6b7b12870b28f127f8d7340f02ed36e9c84816e712e412127002219824fd689"
+    },
+    {
+      "bytes": 10536,
+      "path": "support/registered/originalSettlement-final-settlement.json",
+      "role": "protocol",
+      "sha256": "0e4761b9b19e7e022b72369fdf217199a273e63cd202717c9644b2405b380146",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/metrics/final-settlement.json",
+      "sourceSha256": "0e4761b9b19e7e022b72369fdf217199a273e63cd202717c9644b2405b380146"
+    },
+    {
+      "bytes": 29790,
+      "path": "support/registered/originalSpend-SPEND.json",
+      "role": "protocol",
+      "sha256": "c88cd8028fb50babd6262f3f99f2f4ee99dbe904753557075bc155c439d4642f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/SPEND.json",
+      "sourceSha256": "c88cd8028fb50babd6262f3f99f2f4ee99dbe904753557075bc155c439d4642f"
+    },
+    {
+      "bytes": 259,
+      "path": "support/registered/ownedNodeAbsence-OWNED-NODE-ABSENCE.json",
+      "role": "protocol",
+      "sha256": "e8592586dee1e43f5b282d786f3bc5f31d491200e1e1d903b457e57cbf044287",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/OWNED-NODE-ABSENCE.json",
+      "sourceSha256": "e8592586dee1e43f5b282d786f3bc5f31d491200e1e1d903b457e57cbf044287"
+    },
+    {
+      "bytes": 3401,
+      "path": "support/registered/reportToolsPreparation-preparation-receipt.json",
+      "role": "protocol",
+      "sha256": "c6857a22dddf4130f67e362b0474c7b7e193d0d1ce70302745c8fc6257e21726",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/preparation-receipt.json",
+      "sourceSha256": "c6857a22dddf4130f67e362b0474c7b7e193d0d1ce70302745c8fc6257e21726"
+    },
+    {
+      "bytes": 3783,
+      "path": "support/registered/settlementControlReview-SETTLEMENT-CONTROL-REVIEW.md",
+      "role": "protocol",
+      "sha256": "9d6bddf9e7d5a7ea63968e4f6db38190de5f447c319c4e8d6c400c7220bf13dd",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/SETTLEMENT-CONTROL-REVIEW.md",
+      "sourceSha256": "9d6bddf9e7d5a7ea63968e4f6db38190de5f447c319c4e8d6c400c7220bf13dd"
+    },
+    {
+      "bytes": 1057,
+      "path": "support/registered/sourceBuildFreeze-SOURCE-AND-BUILD-FREEZE.json",
+      "role": "runtimeSourceFreeze",
+      "sha256": "81fbd89f83a3abef8695511860b8d699220ee108fe12073bd8db277f4d00028d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/SOURCE-AND-BUILD-FREEZE.json",
+      "sourceSha256": "81fbd89f83a3abef8695511860b8d699220ee108fe12073bd8db277f4d00028d"
+    },
+    {
+      "bytes": 257,
+      "path": "support/registered/startupOneAbort-whole-arm-abort.json",
+      "role": "protocol",
+      "sha256": "c228c5aca3d5d1fdedd2f89f42ba15573090b8ae802d72ab8eac50726575d46a",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/whole-arm-abort.json",
+      "sourceSha256": "c228c5aca3d5d1fdedd2f89f42ba15573090b8ae802d72ab8eac50726575d46a"
+    },
+    {
+      "bytes": 499908,
+      "path": "support/registered/startupOnePreregistration-preregistration.json",
+      "role": "protocol",
+      "sha256": "b593d942c3230abfed57c70a26c0de0262df3b685f43d247656286ae5f8842f4",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/preregistration.json",
+      "sourceSha256": "b593d942c3230abfed57c70a26c0de0262df3b685f43d247656286ae5f8842f4"
+    },
+    {
+      "bytes": 10770,
+      "path": "support/registered/startupOneSettlement-final-settlement.json",
+      "role": "protocol",
+      "sha256": "5a5e95128c901f391e612da4ffd47585a2eed31c9cd30e350075c12b269d2f17",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/metrics/final-settlement.json",
+      "sourceSha256": "5a5e95128c901f391e612da4ffd47585a2eed31c9cd30e350075c12b269d2f17"
+    },
+    {
+      "bytes": 30736,
+      "path": "support/registered/startupOneSpend-SPEND.json",
+      "role": "protocol",
+      "sha256": "962919b36e7c998d05d56ba5f1b9399bd59e665679edded0fd676c7c96a2cd37",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/SPEND.json",
+      "sourceSha256": "962919b36e7c998d05d56ba5f1b9399bd59e665679edded0fd676c7c96a2cd37"
+    },
+    {
+      "bytes": 239,
+      "path": "support/registered/startupTwoAbort-whole-arm-abort.json",
+      "role": "protocol",
+      "sha256": "0ba923ddee5e61346b37e71682a76bbc79f53fd398df2f4665569b3e63b2502d",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/whole-arm-abort.json",
+      "sourceSha256": "0ba923ddee5e61346b37e71682a76bbc79f53fd398df2f4665569b3e63b2502d"
+    },
+    {
+      "bytes": 504863,
+      "path": "support/registered/startupTwoPreregistration-preregistration.json",
+      "role": "protocol",
+      "sha256": "e2d0bf312c1aff355b6d2790887132fbf1d07caf29e038785cd66ddf02e24579",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/preregistration.json",
+      "sourceSha256": "e2d0bf312c1aff355b6d2790887132fbf1d07caf29e038785cd66ddf02e24579"
+    },
+    {
+      "bytes": 10714,
+      "path": "support/registered/startupTwoSettlement-final-settlement.json",
+      "role": "protocol",
+      "sha256": "8cefe2f319b22a027503d915ded6fdb133929569a47ac8b1d0ef6439ee2f1129",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/metrics/final-settlement.json",
+      "sourceSha256": "8cefe2f319b22a027503d915ded6fdb133929569a47ac8b1d0ef6439ee2f1129"
+    },
+    {
+      "bytes": 30753,
+      "path": "support/registered/startupTwoSpend-SPEND.json",
+      "role": "protocol",
+      "sha256": "1556c82e0c743bf2fb41abe8457a442d4ab8fe462d5d26abbed62ba2a978128f",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-absolute-startup/SPEND.json",
+      "sourceSha256": "1556c82e0c743bf2fb41abe8457a442d4ab8fe462d5d26abbed62ba2a978128f"
+    },
+    {
+      "bytes": 835,
+      "path": "support/registered/supplementalPidCheck-SUPPLEMENTAL-PID-CHECK.json",
+      "role": "protocol",
+      "sha256": "9dd9165993ca8727c588876036a880cf8e2194f5b786465e3d814c292a721576",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/SUPPLEMENTAL-PID-CHECK.json",
+      "sourceSha256": "9dd9165993ca8727c588876036a880cf8e2194f5b786465e3d814c292a721576"
+    },
+    {
+      "bytes": 1679,
+      "path": "support/registered/twoZeroCallStartupsCleanup-TWO-ZERO-CALL-STARTUPS-CLEANUP.json",
+      "role": "protocol",
+      "sha256": "9b5251313ec931c26f4adc187e0d5efdf2e2a21eba20c2a793f6de8744308943",
+      "sourcePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/TWO-ZERO-CALL-STARTUPS-CLEANUP.json",
+      "sourceSha256": "9b5251313ec931c26f4adc187e0d5efdf2e2a21eba20c2a793f6de8744308943"
+    }
+  ],
+  "gate": {
+    "candidateWrongMaximum": 1,
+    "everyCohortRepeatAndJudgeMustPass": true,
+    "poolingAllowed": false,
+    "requiredEmptyDeltaMaximum": 2,
+    "rightDeltaMinimumExclusive": 0,
+    "wrongDeltaMaximum": 0
+  },
+  "mode": "secondary200",
+  "noClassificationFiltering": true,
+  "protocolAccounting": {
+    "configuredConcurrency": 3,
+    "discardedUngradedRows": 16,
+    "interruptedAttemptsIncludedInSpend": true,
+    "newGradedModelOutcomes": 120,
+    "operationalConfound": true,
+    "originalAbortedSavedPrefix": 15,
+    "originalCapturedConcurrency": 3,
+    "originalProtocolReady": false,
+    "replacementCells": 1,
+    "replacementDispatchRows": 1,
+    "replacementEffectiveConcurrency": 1,
+    "replacementFullRows": 40,
+    "replacementRecordedRows": 1,
+    "reusedMainOutcomes": 80,
+    "totalRecordedNewModelRows": 136
+  },
+  "questionBodiesExcluded": true,
+  "repeats": [
+    1,
+    2
+  ],
+  "schema": "finish-regions-portable-evidence/v1",
+  "secondaryScope": {
+    "missingCell": {
+      "arm": "candidate",
+      "cohort": "development",
+      "rep": 2
+    },
+    "prefixesGraded": false,
+    "ready": false,
+    "schema": "secondary-report-only/v1",
+    "trigger": "operational-incomplete-replacement-before-quality"
+  },
+  "totalOutcomes": 200
+}

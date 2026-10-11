@@ -1,0 +1,401 @@
+{
+  "schema": "h3r8-followup-nonpaid-preparation/v2",
+  "preparedAt": "2026-10-11T16:56:16.469385+00:00",
+  "status": "draft-controls-ready-for-independent-final-audit-not-dispatch-authority",
+  "supersededDraft": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/draft-history/preregistration-7037587dcf8a0b057e36e29a06cd1553756957136f040120b885172488646c43.json",
+    "sha256": "7037587dcf8a0b057e36e29a06cd1553756957136f040120b885172488646c43"
+  },
+  "supersededPreparation": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/draft-history/PREPARATION-7037587dcf8a0b057e36e29a06cd1553756957136f040120b885172488646c43.json",
+    "sha256": "b8fbe47d45d05551673598cc1f793fff305c74073dfe9203ea374528552582e5"
+  },
+  "finalDraft": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/preregistration.draft.json",
+    "sha256": "fa7a449e97b19e92809f527df673a848922a17ae78acf1ae8a5bb3ba3f42bfbc",
+    "immutableCopy": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/draft-history/preregistration-fa7a449e97b19e92809f527df673a848922a17ae78acf1ae8a5bb3ba3f42bfbc.json"
+  },
+  "prospectiveFreezeSemanticSha256": "0734ea0e6e6e1a951e39f9a0563ce16811316a6f37708b0614e1076d42405ee5",
+  "freezeComparisonRule": "Parent final freeze may change createdAt only; every other draft field must equal this audited draft.",
+  "helperInventory": {
+    "RUNBOOK.md": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/RUNBOOK.md",
+      "sha256": "3c79ede08589f3885fb3b5a889b30a82849a4224093c8a5b063750b15aca50a6"
+    },
+    "aggregate-results.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/aggregate-results.py",
+      "sha256": "405376262bf04925405b74cf96dab7b251e203c35e912848e3ac0efa55ff1061"
+    },
+    "aggregate-secondary-results.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/aggregate-secondary-results.py",
+      "sha256": "a089e434891240edf38182525e6c2c5c346777e8e4da26b234b6a23820dc6900"
+    },
+    "budget_guard.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/budget_guard.py",
+      "sha256": "105028f3420de5ddd0a138ab7e07ea2c18ab123dccc4b196c723ba6db6da5e82"
+    },
+    "canonical_evidence.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/canonical_evidence.py",
+      "sha256": "11357b2327a128321da3870e093e7cce226f50ff58f65a75b03e2c24c48d463f"
+    },
+    "controlled-run.ts": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/controlled-run.ts",
+      "sha256": "86d9502769755ca3a50a4e13559524307b58bdc2955bc8d00975305bcfbeafd7"
+    },
+    "copy-calibration-packet.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/copy-calibration-packet.py",
+      "sha256": "2b4e2c5af7d1379230505c416bb4e1c7c2e11bd5091c96c9e45c38ba15ec695f"
+    },
+    "dispatch-contract.mjs": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/dispatch-contract.mjs",
+      "sha256": "0df0767af4a0b6d09ed8a49fc1dc4832b36209dbc5efce5754f3da82bf49bc57"
+    },
+    "eight-cell-controller.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/eight-cell-controller.py",
+      "sha256": "f6302a8c90c3e49c390e595fef596866519a54a6fe0f3f8c3f6a6d4f52c798f9"
+    },
+    "freeze-consensus.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/freeze-consensus.py",
+      "sha256": "67f950c69937d2efedd61d502eea3e5ca9ad0bcffed79150d038b3c3b913175e"
+    },
+    "freeze-first-grades.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/freeze-first-grades.py",
+      "sha256": "fdfb7cc2852426c6f33c9fd3f1e2135b2911e0e2475a3dd59073a37e1fc7e68f"
+    },
+    "imported_canonical.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/imported_canonical.py",
+      "sha256": "e429424644109861dd7df1181e3fef5a21c6e771c5863c9589b9988f7e6b789b"
+    },
+    "initialize.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/initialize.py",
+      "sha256": "41126df913cb26db92b610002e262dcbb21988e8b533ad19c05e43997ff94f40"
+    },
+    "judge-instructions.md": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/judge-instructions.md",
+      "sha256": "0c3b43cf84f855bd80a94f922ddc320aa044ff82e03c1880a217d806ccfe204e"
+    },
+    "lease_guard.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/lease_guard.py",
+      "sha256": "9af6b680ef86b79cd36104c25d5a6aff2c2cb52a94328e259842166f4d490673"
+    },
+    "make-opaque-packets.mjs": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/make-opaque-packets.mjs",
+      "sha256": "a28a3c435089fbf745eb3b6bc976847908bc3f5ed9dd9d2a7f11bec2a65812a2"
+    },
+    "measurement_core.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/measurement_core.py",
+      "sha256": "19127fe767579eafb34e3bc38057a3590969e89e2fc33f1aad2c0f49b4592613"
+    },
+    "metrics-poll.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/metrics-poll.py",
+      "sha256": "b632fb842296d61d209fb0ca67671131330c7a7256327aeac89db16397616395"
+    },
+    "original_bridge.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/original_bridge.py",
+      "sha256": "ea4052db9709e68b3e16fb3bee44ad7c4ed38149944a5c248cdd29e854a455fc"
+    },
+    "prepare-judge-directory.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/prepare-judge-directory.py",
+      "sha256": "8ef45fb40de5ba610add06303e4c1ab927005d3e3b940a2323c3b94b475b51f6"
+    },
+    "prepare.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/prepare.py",
+      "sha256": "cdee78d85f3917526c69851d335c284a58196203fb82ccaef3e88a5fbcad2c6d"
+    },
+    "summarize-spend.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/summarize-spend.py",
+      "sha256": "615c59b6e8cbc7832cabcd7afd9ecc9b3cf22adfe0c900a0903235dc8276a797"
+    },
+    "test_dispatch.mjs": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/test_dispatch.mjs",
+      "sha256": "6a14e0dcf96fbff9945efae5eb27d01fd369de2907654db252f63cdd134f6fca"
+    },
+    "test_followup.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/test_followup.py",
+      "sha256": "ac095fcdfa6363d33693561f7ca72be090e059d4b82a303a7bda8fc9e8c5ad3a"
+    },
+    "test_leases.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/test_leases.py",
+      "sha256": "1b78e8852974026da75d0dcef389bb315c146780f2cb9d9da764a7f87cf1a333"
+    },
+    "test_secondary_integration.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/test_secondary_integration.py",
+      "sha256": "d94df2aed2ea209242ee9aeac4a4632353ac35ea1d7b320c08c048ae663dbb7d"
+    },
+    "verify-completed-evidence.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/verify-completed-evidence.py",
+      "sha256": "5947d69e8c072ca6c712d9635ee261939b54cb1a71a0723d1983baf232280322"
+    },
+    "verify-secondary-evidence.py": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/verify-secondary-evidence.py",
+      "sha256": "74d8572fb00cd46c83150c93aedd3b3dabbf5d242a928bce77ae144ab5b30a78"
+    }
+  },
+  "helperCount": 28,
+  "verification": {
+    "pythonTests": {
+      "passed": 65,
+      "skipped": 0,
+      "failed": 0
+    },
+    "nodeTests": {
+      "passed": 57,
+      "modelCalls": 0,
+      "networkCalls": 0
+    },
+    "syntax": {
+      "pythonFiles": 22,
+      "nodeFiles": 4,
+      "pass": true,
+      "apiCalls": 0,
+      "qualityAccess": false
+    },
+    "controllerNonpaidReview": true,
+    "currentRuntimeBuildHashesVerified": true,
+    "sevenCompleteImportedCellsVerified": true,
+    "importedOutcomes": 200,
+    "logs": {
+      "python": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/OFFLINE-TESTS.FINAL.log",
+        "sha256": "ea0d3585c763be8695f35eace4ac69cfc38e90e6229fccb8b40596188790978e"
+      },
+      "node": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/OFFLINE-NODE.FINAL.log",
+        "sha256": "8afb77d4dfa7de916950c8969f8256e3886cdc5178ba1e603b2bef4ce7d8288e"
+      },
+      "syntax": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/SYNTAX.FINAL.json",
+        "sha256": "96549a16fffd2de6eb45c6aca7ccccafad8ac8d0188dc13202ff5eb35d1392a8"
+      },
+      "controllerReview": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/CONTROLLER-REVIEW.FINAL.log",
+        "sha256": "011822b09a27a94e784765a3286990ba8746436875dfbc4bcc33d55ec869be99"
+      },
+      "prepare": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/preparation-final-draft.log",
+        "sha256": "e0eb5f7e3e8a4949d1cdf6b84ddd01fbc3e5fbaedb08d1724a08595df89c211d"
+      }
+    },
+    "reportWorkerPreparation": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/preparation-receipt.json",
+      "sha256": "c6857a22dddf4130f67e362b0474c7b7e193d0d1ce70302745c8fc6257e21726"
+    },
+    "reportWorkerTests": {
+      "actualMeasurementExecuted": false,
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -q test_offline.py",
+      "failed": 0,
+      "passed": 38,
+      "syntheticTests": 38
+    },
+    "reportWorkerFiles": [
+      {
+        "bytes": 29498,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/recount.py",
+        "sha256": "f8bb366f2f2631693965cdc6a92fad090fdc2b02110d9559409ad6b5ccfbb3ff"
+      },
+      {
+        "bytes": 5615,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/assemble-evidence.py",
+        "sha256": "4756625a91b214828b5d2317e505a2a01525e91880a8a4bb93d34f61703d2365"
+      },
+      {
+        "bytes": 29777,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/test_offline.py",
+        "sha256": "dbf9005b9bcbf6b9df3fc060ed6174e682278a339bc349cbca7a0b8046904a9d"
+      },
+      {
+        "bytes": 8933,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/README.md",
+        "sha256": "6c7229f323371aa5073867bb41c3a421154b8525e19b8aa35924e82faeb18e83"
+      },
+      {
+        "bytes": 8329,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/evidence-manifest.schema.json",
+        "sha256": "2663d7f568c6a9c94b01bc8cdc562f82a54a2ba3f7fae16341076f4ec68eced5"
+      },
+      {
+        "bytes": 7232,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/assembly-plan.template.json",
+        "sha256": "9d7d4e103e2bab28b960bf30bf1667f1b598ba2cc70c9ad4cece47ceafd923a2"
+      },
+      {
+        "bytes": 3371,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/verify-secondary-evidence.py",
+        "sha256": "74d8572fb00cd46c83150c93aedd3b3dabbf5d242a928bce77ae144ab5b30a78"
+      },
+      {
+        "bytes": 11009,
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/aggregate-secondary-results.py",
+        "sha256": "a089e434891240edf38182525e6c2c5c346777e8e4da26b234b6a23820dc6900"
+      }
+    ]
+  },
+  "unchangedReferences": {
+    "originalPreregistration": {
+      "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/preregistration.json",
+      "sha256": "c6b7b12870b28f127f8d7340f02ed36e9c84816e712e412127002219824fd689"
+    },
+    "builds": {
+      "main": {
+        "worktree": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r6/shaded-regions/wt-main-216450fc",
+        "head": "216450fcf7e5a88d41341a9e79871e1b9d198c72",
+        "lockSha256": "9cd40cfccf99f23ccf43ff650520c06f74f886716cfb549a0dba14576569e757"
+      },
+      "candidate": {
+        "worktree": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/wt-candidate-689338462ae3",
+        "head": "689338462ae3d6ee54c5049c3b285b592b6b738d",
+        "lockSha256": "64c56fdd08008e65cd5247c1be0054c96e07391d830e05c993924a6a60e7735c"
+      }
+    },
+    "assets": {
+      "sourceBuildFreeze": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/SOURCE-AND-BUILD-FREEZE.json",
+        "sha256": "81fbd89f83a3abef8695511860b8d699220ee108fe12073bd8db277f4d00028d"
+      },
+      "candidateBuildReceipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/nonpaid/candidate-689338462ae3.json",
+        "sha256": "aabfbd2b9189312093718fe88906e3d4f1fa0617553cf1ef0a4a6e0e93ea417b"
+      },
+      "originalPreregistration": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/preregistration.json",
+        "sha256": "c6b7b12870b28f127f8d7340f02ed36e9c84816e712e412127002219824fd689"
+      },
+      "originalBaseline": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/metrics/baseline.json",
+        "sha256": "8200fd198ce426c070dbd36aad7e3dd28ec645712745697aa3a69cdf83d97718"
+      },
+      "originalSettlement": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/metrics/final-settlement.json",
+        "sha256": "0e4761b9b19e7e022b72369fdf217199a273e63cd202717c9644b2405b380146"
+      },
+      "originalAbort": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/whole-arm-abort.json",
+        "sha256": "fbb9129960ebb5055ccc8d15fb89f2c367b96486a273cc52e38798792c1cc82b"
+      },
+      "originalCompletedArms": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/completed-arms.json",
+        "sha256": "57a390381e7322b51cbafd12138cd4e7c419637eae33c68588886267e7f6388f"
+      },
+      "originalCompletedBlocks": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/completed-blocks.json",
+        "sha256": "81dd9bb26e2110031229da7727b2096d3acc125374d517fd72d16a32058e57c8"
+      },
+      "originalSpend": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/SPEND.json",
+        "sha256": "c88cd8028fb50babd6262f3f99f2f4ee99dbe904753557075bc155c439d4642f"
+      },
+      "originalCleanup": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/ORIGINAL-CLEANUP-RECONCILIATION.json",
+        "sha256": "a6b911bb2afd4e5c841473c571469b6f9e967b77f3d8814e57f9a86c0a5ba726"
+      },
+      "ownedNodeAbsence": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/OWNED-NODE-ABSENCE.json",
+        "sha256": "e8592586dee1e43f5b282d786f3bc5f31d491200e1e1d903b457e57cbf044287"
+      },
+      "originalPrefixCheckpoint": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r2-candidate-b1/spend-checkpoint.json",
+        "sha256": "163af1329d324cf368b73b91a4fe915d66e3ccd92dc6b827ee1eb4c3c959a7d9"
+      },
+      "reportToolsPreparation": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/report-tools/preparation-receipt.json",
+        "sha256": "c6857a22dddf4130f67e362b0474c7b7e193d0d1ce70302745c8fc6257e21726"
+      },
+      "imports": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/IMPORTED-COMPLETE-CELLS.json",
+        "sha256": "0765e32164135d9e3828b659a8e2fc3736a7d8e30402a9f4b041889c543c94c2"
+      },
+      "supplementalPidCheck": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup/SUPPLEMENTAL-PID-CHECK.json",
+        "sha256": "d72c3da8fae02f5d7ff8ce19b74d09e8cd4428be9e767adbdf499ca578c6e629"
+      }
+    }
+  },
+  "operatingContract": {
+    "originalStatus": "incomplete_not_ready",
+    "sameOriginalJobCapUsd": 20,
+    "stopAtUsd": 19.5,
+    "carryFloorUsd": 15.45706,
+    "physicalBlocks": 40,
+    "rowsPerBlock": 1,
+    "configuredConcurrency": 3,
+    "effectiveConcurrentRows": 1,
+    "hangGuardSeconds": 21600,
+    "replacementAttempts": 1,
+    "noPrefixReuse": true,
+    "eightFreshStablePollsAfterAllCleanupBeforeFirstDispatch": true,
+    "controllerActualNodeLeaseRequiredForEachRequest": true,
+    "primaryPacketRequiresFull40Replacement": true,
+    "secondaryScope": {
+      "schema": "secondary-report-only/v1",
+      "onlyIfFollowupAborts": true,
+      "importsSha256": "0765e32164135d9e3828b659a8e2fc3736a7d8e30402a9f4b041889c543c94c2",
+      "outcomes": 200,
+      "logicalCells": 7,
+      "cells": [
+        {
+          "cohort": "development",
+          "rep": 1,
+          "arm": "main"
+        },
+        {
+          "cohort": "development",
+          "rep": 2,
+          "arm": "main"
+        },
+        {
+          "cohort": "development",
+          "rep": 1,
+          "arm": "candidate"
+        },
+        {
+          "cohort": "heldout",
+          "rep": 1,
+          "arm": "main"
+        },
+        {
+          "cohort": "heldout",
+          "rep": 1,
+          "arm": "candidate"
+        },
+        {
+          "cohort": "heldout",
+          "rep": 2,
+          "arm": "candidate"
+        },
+        {
+          "cohort": "heldout",
+          "rep": 2,
+          "arm": "main"
+        }
+      ],
+      "missingCell": {
+        "cohort": "development",
+        "rep": 2,
+        "arm": "candidate"
+      },
+      "excludeAllOldAndNewAbortedPrefixes": true,
+      "qualitySelection": false,
+      "sameOpaqueCropDedupGradeSchemaConsensus": true,
+      "ready": false,
+      "prEligible": false
+    }
+  },
+  "assertions": {
+    "modelCalls": 0,
+    "metricQueries": 0,
+    "watchersStarted": 0,
+    "serversStarted": 0,
+    "paidDispatches": 0,
+    "imagesViewed": 0,
+    "qualityReadOrUnblinded": false,
+    "actualGradingRun": false,
+    "calibrationGoldRead": false,
+    "sourceOrRuntimeChanged": false,
+    "originalMeasurementChanged": false,
+    "finalPreregistrationFrozen": false,
+    "baselineInitialized": false,
+    "secondarySyntheticFixturesOnly": true,
+    "helpersQuiescent": true,
+    "noFurtherEditingPlanned": true
+  }
+}

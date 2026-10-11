@@ -1,0 +1,108 @@
+{
+  "schema": "h3r8-abandoned-reservation-reconciliation/v1",
+  "observedAt": "2026-10-11T16:19:02.009264+00:00",
+  "sourceRuntimeCommit": "689338462ae3d6ee54c5049c3b285b592b6b738d",
+  "originalProtocolStatus": "incomplete_not_ready",
+  "ownedStoppedWatcherPid": 72914,
+  "ownedProcessStates": {
+    "4659": {
+      "alive": false
+    },
+    "4711": {
+      "alive": false
+    }
+  },
+  "ownedPortStates": {
+    "3530": {
+      "listenerPresent": false
+    },
+    "3534": {
+      "listenerPresent": false
+    }
+  },
+  "originalCheckpoint": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r2-candidate-b1/spend-checkpoint.json",
+    "sha256": "163af1329d324cf368b73b91a4fe915d66e3ccd92dc6b827ee1eb4c3c959a7d9",
+    "untouched": true,
+    "recordedPendingCalls": 5,
+    "recordedReservedUsd": 1.268992
+  },
+  "postCleanupSettlement": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/metrics/final-settlement.json",
+    "sha256": "0e4761b9b19e7e022b72369fdf217199a273e63cd202717c9644b2405b380146",
+    "eightDistinctStableObservations": [
+      {
+        "observedAt": "2026-10-11T16:12:02.787364Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 1
+      },
+      {
+        "observedAt": "2026-10-11T16:12:18.571136Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 2
+      },
+      {
+        "observedAt": "2026-10-11T16:12:34.297684Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 3
+      },
+      {
+        "observedAt": "2026-10-11T16:12:50.224600Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 4
+      },
+      {
+        "observedAt": "2026-10-11T16:13:06.165001Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 5
+      },
+      {
+        "observedAt": "2026-10-11T16:13:21.763109Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 6
+      },
+      {
+        "observedAt": "2026-10-11T16:13:37.394685Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 7
+      },
+      {
+        "observedAt": "2026-10-11T16:13:53.223457Z",
+        "cumulative": {
+          "promptTokens": 53062445.0,
+          "generatedTokens": 13982268.0
+        },
+        "stableCount": 8
+      }
+    ],
+    "AzureTokenEstimateUsd": 15.45706
+  },
+  "spendReceipt": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/SPEND.json",
+    "sha256": "c88cd8028fb50babd6262f3f99f2f4ee99dbe904753557075bc155c439d4642f"
+  },
+  "rule": "Orphaned ledger slots remain preserved, never zeroed. After owned-process cleanup, all exclusive deployment tokens observed in the eight-poll settlement are charged to the cumulative job. Any later Azure increments also count against this same job cap. New ledgers and live reservations must be admitted separately.",
+  "rootImageViews": 0,
+  "visualQualityAccessed": false
+}

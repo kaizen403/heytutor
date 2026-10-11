@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-11T17:14:36.120166Z",
+  "cohort": "development",
+  "rep": 2,
+  "arm": "candidate",
+  "reason": "Need eight distinct observations",
+  "sourceTuning": false,
+  "selectiveRetry": false,
+  "allPartialBlocksUngraded": true
+}

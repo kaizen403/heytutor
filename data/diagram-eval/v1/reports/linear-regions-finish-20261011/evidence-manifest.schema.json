@@ -1,0 +1,331 @@
+{
+  "$comment": "recount.py additionally enforces SHA cross-links, exact roles/matrix/maps/grades/counts and secondary arithmetic; the external manifest SHA is the trust anchor.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "primary240"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "secondaryScope"
+          ]
+        },
+        "properties": {
+          "protocolAccounting": {
+            "const": {
+              "configuredConcurrency": 3,
+              "discardedUngradedRows": 15,
+              "interruptedAttemptsIncludedInSpend": true,
+              "newGradedModelOutcomes": 160,
+              "operationalConfound": true,
+              "originalAbortedSavedPrefix": 15,
+              "originalCapturedConcurrency": 3,
+              "originalProtocolReady": false,
+              "replacementCells": 1,
+              "replacementDispatchRows": 1,
+              "replacementEffectiveConcurrency": 1,
+              "replacementFullRows": 40,
+              "reusedMainOutcomes": 80,
+              "totalRecordedNewModelRows": 175
+            }
+          },
+          "totalOutcomes": {
+            "const": 240
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "secondary200"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "protocolAccounting": {
+            "additionalProperties": false,
+            "properties": {
+              "configuredConcurrency": {
+                "const": 3
+              },
+              "discardedUngradedRows": {
+                "maximum": 54,
+                "minimum": 15,
+                "type": "integer"
+              },
+              "interruptedAttemptsIncludedInSpend": {
+                "const": true
+              },
+              "newGradedModelOutcomes": {
+                "const": 120
+              },
+              "operationalConfound": {
+                "const": true
+              },
+              "originalAbortedSavedPrefix": {
+                "const": 15
+              },
+              "originalCapturedConcurrency": {
+                "const": 3
+              },
+              "originalProtocolReady": {
+                "const": false
+              },
+              "replacementCells": {
+                "const": 1
+              },
+              "replacementDispatchRows": {
+                "const": 1
+              },
+              "replacementEffectiveConcurrency": {
+                "const": 1
+              },
+              "replacementFullRows": {
+                "const": 40
+              },
+              "replacementRecordedRows": {
+                "maximum": 39,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reusedMainOutcomes": {
+                "const": 80
+              },
+              "totalRecordedNewModelRows": {
+                "maximum": 174,
+                "minimum": 135,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "originalProtocolReady",
+              "originalAbortedSavedPrefix",
+              "originalCapturedConcurrency",
+              "configuredConcurrency",
+              "replacementDispatchRows",
+              "replacementEffectiveConcurrency",
+              "replacementFullRows",
+              "replacementCells",
+              "reusedMainOutcomes",
+              "interruptedAttemptsIncludedInSpend",
+              "operationalConfound",
+              "newGradedModelOutcomes",
+              "totalRecordedNewModelRows",
+              "discardedUngradedRows",
+              "replacementRecordedRows"
+            ],
+            "type": "object"
+          },
+          "totalOutcomes": {
+            "const": 200
+          }
+        },
+        "required": [
+          "secondaryScope"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "allVisualsRequired": {
+      "const": true
+    },
+    "arms": {
+      "const": [
+        "main",
+        "candidate"
+      ]
+    },
+    "budget": {
+      "properties": {
+        "capUsd": {
+          "const": 20
+        },
+        "includesDiscardedAndInterruptedAttempts": {
+          "const": true
+        },
+        "scope": {
+          "const": "cumulative-job"
+        },
+        "spentUsd": {
+          "maximum": 20,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "capUsd",
+        "scope",
+        "spentUsd",
+        "includesDiscardedAndInterruptedAttempts"
+      ],
+      "type": "object"
+    },
+    "cohorts": {
+      "const": {
+        "development": 40,
+        "heldout": 20
+      }
+    },
+    "credentialsAndEnvExcluded": {
+      "const": true
+    },
+    "files": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "baselineReuse",
+              "calibrationConsistency",
+              "calibrationFirstFreeze",
+              "calibrationFreeze",
+              "calibrationGrade",
+              "calibrationIdentity",
+              "calibrationImage",
+              "calibrationQueue",
+              "calibrationReference",
+              "calibrationReferenceFreeze",
+              "consensus",
+              "consensusFreeze",
+              "documentation",
+              "firstFreeze-a",
+              "firstFreeze-b",
+              "firstFreeze-c",
+              "grade-a",
+              "grade-b",
+              "grade-c",
+              "helper",
+              "identity-a",
+              "identity-b",
+              "identity-c",
+              "image",
+              "outcomeMap",
+              "outcomes",
+              "packetFreeze",
+              "preregistration",
+              "protocol",
+              "queue",
+              "rejectionDiagnostics",
+              "results",
+              "runtimeSourceFreeze",
+              "settlement",
+              "spend"
+            ]
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "sourcePath": {
+            "pattern": "^/",
+            "type": "string"
+          },
+          "sourceSha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "role",
+          "sha256",
+          "bytes",
+          "sourcePath",
+          "sourceSha256"
+        ],
+        "type": "object"
+      },
+      "minItems": 26,
+      "type": "array"
+    },
+    "gate": {
+      "const": {
+        "candidateWrongMaximum": 1,
+        "everyCohortRepeatAndJudgeMustPass": true,
+        "poolingAllowed": false,
+        "requiredEmptyDeltaMaximum": 2,
+        "rightDeltaMinimumExclusive": 0,
+        "wrongDeltaMaximum": 0
+      }
+    },
+    "mode": {
+      "enum": [
+        "primary240",
+        "secondary200"
+      ]
+    },
+    "noClassificationFiltering": {
+      "const": true
+    },
+    "protocolAccounting": {
+      "type": "object"
+    },
+    "questionBodiesExcluded": {
+      "const": true
+    },
+    "repeats": {
+      "const": [
+        1,
+        2
+      ]
+    },
+    "schema": {
+      "const": "finish-regions-portable-evidence/v1"
+    },
+    "secondaryScope": {
+      "const": {
+        "missingCell": {
+          "arm": "candidate",
+          "cohort": "development",
+          "rep": 2
+        },
+        "prefixesGraded": false,
+        "ready": false,
+        "schema": "secondary-report-only/v1",
+        "trigger": "operational-incomplete-replacement-before-quality"
+      }
+    },
+    "totalOutcomes": {
+      "enum": [
+        240,
+        200
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "mode",
+    "cohorts",
+    "totalOutcomes",
+    "repeats",
+    "arms",
+    "allVisualsRequired",
+    "noClassificationFiltering",
+    "gate",
+    "questionBodiesExcluded",
+    "credentialsAndEnvExcluded",
+    "protocolAccounting",
+    "budget",
+    "files"
+  ],
+  "title": "Finish-regions immutable portable evidence manifest",
+  "type": "object"
+}

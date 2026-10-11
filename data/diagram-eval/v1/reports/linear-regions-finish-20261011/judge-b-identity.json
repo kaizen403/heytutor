@@ -1,0 +1,14 @@
+{
+  "judge": "b",
+  "agentIdentity": "/root/r8_ship_blind_b",
+  "sourceNaive": true,
+  "forkTurns": "none",
+  "referenceConsistencyReportedAs": "consistency, not human accuracy",
+  "noQualityFeedbackBeforeFinalFreeze": true,
+  "rootImagesViewed": 0,
+  "calibration": {
+    "packetPath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral",
+    "packetFreezeSha256": "6c6923fd614d5929c9682780ba5d03be4ff53a726bd3b81df756097f3cc1f1dd",
+    "firstGradeFreezeSha256": "ab2f174a9a3129b27feebbdfda33c9eb6edd25de663bb5e4c4a7b25b3ad45206"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "h3r8-owned-pid-absence/v1",
+  "observedAt": "2026-10-11T17:26:21.928245Z",
+  "pids": {
+    "4659": {
+      "alive": false
+    },
+    "4711": {
+      "alive": false
+    },
+    "4712": {
+      "alive": false
+    },
+    "72914": {
+      "alive": false
+    }
+  },
+  "originalRecordedNodeProcess": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/runs/h3r8-development-r2-candidate-b1-process.json",
+    "sha256": "57edcbda73fa98fd112d0745dfb12257860b16c548428edfd4367dc8b18e6c92"
+  },
+  "originalCleanup": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/ORIGINAL-CLEANUP-RECONCILIATION.json",
+    "sha256": "a6b911bb2afd4e5c841473c571469b6f9e967b77f3d8814e57f9a86c0a5ba726"
+  },
+  "metricQueries": 0,
+  "modelCalls": 0
+}

@@ -1,0 +1,16 @@
+{
+  "judge": "a",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "count": 24,
+  "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/calibration-a/grades.jsonl",
+  "gradeSha256": "b89ce44ec28e1c56c32e70cebf976c8fcb4ba12920615418b726c4ac03d498d9",
+  "queueSha256": "cd53f84d8d2effac7c200775197cb3e82a14b1ab4048503597445820d772f27f",
+  "imageHashesPassed": true,
+  "schemaPassed": true,
+  "qualityUnblinded": false,
+  "recoveries": 0,
+  "identityPath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral/judge-a-identity.json",
+  "identitySha256": "03dec5d7f4e94acc0abb372ed1d7e6564b8f309dd3b9eb60c1fab6fcd0a78438",
+  "agentIdentity": "/root/r8_ship_blind_a",
+  "frozenAt": "2026-10-11T17:45:14.886942Z"
+}

@@ -1,0 +1,165 @@
+{
+  "schema": "shaded-regions-calibration-consistency-report/v1",
+  "at": "2026-10-11T18:06:34.945104Z",
+  "n": 24,
+  "attribution": "consistency, not human accuracy",
+  "referenceProvenance": "Synthetic independently authored maths contracts; complete/annotation-removal/alternate-maths variants; one two-panel optimization exhibit",
+  "contractFreezeSha256": "18a32910257775b507baedeb623ba2a51e1b0409544655720a05d2bef25ef0ad",
+  "referenceGradesSha256": "756e460f38a0d4555f5886daa20df97d3091712381013c0ea93b9fcb2f040e66",
+  "calibrationPacketFreezeSha256": "6c6923fd614d5929c9682780ba5d03be4ff53a726bd3b81df756097f3cc1f1dd",
+  "finalFirstGrades": {
+    "a": {
+      "freezeSha256": "8fd706b837d518ea96ca98216f56ff33d560f67a93fe7bfc7d0d313e8ca502b5",
+      "gradeSha256": "9601ef01bd6205314d74eba584b84b8da5c53703c09e421b355172e24fe4c99a",
+      "agentIdentity": "/root/r8_ship_blind_a"
+    },
+    "b": {
+      "freezeSha256": "aff0cf66fa6fa8dc9e190d061129cfab7ebf5ac663c537bcfe869999b06e3180",
+      "gradeSha256": "e30a690012a175d7b6951cd1f6992cefcf51226100dbf856542ff5607b744061",
+      "agentIdentity": "/root/r8_ship_blind_b"
+    },
+    "c": {
+      "freezeSha256": "4a35ee3c4e8b8d34780a5502b4b8f50d168897585d045a821f7f01293eaf3ba0",
+      "gradeSha256": "38aab6fce060e2a966b654728fb9f4e853782e20d6b078404a6e41c471b4afa2",
+      "agentIdentity": "/root/r8_ship_blind_c"
+    }
+  },
+  "calibrationFirstGrades": {
+    "a": {
+      "freezeSha256": "7b7a86b850e14cc22a2ef6bf3684b190062cc91e66ffc1e00383c093379dd6ac",
+      "gradeSha256": "b89ce44ec28e1c56c32e70cebf976c8fcb4ba12920615418b726c4ac03d498d9"
+    },
+    "b": {
+      "freezeSha256": "ab2f174a9a3129b27feebbdfda33c9eb6edd25de663bb5e4c4a7b25b3ad45206",
+      "gradeSha256": "bfd7f07377b204d314d413aec748f498124d74e68c6d9207470eb22783604d98"
+    },
+    "c": {
+      "freezeSha256": "3768dad98fe9b2f3f3071fd2aa201127ab189ee20a2285a75b1a13c58ba06c41",
+      "gradeSha256": "9089a5d1a926854c8247e787b879ea6955f737094bfc3af6722b649836325838"
+    }
+  },
+  "judges": {
+    "a": {
+      "n": 24,
+      "consistent": 24,
+      "fraction": 1.0,
+      "referenceByJudgeVerdict": {
+        "right": {
+          "right": 8,
+          "partial": 0,
+          "wrong": 0
+        },
+        "partial": {
+          "right": 0,
+          "partial": 8,
+          "wrong": 0
+        },
+        "wrong": {
+          "right": 0,
+          "partial": 0,
+          "wrong": 8
+        }
+      },
+      "families": {
+        "half_plane": {
+          "n": 6,
+          "consistent": 6
+        },
+        "feasible_region": {
+          "n": 6,
+          "consistent": 6
+        },
+        "linear_system": {
+          "n": 6,
+          "consistent": 6
+        },
+        "number_line": {
+          "n": 6,
+          "consistent": 6
+        }
+      }
+    },
+    "b": {
+      "n": 24,
+      "consistent": 24,
+      "fraction": 1.0,
+      "referenceByJudgeVerdict": {
+        "right": {
+          "right": 8,
+          "partial": 0,
+          "wrong": 0
+        },
+        "partial": {
+          "right": 0,
+          "partial": 8,
+          "wrong": 0
+        },
+        "wrong": {
+          "right": 0,
+          "partial": 0,
+          "wrong": 8
+        }
+      },
+      "families": {
+        "half_plane": {
+          "n": 6,
+          "consistent": 6
+        },
+        "feasible_region": {
+          "n": 6,
+          "consistent": 6
+        },
+        "linear_system": {
+          "n": 6,
+          "consistent": 6
+        },
+        "number_line": {
+          "n": 6,
+          "consistent": 6
+        }
+      }
+    },
+    "c": {
+      "n": 24,
+      "consistent": 24,
+      "fraction": 1.0,
+      "referenceByJudgeVerdict": {
+        "right": {
+          "right": 8,
+          "partial": 0,
+          "wrong": 0
+        },
+        "partial": {
+          "right": 0,
+          "partial": 8,
+          "wrong": 0
+        },
+        "wrong": {
+          "right": 0,
+          "partial": 0,
+          "wrong": 8
+        }
+      },
+      "families": {
+        "half_plane": {
+          "n": 6,
+          "consistent": 6
+        },
+        "feasible_region": {
+          "n": 6,
+          "consistent": 6
+        },
+        "linear_system": {
+          "n": 6,
+          "consistent": 6
+        },
+        "number_line": {
+          "n": 6,
+          "consistent": 6
+        }
+      }
+    }
+  },
+  "selectionRule": "No quality-based judge replacement, feedback or grade revision; references never adjust readiness gates",
+  "rootImageViews": 0
+}

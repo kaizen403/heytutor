@@ -1,0 +1,21 @@
+{
+  "judge": "a",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "count": 146,
+  "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-a/grades.jsonl",
+  "gradeSha256": "9601ef01bd6205314d74eba584b84b8da5c53703c09e421b355172e24fe4c99a",
+  "queueSha256": "a8207617175ffafeaf43e10c66eba0ea9c10e475b28411488a43958861d4a92a",
+  "imageHashesPassed": true,
+  "schemaPassed": true,
+  "qualityUnblinded": false,
+  "recoveries": 0,
+  "identityPath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/secondary-opaque/judge-a-identity.json",
+  "identitySha256": "54ee9dc31e998e8fbb8323e29a10dadacff0512c9693ab0f0862297b4ed77a93",
+  "agentIdentity": "/root/r8_ship_blind_a",
+  "calibration": {
+    "packetPath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/packets/calibration-neutral",
+    "packetFreezeSha256": "6c6923fd614d5929c9682780ba5d03be4ff53a726bd3b81df756097f3cc1f1dd",
+    "firstGradeFreezeSha256": "7b7a86b850e14cc22a2ef6bf3684b190062cc91e66ffc1e00383c093379dd6ac"
+  },
+  "frozenAt": "2026-10-11T18:04:19.728087Z"
+}

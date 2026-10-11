@@ -1,0 +1,22 @@
+{
+  "schema": "shaded-regions-synthetic-calibration-packet/v1",
+  "at": "2026-10-11T01:46:29.029Z",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "cards": 24,
+  "queueSha256": "cd53f84d8d2effac7c200775197cb3e82a14b1ab4048503597445820d772f27f",
+  "imageProofFreezeSha256": "e5146558c2af6d41152078bc6fdce5ef44adbe4cff97d74e96cdf1c06de9d3c3",
+  "crop": {
+    "left": 400,
+    "top": 0,
+    "width": 760,
+    "height": 700
+  },
+  "rootImageViews": 0,
+  "qualityUnblinded": false,
+  "createdAt": "2026-10-11T17:27:52.286741Z",
+  "originalPacketFreezeSha256": "523e610394d9f70392b67bb1417d6a3d0b3b6e3513048ee3184c557504ccd56d",
+  "originalQueueSha256": "fa8f7aa94e64e0a52d4ab36940a7775b61e788f26ac3be0fcb9677128467a726",
+  "freshGraderPacket": true,
+  "copiedOldGrades": false,
+  "reuse": "Same immutable synthetic math/rubrics/native PNGs; new packet paths and fresh independent calibration grades. No new-runtime compilation claim."
+}

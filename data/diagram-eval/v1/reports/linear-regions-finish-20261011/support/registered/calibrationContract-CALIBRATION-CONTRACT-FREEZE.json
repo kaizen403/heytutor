@@ -1,0 +1,27 @@
+{
+  "schema": "shaded-regions-calibration-contract-freeze/v1",
+  "frozenAt": "2026-10-11T01:17:30.016103Z",
+  "n": 24,
+  "familyCounts": {
+    "number_line": 6,
+    "half_plane": 6,
+    "feasible_region": 6,
+    "linear_system": 6
+  },
+  "referenceVerdictCounts": {
+    "right": 8,
+    "partial": 8,
+    "wrong": 8
+  },
+  "specsSha256": "b6be59fe62f06af2181ca59d813935869dde90cec42e381d36cf6bbdc6f6db40",
+  "referenceGradesSha256": "756e460f38a0d4555f5886daa20df97d3091712381013c0ea93b9fcb2f040e66",
+  "authorScriptSha256": "44cd291afde6a9bf6ce7d1eed41188e1bac347ed496a3bbec81d175cc33fee25",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "imagesGenerated": 0,
+  "imageViews": 0,
+  "referenceAttribution": "Codex deterministic maths reference contracts; consistency, not human accuracy",
+  "imageReferenceStatus": "provisional until frozen rendered primitive contracts and native PNG hashes are verified; verdicts never adjusted after image creation",
+  "semanticEvalRead": false,
+  "feedbackRule": "No reference verdicts or consistency feedback to judges before all final grades freeze",
+  "selectionRule": "Preassign A/B/C; no score-based threshold, replacement or revision"
+}

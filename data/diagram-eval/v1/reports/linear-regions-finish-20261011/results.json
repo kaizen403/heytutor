@@ -1,0 +1,994 @@
+{
+  "schema": "secondary-report-only/v1",
+  "preregistrationSha256": "83705d87db5744000e2aba2ac975cc0fb256b3416d3c070194f1b98784e68491",
+  "nPerCohortArm": {
+    "development": 40,
+    "heldout": 20
+  },
+  "allRowOutcomes": 200,
+  "noClassificationFiltering": true,
+  "graders": {
+    "a": [
+      {
+        "cohort": "development",
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 0,
+            "partial": 23,
+            "wrong": 16,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 23,
+              "exact_verified": 16,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 38,
+              "wrong_items": 16,
+              "missing_geometry": 14,
+              "missing_boundary_semantics": 3,
+              "missing_corner_labels": 2,
+              "missing_objective_values": 0
+            }
+          },
+          "candidate": {
+            "n": 40,
+            "drawn": 26,
+            "right": 16,
+            "partial": 10,
+            "wrong": 0,
+            "empty_bad": 14,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 26,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 16,
+            "tierCounts": {
+              "qualitative_verified": 26,
+              "none": 14
+            },
+            "sourceCounts": {
+              "linear_source": 26,
+              "text_only": 14
+            },
+            "omissionRows": {
+              "missing": 9,
+              "wrong_items": 0,
+              "missing_geometry": 2,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 16,
+        "wrongDelta": -16,
+        "requiredEmptyDelta": 13,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->partial": 1,
+          "partial->empty_bad": 8,
+          "partial->partial": 6,
+          "partial->right": 9,
+          "wrong->empty_bad": 6,
+          "wrong->partial": 3,
+          "wrong->right": 7
+        },
+        "newlyWrong": []
+      },
+      {
+        "cohort": "development",
+        "rep": 2,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 0,
+            "partial": 24,
+            "wrong": 15,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "exact_verified": 14,
+              "qualitative_verified": 25,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 37,
+              "wrong_items": 15,
+              "missing_geometry": 17,
+              "missing_boundary_semantics": 2,
+              "missing_corner_labels": 3,
+              "missing_objective_values": 0
+            }
+          },
+          "candidate": null
+        },
+        "rightDelta": null,
+        "wrongDelta": null,
+        "requiredEmptyDelta": null,
+        "wrongNearZero": null,
+        "pass": null,
+        "pairedTransitions": null,
+        "newlyWrong": null
+      },
+      {
+        "cohort": "heldout",
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 20,
+            "drawn": 16,
+            "right": 0,
+            "partial": 10,
+            "wrong": 6,
+            "empty_bad": 4,
+            "empty_ok": 0,
+            "strict": 18,
+            "classifiedMaths": 19,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 16,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 12,
+              "none": 4,
+              "exact_verified": 4
+            },
+            "sourceCounts": {
+              "planner": 16,
+              "text_only": 4
+            },
+            "omissionRows": {
+              "missing": 16,
+              "wrong_items": 6,
+              "missing_geometry": 4,
+              "missing_boundary_semantics": 1,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 4
+            }
+          },
+          "candidate": {
+            "n": 20,
+            "drawn": 6,
+            "right": 0,
+            "partial": 5,
+            "wrong": 1,
+            "empty_bad": 14,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 6,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 6,
+              "none": 14
+            },
+            "sourceCounts": {
+              "planner": 5,
+              "text_only": 14,
+              "linear_source": 1
+            },
+            "omissionRows": {
+              "missing": 6,
+              "wrong_items": 1,
+              "missing_geometry": 1,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 0,
+        "wrongDelta": -5,
+        "requiredEmptyDelta": 10,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 3,
+          "empty_bad->partial": 1,
+          "partial->empty_bad": 6,
+          "partial->partial": 4,
+          "wrong->empty_bad": 5,
+          "wrong->wrong": 1
+        },
+        "newlyWrong": []
+      },
+      {
+        "cohort": "heldout",
+        "rep": 2,
+        "arms": {
+          "main": {
+            "n": 20,
+            "drawn": 18,
+            "right": 0,
+            "partial": 12,
+            "wrong": 6,
+            "empty_bad": 2,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 18,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 12,
+              "exact_verified": 6,
+              "none": 2
+            },
+            "sourceCounts": {
+              "planner": 18,
+              "text_only": 2
+            },
+            "omissionRows": {
+              "missing": 18,
+              "wrong_items": 6,
+              "missing_geometry": 4,
+              "missing_boundary_semantics": 1,
+              "missing_corner_labels": 2,
+              "missing_objective_values": 4
+            }
+          },
+          "candidate": {
+            "n": 20,
+            "drawn": 5,
+            "right": 0,
+            "partial": 3,
+            "wrong": 2,
+            "empty_bad": 15,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 5,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 2,
+              "none": 15,
+              "exact_verified": 3
+            },
+            "sourceCounts": {
+              "planner": 4,
+              "text_only": 15,
+              "linear_source": 1
+            },
+            "omissionRows": {
+              "missing": 5,
+              "wrong_items": 2,
+              "missing_geometry": 0,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 0,
+        "wrongDelta": -4,
+        "requiredEmptyDelta": 13,
+        "wrongNearZero": false,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 2,
+          "partial->empty_bad": 8,
+          "partial->partial": 3,
+          "partial->wrong": 1,
+          "wrong->empty_bad": 5,
+          "wrong->wrong": 1
+        },
+        "newlyWrong": [
+          {
+            "rowId": "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+            "mainVerdict": "partial",
+            "candidateCardId": "figure-a8e1609630e6d92c88caadfb",
+            "reason": "Line-name labels are placed on opposite sides from their corresponding parallel lines; axis and no-solution labels are absent."
+          }
+        ]
+      }
+    ],
+    "b": [
+      {
+        "cohort": "development",
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 1,
+            "partial": 16,
+            "wrong": 22,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 1,
+            "tierCounts": {
+              "qualitative_verified": 23,
+              "exact_verified": 16,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 38,
+              "wrong_items": 22,
+              "missing_geometry": 15,
+              "missing_boundary_semantics": 10,
+              "missing_corner_labels": 2,
+              "missing_objective_values": 6
+            }
+          },
+          "candidate": {
+            "n": 40,
+            "drawn": 26,
+            "right": 16,
+            "partial": 10,
+            "wrong": 0,
+            "empty_bad": 14,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 26,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 16,
+            "tierCounts": {
+              "qualitative_verified": 26,
+              "none": 14
+            },
+            "sourceCounts": {
+              "linear_source": 26,
+              "text_only": 14
+            },
+            "omissionRows": {
+              "missing": 10,
+              "wrong_items": 0,
+              "missing_geometry": 2,
+              "missing_boundary_semantics": 1,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 15,
+        "wrongDelta": -22,
+        "requiredEmptyDelta": 13,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->partial": 1,
+          "partial->empty_bad": 8,
+          "partial->partial": 3,
+          "partial->right": 5,
+          "right->right": 1,
+          "wrong->empty_bad": 6,
+          "wrong->partial": 6,
+          "wrong->right": 10
+        },
+        "newlyWrong": []
+      },
+      {
+        "cohort": "development",
+        "rep": 2,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 0,
+            "partial": 16,
+            "wrong": 23,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "exact_verified": 14,
+              "qualitative_verified": 25,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 39,
+              "wrong_items": 23,
+              "missing_geometry": 19,
+              "missing_boundary_semantics": 10,
+              "missing_corner_labels": 4,
+              "missing_objective_values": 6
+            }
+          },
+          "candidate": null
+        },
+        "rightDelta": null,
+        "wrongDelta": null,
+        "requiredEmptyDelta": null,
+        "wrongNearZero": null,
+        "pass": null,
+        "pairedTransitions": null,
+        "newlyWrong": null
+      },
+      {
+        "cohort": "heldout",
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 20,
+            "drawn": 16,
+            "right": 0,
+            "partial": 7,
+            "wrong": 9,
+            "empty_bad": 4,
+            "empty_ok": 0,
+            "strict": 18,
+            "classifiedMaths": 19,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 16,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 12,
+              "none": 4,
+              "exact_verified": 4
+            },
+            "sourceCounts": {
+              "planner": 16,
+              "text_only": 4
+            },
+            "omissionRows": {
+              "missing": 16,
+              "wrong_items": 9,
+              "missing_geometry": 4,
+              "missing_boundary_semantics": 4,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 4
+            }
+          },
+          "candidate": {
+            "n": 20,
+            "drawn": 6,
+            "right": 0,
+            "partial": 5,
+            "wrong": 1,
+            "empty_bad": 14,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 6,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 6,
+              "none": 14
+            },
+            "sourceCounts": {
+              "planner": 5,
+              "text_only": 14,
+              "linear_source": 1
+            },
+            "omissionRows": {
+              "missing": 6,
+              "wrong_items": 1,
+              "missing_geometry": 0,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 0,
+        "wrongDelta": -8,
+        "requiredEmptyDelta": 10,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 3,
+          "empty_bad->partial": 1,
+          "partial->empty_bad": 4,
+          "partial->partial": 3,
+          "wrong->empty_bad": 7,
+          "wrong->partial": 1,
+          "wrong->wrong": 1
+        },
+        "newlyWrong": []
+      },
+      {
+        "cohort": "heldout",
+        "rep": 2,
+        "arms": {
+          "main": {
+            "n": 20,
+            "drawn": 18,
+            "right": 0,
+            "partial": 11,
+            "wrong": 7,
+            "empty_bad": 2,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 18,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 12,
+              "exact_verified": 6,
+              "none": 2
+            },
+            "sourceCounts": {
+              "planner": 18,
+              "text_only": 2
+            },
+            "omissionRows": {
+              "missing": 18,
+              "wrong_items": 7,
+              "missing_geometry": 4,
+              "missing_boundary_semantics": 5,
+              "missing_corner_labels": 2,
+              "missing_objective_values": 4
+            }
+          },
+          "candidate": {
+            "n": 20,
+            "drawn": 5,
+            "right": 0,
+            "partial": 4,
+            "wrong": 1,
+            "empty_bad": 15,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 5,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 2,
+              "none": 15,
+              "exact_verified": 3
+            },
+            "sourceCounts": {
+              "planner": 4,
+              "text_only": 15,
+              "linear_source": 1
+            },
+            "omissionRows": {
+              "missing": 5,
+              "wrong_items": 1,
+              "missing_geometry": 0,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 0,
+        "wrongDelta": -6,
+        "requiredEmptyDelta": 13,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 2,
+          "partial->empty_bad": 8,
+          "partial->partial": 3,
+          "wrong->empty_bad": 5,
+          "wrong->partial": 1,
+          "wrong->wrong": 1
+        },
+        "newlyWrong": []
+      }
+    ],
+    "consensus": [
+      {
+        "cohort": "development",
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 0,
+            "partial": 16,
+            "wrong": 23,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 23,
+              "exact_verified": 16,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 37,
+              "wrong_items": 23,
+              "missing_geometry": 15,
+              "missing_boundary_semantics": 3,
+              "missing_corner_labels": 2,
+              "missing_objective_values": 0
+            }
+          },
+          "candidate": {
+            "n": 40,
+            "drawn": 26,
+            "right": 16,
+            "partial": 10,
+            "wrong": 0,
+            "empty_bad": 14,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 26,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 16,
+            "tierCounts": {
+              "qualitative_verified": 26,
+              "none": 14
+            },
+            "sourceCounts": {
+              "linear_source": 26,
+              "text_only": 14
+            },
+            "omissionRows": {
+              "missing": 9,
+              "wrong_items": 0,
+              "missing_geometry": 2,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 16,
+        "wrongDelta": -23,
+        "requiredEmptyDelta": 13,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->partial": 1,
+          "partial->empty_bad": 8,
+          "partial->partial": 3,
+          "partial->right": 5,
+          "wrong->empty_bad": 6,
+          "wrong->partial": 6,
+          "wrong->right": 11
+        },
+        "newlyWrong": []
+      },
+      {
+        "cohort": "development",
+        "rep": 2,
+        "arms": {
+          "main": {
+            "n": 40,
+            "drawn": 39,
+            "right": 0,
+            "partial": 16,
+            "wrong": 23,
+            "empty_bad": 1,
+            "empty_ok": 0,
+            "strict": 40,
+            "classifiedMaths": 40,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 39,
+            "requiredVisualDenominator": 40,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "exact_verified": 14,
+              "qualitative_verified": 25,
+              "none": 1
+            },
+            "sourceCounts": {
+              "planner": 39,
+              "text_only": 1
+            },
+            "omissionRows": {
+              "missing": 37,
+              "wrong_items": 23,
+              "missing_geometry": 18,
+              "missing_boundary_semantics": 2,
+              "missing_corner_labels": 4,
+              "missing_objective_values": 0
+            }
+          },
+          "candidate": null
+        },
+        "rightDelta": null,
+        "wrongDelta": null,
+        "requiredEmptyDelta": null,
+        "wrongNearZero": null,
+        "pass": null,
+        "pairedTransitions": null,
+        "newlyWrong": null
+      },
+      {
+        "cohort": "heldout",
+        "rep": 1,
+        "arms": {
+          "main": {
+            "n": 20,
+            "drawn": 16,
+            "right": 0,
+            "partial": 7,
+            "wrong": 9,
+            "empty_bad": 4,
+            "empty_ok": 0,
+            "strict": 18,
+            "classifiedMaths": 19,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 16,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 12,
+              "none": 4,
+              "exact_verified": 4
+            },
+            "sourceCounts": {
+              "planner": 16,
+              "text_only": 4
+            },
+            "omissionRows": {
+              "missing": 16,
+              "wrong_items": 9,
+              "missing_geometry": 5,
+              "missing_boundary_semantics": 1,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 4
+            }
+          },
+          "candidate": {
+            "n": 20,
+            "drawn": 6,
+            "right": 0,
+            "partial": 5,
+            "wrong": 1,
+            "empty_bad": 14,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 6,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 6,
+              "none": 14
+            },
+            "sourceCounts": {
+              "planner": 5,
+              "text_only": 14,
+              "linear_source": 1
+            },
+            "omissionRows": {
+              "missing": 6,
+              "wrong_items": 1,
+              "missing_geometry": 1,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 0,
+        "wrongDelta": -8,
+        "requiredEmptyDelta": 10,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 3,
+          "empty_bad->partial": 1,
+          "partial->empty_bad": 4,
+          "partial->partial": 3,
+          "wrong->empty_bad": 7,
+          "wrong->partial": 1,
+          "wrong->wrong": 1
+        },
+        "newlyWrong": []
+      },
+      {
+        "cohort": "heldout",
+        "rep": 2,
+        "arms": {
+          "main": {
+            "n": 20,
+            "drawn": 18,
+            "right": 0,
+            "partial": 10,
+            "wrong": 8,
+            "empty_bad": 2,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 18,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 12,
+              "exact_verified": 6,
+              "none": 2
+            },
+            "sourceCounts": {
+              "planner": 18,
+              "text_only": 2
+            },
+            "omissionRows": {
+              "missing": 18,
+              "wrong_items": 8,
+              "missing_geometry": 4,
+              "missing_boundary_semantics": 1,
+              "missing_corner_labels": 2,
+              "missing_objective_values": 4
+            }
+          },
+          "candidate": {
+            "n": 20,
+            "drawn": 5,
+            "right": 0,
+            "partial": 4,
+            "wrong": 1,
+            "empty_bad": 15,
+            "empty_ok": 0,
+            "strict": 19,
+            "classifiedMaths": 20,
+            "runErrors": 0,
+            "omissionDenominatorDrawn": 5,
+            "requiredVisualDenominator": 20,
+            "correctRequiredVisuals": 0,
+            "tierCounts": {
+              "qualitative_verified": 2,
+              "none": 15,
+              "exact_verified": 3
+            },
+            "sourceCounts": {
+              "planner": 4,
+              "text_only": 15,
+              "linear_source": 1
+            },
+            "omissionRows": {
+              "missing": 5,
+              "wrong_items": 1,
+              "missing_geometry": 0,
+              "missing_boundary_semantics": 0,
+              "missing_corner_labels": 0,
+              "missing_objective_values": 0
+            }
+          }
+        },
+        "rightDelta": 0,
+        "wrongDelta": -7,
+        "requiredEmptyDelta": 13,
+        "wrongNearZero": true,
+        "pass": false,
+        "pairedTransitions": {
+          "empty_bad->empty_bad": 2,
+          "partial->empty_bad": 7,
+          "partial->partial": 3,
+          "wrong->empty_bad": 6,
+          "wrong->partial": 1,
+          "wrong->wrong": 1
+        },
+        "newlyWrong": []
+      }
+    ]
+  },
+  "ready": false,
+  "prEligible": false,
+  "missingDevelopmentCandidateRepeat2": null,
+  "secondaryScope": {
+    "schema": "secondary-report-only/v1",
+    "missingCell": {
+      "cohort": "development",
+      "rep": 2,
+      "arm": "candidate"
+    },
+    "trigger": "operational-incomplete-replacement-before-quality",
+    "prefixesGraded": false,
+    "ready": false
+  },
+  "consensusFreeze": {
+    "schema": "shaded-regions-consensus-freeze/v1",
+    "gradeSchema": "shaded-region-first-grade/v1",
+    "queueSha256": "a8207617175ffafeaf43e10c66eba0ea9c10e475b28411488a43958861d4a92a",
+    "count": 146,
+    "firstInputs": {
+      "a": {
+        "freezeSha256": "8fd706b837d518ea96ca98216f56ff33d560f67a93fe7bfc7d0d313e8ca502b5",
+        "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-a/grades.jsonl",
+        "gradeSha256": "9601ef01bd6205314d74eba584b84b8da5c53703c09e421b355172e24fe4c99a",
+        "agentIdentity": "/root/r8_ship_blind_a"
+      },
+      "b": {
+        "freezeSha256": "aff0cf66fa6fa8dc9e190d061129cfab7ebf5ac663c537bcfe869999b06e3180",
+        "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-b/grades.jsonl",
+        "gradeSha256": "e30a690012a175d7b6951cd1f6992cefcf51226100dbf856542ff5607b744061",
+        "agentIdentity": "/root/r8_ship_blind_b"
+      },
+      "c": {
+        "freezeSha256": "4a35ee3c4e8b8d34780a5502b4b8f50d168897585d045a821f7f01293eaf3ba0",
+        "gradePath": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/judges/final-c/grades.jsonl",
+        "gradeSha256": "38aab6fce060e2a966b654728fb9f4e853782e20d6b078404a6e41c471b4afa2",
+        "agentIdentity": "/root/r8_ship_blind_c"
+      }
+    },
+    "consensusSha256": "c86aff3fac59f1a0e5a721b1cd195e6a03ca183fcd703c267704cdf589fb7377",
+    "agreed": 124,
+    "discordant": 22,
+    "threeWayConservativeWrong": 1,
+    "armMapsRead": false,
+    "rule": "A/B agreement stands; complete blind C resolves disagreement; three different verdicts are wrong"
+  },
+  "criterion": {
+    "allRequiredRowsEachCohortRepeat": true,
+    "eachIndependentFirstJudgeAndConsensus": true,
+    "candidateRightGreaterThanMain": true,
+    "candidateRequiredEmptyMaxDelta": 2,
+    "candidateWrongAtMost": 1,
+    "candidateWrongNoHigherThanMain": true,
+    "noPooledRescue": true,
+    "wrongNearZeroInterpretation": "at most 1 each cohort/repeat under each first judge and consensus (1/40 development; 1/20 heldout)"
+  },
+  "noPoolingFailedRepeat": true,
+  "rootImageViews": 0,
+  "newModelOutcomes": 120,
+  "reusedMainOutcomes": 80,
+  "freshHeldoutOutcomes": 80,
+  "repeatedDevelopmentOutcomes": 120,
+  "originalProtocolStatus": "incomplete_not_ready",
+  "operationalAbort": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/whole-arm-abort.json",
+    "sha256": "625ff06a339f612b895620f3f16fef32d74fa911f287f40cce80d43eb13be958"
+  },
+  "oldAndNewAbortedPrefixesGraded": false,
+  "limitation": "Secondary seven-cell report after operational abort; no primary readiness or matched original protocol claim"
+}

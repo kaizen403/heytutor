@@ -1,0 +1,3144 @@
+{
+  "format": "independent-fraction-verification/v1",
+  "verification_passed": true,
+  "row_count": 20,
+  "required_figure_denominator": 20,
+  "exact_arithmetic": "fractions.Fraction",
+  "families": {
+    "feasible_region": 5,
+    "half_plane": 5,
+    "linear_system": 5,
+    "number_line": 5
+  },
+  "ask_styles": {
+    "exam_stem": 10,
+    "topic_ask": 10
+  },
+  "curricula": {
+    "CBSE class 11 inequalities": 6,
+    "CBSE class 12 linear programming": 5,
+    "SAT inequalities": 3,
+    "SAT inequalities and sets": 1,
+    "SAT linear systems": 5
+  },
+  "rows": {
+    "maths|h3r8-finish-regions|negative-strict-ray|q1": {
+      "normalizations": [
+        {
+          "id": "c1",
+          "a": [
+            "7",
+            "0"
+          ],
+          "b": "-14",
+          "op": "<"
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "-3",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-21",
+              "op": "<",
+              "rhs": "-14",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "-2",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-14",
+              "op": "<",
+              "rhs": "-14",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "0",
+              "op": "<",
+              "rhs": "-14",
+              "holds": false
+            }
+          ]
+        }
+      ],
+      "computed_intervals": [
+        {
+          "lower": null,
+          "upper": "-2",
+          "lower_closed": false,
+          "upper_closed": false
+        }
+      ],
+      "exhaustive_real_line_atoms": [
+        {
+          "lower": null,
+          "upper": "-2",
+          "singleton": false,
+          "member": true
+        },
+        {
+          "lower": "-2",
+          "upper": "-2",
+          "singleton": true,
+          "member": false
+        },
+        {
+          "lower": "-2",
+          "upper": null,
+          "singleton": false,
+          "member": false
+        }
+      ],
+      "named_set_intervals": {},
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|interval-intersection|q1": {
+      "normalizations": [
+        {
+          "id": "I",
+          "a": [
+            "-3",
+            "0"
+          ],
+          "b": "-4",
+          "op": "<="
+        },
+        {
+          "id": "J",
+          "a": [
+            "3",
+            "0"
+          ],
+          "b": "9",
+          "op": "<"
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "4/3",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "I",
+              "lhs": "-4",
+              "op": "<=",
+              "rhs": "-4",
+              "holds": true
+            },
+            {
+              "id": "J",
+              "lhs": "4",
+              "op": "<",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "5/2",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "I",
+              "lhs": "-15/2",
+              "op": "<=",
+              "rhs": "-4",
+              "holds": true
+            },
+            {
+              "id": "J",
+              "lhs": "15/2",
+              "op": "<",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "I",
+              "lhs": "-9",
+              "op": "<=",
+              "rhs": "-4",
+              "holds": true
+            },
+            {
+              "id": "J",
+              "lhs": "9",
+              "op": "<",
+              "rhs": "9",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "1",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "I",
+              "lhs": "-3",
+              "op": "<=",
+              "rhs": "-4",
+              "holds": false
+            },
+            {
+              "id": "J",
+              "lhs": "3",
+              "op": "<",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "computed_intervals": [
+        {
+          "lower": "4/3",
+          "upper": "3",
+          "lower_closed": true,
+          "upper_closed": false
+        }
+      ],
+      "exhaustive_real_line_atoms": [
+        {
+          "lower": null,
+          "upper": "4/3",
+          "singleton": false,
+          "member": false
+        },
+        {
+          "lower": "4/3",
+          "upper": "4/3",
+          "singleton": true,
+          "member": true
+        },
+        {
+          "lower": "4/3",
+          "upper": "3",
+          "singleton": false,
+          "member": true
+        },
+        {
+          "lower": "3",
+          "upper": "3",
+          "singleton": true,
+          "member": false
+        },
+        {
+          "lower": "3",
+          "upper": null,
+          "singleton": false,
+          "member": false
+        }
+      ],
+      "named_set_intervals": {
+        "I": [
+          {
+            "lower": "4/3",
+            "upper": null,
+            "lower_closed": true,
+            "upper_closed": false
+          }
+        ],
+        "J": [
+          {
+            "lower": null,
+            "upper": "3",
+            "lower_closed": false,
+            "upper_closed": false
+          }
+        ],
+        "K": [
+          {
+            "lower": "4/3",
+            "upper": "3",
+            "lower_closed": true,
+            "upper_closed": false
+          }
+        ]
+      },
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|separated-boolean-union|q1": {
+      "normalizations": [
+        {
+          "id": "left",
+          "a": [
+            "3",
+            "0"
+          ],
+          "b": "-3",
+          "op": "<="
+        },
+        {
+          "id": "right",
+          "a": [
+            "-5",
+            "0"
+          ],
+          "b": "-23",
+          "op": "<"
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "-1",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "left",
+              "lhs": "-3",
+              "op": "<=",
+              "rhs": "-3",
+              "holds": true
+            },
+            {
+              "id": "right",
+              "lhs": "5",
+              "op": "<",
+              "rhs": "-23",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "left",
+              "lhs": "0",
+              "op": "<=",
+              "rhs": "-3",
+              "holds": false
+            },
+            {
+              "id": "right",
+              "lhs": "0",
+              "op": "<",
+              "rhs": "-23",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "23/5",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "left",
+              "lhs": "69/5",
+              "op": "<=",
+              "rhs": "-3",
+              "holds": false
+            },
+            {
+              "id": "right",
+              "lhs": "-23",
+              "op": "<",
+              "rhs": "-23",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "T",
+          "coordinates": [
+            "5",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "left",
+              "lhs": "15",
+              "op": "<=",
+              "rhs": "-3",
+              "holds": false
+            },
+            {
+              "id": "right",
+              "lhs": "-25",
+              "op": "<",
+              "rhs": "-23",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "computed_intervals": [
+        {
+          "lower": null,
+          "upper": "-1",
+          "lower_closed": false,
+          "upper_closed": true
+        },
+        {
+          "lower": "23/5",
+          "upper": null,
+          "lower_closed": false,
+          "upper_closed": false
+        }
+      ],
+      "exhaustive_real_line_atoms": [
+        {
+          "lower": null,
+          "upper": "-1",
+          "singleton": false,
+          "member": true
+        },
+        {
+          "lower": "-1",
+          "upper": "-1",
+          "singleton": true,
+          "member": true
+        },
+        {
+          "lower": "-1",
+          "upper": "23/5",
+          "singleton": false,
+          "member": false
+        },
+        {
+          "lower": "23/5",
+          "upper": "23/5",
+          "singleton": true,
+          "member": false
+        },
+        {
+          "lower": "23/5",
+          "upper": null,
+          "singleton": false,
+          "member": true
+        }
+      ],
+      "named_set_intervals": {},
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|named-interval-difference|q1": {
+      "normalizations": [
+        {
+          "id": "I_lower",
+          "a": [
+            "-3",
+            "0"
+          ],
+          "b": "4",
+          "op": "<="
+        },
+        {
+          "id": "I_upper",
+          "a": [
+            "3",
+            "0"
+          ],
+          "b": "9",
+          "op": "<="
+        },
+        {
+          "id": "J_lower",
+          "a": [
+            "-2",
+            "0"
+          ],
+          "b": "1",
+          "op": "<"
+        },
+        {
+          "id": "J_upper",
+          "a": [
+            "2",
+            "0"
+          ],
+          "b": "4",
+          "op": "<"
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "-4/3",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "I_lower",
+              "lhs": "4",
+              "op": "<=",
+              "rhs": "4",
+              "holds": true
+            },
+            {
+              "id": "I_upper",
+              "lhs": "-4",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            },
+            {
+              "id": "J_lower",
+              "lhs": "8/3",
+              "op": "<",
+              "rhs": "1",
+              "holds": false
+            },
+            {
+              "id": "J_upper",
+              "lhs": "-8/3",
+              "op": "<",
+              "rhs": "4",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "-1/2",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "I_lower",
+              "lhs": "3/2",
+              "op": "<=",
+              "rhs": "4",
+              "holds": true
+            },
+            {
+              "id": "I_upper",
+              "lhs": "-3/2",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            },
+            {
+              "id": "J_lower",
+              "lhs": "1",
+              "op": "<",
+              "rhs": "1",
+              "holds": false
+            },
+            {
+              "id": "J_upper",
+              "lhs": "-1",
+              "op": "<",
+              "rhs": "4",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "I_lower",
+              "lhs": "0",
+              "op": "<=",
+              "rhs": "4",
+              "holds": true
+            },
+            {
+              "id": "I_upper",
+              "lhs": "0",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            },
+            {
+              "id": "J_lower",
+              "lhs": "0",
+              "op": "<",
+              "rhs": "1",
+              "holds": true
+            },
+            {
+              "id": "J_upper",
+              "lhs": "0",
+              "op": "<",
+              "rhs": "4",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "2",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "I_lower",
+              "lhs": "-6",
+              "op": "<=",
+              "rhs": "4",
+              "holds": true
+            },
+            {
+              "id": "I_upper",
+              "lhs": "6",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            },
+            {
+              "id": "J_lower",
+              "lhs": "-4",
+              "op": "<",
+              "rhs": "1",
+              "holds": true
+            },
+            {
+              "id": "J_upper",
+              "lhs": "4",
+              "op": "<",
+              "rhs": "4",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "E",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "I_lower",
+              "lhs": "-9",
+              "op": "<=",
+              "rhs": "4",
+              "holds": true
+            },
+            {
+              "id": "I_upper",
+              "lhs": "9",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            },
+            {
+              "id": "J_lower",
+              "lhs": "-6",
+              "op": "<",
+              "rhs": "1",
+              "holds": true
+            },
+            {
+              "id": "J_upper",
+              "lhs": "6",
+              "op": "<",
+              "rhs": "4",
+              "holds": false
+            }
+          ]
+        }
+      ],
+      "computed_intervals": [
+        {
+          "lower": "-4/3",
+          "upper": "-1/2",
+          "lower_closed": true,
+          "upper_closed": true
+        },
+        {
+          "lower": "2",
+          "upper": "3",
+          "lower_closed": true,
+          "upper_closed": true
+        }
+      ],
+      "exhaustive_real_line_atoms": [
+        {
+          "lower": null,
+          "upper": "-4/3",
+          "singleton": false,
+          "member": false
+        },
+        {
+          "lower": "-4/3",
+          "upper": "-4/3",
+          "singleton": true,
+          "member": true
+        },
+        {
+          "lower": "-4/3",
+          "upper": "-1/2",
+          "singleton": false,
+          "member": true
+        },
+        {
+          "lower": "-1/2",
+          "upper": "-1/2",
+          "singleton": true,
+          "member": true
+        },
+        {
+          "lower": "-1/2",
+          "upper": "2",
+          "singleton": false,
+          "member": false
+        },
+        {
+          "lower": "2",
+          "upper": "2",
+          "singleton": true,
+          "member": true
+        },
+        {
+          "lower": "2",
+          "upper": "3",
+          "singleton": false,
+          "member": true
+        },
+        {
+          "lower": "3",
+          "upper": "3",
+          "singleton": true,
+          "member": true
+        },
+        {
+          "lower": "3",
+          "upper": null,
+          "singleton": false,
+          "member": false
+        }
+      ],
+      "named_set_intervals": {
+        "I": [
+          {
+            "lower": "-4/3",
+            "upper": "3",
+            "lower_closed": true,
+            "upper_closed": true
+          }
+        ],
+        "J": [
+          {
+            "lower": "-1/2",
+            "upper": "2",
+            "lower_closed": false,
+            "upper_closed": false
+          }
+        ],
+        "K": [
+          {
+            "lower": "-4/3",
+            "upper": "-1/2",
+            "lower_closed": true,
+            "upper_closed": true
+          },
+          {
+            "lower": "2",
+            "upper": "3",
+            "lower_closed": true,
+            "upper_closed": true
+          }
+        ]
+      },
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|singleton-intersection|q1": {
+      "normalizations": [
+        {
+          "id": "c1",
+          "a": [
+            "-3",
+            "0"
+          ],
+          "b": "-6",
+          "op": "<="
+        },
+        {
+          "id": "c2",
+          "a": [
+            "4",
+            "0"
+          ],
+          "b": "8",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-3",
+              "op": "<=",
+              "rhs": "-6",
+              "holds": false
+            },
+            {
+              "id": "c2",
+              "lhs": "4",
+              "op": "<=",
+              "rhs": "8",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-6",
+              "op": "<=",
+              "rhs": "-6",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "8",
+              "op": "<=",
+              "rhs": "8",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-9",
+              "op": "<=",
+              "rhs": "-6",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "12",
+              "op": "<=",
+              "rhs": "8",
+              "holds": false
+            }
+          ]
+        }
+      ],
+      "computed_intervals": [
+        {
+          "lower": "2",
+          "upper": "2",
+          "lower_closed": true,
+          "upper_closed": true
+        }
+      ],
+      "exhaustive_real_line_atoms": [
+        {
+          "lower": null,
+          "upper": "2",
+          "singleton": false,
+          "member": false
+        },
+        {
+          "lower": "2",
+          "upper": "2",
+          "singleton": true,
+          "member": true
+        },
+        {
+          "lower": "2",
+          "upper": null,
+          "singleton": false,
+          "member": false
+        }
+      ],
+      "named_set_intervals": {},
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|strict-oblique-half-plane|q1": {
+      "normalizations": [
+        {
+          "id": "c1",
+          "a": [
+            "2",
+            "-3"
+          ],
+          "b": "6",
+          "op": "<"
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "0",
+            "-2"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "6",
+              "op": "<",
+              "rhs": "6",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "0",
+              "op": "<",
+              "rhs": "6",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "6",
+              "op": "<",
+              "rhs": "6",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "0",
+            "-3"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "9",
+              "op": "<",
+              "rhs": "6",
+              "holds": false
+            }
+          ]
+        }
+      ],
+      "computed_axis_intercepts": [
+        [
+          "0",
+          "-2"
+        ],
+        [
+          "3",
+          "0"
+        ]
+      ],
+      "boundary_included": false,
+      "boundary_rule": "Exact equality excluded iff the operator is strict.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|negative-scale-half-plane|q1": {
+      "normalizations": [
+        {
+          "id": "c1",
+          "a": [
+            "4",
+            "1"
+          ],
+          "b": "9",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "1",
+            "4"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "8",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "2",
+            "2"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "10",
+              "op": "<=",
+              "rhs": "9",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "2",
+            "1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "9",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "computed_axis_intercepts": [
+        [
+          "0",
+          "9"
+        ],
+        [
+          "9/4",
+          "0"
+        ]
+      ],
+      "boundary_included": true,
+      "boundary_rule": "Exact equality excluded iff the operator is strict.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1": {
+      "normalizations": [
+        {
+          "id": "c1",
+          "a": [
+            "5/2",
+            "-3"
+          ],
+          "b": "5",
+          "op": "<"
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "0",
+              "op": "<",
+              "rhs": "5",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "5",
+              "op": "<",
+              "rhs": "5",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "-1",
+            "-3"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "13/2",
+              "op": "<",
+              "rhs": "5",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "2",
+            "1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "2",
+              "op": "<",
+              "rhs": "5",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "computed_axis_intercepts": [
+        [
+          "0",
+          "-5/3"
+        ],
+        [
+          "2",
+          "0"
+        ]
+      ],
+      "boundary_included": false,
+      "boundary_rule": "Exact equality excluded iff the operator is strict.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1": {
+      "normalizations": [
+        {
+          "id": "c1",
+          "a": [
+            "-5",
+            "0"
+          ],
+          "b": "-15",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "3",
+            "-2"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-15",
+              "op": "<=",
+              "rhs": "-15",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "4"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-10",
+              "op": "<=",
+              "rhs": "-15",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "5",
+            "-1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "-25",
+              "op": "<=",
+              "rhs": "-15",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "computed_axis_intercepts": [
+        [
+          "3",
+          "0"
+        ]
+      ],
+      "boundary_included": true,
+      "boundary_rule": "Exact equality excluded iff the operator is strict.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1": {
+      "normalizations": [
+        {
+          "id": "c1",
+          "a": [
+            "0",
+            "6"
+          ],
+          "b": "6",
+          "op": "<"
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "0",
+            "1"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "6",
+              "op": "<",
+              "rhs": "6",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "-2",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "0",
+              "op": "<",
+              "rhs": "6",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "3",
+            "2"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "c1",
+              "lhs": "12",
+              "op": "<",
+              "rhs": "6",
+              "holds": false
+            }
+          ]
+        }
+      ],
+      "computed_axis_intercepts": [
+        [
+          "0",
+          "1"
+        ]
+      ],
+      "boundary_included": false,
+      "boundary_rule": "Exact equality excluded iff the operator is strict.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|rational-unique-max|q1": {
+      "normalizations": [
+        {
+          "id": "x_nonnegative",
+          "a": [
+            "-1",
+            "0"
+          ],
+          "b": "0",
+          "op": "<="
+        },
+        {
+          "id": "y_nonnegative",
+          "a": [
+            "0",
+            "-1"
+          ],
+          "b": "0",
+          "op": "<="
+        },
+        {
+          "id": "c1",
+          "a": [
+            "2",
+            "3"
+          ],
+          "b": "11",
+          "op": "<="
+        },
+        {
+          "id": "c2",
+          "a": [
+            "4",
+            "1"
+          ],
+          "b": "9",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "5",
+              "op": "<=",
+              "rhs": "11",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "5",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "3",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-3",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "0",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "6",
+              "op": "<=",
+              "rhs": "11",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "12",
+              "op": "<=",
+              "rhs": "9",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "8/5",
+            "13/5"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-8/5",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-13/5",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "11",
+              "op": "<=",
+              "rhs": "11",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "9",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "all_boundary_pair_intersections": [
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "y_nonnegative"
+          ],
+          "intersection": [
+            "0",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "c1"
+          ],
+          "intersection": [
+            "0",
+            "11/3"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "c2"
+          ],
+          "intersection": [
+            "0",
+            "9"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c1"
+          ],
+          "intersection": [
+            "11/2",
+            "0"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c2"
+          ],
+          "intersection": [
+            "9/4",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "c1",
+            "c2"
+          ],
+          "intersection": [
+            "8/5",
+            "13/5"
+          ],
+          "feasible": true
+        }
+      ],
+      "bounded": true,
+      "vertices_ccw": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "9/4",
+          "0"
+        ],
+        [
+          "8/5",
+          "13/5"
+        ],
+        [
+          "0",
+          "11/3"
+        ]
+      ],
+      "ccw_cross_products": [
+        "117/20",
+        "52/15",
+        "88/15",
+        "33/4"
+      ],
+      "corner_objective_values": [
+        "0",
+        "45/4",
+        "92/5",
+        "44/3"
+      ],
+      "optimal_value": "92/5",
+      "optimal_vertices": [
+        [
+          "8/5",
+          "13/5"
+        ]
+      ],
+      "optimal_edges": [],
+      "proof_basis": "Bounded convex polytope; linear objective extrema occur at vertices. A tied adjacent pair gives its entire closed edge.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|multiple-optimum-edge|q1": {
+      "normalizations": [
+        {
+          "id": "x_nonnegative",
+          "a": [
+            "-1",
+            "0"
+          ],
+          "b": "0",
+          "op": "<="
+        },
+        {
+          "id": "y_nonnegative",
+          "a": [
+            "0",
+            "-1"
+          ],
+          "b": "0",
+          "op": "<="
+        },
+        {
+          "id": "c1",
+          "a": [
+            "-3",
+            "-2"
+          ],
+          "b": "-7",
+          "op": "<="
+        },
+        {
+          "id": "c2",
+          "a": [
+            "1",
+            "1"
+          ],
+          "b": "5",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "-5",
+              "op": "<=",
+              "rhs": "-7",
+              "holds": false
+            },
+            {
+              "id": "c2",
+              "lhs": "2",
+              "op": "<=",
+              "rhs": "5",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "2",
+            "1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-2",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "-8",
+              "op": "<=",
+              "rhs": "-7",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "3",
+              "op": "<=",
+              "rhs": "5",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "D",
+          "coordinates": [
+            "0",
+            "7/2"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "0",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-7/2",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "-7",
+              "op": "<=",
+              "rhs": "-7",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "7/2",
+              "op": "<=",
+              "rhs": "5",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "all_boundary_pair_intersections": [
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "y_nonnegative"
+          ],
+          "intersection": [
+            "0",
+            "0"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "c1"
+          ],
+          "intersection": [
+            "0",
+            "7/2"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "c2"
+          ],
+          "intersection": [
+            "0",
+            "5"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c1"
+          ],
+          "intersection": [
+            "7/3",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c2"
+          ],
+          "intersection": [
+            "5",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "c1",
+            "c2"
+          ],
+          "intersection": [
+            "-3",
+            "8"
+          ],
+          "feasible": false
+        }
+      ],
+      "bounded": true,
+      "vertices_ccw": [
+        [
+          "7/3",
+          "0"
+        ],
+        [
+          "5",
+          "0"
+        ],
+        [
+          "0",
+          "5"
+        ],
+        [
+          "0",
+          "7/2"
+        ]
+      ],
+      "ccw_cross_products": [
+        "40/3",
+        "15/2",
+        "7/2",
+        "28/3"
+      ],
+      "corner_objective_values": [
+        "14",
+        "30",
+        "20",
+        "14"
+      ],
+      "optimal_value": "14",
+      "optimal_vertices": [
+        [
+          "0",
+          "7/2"
+        ],
+        [
+          "7/3",
+          "0"
+        ]
+      ],
+      "optimal_edges": [
+        [
+          [
+            "0",
+            "7/2"
+          ],
+          [
+            "7/3",
+            "0"
+          ]
+        ]
+      ],
+      "proof_basis": "Bounded convex polytope; linear objective extrema occur at vertices. A tied adjacent pair gives its entire closed edge.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|variables-both-sides-region|q1": {
+      "normalizations": [
+        {
+          "id": "x_nonnegative",
+          "a": [
+            "-1",
+            "0"
+          ],
+          "b": "0",
+          "op": "<="
+        },
+        {
+          "id": "y_nonnegative",
+          "a": [
+            "0",
+            "-1"
+          ],
+          "b": "0",
+          "op": "<="
+        },
+        {
+          "id": "c1",
+          "a": [
+            "2",
+            "5"
+          ],
+          "b": "12",
+          "op": "<="
+        },
+        {
+          "id": "c2",
+          "a": [
+            "2",
+            "-1"
+          ],
+          "b": "4",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "7",
+              "op": "<=",
+              "rhs": "12",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "1",
+              "op": "<=",
+              "rhs": "4",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "3",
+            "1"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-3",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "11",
+              "op": "<=",
+              "rhs": "12",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "5",
+              "op": "<=",
+              "rhs": "4",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "8/3",
+            "4/3"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_nonnegative",
+              "lhs": "-8/3",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-4/3",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "12",
+              "op": "<=",
+              "rhs": "12",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "4",
+              "op": "<=",
+              "rhs": "4",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "all_boundary_pair_intersections": [
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "y_nonnegative"
+          ],
+          "intersection": [
+            "0",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "c1"
+          ],
+          "intersection": [
+            "0",
+            "12/5"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_nonnegative",
+            "c2"
+          ],
+          "intersection": [
+            "0",
+            "-4"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c1"
+          ],
+          "intersection": [
+            "6",
+            "0"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c2"
+          ],
+          "intersection": [
+            "2",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "c1",
+            "c2"
+          ],
+          "intersection": [
+            "8/3",
+            "4/3"
+          ],
+          "feasible": true
+        }
+      ],
+      "bounded": true,
+      "vertices_ccw": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "2",
+          "0"
+        ],
+        [
+          "8/3",
+          "4/3"
+        ],
+        [
+          "0",
+          "12/5"
+        ]
+      ],
+      "ccw_cross_products": [
+        "8/3",
+        "64/15",
+        "32/5",
+        "24/5"
+      ],
+      "corner_objective_values": [
+        "0",
+        "6",
+        "32/3",
+        "24/5"
+      ],
+      "optimal_value": "32/3",
+      "optimal_vertices": [
+        [
+          "8/3",
+          "4/3"
+        ]
+      ],
+      "optimal_edges": [],
+      "proof_basis": "Bounded convex polytope; linear objective extrema occur at vertices. A tied adjacent pair gives its entire closed edge.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|lower-bound-resource-region|q1": {
+      "normalizations": [
+        {
+          "id": "x_lower",
+          "a": [
+            "-1",
+            "0"
+          ],
+          "b": "-1/2",
+          "op": "<="
+        },
+        {
+          "id": "y_nonnegative",
+          "a": [
+            "0",
+            "-1"
+          ],
+          "b": "0",
+          "op": "<="
+        },
+        {
+          "id": "c1",
+          "a": [
+            "1",
+            "2"
+          ],
+          "b": "7",
+          "op": "<="
+        },
+        {
+          "id": "c2",
+          "a": [
+            "3",
+            "1"
+          ],
+          "b": "8",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "1",
+            "1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_lower",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "-1/2",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "3",
+              "op": "<=",
+              "rhs": "7",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "4",
+              "op": "<=",
+              "rhs": "8",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "0",
+            "1"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "x_lower",
+              "lhs": "0",
+              "op": "<=",
+              "rhs": "-1/2",
+              "holds": false
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "2",
+              "op": "<=",
+              "rhs": "7",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "1",
+              "op": "<=",
+              "rhs": "8",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "9/5",
+            "13/5"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_lower",
+              "lhs": "-9/5",
+              "op": "<=",
+              "rhs": "-1/2",
+              "holds": true
+            },
+            {
+              "id": "y_nonnegative",
+              "lhs": "-13/5",
+              "op": "<=",
+              "rhs": "0",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "7",
+              "op": "<=",
+              "rhs": "7",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "8",
+              "op": "<=",
+              "rhs": "8",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "all_boundary_pair_intersections": [
+        {
+          "boundaries": [
+            "x_lower",
+            "y_nonnegative"
+          ],
+          "intersection": [
+            "1/2",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_lower",
+            "c1"
+          ],
+          "intersection": [
+            "1/2",
+            "13/4"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_lower",
+            "c2"
+          ],
+          "intersection": [
+            "1/2",
+            "13/2"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c1"
+          ],
+          "intersection": [
+            "7",
+            "0"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "y_nonnegative",
+            "c2"
+          ],
+          "intersection": [
+            "8/3",
+            "0"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "c1",
+            "c2"
+          ],
+          "intersection": [
+            "9/5",
+            "13/5"
+          ],
+          "feasible": true
+        }
+      ],
+      "bounded": true,
+      "vertices_ccw": [
+        [
+          "1/2",
+          "0"
+        ],
+        [
+          "8/3",
+          "0"
+        ],
+        [
+          "9/5",
+          "13/5"
+        ],
+        [
+          "1/2",
+          "13/4"
+        ]
+      ],
+      "ccw_cross_products": [
+        "169/30",
+        "169/60",
+        "169/40",
+        "169/24"
+      ],
+      "corner_objective_values": [
+        "2",
+        "32/3",
+        "101/5",
+        "73/4"
+      ],
+      "optimal_value": "101/5",
+      "optimal_vertices": [
+        [
+          "9/5",
+          "13/5"
+        ]
+      ],
+      "optimal_edges": [],
+      "proof_basis": "Bounded convex polytope; linear objective extrema occur at vertices. A tied adjacent pair gives its entire closed edge.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|shifted-triangle-minimum|q1": {
+      "normalizations": [
+        {
+          "id": "x_lower",
+          "a": [
+            "-1",
+            "0"
+          ],
+          "b": "-1",
+          "op": "<="
+        },
+        {
+          "id": "y_lower",
+          "a": [
+            "0",
+            "-1"
+          ],
+          "b": "-1",
+          "op": "<="
+        },
+        {
+          "id": "c1",
+          "a": [
+            "-1",
+            "-2"
+          ],
+          "b": "-6",
+          "op": "<="
+        },
+        {
+          "id": "c2",
+          "a": [
+            "2",
+            "1"
+          ],
+          "b": "9",
+          "op": "<="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "A",
+          "coordinates": [
+            "2",
+            "2"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_lower",
+              "lhs": "-2",
+              "op": "<=",
+              "rhs": "-1",
+              "holds": true
+            },
+            {
+              "id": "y_lower",
+              "lhs": "-2",
+              "op": "<=",
+              "rhs": "-1",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "-6",
+              "op": "<=",
+              "rhs": "-6",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "6",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "coordinates": [
+            "1",
+            "2"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "x_lower",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "-1",
+              "holds": true
+            },
+            {
+              "id": "y_lower",
+              "lhs": "-2",
+              "op": "<=",
+              "rhs": "-1",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "-5",
+              "op": "<=",
+              "rhs": "-6",
+              "holds": false
+            },
+            {
+              "id": "c2",
+              "lhs": "4",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "C",
+          "coordinates": [
+            "1",
+            "5/2"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "x_lower",
+              "lhs": "-1",
+              "op": "<=",
+              "rhs": "-1",
+              "holds": true
+            },
+            {
+              "id": "y_lower",
+              "lhs": "-5/2",
+              "op": "<=",
+              "rhs": "-1",
+              "holds": true
+            },
+            {
+              "id": "c1",
+              "lhs": "-6",
+              "op": "<=",
+              "rhs": "-6",
+              "holds": true
+            },
+            {
+              "id": "c2",
+              "lhs": "9/2",
+              "op": "<=",
+              "rhs": "9",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "all_boundary_pair_intersections": [
+        {
+          "boundaries": [
+            "x_lower",
+            "y_lower"
+          ],
+          "intersection": [
+            "1",
+            "1"
+          ],
+          "feasible": false
+        },
+        {
+          "boundaries": [
+            "x_lower",
+            "c1"
+          ],
+          "intersection": [
+            "1",
+            "5/2"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "x_lower",
+            "c2"
+          ],
+          "intersection": [
+            "1",
+            "7"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "y_lower",
+            "c1"
+          ],
+          "intersection": [
+            "4",
+            "1"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "y_lower",
+            "c2"
+          ],
+          "intersection": [
+            "4",
+            "1"
+          ],
+          "feasible": true
+        },
+        {
+          "boundaries": [
+            "c1",
+            "c2"
+          ],
+          "intersection": [
+            "4",
+            "1"
+          ],
+          "feasible": true
+        }
+      ],
+      "bounded": true,
+      "vertices_ccw": [
+        [
+          "1",
+          "5/2"
+        ],
+        [
+          "4",
+          "1"
+        ],
+        [
+          "1",
+          "7"
+        ]
+      ],
+      "ccw_cross_products": [
+        "27/2",
+        "27/2",
+        "27/2"
+      ],
+      "corner_objective_values": [
+        "19/2",
+        "11",
+        "23"
+      ],
+      "optimal_value": "19/2",
+      "optimal_vertices": [
+        [
+          "1",
+          "5/2"
+        ]
+      ],
+      "optimal_edges": [],
+      "proof_basis": "Bounded convex polytope; linear objective extrema occur at vertices. A tied adjacent pair gives its entire closed edge.",
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|system-x-coordinate|q1": {
+      "normalizations": [
+        {
+          "id": "L1",
+          "a": [
+            "3",
+            "2"
+          ],
+          "b": "7",
+          "op": "="
+        },
+        {
+          "id": "L2",
+          "a": [
+            "2",
+            "-3"
+          ],
+          "b": "1",
+          "op": "="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "23/13",
+            "11/13"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "7",
+              "op": "=",
+              "rhs": "7",
+              "holds": true
+            },
+            {
+              "id": "L2",
+              "lhs": "1",
+              "op": "=",
+              "rhs": "1",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "solution_point": [
+        "23/13",
+        "11/13"
+      ],
+      "coefficient_determinant": "-13",
+      "system_kind": "unique",
+      "computed_line_intercepts": {
+        "L1": [
+          [
+            "0",
+            "7/2"
+          ],
+          [
+            "7/3",
+            "0"
+          ]
+        ],
+        "L2": [
+          [
+            "0",
+            "-1/3"
+          ],
+          [
+            "1/2",
+            "0"
+          ]
+        ]
+      },
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|parallel-system-no-solution|q1": {
+      "normalizations": [
+        {
+          "id": "L1",
+          "a": [
+            "-4",
+            "2"
+          ],
+          "b": "-6",
+          "op": "="
+        },
+        {
+          "id": "L2",
+          "a": [
+            "6",
+            "-3"
+          ],
+          "b": "12",
+          "op": "="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "L1_y_intercept",
+          "coordinates": [
+            "0",
+            "-3"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "-6",
+              "op": "=",
+              "rhs": "-6",
+              "holds": true
+            },
+            {
+              "id": "L2",
+              "lhs": "9",
+              "op": "=",
+              "rhs": "12",
+              "holds": false
+            }
+          ]
+        },
+        {
+          "name": "L2_y_intercept",
+          "coordinates": [
+            "0",
+            "-4"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "-8",
+              "op": "=",
+              "rhs": "-6",
+              "holds": false
+            },
+            {
+              "id": "L2",
+              "lhs": "12",
+              "op": "=",
+              "rhs": "12",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "solution_set": "empty",
+      "coefficient_determinant": "0",
+      "system_kind": "parallel_distinct",
+      "computed_line_intercepts": {
+        "L1": [
+          [
+            "0",
+            "-3"
+          ],
+          [
+            "3/2",
+            "0"
+          ]
+        ],
+        "L2": [
+          [
+            "0",
+            "-4"
+          ],
+          [
+            "2",
+            "0"
+          ]
+        ]
+      },
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|coincident-system-all-points|q1": {
+      "normalizations": [
+        {
+          "id": "L1",
+          "a": [
+            "1",
+            "-5"
+          ],
+          "b": "5",
+          "op": "="
+        },
+        {
+          "id": "L2",
+          "a": [
+            "-2",
+            "10"
+          ],
+          "b": "-10",
+          "op": "="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "0",
+            "-1"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "5",
+              "op": "=",
+              "rhs": "5",
+              "holds": true
+            },
+            {
+              "id": "L2",
+              "lhs": "-10",
+              "op": "=",
+              "rhs": "-10",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "Q",
+          "coordinates": [
+            "5",
+            "0"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "5",
+              "op": "=",
+              "rhs": "5",
+              "holds": true
+            },
+            {
+              "id": "L2",
+              "lhs": "-10",
+              "op": "=",
+              "rhs": "-10",
+              "holds": true
+            }
+          ]
+        },
+        {
+          "name": "R",
+          "coordinates": [
+            "0",
+            "0"
+          ],
+          "member": false,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "0",
+              "op": "=",
+              "rhs": "5",
+              "holds": false
+            },
+            {
+              "id": "L2",
+              "lhs": "0",
+              "op": "=",
+              "rhs": "-10",
+              "holds": false
+            }
+          ]
+        }
+      ],
+      "solution_set": {
+        "parameter_domain": "R",
+        "x": "t",
+        "y": "(t-5)/5"
+      },
+      "coefficient_determinant": "0",
+      "system_kind": "coincident",
+      "computed_line_intercepts": {
+        "L1": [
+          [
+            "0",
+            "-1"
+          ],
+          [
+            "5",
+            "0"
+          ]
+        ],
+        "L2": [
+          [
+            "0",
+            "-1"
+          ],
+          [
+            "5",
+            "0"
+          ]
+        ]
+      },
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|vertical-line-system|q1": {
+      "normalizations": [
+        {
+          "id": "L1",
+          "a": [
+            "2",
+            "0"
+          ],
+          "b": "5",
+          "op": "="
+        },
+        {
+          "id": "L2",
+          "a": [
+            "-1",
+            "2"
+          ],
+          "b": "7",
+          "op": "="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "5/2",
+            "19/4"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "5",
+              "op": "=",
+              "rhs": "5",
+              "holds": true
+            },
+            {
+              "id": "L2",
+              "lhs": "7",
+              "op": "=",
+              "rhs": "7",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "solution_point": [
+        "5/2",
+        "19/4"
+      ],
+      "coefficient_determinant": "4",
+      "system_kind": "unique",
+      "computed_line_intercepts": {
+        "L1": [
+          [
+            "5/2",
+            "0"
+          ]
+        ],
+        "L2": [
+          [
+            "-7",
+            "0"
+          ],
+          [
+            "0",
+            "7/2"
+          ]
+        ]
+      },
+      "verified": true
+    },
+    "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1": {
+      "normalizations": [
+        {
+          "id": "L1",
+          "a": [
+            "-5",
+            "-1"
+          ],
+          "b": "-11",
+          "op": "="
+        },
+        {
+          "id": "L2",
+          "a": [
+            "3",
+            "3"
+          ],
+          "b": "8",
+          "op": "="
+        }
+      ],
+      "test_points": [
+        {
+          "name": "P",
+          "coordinates": [
+            "25/12",
+            "7/12"
+          ],
+          "member": true,
+          "constraint_evaluations": [
+            {
+              "id": "L1",
+              "lhs": "-11",
+              "op": "=",
+              "rhs": "-11",
+              "holds": true
+            },
+            {
+              "id": "L2",
+              "lhs": "8",
+              "op": "=",
+              "rhs": "8",
+              "holds": true
+            }
+          ]
+        }
+      ],
+      "solution_point": [
+        "25/12",
+        "7/12"
+      ],
+      "coefficient_determinant": "-12",
+      "system_kind": "unique",
+      "computed_line_intercepts": {
+        "L1": [
+          [
+            "0",
+            "11"
+          ],
+          [
+            "11/5",
+            "0"
+          ]
+        ],
+        "L2": [
+          [
+            "0",
+            "8/3"
+          ],
+          [
+            "8/3",
+            "0"
+          ]
+        ]
+      },
+      "verified": true
+    }
+  }
+}

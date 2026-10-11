@@ -1,0 +1,50 @@
+{
+  "schema": "regions-final-cleanup/v1",
+  "at": "2026-10-11T17:48:51.861646+00:00",
+  "ownedProcesses": [
+    {
+      "pid": 58829,
+      "absent": true
+    },
+    {
+      "pid": 58944,
+      "absent": true
+    },
+    {
+      "pid": 58946,
+      "absent": true
+    },
+    {
+      "pid": 57388,
+      "absent": true
+    },
+    {
+      "pid": 57915,
+      "absent": true
+    }
+  ],
+  "ownedPorts": [
+    {
+      "port": 3530,
+      "listenerAbsent": true
+    },
+    {
+      "port": 3534,
+      "listenerAbsent": true
+    }
+  ],
+  "terminalAbort": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/whole-arm-abort.json",
+    "sha256": "625ff06a339f612b895620f3f16fef32d74fa911f287f40cce80d43eb13be958"
+  },
+  "settlement": {
+    "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/followup-settlement-repaired/metrics/final-settlement.json",
+    "sha256": "e458b6bd9b381aa89df8c42eb11ed9330c85b60e1b46d3eb2a237d47b08d127a"
+  },
+  "savedReplacementRows": 1,
+  "replacementPrefixUngraded": true,
+  "originalSavedPrefixRows": 15,
+  "originalPrefixUngraded": true,
+  "noFurtherPaidDispatch": true,
+  "rootImagesViewed": 0
+}

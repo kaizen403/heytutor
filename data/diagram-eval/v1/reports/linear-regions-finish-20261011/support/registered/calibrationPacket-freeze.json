@@ -1,0 +1,16 @@
+{
+  "schema": "shaded-regions-synthetic-calibration-packet/v1",
+  "at": "2026-10-11T01:46:29.029Z",
+  "gradeSchema": "shaded-region-first-grade/v1",
+  "cards": 24,
+  "queueSha256": "fa8f7aa94e64e0a52d4ab36940a7775b61e788f26ac3be0fcb9677128467a726",
+  "imageProofFreezeSha256": "e5146558c2af6d41152078bc6fdce5ef44adbe4cff97d74e96cdf1c06de9d3c3",
+  "crop": {
+    "left": 400,
+    "top": 0,
+    "width": 760,
+    "height": 700
+  },
+  "rootImageViews": 0,
+  "qualityUnblinded": false
+}

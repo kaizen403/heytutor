@@ -1,0 +1,233 @@
+{
+  "preregistrationSha256": "c6b7b12870b28f127f8d7340f02ed36e9c84816e712e412127002219824fd689",
+  "blocks": [
+    {
+      "block": {
+        "cohort": "development",
+        "rep": 1,
+        "arm": "candidate",
+        "block": 1,
+        "n": 20,
+        "label": "h3r8-development-r1-candidate-b1",
+        "out": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r1-candidate-b1",
+        "evalAsset": "developmentBlock1Eval",
+        "rowIds": [
+          "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+          "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+          "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+          "maths|h3r6-shaded-regions|nl04-disjoint-union|q1",
+          "maths|h3r6-shaded-regions|nl05-overlap-intersection|q1",
+          "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+          "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+          "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+          "maths|h3r6-shaded-regions|nl09-union-puncture|q1",
+          "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+          "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+          "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+          "maths|h3r6-shaded-regions|hp03-vertical-negative-closed|q1",
+          "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+          "maths|h3r6-shaded-regions|hp05-origin-on-boundary|q1",
+          "maths|h3r6-shaded-regions|hp06-positive-strict-membership|q1",
+          "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+          "maths|h3r6-shaded-regions|hp08-vertical-strict-rational|q1",
+          "maths|h3r6-shaded-regions|hp09-horizontal-closed|q1",
+          "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1"
+        ]
+      },
+      "receipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r1-candidate-b1/block-complete.json",
+        "sha256": "2ccb5346eb6b50d141c49fc67352e30d6e45610f59caac6bcf8bd0c30313d6d1"
+      }
+    },
+    {
+      "block": {
+        "cohort": "development",
+        "rep": 1,
+        "arm": "candidate",
+        "block": 2,
+        "n": 20,
+        "label": "h3r8-development-r1-candidate-b2",
+        "out": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r1-candidate-b2",
+        "evalAsset": "developmentBlock2Eval",
+        "rowIds": [
+          "maths|h3r6-shaded-regions|lpp01-bounded-unique|q1",
+          "maths|h3r6-shaded-regions|lpp02-rational-corner|q1",
+          "maths|h3r6-shaded-regions|lpp03-redundant-constraint|q1",
+          "maths|h3r6-shaded-regions|lpp04-unbounded-region-finite-min|q1",
+          "maths|h3r6-shaded-regions|lpp05-bounded-multiple-optima|q1",
+          "maths|h3r6-shaded-regions|lpp06-resource-pentagon|q1",
+          "maths|h3r6-shaded-regions|lpp07-unbounded-objective|q1",
+          "maths|h3r6-shaded-regions|lpp08-infeasible|q1",
+          "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+          "maths|h3r6-shaded-regions|lpp10-negative-objective-strip|q1",
+          "maths|h3r6-shaded-regions|sys01-unique-integer|q1",
+          "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+          "maths|h3r6-shaded-regions|sys03-distinct-parallel|q1",
+          "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+          "maths|h3r6-shaded-regions|sys05-vertical-horizontal|q1",
+          "maths|h3r6-shaded-regions|sys06-cbse10-unique|q1",
+          "maths|h3r6-shaded-regions|sys07-negative-coefficients|q1",
+          "maths|h3r6-shaded-regions|sys08-distinct-vertical|q1",
+          "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+          "maths|h3r6-shaded-regions|sys10-opposite-slopes-rational|q1"
+        ]
+      },
+      "receipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/development-r1-candidate-b2/block-complete.json",
+        "sha256": "27edfe7fdb5a264c14d127802040ccee001850287ec4aaf0ddb3799d6148f772"
+      }
+    },
+    {
+      "block": {
+        "cohort": "heldout",
+        "rep": 1,
+        "arm": "main",
+        "block": 1,
+        "n": 20,
+        "label": "h3r8-heldout-r1-main-b1",
+        "out": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r1-main-b1",
+        "evalAsset": "heldoutEval",
+        "rowIds": [
+          "maths|h3r8-finish-regions|negative-strict-ray|q1",
+          "maths|h3r8-finish-regions|interval-intersection|q1",
+          "maths|h3r8-finish-regions|separated-boolean-union|q1",
+          "maths|h3r8-finish-regions|named-interval-difference|q1",
+          "maths|h3r8-finish-regions|singleton-intersection|q1",
+          "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+          "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+          "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-unique-max|q1",
+          "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+          "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+          "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+          "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+          "maths|h3r8-finish-regions|system-x-coordinate|q1",
+          "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+          "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+          "maths|h3r8-finish-regions|vertical-line-system|q1",
+          "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1"
+        ]
+      },
+      "receipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r1-main-b1/block-complete.json",
+        "sha256": "eade225c4226ed17df5f637998881abd5c4d847dbfd90f795097ab9189ffe74f"
+      }
+    },
+    {
+      "block": {
+        "cohort": "heldout",
+        "rep": 1,
+        "arm": "candidate",
+        "block": 1,
+        "n": 20,
+        "label": "h3r8-heldout-r1-candidate-b1",
+        "out": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r1-candidate-b1",
+        "evalAsset": "heldoutEval",
+        "rowIds": [
+          "maths|h3r8-finish-regions|negative-strict-ray|q1",
+          "maths|h3r8-finish-regions|interval-intersection|q1",
+          "maths|h3r8-finish-regions|separated-boolean-union|q1",
+          "maths|h3r8-finish-regions|named-interval-difference|q1",
+          "maths|h3r8-finish-regions|singleton-intersection|q1",
+          "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+          "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+          "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-unique-max|q1",
+          "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+          "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+          "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+          "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+          "maths|h3r8-finish-regions|system-x-coordinate|q1",
+          "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+          "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+          "maths|h3r8-finish-regions|vertical-line-system|q1",
+          "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1"
+        ]
+      },
+      "receipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r1-candidate-b1/block-complete.json",
+        "sha256": "cf9ffa31996cfd5eaab0d9cac6ffe4a5b6d6510683034791039612b9446151e1"
+      }
+    },
+    {
+      "block": {
+        "cohort": "heldout",
+        "rep": 2,
+        "arm": "candidate",
+        "block": 1,
+        "n": 20,
+        "label": "h3r8-heldout-r2-candidate-b1",
+        "out": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r2-candidate-b1",
+        "evalAsset": "heldoutEval",
+        "rowIds": [
+          "maths|h3r8-finish-regions|negative-strict-ray|q1",
+          "maths|h3r8-finish-regions|interval-intersection|q1",
+          "maths|h3r8-finish-regions|separated-boolean-union|q1",
+          "maths|h3r8-finish-regions|named-interval-difference|q1",
+          "maths|h3r8-finish-regions|singleton-intersection|q1",
+          "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+          "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+          "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-unique-max|q1",
+          "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+          "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+          "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+          "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+          "maths|h3r8-finish-regions|system-x-coordinate|q1",
+          "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+          "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+          "maths|h3r8-finish-regions|vertical-line-system|q1",
+          "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1"
+        ]
+      },
+      "receipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r2-candidate-b1/block-complete.json",
+        "sha256": "9c04c256339b373b9cf930e61bfa367f930f8718d7d3271a0f9b7a1d206abcfa"
+      }
+    },
+    {
+      "block": {
+        "cohort": "heldout",
+        "rep": 2,
+        "arm": "main",
+        "block": 1,
+        "n": 20,
+        "label": "h3r8-heldout-r2-main-b1",
+        "out": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r2-main-b1",
+        "evalAsset": "heldoutEval",
+        "rowIds": [
+          "maths|h3r8-finish-regions|negative-strict-ray|q1",
+          "maths|h3r8-finish-regions|interval-intersection|q1",
+          "maths|h3r8-finish-regions|separated-boolean-union|q1",
+          "maths|h3r8-finish-regions|named-interval-difference|q1",
+          "maths|h3r8-finish-regions|singleton-intersection|q1",
+          "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+          "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+          "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+          "maths|h3r8-finish-regions|rational-unique-max|q1",
+          "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+          "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+          "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+          "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+          "maths|h3r8-finish-regions|system-x-coordinate|q1",
+          "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+          "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+          "maths|h3r8-finish-regions|vertical-line-system|q1",
+          "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1"
+        ]
+      },
+      "receipt": {
+        "path": "/Users/kaizen/conductor/workspaces/heytutor/provo/.context/h3r8/finish-regions/measurement/live-outputs/heldout-r2-main-b1/block-complete.json",
+        "sha256": "da1b037966e57d2195f04076a4b361b52fed3b3a4116351a508992bfca1e8169"
+      }
+    }
+  ]
+}

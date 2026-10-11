@@ -1,0 +1,14 @@
+{
+  "schema": "finish-regions-inputs-freeze/v1",
+  "row_count": 60,
+  "development_count": 40,
+  "heldout_count": 20,
+  "crossCohortIdsUnique": true,
+  "freshQuestionsPrinted": false,
+  "jevPolicy": "identical missing-key unavailable evidence; no JEV dispatch",
+  "exclusionsPolicy": "Full immutable eval row schema union, because both actual parsers require complete rows; exclusion identity remains question text",
+  "hashes": {
+    ".context/h3r8/finish-regions/measurement/frozen-inputs/example-exclusions.jsonl": "acbb80c5d9dddcb57b127c4e27513c98970f129c034a10b758293ea57aaa78be",
+    ".context/h3r8/finish-regions/measurement/frozen-inputs/jev-parked.jsonl": "229c2813c1f424ee566eac961d1f190797e1845465ec2a7a26e564d42942b44a"
+  }
+}
