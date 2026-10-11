@@ -94,6 +94,7 @@ import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
+import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
@@ -764,6 +765,22 @@ export function useQuestionHandler(
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
       const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
+      const earlyOpeningStarted = STREAM_SEGMENTS_LIVE && shouldStartEarlyLessonOpening({
+        kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+        isDsa: dsaClassification.isDsa,
+        admitted: true,
+        current: isCurrentTurn(),
+        paused: isPausedRef.current,
+      });
+      if (earlyOpeningStarted) {
+        // Fixed acknowledgement only: figure selection and useful teaching
+        // below still receive the same original inputs and authority gates.
+        page.earlyOpeningStarted = true;
+        liveTurnSave().setResumeState(cancelRef, turnGeneration, { v: 1, earlyOpeningOnly: true });
+        tel.mark("early-lesson-opening-queued", { early_opening: true });
+        tel.meta({ early_lesson_opening: true });
+        enqueueSegment(buildEarlyLessonOpeningSegment(turnNarrationLanguage), turnGeneration);
+      }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
@@ -1805,7 +1822,7 @@ export function useQuestionHandler(
       throwIfTurnCancelled();
       setPhaseIfCurrent("thinking");
       if (!isPausedRef.current) tts.unlockAudio?.();
-      if (STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
+      if (!earlyOpeningStarted && STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
         tts.prefetchSegment?.(openingSegment.narration, {
           traceId: turnTraceId ?? undefined,
           sessionId: sessionId ?? undefined,
@@ -1897,7 +1914,7 @@ export function useQuestionHandler(
           // First, before any row and before the figure: what this question is
           // and what we are about to do with it. A lesson that opens on
           // "Given... u equals twenty" has started in the middle of itself.
-          if (openingSegment) {
+          if (openingSegment && !earlyOpeningStarted) {
             enqueueSegment(openingSegment, turnGeneration);
           }
           for (const segment of givenSegments) {

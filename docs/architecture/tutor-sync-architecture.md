@@ -20,6 +20,18 @@ handwriting sync after the verified scene is committed.
 
 See [speech-providers.md](speech-providers.md) for provider selection, Cartesia, Sarvam and ElevenLabs adapters, timestamp mapping, and WAV/MP3 replay.
 
+### Optional early acknowledgement
+
+`NEXT_PUBLIC_EARLY_LESSON_OPENING=1` is a build-time, default-off flag. After
+billing admission, a fresh non-code lesson may speak a fixed, command-free
+acknowledgement while planning runs. It makes no solution or figure promises;
+useful teaching and every figure beat retain the existing authority ordering.
+Doubts, resumes and code lessons keep their old ordering. An opening-only Stop
+or reload restarts planning rather than continuing past an unfinished plan.
+The flag does not enter planner requests or selection inputs. Run
+`pnpm --filter @heytutor/tutor verify:early-opening` for actual-hook OFF/ON figure
+parity, and measure useful teaching separately from acknowledgement readiness.
+
 ## High-Level Flow
 
 The main live path is:
