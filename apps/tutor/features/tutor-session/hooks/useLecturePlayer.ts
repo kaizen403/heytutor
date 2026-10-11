@@ -581,6 +581,7 @@ export function useLecturePlayer({
               {
               durationScale: 0,
               applyLayout: false,
+              recordedWorkPlacement: reviewing,
               isCancelled: () => !stillOurs(),
               trustedDiagramGeometry: cue.trustedDiagramGeometry,
             },

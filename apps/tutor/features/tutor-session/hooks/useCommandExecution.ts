@@ -216,6 +216,8 @@ export function useCommandExecution({
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        /** Static saved-page review keeps captured WRITE rows and page erases. */
+        recordedWorkPlacement?: boolean;
         segmentNarration?: string;
         /**
          * This command's slice of the segment's spoken time. A ceiling for
@@ -667,6 +669,7 @@ export function useCommandExecution({
           let maybeFontSize = requestedFontSize;
           if (
             command.type === "WRITE" &&
+            !options.recordedWorkPlacement &&
             !options.textPlacementReserved &&
             command.text &&
             Number.isFinite(x) &&
@@ -712,7 +715,9 @@ export function useCommandExecution({
                   command,
                   x,
                   y,
-                  command.type === "WRITE" || options.applyLayout !== false,
+                  command.type === "WRITE" && options.recordedWorkPlacement
+                    ? false
+                    : command.type === "WRITE" || options.applyLayout !== false,
                   options.introLayoutCheckpoint,
                 );
             if (isInDiagramZone(placement.x, placement.y)) {
@@ -1671,6 +1676,7 @@ export function useCommandExecution({
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        recordedWorkPlacement?: boolean;
         segmentNarration?: string;
         speechShareMs?: number;
         trustedDiagramGeometry?: boolean;

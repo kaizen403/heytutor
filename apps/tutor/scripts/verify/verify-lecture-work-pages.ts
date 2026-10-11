@@ -2,7 +2,11 @@
 import assert from "node:assert/strict";
 import { buildLecturePlayerTimeline } from "../../lib/replay/lecturePlayer";
 import type { DrawCommand } from "@heytutor/drawing";
+import { getSegmentCommands, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
+import { compileSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
+import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 const turn: StoredTurn = {
   id: "pages",
   orderIndex: 0,
@@ -20,7 +24,7 @@ const turn: StoredTurn = {
   sceneArtifacts: null,
   segments: (
     [
-      { type: "WRITE", params: [90, 64, 32], text: "Given" },
+      { type: "WRITE", params: [90, 64, 46], text: "Given" },
       { type: "WRITE", params: [90, 130, 32], text: "Work" },
       { type: "WRITE", params: [90, 526, 32], text: "Answer = 8" },
       { type: "EMPHASIZE", params: [], text: "last" },
@@ -172,6 +176,10 @@ function load(
     ? (process.env.WORK_PAGE_HOOK_SOURCE ?? file)
     : file.endsWith("LecturePlayerBar.tsx")
       ? (process.env.WORK_PAGE_BAR_SOURCE ?? file)
+      : file.endsWith("useCommandExecution.ts")
+        ? (process.env.WORK_PAGE_EXECUTOR_SOURCE ?? file)
+        : file.endsWith("useBoardLayout.ts")
+          ? (process.env.WORK_PAGE_LAYOUT_SOURCE ?? file)
       : file;
   const code = ts.transpileModule(readFileSync(source, "utf8"), {
     compilerOptions: {
@@ -250,6 +258,44 @@ class AudioBoundary extends EventTarget {
     return Promise.resolve();
   }
 }
+const capturedLongRow = "This captured row keeps every original word on its recorded line";
+async function figureFixture(): Promise<StoredTurn> {
+  const question = "Show a source-grounded segment between two endpoints.";
+  const ids = ["a", "b", "edge"];
+  const document: SceneDocument = {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "declared qualitative segment fixture" },
+    source: { question, nonMetric: true, representationTier: "qualitative_verified" },
+    quantities: [],
+    entities: [{ id: "a", kind: "point", role: "start" }, { id: "b", kind: "point", role: "end" }, { id: "edge", kind: "segment", role: "segment" }],
+    constructions: [
+      { id: "make_a", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["a"] },
+      { id: "make_b", operator: "point", inputs: { x: 4, y: 0 }, outputs: ["b"] },
+      { id: "make_edge", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["edge"] },
+    ],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: ids,
+    revealGroups: [{ id: "setup", entityIds: ids, dependsOn: [], narrationCue: "Here is the segment." }], teachingTimeline: [],
+  };
+  const compiled = compileSceneDocument(document);
+  assert.ok(compiled.ok && compiled.renderScene);
+  const presentation = buildVerifiedDiagramPresentation(document, compiled.renderScene);
+  const saved = await canonicalizeTurnSceneMetadata({
+    question, sceneDocument: document, visualStatus: "validated",
+    sceneArtifacts: { schemaVersion: "scene-artifacts/v3", representationTier: "qualitative_verified", nonMetric: true, diagramResultStatus: "ready", turnPlan: {
+      schemaVersion: "turn-plan/v3", question, givens: [], derived: [], unknowns: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required",
+    } },
+    segments: [
+      ...presentation.introSegments.map((segment) => ({ narration: segment.narration, spokenText: segment.narration, command: serializeSegmentCommands(getSegmentCommands(segment), { trustedDiagramGeometry: segment.verifiedDiagramIntro === true }) })),
+      ...turn.segments.map((segment, index) => ({ narration: segment.narration, spokenText: segment.spokenText,
+        command: index === 1 ? { type: "WRITE", params: [90, 130, 32], text: capturedLongRow, charPosition: 0, narrationBefore: "" } : segment.command })),
+    ].map((segment, orderIndex) => ({ ...segment, orderIndex })),
+  });
+  assert.ok(saved.ok, saved.ok ? "" : saved.error);
+  return { ...turn, ...saved.value, id: "verified-pages", question,
+    segments: saved.value.segments.map((segment) => ({ ...segment, id: `verified-${segment.orderIndex}`,
+      command: serializeSegmentCommands(parseStoredSegmentCommands(segment.command), { trustedDiagramGeometry: isStoredCommandTrustedGeometry(segment.command) }),
+      audioUrl: "/stored/audio", durationMs: 1000, timings: null })) };
+}
 async function main() {
   const original = new Map<string, PropertyDescriptor | undefined>();
   for (const [key, value] of Object.entries({
@@ -278,8 +324,32 @@ async function main() {
     original.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
     Object.defineProperty(globalThis, key, { value, configurable: true });
   }
-  const board = mountTestWhiteboard(),
-    mount = new Mount();
+  // The actual Whiteboard fallback-glyph path makes permanent text and its
+  // placement observable; only the font/path lookup is inert.
+  const board = mountTestWhiteboard(undefined, async (text, x, y, fontSize) =>
+    Array.from(text, (char, index) => ({
+      char,
+      x: x + index * 16,
+      y,
+      width: 16,
+      fontSize,
+      strokes: [],
+    }))),
+    mount = new Mount(), sceneMount = new Mount();
+  const boardRows = () => {
+    const rows = new Map<number, Array<{ x: number; text: string }>>();
+    for (const node of board.getDrawLayer()!.getChildren()) {
+      if (node.getClassName() !== "Text") continue;
+      const row = rows.get(node.y()) ?? [];
+      row.push({ x: node.x(), text: String(node.getAttrs().text) });
+      rows.set(node.y(), row);
+    }
+    return [...rows].sort(([a], [b]) => a - b).map(([y, glyphs]) => ({
+      x: Math.min(...glyphs.map((glyph) => glyph.x)),
+      y,
+      text: glyphs.sort((a, b) => a.x - b.x).map((glyph) => glyph.text).join(""),
+    }));
+  };
   let api: LecturePlayerApi | undefined;
   const wait = async (predicate: () => boolean) => {
     const end = Date.now() + 5000;
@@ -386,6 +456,15 @@ async function main() {
     assert.ok(first.length > 0, "actual executor paints stored answer page");
     assert.ok(executedCommands.some(command => command.text === "Answer = 8"), "actual consumer executes the stored answer before its page erase");
     assert.ok(!executedCommands.some(command => command.text === "Check = 8"), "command-boundary inspection must not execute the later same-cue page erase");
+    assert.deepEqual(boardRows(), [
+      { x: 90, y: 64, text: "Given" },
+      { x: 90, y: 130, text: "Work" },
+      { x: 90, y: 526, text: "Answer = 8" },
+    ], "actual permanent answer-page glyphs retain their recorded coordinates");
+    assert.ok(board.getDrawLayer()!.getChildren().filter((node) =>
+      node.getClassName() === "Text" && node.y() === 64,
+    ).every((node) => node.getAttrs().fontSize === 46),
+    "recorded heading glyph size is not re-fitted to the ordinary work-row role");
     assert.equal(
       AudioBoundary.all.at(-1)!.playCalls,
       0,
@@ -425,6 +504,12 @@ async function main() {
       frozen,
       "later check page changes actual permanent ink",
     );
+    assert.deepEqual(boardRows(), [
+      { x: 90, y: 142, text: "Check = 8" },
+    ], "actual second-page whole-work erase removes the earlier heading, work and answer");
+    const secondPageWork = board.getDrawLayer()!.getChildren().filter((node) => node.getAttrs().htInk === "work");
+    assert.equal(secondPageWork.length, "Check = 8".length, "second-page permanent work contains exactly its new glyphs, without old answer or emphasis paths");
+    assert.ok(secondPageWork.every((node) => node.getClassName() === "Text"));
     assert.equal(
       JSON.stringify(turn),
       originalCommands,
@@ -443,6 +528,8 @@ async function main() {
         api!.store.getSnapshot().reviewPageIndex === 1 &&
         api!.store.getSnapshot().status === "paused",
     );
+    assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Check = 8" }],
+      "rapid superseded page requests leave only the latest permanent work page");
     api.controls.play();
     await wait(() => api!.store.getSnapshot().status === "playing");
     assert.equal(
@@ -451,6 +538,20 @@ async function main() {
       "Play leaves stored-page review for the ordinary timeline",
     );
     api.controls.pause();
+    api.controls.seek(timeline.totalMs);
+    await wait(() => api!.store.getSnapshot().status === "ended");
+    assert.equal(api.store.getSnapshot().reviewPageIndex, null,
+      "ordinary End leaves stored-page inspection");
+    assert.deepEqual(boardRows(), [
+      { x: 90, y: 64, text: "Given" },
+      { x: 90, y: 130, text: "Work" },
+      { x: 90, y: 196, text: "Answer = 8" },
+      { x: 90, y: 262, text: "Check = 8" },
+    ], "ordinary End retains its existing sequential-placement board");
+    assert.ok(board.getDrawLayer()!.getChildren().filter((node) =>
+      node.getClassName() === "Text" && node.y() === 64,
+    ).every((node) => node.getAttrs().fontSize === 32),
+    "ordinary End retains its existing work-row presentation fitting");
     api.controls.reviewPage?.(0);
     await wait(
       () =>
@@ -467,9 +568,38 @@ async function main() {
     console.log(
       "PASS actual bar → player → executor stored-page selection, complete marks, paused audio, final return and Play transition",
     );
+    mount.close();
+    const figureTurn = await figureFixture();
+    const figureTimeline = buildLecturePlayerTimeline([figureTurn]);
+    const figureHooks = load(path.join(app, "features/tutor-session/hooks/useLecturePlayer.ts"), sceneMount, {
+      "./useBoardViewport": { useBoardViewport: () => ({ scale: 1, offsetX: 0, offsetY: 0, measured: true }) },
+      "@/lib/replay/lecturePlayerAudio": { lecturePlayerTrackKey: () => "verified-pages", getLecturePlayerTrack: async (_key: unknown, make: () => unknown) => make(), buildLecturePlayerTrack: async () => ({ url: "local:verified" }) },
+    }) as unknown as { useLecturePlayer: typeof import("../../features/tutor-session/hooks/useLecturePlayer").useLecturePlayer };
+    api = sceneMount.render(() => figureHooks.useLecturePlayer({ sessionId: "verified-pages", storedTurnsRef: { current: [figureTurn] }, storedTurnsCount: 1, available: true, rate: 1, onRateChange: () => {}, enableKeyboard: false }));
+    api.playerBoardRef.current = board;
+    await wait(() => api!.store.getSnapshot().status === "ready");
+    const sceneInk = () => board.getDrawLayer()!.getChildren().filter((node) => node.getAttrs().htInk === "scene").map((node) => JSON.stringify(node.toObject())).sort();
+    api.controls.reviewPage?.(0);
+    await wait(() => api!.store.getSnapshot().status === "paused" && api!.store.getSnapshot().reviewPageIndex === 0);
+    const figure = sceneInk();
+    assert.ok(figure.length > 0, "actual canonical source-checked compiled figure reaches the permanent board");
+    assert.deepEqual(boardRows(), [
+      { x: 90, y: 64, text: "Given" },
+      { x: 90, y: 130, text: capturedLongRow },
+      { x: 90, y: 526, text: "Answer = 8" },
+    ], "already captured long WRITE remains one original recorded row beside a verified figure");
+    api.controls.reviewPage?.(1);
+    await wait(() => api!.store.getSnapshot().status === "paused" && api!.store.getSnapshot().reviewPageIndex === 1);
+    assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Check = 8" }], "verified figure page still erases previous answer glyphs");
+    assert.deepEqual(sceneInk(), figure, "recorded work-page erase preserves all compiled figure geometry and style");
+    api.controls.seek(figureTimeline.totalMs);
+    await wait(() => api!.store.getSnapshot().status === "ended");
+    assert.deepEqual(sceneInk(), figure, "ordinary End preserves the same compiled figure geometry and style");
+    console.log("PASS canonical verified permanent figure unchanged across recorded page erase and ordinary End");
   } finally {
     api?.close();
     mount.close();
+    sceneMount.close();
     unmountTestWhiteboard(board);
     for (const [key, value] of original) {
       if (value) Object.defineProperty(globalThis, key, value);
