@@ -636,6 +636,35 @@ gate("G27 a line reaches a computed vector tip that lies on it", () => {
   return gap > 2 ? `the cross product tip is ${gap.toFixed(1)} px from the drawn line` : null;
 });
 
+gate("G28 a document cannot supply its own plane drawing", () => {
+  // Both forged drawings are off their plane, and the plan skips both planes (a 2e9 span; u and v
+  // nearly parallel), so before the fix the forged ink reached the board.
+  const forged: Array<[string, Record<string, unknown>]> = [
+    ["patch", { a: 1, b: 1, c: 1, d: 1, span: 2e9, __spaceView: { kind: "patch", center: v3(0, 0, 5), u: v3(1, 0, 0), v: v3(0, 1, 0), uSpan: 2, vSpan: 2 } }],
+    ["triangle", { point: [0, 0, 0], u: [1, 0, 0], v: [1, 1e-7, 0], __spaceView: { kind: "triangle", vertices: [v3(0, 0, 0.2), v3(1, 0, 0.2), v3(0, 1, 0.2)] } }],
+  ];
+  for (const [name, inputs] of forged) {
+    const { __spaceView: _drop, ...honest } = inputs;
+    const withKey = compile(spaceDocument(`forged ${name}`, [part("plane", "polygon", "plane", inputs)]));
+    const without = compile(spaceDocument(`forged ${name}`, [part("plane", "polygon", "plane", honest)]));
+    if (!withKey.render || !without.render) return `the ${name} documents do not compile: ${withKey.issues || without.issues}`;
+    if (JSON.stringify(withKey.render) !== JSON.stringify(without.render)) return `the forged ${name} changed the drawing`;
+  }
+  return null;
+});
+
+gate("G29 a document cannot supply its own parallel lane", () => {
+  const fixture = JSON.parse(readFileSync(identityFixture, "utf8")) as IdentityFixture;
+  const circuit = Object.values(fixture.documents).find((document) =>
+    JSON.stringify(document).includes('"operator":"symbol"')) as SceneDocument | undefined;
+  if (!circuit) return "no frozen document with a symbol";
+  const forged = structuredClone(circuit);
+  const symbol = forged.constructions.find((construction) => construction.operator === "symbol");
+  if (!symbol) return "no symbol construction";
+  symbol.inputs = { ...symbol.inputs, __parallelLane: 3 };
+  return renderHash(forged) === renderHash(circuit) ? null : "a forged __parallelLane moved the symbol";
+});
+
 gate("G15 byte identity of documents without a space_frame", () => {
   const fixture = JSON.parse(readFileSync(identityFixture, "utf8")) as IdentityFixture;
   const ids = Object.keys(fixture.hashes);

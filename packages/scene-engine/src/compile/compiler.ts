@@ -248,13 +248,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         ? parallelLaneOffsets.get(construction.outputs[0])
         : undefined;
       const spaceViewInput = spaceView ? spaceViewInputFor(construction, spaceView) : undefined;
-      const inputs = laneOffset === undefined && spaceViewInput === undefined
-        ? construction.inputs
-        : {
-            ...construction.inputs,
-            ...(laneOffset === undefined ? {} : { __parallelLane: laneOffset }),
-            ...(spaceViewInput === undefined ? {} : { __spaceView: spaceViewInput }),
-          };
+      const inputs = withEngineInputs(construction.inputs, laneOffset, spaceViewInput);
       const operator = construction.operator;
       if (!isExecutableSceneConstructionOperator(operator)) {
         throw new Error(`unsupported operator ${operator}`);
@@ -3498,11 +3492,20 @@ function planeGeometry(
   const plannerCorners = planePatchCorners(point, u, v, uSpan, vSpan);
   // The plan decides only the drawing; the world plane the proofs read is unchanged.
   const drawing = spacePlaneDrawing(inputs.__spaceView);
-  const worldCorners = drawing?.kind === "triangle"
+  const plannedCorners = drawing?.kind === "triangle"
     ? drawing.vertices
     : drawing?.kind === "patch"
       ? planePatchCorners(drawing.center, drawing.u, drawing.v, drawing.uSpan, drawing.vSpan)
-      : plannerCorners;
+      : null;
+  // A planned drawing is used only when every corner lies on this plane; otherwise the planner's own patch.
+  const planeCross = { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };
+  const unitNormal = vec3Scale(planeCross, 1 / vec3Length(planeCross));
+  const onPlane = (corner: Vec3) => {
+    const offset = { x: corner.x - point.x, y: corner.y - point.y, z: corner.z - point.z };
+    const residual = Math.abs(offset.x * unitNormal.x + offset.y * unitNormal.y + offset.z * unitNormal.z);
+    return Number.isFinite(residual) && residual <= 1e-9 * Math.max(1, vec3Length(offset), vec3Length(point));
+  };
+  const worldCorners = plannedCorners && plannedCorners.every(onPlane) ? plannedCorners : plannerCorners;
   const corners = worldCorners.map((corner) => {
     const projected = projectSpace(corner, frame);
     return { x: projected.x, y: projected.y };
@@ -3510,6 +3513,24 @@ function planeGeometry(
   const crossNormal = { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };
   const normal = vec3Scale(crossNormal, 1 / vec3Length(crossNormal));
   return { kind: "path", closed: true, points: corners, spacePlane: { frameId: String(inputs.frame), point, normal } };
+}
+
+/**
+ * `__`-prefixed inputs belong to the compiler (planned lane offsets and space views). A document's own
+ * copies are dropped, so planner text can never supply a drawing the engine did not plan.
+ */
+function withEngineInputs(
+  inputs: Record<string, unknown>,
+  laneOffset: number | undefined,
+  spaceViewInput: unknown,
+): Record<string, unknown> {
+  const documentHasEngineKeys = Object.keys(inputs).some((key) => key.startsWith("__"));
+  if (!documentHasEngineKeys && laneOffset === undefined && spaceViewInput === undefined) return inputs;
+  return {
+    ...Object.fromEntries(Object.entries(inputs).filter(([key]) => !key.startsWith("__"))),
+    ...(laneOffset === undefined ? {} : { __parallelLane: laneOffset }),
+    ...(spaceViewInput === undefined ? {} : { __spaceView: spaceViewInput }),
+  };
 }
 
 function spacePlaneDrawing(value: unknown): SpacePlaneDrawing | null {
