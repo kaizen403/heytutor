@@ -53,6 +53,16 @@ function suppliedVanthoffFactor(question: string): {value:number|null} | null {
     const owner = owners[index]!;
     const start = owner.index! + owner[0].length;
     const end = owners[index + 1]?.index ?? question.length;
+    const tail = question.slice(start,end);
+    const clause = question.slice(0,owner.index!).split(/[.;?!\n]/).at(-1) ?? "";
+    const requested = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\b/i.test(clause);
+    const requestBoundary = /^\s*(?:$|[.;?!]\s*(?:$|(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\b))/i.test(tail);
+    const suppliedMaterial = !requestBoundary && /^\s*(?:[=:]|[+\-−.\d]|\\(?:frac|dfrac|tfrac)\b|\b(?:is|was|equals|equal\s+to|unknown|unreadable|unspecified|undefined|not|NaN|given|stated|measured|taken)\b)/i.test(tail);
+    const requestContinuation = /^\s*(?:$|[;?!]|\.(?!\d)|(?:and|for|from|using|with|of|in|at|based\s+on)\b)/i.test(tail);
+    // A requested quantity with no supplied material has no source value.
+    // An assignment, scalar, damaged value or unread declaration remains an
+    // owner even inside the same imperative clause as a genuine request.
+    if (requested && !suppliedMaterial && requestContinuation) continue;
     if (start >= end) return null;
     // Read this original declaration alone: a later good i cannot hide an
     // earlier unknown, and a supplied unit cannot disappear in a scalar match.

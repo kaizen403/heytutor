@@ -130,5 +130,50 @@ for(const c of namedSupported)check(c.id,c.question,()=>{
   verifyDocument(ordinary.document,c);
 });
 // END named factor owners: retain the original34 cases as an exact prefix.
+// BEGIN requested factor owners: original44 cases and assertions remain whole.
+const dissociationSource = "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5.";
+const requestedFactorCases: readonly Supported[] = [
+  {id:"recorded-laneD-q-cgates-9",question:"The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Find the van't Hoff factor and the apparent molar mass.",label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-factor-1",question:`${dissociationSource} Find the apparent molar mass and the van't Hoff factor.`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-factor-2",question:`${dissociationSource} Determine the van’t Hoff factor (i) and the apparent molar mass.`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-factor-3",question:`${dissociationSource} Calculate the van't Hoff factor and apparent molar mass from the given dissociation.`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-factor-4",question:`${dissociationSource} Find the van't Hoff factor. Find the apparent molar mass.`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-factor-5",question:`${dissociationSource} Determine apparent molar mass together with the van't Hoff factor?`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-supplied-agreeing-1",question:`${dissociationSource} Find the van't Hoff factor and apparent molar mass. The van't Hoff factor is 1.5.`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-supplied-agreeing-2",question:`${dissociationSource} Find the apparent molar mass using van't Hoff factor = 1.5.`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+  {id:"own-requested-supplied-agreeing-3",question:`${dissociationSource} The van’t Hoff factor (i) = 1.50. Find the van't Hoff factor and the apparent molar mass.`,label:"M'=120 g/mol",factor:1.5,value:120,kind:"apparent_mass"},
+];
+const requestedFactorRejects = [
+  ["own-requested-supplied-refusal-1",`${dissociationSource} Find the van't Hoff factor and apparent molar mass. The van't Hoff factor = unknown; i = 1.5.`],
+  ["own-requested-supplied-refusal-2",`${dissociationSource} Find the apparent molar mass using van't Hoff factor is unreadable.`],
+  ["own-requested-supplied-refusal-3",`${dissociationSource} Find the van't Hoff factor = unknown and apparent molar mass.`],
+  ["own-requested-supplied-refusal-4",`${dissociationSource} Find the van't Hoff factor 1.5 kg and apparent molar mass.`],
+  ["own-requested-supplied-refusal-5",`${dissociationSource} Find the van't Hoff factor and apparent molar mass; i = 1.5; van't Hoff factor = 2.`],
+  ["own-requested-supplied-refusal-6",`${dissociationSource} Find the apparent molar mass using van't Hoff factor = 1e-.`],
+  ["own-requested-supplied-refusal-7",`${dissociationSource} Find the apparent molar mass using van't Hoff factor . K.`],
+] as const;
+function verifyRequestedFactor(document: SceneDocument | null, c: Supported): void {
+  verifyDocument(document,c);
+  assert.ok(document);
+  const valid = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));
+  assert.ok(valid.document);
+  const compiled = compileSceneDocument(valid.document);
+  assert.ok(compiled.ok && compiled.renderScene);
+  const labels = compiled.renderScene.primitives.filter(p=>p.kind==="label").map(p=>p.text);
+  assert.ok(labels.includes("i=1.5"),JSON.stringify(labels));
+}
+for(const c of requestedFactorCases)check(c.id,c.question,()=>{
+  verifyRequestedFactor(buildSolutionLessonScene(c.question,[],false),c);
+  verifyRequestedFactor(buildSolutionLessonScene(c.question,[],true),c);
+  const ordinary=synthesizeFamilyScene({question:c.question});
+  assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_solutions");
+  verifyRequestedFactor(ordinary.document,c);
+});
+for(const [id,question] of requestedFactorRejects)check(id,question,()=>{
+  assert.equal(buildSolutionLessonScene(question,[],false),null);
+  assert.equal(buildSolutionLessonScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+});
+// END requested factor owners: original44 cases and assertions remain whole.
 console.log(JSON.stringify({total:rows.length,passed:rows.filter(r=>r.passed).length,rows},null,2));
 process.exitCode=rows.every(r=>r.passed)?0:1;
