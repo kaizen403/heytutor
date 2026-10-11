@@ -665,6 +665,118 @@ const mixedCn4ReportArg = process.argv.indexOf("--cn4-mixed-report");
 if (mixedCn4ReportArg >= 0) writeFileSync(resolve(process.argv[mixedCn4ReportArg + 1]!), JSON.stringify(mixedCn4Report, null, 2) + "\n");
 console.log(JSON.stringify({ ...mixedCn4Report, evidence: undefined }));
 // END PR136 MIXED CN4 LIST REGRESSIONS.
+// BEGIN PR136 SUPPORTED DUAL VISIBLE-GROUP REGRESSIONS.
+// Fixed visible identities are independent of the production name/complex readers.
+type Cn4VisibleKind = "coordination" | "cft";
+type Cn4VisibleScene = NonNullable<ReturnType<typeof compileSceneDocument>["renderScene"]>;
+const cn4VisibleIdentities = {
+  nickel: { source: "[Ni(CN)4]2-", coordination: "[Ni(CN)4]2-", cft: "[Ni(CN)_4]^(2-)", metal: "Ni", ligand: "CN", charge: "2-" },
+  copper: { source: "[Cu(NH3)4]2+", coordination: "[Cu(NH3)4]2+", cft: "[Cu(NH3)4]^(2+)", metal: "Cu", ligand: "NH_3", charge: "2+" },
+} as const;
+type Cn4VisibleIdentity = typeof cn4VisibleIdentities[keyof typeof cn4VisibleIdentities];
+function cn4VisiblePair(kind: Cn4VisibleKind, document: SceneDocument, scene: Cn4VisibleScene, pair: readonly Cn4VisibleIdentity[]): void {
+  const groupIds = kind === "coordination" ? ["figure_0", "figure_1"] : ["cft_0", "cft_1"];
+  assert.equal(pair.length, 2);
+  assert.equal(document.source.chemistryFamily, kind === "coordination" ? "chem_coordination" : "chem_cft");
+  assert.deepEqual(document.revealGroups.map((group) => group.id).sort(), [...groupIds].sort(), "exactly both intended figure groups are required");
+  assert.deepEqual(scene.revealGroups.map((group) => group.id).sort(), [...groupIds].sort(), "both figure groups survive compilation");
+  assert.equal(new Set(document.revealGroups.flatMap((group) => group.entityIds)).size,
+    document.revealGroups.reduce((count, group) => count + group.entityIds.length, 0), "different figures cannot share owned entities");
+  pair.forEach((expected, index) => {
+    const groupId = groupIds[index]!;
+    const group = document.revealGroups.find((candidate) => candidate.id === groupId)!;
+    assert.ok(group.entityIds.length > 0, `${groupId} must own geometry and visible identity`);
+    const entities = document.entities.filter((entity) => group.entityIds.includes(entity.id));
+    assert.equal(entities.length, group.entityIds.length, "figure members must be actual entities");
+    const ownedPrimitives = scene.primitives.filter((primitive) => group.entityIds.includes(primitive.entityId));
+    assert.ok(ownedPrimitives.every((primitive) => primitive.groupId === groupId), "compiled membership must retain the owning figure");
+    assert.ok(ownedPrimitives.some((primitive) => primitive.kind !== "label" && primitive.kind !== "dimension" && primitive.kind !== "point"), "each expected complex needs visible nonlabel geometry");
+    const visibleLabel = (text: string, count: number) => {
+      const labels = entities.filter((entity) => entity.label === text);
+      assert.equal(labels.length, count, `${groupId} must own ${count} source identity labels: ${text}`);
+      labels.forEach((entity) => assert.equal(scene.primitives.filter((primitive) =>
+        primitive.kind === "label" && primitive.entityId === entity.id && primitive.groupId === groupId && primitive.text === text).length,
+      1, `${text} must remain a compiled visible label in its own figure`));
+    };
+    visibleLabel(expected[kind], 1);
+    assert.ok(!entities.some((entity) => entity.label === pair[1 - index]![kind]), "another complex cannot substitute for this identity");
+    if (kind === "coordination") {
+      visibleLabel(expected.metal, 1);
+      visibleLabel(expected.ligand, 4);
+      visibleLabel(expected.charge, 1);
+    }
+  });
+}
+function cn4VisibleCompiled(document: SceneDocument | null): { document: SceneDocument; scene: Cn4VisibleScene } {
+  assert.ok(document, "both supported complexes must produce a document");
+  const valid = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>));
+  assert.ok(valid.document, JSON.stringify(valid.report.issues));
+  const compiledScene = compileSceneDocument(valid.document);
+  assert.ok(compiledScene.ok && compiledScene.renderScene, JSON.stringify(compiledScene.report.issues));
+  return { document: valid.document, scene: compiledScene.renderScene };
+}
+const cn4VisiblePrior = { passed, failed: failures.length };
+const cn4VisibleEvidence: Record<string, unknown>[] = [];
+let cn4VisibleRejectedProjections = 0;
+for (const pair of [[cn4VisibleIdentities.nickel, cn4VisibleIdentities.copper], [cn4VisibleIdentities.copper, cn4VisibleIdentities.nickel]] as const) {
+  for (const kind of ["coordination", "cft"] as const) {
+    check(`CN4-supported-dual-visible-${kind}-${pair[0].metal}-then-${pair[1].metal}`, () => {
+      const question = `Draw the ${kind === "coordination" ? "structure" : "crystal field splitting"} of ${pair[0].source} and ${pair[1].source}.`;
+      const document = kind === "coordination" ? api.buildCoordinationScene(question, [], false) : api.buildCrystalFieldScene(question, [], false);
+      const direct = cn4VisibleCompiled(document);
+      cn4VisiblePair(kind, direct.document, direct.scene, pair);
+      const synthesis = synthesizeFamilyScene({ question });
+      assert.ok(synthesis, "ordinary synthesis must retain both complexes");
+      assert.equal(synthesis.family, kind === "coordination" ? "chem_coordination" : "chem_cft");
+      const ordinary = cn4VisibleCompiled(synthesis.document);
+      cn4VisiblePair(kind, ordinary.document, ordinary.scene, pair);
+      cn4VisibleEvidence.push({ question, kind, expectedSourceIdentities: pair.map((item) => item.source),
+        directGroups: direct.document.revealGroups.map((group) => ({ id: group.id, entityIds: group.entityIds,
+          labels: direct.scene.primitives.filter((primitive) => primitive.groupId === group.id && primitive.kind === "label").map((primitive) => ({ entityId: primitive.entityId, text: primitive.text })) })),
+        ordinaryGroups: ordinary.document.revealGroups.map((group) => ({ id: group.id, entityIds: group.entityIds })) });
+      for (const checked of [direct, ordinary]) {
+        for (const omittedIndex of [0, 1]) {
+          const projection = structuredClone(checked);
+          const omittedGroup = projection.document.revealGroups[omittedIndex]!;
+          // Closed test projections only: no production builder, compiler, or guard is overlaid.
+          // Keep source/caption metadata, so metadata cannot replace the missing visible component.
+          projection.document.entities = projection.document.entities.filter((entity) => !omittedGroup.entityIds.includes(entity.id));
+          projection.document.revealGroups = projection.document.revealGroups.filter((group) => group.id !== omittedGroup.id);
+          projection.scene.revealGroups = projection.scene.revealGroups.filter((group) => group.id !== omittedGroup.id);
+          projection.scene.primitives = projection.scene.primitives.filter((primitive) => primitive.groupId !== omittedGroup.id && !omittedGroup.entityIds.includes(primitive.entityId));
+          assert.throws(() => cn4VisiblePair(kind, projection.document, projection.scene, pair), /both intended figure groups/);
+          cn4VisibleRejectedProjections++;
+          for (const mutation of ["caption-only-identity", "missing-compiled-label", "missing-compiled-geometry", "cross-figure-label"] as const) {
+            const mutant = structuredClone(checked);
+            const group = mutant.document.revealGroups[omittedIndex]!;
+            const expectedText = pair[omittedIndex]![kind];
+            const name = mutant.document.entities.find((entity) => group.entityIds.includes(entity.id) && entity.label === expectedText)!;
+            if (mutation === "caption-only-identity") {
+              delete name.label;
+              mutant.scene.caption = `${pair[0].source} and ${pair[1].source}`;
+              mutant.scene.primitives = mutant.scene.primitives.filter((primitive) => !(primitive.entityId === name.id && primitive.kind === "label"));
+            } else if (mutation === "missing-compiled-label") {
+              mutant.scene.primitives = mutant.scene.primitives.filter((primitive) => !(primitive.entityId === name.id && primitive.kind === "label"));
+            } else if (mutation === "missing-compiled-geometry") {
+              mutant.scene.primitives = mutant.scene.primitives.filter((primitive) => primitive.groupId !== group.id || primitive.kind === "label" || primitive.kind === "dimension" || primitive.kind === "point");
+            } else {
+              mutant.scene.primitives.filter((primitive) => primitive.entityId === name.id).forEach((primitive) => { primitive.groupId = mutant.document.revealGroups[1 - omittedIndex]!.id; });
+            }
+            assert.throws(() => cn4VisiblePair(kind, mutant.document, mutant.scene, pair), `${mutation} must not satisfy both-complex visible membership`);
+            cn4VisibleRejectedProjections++;
+          }
+        }
+      }
+    });
+  }
+}
+const cn4VisibleReport = { priorGroups: cn4VisiblePrior.passed + cn4VisiblePrior.failed, priorPassed: cn4VisiblePrior.passed, priorFailed: cn4VisiblePrior.failed,
+  addedGroups: passed + failures.length - cn4VisiblePrior.passed - cn4VisiblePrior.failed, addedPassed: passed - cn4VisiblePrior.passed, addedFailed: failures.length - cn4VisiblePrior.failed,
+  rejectedClosedTestProjections: cn4VisibleRejectedProjections, evidence: cn4VisibleEvidence };
+const cn4VisibleReportArg = process.argv.indexOf("--cn4-visible-report");
+if (cn4VisibleReportArg >= 0) writeFileSync(resolve(process.argv[cn4VisibleReportArg + 1]!), JSON.stringify(cn4VisibleReport, null, 2) + "\n");
+console.log(JSON.stringify({ ...cn4VisibleReport, evidence: undefined }));
+// END PR136 SUPPORTED DUAL VISIBLE-GROUP REGRESSIONS.
 const report = { mode: "actual installed public source (offline)", candidateGroups: passed + failures.length, engineAssertions, passed, failed: failures.length, renders, writtenRenders, failures, printedConfigurationChecks,
   parentComparisons: { executed: parentComparisonsExecuted, skipped: parentComparisonsSkipped, rows: parentComparisonRows }, historicalOverlayComparisonsExecuted: 0,
   excludedF2Controls: { count: 5, status: "deferred, not executed or passed", names: ["composition-network-whole-source-refusal (F2 binding audit)", "composition-supported-CO2-whole-source (F2 admission)", "composition-bound-H3PO2-source-and-graph", "composition-bound-H3PO3-source-and-graph", "composition-bound-H3PO4-source-and-graph"] },
