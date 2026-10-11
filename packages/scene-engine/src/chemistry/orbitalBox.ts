@@ -354,8 +354,9 @@ function condensedLabel(core: string | null, subshells: readonly Subshell[]): st
   return label.length > 0 ? label : core ? `[${core}]` : "";
 }
 
-function momentLabel(unpaired: number): string {
+function momentLabel(unpaired: number, explicitSpinOnly = false): string {
   const moment = Math.sqrt(unpaired * (unpaired + 2));
+  if (explicitSpinOnly) return `μ(spin)=${unpaired === 0 ? "0" : moment.toFixed(2)} BM`;
   return unpaired === 0 ? "μ = 0 BM" : `μ = ${moment.toFixed(2)} BM`;
 }
 
@@ -423,6 +424,8 @@ interface SpeciesFigure {
   readonly subshells: readonly Subshell[];
   readonly rows: readonly BoxRow[];
   readonly unpaired: number;
+  readonly explicitSpinOnly?: boolean;
+  readonly closedCoreLabel?: string;
 }
 
 function figureFromSpecies(species: Species): SpeciesFigure | null {
@@ -434,7 +437,7 @@ function figureFromSpecies(species: Species): SpeciesFigure | null {
   // The core is whatever the boxes do not show: Sc3+ shows 3s2 3p6 over [Ne], not over [Ar].
   const coreElectrons = configuration.electrons - shown.reduce((sum, subshell) => sum + subshell.electrons, 0);
   const core = coreElectrons > 0 && NOBLE_CORES.has(coreElectrons) ? ELEMENTS.find((element) => element.z === coreElectrons)?.symbol ?? null : null;
-  return { title: speciesLabel(species), core, subshells: shown, rows, unpaired: configuration.unpairedElectrons };
+  return { title: speciesLabel(species), core, subshells: shown, rows, unpaired: configuration.unpairedElectrons, explicitSpinOnly: species.element.block === "f", closedCoreLabel: species.element.block === "f" && /^\[[A-Za-z]+\]$/.test(configuration.condensed) ? configuration.condensed : undefined };
 }
 
 function boxesFor(subshell: Subshell): number[] {
@@ -512,7 +515,7 @@ function buildBoxDocument(question: string, figures: readonly SpeciesFigure[], w
     const ids = drawBoxRows(c, prefix, { x: originX, y: originY }, figure.rows);
     const titleId = c.text(`${prefix}_title`, { x: centreX, y: originY + BOX / 2 + 0.36 }, figure.title, "species label");
     ids.push(titleId);
-    const condensed = condensedLabel(figure.core, figure.subshells);
+    const condensed = figure.closedCoreLabel ?? condensedLabel(figure.core, figure.subshells);
     const configY = originY - BOX / 2 - 0.62;
     if (condensed && condensed !== figure.title) {
       ids.push(c.text(`${prefix}_cfg`, { x: centreX, y: configY }, condensed, "condensed configuration"));
@@ -520,12 +523,12 @@ function buildBoxDocument(question: string, figures: readonly SpeciesFigure[], w
     if (wantMoment) {
       const lineY = configY - 0.36;
       ids.push(c.text(`${prefix}_unp`, { x: centreX - 0.95, y: lineY }, unpairedLabel(figure.unpaired), "unpaired electron count"));
-      ids.push(c.text(`${prefix}_mu`, { x: centreX + 0.95, y: lineY }, momentLabel(figure.unpaired), "spin only magnetic moment"));
+      ids.push(c.text(`${prefix}_mu`, { x: centreX + 0.95, y: lineY }, momentLabel(figure.unpaired, figure.explicitSpinOnly), "spin only magnetic moment"));
     }
     ids.push(panel(c, `${prefix}_panel`, { x: centreX, y: originY + (top + bottom) / 2 }, panelWidth, panelHeight));
     c.scene.labelled(titleId);
     c.scene.group(`species_${index}`, ids, `box diagram of ${figure.title}`, index > 0 ? [`species_${index - 1}`] : []);
-    captions.push(`${figure.title}: ${condensed || figure.subshells.map(subshellLabel).join(" ")}, ${unpairedLabel(figure.unpaired)}, ${momentLabel(figure.unpaired)}`);
+    captions.push(`${figure.title}: ${condensed || figure.subshells.map(subshellLabel).join(" ")}, ${unpairedLabel(figure.unpaired)}, spin-only ${momentLabel(figure.unpaired)}`);
   });
   return c.build({ caption: captions.join("; ") });
 }

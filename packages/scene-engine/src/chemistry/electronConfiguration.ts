@@ -5,6 +5,7 @@
  * moment, the box diagram of the valence subshells.
  */
 import { elementByZ, elementBySymbol, type ElementRecord } from "./elements";
+import { removeCationElectrons } from "./foundation/cationRemoval";
 
 export interface Subshell {
   readonly n: number;
@@ -49,6 +50,19 @@ const EXCEPTIONS: Record<string, string> = {
 
 const NOBLE_GASES = [2, 10, 18, 36, 54, 86];
 
+/**
+ * Ionization can rearrange valence orbitals; removal from the neutral atom is
+ * not a ground-state oracle for these two measured/studied atomic ions.
+ * Ce II: NIST Handbook, 4f(2F)5d2(3F), energy 0 cm^-1:
+ * https://physics.nist.gov/PhysRefData/Handbook/Tables/ceriumtable6.htm
+ * Th IV: Flambaum/Porsev, Phys. Rev. A 80, 064502 (2009), 5f5/2 ground level:
+ * https://arxiv.org/abs/0910.3459
+ */
+const ION_GROUND_STATES: ReadonlyMap<string, { coreZ: number; valence: readonly [string, number][] }> = new Map([
+  ["Ce:1", { coreZ: 54, valence: [["4f", 1], ["5d", 2]] }],
+  ["Th:3", { coreZ: 86, valence: [["5f", 1]] }],
+]);
+
 function subshellKey(n: number, l: Subshell["l"]): string {
   return `${n}${l}`;
 }
@@ -88,21 +102,11 @@ function sortedSubshells(occupancy: Map<string, number>): Subshell[] {
  * Remove electrons for a cation from the highest n first (4s before 3d,
  * 6p before 6s for Pb2+), add electrons for an anion by the aufbau order.
  */
-function applyCharge(occupancy: Map<string, number>, charge: number): void {
+function applyCharge(occupancy: Map<string, number>, charge: number, atomicNumber: number): void {
   if (charge > 0) {
-    let toRemove = charge;
-    while (toRemove > 0) {
-      const shells = sortedSubshells(occupancy);
-      if (shells.length === 0) break;
-      const maxN = Math.max(...shells.map((shell) => shell.n));
-      const outer = shells.filter((shell) => shell.n === maxN).sort((a, b) => L_ORDER[b.l] - L_ORDER[a.l]);
-      const victim = outer[0]!;
-      const key = subshellKey(victim.n, victim.l);
-      const take = Math.min(victim.electrons, toRemove);
-      occupancy.set(key, victim.electrons - take);
-      if (victim.electrons - take === 0) occupancy.delete(key);
-      toRemove -= take;
-    }
+    const coreZ = [...NOBLE_GASES].reverse().find((z) => z < atomicNumber);
+    const closedCore = coreZ === undefined ? new Map<string, number>() : neutralOccupancy(coreZ);
+    removeCationElectrons(occupancy, charge, closedCore);
   } else if (charge < 0) {
     let toAdd = -charge;
     for (const [n, l] of AUFBAU) {
@@ -132,16 +136,21 @@ function boxesFor(subshell: Subshell): number[] {
 
 export function electronConfiguration(elementOrSymbol: ElementRecord | string, charge = 0): ElectronConfiguration | null {
   const element = typeof elementOrSymbol === "string" ? elementBySymbol(elementOrSymbol) : elementOrSymbol;
-  if (!element) return null;
+  if (!element || !Number.isInteger(charge)) return null;
   const electrons = element.z - charge;
   if (electrons < 0 || electrons > 118) return null;
-  const occupancy = neutralOccupancy(element.z);
-  applyCharge(occupancy, charge);
+  const reference = ION_GROUND_STATES.get(`${element.symbol}:${charge}`);
+  const occupancy = neutralOccupancy(reference?.coreZ ?? element.z);
+  if (reference) {
+    for (const [key, count] of reference.valence) occupancy.set(key, count);
+  } else applyCharge(occupancy, charge, element.z);
   const subshells = sortedSubshells(occupancy);
   const full = subshells.map((shell) => `${shell.n}${shell.l}${shell.electrons}`).join(" ");
-  const core = [...NOBLE_GASES].reverse().find((z) => z < electrons || (z === electrons && electrons > 2 && false));
+  // A count alone cannot establish a closed core after ionization leaves holes.
+  const core = [...NOBLE_GASES].reverse().find((z) => z <= electrons
+    && [...neutralOccupancy(z)].every(([key, count]) => (occupancy.get(key) ?? 0) >= count));
   let condensed = full;
-  if (core !== undefined && core < electrons) {
+  if (core !== undefined) {
     const coreShells = sortedSubshells(neutralOccupancy(core));
     const coreKeys = new Map(coreShells.map((shell) => [subshellKey(shell.n, shell.l), shell.electrons]));
     const rest = subshells

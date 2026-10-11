@@ -11,6 +11,7 @@
  * a distorted structure would teach the wrong shape.
  */
 import { neighbours, type Molecule } from "./smiles";
+import { attachedRingCoordinates } from "../foundation/attachedRing";
 
 export interface Vec2 { x: number; y: number }
 
@@ -215,7 +216,7 @@ export function layoutMolecule(molecule: Molecule): LaidOutMolecule | null {
       progress = true;
     }
   }
-  if (rings.some((ring) => !ringPlaced.has(ring))) return null;
+  // Separate ring systems are reached via their connecting chain below.
 
   // Chains: breadth-first from what is placed, or from a chain end.
   const heavyNeighbours = (atom: number): number[] => neighbours(molecule, atom).map((entry) => entry.atom).filter(visible);
@@ -246,7 +247,7 @@ export function layoutMolecule(molecule: Molecule): LaidOutMolecule | null {
     turn.set(start, 1);
     queue.push(start);
   } else {
-    for (const ring of rings) for (const atom of ring) if (!queue.includes(atom)) queue.push(atom);
+    for (const ring of rings) for (const atom of ring) if (positions[atom] && !queue.includes(atom)) queue.push(atom);
   }
   const directionFrom = (atom: number): Vec2 => {
     const inRings = ringsOf.get(atom);
@@ -287,25 +288,41 @@ export function layoutMolecule(molecule: Molecule): LaidOutMolecule | null {
       slots = [{ dir: rotate(v, 90), sign: 1 }, { dir: rotate(v, -90), sign: -1 }, { dir: v, sign }];
     }
     const alternates = [60, -60, 0, 90, -90, 120, -120, 150, -150, 180].map((deg) => ({ dir: rotate(v, deg), sign: deg > 0 ? 1 : deg < 0 ? -1 : sign }));
-    children.forEach((child, index) => {
+    for (const [index, child] of children.entries()) {
+      if (positions[child]) continue;
       const preferred = slots[index] ?? alternates[index]!;
       const options = [preferred, ...alternates].filter((option, position, all) =>
         all.findIndex((other) => dist(other.dir, option.dir) < 1e-6) === position);
       let chosen: { dir: Vec2; sign: number } | null = null;
+      let ringCoordinates: ReadonlyMap<number, Vec2> | null = null;
+      const childRings = (ringsOf.get(child) ?? []).filter((ring) => !ringPlaced.has(ring));
+      const childRing = childRings[0];
+      // A new system may attach at one vertex. A spiro/bridged or attached
+      // fused system needs a richer layout contract and declines atomically.
+      if (childRings.length > 1 || (childRing && rings.some((ring) => ring !== childRing && ring.some((member) => childRing.includes(member))))) return null;
       let bestScore = -Infinity;
       for (const option of options) {
         const candidate = add(at, option.dir);
-        const separation = tooClose(candidate, [atom]);
-        if (separation >= MIN_SEPARATION) { chosen = option; break; }
-        if (separation > bestScore) { bestScore = separation; chosen = option; }
+        const attached = childRing ? attachedRingCoordinates(childRing, child, candidate, option.dir) : null;
+        if (childRing && !attached) continue;
+        const separation = attached
+          ? Math.min(...[...attached.values()].map((point) => tooClose(point)))
+          : tooClose(candidate, [atom]);
+        if (separation >= MIN_SEPARATION) { chosen = option; ringCoordinates = attached; break; }
+        if (!childRing && separation > bestScore) { bestScore = separation; chosen = option; }
       }
-      positions[child] = add(at, chosen!.dir);
+      if (!chosen) return null;
+      positions[child] = add(at, chosen.dir);
       parentOf.set(child, atom);
-      turn.set(child, chosen!.sign === 0 ? (turn.get(atom) ?? 1) : chosen!.sign);
-      queue.push(child);
-    });
+      turn.set(child, chosen.sign === 0 ? (turn.get(atom) ?? 1) : chosen.sign);
+      if (ringCoordinates && childRing) {
+        for (const [member, point] of ringCoordinates) positions[member] = point;
+        ringPlaced.add(childRing);
+        queue.push(...childRing);
+      } else queue.push(child);
+    }
   }
-  if (positions.some((p, index) => !p && visible(index))) return null;
+  if (rings.some((ring) => !ringPlaced.has(ring)) || positions.some((p, index) => !p && visible(index))) return null;
   for (const index of hidden) {
     const anchor = neighbours(molecule, index).find((entry) => visible(entry.atom));
     positions[index] = anchor ? positions[anchor.atom]! : { x: 0, y: 0 };

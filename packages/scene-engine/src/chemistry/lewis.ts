@@ -321,7 +321,14 @@ function chooseSkeleton(formula: ParsedFormula): Skeleton | null {
     if (leading > 0) {
       const acid = OXYACID.test(bodyText(formula));
       const onOxygen = acid && root.symbol !== "O" && leading <= oxygens.length;
-      for (let i = 0; i < leading; i += 1) hydrogenOn.push(onOxygen ? oxygens[i]! : acid && root.symbol === "O" ? rootIndex : heavyIndex[0]!);
+      // Neutral phosphorus oxoacids H3PO_n (n=2..4) have one oxo O,
+      // n-1 hydroxyls and 4-n P-H bonds, not n P-OH arms (NCERT convention).
+      const phosphorusAcid = formula.charge === 0 && root.symbol === "P" && leading === 3
+        && symbols.length === oxygens.length + 1 && oxygens.length >= 2 && oxygens.length <= 4;
+      for (let i = 0; i < leading; i += 1) {
+        hydrogenOn.push(phosphorusAcid ? (i < oxygens.length - 1 ? oxygens[i]! : rootIndex)
+          : onOxygen ? oxygens[i]! : acid && root.symbol === "O" ? rootIndex : heavyIndex[0]!);
+      }
     }
     const edges: Array<[number, number]> = [];
     symbols.forEach((_, index) => { if (index !== rootIndex) edges.push([rootIndex, index]); });
