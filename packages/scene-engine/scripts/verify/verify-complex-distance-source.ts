@@ -253,6 +253,51 @@ function distanceFixture(valid: boolean, worldEndpoints = false) {
 sourceAccepted(distanceFixture(true), "a complete source-labelled distance with a named z endpoint binds −w");
 sourceRejected(distanceFixture(false), "a wrong +w endpoint contradicts the explicitly labelled source distance", "complex_distance_reference_mismatch");
 check(candidate(distanceFixture(false)).valid, false, "explicitly wrong source-distance endpoints are rejected by production");
+for (const role of ["point", "variable point z"]) {
+  const row = distanceFixture(false);
+  row.question = "For |z|=2, show the source distance |z+i|.";
+  row.plan.question = row.question;
+  row.document.source.question = row.question;
+  row.plan.givens = row.plan.givens.filter((quantity) => quantity.id === "radius");
+  row.document.quantities = row.document.quantities.filter((quantity) => quantity.id === "radius");
+  row.document.constructions[2]!.inputs = { real: 0, imaginary: 1, displayScale: 1 };
+  row.document.entities.find((entity) => entity.id === "variable")!.role = role;
+  row.document.entities.at(-1)!.role = "ordinary geometric length";
+  row.document.entities.at(-1)!.label = "|z+i|";
+  check(compileSceneDocument(row.document).ok, true, "labelled computed-complex endpoint witness fully compiles before source admission");
+  check({ candidateValid: candidate(row).valid, saveAccepted: sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }) === null }, { candidateValid: false, saveAccepted: false }, "RED: an arithmetic modulus label with a named computed-complex endpoint cannot bypass candidate/save source proof");
+  sourceRejected(row, "labelled computed-complex endpoint still requires the negative source reference", "complex_distance_reference_mismatch");
+  const correct = structuredClone(row);
+  correct.document.constructions[2]!.inputs.imaginary = -1;
+  check(compileSceneDocument(correct.document).ok, true, "the correct named-complex source reference fully compiles");
+  sourceAccepted(correct, "a generic labelled complex producer with the correct negative reference is admitted");
+  check(candidate(correct).valid, true, "the correct named-complex source reference passes production candidate admission");
+  check(sceneSaveAdmissionFailure({ document: correct.document, question: correct.question, turnPlan: correct.plan, tier: "question_representation" }), null, "the correct named-complex source reference passes shared save admission");
+  const transformed = structuredClone(correct);
+  transformed.document.constructions[3] = { id: "makeVariable", operator: "complex_transform", inputs: { source: "origin", multiplier: { real: 1, imaginary: 0 }, addend: { real: 2, imaginary: 0 }, displayScale: 1 }, outputs: ["variable"] };
+  check(compileSceneDocument(transformed.document).ok, true, "named computed complex transform endpoint fully compiles");
+  sourceAccepted(transformed, "labelled transform endpoints retain the existing complex authority boundary");
+  check(candidate(transformed).valid, true, "correct labelled complex transform passes candidate admission");
+  check(sceneSaveAdmissionFailure({ document: transformed.document, question: transformed.question, turnPlan: transformed.plan, tier: "question_representation" }), null, "correct labelled complex transform passes shared save admission");
+  const original = distanceFixture(false);
+  original.document.entities.find((entity) => entity.id === "variable")!.role = role;
+  original.document.entities.at(-1)!.role = "ordinary geometric length";
+  check(compileSceneDocument(original.document).report.issues.some((issue) => issue.code === "invalid_display_derived_claim"), true, "original numeric-label witness already has an independent compiler rejection, not an admitted-path baseline RED");
+  sourceRejected(original, "the original arithmetic claim also cannot skip source reference proof", "complex_distance_reference_mismatch");
+}
+const conflictingNamedPoint = distanceFixture(true);
+conflictingNamedPoint.question = "For |z|=2 and |t|=2, show the source distances |z+i| and |t+i|.";
+conflictingNamedPoint.plan.question = conflictingNamedPoint.question;
+conflictingNamedPoint.document.source.question = conflictingNamedPoint.question;
+conflictingNamedPoint.plan.givens = conflictingNamedPoint.plan.givens.filter((quantity) => quantity.id === "radius");
+conflictingNamedPoint.document.quantities = conflictingNamedPoint.document.quantities.filter((quantity) => quantity.id === "radius");
+conflictingNamedPoint.document.constructions[2]!.inputs = { real: 0, imaginary: -1, displayScale: 1 };
+conflictingNamedPoint.document.entities.find((entity) => entity.id === "variable")!.role = "variable point t";
+conflictingNamedPoint.document.entities.at(-1)!.role = "ordinary geometric length";
+conflictingNamedPoint.document.entities.at(-1)!.label = "|z+i|";
+check(compileSceneDocument(conflictingNamedPoint.document).ok, true, "conflicting endpoint names compile independently of source intent");
+check({ candidateValid: candidate(conflictingNamedPoint).valid, saveAccepted: sceneSaveAdmissionFailure({ document: conflictingNamedPoint.document, question: conflictingNamedPoint.question, turnPlan: conflictingNamedPoint.plan, tier: "question_representation" }) === null }, { candidateValid: false, saveAccepted: false }, "RED: a variable label cannot silently override a conflicting variable role");
+sourceRejected(conflictingNamedPoint, "conflicting endpoint variable identities decline instead of guessing the label or role", "complex_distance_input_unsupported");
 for (const binding of ["supported_label", "semantic_binding"]) {
   const row = distanceFixture(false, true);
   row.document.entities.at(-1)!.role = "ordinary geometric length";
@@ -278,6 +323,32 @@ function zeroDistanceFixture(operator = "segment", variableFrame = { origin: [0,
   row.document.constructions[2]!.inputs = { real: 0, imaginary: 0, ...referenceFrame };
   row.document.constructions[3]!.inputs = { real: 2, imaginary: 0, ...variableFrame };
   return row;
+}
+for (const sourceBars of [false, true]) for (const role of ["point", "variable point z"]) {
+  const row = ordinaryLengthFixture("vector", sourceBars, true);
+  row.question = sourceBars ? "Show the ordinary vector magnitude |z| between the marked points." : "Show the ordinary vector magnitude z between the marked points.";
+  row.plan.question = row.question;
+  row.document.source.question = row.question;
+  row.document.entities[0]!.label = "z";
+  row.document.entities[0]!.role = role;
+  row.document.entities[2]!.label = "|z|";
+  check(compileSceneDocument(row.document).ok, true, "bare norm with a named computed-complex endpoint fully compiles");
+  sourceAccepted(row, "bare norm notation alone does not declare arithmetic source-distance intent for a generic named producer");
+  check(candidate(row).valid, true, "ordinary same-symbol bare norm preserves candidate admission");
+  check(sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }), null, "ordinary same-symbol bare norm preserves shared save admission");
+}
+for (const expression of ["|z*w|", "|z+1e-13i|"]) for (const role of ["point", "variable point z"]) {
+  const row = zeroDistanceFixture();
+  row.question = `For |z|=2, show the source distance ${expression}.`;
+  row.plan.question = row.question;
+  row.document.source.question = row.question;
+  row.document.entities.find((entity) => entity.id === "variable")!.role = role;
+  row.document.entities.at(-1)!.role = "ordinary geometric length";
+  row.document.entities.at(-1)!.label = expression;
+  check(parseComplexDistanceExpression(expression), null, "labelled complex producer does not expand unsupported grammar or precision");
+  check(compileSceneDocument(row.document).ok, true, "unsupported named-complex arithmetic witnesses compile independently of source proof");
+  check({ candidateValid: candidate(row).valid, saveAccepted: sceneSaveAdmissionFailure({ document: row.document, question: row.question, turnPlan: row.plan, tier: "question_representation" }) === null }, { candidateValid: false, saveAccepted: false }, "unsupported arithmetic on a named complex producer refuses candidate and shared source admission");
+  sourceRejected(row, "unsupported named-complex arithmetic cannot escape the complete source parser", "complex_distance_source_binding_unsupported");
 }
 for (const expression of ["|z*w|", "|z+1e-13i|"]) {
   const row = zeroDistanceFixture();

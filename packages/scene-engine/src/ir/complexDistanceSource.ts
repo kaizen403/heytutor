@@ -112,7 +112,9 @@ export function parseComplexDistanceExpression(expression: unknown): ComplexDist
  * complex-variable endpoint, a source-modulus role, a bound complex-distance role, or
  * complexDistanceExpression opts a path in. Bars alone (ordinary |AB| or
  * vector |v|), generic distance roles and complex fixed-point producers do
- * not. Generic unbound reference-point roles require a complex producer;
+ * not. Arithmetic labels also opt in through a named variable backed by a
+ * complex producer; a generic labelled producer alone does not assert a norm.
+ * Generic unbound reference-point roles require a complex producer;
  * complex/modulus-qualified or expression-bound roles require source proof.
  * Explicit unsupported claims still require proof/decline.
  * The caller supplies the trusted question; document.source is never read.
@@ -139,8 +141,11 @@ export function validateComplexDistanceSourceInputs(document: SceneDocument, que
       const label = typeof entity.label === "string" && /^\|[^|]+\|$/.test(normalize(entity.label)) ? entity.label : undefined;
       const parsedLabel = parseComplexDistanceExpression(label);
       const complexEndpoint = label && plain(construction.inputs) && [endpoint(construction.inputs, ["start", "from", "a", ...(construction.operator === "vector" ? ["origin"] : [])]), endpoint(construction.inputs, ["end", "to", "b"])].some((id) => typeof id === "string" && document.entities.some((point) => {
+        if (point.id !== id || point.kind !== "point") return false;
         const variable = complexVariableSymbol(point);
-        return point.id === id && variable !== null && (parsedLabel ? variable === parsedLabel.variable : explicitArithmeticLabel(label, variable));
+        const declared = variable !== null && (parsedLabel ? variable === parsedLabel.variable : explicitArithmeticLabel(label, variable));
+        const computedNamed = document.constructions.some((producer) => producer.outputs.includes(point.id) && (COMPLEX_OPERATORS as readonly string[]).includes(producer.operator)) && pointVariableSymbols(point).some((symbol) => explicitArithmeticLabel(label, symbol));
+        return declared || computedNamed;
       }));
       if (!marker && semantic === undefined && !complexEndpoint) return [];
       const bindings = [semantic, marker?.[1] ?? marker?.[2], label].filter((expression) => expression !== undefined);
@@ -292,12 +297,20 @@ function endpoint(inputs: Record<string, unknown>, keys: string[]): unknown {
   return present.length === 1 ? own(inputs, present[0]!) : undefined;
 }
 function variablePoint(entity: SceneEntity, variable: string): boolean {
-  return entity.kind === "point" && (entity.label?.trim() === variable || ["complex variable", "variable complex point", "variable point"].some((role) => entity.role === `${role} ${variable}`));
+  const symbols = pointVariableSymbols(entity);
+  return symbols.length === 1 && symbols[0] === variable;
 }
 function complexVariableSymbol(entity: SceneEntity): string | null {
   const role = typeof entity.role === "string" ? normalize(entity.role).replace(/[_-]/g, " ").replace(/\s+/g, " ").trim() : "";
   const match = /^(?:complex variable|variable complex point) ([a-hj-z])$/i.exec(role);
   return entity.kind === "point" && match ? match[1]! : null;
+}
+function pointVariableSymbols(entity: SceneEntity): string[] {
+  if (entity.kind !== "point") return [];
+  const label = typeof entity.label === "string" && /^[a-hj-z]$/i.test(entity.label.trim()) ? entity.label.trim() : null;
+  const role = typeof entity.role === "string" ? normalize(entity.role).replace(/[_-]/g, " ").replace(/\s+/g, " ").trim() : "";
+  const match = /^(?:complex variable|variable complex point|variable point) ([a-hj-z])$/i.exec(role);
+  return [...new Set([label, match?.[1]].filter((symbol): symbol is string => typeof symbol === "string"))];
 }
 // This is an opt-in marker, never a fallback expression parser. Arithmetic
 // containing the declared complex variable must still pass the complete,
