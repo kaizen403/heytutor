@@ -84,7 +84,7 @@ const { outputFiles } = await build({
           : args.path.endsWith("prisma")
             ? "export const prisma = globalThis.__boardDeleteTest.prisma;"
             : args.path.endsWith("storageQuota")
-              ? "export const MAX_BOARD_TITLE_CHARS=200; export const MAX_BOARD_PREVIEW_CHARS=2000; export const ensureStorageAccounting=async()=>{}; export const boardStorageBytes=async()=>0n; export const withUserStorageLock=(id,run)=>globalThis.__boardDeleteTest.prisma.$transaction(run);"
+              ? "export const MAX_BOARD_TITLE_CHARS=200; export const MAX_BOARD_PREVIEW_CHARS=2000; export const boardDeletionStorageBytes=async()=>0n; export class StorageQuotaError extends Error { constructor(message,status=413,code) { super(message); this.status=status; this.code=code; } }; export const withUserStorageLock=(id,run)=>globalThis.__boardDeleteTest.prisma.$transaction(run);"
             : "export const boardAudioPrefix = (id) => id; export const deletePrefix = async () => {};",
         loader: "js",
       }));

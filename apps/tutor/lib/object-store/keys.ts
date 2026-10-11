@@ -113,6 +113,25 @@ export function isSafeObjectKey(key: string): boolean {
   return parseStoredObjectKey(key) !== null;
 }
 
+/**
+ * Measurement may retain bytes of auxiliary objects a complete LIST proves
+ * stored under an owned turn. This does not authorize serving, uploading or
+ * individually deleting those objects through the audio/image API parser.
+ */
+export function isOwnedTurnStorageObjectKey(
+  key: string,
+  owner: { boardId: string; turnId: string },
+): boolean {
+  const prefix = `lectures/${owner.boardId}/${owner.turnId}/`;
+  if (!isSafeObjectDeletionPrefix(prefix) || !key.startsWith(prefix) || key.length > 1024 ||
+    key.includes("..") || key.includes("\\") || key.includes("//")) return false;
+  const suffix = key.slice(prefix.length);
+  // A provider may store a folder marker; its actual LIST size is still
+  // charged, rather than treating the marker as proof of an empty prefix.
+  if (suffix === "") return true;
+  return suffix.replace(/\/$/, "").split("/").every((part) => /^[A-Za-z0-9._-]{1,255}$/.test(part) && part !== ".");
+}
+
 /** Deletion is bounded to a board, turn, validated upload attempt, or user image. */
 export function isSafeObjectDeletionPrefix(prefix: string): boolean {
   if (prefix.includes("..") || prefix.trim() !== prefix) return false;

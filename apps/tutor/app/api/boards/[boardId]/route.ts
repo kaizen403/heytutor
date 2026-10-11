@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
-import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardStorageBytes, ensureStorageAccounting, withUserStorageLock } from "@/lib/boards/storageQuota";
+import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardDeletionStorageBytes, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { boardAudioPrefix } from "@/lib/object-store/keys";
 import { effectiveTurnStatus, isTurnKind, isTurnStatus } from "@/lib/boards/turnStatus";
 
@@ -224,12 +224,14 @@ export async function DELETE(request: Request, context: RouteContext) {
         return NextResponse.json({ error: "board is not empty" }, { status: 409 });
       }
     } else {
-      // Explicit user deletion retains its existing unconditional semantics.
+      // Deletion stays available during an object-store outage. Its held
+      // allocation is refunded only after the durable worker confirms cleanup.
       const deleted = await withUserStorageLock(userId, async (tx) => {
-        const board = await tx.board.findFirst({ where: { id: boardId, userId } });
-        if (!board) return false;
-        await ensureStorageAccounting(tx, userId);
-        const bytes = await boardStorageBytes(tx, boardId);
+        const boards = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM boards WHERE id = ${boardId} AND user_id = ${userId} FOR UPDATE
+        `;
+        if (!boards.length) return false;
+        const bytes = await boardDeletionStorageBytes(tx, userId, boardId);
         await tx.objectDeletionJob.create({ data: { id: crypto.randomUUID(), prefix: boardAudioPrefix(boardId), userId, bytes } });
         await tx.board.delete({ where: { id: boardId } });
         return true;
@@ -241,6 +243,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof StorageQuotaError) return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     console.error("[boards] DELETE failed:", error);
     return NextResponse.json({ error: "failed to delete board" }, { status: 500 });
   }

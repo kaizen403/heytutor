@@ -15,9 +15,9 @@
  *
  * Conventions (NCERT / JEE answer keys):
  *   CN 6 octahedral, t2g at 0.4Δo below and eg at 0.6Δo above the barycentre.
- *   CN 4 tetrahedral (e below t2, always high spin) unless the metal is d8
- *   with a strong ligand or is Pt(II)/Pd(II)/Au(III), or Cu(II) with N donors:
- *   then square planar (dsp2).
+ *   CN 4 tetrahedral (e below t2, always high spin), with the supported
+ *   planar exceptions: d8 4d/5d metals, Ni(II) with CN/dmg donor sets,
+ *   or Cu(II) with NH3/en donor sets. A highest ligand rank is not geometry.
  *   Strong field: ligands from bipy/phen up (CN, CO, NO, NO2, PPh3, H, CH3);
  *   Co(III) pairs with everything above the halides ([Co(ox)3]3- and
  *   [Co(H2O)6]3+ are diamagnetic in the keys); 4d/5d metals always pair.
@@ -29,6 +29,7 @@ import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKi
 import { complexTokens, formulaTokens, normalizeChemistryText, parseComplex, type ParsedComplex } from "./formula";
 import { dElectronCount } from "./electronConfiguration";
 import { elementBySymbol } from "./elements";
+import { fourCoordinateGeometry } from "./foundation/coordinationGeometry";
 // The label engine reserves boxes measured with the board's own glyph
 // metrics, so pinned labels are offset by the same measure.
 import { measureTextWidth } from "@heytutor/drawing";
@@ -93,7 +94,6 @@ export interface CftResult {
 /* Solver                                                                    */
 /* ------------------------------------------------------------------------- */
 
-const SQUARE_PLANAR_D8_METALS = new Set(["Pt", "Pd", "Au", "Rh", "Ir"]);
 const STRONG_RANK = 13;
 const COBALT_III_STRONG_RANK = 7;
 const ROMAN = ["0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
@@ -191,16 +191,13 @@ export function crystalFieldAnalysis(complexText: string): CftResult | null {
   if (![2, 4, 6].includes(cn)) return null;
 
   const ranked = [...complex.ligands].sort((a, b) => b.spec.fieldRank - a.spec.fieldRank);
-  const topRank = ranked[0]?.spec.fieldRank ?? 0;
   let geometry: CftGeometry;
   if (cn === 6) geometry = "octahedral";
   else if (cn === 2) geometry = "linear";
   else {
-    const nDonor = complex.ligands.some((ligand) => ["NH3", "en", "CN", "bipy", "phen", "py", "dmg"].includes(ligand.spec.key));
-    const squarePlanar =
-      (dCount === 8 && (SQUARE_PLANAR_D8_METALS.has(metal.symbol) || topRank >= 14 || complex.ligands.some((ligand) => ligand.spec.key === "dmg"))) ||
-      (dCount === 9 && metal.symbol === "Cu" && nDonor);
-    geometry = squarePlanar ? "square_planar" : "tetrahedral";
+    const supported = fourCoordinateGeometry(complex);
+    if (!supported) return null;
+    geometry = supported;
   }
 
   let strongDonors = 0;
