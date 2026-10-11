@@ -15,7 +15,7 @@ Candidate development repeat 2 aborted operationally: the original attempt saved
 
 A/B/consensus all fail coverage. Development1 branch right is16 and wrong0 for all; MAIN wrong is16/22/23. Fresh branch right stays0 in both repeats, wrong1–2, required empties14/15. A/B agreed124 of146 deduplicated cards; C resolved22 disputes, with one conservative three-way wrong. The same three judges scored24/24 synthetic references each: consistency, not human accuracy. All first streams froze before feedback; root viewed0 images.
 
-The 43 candidate empties comprise40 `representation carries no readable label` and3 `solver_contradiction` failures. These live seams need repair before the new stock-runner job; source-only gates did not expose them.
+The 43 candidate empties report40 `representation carries no readable label` and3 `solver_contradiction` failures. Full retained-plan replay shows the label message overwrote earlier refusals:15 quantity-role/binding failures and25 source-reader/no-program failures. Native labels are readable. The new job will fix these generic seams and diagnostic attribution; it will preserve the no-label gate.
 
 API Azure token estimate: **$15.520774 of the prior $20 cap**, including discarded and interrupted attempts. Response and Azure estimates overlap and are not summed; native agent billing is unavailable. All owned evaluation processes are stopped. The new simple job has a separate $15 response-usage cap.
 
