@@ -8,7 +8,7 @@ Owned source: `packages/scene-engine/scripts/verify/verify-linear-region-operato
 
 The first public half-plane test was written and run before integration. It was RED with `unsupported_operator`, no render, and exit status 1. Its independent wrong-side assertion already rejected a deliberately invalid polygon. The final gate imports `validateSceneDocument` and `compileSceneDocument` through the public index and uses no private solver or runtime mock. Every source mutation must be fatally refused with `renderScene:null`; an unknown-operator issue alone cannot pass.
 
-The complete public command passes **3,919 checks**, exit status 0:
+The complete public command passes **4,015 checks**, exit status 0:
 
 ```sh
 pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-linear-region-operators.ts
@@ -37,3 +37,11 @@ The Chrome rasterizer, also used by paid measurement, produced **8/8** images at
 **Rasterizer limitation:** Sharp 0.35.5 / librsvg 2.63.2 ignores SVG `textLength`/`lengthAdjust` here. Removing those attributes produced byte-identical native PNGs and falsely suggested two remaining text collisions. Those reports were withdrawn. Earlier Sharp/Quick Look images are archived under `dev-visuals/sharp-prior/`; only the final Chrome images and `.render.json` records are final development visual evidence. This implementation worker is not a blind final image grader and claims no paid eval, live/replay or accepted coverage result.
 
 Assigned work is complete. Root will commit owned files and freeze the candidate; this worker stops edits after handoff.
+
+## Pre-paid independent review followup
+
+The worker was explicitly resumed after independent review of provisional source HEAD `de5249f1`, before any paid calls. Two independent annotation-free conjunctive controls use region constraints `x>=-3,y>=4` (corner `(-3,4)`) and system equations `x=-4,y=6` (unique point `(-4,6)`). Both compile. Changing only the source to `union of ... and ...` for the region or `... or ...` for the equations exposed public **RED**, exit-1 failures: source Boolean meaning was incorrectly reduced to conjunction. After root's generic Boolean-AST fix, both are atomically refused. The new focused families are `source-union-region` and `source-or-system`.
+
+A third `group-label` guard adds a semantic `title` group in the solution's reveal group and a label annotation falsely claiming `No solution` for a nonempty half-plane. Root's generic group/annotation fix landed concurrently before this worker captured that case, so **no independent pre-fix group RED is claimed**. The case now atomically refuses with fatal `untrusted_linear_annotation` and `untrusted_linear_claim`, explicitly identifying operator-owned marks and computed solution semantics. Its public refusal evidence is printed by the gate.
+
+The final full gate passes **4,015 checks** without weakening any prior expectation. The existing **8/8** Chrome capture hashes and **7/7** frozen evaluation checksums still match. Rendering was unchanged, and no development pictures or frozen eval semantics were touched. No paid calls, builds, acceptance-count changes or further owned edits occur in this followup. Root owns the next candidate commit and immutable freeze.
