@@ -765,6 +765,13 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
   const electrodes = statedPotentials(text);
   if (!electrodes) return null;
   const standardValueSpans: ChemistrySpan[] = [...electrodes.values()].map(value => value.sourceSpan);
+  // The canonical table keeps one value per role; every original repeat still owns its span.
+  const symbolicAssignments = new RegExp(`${E_NAUGHT}\\s*(?:(?:for|of|value\\s+of|_)?\\s*[\\(\\[]?\\s*${COUPLE}\\s*[\\)\\]]?\\s*)?(?:=|is|:)`, "gi");
+  for (const assignment of text.matchAll(symbolicAssignments)) {
+    const read = readChemistryQuantity({question: text, after: /^/, within: {start: assignment.index! + assignment[0].length, end: text.length}, dimension: "potential", targetUnit: "V"});
+    if (!read.ok) return null;
+    standardValueSpans.push(read.reading.source.span);
+  }
   const out: { e0?: number; e?: number } = {};
   const standard = new RegExp(`${E_NAUGHT}\\s*_?\\s*\\(?\\s*cell\\s*\\)?\\s*(?:=|is|:|of)?\\s*(?:the\\s+cell\\s+)?(?:=|is)?\\s*${VALUE}`, "id").exec(text)
     ?? new RegExp(`standard\\s+(?:emf|cell\\s+potential|electrode\\s+potential\\s+of\\s+the\\s+cell)[^.\\n]{0,30}?(?:=|is|:)\\s*${VALUE}`, "id").exec(text);
