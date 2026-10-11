@@ -36,6 +36,8 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
   const uploads: string[] = [];
   const allowance = { userId, expiresAt: new Date(Date.now() + 60_000), savedTurnId: null };
   let shortenReservation = false;
+  let uploadPause: (() => Promise<void>) | null = null;
+  let preparePause: (() => Promise<void>) | null = null;
   const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => row[key] === value);
   const withSegments = (turn: Row | undefined) => turn ? {
     ...turn, segments: segments.filter(row => row.turnId === turn.id),
@@ -61,6 +63,7 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
       },
     },
     segment: {
+      findMany: async ({ where }: Row) => segments.filter(row => matches(row, where)),
       createManyAndReturn: async ({ data }: Row) => {
         const inserted = data.map((row: Row) => ({ ...row, id: crypto.randomUUID() }));
         segments.push(...inserted);
@@ -121,13 +124,14 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
     "@/lib/object-store/lectureAudioPersistence": policy,
     "@/lib/object-store/s3": { uploadAudio: async (key: string) => {
       uploads.push(key);
+      await uploadPause?.();
       return configured && uploadSucceeds ? mediaUrl.mediaProxyUrl(key) : null;
     } },
     "@/lib/http/requestBody": requestBody,
     "@/lib/boards/storageAccounting": { turnMetadataStorageBytes },
     "@/lib/boards/storageQuota": {
       StorageQuotaError, reserveTurnStorage: reserve, reserveTurnGrowthStorage: reserve,
-      prepareStorageAccounting: async () => {}, refundTurnMetadataStorage: async () => {},
+      prepareStorageAccounting: async () => { await preparePause?.(); }, refundTurnMetadataStorage: async () => {},
       abandonTurnStorage: async (reservation: Row) => { reservation.state = "abandoned"; },
       settleTurnStorage: async (reservation: Row, _refund: boolean, _tx: unknown, retained: number) => {
         reservation.state = "settled"; reservation.retained = retained;
@@ -157,30 +161,113 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
       command: { type: "WRITE", params: [90, 145, 28], text: "d = vt", charPosition: 0, narrationBefore: "" },
       durationMs: 900 }],
   };
-  async function save(kind: "post" | "checkpoint", seq = 1) {
+  const turnId = "ab72f58e-67c9-4d00-8faa-242342089a04";
+  async function save(kind: "post" | "checkpoint", seq = 1, options: {
+    audio?: boolean; status?: "live" | "stopped" | "complete"; rawResponse?: string;
+  } = {}) {
     const form = new FormData();
     const metadata = kind === "post" ? lesson : { ...lesson, segments: undefined, seq,
-      baseCount: seq - 1, status: "live", appendSegments: lesson.segments.map(row => ({ ...row, orderIndex: seq - 1 })) };
+      baseCount: seq - 1, status: options.status ?? "live", rawResponse: options.rawResponse ?? lesson.rawResponse,
+      appendSegments: lesson.segments.map(row => ({ ...row, orderIndex: seq - 1 })) };
     form.append("metadata", JSON.stringify(metadata));
-    form.append(`audio-${seq - 1}`, new Blob([mp3], { type: "audio/mpeg" }));
-    const turnId = "ab72f58e-67c9-4d00-8faa-242342089a04";
+    if (options.audio !== false) form.append(`audio-${seq - 1}`, new Blob([mp3], { type: "audio/mpeg" }));
     const url = `https://example.test/api/boards/${boardId}/turns${kind === "checkpoint" ? `/${turnId}` : ""}`;
     const request = new Request(url, { method: kind === "post" ? "POST" : "PUT", body: form });
     const response = kind === "post" ? await post.POST(request, { params: Promise.resolve({ boardId }) })
       : await checkpoint.handleTurnCheckpoint(request, { boardId, turnId });
     return { status: response.status, body: await response.json() as Row };
   }
-  return { save, turns, segments, uploads, reservations, client, lesson,
+  async function close(seq: number) {
+    const response = await checkpoint.handleTurnClose(new Request(`https://example.test/api/boards/${boardId}/turns/${turnId}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ seq, status: "stopped" }),
+    }), { boardId, turnId });
+    return { status: response.status, body: await response.json() as Row };
+  }
+  return { save, close, turns, segments, uploads, reservations, client, lesson,
+    pauseUpload: (pause: (() => Promise<void>) | null) => { uploadPause = pause; },
+    pausePreparation: (pause: (() => Promise<void>) | null) => { preparePause = pause; },
     shortenReservation: () => { shortenReservation = true; } };
 }
 
 async function main(testCase = process.env.STORAGE_SAVE_POLICY_CASE) {
+  if (testCase === "close-race") {
+    const fixture = harness("production", true, true);
+    assert.equal((await fixture.save("checkpoint", 1, { audio: false })).status, 200);
+    const before = { ...fixture.turns[0] };
+    let began!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { began = resolve; });
+    const held = new Promise<void>(resolve => { release = resolve; });
+    fixture.pauseUpload(async () => { began(); await held; });
+    try {
+      const pending = fixture.save("checkpoint", 2);
+      let answered = false;
+      void pending.then(() => { answered = true; });
+      await Promise.race([started, pending.then(result => assert.fail(`checkpoint must reach its upload: ${JSON.stringify(result)}`))]);
+      const closed = await fixture.close(1);
+      assert.equal(closed.status, 200);
+      assert.equal(fixture.turns[0].status, "stopped");
+      assert.equal(fixture.turns[0].checkpointSeq, before.checkpointSeq, "status-only close does not advance seq");
+      assert.equal(fixture.turns[0].metadataBytes, before.metadataBytes, "status-only close leaves the old receipt until checkpoint settlement");
+      assert.equal(fixture.segments.length, 1, "pending audio/work is not prematurely reported saved");
+      assert.equal(answered, false);
+      release();
+      const saved = await pending;
+      assert.equal(saved.status, 200, "the first checkpoint commits through status-only close, without reupload");
+      assert.equal(saved.body.turn.status, "stopped");
+      assert.equal(fixture.uploads.length, 1);
+      assert.equal(saved.body.turn.segments[1].audioUrl, mediaUrl.mediaProxyUrl(fixture.uploads[0]));
+      assert.equal(fixture.turns[0].storageBytes - fixture.turns[0].metadataBytes, BigInt(mp3.length));
+      assert.equal(fixture.turns[0].metadataBytes, BigInt(turnMetadataStorageBytes({ ...fixture.turns[0], segments: fixture.segments })));
+      assert.equal(fixture.reservations[1].state, "settled");
+      assert(fixture.reservations[1].retained <= fixture.reservations[1].bytes, "settlement cannot grow beyond pre-upload admission");
+      assert.equal((await fixture.save("checkpoint", 2)).status, 200);
+      assert.equal(fixture.uploads.length, 1, "a replayed live checkpoint cannot reopen or upload the stopped row again");
+      console.log("PASS checkpoint: status-only close during upload commits first attempt with one exact audio receipt");
+    } finally { release(); fixture.pauseUpload(null); }
+    return;
+  }
+  if (testCase === "refresh") {
+    for (const status of ["live", "stopped", "complete"] as const) {
+      const fixture = harness("production", true, true);
+      assert.equal((await fixture.save("checkpoint", 1, { audio: false })).status, 200);
+      fixture.pausePreparation(async () => {
+        fixture.pausePreparation(null);
+        assert.equal((await fixture.save("checkpoint", 2, { audio: false, status, rawResponse: "Newer saved header." })).status, 200);
+      });
+      const saved = await fixture.save("checkpoint", 2);
+      assert.equal(saved.status, 200, `fresh ${status} state is rechecked after accounting preparation`);
+      assert.equal(saved.body.turn.status, status);
+      assert.equal(saved.body.turn.rawResponse, "Newer saved header.");
+      assert.equal(fixture.uploads.length, status === "stopped" ? 1 : 0,
+        "a refreshed completed turn is final before upload; stopped rows recover their missing clip once");
+      if (status === "complete") assert.equal(saved.body.final, true);
+      else if (status === "live") assert.equal(saved.body.stale, true);
+      else {
+        assert.equal(saved.body.turn.segments[1].audioUrl, mediaUrl.mediaProxyUrl(fixture.uploads[0]));
+        assert.equal(fixture.turns[0].storageBytes - fixture.turns[0].metadataBytes, BigInt(mp3.length));
+      }
+      console.log(`PASS checkpoint: refreshed ${status} status, sequence and held rows drive admission`);
+    }
+    for (const status of ["live", "complete"] as const) {
+      const fixture = harness("production", true, true);
+      assert.equal((await fixture.save("checkpoint", 1, { audio: false, status })).status, 200);
+      fixture.pausePreparation(async () => { assert.fail("already final or stale checkpoints must not require object measurement"); });
+      const repeated = await fixture.save("checkpoint", 1);
+      assert.equal(repeated.status, 200);
+      assert.equal(repeated.body.stale, true);
+      assert.equal(repeated.body.turn.status, status);
+      assert.equal(fixture.uploads.length, 0);
+      if (status === "complete") assert.equal(repeated.body.final, true);
+      console.log(`PASS checkpoint: already ${status === "complete" ? "final" : "stale"} request keeps its pre-measurement return`);
+    }
+    return;
+  }
   if (testCase === "accounting") {
     for (const kind of ["post", "checkpoint"] as const) {
       if (process.env.STORAGE_SAVE_POLICY_HANDLER && process.env.STORAGE_SAVE_POLICY_HANDLER !== kind) continue;
       const fixture = harness("development", true, true);
       fixture.shortenReservation();
-      const rejected = await fixture.save(kind);
+      const rejected = await fixture.save(kind, 1, { status: "complete" });
       assert.equal(rejected.status, 409, "an insufficient admission receipt cannot commit growth");
       assert.equal(rejected.body.code, "storage_accounting_changed", "accounting races identify a retryable refusal");
       assert.equal(fixture.turns.length, 0);
@@ -287,6 +374,8 @@ async function main(testCase = process.env.STORAGE_SAVE_POLICY_CASE) {
   }
   await main("accounting");
   await main("client");
-  console.log("PASS storage save policy: 17 groups");
+  await main("close-race");
+  await main("refresh");
+  console.log("PASS storage save policy: 23 groups");
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

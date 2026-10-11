@@ -609,13 +609,13 @@ async function applyCheckpoint(
 
   // --- Order and idempotency, before any upload ----------------------------
   let stored = heldRows(before);
-  const beforeStatus: TurnStatus | null = before ? (isTurnStatus(before.status) ? before.status : "complete") : null;
+  let beforeStatus: TurnStatus | null = before ? (isTurnStatus(before.status) ? before.status : "complete") : null;
   if (before && beforeStatus === "complete") return json(turnBody(before, { stale: true, final: true }));
   // A metadata close may arrive before an older in-flight row/audio PUT.
   // Recover only missing rows/clips of a stopped turn, never its old header.
-  const lateStoppedRows = Boolean(before && beforeStatus === "stopped" && input.seq <= before.checkpointSeq &&
+  const hasLateStoppedPayload = () => Boolean(before && beforeStatus === "stopped" && input.seq <= before.checkpointSeq &&
     (hasMissingCheckpointPayload(before, input, files) || hasNewerCheckpointScene(before, input)));
-  const tolerateOverlap = input.tolerateOverlap || lateStoppedRows;
+  let tolerateOverlap = input.tolerateOverlap || hasLateStoppedPayload();
   let append = input.appendSegments;
   if (before && input.seq <= before.checkpointSeq && !tolerateOverlap) {
     return json(turnBody(before, { stale: true }));
@@ -626,6 +626,10 @@ async function applyCheckpoint(
       before = await prisma.turn.findFirst({ where: { id: turnId }, include: { segments: { orderBy: { orderIndex: "asc" } } } });
       if (!before || before.userId !== userId || before.boardId !== boardId) return reject("turn_not_found", "not found", 404);
       stored = heldRows(before);
+      beforeStatus = isTurnStatus(before.status) ? before.status : "complete";
+      if (beforeStatus === "complete") return json(turnBody(before, { stale: true, final: true }));
+      tolerateOverlap = input.tolerateOverlap || hasLateStoppedPayload();
+      if (input.seq <= before.checkpointSeq && !tolerateOverlap) return json(turnBody(before, { stale: true }));
     } catch (error) {
       if (error instanceof StorageQuotaError) return reject(error.code ?? "storage_admission_rejected", error.message, error.status);
       throw error;
@@ -726,11 +730,15 @@ async function applyCheckpoint(
     const clip = source === null ? null : expectedHeld[source];
     return { ...row, audioUrl: clip?.audioUrl ?? null, audioFormat: clip?.audioFormat ?? "audio/mpeg", audioRef: source };
   });
-  const metadataBytes = turnMetadataStorageBytes({
+  const metadataValue = {
     question, rawResponse, ...canonical.value, speedMultiplier: input.speedMultiplier ?? before?.speedMultiplier ?? 1,
     status, kind: before?.kind ?? input.kind, segments: expectedSegments,
     submittedSegments: status === "complete" ? null : heldCheckpoint(expectedHeld, sceneSeq), resumeState,
-  });
+  };
+  // A status-only Stop can win during upload without changing seq or the old
+  // receipt. Admit its reachable envelope now, then settle only actual growth.
+  const metadataBytes = Math.max(turnMetadataStorageBytes(metadataValue),
+    turnMetadataStorageBytes({ ...metadataValue, status: nextTurnStatus(status, "stopped") }));
   // Admission may normalize a historical high-water receipt after this read.
   // Budget from the smaller logical baseline before uploading, so that repair
   // cannot turn an affordable checkpoint into unreserved growth at commit.
