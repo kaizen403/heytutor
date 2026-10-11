@@ -1,0 +1,486 @@
+{
+  "topic_id": "physics|10|intensity-and-amplitude-of-a-wave",
+  "question": "A vibrator at x = 0 drives the left end of a long horizontal rope held at tension 24 N, sending the wave y = A sin(kx − ωt) toward +x with frequency 4.5 Hz, wavelength 0.80 m and amplitude 7.5 cm. The amplitude is then raised to 15 cm at the same frequency. Sketch both profiles at t = 0 from x = 0 to x = 1.0 m, marking particle P at x = 0.80 m and its direction of motion. Find the wave speed, the rope's mass per metre and the factor by which the transmitted power increases.",
+  "figure_kind": "wave",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "driven rope, two amplitudes"
+    },
+    "source": {
+      "question": "A vibrator at x = 0 drives the left end of a long horizontal rope held at tension 24 N, sending the wave y = A sin(kx − ωt) toward +x with frequency 4.5 Hz, wavelength 0.80 m and amplitude 7.5 cm. The amplitude is then raised to 15 cm at the same frequency. Sketch both profiles at t = 0 from x = 0 to x = 1.0 m, marking particle P at x = 0.80 m and its direction of motion. Find the wave speed, the rope's mass per metre and the factor by which the transmitted power increases.",
+      "archetype": "wave_profile"
+    },
+    "quantities": [
+      {
+        "id": "T0",
+        "symbol": "T",
+        "value": 24,
+        "unit": "N"
+      },
+      {
+        "id": "f0",
+        "symbol": "f",
+        "value": 4.5,
+        "unit": "Hz"
+      },
+      {
+        "id": "L0",
+        "symbol": "λ",
+        "value": 0.8,
+        "unit": "m"
+      },
+      {
+        "id": "A1",
+        "symbol": "A_1",
+        "value": 7.5,
+        "unit": "cm"
+      },
+      {
+        "id": "A2",
+        "symbol": "A_2",
+        "value": 15,
+        "unit": "cm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "rope end"
+      },
+      {
+        "id": "xA",
+        "kind": "vector",
+        "role": "x axis, equilibrium",
+        "label": "x"
+      },
+      {
+        "id": "vc",
+        "kind": "point",
+        "role": "box centre"
+      },
+      {
+        "id": "yA",
+        "kind": "vector",
+        "role": "y axis",
+        "label": "y"
+      },
+      {
+        "id": "vib",
+        "kind": "rectangle",
+        "role": "vibrator (driver)",
+        "label": "vibrator 4.5 Hz"
+      },
+      {
+        "id": "T",
+        "kind": "vector",
+        "role": "tension",
+        "label": "T = 24 N"
+      },
+      {
+        "id": "w1",
+        "kind": "polyline",
+        "role": "rope, amplitude A1"
+      },
+      {
+        "id": "w2",
+        "kind": "polyline",
+        "role": "rope, amplitude A2"
+      },
+      {
+        "id": "c2",
+        "kind": "point",
+        "role": "crest"
+      },
+      {
+        "id": "c3",
+        "kind": "point",
+        "role": "crest"
+      },
+      {
+        "id": "e1",
+        "kind": "point",
+        "role": "axis foot"
+      },
+      {
+        "id": "c1",
+        "kind": "point",
+        "role": "crest"
+      },
+      {
+        "id": "lam",
+        "kind": "dimension",
+        "role": "wavelength",
+        "label": "λ = 0.80 m"
+      },
+      {
+        "id": "a2",
+        "kind": "dimension",
+        "role": "amplitude A2",
+        "label": "15 cm"
+      },
+      {
+        "id": "a1",
+        "kind": "dimension",
+        "role": "amplitude A1",
+        "label": "7.5 cm"
+      },
+      {
+        "id": "v",
+        "kind": "vector",
+        "role": "wave velocity",
+        "label": "v"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "particle P",
+        "label": "P"
+      },
+      {
+        "id": "uP",
+        "kind": "vector",
+        "role": "P velocity"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kxA",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 140
+        },
+        "outputs": [
+          "xA"
+        ]
+      },
+      {
+        "id": "kvc",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -30,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "vc"
+        ]
+      },
+      {
+        "id": "kyA",
+        "operator": "vector",
+        "inputs": {
+          "start": "vc",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 54
+        },
+        "outputs": [
+          "yA"
+        ]
+      },
+      {
+        "id": "kvib",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "vc",
+          "width": 20,
+          "height": 9
+        },
+        "outputs": [
+          "vib"
+        ]
+      },
+      {
+        "id": "kT",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 20
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "kw1",
+        "operator": "harmonic_wave",
+        "inputs": {
+          "amplitude": "A1",
+          "waveNumber": 0.07854,
+          "angularFrequency": 28.274,
+          "phase": 0,
+          "phaseUnit": "rad",
+          "time": 0,
+          "xMin": 0,
+          "xMax": 100,
+          "units": {
+            "position": "cm",
+            "time": "s",
+            "amplitude": "cm"
+          }
+        },
+        "outputs": [
+          "w1"
+        ]
+      },
+      {
+        "id": "kw2",
+        "operator": "harmonic_wave",
+        "inputs": {
+          "amplitude": "A2",
+          "waveNumber": 0.07854,
+          "angularFrequency": 28.274,
+          "phase": 0,
+          "phaseUnit": "rad",
+          "time": 0,
+          "xMin": 0,
+          "xMax": 100,
+          "units": {
+            "position": "cm",
+            "time": "s",
+            "amplitude": "cm"
+          }
+        },
+        "outputs": [
+          "w2"
+        ]
+      },
+      {
+        "id": "kc2",
+        "operator": "point",
+        "inputs": {
+          "x": 20,
+          "y": 15,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "c2"
+        ]
+      },
+      {
+        "id": "kc3",
+        "operator": "point",
+        "inputs": {
+          "x": 100,
+          "y": 15,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "c3"
+        ]
+      },
+      {
+        "id": "ke1",
+        "operator": "point",
+        "inputs": {
+          "x": 100,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "e1"
+        ]
+      },
+      {
+        "id": "kc1",
+        "operator": "point",
+        "inputs": {
+          "x": 100,
+          "y": 7.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "c1"
+        ]
+      },
+      {
+        "id": "klam",
+        "operator": "dimension",
+        "inputs": {
+          "start": "c2",
+          "end": "c3"
+        },
+        "outputs": [
+          "lam"
+        ]
+      },
+      {
+        "id": "ka2",
+        "operator": "dimension",
+        "inputs": {
+          "start": "e1",
+          "end": "c3"
+        },
+        "outputs": [
+          "a2"
+        ]
+      },
+      {
+        "id": "ka1",
+        "operator": "dimension",
+        "inputs": {
+          "start": "e1",
+          "end": "c1"
+        },
+        "outputs": [
+          "a1"
+        ]
+      },
+      {
+        "id": "kv",
+        "operator": "vector",
+        "inputs": {
+          "start": "c2",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 28
+        },
+        "outputs": [
+          "v"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "w1",
+          "at": 80
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kuP",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 16
+        },
+        "outputs": [
+          "uP"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "s1",
+        "predicate": "on",
+        "entities": [
+          "c2",
+          "w2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "s2",
+        "predicate": "on",
+        "entities": [
+          "c3",
+          "w2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "s3",
+        "predicate": "on",
+        "entities": [
+          "c1",
+          "w1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "xA",
+      "vc",
+      "yA",
+      "vib",
+      "T",
+      "w1",
+      "w2",
+      "c2",
+      "c3",
+      "e1",
+      "c1",
+      "lam",
+      "a2",
+      "a1",
+      "v",
+      "P",
+      "uP"
+    ],
+    "revealGroups": [
+      {
+        "id": "g",
+        "entityIds": [
+          "O",
+          "xA",
+          "vc",
+          "yA",
+          "vib",
+          "T",
+          "w1",
+          "w2",
+          "c2",
+          "c3",
+          "e1",
+          "c1",
+          "lam",
+          "a2",
+          "a1",
+          "v",
+          "P",
+          "uP"
+        ]
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "t",
+        "action": "reveal",
+        "targetId": "g",
+        "dependsOn": [],
+        "narrationIntent": "driven rope, two amplitudes, one wavelength"
+      }
+    ]
+  }
+}
