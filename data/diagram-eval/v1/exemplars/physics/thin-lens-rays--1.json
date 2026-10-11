@@ -6,7 +6,7 @@
   "schemaVersion": "scene-document/v2",
   "visualDecision": {
    "mode": "scene",
-   "reason": "symbolic convex-lens ray diagram"
+   "reason": "convex lens rays"
   },
   "source": {
    "question": "An upright object of height h stands on the principal axis of a thin convex lens of focal length f, at a distance u lying between F1 and 2F1. Draw a ray diagram with two principal rays, locate the image at distance v with height h′, and state its nature and the magnification m = h′/h.",
@@ -28,7 +28,7 @@
    {
     "id": "lens",
     "kind": "polygon",
-    "role": "thin convex lens"
+    "role": "convex lens"
    },
    {
     "id": "F2",
@@ -78,22 +78,22 @@
    {
     "id": "P1",
     "kind": "point",
-    "role": "lens hit point"
+    "role": "lens point"
    },
    {
     "id": "r1i",
     "kind": "segment",
-    "role": "ray parallel to axis"
+    "role": "parallel ray"
    },
    {
     "id": "r1o",
     "kind": "ray",
-    "role": "refracted ray through F2"
+    "role": "ray through F2"
    },
    {
     "id": "r2",
     "kind": "ray",
-    "role": "undeviated ray through O"
+    "role": "ray through O"
    },
    {
     "id": "it",
@@ -116,6 +116,12 @@
     "kind": "dimension",
     "role": "object distance",
     "label": "u"
+   },
+   {
+    "id": "dv",
+    "kind": "dimension",
+    "role": "image distance",
+    "label": "v"
    }
   ],
   "constructions": [
@@ -343,6 +349,17 @@
     "outputs": [
      "du"
     ]
+   },
+   {
+    "id": "mDv",
+    "operator": "dimension",
+    "inputs": {
+     "start": "O",
+     "end": "ib"
+    },
+    "outputs": [
+     "dv"
+    ]
    }
   ],
   "relations": [],
@@ -412,7 +429,8 @@
    "it",
    "ib",
    "img",
-   "du"
+   "du",
+   "dv"
   ],
   "revealGroups": [
    {
@@ -434,7 +452,8 @@
      "it",
      "ib",
      "img",
-     "du"
+     "du",
+     "dv"
     ],
     "dependsOn": [],
     "narrationCue": "lens, rays, image"
