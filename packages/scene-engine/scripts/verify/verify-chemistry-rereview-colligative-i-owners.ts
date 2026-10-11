@@ -194,5 +194,19 @@ for(const [id,question] of suppliedConnectorRejects)check(id,question,()=>{
   assert.equal(synthesizeFamilyScene({question}),null);
 });
 // END supplied connector owners: original60 cases and assertions remain whole.
+// BEGIN unread supplied input roles: original70 cases remain whole.
+const suppliedInputRejects = [
+  ["reviewer-request-input-1",`${dissociationSource} Find the apparent molar mass using a given van't Hoff factor.`],
+  ["reviewer-request-input-2",`${dissociationSource} Find the apparent molar mass using an unknown van't Hoff factor.`],
+  ["own-request-input-1",`${dissociationSource} Find the apparent molar mass with a supplied van't Hoff factor.`],
+  ["own-request-input-2",`${dissociationSource} Determine apparent molar mass with an unreadable van’t Hoff factor.`],
+  ["own-request-input-3",`${dissociationSource} Calculate apparent molar mass using the given van't Hoff factor; i = 1.5.`],
+] as const;
+for(const [id,question] of suppliedInputRejects)check(id,question,()=>{
+  assert.equal(buildSolutionLessonScene(question,[],false),null);
+  assert.equal(buildSolutionLessonScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+});
+// END unread supplied input roles: original70 cases remain whole.
 console.log(JSON.stringify({total:rows.length,passed:rows.filter(r=>r.passed).length,rows},null,2));
 process.exitCode=rows.every(r=>r.passed)?0:1;
