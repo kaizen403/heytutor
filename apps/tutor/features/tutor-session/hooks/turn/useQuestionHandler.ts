@@ -55,7 +55,7 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import { createTurnTelemetry, measureSceneCandidateValidation } from "@/lib/obs/turnTelemetry";
+import { createTurnTelemetry, measureSceneCandidateValidation, measureSceneSelection } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
@@ -1128,12 +1128,12 @@ export function useQuestionHandler(
           diagramStrategy: ReturnType<typeof liveDiagramStrategyDecision>;
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
-        let validationIndex = 0;
+        let validationCallIndex = 0;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
-          measureSceneCandidateValidation(tel, { candidateIndex: ++validationIndex, context }, () =>
+          measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
             validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
@@ -1280,12 +1280,12 @@ export function useQuestionHandler(
               }],
             };
           },
-          selectFast: (planningTurnPlan, authority, gate) => selectFastVerifiedRepresentation({
+          selectFast: (planningTurnPlan, authority, gate) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
             question,
             turnPlan: planningTurnPlan,
             problemIR: authority?.problemIR ?? null,
             families: gate.sceneCapabilities.families,
-          }),
+          })),
           planScene: (gate, planningTurnPlan, run) => {
             const { diagramExampleIds: pickedIds = [], ...plannerRequest } = gate.request;
             return planSceneDocumentWithRepair(
@@ -1381,8 +1381,9 @@ export function useQuestionHandler(
             candidateCount: result?.candidates.length ?? 0,
           };
         }
-        const sceneSelection = selectProductionScene({
-          question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+        const selectionTurnPlan = turnPlan;
+        const sceneSelection = measureSceneSelection(tel, "final", () => selectProductionScene({
+          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
@@ -1390,7 +1391,7 @@ export function useQuestionHandler(
             preferPlanner: diagramStrategyDecision.strategy === "strict",
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
           },
-        });
+        }));
         const selected = sceneSelection.representation;
         const attempted = sceneSelection.attemptedRepresentation;
         if (sceneSelection.reason === "the question asks for no figure") {
