@@ -668,8 +668,11 @@ export function useSegmentRunner({
       ): Promise<void> => {
         // First-chunk latency plus the whole playback. An 18s hard cap was
         // shorter than a normal DSA paragraph on HTTP TTS and killed the pen.
+        // Match the words sent to speech: maths notation can expand well beyond
+        // its written character count, including when the student slows it down.
+        const spokenText = mathToSpeech(text);
         let slowestPlaybackRate = segmentWatchdogPlaybackRate(segmentPlaybackRate());
-        let timeoutMs = speakSegmentTimeoutMs(text, slowestPlaybackRate);
+        let timeoutMs = speakSegmentTimeoutMs(spokenText, slowestPlaybackRate);
         let timedOut = false;
         let timeoutId: number | null = null;
         let playbackWatchId: number | null = null;
@@ -899,7 +902,7 @@ export function useSegmentRunner({
                 // the expanded deadline if speed rises again: elapsed slow
                 // playback cannot be judged against a shorter natural budget.
                 slowestPlaybackRate = Math.min(slowestPlaybackRate, segmentWatchdogPlaybackRate(segmentPlaybackRate()));
-                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(text, slowestPlaybackRate));
+                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
                 if (clock.elapsedMs() >= timeoutMs) {
                   timedOut = true;
                   reject(new Error(`tts segment timeout after ${timeoutMs}ms`));
