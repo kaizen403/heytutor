@@ -71,7 +71,7 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
 import { sceneDeclineExperimentGuidance, type SceneDeclinePolicy } from "./sceneDeclineExperiment";
-import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, type PlannerEvidence } from "./plannerEvidence";
+import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, retainValidationIssue, type PlannerEvidence, type RetainedValidationIssue } from "./plannerEvidence";
 import {
   classifyDiagramEmptyCause,
   evaluationDecision,
@@ -206,7 +206,8 @@ export interface LectureRun {
     plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
-    validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
+    /** Final attempted representation only; full planner refusals live in candidateRejections. */
+    validationIssues?: RetainedValidationIssue[];
     degradationReason: string | null;
     /** Strict-arm fallback that compiled but was intentionally not rendered. */
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
@@ -712,9 +713,7 @@ export async function runLecture(
     run.diagram.figureSource = selected?.figureSource ?? "text_only";
     run.diagram.reason = sceneSelection.reason;
     run.diagram.family = figureFamily;
-    run.diagram.validationIssues = attempted?.validationReport.issues.map((issue) => ({
-      code: issue.code, severity: issue.severity, message: issue.message,
-    })) ?? [];
+    run.diagram.validationIssues = attempted?.validationReport.issues.map(retainValidationIssue) ?? [];
     if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
       run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }

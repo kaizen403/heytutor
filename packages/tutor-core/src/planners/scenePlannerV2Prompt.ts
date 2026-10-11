@@ -171,7 +171,7 @@ LABELS AND REVEAL
 - Label each named owner once:entity.label or annotation,never both. Angle symbols label an angle mark. Derived coordinate labels:numbers or kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no positioning geometry or helper/junction/wire-terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
 - One group unless staged/separate views. revealGroups.entityIds:entity IDs; timeline acts on existing targets.
-Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,group.`;
+Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,linear_region,group.`;
 
 export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity references:stable IDs. Numeric inputs:numbers or quantity IDs.
 - point: {x, y, coordinateSpace:"world"|"layout"}. World coordinates preserve physical distances, angles, and directions; exact givens stay exact, while an unstated vector length may use a normalized local frame. Layout coordinates are small dimensionless integers used only to arrange topology with no metric or directional claim.
@@ -203,10 +203,10 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - affine_path: {path:path_id,matrix:[[a,b],[c,d]],translation?:[tx,ty],inverse?:false}. Output one entity with the same kind as the source planar path, preserving closure/direction/infinite-line status. Derive every vertex by the matrix. Regions that collapse to a line or point fail closed. Sampled-curve, conic, field, and 3D identities are unsupported here; never discard their mathematical metadata to imitate a transformed figure. Chain transforms through output IDs for composition.
 - Matrix arrays are nonmetric tables, not affine transforms. matrix_array takes explicit entries; matrix_add and matrix_product take left and right; matrix_scale takes matrix and scalar; matrix_transpose takes matrix. Every call needs origin [x,y], displayScale, and one matrix_array output. Entries are real, dimensions 1 through 6, at most 36 cells, and magnitude at most 1e6. A claimed type must hold. displayScale places the table and does not change entries.
 - Coordinate lines use ax+by+c=0. coordinate_distance, section_point, axis_translation, line_relation, line_intercepts, line_equation, line_intersection_angle, line_concurrence, and point_line_distance each output one entity. Section mode is internal, external, or midpoint; external m=n rejects. A zero determinant is not a concurrence certificate. displayLength changes the drawn segment only.
-- number_line_set: {variable?:"x",expression:{inequality:"2x<7"}|{union:[expressions]}|{intersection:[expressions]}|{complement:expression},view?:{xMin,xMax,yMin,yMax}}. Output one linear_region entity. Copy the complete original Boolean source program; the engine computes open/closed endpoints, intervals and continuation arrows. Use affine expressions and exact decimals/fractions. Supply only an identity label, no solved values or annotations. Omit view for engine fitting.
-- linear_half_plane: {variables?:["x","y"],inequality:"2x+3y<=12",view?:{xMin,xMax,yMin,yMax}}. Output one linear_region entity. The engine computes the correct shaded side and solid weak/dashed strict boundary from the complete source inequality. No shadeSide, points, vertices or annotations. Omit view for engine fitting.
-- linear_feasible_region: {variables?:["x","y"],constraints:["x>=0","y>=0","2x+y<=8"],objective?:{expression:"3x+2y",sense:"max"|"min"},view?:{xMin,xMax,yMin,yMax}}. Output one linear_region entity. Copy every original constraint and objective/direction, never assume nonnegativity. The engine proves feasibility, computes all exact closure corners and their inclusion, evaluates every corner, and distinguishes attained optimum, unattained limit and unboundedness. No corners, optimum, solved labels or annotations. View contains the origin and changes display only; omit for fitting.
-- linear_system: {variables?:["x","y"],equations:["2x+y=7","x-y=2"],view?:{xMin,xMax,yMin,yMax}}. Output one linear_region entity. Copy both original equations; the engine derives the exact unique intersection or proves parallel/coincident lines. Prefer these linear operators to authored lines/polygons for explicit affine source programs; do not invent an example without givens.
+- number_line_set: {variable?:"x",expression:{inequality:"2x<7"}|{union:[expressions]}|{intersection:[expressions]}|{complement:expression},view?:{xMin,xMax,yMin,yMax}}. Output exactly one entity kind linear_region. Preserve the complete original Boolean grouping and all stated domains: and uses intersection, or uses union, not uses complement. Keep the source variable name. Engine computes endpoints/intervals/rays and their labels; no authored axes, points, shading, solved claims or annotations. Omit view for engine fitting.
+- linear_half_plane: {variables?:["x","y"],inequality:"2x+3y<=12",view?:{xMin,xMax,yMin,yMax}}. Output exactly one entity kind linear_region. variables is exactly two ordered axis names, default ["x","y"], even for a single-axis inequality. Preserve the full original inequality and strictness; additional source domains/constraints require linear_feasible_region. Engine computes axes, correct shaded side, solid/dashed boundary and labels; no shadeSide, points, vertices or annotations. Omit view for fitting.
+- linear_feasible_region: {variables?:["x","y"],constraints:["x>=0","y>=0","2x+y<=8"],objective?:{expression:"3x+2y",sense:"max"|"min"},view?:{xMin,xMax,yMin,yMax}}. Output exactly one entity kind linear_region. variables is exactly two ordered axis names. Copy all original constraints including stated domains; never assume nonnegativity. Include every stated objective expression and direction. Engine proves feasibility, all exact closure corners/inclusion, every corner objective value and attained optimum/unattained limit/unboundedness. No authored axes, corners, optimum, solved labels or annotations. Omit view for fitting; view changes display only.
+- linear_system: {variables?:["x","y"],equations:["2x+y=7","x-y=2"],view?:{xMin,xMax,yMin,yMax}}. Output exactly one entity kind linear_region. variables is exactly two ordered axis names. Copy both full original equations with both sides; never omit additional source domains. Engine derives axes, labelled lines, exact intersection or parallel/coincident proof. No authored lines, intersection points, solved labels or annotations. Prefer these operators for explicit affine source programs, never invent an example.
 - Rigid mass: centre_of_mass outputs one mark per part plus the centre; com_motion outputs one acceleration vector, or a point when a_com is zero; point_mass_inertia and simple_body_inertia output one mark per mass or body; axes_theorem outputs one mark. Continuous centres and moments are integrated from the supplied density. A hole is negative mass. The perpendicular-axis theorem requires a declared planar lamina. displayLength scales markers only.
 - reflect_direction: {origin: point_id, incoming: vector_id, normal: vector_id}. Output exactly one visible reflected ray entity. Do not output a direction helper or wrap the result in ray/vector.
 - refract_direction: {origin: point_id, incoming: vector_id, normal: vector_id, n1, n2}. Output exactly one visible refracted ray entity. Do not output a direction helper or wrap the result in ray/vector.
@@ -353,10 +353,10 @@ Every required visible entity must be the output of exactly one construction unl
 // Conditional and multi-output contracts must survive compaction as complete
 // statements; their arity cannot be inferred from the first prose sentence.
 const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
-  number_line_set: "Output 1 linear_region. Exact source Boolean program; engine endpoints/intervals. Identity label only; no annotations.",
-  linear_half_plane: "Output 1 linear_region. Complete source inequality; engine shading/strict boundary. No shadeSide/points/annotations.",
-  linear_feasible_region: "Output 1 linear_region. All source constraints/objective/direction; engine corners/costs/attainment/unboundedness. No assumed nonnegativity/solved labels.",
-  linear_system: "Output 1 linear_region. Both source equations; engine exact intersection/parallel/coincident. No solved labels.",
+  number_line_set: "Output 1 linear_region. Complete source Boolean grouping/domains; engine endpoints/intervals/rays. No solved labels/annotations.",
+  linear_half_plane: "Output 1 linear_region. Exactly 2 axis variables; complete inequality/strictness; engine shading/boundary. Additional domains use linear_feasible_region.",
+  linear_feasible_region: "Output 1 linear_region. Exactly 2 axis variables; all source constraints/domains/objective/sense; engine corners/costs/attainment/unboundedness. No assumed nonnegativity.",
+  linear_system: "Output 1 linear_region. Exactly 2 axis variables; both full source equations; engine intersection/parallel/coincident. No source domain omissions.",
   complex_point: "Output 1 point.",
   complex_transform: "Output 1 point.",
   harmonic_motion: "Output 1 polyline.",
@@ -420,10 +420,10 @@ const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
 };
 
 const LINEAR_COMPACT_CONTRACTS: Readonly<Record<string,string>> = {
-  number_line_set: '- number_line_set: {variable?,expression:{inequality}|{union:[expr]}|{intersection:[expr]}|{complement:expr}}. Engine open/closed endpoints/rays.',
-  linear_half_plane: '- linear_half_plane: {variables?,inequality}. Engine shade and solid weak/dashed strict boundary.',
-  linear_feasible_region: '- linear_feasible_region: {variables?,constraints:[expr],objective?:{expression,sense:"max"|"min"}}. Engine exact corners/costs, optimum/limit/unboundedness.',
-  linear_system: '- linear_system: {variables?,equations:[expr,expr]}. Engine intersection/parallel/coincident.',
+  number_line_set: '- number_line_set: {variable?,expression:{inequality}|{union:[expr]}|{intersection:[expr]}|{complement:expr}}. Source Boolean grouping/domains.',
+  linear_half_plane: '- linear_half_plane: {variables?,inequality}. Source/strictness; extra domains:linear_feasible_region.',
+  linear_feasible_region: '- linear_feasible_region: {variables?,constraints:[expr],objective?:{expression,sense:"max"|"min"}}. All source constraints/domains/objective/sense.',
+  linear_system: '- linear_system: {variables?,equations:[expr,expr]}. Both full source equations/domains.',
 };
 
 /** Operators named at the head of a contract line ("- a/b: {"). */
@@ -483,6 +483,6 @@ export function selectConstructionInputContracts(operators: readonly string[], d
       } else output.push(line);
     }
   }
-  const linear=operators.some((operator)=>LINEAR_COMPACT_CONTRACTS[operator])?'Linear: one linear_region; full affine source. Engine owns marks/labels; no assumed nonnegativity.\n':'';
+  const linear=operators.some((operator)=>LINEAR_COMPACT_CONTRACTS[operator])?'Linear:1 linear_region only,no extra ink/claims. 2D:2 axes even single-axis. Equivalents only.\n':'';
   return linear + (usedCompactTypes ? "Compact types: @name=entity ID; @path=line/segment/vector; @surface=line/circle/arc; positive/nonzero=finite scalars; int/oddA..B=bounded integer.\n" : "") + output.join("\n");
 }

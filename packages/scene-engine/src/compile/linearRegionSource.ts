@@ -6,6 +6,8 @@ import {
   parseLinearAffine,
   type IntervalExpression,
 } from "../math/linearRegion";
+import { readLinearSourceReferencePoints } from "./linearSourcePoints";
+export { readLinearSourceReferencePoints } from "./linearSourcePoints";
 import {
   evaluateLinearRegionConstruction,
   LINEAR_REGION_OPERATORS,
@@ -32,8 +34,8 @@ function normalize(text: string): string {
     .replace(/[×·]/g, "*")
     .replace(/÷/g, "/")
     .replace(/\$/g, "")
-    .replace(/∨|\\(?:lor|vee|cup)\b/g, " or ")
-    .replace(/∧|\\(?:land|wedge|cap)\b/g, " and ")
+    .replace(/∨|∪|\\(?:lor|vee|cup)\b/g, " or ")
+    .replace(/∧|∩|\\(?:land|wedge|cap)\b/g, " and ")
     .replace(/¬|\\(?:neg|lnot)\b/g, " not ");
 }
 /** Explicit variable-domain grammar; these givens are never assumed by convention. */
@@ -64,7 +66,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
   };
   let result = text.replace(
     new RegExp(
-      `\\b(${domain})\\s+(?:real\\s+)?(?:variables?\\s+)?(${list})\\b(?!\\s+(?:intercepts?|coefficients?|axes?|directions?))`,
+      `\\b(?:real\\s+)?(${domain})\\s+(?:real\\s+)?(?:(?:[A-Za-z]{2,}\\s+){0,2}?(?:variables?|amounts?|quantities|values)\\s+)?(${list})\\b(?!\\s+(?:intercepts?|coefficients?|axes?|directions?))`,
       "gi",
     ),
     (_, word: string, variables: string) => expand(variables, word),
@@ -91,7 +93,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
     return " ";
   };
   result = result.replace(
-    new RegExp(`\\breal\\s+(?:variables?\\s+)?(${list})\\b`, "gi"),
+    new RegExp(`\\breal\\s+(?:variables?\\s+)?(${list})\\b(?!\\s*(?:<=|>=|[<>=]))`, "gi"),
     (_, variables: string) => realDomain(variables),
   );
   result = result.replace(
@@ -108,7 +110,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
     (match: string, variables: string, relation: string, tail: string) => {
       const tokens = [
         ...tail.matchAll(
-          /(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|[^\s]/g,
+          /(?:\d+(?:\.\d+|\.(?=[eE][+-]?\d))?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|[^\s]/g,
         ),
       ];
       let end = 0;
@@ -148,7 +150,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
 function clauses(text: string, variables: readonly string[]): SourceClause[] {
   const tokens = [
     ...text.matchAll(
-      /(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|<=|>=|[<>=()+*/-]|[^\s]/g,
+      /(?:\d+(?:\.\d+|\.(?=[eE][+-]?\d))?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|<=|>=|[<>=()+*/-]|[^\s]/g,
     ),
   ];
   const output: SourceClause[] = [];
@@ -189,7 +191,7 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
           right = pieces[i + 1]!,
           relation = chunk[index]![0];
         if (!left.text || !right.text)
-          throw new Error("Incomplete source comparison");
+          throw new Error(`Incomplete source comparison: '${left.text}${relation}${right.text}' at character ${chunk[index]!.index}`);
         output.push({
           text: `${left.text}${relation}${right.text}`,
           start: left.start,
@@ -201,13 +203,23 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
     chunk = [];
   };
   const prose = new Set(
-    "graph graphically solve shade show plot represent draw illustrate of for where satisfy satisfies and or not with to solution set points in on at subject such under given over using by then find determine state give report real if possible the a an all values xaxis yaxis coordinate plane line lines region common simultaneously respectively".split(
+    "graph graphically solve shade show plot represent draw illustrate choose chooses choosing consider considering of for where when satisfy satisfies satisfying and or not with to solution set points in on at as subject such under given over using by then find determine state give report real if possible the a an all values xaxis yaxis coordinate plane line lines region common simultaneously respectively including whether has is are belongs".split(
       " ",
     ),
   );
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
     const value = token[0];
+    // A hyphen inside a prose compound is a word separator, not a new unary
+    // affine term. Require an empty math chunk, adjacent multi-letter unknown
+    // words and no math continuation; x-y, x<=foo-bar and foo-bar+x still fail.
+    const previous = tokens[i - 1], next = tokens[i + 1];
+    if (value === "-" && chunk.length === 0 && previous && next
+      && /^[A-Za-z]{2,}$/.test(previous[0]) && /^[A-Za-z]{2,}$/.test(next[0])
+      && !variables.includes(previous[0]) && !variables.includes(next[0])
+      && previous.index! + previous[0].length === token.index
+      && token.index! + 1 === next.index
+      && !/^(?:<=|>=|[<>=()+*/-])$/.test(tokens[i + 2]?.[0] ?? "")) continue;
     if (
       variables.includes(value) ||
       /^(?:\d|\.\d)/.test(value) ||
@@ -216,6 +228,28 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
       chunk.push(token);
     else {
       const last = chunk.at(-1);
+      const prosePunctuation = /^[,;:.?!'"`“”‘’]$/.test(value);
+      const nextValue = tokens[i + 1]?.[0] ?? "";
+      if (value === "." && last && /^(?:\d|\.\d)/.test(last[0]) && /^e$/i.test(nextValue)
+        && token.index! + 1 === tokens[i + 1]!.index)
+        throw new Error("Incomplete scientific exponent in original source comparison");
+      if (/^[,:?]$/.test(value) && last && /^(?:\d|\.\d)/.test(last[0])
+        && /^(?:\d|\.\d)/.test(nextValue)
+        && chunk.some((part) => /^(?:<=|>=|[<>=])$/.test(part[0]))) {
+        // A comma can separate complete affine comparisons; it cannot silently
+        // turn an unsupported decimal comma or scalar ratio into a shorter RHS.
+        let completeNextComparison = false;
+        if (value === ",") for (const following of tokens.slice(i + 1)) {
+          if (/^(?:<=|>=|[<>=])$/.test(following[0])) { completeNextComparison = true; break; }
+          if (!variables.includes(following[0]) && !/^(?:\d|\.\d)/.test(following[0]) && !/^[()+*/-]$/.test(following[0])) break;
+        }
+        if (!completeNextComparison)
+          throw new Error(`Ambiguous scalar punctuation in complete source comparison: '${last[0]}${value}${nextValue}' at character ${token.index}`);
+      }
+      if (/[\p{Sm}\p{No}\p{Lm}]/u.test(value)
+        || (!/^[\p{L}_]/u.test(value) && !prosePunctuation
+          && (chunk.length > 0 || variables.includes(nextValue) || /^(?:\d|\.\d)/.test(nextValue))))
+        throw new Error(`Unsupported mathematical source symbol: '${value}' at character ${token.index}`);
       const mathematicalJoin =
         last &&
         (/^[+*/-]$/.test(last[0]) ||
@@ -231,7 +265,7 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
               variables.includes(tokens[i + 1]?.[0] ?? ""))))
       )
         throw new Error(
-          "Unknown variable or function in original source expression",
+          `Unknown variable or function in original source expression: '${value}' at character ${token.index}`,
         );
       if (/^[\^%!|[\]{}]$/.test(value) && chunk.length)
         throw new Error("Unsupported mathematical source operator");
@@ -253,6 +287,7 @@ function clauses(text: string, variables: readonly string[]): SourceClause[] {
 function booleanProgram(
   text: string,
   source: SourceClause[],
+  sourcePointLabels: readonly string[] = [],
 ): IntervalExpression {
   if (!source.length)
     throw new Error("No explicit inequality program in source");
@@ -268,6 +303,22 @@ function booleanProgram(
       ? { inequality: group[0]!.text }
       : { intersection: group.map((clause) => ({ inequality: clause.text })) },
   ) as IntervalExpression[];
+  // No Boolean operand may disappear merely because it lacks a comparison.
+  // Ordinary instructions such as "and label the axes" remain outside the
+  // mathematical program, while "or x" and "or (x+y)" are incomplete math.
+  const gaps = [text.slice(0, groups[0]![0]!.start), ...groups.map((group, index) => text.slice(group.at(-1)!.end, groups[index + 1]?.[0].start ?? text.length))];
+  for (let gap of gaps) {
+    if (sourcePointLabels.length) {
+      const labels = `(?:${sourcePointLabels.join("|")})`;
+      // Proven original point labels in a membership question are references,
+      // not Boolean operands. Bare "or P" remains an incomplete math operand.
+      const membership = new RegExp(`\\b(?:[Ww]hich(?:\\s+of)?|[Ww]hether|[Dd]oes|[Dd]o)\\s+(?:points?\\s+)?${labels}(?:\\s*(?:,|and|or)\\s*${labels})*\\s+(?:belongs?|lies?|satisf(?:y|ies)|is|are)\\b`, "g");
+      gap = gap.replace(membership, " ");
+    }
+    if (/\b(?:and|or|not)\b\s*\(*\s*(?:[+-]?\d|[A-Za-z](?:\b|\s*[+*/-]))/i.test(gap)
+      || /(?:\b[A-Za-z]|\d|\))\s*\)*\s+\b(?:and|or)\b\s*$/i.test(gap))
+      throw new Error(`Incomplete Boolean mathematical operand in source gap: ${JSON.stringify(gap)}`);
+  }
   const lexemes: string[] = [];
   const context = text.slice(0, groups[0]![0]!.start);
   const complementWhole =
@@ -378,11 +429,187 @@ function isIntersectionProgram(program: IntervalExpression): boolean {
       program.intersection.every(isIntersectionProgram))
   );
 }
+function inequalityLeaves(program: IntervalExpression): string[] {
+  if ("inequality" in program) return [program.inequality];
+  if ("complement" in program) return inequalityLeaves(program.complement);
+  return ("union" in program ? program.union : program.intersection).flatMap(inequalityLeaves);
+}
+/** Bounded named interval literals are another spelling of the same real sets. */
+function intervalSourceProgram(body: string, variable: string): IntervalExpression | null {
+  const bindings = new Map<string, IntervalExpression>();
+  const spans: Array<{ start: number; end: number }> = [];
+  for (const definition of body.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*([[(])/g)) {
+    const label = definition[1]!;
+    if (label === variable || label.length > 32) throw new Error("Invalid named interval source identifier");
+    const opening = definition[2]!, start = definition.index! + definition[0].length;
+    let depth = 0, end = start, comma = -1;
+    for (; end < body.length; end++) {
+      const ch = body[end]!;
+      if (ch === "(" ) depth++;
+      else if (ch === ")" && depth > 0) depth--;
+      else if ((ch === ")" || ch === "]") && depth === 0) break;
+      else if (ch === "," && depth === 0) {
+        if (comma !== -1) throw new Error(`Interval ${label} requires exactly two endpoints`);
+        comma = end;
+      }
+      if (depth > 24) throw new Error("Source interval endpoint nesting exceeds 24");
+    }
+    if (end >= body.length || comma === -1 || depth !== 0)
+      throw new Error(`Interval ${label} requires a complete two-endpoint literal`);
+    const endpoint = (text: string): string | "-infinity" | "infinity" => {
+      const raw = text.trim();
+      if (/^-\s*(?:infinity|infty|∞)$/i.test(raw)) return "-infinity";
+      if (/^\+?\s*(?:infinity|infty|∞)$/i.test(raw)) return "infinity";
+      const affine = parseLinearAffine(raw, [variable]);
+      if (affine.a.numerator !== "0" || affine.b.numerator !== "0")
+        throw new Error(`Interval ${label} endpoints must be exact scalar givens`);
+      return `(${affine.constant.numerator}/${affine.constant.denominator})`;
+    };
+    const lower = endpoint(body.slice(start, comma)), upper = endpoint(body.slice(comma + 1, end));
+    const closing = body[end]!;
+    if (lower === "infinity" || upper === "-infinity" || (lower === "-infinity" && opening !== "(") || (upper === "infinity" && closing !== ")"))
+      throw new Error(`Interval ${label} has invalid infinity orientation or inclusion`);
+    const leaves: IntervalExpression[] = [];
+    if (lower !== "-infinity") leaves.push({ inequality: `${variable}${opening === "[" ? ">=" : ">"}${lower}` });
+    if (upper !== "infinity") leaves.push({ inequality: `${variable}${closing === "]" ? "<=" : "<"}${upper}` });
+    const program: IntervalExpression = leaves.length === 0 ? { inequality: "0<=1" } : leaves.length === 1 ? leaves[0]! : { intersection: leaves };
+    if (bindings.has(label)) throw new Error(`Interval ${label} has repeated source definitions`);
+    bindings.set(label, program);
+    if (bindings.size > 16) throw new Error("Source named intervals exceed 16 definitions");
+    if (/^(?:<=|>=|[<>=+*/^%!|[\]{}-])/.test(body.slice(end + 1).trimStart()))
+      throw new Error(`Interval ${label} has an unsupported literal operation`);
+    spans.push({ start: definition.index!, end: end + 1 });
+  }
+  if (bindings.size === 0) return null;
+  let residual = body;
+  for (const span of spans.reverse()) residual = residual.slice(0, span.start) + " ".repeat(span.end - span.start) + residual.slice(span.end);
+  if (["[", "]", "{", "}"].some((character) => residual.includes(character)))
+    throw new Error("Unconsumed interval or unsupported source set literal");
+  const namedOperands = [
+    ...residual.matchAll(/\b(?:union|intersection|complement\s+of)\s+(?!of\b)([A-Za-z][A-Za-z0-9_]*)/gi),
+    ...residual.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s+(?:union|intersection)\b/gi),
+    ...residual.matchAll(/[∪∩]\s*([A-Za-z][A-Za-z0-9_]*)/g),
+    ...residual.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*[∪∩]/g),
+  ];
+  for (const named of namedOperands) {
+    const label = named[1]!;
+    if (!bindings.has(label)) throw new Error(`Unknown named set in source program: ${label}`);
+  }
+  const boundNames = [...bindings.keys()].join("|");
+  const connectiveNeighbors = [
+    ...residual.matchAll(new RegExp(`\\b(?:${boundNames})\\b\\s*\\)*\\s+(?:and|or)\\s*\\(*\\s*([A-Za-z][A-Za-z0-9_]*)`, "gi")),
+    ...residual.matchAll(new RegExp(`\\b([A-Za-z][A-Za-z0-9_]*)\\s*\\)*\\s+(?:and|or)\\s*\\(*\\s*(?:${boundNames})\\b`, "gi")),
+  ];
+  const proseActions = new Set("show state represent graph plot draw find give explain report determine".split(" "));
+  for (const operand of connectiveNeighbors)
+    if (!bindings.has(operand[1]!) && !proseActions.has(operand[1]!.toLowerCase()))
+      throw new Error(`Unknown named set in source program: ${operand[1]}`);
+  if (/\b(?:unless|except|xor|neither|nor|setminus)\b|[∖\\]/i.test(residual))
+    throw new Error("Unsupported named-interval source connective");
+  const references: SourceClause[] = [...residual.matchAll(/\b[A-Za-z][A-Za-z0-9_]*\b/g)]
+    .filter((match) => bindings.has(match[0]))
+    .map((match) => ({ text: match[0], start: match.index!, end: match.index! + match[0].length, equality: false }));
+  if (!references.length) throw new Error("Source must request a complete named-interval program");
+  const replace = (program: IntervalExpression): IntervalExpression => {
+    if ("inequality" in program) return bindings.get(program.inequality)!;
+    if ("complement" in program) return { complement: replace(program.complement) };
+    return "union" in program ? { union: program.union.map(replace) } : { intersection: program.intersection.map(replace) };
+  };
+  const selected = replace(booleanProgram(residual, references));
+  for (const reference of references.slice().reverse())
+    residual = residual.slice(0, reference.start) + " ".repeat(reference.end - reference.start) + residual.slice(reference.end);
+  const domains = clauses(residual, [variable]);
+  if (domains.length) throw new Error("Mixed named-interval and explicit inequality source programs require an explicit shared Boolean grammar");
+  return selected;
+}
+interface SourceObjective {
+  expression: string;
+  sense: "max" | "min";
+  start: number;
+  end: number;
+}
+/** Read an affine objective completely, separately from its prose direction. */
+function sourceObjective(body: string, names: readonly string[]): SourceObjective {
+  const directionPattern = /\b(?:maximi[sz](?:e[ds]?|ing|ation)|minimi[sz](?:e[ds]?|ing|ation)|maximum|minimum|max|min)\b/gi;
+  const directions = [...body.matchAll(directionPattern)];
+  if (!directions.length) throw new Error("Objective direction is not explicit in source");
+  const sense = (word: string): "max" | "min" => /^max/i.test(word) ? "max" : "min";
+  const targetOf = (direction: RegExpMatchArray): string | undefined => /^\s*(?:(?:the|objective|function|constant|value|of)\s+)*([A-Za-z][A-Za-z0-9_]*)\b/i.exec(body.slice(direction.index! + direction[0].length))?.[1];
+  const aliasesFor = (label: string | undefined): string[] => label ? [...body.matchAll(new RegExp(`\\b([A-Za-z][A-Za-z0-9_]*)\\s+(?:is|=)\\s+${label}\\s*=`, "g"))].map((alias) => alias[1]!.toLowerCase()) : [];
+  const postfixDirection = (direction: RegExpMatchArray, expressionEnd: number): boolean => direction.index! >= expressionEnd && /^\s*(?:is|are)?\s*$/i.test(body.slice(expressionEnd, direction.index!));
+  const readExpression = (start: number): { expression: string; end: number } | null => {
+    const tail = body.slice(start);
+    const tokens = [...tail.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|[^\s]/g)];
+    const delimiters = new Set("subject such under where given over with for and constraints using by on then find show determine state give report if is are has maximum minimum maximized minimised minimized maximised".split(" "));
+    let end = 0;
+    for (const token of tokens) {
+      const value = token[0];
+      if (delimiters.has(value.toLowerCase()) || /^[,;:.?]$/.test(value)) break;
+      if (!names.includes(value) && !/^(?:\d|\.\d)/.test(value) && !/^[()+*/-]$/.test(value)) {
+        if (end === 0) return null; // an unrelated prose mention, e.g. finite maximum
+        throw new Error(`Unsupported variable or operator in complete source objective: '${value}' at character ${start + token.index!}`);
+      }
+      end = token.index! + value.length;
+    }
+    if (end === 0) return null;
+    const expression = tail.slice(0, end).trim();
+    parseLinearAffine(expression, names);
+    const continuation = /^\s+and\s+([^,;?.]*)/i.exec(body.slice(start + end))?.[1];
+    if (continuation && /^(?:[+-]?\d|\(|[A-Za-z]\b)/.test(continuation.trim()) && !/[<>=]/.test(continuation))
+      throw new Error("Source objective has an unsupported additional affine operand");
+    return { expression, end: start + end };
+  };
+  const candidates: SourceObjective[] = [];
+  for (const direction of directions) {
+    const after = direction.index! + direction[0].length;
+    const descriptor = /^\s*(?:(?:the|objective|function|constant|value|of)\s+)*(?:[A-Za-z][A-Za-z0-9_]*\s*=\s*)?/i.exec(body.slice(after))!;
+    const expression = readExpression(after + descriptor[0].length);
+    if (expression) candidates.push({ ...expression, sense: sense(direction[0]), start: direction.index! });
+  }
+  if (candidates.length === 0) {
+    // A source may define Z first and request its maximum afterwards. A unique
+    // non-axis scalar definition and an unambiguous direction are required;
+    // unrelated assignments and contradictory directions cannot be discarded.
+    for (const definition of body.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*/g)) {
+      if (names.includes(definition[1]!)) continue;
+      const expression = readExpression(definition.index! + definition[0].length);
+      if (!expression) throw new Error("Unresolved source objective definition");
+      const label = definition[1]!, aliases = aliasesFor(label);
+      const boundDirections = directions.filter((direction) => {
+        const target = targetOf(direction);
+        return target === label || (target && aliases.includes(target.toLowerCase())) || postfixDirection(direction, expression.end);
+      });
+      if (!boundDirections.length) throw new Error(`Objective direction is not bound to source definition ${label}`);
+      const senses = new Set(boundDirections.map((direction) => sense(direction[0])));
+      if (senses.size !== 1) throw new Error("Source objective direction is ambiguous");
+      candidates.push({ ...expression, sense: [...senses][0]!, start: definition.index! });
+    }
+  }
+  if (candidates.length !== 1) throw new Error("Source requires one complete unambiguous objective definition");
+  const selected = candidates[0]!;
+  const objectiveLabel = /\b([A-Za-z][A-Za-z0-9_]*)\s*=/.exec(body.slice(selected.start, selected.end))?.[1];
+  const aliases = aliasesFor(objectiveLabel);
+  for (const direction of directions) {
+    const target = targetOf(direction);
+    const boundReference = target === objectiveLabel || (target && aliases.includes(target.toLowerCase()));
+    const postfix = postfixDirection(direction, selected.end);
+    const derivedResult = direction.index! >= selected.end
+      && /^\s+(?:(?:points?|solutions?)(?:\s+graphically)?|exists?|is\s+(?:finite|unbounded|bounded|attained))\s*(?:[.;?!]|$)/i.test(body.slice(direction.index! + direction[0].length));
+    const explicitAction = /^(?:maximi[sz]|minimi[sz])|^(?:max|min)$/i.test(direction[0]);
+    const requestContext = body.slice(0, direction.index!).split(/[.;?!:]/).at(-1) ?? "";
+    const requested = /\b(?:find|determine|give|report|state|calculate|compute)\b/i.test(requestContext);
+    if (sense(direction[0]) !== selected.sense && (explicitAction || boundReference || postfix || derivedResult))
+      throw new Error(`Source requests contradictory objective directions: ${selected.sense} and ${sense(direction[0])}`);
+    if ((explicitAction || requested) && direction.index! !== selected.start && target && !names.includes(target) && !boundReference && !postfix && !derivedResult)
+      throw new Error(`Additional source objective request is unresolved: ${direction[0]} ${target}`);
+  }
+  return selected;
+}
 export function validateLinearSourceBinding(
   document: SceneDocument,
 ): SceneIssue[] {
   const issues: SceneIssue[] = [];
-  for (const construction of document.constructions) {
+  for (const [constructionIndex, construction] of document.constructions.entries()) {
     if (
       !(LINEAR_REGION_OPERATORS as readonly string[]).includes(
         construction.operator,
@@ -406,10 +633,15 @@ export function validateLinearSourceBinding(
         input.kind === "number_line_set"
           ? [input.variable ?? "x"]
           : (input.variables ?? ["x", "y"]);
+      if (input.kind !== "number_line_set" && names.includes("x") && names.includes("y")
+        && (names[0] !== "x" || names[1] !== "y"))
+        throw new Error("Source x/y coordinates require canonical axis order ['x','y'] for boundary, corner and solution tuples");
       let question = explicitDomains(
         normalize(document.source.question),
         names,
       );
+      const sourcePoints = input.kind !== "number_line_set" ? readLinearSourceReferencePoints(question, names) : null;
+      if (sourcePoints) question = sourcePoints.maskedQuestion;
       if (
         /[∖⇒⇐⇔→↔⊕ℤℕ]|\\(?:setminus|implies|iff|mathbb\s*\{?[ZN])\b/.test(
           question,
@@ -472,71 +704,33 @@ export function validateLinearSourceBinding(
           "Linear figure marks must all be emitted by verified linear operators",
         );
       let body = question;
-      let sourceObjective:
-        { expression: string; sense: "max" | "min" } | undefined;
       if (input.kind === "linear_feasible_region" && input.objective) {
-        const match =
-          /\b(maximi[sz]e|minimi[sz]e|maximum|minimum|max|min)\b\s*(?:(?:the|objective|function|constant|value|of)\s+)*(?:[A-Za-z][A-Za-z0-9_]*\s*=\s*)?/i.exec(
-            body,
-          );
-        if (!match)
-          throw new Error("Objective direction is not explicit in source");
-        const start = match.index + match[0].length;
-        const tail = body.slice(start);
-        const tokens = [
-          ...tail.matchAll(
-            /(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|[^\s]/g,
-          ),
-        ];
-        const delimiters = new Set(
-          "subject such under where given over with for and constraints using by on then find show determine state give report if".split(
-            " ",
-          ),
-        );
-        let end = 0;
-        for (const token of tokens) {
-          const value = token[0];
-          if (delimiters.has(value.toLowerCase()) || /^[,;.?]$/.test(value))
-            break;
-          if (
-            !names.includes(value) &&
-            !/^(?:\d|\.\d)/.test(value) &&
-            !/^[()+*/-]$/.test(value)
-          )
-            throw new Error(
-              "Unsupported variable or operator in complete source objective",
-            );
-          end = token.index! + value.length;
-        }
-        const expression = tail.slice(0, end).trim();
-        if (!expression) throw new Error("Unresolved source objective");
-        sourceObjective = {
-          expression,
-          sense: /^(?:max)/i.test(match[1]!) ? "max" : "min",
-        };
+        const objective = sourceObjective(body, names);
         if (
-          sourceObjective.sense !== input.objective.sense ||
+          objective.sense !== input.objective.sense ||
           !same(
-            parseLinearAffine(sourceObjective.expression, names),
+            parseLinearAffine(objective.expression, names),
             parseLinearAffine(input.objective.expression, names),
           )
         )
-          throw new Error("Objective differs from original source");
+          throw new Error(`Objective differs from original source: source ${objective.sense} '${objective.expression}', proposed ${input.objective.sense} '${input.objective.expression}'`);
         body =
-          body.slice(0, match.index) +
-          " ".repeat(start + end - match.index) +
-          body.slice(start + end);
+          body.slice(0, objective.start) +
+          " ".repeat(objective.end - objective.start) +
+          body.slice(objective.end);
       } else if (
         input.kind === "linear_feasible_region" &&
-        /\b(?:maximi[sz]e|minimi[sz]e|maximum|minimum|max|min)\b/i.test(body)
+        /\b(?:maximi[sz](?:e[ds]?|ing|ation)|minimi[sz](?:e[ds]?|ing|ation)|maximum|minimum|max|min)\b/i.test(body)
       )
         throw new Error("Source objective cannot be omitted");
-      const source = clauses(body, names);
       if (input.kind === "number_line_set") {
+        const program = intervalSourceProgram(body, names[0]!) ?? booleanProgram(body, clauses(body, names));
+        if (!same(signatures(inequalityLeaves(program), names), signatures(inequalityLeaves(input.expression), names)))
+          throw new Error(`Number-line constraints differ from original source: source ${JSON.stringify(inequalityLeaves(program))}, proposed ${JSON.stringify(inequalityLeaves(input.expression))}`);
         const result = solveLinearFigure({
           kind: "number_line_set",
           variable: names[0],
-          expression: booleanProgram(body, source),
+          expression: program,
         });
         if (
           result.kind !== "number_line_set" ||
@@ -547,6 +741,7 @@ export function validateLinearSourceBinding(
             "Number-line Boolean solution differs from original source",
           );
       } else {
+        const source = clauses(body, names);
         if (
           input.kind === "linear_half_plane" &&
           (source.length !== 1 || source[0]!.equality)
@@ -561,7 +756,7 @@ export function validateLinearSourceBinding(
           throw new Error(
             "System must represent the complete two source equations",
           );
-        if (!isIntersectionProgram(booleanProgram(body, source)))
+        if (!isIntersectionProgram(booleanProgram(body, source, sourcePoints?.points.map((point) => point.label))))
           throw new Error(
             "A planar intersection or system cannot replace a source union or complement",
           );
@@ -581,9 +776,7 @@ export function validateLinearSourceBinding(
             signatures(proposed, names, input.kind === "linear_system"),
           )
         )
-          throw new Error(
-            "Linear constraints differ from the complete original source program",
-          );
+          throw new Error(`Linear constraints differ from the complete original source program: source ${JSON.stringify(source.map((clause) => clause.text))}, proposed ${JSON.stringify(proposed)}`);
       }
     } catch (error) {
       issues.push({
@@ -591,6 +784,7 @@ export function validateLinearSourceBinding(
         message:
           error instanceof Error ? error.message : "Unresolved linear source",
         severity: "fatal",
+        path: `constructions[${constructionIndex}]`,
         entityIds: construction.outputs,
       });
     }

@@ -1418,7 +1418,7 @@ function evaluateConstruction(
     case "number_line_set":
     case "linear_half_plane":
     case "linear_feasible_region":
-    case "linear_system": return evaluateLinearRegionConstruction(operator, inputs);
+    case "linear_system": return evaluateLinearRegionConstruction(operator, inputs, typeof document.source.question === "string" ? document.source.question : "");
     case "centre_of_mass":
     case "com_motion":
     case "point_mass_inertia":
@@ -2303,7 +2303,7 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
       points: primitive.points.map(transform),
       provenance: primitive.provenance,
     }));
-    const corners=result.filter((primitive)=>primitive.kind==="point" && ["closure_corner","solution_endpoint"].includes(String(primitive.provenance?.linearRole)));
+    const corners=result.filter((primitive)=>primitive.kind==="point" && ["closure_corner","solution_endpoint","source_reference_point"].includes(String(primitive.provenance?.linearRole)));
     for (let i=0;i<corners.length;i++) for(let j=0;j<i;j++) {
       const a=corners[i]!,b=corners[j]!;
       if(JSON.stringify(a.provenance?.worldPoints)!==JSON.stringify(b.provenance?.worldPoints) && distance(a.points[0]!,b.points[0]!)<8)throw new Error("Distinct exact endpoints or corners are not distinguishable at display precision");

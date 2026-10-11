@@ -1,0 +1,41 @@
+# H3R7 source matching repair and repeated regression measurement
+
+Integration owner: Harness 3 (`provo`), 11 October 2026. Work remains local; PR #143 was closed at the user's instruction. No PR opening/reopening, push, merge or production change is authorized for this repair. Topic acceptance counters remain unchanged.
+
+## Scope and strengthened gate
+
+The user rejected the prior H3R6 coverage collapse and requested complete rejection messages, equivalent-inequality matching and operator contracts, followed by two repeats on the original frozen40 rows. Readiness now requires each repeat to improve right, keep wrong near zero (preregistered interpretation: at most1/40 and no rise against main), and keep required empty no higher than main. All40 required rows remain in every denominator. Independent first judges A/B and consensus must each pass; pooling cannot rescue a failure.
+
+The original eval SHA256 remains `7dd247caaa637b076fe32998b831b759d28d15315932843f35a9b92a3f6ebe4f`. Following the user's explicit diagnosis/tuning request, these rows are a repeated development cohort, not a fresh held-out claim. The two MAIN216 figuresets are reused unchanged; only two candidate40 arms incur new model calls. Fresh source-naive judges grade a mixed opaque packet of reused MAIN plus new candidate images, without old grade feedback. Root never views images. Historical H3R6 records, first grades, controls and comparator artifacts remain immutable.
+
+## Integration findings
+
+Raw spelling was not the original failure: exact affine signatures already accept spaces, Unicode/ASCII comparisons, term/constraint ordering, terms moved across equality, and correctly oriented positive/negative scaling. False refusals included hyphenated prose entering math spans, unrecognized objective direction/definition wording, named interval literals, and source-given planar point tuples being interpreted as scalar equations. The global planner entity-kind list also omitted `linear_region`, and compact/full operator contracts inadequately constrained composite ownership and axis arity.
+
+Lab-only evidence now retains each rejected candidate's code, message, severity, path and entity IDs, independently of the final fallback report. Per-operator references preserve attribution; bounded field/record truncation is explicitly counted. Product selection, timeouts, solver authority, example library212 and production maths-strict strategy are unchanged. Planner transport gates remain at their existing limits.
+
+The engine reads exact original scalar point tuples, expands the world view to contain them, and emits given-point glyphs/labels with exact membership. Filled/open style agrees with inclusion, including strict boundaries. The planner cannot provide point coordinates or add separate geometry. A proof mutation gate rejects missing, extra, renamed or changed point givens.
+
+The source-point public gate first reproduced a correctly compiled region with zero requested source-point glyphs (expected1). Half-plane source points then passed32 adversarial/membership/proof checks; the expanded gate covers feasible regions and systems too. A small default world view for the unrelated system x+y=5, x-y=1 already refuses on origin-label clearance with no points. That refusal is retained; positive planar point integration fixtures use an explicit complete world view matching the pre-existing planar reference gate, without relaxing label clearance. Native development images are inspected only by a subagent.
+
+Independent review must precede paid freezing. It found unsafe symbol truncation, mixed named-interval/inequality Boolean scope, contradictory objective directions and case-sensitive unknown set operands. Red reproductions and class-wide rejection regressions are required before these fixes are accepted. A shifted number-line leaf is rejected even when the final union accidentally remains the same real set; exact source constraints and Boolean set semantics are both checked.
+
+## Evidence and measurement status
+
+Detailed owned evidence is in `.context/h3r7/source-equivalence/`: source worker diagnosis/red-green traces, `DIAGNOSTICS-CONTRACT.md`, independent `review/`, root `nonpaid/` logs and seven native source-point development renders, and `HARNESS-PREP.md`. Each worker owns its evidence log. Final source/build/helper/env/eval/library locks and paid outcome/grade freezes will be recorded before results are reported.
+
+New incremental hard allowance is$13.00 with$12.50 admission stop; prior Azure token estimate was$16.96047 against the reinstated$30 total cap. Every actual request reserves exposure before dispatch. Fresh exclusive-deployment metrics and response usage are overlapping estimates and are never added as independent charges. Eight new unchanged observations with zero in-flight requests reconcile exposure between candidate repeats. Unknown usage is separately retained as allowance, not labeled measured spend. Native agent billing is not exposed.
+
+Measurement has not started. This log is not a readiness claim. Results and final spend will be appended after both complete candidate repeats, frozen independent grades and final accounting settlement.
+
+## Final nonpaid repair checks
+
+The exact source matcher preserves each original oriented affine constraint, Boolean set meaning, strictness and objective sense. It accepts supported equivalent spelling, reordered terms/constraints, variables on either side and scaled forms. The bounded parser refuses unsupported mathematical continuations rather than treating them as prose. Mixed named-interval and explicit-inequality expressions remain conservatively unsupported. Planar x/y tuples require canonical axis order; swapping axes would change the meaning of unqualified corner and solution coordinates.
+
+Independent adversarial review exposed additional unsafe admissions involving superscripts and unsupported operators, dropped Boolean operands, contradictory or unrelated objectives, point-tuple continuations, scientific decimal notation and reversed axis names. Each identified class has a red reproduction and a public compilation regression. Proven source-point names are exempted only in complete membership questions, and unlabeled objective-result wording must refer to the unique defined objective with the same sense. Bare `or P`, unknown objective targets and opposite optimization senses still refuse.
+
+Final stored minimal source-mismatch replay: repeat 1 admits 58/58 calls versus 18/58 under the original matcher; repeat 2 admits 48/54. The six retained refusals are four subset half-plane proposals for questions requiring a complete multi-constraint/objective feasible region, and two one-sided leaves omitting half of a singleton intersection. These counts isolate source matching; they do not establish whole-candidate validity, adoption or figure correctness.
+
+Root workspace typechecking and linting passed all 12 packages; the sequential workspace build passed all 7 build tasks. The public source-point gate passes 41 checks. A separate subagent inspected all seven native development PNGs and found no blocking visual issues; its report SHA256 is `365487c0a9cf87fd4dd3ce52dd41ae7f36dcee1bfe5f3171535cc3dc23b8e91d`. Root image views remain zero. Final source-worker and independent-review receipts are recorded alongside the frozen candidate preparation.
+
+The final independent review passes 95 source-equivalence cases and all 41 source-point checks, refuses all 31 focused unsafe cases, and classifies all 134 exploratory probes. Its three legacy expected-refusal flags are benign: equivalent `6.0`, an unused named interval definition and an empty reversed-endpoint interval. The source worker also passes 361 exact solution/certificate checks, 4,015 linear public compiler checks, the general scene-engine public gate and scoped typecheck/lint. No confirmed review blocker remains before freezing. This does not substitute for the required repeated figure measurement.

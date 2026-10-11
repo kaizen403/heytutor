@@ -5,6 +5,7 @@ import type {
   SceneIssue,
 } from "../types";
 import { snapshotMathSourceData } from "./mathSourceData";
+import { readLinearSourceReferencePoints, type LinearSourceReferencePoint } from "./linearSourcePoints";
 import {
   solveLinearFigure,
   verifyLinearFigureSolution,
@@ -42,13 +43,15 @@ export interface LinearRegionGeometry {
   input: LinearFigureInput;
   solution: LinearFigureSolution;
   view: LinearView;
+  referencePointQuestion?: string;
+  referencePoints?: LinearSourceReferencePoint[];
 }
 type Point = { x: Q; y: Q };
 const point = (x: Q, y: Q): ExactPoint => ({ x: out(x), y: out(y) });
 const pointKey = (p: ExactPoint): string => `${text(p.x)},${text(p.y)}`;
 const equal = (a: Q, b: Q): boolean => cmp(a, b) === 0;
 const mid = (a: Q, b: Q): Q => div(add(a, b), parseRational(2));
-function readView(raw: unknown, solution: LinearFigureSolution): LinearView {
+function readView(raw: unknown, solution: LinearFigureSolution, references: readonly LinearSourceReferencePoint[] = []): LinearView {
   if (raw !== undefined) {
     if (
       typeof raw !== "object" ||
@@ -89,6 +92,7 @@ function readView(raw: unknown, solution: LinearFigureSolution): LinearView {
         : solution.kind === "linear_system" && solution.intersection
           ? [solution.intersection]
           : [];
+    required.push(...references.map(({ x, y }) => ({ x, y })));
     if (solution.kind === "linear_feasible_region" && solution.objective) {
       const extremum = solution.objective.extremum;
       if (extremum.status === "attained") required.push(extremum.point);
@@ -109,7 +113,7 @@ function readView(raw: unknown, solution: LinearFigureSolution): LinearView {
       )
     )
       throw new Error(
-        "Linear display window excludes a required exact endpoint, corner or intersection",
+        "Linear display window excludes a required exact endpoint, corner, intersection or source point",
       );
     if (
       solution.kind === "linear_half_plane" &&
@@ -200,6 +204,7 @@ function readView(raw: unknown, solution: LinearFigureSolution): LinearView {
     if (solution.kind === "linear_system" && solution.intersection)
       include(solution.intersection);
   }
+  references.forEach(include);
   const extent = (values: Q[]): [Q, Q] => {
     const sorted = values.sort(cmp);
     let lo = sorted[0]!,
@@ -235,6 +240,7 @@ function hasPlanarArea(points: readonly ExactPoint[]): boolean {
 export function evaluateLinearRegionConstruction(
   operator: string,
   raw: Record<string, unknown>,
+  originalQuestion = "",
 ): LinearRegionGeometry[] {
   if (!(LINEAR_REGION_OPERATORS as readonly string[]).includes(operator))
     throw new Error("Unsupported linear figure operator");
@@ -245,11 +251,14 @@ export function evaluateLinearRegionConstruction(
   const proof = verifyLinearFigureSolution(input, solution);
   if (proof.length)
     throw new Error(proof.map((issue) => issue.message).join("; "));
+  const references = solution.kind === "number_line_set" || !originalQuestion
+    ? [] : readLinearSourceReferencePoints(originalQuestion, solution.variables).points;
   const geometry: LinearRegionGeometry = {
     kind: "linear_region",
     input,
     solution,
-    view: readView(view, solution),
+    view: readView(view, solution, references),
+    ...(references.length ? { referencePointQuestion: originalQuestion, referencePoints: references } : {}),
   };
   linearRegionPrimitives(geometry, "display_check", "display_check");
   return [geometry];
@@ -297,6 +306,7 @@ export function validateLinearRegionConstruction(
     evaluateLinearRegionConstruction(
       construction.operator,
       construction.inputs,
+      typeof document.source.question === "string" ? document.source.question : "",
     );
   } catch (error) {
     fail(error instanceof Error ? error.message : "Invalid linear region");
@@ -381,6 +391,11 @@ export function linearRegionPrimitives(
   groupId: string,
 ): RenderPrimitive[] {
   const { solution, view } = geometry;
+  const references = geometry.referencePoints ?? [];
+  const expectedReferences = solution.kind === "number_line_set" || !geometry.referencePointQuestion
+    ? [] : readLinearSourceReferencePoints(geometry.referencePointQuestion, solution.variables).points;
+  if (JSON.stringify(references) !== JSON.stringify(expectedReferences))
+    throw new Error("Source reference points must preserve every original exact label and coordinate");
   const primitives: RenderPrimitive[] = [];
   const x0 = read(view.xMin),
     x1 = read(view.xMax),
@@ -593,6 +608,14 @@ export function linearRegionPrimitives(
         boundary.texts.join("; "),
         "boundary_label",
       );
+    for (const reference of references) {
+      const exact = { x: reference.x, y: reference.y };
+      const membership = solution.kind === "linear_system"
+        ? rows.every(row => cmp(add(mul(read(row.a), read(reference.x)), mul(read(row.b), read(reference.y))), read(row.rhs)) === 0)
+        : linearPointSatisfies(rows, exact);
+      emit("point", [exact], "source_reference_point", { linearSourcePoint: reference, linearMembership: membership, pointStyle: membership ? "filled" : "open" });
+      label(exact, `${reference.label}=(${text(reference.x)}, ${text(reference.y)}) ${membership ? "included" : "excluded"}`, "source_reference_label");
+    }
     if (solution.kind === "linear_half_plane")
       summary.push(
         solution.state === "empty"
