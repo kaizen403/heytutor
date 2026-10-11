@@ -6,7 +6,7 @@ import {
   ARCHETYPES, compileSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
-  validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
+  validateComplexDistanceSourceInputs, validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type TurnPlanV3, type ValidationReport,
@@ -19,7 +19,7 @@ import { resolveVisualRequirement } from "./visualRequirement";
 import { selectVerifiedRepresentation, type SelectedRepresentation } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v2";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v3";
 
 export interface ProductionSceneInput {
   question: string;
@@ -152,7 +152,10 @@ export function validateProductionSceneCandidate(input: {
     path: issue.path,
     severity: "fatal" as const,
   }));
-  const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
+  const sourceIssues = [
+    ...validateComplexDistanceSourceInputs(validated.document, question),
+    ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
+  ];
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   const compiledScene = compileSceneDocument(validated.document);
   // Final admission already requires readable ink. Reject the same candidates
