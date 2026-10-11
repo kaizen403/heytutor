@@ -110,10 +110,10 @@ export function verifyTurnPlanAgainstSolver(
       selectionsByRequest.set(request.id, selected.selection);
     }
   }
-  retainCompleteBoundaryProjections(validatedProblem, validatedPlan, solverValidation.result, valuesByRequest, selectionsByRequest);
+  const boundaryProjectionIssues = retainCompleteBoundaryProjections(validatedProblem, validatedPlan, solverValidation.result, valuesByRequest, selectionsByRequest);
   const seenQuantityIds = new Set<string>();
   const bindings: SolverAuthorityBinding[] = [];
-  const issues: SolverAuthorityIssue[] = [];
+  const issues: SolverAuthorityIssue[] = [...boundaryProjectionIssues];
   const givenFactIds = new Set(validatedProblem.facts.filter((fact) => fact.kind === "given").map((fact) => fact.id));
   const expressionsById = new Map(validatedProblem.expressions.map((expression) => [expression.id, expression]));
   for (const constraint of validatedProblem.constraints) {
@@ -257,12 +257,10 @@ export function verifyTurnPlanAgainstSolver(
       });
       continue;
     }
-    const tolerance = Math.max(
-      1e-9 * Math.max(1, Math.abs(value.approximate)),
-      value.errorBound,
-      // An exact source boundary cannot be widened by planner uncertainty.
-      selectionsByRequest.get(request.id)?.kind === "unique_source_linear_boundary" ? 0 : derived.uncertainty ?? 0,
-    );
+    const tolerance = selectionsByRequest.get(request.id)?.kind === "unique_source_linear_boundary"
+      // Exact source boundaries allow machine rounding only, including at zero.
+      ? 64 * Number.EPSILON * Math.max(Math.abs(value.approximate), Math.abs(derived.value))
+      : Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound, derived.uncertainty ?? 0);
     if (Math.abs(derived.value - value.approximate) > tolerance) {
       issues.push({
         code: "solver_turnplan_contradiction",
@@ -276,6 +274,7 @@ export function verifyTurnPlanAgainstSolver(
   const contradictionCodes = new Set([
     "duplicate_result_binding", "symbol_mismatch", "unit_mismatch",
     "value_type_mismatch", "solver_turnplan_contradiction", "missing_solver_value", "given_equation_contradiction",
+    "unproved_source_boundary_scalar",
   ]);
   if (issues.some((issue) => contradictionCodes.has(issue.code))) {
     return { status: "contradiction", issues, bindings };
@@ -348,7 +347,9 @@ export function reconcileTurnPlanWithSolver(
       normalizeUnit(binding.unit) !== normalizeUnit(unknown.unit) ||
       normalizeUnit(quantity.unit) !== normalizeUnit(unknown.unit)
     ) return quantity;
-    const tolerance = Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound);
+    const tolerance = selections.get(request.id)?.kind === "unique_source_linear_boundary"
+      ? 64 * Number.EPSILON * Math.max(Math.abs(value.approximate), Math.abs(quantity.value))
+      : Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound);
     if (Math.abs(quantity.value - value.approximate) <= tolerance) return quantity;
     changed = true;
     return {
@@ -383,27 +384,35 @@ function retainCompleteBoundaryProjections(
   result: SolverResult,
   values: Map<string, SolverValue>,
   selections: Map<string, SourceLinearScalarSelection>,
-): void {
+): SolverAuthorityIssue[] {
   const boundaryRequests = [...selections].filter(([, selection]) => selection.kind === "unique_source_linear_boundary");
-  if (!boundaryRequests.length) return;
-  const complete = plan.unknowns.every(unknown => {
+  if (!boundaryRequests.length) return [];
+  const unsupported = plan.unknowns.filter(unknown => {
     const derived = plan.derived.find(quantity => quantity.id === unknown.id);
-    if (!derived) return true;
+    if (!derived) return false;
     const requests = problem.solveRequests.filter(request => request.resultBinding?.turnPlanQuantityId === unknown.id);
-    if (requests.length !== 1) return false;
+    if (requests.length !== 1) return true;
     const request = requests[0]!, binding = request.resultBinding!, value = values.get(request.id);
-    return selections.get(request.id)?.kind === "unique_source_linear_boundary"
+    return !(selections.get(request.id)?.kind === "unique_source_linear_boundary"
       && normalizeSymbol(binding.symbol) === normalizeSymbol(unknown.symbol)
       && normalizeSymbol(derived.symbol) === normalizeSymbol(unknown.symbol)
       && normalizeUnit(binding.unit) === normalizeUnit(unknown.unit)
       && normalizeUnit(derived.unit) === normalizeUnit(unknown.unit)
-      && value?.valueType === "scalar" && typeof value.approximate === "number";
+      && value?.valueType === "scalar" && typeof value.approximate === "number");
   });
-  if (complete) return;
+  if (!unsupported.length) return [];
   for (const [requestId] of boundaryRequests) {
     values.set(requestId, result.values.find(value => value.requestId === requestId)!);
     selections.delete(requestId);
   }
+  // Boundaries can be intermediate derived quantities, so restoring their
+  // set values alone does not guarantee that the unknown loop will reject.
+  // Refuse the unsupported finite source role explicitly at this seam.
+  return unsupported.map(unknown => ({
+    code: "unproved_source_boundary_scalar",
+    message: `Finite requested '${unknown.symbol}' has no independent original-source boundary certificate`,
+    quantityId: unknown.id,
+  }));
 }
 
 function normalizeUnit(value: string | undefined): string {
