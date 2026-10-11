@@ -692,8 +692,8 @@ for(const question of [
  const spec=parseCellNotation(question);assert.ok(spec);assert.equal(spec.anode.couple,"Sn2+/Sn");assert.equal(spec.cathode.couple,"Pb2+/Pb");
  near(spec.anode.e0,-.20);near(spec.cathode.e0,-.10);near(cellEmf(spec)?.e0,.10);
  for(const half of [spec.anode,spec.cathode]) {assert.equal(half.potentialSource,"stem");assert.ok(half.potentialSourceSpan);assert.equal(question.slice(half.potentialSourceSpan.start,half.potentialSourceSpan.end),half.potentialSourceText);}
- const direct=compiled(buildElectrochemScene(question,[],false));near(direct.document.quantities.find(q=>q.id==="E_cell")?.value,.10);assert.ok(direct.labels.includes("Sn^(2+)") && direct.labels.includes("Pb^(2+)"));
- const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_electrochem");near(ordinary.document.quantities.find(q=>q.id==="E_cell")?.value,.10);
+ const direct=compiled(buildElectrochemScene(question,[],false));near(direct.document.quantities.find(q=>q.id==="E0_cell")?.value,.10);assert.ok(direct.labels.includes("Sn^(2+)") && direct.labels.includes("Pb^(2+)"));
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_electrochem");near(ordinary.document.quantities.find(q=>q.id==="E0_cell")?.value,.10);
 });
 for(const electrode of ["Zn²⁺","Zn^2+","Zn^(2+)","Zn²⁺⁺","Zn/s","Zn_x","αZn","Cu/Zn","Zn(s)x","Zn(s))","(Zn)","Cu²⁺ Zn","Cu / Zn"]) check("Trailing bare electrode cannot certify a charged or incomplete suffix: "+electrode,()=>{
  const question="Given E°(Zn2+/Zn) = −0.76 V and E°(Cu2+/Cu) = +0.34 V, draw the Daniell cell "+electrode+" | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | Cu.";
