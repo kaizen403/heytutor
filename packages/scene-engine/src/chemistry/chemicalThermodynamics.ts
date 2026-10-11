@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, chemistryQuantityCuesValid, chemistryQuestionSpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -319,17 +319,32 @@ function buildEntropy(question: string, stem: string): SceneDocument | null {
   });
 }
 
+// The owner may include a temperature; stop only at its original assignment.
+// A qualitative less/greater-than clause is not a supplied thermodynamic K.
+const EQUILIBRIUM_CONSTANT_CUE = /(?:equilibrium constant(?:\s+(?:of|for)\b(?:[^=,;.\n]|\.(?=\d)){0,85}?)?|\bk\b)\s*(?:\bis\b|=|:)(?!\s*(?:less|greater|more)\s+than\b)/i;
+
+// A recognized assignment must still belong to K, not another predicate/quantity.
+const EQUILIBRIUM_CONSTANT_OWNER = /^(?:equilibrium constant(?:\s+(?:of|for)\s+(?:(?:a|an|the|this)\s+)?reaction(?:\s+at\b(?:(?!\b(?:and|but|whose|which|where|quotient|pressure|volume)\b)[^=,;.\n]|\.(?=\d)){0,50})?)?|\bk\b)\s*(?:\bis\b|=|:)$/i;
+
 function buildEquilibrium(question: string, _stem: string): SceneDocument | null {
   const temperature = temperatureKelvin(question);
   if (temperature === null || !(temperature > 0)) return null;
-  const kGiven = numberAfter(question, /(?:equilibrium constant|\bk\b)\s*(?:=|is)/);
+  const source = question.slice(0, chemistryQuestionSpan(question).end);
+  const kOwners = [...source.matchAll(new RegExp(EQUILIBRIUM_CONSTANT_CUE.source, "gi"))];
+  // Missing-valued owners must not disappear behind a later valid literal.
+  if (kOwners.length > 1 || kOwners.some(owner => !EQUILIBRIUM_CONSTANT_OWNER.test(owner[0]))) return null;
+  if (!chemistryQuantityCuesValid(question, [{ after: EQUILIBRIUM_CONSTANT_CUE, dimensions: ["dimensionless"] }])) return null;
+  const kRead = readChemistryQuantity({ question, after: EQUILIBRIUM_CONSTANT_CUE, dimension: "dimensionless" });
+  const hasStatedK = kOwners.length > 0;
+  if (!kRead.ok && (kRead.code !== "missing" || hasStatedK)) return null;
+  const kGiven = kRead.ok ? kRead.reading.value : null;
   const gGiven = numberAfter(question, /(?:δ|∆|Δ)\s*g\s*(?:°|º)\s*=|standard gibbs[^.]{0,40}?=/, "molar_energy", "kJ/mol");
   if (kGiven !== null && !(kGiven > 0)) return null;
   if (kGiven === null && gGiven === null) return null;
   const gJ = gGiven === null ? null : gGiven * 1000;
   const k = kGiven ?? (gJ === null ? null : Math.exp(-gJ / (R_J * temperature)));
   const gKj = gGiven ?? (k === null ? null : (-R_J * temperature * Math.log(k)) / 1000);
-  if (k === null || gKj === null || !Number.isFinite(k) || !(k > 0)) return null;
+  if (k === null || gKj === null || !Number.isFinite(k) || !Number.isFinite(gKj) || !(k > 0)) return null;
   const c = new ChemScene(question, "standard Gibbs energy and the equilibrium constant", FAMILY);
   const ids = [
     c.text("g_l", { x: 0, y: 1.2 }, fit(`dGo=${gKj.toFixed(3)}`), "standard Gibbs energy", {preserveText:true}),

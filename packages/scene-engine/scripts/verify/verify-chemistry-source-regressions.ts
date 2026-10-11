@@ -15,6 +15,7 @@ import { buildSolutionLessonScene } from "../../src/chemistry/solutionProperties
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
 import { buildChemicalThermodynamicsScene } from "../../src/chemistry/chemicalThermodynamics";
 import type { ChemPlanQuantity } from "../../src/chemistry/sceneKit";
+import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 
 const rows: Array<{id:string; passed:boolean; error?:string}> = [];
 function check(id:string, test:()=>void):void {
@@ -439,6 +440,56 @@ for(const tail of ["standard emf=1.10 V; emf=1.13 V.","emf=1.13 V; standard emf=
 });
 for(const tail of ["standard emf=1.10 V; standard emf=1.20 V; emf=1.13 V.","standard emf=1.20 V; standard emf=1.10 V; emf=1.13 V.","emf=1e- Volt; emf=1.13 V.","emf=1.13 V; emf=1e- Volt."])check("Same-role standard conflict and observed damage stay fatal: "+tail,()=>{
  const question="Daniell cell at 298 K. "+tail;assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);
+});
+
+
+// Bounded Gibbs equilibrium-constant ownership; no planner prose supplies values.
+for(const [role,t,k,expectedG] of [
+ ["The equilibrium constant of a reaction at 275 K is 12.",275,12,"-5.681"],
+ ["The equilibrium constant for this reaction at 315.5 K = 0.4.",315.5,.4,"2.403"],
+ ["The equilibrium constant of a reaction at 325 K: 2.5.",325,2.5,"-2.476"],
+ ["The equilibrium constant of a reaction at 275 kelvin is 12.",275,12,"-5.681"],
+] as const)check("Connected Gibbs constant owns its value after temperature: "+role,()=>{
+ const question=role+" R = 8.314 J K^-1 mol^-1. Draw the standard Gibbs energy relation.";
+ const givens:ChemPlanQuantity[]=[{id:"T",symbol:"T",value:t,unit:"K",origin:"given",sourceText:`T = ${t}`},{id:"K",symbol:"K",value:k,unit:"1",origin:"given",sourceText:`K = ${k}`},{id:"R",symbol:"R",value:8.314,unit:"J/(mol K)",origin:"given",sourceText:"R = 8.314 J/(mol K)"}];
+ const result=compiled(buildChemicalThermodynamicsScene(question,givens,false));
+ assert.ok(result.labels.includes("dGo="+expectedG),JSON.stringify(result.labels));
+ assert.ok(result.labels.includes("K="+k.toFixed(2)),JSON.stringify(result.labels));assert.ok(result.labels.includes(`T=${t} K`));
+ assert.deepEqual(result.document,buildChemicalThermodynamicsScene(question,[],false));
+ const ordinary=synthesizeFamilyScene({question,turnPlan:{givens}});assert.ok(ordinary);assert.equal(ordinary.family,"chem_thermo");const ordinaryResult=compiled(ordinary.document);
+ assert.ok(ordinaryResult.labels.includes("dGo="+expectedG));assert.ok(ordinaryResult.labels.includes("K="+k.toFixed(2)));assert.ok(ordinaryResult.labels.includes(`T=${t} K`));
+});
+check("Qualitative less-than-one clause is not another numeric constant",()=>{
+ const question="The equilibrium constant of a reaction at 275 K is 12. R = 8.314 J K^-1 mol^-1. Draw the standard Gibbs energy relation and discuss a reaction whose equilibrium constant is less than 1.";
+ const result=compiled(buildChemicalThermodynamicsScene(question,[],false));assert.ok(result.labels.includes("dGo=-5.681"));assert.ok(result.labels.includes("K=12.00"));
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary);assert.equal(ordinary.family,"chem_thermo");
+});
+for(const value of ["4e-","1e999","0","-2","12 J","unknown","","12; equilibrium constant of the reaction at 275 K is 13","13; equilibrium constant of the reaction at 275 K is 12","12; equilibrium constant of the reaction at 275 K is 12"])check("Present invalid or repeated Gibbs K cannot fall back to stated Gibbs energy: "+value,()=>{
+ const question="The equilibrium constant of a reaction at 275 K is "+value+". Standard Gibbs energy ΔG° = -5 kJ/mol. Draw the equilibrium relation.";
+ assert.equal(buildChemicalThermodynamicsScene(question,[],false),null);assert.equal(buildChemicalThermodynamicsScene(question,[],true),null);
+ assert.equal(synthesizeFamilyScene({question,families:["chem_thermo"]}),null);
+});
+check("Absent K still derives from independently stated Gibbs energy",()=>{
+ const question="Standard Gibbs energy ΔG° = -5 kJ/mol at 275 K. Draw the equilibrium relation.";
+ const result=compiled(buildChemicalThermodynamicsScene(question,[],false));assert.ok(result.labels.includes("dGo=-5.000"));assert.ok(synthesizeFamilyScene({question}));
+});
+
+
+// Every explicit Gibbs K owner is counted, including missing-valued occurrences.
+for(const tail of [
+ "Equilibrium constant is unknown; equilibrium constant is 12.",
+ "Equilibrium constant is 12; equilibrium constant is unknown.",
+ "Equilibrium constant is ; equilibrium constant is 12.",
+ "Equilibrium constant is 12; equilibrium constant is .",
+ "Equilibrium constant of this reaction and its reaction quotient is 2.",
+ "Equilibrium constant for this reaction whose reaction quotient is 2.",
+])check("Damaged or mixed Gibbs constant owners never supply a fallback: "+tail,()=>{
+ const question="At 275 K. "+tail+" Standard Gibbs energy ΔG° = -5 kJ/mol. Draw the equilibrium relation.";
+ assert.equal(buildChemicalThermodynamicsScene(question,[],false),null);assert.equal(buildChemicalThermodynamicsScene(question,[],true),null);assert.equal(synthesizeFamilyScene({question,families:["chem_thermo"]}),null);
+});
+check("Finite Gibbs inputs cannot publish overflowed derived energy",()=>{
+ const question="At 1e307 K. Equilibrium constant is 10. Draw the equilibrium relation.";
+ assert.equal(buildChemicalThermodynamicsScene(question,[],false),null);assert.equal(synthesizeFamilyScene({question,families:["chem_thermo"]}),null);
 });
 
 const output=process.argv.indexOf("--out");
