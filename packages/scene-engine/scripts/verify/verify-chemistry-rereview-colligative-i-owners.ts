@@ -208,5 +208,204 @@ for(const [id,question] of suppliedInputRejects)check(id,question,()=>{
   assert.equal(synthesizeFamilyScene({question}),null);
 });
 // END unread supplied input roles: original70 cases remain whole.
+// BEGIN complete symbolic factor owner inventory: original75 cases remain whole.
+const symbolicFactorRejects = [
+  [
+    "reviewer-shorthand-factor-owner-1",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i has value unknown."
+  ],
+  [
+    "reviewer-shorthand-factor-owner-2",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i has a value of unknown."
+  ],
+  [
+    "reviewer-shorthand-factor-owner-3",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i takes the value unknown."
+  ],
+  [
+    "reviewer-shorthand-factor-owner-4",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i takes an unknown value."
+  ],
+  [
+    "reviewer-shorthand-factor-owner-5",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i has value NaN."
+  ],
+  [
+    "reviewer-symbolic-declared-owner-1",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i value = unknown."
+  ],
+  [
+    "reviewer-symbolic-declared-owner-2",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i given as unknown."
+  ],
+  [
+    "reviewer-symbolic-declared-owner-3",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i stated as unknown."
+  ],
+  [
+    "reviewer-symbolic-declared-owner-4",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i measured as unknown."
+  ],
+  [
+    "reviewer-symbolic-declared-owner-5",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i assumed to be unknown."
+  ],
+  [
+    "reviewer-symbolic-declared-owner-6",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i of unknown."
+  ],
+  [
+    "reviewer-symbolic-declared-owner-7",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i approximately unknown."
+  ],
+  [
+    "reviewer-symbolic-request-supplied-unread-1",
+    "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Find i = unknown and the apparent molar mass."
+  ],
+  [
+    "reviewer-symbolic-request-supplied-unread-2",
+    "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Find i has value unknown and the apparent molar mass."
+  ],
+  [
+    "reviewer-symbolic-request-supplied-unread-3",
+    "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Find the apparent molar mass using i has value unknown."
+  ],
+  [
+    "root-actual-symbolic-owner-3",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i with value unknown."
+  ],
+  [
+    "root-actual-symbolic-owner-5",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i has value 2 kg."
+  ],
+  [
+    "own-symbolic-source-owner-1",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i value = unknown; i = 2."
+  ],
+  [
+    "own-symbolic-source-owner-2",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i approximately 2e-; i = 2."
+  ],
+  [
+    "own-symbolic-source-owner-3",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i = 2; i assumed to be unknown."
+  ],
+  [
+    "own-symbolic-source-owner-4",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i of 2; i about 3."
+  ],
+  [
+    "own-symbolic-source-owner-5",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i nearly 2 kg."
+  ],
+  [
+    "own-symbolic-direct-damaged",
+    "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i 2e-; i = 2."
+  ]
+] as const;
+const symbolicFactorSupported: readonly Supported[] = [
+  {
+    "id": "reviewer-shared-factor-connector-supported-1",
+    "question": "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i of 2.",
+    "label": "dTf=0.372 K",
+    "factor": 2,
+    "value": 0.372,
+    "kind": "shift"
+  },
+  {
+    "id": "reviewer-shared-factor-connector-supported-2",
+    "question": "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i about 2.",
+    "label": "dTf=0.372 K",
+    "factor": 2,
+    "value": 0.372,
+    "kind": "shift"
+  },
+  {
+    "id": "reviewer-shared-factor-connector-supported-3",
+    "question": "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i nearly 2.",
+    "label": "dTf=0.372 K",
+    "factor": 2,
+    "value": 0.372,
+    "kind": "shift"
+  },
+  {
+    "id": "reviewer-shared-factor-connector-supported-4",
+    "question": "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i approximately 2.",
+    "label": "dTf=0.372 K",
+    "factor": 2,
+    "value": 0.372,
+    "kind": "shift"
+  },
+  {
+    "id": "reviewer-direct-symbolic-factor-request-1",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Find i and the apparent molar mass.",
+    "label": "M'=120 g/mol",
+    "factor": 1.5,
+    "value": 120,
+    "kind": "apparent_mass"
+  },
+  {
+    "id": "reviewer-direct-symbolic-factor-request-2",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Determine the apparent molar mass and i.",
+    "label": "M'=120 g/mol",
+    "factor": 1.5,
+    "value": 120,
+    "kind": "apparent_mass"
+  },
+  {
+    "id": "reviewer-direct-symbolic-factor-request-3",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Calculate i and apparent molar mass from the given dissociation.",
+    "label": "M'=120 g/mol",
+    "factor": 1.5,
+    "value": 120,
+    "kind": "apparent_mass"
+  },
+  {
+    "id": "reviewer-direct-symbolic-factor-request-4",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. What is i and the apparent molar mass?",
+    "label": "M'=120 g/mol",
+    "factor": 1.5,
+    "value": 120,
+    "kind": "apparent_mass"
+  },
+  {
+    "id": "own-first-person-I-need",
+    "question": "I need help with this problem. Calculate the freezing point depression of a solution with molality 0.1 mol/kg and K_f = 1.86 K kg/mol.",
+    "label": "dTf=0.186 K",
+    "factor": 1,
+    "value": 0.186,
+    "kind": "shift"
+  },
+  {
+    "id": "own-first-person-I-am",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. I am practising solutions. Find i and the apparent molar mass.",
+    "label": "M'=120 g/mol",
+    "factor": 1.5,
+    "value": 120,
+    "kind": "apparent_mass"
+  },
+  {
+    "id": "own-symbolic-direct-literal",
+    "question": "Calculate the freezing point depression of a solution with molality 0.1 mol/kg, K_f = 1.86 K kg/mol and i 2.",
+    "label": "dTf=0.372 K",
+    "factor": 2,
+    "value": 0.372,
+    "kind": "shift"
+  }
+];
+for(const [id,question] of symbolicFactorRejects)check(id,question,()=>{
+  assert.equal(buildSolutionLessonScene(question,[],false),null);
+  assert.equal(buildSolutionLessonScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+});
+for(const c of symbolicFactorSupported)check(c.id,c.question,()=>{
+  const verify = c.kind === "apparent_mass" ? verifyRequestedFactor : verifyDocument;
+  verify(buildSolutionLessonScene(c.question,[],false),c);
+  verify(buildSolutionLessonScene(c.question,[],true),c);
+  const ordinary=synthesizeFamilyScene({question:c.question});
+  assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_solutions");
+  verify(ordinary.document,c);
+});
+// END complete symbolic factor owner inventory: original75 cases remain whole.
 console.log(JSON.stringify({total:rows.length,passed:rows.filter(r=>r.passed).length,rows},null,2));
 process.exitCode=rows.every(r=>r.passed)?0:1;

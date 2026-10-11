@@ -46,7 +46,8 @@ function take(match: RegExpMatchArray | null, group = 1): number | null {
 }
 /** A declared factor must be read before a default or a derived factor exists. */
 function suppliedVanthoffFactor(question: string): {value:number|null} | null {
-  const cue = /\bvan['’]?t[\s-]+hoff\s+factor(?:\s*\(\s*i\s*\)|\s+i\b)?|\bi\b(?=\s*(?:[=:]|\b(?:is|was|equals|equal\s+to|unknown|unspecified|undefined|not|NaN)\b))/ig;
+  const suppliedPrefix = String.raw`[=:]|[+\-−.\d]|\b(?:is|was|are|of|equals|equal\s+to|about|nearly|approximately|has|takes|with|from|at|in|value|given|stated|measured|assumed|taken|unknown|unreadable|unspecified|undefined|not|NaN)\b`;
+  const cue = new RegExp(String.raw`\bvan['’]?t[\s-]+hoff\s+factor(?:\s*\(\s*i\s*\)|\s+i\b)?|\bi\b(?=\s*(?:${suppliedPrefix}))`,"ig");
   const owners = [...question.matchAll(cue)];
   let value: number | null = null;
   for (let index = 0; index < owners.length; index += 1) {
