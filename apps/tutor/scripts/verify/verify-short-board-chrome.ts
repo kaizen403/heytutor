@@ -1455,6 +1455,67 @@ navigationCheck("compact-empty-landing-scroll", () => {
     }
   }
 });
+navigationCheck("compact-composer-keyboard", () => {
+  for (const [width, height, inset] of [
+    [390, 220, 0],
+    [390, 220, 80],
+    [667, 375, 150],
+    [844, 390, 180],
+  ] as const) {
+    const state = new ShellMount();
+    const options = {
+      mobile: width < 768,
+      coarse: true,
+      width,
+      short: true,
+      veryShort: height <= 300,
+      keyboardInset: inset,
+    };
+    let tree = renderShell(options, state);
+    const toggle = find(tree as React.ReactNode, (node) =>
+      node.props["aria-label"] === "Question composer",
+    );
+    assert.ok(toggle);
+    clickControl(toggle);
+    tree = renderShell(options, state);
+    const footer = find(tree as React.ReactNode, (node) =>
+      node.type === "footer" && node.props["data-short-composer"] === "true",
+    );
+    assert.ok(footer, "actual compact composer remains mounted");
+    assert.equal(footer.props.inert, undefined);
+    const style = footer.props.style as React.CSSProperties;
+    assert.equal(style.display, "block");
+    assert.equal(style.overflowY, "auto");
+    const visibleBottom = height - inset;
+    const composerBottom = height - Number(style.bottom);
+    assert.equal(
+      visibleBottom - composerBottom,
+      52,
+      "composer sits above the visible compact transport and its gap",
+    );
+    const consumedHeight = Number(
+      String(style.maxHeight).match(/^calc\(100% - ([0-9]+)px\)$/)?.[1],
+    );
+    assert.ok(Number.isFinite(consumedHeight));
+    const maxHeight = height - consumedHeight;
+    assert.ok(maxHeight > 0 && composerBottom - maxHeight >= 4,
+      "the actual scrollable composer height cannot extend above its viewport");
+  }
+  const portrait = find(
+    renderShell({ mobile: true, keyboardInset: 250 }, new ShellMount()) as React.ReactNode,
+    (node) => node.type === "footer",
+  );
+  assert.ok(portrait);
+  assert.equal((portrait.props.style as React.CSSProperties).bottom, undefined);
+  assert.equal((portrait.props.style as React.CSSProperties).paddingTop, 4);
+  const immersive = find(
+    renderShell({ mobile: true, short: true, fullscreen: true, keyboardInset: 250 }, new ShellMount()) as React.ReactNode,
+    (node) => node.type === "footer",
+  );
+  assert.ok(immersive);
+  assert.equal((immersive.props.style as React.CSSProperties).bottom, 256,
+    "existing fullscreen keyboard authority is unchanged");
+});
 assert.equal(
   navigationFailures.length,
   0,

@@ -2463,8 +2463,10 @@ export function TutorSessionShell({
                   ? {
                       left: 6,
                       right: 6,
-                      bottom: 52,
-                      maxHeight: "calc(100% - 56px)",
+                      // Absolute overlays use the padding box; add the same
+                      // visual-viewport inset that already raises the dock.
+                      bottom: keyboardInset + 52,
+                      maxHeight: `calc(100% - ${keyboardInset + 56}px)`,
                       overflowY: "auto",
                       display: shortPanel === "composer" ? "block" : "none",
                     }
