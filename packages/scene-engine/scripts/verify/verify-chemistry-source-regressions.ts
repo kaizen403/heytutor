@@ -424,6 +424,23 @@ check("Long activation energy label never truncates its molar unit",()=>{
  const text=r.labels.join(" ");assert.ok(text.includes("12300"),JSON.stringify(r.labels));assert.ok(text.includes("kJ/mol"));assert.ok(!r.labels.some(l=>l?.endsWith("kJ/")));
 });
 
+
+// Same observed voltage role agrees independently of distinct standard voltage.
+for(const tail of ["emf=1.13 Volt; emf=1.20 Volt.","emf=1.20 Volt; emf=1.13 Volt.","emf=1.13 Volt; emf=1.13 V; emf=1.20 Volt."])check("Contradictory observed emf atomically declines: "+tail,()=>{
+ const question="Daniell cell at 298 K. "+tail;
+ assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(buildElectrochemScene(question,[],true),null);
+});
+check("Agreeing observed emf retains original value across unit spelling",()=>{
+ const question="Daniell cell at 298 K. emf=1.13 Volt; emf=1.13 V.";
+ const spec=parseCellNotation(question);assert.ok(spec);near(spec.statedE,1.13);compiled(buildElectrochemScene(question,[],false));
+});
+for(const tail of ["standard emf=1.10 V; emf=1.13 V.","emf=1.13 V; standard emf=1.10 V.","standard cell potential=1.10 V; emf=1.13 V.","standard electrode potential of the cell=1.10 V; emf=1.13 V."])check("Distinct standard and observed emf owners remain independent: "+tail,()=>{
+ const question="Daniell cell at 298 K. "+tail;const spec=parseCellNotation(question);assert.ok(spec);near(spec.statedE0,1.10);near(spec.statedE,1.13);compiled(buildElectrochemScene(question,[],false));
+});
+for(const tail of ["standard emf=1.10 V; standard emf=1.20 V; emf=1.13 V.","standard emf=1.20 V; standard emf=1.10 V; emf=1.13 V.","emf=1e- Volt; emf=1.13 V.","emf=1.13 V; emf=1e- Volt."])check("Same-role standard conflict and observed damage stay fatal: "+tail,()=>{
+ const question="Daniell cell at 298 K. "+tail;assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);
+});
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

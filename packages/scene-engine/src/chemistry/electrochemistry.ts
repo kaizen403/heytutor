@@ -13,7 +13,7 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, matchedChemistryQuantity, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, matchedChemistryQuantity, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
@@ -596,15 +596,32 @@ function readTemperature(text: string): number | undefined {
   return literalValue(text, "temperature", "K") ?? undefined;
 }
 
-function readStatedCellPotentials(text: string): { e0?: number; e?: number } {
+function readStatedCellPotentials(text: string): { e0?: number; e?: number } | null {
   const out: { e0?: number; e?: number } = {};
   const standard = new RegExp(`${E_NAUGHT}\\s*_?\\s*\\(?\\s*cell\\s*\\)?\\s*(?:=|is|:|of)?\\s*(?:the\\s+cell\\s+)?(?:=|is)?\\s*${VALUE}`, "id").exec(text)
     ?? new RegExp(`standard\\s+(?:emf|cell\\s+potential|electrode\\s+potential\\s+of\\s+the\\s+cell)[^.\\n]{0,30}?(?:=|is|:)\\s*${VALUE}`, "id").exec(text);
   if (standard) out.e0 = (matchedChemistryQuantity(text, standard, 1, "potential", "V") ?? NaN);
-  const observed = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "id").exec(text)
-    ?? new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
-  if (observed && !new RegExp(`${E_NAUGHT}|/`).test(observed[0])) {
-    out.e = (matchedChemistryQuantity(text, observed, 1, "potential", "V") ?? NaN);
+  let declared = false;
+  const role = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
+  for (const match of text.matchAll(role)) {
+    // Requested emf followed by a concentration declaration is not voltage.
+    const owner = match[1] ?? "";
+    if (!owner.includes("|") && /\b(?:when|which|concentration|ions?)\b/i.test(owner)) continue;
+    const standardOwner = (standard && match.index! >= standard.index && match.index! < standard.index + standard[0].length)
+      || /\bstandard\s+(?:electrode\s+)?$/i.test(text.slice(0, match.index!));
+    const kind = standardOwner ? "e0" : "e";
+    const read = readChemistryQuantity({question:text,after:/^/,within:{start:match.index!+match[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
+    if (!read.ok || (out[kind] !== undefined && !chemistryCanonicalValuesAgree(out[kind]!, read.reading.value))) return null;
+    out[kind] = read.reading.value;
+    declared = true;
+  }
+  // Retain the legacy implicit-voltage form only when no explicit owner was read.
+  if (!declared) {
+    const observed = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "id").exec(text)
+      ?? new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
+    if (observed && !new RegExp(`${E_NAUGHT}|/`).test(observed[0])) {
+      out.e = (matchedChemistryQuantity(text, observed, 1, "potential", "V") ?? NaN);
+    }
   }
   return out;
 }
@@ -667,19 +684,10 @@ export function parseCellNotation(text: string): CellSpec | null {
     if (!chemistryQuantityCuesValid(phase[0], [{after: /\b(?:aq|g)\s*,/, dimensions: [phase[1] === "aq" ? "concentration" : "pressure"]}])) return null;
   }
   if (!chemistryQuantityCuesValid(text, [{after: /\bat/, dimensions: ["temperature"]}])) return null;
-  const observedRole = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
-  for (const match of source.matchAll(observedRole)) {
-    // A question asking for emf may later declare an ion concentration.
-    // That declaration belongs to the ion, not to the cell voltage.
-    const owner = match[1] ?? "";
-    if (!owner.includes("|") && /\b(?:when|which|concentration|ions?)\b/i.test(owner)) continue;
-    const read = readChemistryQuantity({question:source,after:/^/,within:{start:match.index!+match[0].length,end:source.length},dimension:"potential",targetUnit:"V"});
-    if (!read.ok) return null;
-  }
   const overrides = statedPotentials(source);
   if (!overrides) return null;
   const statedCell = readStatedCellPotentials(source);
-  if (Object.values(statedCell).some(value => !Number.isFinite(value))) return null;
+  if (!statedCell || Object.values(statedCell).some(value => !Number.isFinite(value))) return null;
   const extras = {
     nernstFactor: readNernstFactor(source),
     temperatureK: readTemperature(source),
