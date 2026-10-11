@@ -310,23 +310,34 @@ function readSpeciesMentions(stem: string): { withVolume: ReadSpecies[]; without
   return { withVolume, withoutVolume };
 }
 
-function firstNumber(stem: string, patterns: RegExp[]): number | null {
-  for (const pattern of patterns) {
-    const value = numberAfter(stem, pattern);
-    if (value !== null && Number.isFinite(value)) return value;
+interface SuppliedAcidBaseConstants { a: number | null; b: number | null; supplied: boolean }
+/** A mentioned constant either binds completely in the source or refuses the
+ * titration. Missing is the only state that permits the species table. */
+function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants | null {
+  const result: SuppliedAcidBaseConstants = {a:null,b:null,supplied:false};
+  const names = String.raw`(?:CH3COOH|HCOOH|NH4OH|NH3|HCN|HF|acetic acid|ethanoic acid|formic acid|methanoic acid|ammonia|ammonium hydroxide|the acid|the base)`;
+  // Unqualified named constants do not identify which conjugate species owns
+  // the value. Refuse instead of borrowing a table value for the analyte.
+  if (/(?<!acid )(?<!base )\b(?:dissociation|ioni[sz]ation) constant\b/i.test(question)) return null;
+  for (const which of ["a","b"] as const) {
+    let pK: number | null = null; let k: number | null = null;
+    for (const logarithmic of [true,false]) {
+      const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!p)"}k\s*_?\s*(?:\{\s*${which}\s*\}|${which})(?![a-z])`;
+      const word = !logarithmic ? String.raw`|\b${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation) constant\b` : "";
+      const mention = new RegExp(`(?:${symbol}${word})`,"i");
+      if (!mention.test(question)) continue;
+      result.supplied = true;
+      const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\([^)]*\)|\s+(?:of|for)\s+${names})?\s*(?:value)?`,"i");
+      const read = readChemistryQuantity({question,after:cue,dimension:"dimensionless"});
+      const limit = logarithmic ? 14 : 1;
+      if (!read.ok || !(read.reading.value > 0 && read.reading.value < limit)) return null;
+      if (logarithmic) pK = read.reading.value; else k = read.reading.value;
+    }
+    const fromK = k === null ? null : -Math.log10(k);
+    if (pK !== null && fromK !== null && !chemistryCanonicalValuesAgree(pK,fromK)) return null;
+    result[which] = pK ?? fromK;
   }
-  return null;
-}
-
-/** pKa from the stem or plan: written directly, or from a stated Ka. */
-function statedPK(stem: string, _quantities: readonly ChemPlanQuantity[], which: "a" | "b"): number | null {
-  const fromStem = firstNumber(stem, [
-    new RegExp(`\\bpk_?${which}\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`),
-  ]);
-  if (fromStem !== null && fromStem > 0 && fromStem < 14) return fromStem;
-  const constant = firstNumber(stem, [new RegExp(`(?<![a-z])k_?${which}\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`)]);
-  if (constant !== null && constant > 0 && constant < 1) return -Math.log10(constant);
-  return null;
+  return result;
 }
 
 function toSpecies(read: ReadSpecies, pK: number | null): TitrationSpecies | null {
@@ -367,8 +378,13 @@ function readTitration(stem: string, quantities: readonly ChemPlanQuantity[]): T
   }
   if (!analyte || !titrant) return null;
   if (titrant.entry.strength !== "strong") return null;
-  const pK = analyte.entry.kind === "acid" ? statedPK(stem, quantities, "a") : statedPK(stem, quantities, "b");
-  const analyteSpecies = toSpecies(analyte, pK);
+  void quantities;
+  const supplied = suppliedAcidBaseConstants(stem);
+  if (!supplied) return null;
+  const which = analyte.entry.kind === "acid" ? "a" : "b";
+  // A supplied constant for another conjugate role is not an analyte constant.
+  if (supplied.supplied && (supplied[which] === null || supplied[which === "a" ? "b" : "a"] !== null)) return null;
+  const analyteSpecies = toSpecies(analyte, supplied[which]);
   const titrantSpecies = toSpecies(titrant, null);
   if (!analyteSpecies || !titrantSpecies) return null;
   const curve = titrationCurve({ analyte: analyteSpecies, titrant: titrantSpecies });
@@ -903,23 +919,13 @@ export function buildSolutionsGraphScene(
   if (FIGURE_PRESENT.test(stem)) return null;
   if (claimsSolutionLesson(question)) return buildSolutionLessonScene(question, quantities, schematic);
   if (titrationCue(stem)) {
-    // A stated acid/base constant is not permission to fall back to a table
-    // or qualitative stock curve after a failed/duplicate literal.
-    for (const which of ["a", "b"]) {
-      let suppliedPK: number | null = null; let suppliedK: number | null = null;
-      for (const [role,limit] of [[`pk_?${which}`,14],[`(?<![a-z])k_?${which}`,1]] as const) {
-        const cue = new RegExp(`(?<![a-z])${role}\\b\\s*(?:\\([^)]*\\)|of\\s+[a-z0-9()]+)?\\s*(?:value)?`,"i");
-        if (!cue.test(question)) continue;
-        const read = readChemistryQuantity({question,after:cue,dimension:"dimensionless"});
-        if (!read.ok || !(read.reading.value > 0 && read.reading.value < limit)) return null;
-        if (limit === 14) suppliedPK = read.reading.value; else suppliedK = read.reading.value;
-      }
-      if (suppliedPK !== null && suppliedK !== null && !chemistryCanonicalValuesAgree(suppliedPK,-Math.log10(suppliedK))) return null;
-    }
+    const supplied = suppliedAcidBaseConstants(question);
+    if (!supplied) return null;
     const mentions = readSpeciesMentions(question);
     if ([...mentions.withVolume, ...mentions.withoutVolume].some(m => !Number.isFinite(m.concentration) || m.concentration <= 0 || (m.volume !== undefined && (!Number.isFinite(m.volume) || m.volume <= 0)))) return null;
     const numeric = readTitration(question, quantities);
     if (numeric) return titrationScene(question, numeric.curve, numeric.spec, { numeric: true, normalisedVolume: numeric.normalisedVolume });
+    if (supplied.supplied) return null;
     const kind = qualitativeTitrationKind(stem);
     if (!kind) return null;
     const analyte: TitrationSpecies = kind.startsWith("weak acid")

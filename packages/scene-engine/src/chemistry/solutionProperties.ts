@@ -9,7 +9,7 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, convertChemistryReading, chemistryPlanBindingsValid, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, convertChemistryReading, chemistryPlanBindingsValid, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
 
 const FAMILY = "chem_solutions" as const;
 
@@ -19,8 +19,12 @@ function fit(text: string): string {
 
 function shown(value: number): string {
   if (!Number.isFinite(value)) return "";
-  const rounded = Number(value.toFixed(3));
-  return String(rounded);
+  // Decimal rounding must never turn a finite nonzero quantity into zero.
+  if (value !== 0 && Math.abs(value) < 0.001) {
+    const [mantissa, exponent] = value.toExponential(3).split("e");
+    return `${Number(mantissa)}e${Number(exponent)}`;
+  }
+  return String(Number(value.toFixed(3)));
 }
 
 function take(match: RegExpMatchArray | null, group = 1): number | null {
@@ -209,12 +213,19 @@ function henryScene(question: string, stem: string): SceneDocument | null {
   const concentrationForm = /c\s*=\s*k_?h\s*\*?\s*p\b/.test(stem);
   if (pressureForm === concentrationForm) return null;
   if (/total pressure/.test(stem) && !/partial pressure/.test(stem)) return null;
-  const kH = numberAfter(question, /k_?h\s*=/, concentrationForm ? "concentration_pressure" : "pressure", concentrationForm ? "mol/(L atm)" : "atm");
-  if (kH === null || !(kH > 0)) return null;
-  const unit = "atm";
+  const constant = readChemistryQuantity({question,after:/k_?h\s*=/,dimension:concentrationForm?"concentration_pressure":"pressure"});
+  if (!constant.ok || !(constant.reading.value > 0)) return null;
+  // Computation stays in the reader's canonical dimension; the pressure-form
+  // board uses the actual declared unit after a checked display conversion.
+  const unit = concentrationForm
+    ? (/bar/.test(constant.reading.rawUnit ?? "") ? "bar" : "atm")
+    : chemistryUnitSymbol(constant.reading.rawUnit ?? "", "pressure");
   if (!unit) return null;
+  const display = convertChemistryReading(constant.reading,concentrationForm?(unit === "bar"?"mol/(L bar)":"mol/(L atm)"):unit);
+  if (!display.ok) return null;
+  const kH = display.reading.value;
   if (concentrationForm) {
-    const partial = numberAfter(question, /partial pressure/, "pressure", "atm");
+    const partial = numberAfter(question, /partial pressure/, "pressure", unit);
     if (partial === null || !(partial > 0)) return null;
     const concentration = kH * partial;
     return panel(question, "Henry concentration at the stated gas partial pressure", [
@@ -365,12 +376,15 @@ function molarMassScene(question: string, stem: string): SceneDocument | null {
 
   const trueMass = numberAfter(question, /(?:true )?molar mass/, "molar_mass", "g/mol");
   if (trueMass !== null && factor !== null) {
+    // A given factor and mass do not change a freezing/boiling/osmotic request
+    // into an apparent-mass question.
+    if (!/\b(?:find|calculate|determine|what is)\b[^.;?]{0,60}\bapparent (?:molar|molecular) mass\b/.test(stem)) return null;
     if (!(trueMass > 0) || !(factor > 0)) return null;
     const apparent = trueMass / factor;
     return panel(question, "apparent molar mass from the van't Hoff factor", [
       `i=${shown(factor)}`,
-      `M'=${shown(apparent)} g/mol`,
-      factor > 1 ? "M' < M" : factor < 1 ? "M' > M" : "M' = M",
+      `Mapp=${shown(apparent)} g/mol`,
+      factor > 1 ? "Mapp < M" : factor < 1 ? "Mapp > M" : "Mapp = M",
       `M=${trueMass} g/mol`,
     ], `M_apparent = M_true / i = ${trueMass} / ${factor} = ${apparent} g/mol. ${factor > 1 ? "Dissociation raises i, so the apparent molar mass is smaller than the true mass." : factor < 1 ? "Association lowers i, so the apparent molar mass is larger than the true mass." : "i = 1, so the apparent and true molar masses agree."}`);
   }
@@ -409,7 +423,7 @@ export function buildSolutionLessonScene(
     && !(/molar mass|molecular mass/.test(stem) && !/density/.test(stem));
   if (concentration) return concentrationScene(question, stem);
   if (/henry/.test(stem)) return henryScene(question, stem);
-  const molarMassAsk = /(?:apparent|true)\s+(?:molar|molecular) mass|(?:find|calculate|determine|what is)\b[^.;?]{0,45}\b(?:molar|molecular) mass|van'?t hoff|vant hoff|degree of dissociation|degree of association/.test(stem);
+  const molarMassAsk = /(?:apparent|true)\s+(?:molar|molecular) mass|(?:find|calculate|determine|what is)\b[^.;?]{0,45}\b(?:molar|molecular) mass|degree of dissociation|degree of association/.test(stem);
   if (molarMassAsk && !/density/.test(stem)) {
     return molarMassScene(question, stem);
   }

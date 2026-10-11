@@ -263,7 +263,9 @@ function readOrders(stem: string): ReactionOrder[] {
   return orders;
 }
 
-const HALF_LIFE_CUE = /(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)\b(?:\s+(?:of|for)\b[^=,;.\n]{0,70}?\bis\b)?/;
+// The optional subject is bounded grammar, never an arbitrary clause leading
+// to a later "is". An asked half-life cannot consume a completion-time given.
+const HALF_LIFE_CUE = /(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)(?![A-Za-z0-9_])(?:\s+(?:of|for)\s+(?:(?:the|this|an?)\s+)?(?:(?:pseudo[ -]?)?(?:zero|zeroth|first|second|0th|1st|2nd)[ -]?order\s+)?reaction(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?\s+is\b)?/;
 const ACTIVATION_CUE = /(?:activation energy|\be_?a\b)(?:\s+(?:of|for)\s+(?:the|this|a)\s+reaction)?/;
 function readHalfLife(stem: string): Reading | null {
   return readAfter(stem, HALF_LIFE_CUE, true);
@@ -381,11 +383,39 @@ function readConcentrationsAsked(stem: string): number[] {
   const second = matchedChemistryQuantity(stem, match, 2, "concentration");
   return first !== null && second !== null ? [first, second] : [];
 }
-const TEMPERATURE_RISE_CUE = new RegExp(String.raw`(?:ris(?:e[sd]?|ing)|raised|increase[sd]?|increasing|raising)\b[^.;]{0,40}?\bby|\b(?:for|by)\s+(?:an?\s+)?(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:rise|increase)\b(?:\s+in\s+temperature)?)`, "i");
-function readTemperatures(stem: string): number[] {
+// The cue assigns a source scalar the role of a delta. The shared reader
+// still owns its complete scalar, unit, source span and Celsius conversion.
+const TEMPERATURE_RISE_CUE = new RegExp(String.raw`(?:ris(?:e[sd]?|ing)|raised|increase[sd]?|increasing|raising)\b[^.;]{0,40}?\b(?:by|through)|(?:ris(?:e[sd]?|ing)|raised|raising|increase[sd]?|increasing)\s*(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:above|from)\b)|(?:go(?:es)?|went)\s+up(?:\s+by)?|(?:rise|increase|change)\s+(?:in\s+(?:absolute\s+)?temperature\s+)?(?:of|by)\b|\b(?:for|by|with|on)\s+(?:(?:an?|each|every)\s+)?(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:rise|increase)\b)|\b(?:an?|each|every)\s+(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:rise|increase)\b)`, "i");
+interface TemperatureInputs { absolute: number[]; rise: number | null }
+function readTemperatureInputs(stem: string): TemperatureInputs | null {
   const temps = findChemistryQuantities({question: stem, dimension: "temperature"});
-  const rise = readChemistryQuantity({question:stem,after:TEMPERATURE_RISE_CUE,dimension:"temperature_delta"});
-  return temps.ok ? temps.reading.filter(r => r.value > 0 && (!rise.ok || r.source.span.start !== rise.reading.source.span.start)).map(r => r.value) : [];
+  if (!temps.ok) return null;
+  let rise = readChemistryQuantity({question:stem,after:TEMPERATURE_RISE_CUE,dimension:"temperature_delta"});
+  const localDeltas = temps.reading.filter(r =>
+    /^\s*(?:rise|increase|change)\b/i.test(stem.slice(r.source.span.end))
+    || /\b(?:ris(?:e[sd]?|ing)|increase[sd]?|increasing|change|raised|raising)(?:\s+(?:in|of)\s+(?:absolute\s+)?temperature)?(?:\s+(?:of|by|through))?\s*$/i.test(stem.slice(Math.max(0,r.source.span.start-80),r.source.span.start)));
+  const cueDelta = rise.ok ? rise.reading : null;
+  if (localDeltas.length > 1 || (cueDelta && localDeltas.some(r => r.source.span.start !== cueDelta.source.span.start))) return null;
+  if (!rise.ok && rise.code === "missing" && localDeltas.length === 1) {
+    rise = readChemistryQuantity({question:stem,after:/^/,within:localDeltas[0]!.source.span,dimension:"temperature_delta"});
+  }
+  if ((!rise.ok && rise.code !== "missing") || (TEMPERATURE_RISE_CUE.test(stem) && !rise.ok)) return null;
+  // "10 degree rise" has a stated delta but no supported unit. It must not
+  // leave the later absolute temperature as a replacement for that delta.
+  if (!rise.ok && /\d\s*(?:degree\w*|kelvin\w*)\s+(?:rise|increase|change)\b/i.test(stem)) return null;
+  const delta = rise.ok ? rise.reading : null;
+  const absolute = temps.reading.filter(r => !delta || r.source.span.start !== delta.source.span.start).map(r => r.value);
+  // Preserve the adapter's ordinary-temperature safety boundary. A stated
+  // low absolute T is a refusal, not a value to silently filter away.
+  if (absolute.some(t => t < 100) || absolute.length > 2) return null;
+  if (rise.ok) {
+    if (!(rise.reading.value > 0) || absolute.length === 0) return null;
+    if (absolute[1] !== undefined && absolute[1] !== absolute[0]! + rise.reading.value) return null;
+  }
+  return {absolute,rise:rise.ok?rise.reading.value:null};
+}
+function readTemperatures(stem: string): number[] {
+  return readTemperatureInputs(stem)?.absolute ?? [];
 }
 function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null {
   const lower = chemStem(stem);
@@ -395,16 +425,13 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   const equation = readChemistryArrheniusEquation(stem);
   if (!equation.ok && equation.code !== "missing") return null;
   const statedSlope = equation.ok ? {natural:equation.reading.natural,b:equation.reading.coefficient.value} : null;
-  const temps = readTemperatures(stem);
-  const T1 = temps[0] ?? null; let T2 = temps[1] ?? null;
-  const rise = readChemistryQuantity({question: stem, after: TEMPERATURE_RISE_CUE, dimension: "temperature_delta"});
-  if (rise.ok && T1 !== null) {
-    const final = T1 + rise.reading.value;
-    if (T2 !== null && T2 !== final) return null;
-    T2 = final;
-  }
+  const temperatures = readTemperatureInputs(stem);
+  if (!temperatures) return null;
+  const T1 = temperatures.absolute[0] ?? null;
+  const T2 = temperatures.absolute[1] ?? (T1 !== null && temperatures.rise !== null ? T1 + temperatures.rise : null);
   let ratio = numberAfter(stem, /(?:ratio|k_?2\s*\/\s*k_?1)/);
-  const near = /\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved)\b/i.exec(stem);
+  const near = /\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved)\b/i.exec(stem)
+    ?? /\b(doubl\w*|tripl\w*|quadrupl\w*|halved)\s+(?:(?:the|its)\s+)?(?:rate constant|rate)\b/i.exec(stem);
   if (near && /temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm/i.test(stem)) {
     const word = near[1]!.toLowerCase();
     ratio = /^doubl|twice|two/.test(word) ? 2 : /^tripl|three/.test(word) ? 3 : /^quadrupl|four/.test(word) ? 4 : word === "halved" ? .5 : word === "five" ? 5 : 10;
@@ -448,11 +475,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   if (/rate constants\b[^.;]{0,100}\b(?:two|2) temperatures\b/i.test(question)) return null;
   const equation = readChemistryArrheniusEquation(question);
   if (!equation.ok && equation.code !== "missing") return null;
-  const rise = readChemistryQuantity({question,after:TEMPERATURE_RISE_CUE,dimension:"temperature_delta"});
-  if (rise.ok) {
-    const absolute = readTemperatures(question);
-    if (absolute.length === 0 || absolute.length > 2 || (absolute[1] !== undefined && absolute[1] !== absolute[0]! + rise.reading.value)) return null;
-  }
+  if (!readTemperatureInputs(question)) return null;
   if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", GAS_CONSTANT)) return null;
   if (!chemistryQuantityCuesValid(question, [
     {after: HALF_LIFE_CUE, dimensions: ["time"]},
@@ -479,6 +502,12 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   const a0 = a0Read?.value ?? null; const concUnit = a0 !== null ? "M" : null;
 
   const given = readCompletionGiven(body);
+  if (!halfRead && !kRead && !given && /half[ -]?life|t½|t_?\(?1\/2\)?/i.test(body)) {
+    const statedTimes = findChemistryQuantities({question:body,dimension:"time"});
+    // A supplied time that this adapter cannot assign is not an example
+    // half-life. Keep unsupported completion/remaining formulations text-only.
+    if (!statedTimes.ok || statedTimes.reading.length > 0) return null;
+  }
   const timesAskedRaw = readTimesAsked(body, given?.span ?? null);
   const asked = readFractionsAsked(body, given?.span ?? null);
   const fractionsAsked = asked.completion;
@@ -966,14 +995,14 @@ function buildArrhenius(question: string, spec: KineticsSpec, solution: Kinetics
   c.scene.quantity("T2", "T_2", T2!, "K");
   c.scene.quantity("ratio", "k_2/k_1", ratio!, "");
   const ratioText = arr?.ratio !== null && arr?.ratio !== undefined
-    ? `k rises ${fmt(ratio!, 3)} times from ${fmt(T1!, 4)} K to ${fmt(T2!, 4)} K`
+    ? `k rises ${fmt(ratio!, 3)} times from ${Number(T1!.toFixed(2))} K to ${Number(T2!.toFixed(2))} K`
     : arr?.k1 !== null && arr?.k2 !== null
-      ? `k goes from ${fmt(arr!.k1!, 3)} at ${fmt(T1!, 4)} K to ${fmt(arr!.k2!, 3)} at ${fmt(T2!, 4)} K`
-      : `between ${fmt(T1!, 4)} K and ${fmt(T2!, 4)} K, k changes by a factor ${fmt(ratio!, 3)}`;
+      ? `k goes from ${fmt(arr!.k1!, 3)} at ${Number(T1!.toFixed(2))} K to ${fmt(arr!.k2!, 3)} at ${Number(T2!.toFixed(2))} K`
+      : `between ${Number(T1!.toFixed(2))} K and ${Number(T2!.toFixed(2))} K, k changes by a factor ${fmt(ratio!, 3)}`;
   const derived = arr?.Ea === null && !arr?.statedSlope
     ? `so E_a = R ln(k_2/k_1)/(1/T_1 - 1/T_2) = ${fmt(Ea! / 1000, 3)} kJ/mol.`
     : arr?.T2 === null
-      ? `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol, so T_2 = ${fmt(T2!, 4)} K (${fmt(T2! - 273.15, 3)} °C).`
+      ? `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol, so T_2 = ${Number(T2!.toFixed(2))} K (${fmt(T2! - 273.15, 3)} °C).`
       : `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol.`;
   return c.build({ caption: `ln k against 1/T is a straight line of slope -E_a/R; ${ratioText}, ${derived}` });
 }
