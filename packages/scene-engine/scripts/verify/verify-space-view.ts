@@ -678,6 +678,20 @@ gate("G30 a required space line stays on the board when its stretch misses the v
   return null;
 });
 
+gate("G31 a computed vector tip is not drawn on an unrelated marked point", () => {
+  // Greptile's example: e_x × e_y from O ends at (0, 0, 1); the default view drew Q = (1, 0.35, 1.35) under a pixel away.
+  const document = spaceDocument("a cross product tip beside a marked point", [
+    sp("O", v3(0, 0, 0), "O"), sp("A", v3(1, 0, 0), "A"), sp("B", v3(0, 1, 0), "B"), sp("Q", v3(1, 0.35, 1.35), "Q"),
+    part("a", "vector", "space_vector", { start: "O", end: "A" }),
+    part("b", "vector", "space_vector", { start: "O", end: "B" }),
+    part("w", "vector", "space_cross", { a: "a", b: "b" }, "w"),
+  ]);
+  const render = rendered(document);
+  const tip = worldToCanvas(render, document)(v3(0, 0, 1));
+  const gap = len2(sub2(tip, pointCanvas(render, "Q")));
+  return gap < 12 ? `the cross product tip is drawn ${gap.toFixed(1)} px from Q` : null;
+});
+
 gate("G15 byte identity of documents without a space_frame", () => {
   const fixture = JSON.parse(readFileSync(identityFixture, "utf8")) as IdentityFixture;
   const ids = Object.keys(fixture.hashes);

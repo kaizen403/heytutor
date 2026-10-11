@@ -795,7 +795,9 @@ function chooseProjection(world: World, planeResults: Map<string, PlaneDrawingRe
       pointTolerance = Math.min(pointTolerance, frame.tolerance);
       const vertices = world.planes.filter((plane) => plane.frameId === frameId).flatMap((plane) => planeResults.get(plane.id)?.vertices ?? []);
       const points = [ORIGIN, ...world.points.filter((item) => item.frameId === frameId).map((item) => item.point), ...vertices];
-      pointGroups.push(points);
+      // Computed ends (a cross product tip, a vector end) must stay apart from marked points too.
+      const ends = world.endpoints.filter((item) => item.frameId === frameId).map((item) => item.point);
+      pointGroups.push([...points, ...ends]);
       // Elements through each marked point; any two of them meet there.
       for (const point of points) {
         const through: Vec3[] = [];
