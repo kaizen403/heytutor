@@ -55,6 +55,12 @@ for (const hc of ["1000", "1200", "1500", "2000", "1241"])
     assert.equal(buildAtomicRadiationScene(question, [], false), null);
     assert.equal(synthesizeFamilyScene({ question }), null);
   });
+for (const [product, expected] of [["1239.84", "K=2.00 eV"], ["1240", "K=2.01 eV"]] as const)
+  check("an admitted source hc rounding convention supplies the actual wavelength law: " + product, () => {
+    const question = `For the photoelectric effect wavelength is 300 nm and work function is 2.128 eV. Take hc=${product} eV nm. Find kinetic energy.`;
+    assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes(expected));
+    assert.ok(labels(synthesizeFamilyScene({ question })?.document ?? null).includes(expected));
+  });
 check("SI source hc converts value and unit together", () => {
   const question = "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. Take hc=1.9864458571489286e-25 J m. Find kinetic energy.";
   assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes("K=2.13 eV"));
