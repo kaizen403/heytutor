@@ -454,6 +454,7 @@ function completeSpeciesToken(part: string, match: RegExpMatchArray): boolean {
   // Explicit charge parentheses must close in the original source, and a
   // superscript zero or repeated sign is not a supported ion charge.
   if (/\^\(/.test(raw) && !/\^\(\d*[+-]\)$/.test(raw)) return false;
+  if (/[+-]\)$/.test(raw) && !/\(\d*[+-]\)$/.test(raw)) return false;
   const superscript = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+$/.exec(raw)?.[0];
   return !superscript || /^(?:[¹²³⁴⁵⁶⁷⁸⁹][⁰¹²³⁴⁵⁶⁷⁸⁹]*)?[⁺⁻]$/.test(superscript);
 }

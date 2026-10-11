@@ -613,8 +613,9 @@ for(const notation of [
  "Zn | Zn²⁺(aq, 0.1 M) || Cu2+(aq, 0.01 M) | Cu",
  "Zn | Zn²⁺(aq, 0.1 M) ‖ Cu²⁺(aq, 0.01 M) | Cu",
  "Zn | Zn2+(0.1 M) || Cu2+(0.01 M) | Cu",
+ "Zn | Zn^(2+)(0.1 M) || Cu^(2+)(0.01 M) | Cu",
 ])check("Complete raw charged cell phase and owner parity: "+notation,()=>v9CellPositive("Draw the cell "+notation+"."));
-for(const ion of ["Zn²⁺⁺","Zn²⁺x","Zn³⁺","Zn²+","Zn⁰⁺","Zn²⁺/s","Zn²⁺_x","Zn^(2+"])check("Malformed or unsupported original charged phase cannot default: "+ion,()=>{
+for(const ion of ["Zn²⁺⁺","Zn²⁺x","Zn³⁺","Zn²+","Zn⁰⁺","Zn²⁺/s","Zn²⁺_x","Zn^(2+","Zn^2+)"])check("Malformed or unsupported original charged phase cannot default: "+ion,()=>{
  const question="Draw the Daniell cell Zn | "+ion+"(0.1 M) || Cu²⁺(0.01 M) | Cu.";
  assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(buildElectrochemScene(question,[],true),null);assert.equal(synthesizeFamilyScene(question,[]),null);
 });
