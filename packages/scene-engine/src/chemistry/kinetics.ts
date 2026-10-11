@@ -289,13 +289,17 @@ function requestedHalfLifeConditionValid(question: string, ownerStart: number, c
     if (orders.length !== 1) return false;
     const order = orders[0]!;
     const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
-    const read = readChemistryQuantity({question, after: RATE_CUE, within: {start:inputStart, end:inputEnd}, dimension, cueCaseSensitive:true});
+    const firstOwner = new RegExp(String.raw`^\s*(?:(?:${caseWord("the")}|${caseWord("a")})\s+)?${RATE_CUE.source}`, RATE_CUE.flags).exec(input);
+    if (!firstOwner) return false;
+    const valueStart = inputStart + firstOwner[0].length;
+    const read = readChemistryQuantity({question, after: /^/, within: {start:valueStart, end:inputEnd}, dimension});
     if (!read.ok) return false;
     valueEnd = read.reading.source.span.end;
   } else if (/^\s*(?:(?:the|a)\s+)?time\b/.test(input.toLowerCase())
     || new RegExp(String.raw`^\s*${SCALAR}\s*%`).test(input)) {
     const given = readCompletionGiven(body);
-    if (!given || given.span[0] < inputStart || given.span[1] > inputEnd) return false;
+    const firstOwnerStart = inputStart + /^\s*(?:(?:the|a)\s+)?/i.exec(input)![0].length;
+    if (!given || given.span[0] !== firstOwnerStart || given.span[1] > inputEnd) return false;
     valueEnd = given.span[1];
   }
   if (valueEnd === null) return false;
