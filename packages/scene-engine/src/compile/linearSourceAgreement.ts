@@ -1,9 +1,9 @@
 import { validateTurnPlanV3 } from "../contracts/contractsV3";
 import { readSourceLinearCoordinate } from "../ir/linearScalarBinding";
-import { compareRational, deserializeRational, divideRational, serializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
+import { addRational, multiplyRational, compareRational, deserializeRational, divideRational, serializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
 import { parseLinearAffine, parseLinearConstraint, solveLinearFigure, type ExactAffine, type FeasibleRegionSolution } from "../math/linearRegion";
 import type { SceneIssue } from "../types";
-import { buildLinearSourceDocument } from "./linearRegionSource";
+import { buildLinearSourceDocument, readLinearSourceReferencePoints } from "./linearRegionSource";
 
 const normalizeSymbol = (symbol: string): string => symbol.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}\s]/g, "");
 const dimensionless = (unit: string | undefined): boolean => unit === undefined || unit.trim() === "" || unit.trim() === "1";
@@ -13,7 +13,7 @@ const sameAffine = (left: ExactAffine, right: ExactAffine): boolean => (["a", "b
  * Bind source labels only after the complete original program was validated.
  * This reader does not establish math authority: its expression must equal
  * the independently reconstructed whole-source objective coefficient by
- * coefficient. Arbitrary planner aliases and per-corner labels never join.
+ * coefficient. Arbitrary planner aliases never join.
  */
 function objectiveAliases(question: string, expression: string): Set<string> {
   const text = question.replace(/\\(?:left|right)/g, "").replace(/\\(?:cdot|times)\b/g, "*")
@@ -117,15 +117,18 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
         if (/^numberofsolutions$/i.test(symbol) && countQuery) {
           return { key: "solution_cardinality", exact: system.relation === "coincident" ? null : { numerator: system.relation === "unique" ? "1" : "0", denominator: "1" } };
         }
-        const intercept = /^([A-Za-z][A-Za-z0-9_]*)([xy])-intercept(?:coordinate)?$/.exec(symbol);
+        const forward = /^([A-Za-z][A-Za-z0-9_]*)([xy])-intercept(?:coordinate)?$/.exec(symbol);
+        const reverse = /^([xy])-intercept(?:coordinate)?of([A-Za-z][A-Za-z0-9_]*)$/.exec(symbol);
+        const intercept = forward ? { label: forward[1]!, variable: forward[2]! }
+          : reverse ? { label: reverse[2]!, variable: reverse[1]! } : null;
         const requestedIntercept = intercept && (/\btheir\s+intercepts?\b/i.test(question)
-          || new RegExp(`\\b${intercept[1]}\\s+${intercept[2]}[- ]intercepts?\\b|\\b${intercept[2]}[- ]intercepts?\\s+of\\s+${intercept[1]}\\b`, "i").test(question));
+          || new RegExp(`\\b${intercept.label}\\s+${intercept.variable}[- ]intercepts?\\b|\\b${intercept.variable}[- ]intercepts?\\s+of\\s+${intercept.label}\\b`, "i").test(question));
         if (intercept && requestedIntercept) {
-          const equation = labels.get(intercept[1]!);
+          const equation = labels.get(intercept.label);
           if (!equation) return null;
           const row = parseLinearConstraint(equation, ["x", "y"], true)[0]!;
-          const coefficient = deserializeRational(intercept[2] === "x" ? row.a : row.b);
-          return { key: `intercept:${intercept[1]}:${intercept[2]}`, exact: coefficient.n === 0n ? null : serializeRational(divideRational(deserializeRational(row.rhs), coefficient)) };
+          const coefficient = deserializeRational(intercept.variable === "x" ? row.a : row.b);
+          return { key: `intercept:${intercept.label}:${intercept.variable}`, exact: coefficient.n === 0n ? null : serializeRational(divideRational(deserializeRational(row.rhs), coefficient)) };
         }
         const role = readSourceLinearCoordinate(question, rawSymbol, { requireRequestedVariable: false, allowFixedCoordinate: true });
         return role ? { key: `coordinate:${role.variable}`, exact: role.coordinate } : null;
@@ -156,18 +159,42 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
       const exact = extremum?.status === "attained" ? extremum.value : null;
       const optimum = requestedUniqueOptimum(question, constraints, objective.expression, solution);
       const explicitOptimum = requestedUniqueOptimum(question, constraints, objective.expression, solution, true);
+      const references = readLinearSourceReferencePoints(question, ["x", "y"]).points;
       const semanticSense = (symbol: string): "max" | "min" | null => /^(?:maximum|max)$/i.test(symbol) ? "max" : /^(?:minimum|min)$/i.test(symbol) ? "min" : null;
       const sourceRole = (symbol: string): NumericRole | null => {
+        if (aliases.has(symbol)) return { key: `objective:${objective.sense}`, exact };
         const prefix = /^(maximum|minimum|max|min)([A-Za-z][A-Za-z0-9_]*)$/i.exec(symbol);
-        const suffix = /^([A-Za-z][A-Za-z0-9_]*)_(maximum|minimum|max|min)$/i.exec(symbol);
+        const suffix = /^([A-Za-z][A-Za-z0-9_]*?)_?(maximum|minimum|max|min)$/i.exec(symbol);
         const sense = semanticSense(symbol) ?? semanticSense(prefix?.[1] ?? suffix?.[2] ?? "");
         const alias = prefix?.[2] ?? suffix?.[1];
-        if (aliases.has(symbol) || semanticSense(symbol) || alias && aliases.has(alias)) return { key: `objective:${sense ?? objective.sense}`, exact: !sense || sense === objective.sense ? exact : null };
+        if (semanticSense(symbol) || alias && aliases.has(alias)) return { key: `objective:${sense ?? objective.sense}`, exact: !sense || sense === objective.sense ? exact : null };
+        // An objective call can only name an exact original source point or
+        // an independently computed closure corner, never a planner location.
+        const evaluation = /^([A-Za-z][A-Za-z0-9_]*)\((.+)\)$/.exec(symbol);
+        if (evaluation && aliases.has(evaluation[1]!)) {
+          const target = evaluation[2]!;
+          let point = references.find(reference => reference.label === target);
+          if (!point && target.split(",").length === 2) {
+            const tuple = target.split(",").map(coordinate => parseLinearAffine(coordinate, ["x", "y"]));
+            if (tuple.every(coordinate => deserializeRational(coordinate.a).n === 0n && deserializeRational(coordinate.b).n === 0n)) {
+              const [x, y] = tuple.map(coordinate => coordinate.constant) as [ExactRational, ExactRational];
+              if ([...references, ...solution.closureVertices.map(vertex => vertex.point)].some(candidate =>
+                compareRational(deserializeRational(candidate.x), deserializeRational(x)) === 0
+                && compareRational(deserializeRational(candidate.y), deserializeRational(y)) === 0)) point = { label: "", x, y };
+            }
+          }
+          if (!point) return null;
+          const coefficients = solution.objective!.coefficients;
+          const value = serializeRational(addRational(addRational(
+            multiplyRational(deserializeRational(coefficients.a), deserializeRational(point.x)),
+            multiplyRational(deserializeRational(coefficients.b), deserializeRational(point.y))), deserializeRational(coefficients.constant)));
+          return { key: `objective_at:${exactRationalText(point.x)},${exactRationalText(point.y)}`, exact: value };
+        }
         const direct = /^([xy])$/.exec(symbol);
-        const explicit = /^(?:optimal([xy])|([xy])at(optimum|maximum|minimum)|([xy])\*)$/i.exec(symbol);
-        const variable = (direct?.[1] ?? explicit?.[1] ?? explicit?.[2] ?? explicit?.[4]) as "x" | "y" | undefined;
+        const explicit = /^(?:optimal([xy])|([xy])at(optimum|maximum|minimum)|([xy])\*|(maximizing|minimizing)([xy]))$/i.exec(symbol);
+        const variable = (direct?.[1] ?? explicit?.[1] ?? explicit?.[2] ?? explicit?.[4] ?? explicit?.[6]) as "x" | "y" | undefined;
         if (!variable) return null;
-        const coordinateSense = semanticSense(explicit?.[3] ?? "");
+        const coordinateSense = semanticSense(explicit?.[3] ?? "") ?? (explicit?.[5]?.toLowerCase() === "maximizing" ? "max" : explicit?.[5]?.toLowerCase() === "minimizing" ? "min" : null);
         return { key: `optimal_coordinate:${variable}`, exact: coordinateSense && coordinateSense !== objective.sense ? null : (explicit ? explicitOptimum : optimum)?.[variable] ?? null };
       };
       for (const quantity of quantities) {
