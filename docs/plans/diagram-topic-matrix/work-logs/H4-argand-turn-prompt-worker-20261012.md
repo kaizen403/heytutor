@@ -58,3 +58,13 @@ prompt change is **unmeasured** and used **zero API calls**. No images, paid
 stock runs, new controllers, ledgers, production action or PR were created.
 Comparison-budget completion and any future measurement remain with the
 integration owner.
+
+## Standalone draft validation on main — 12 October 2026
+
+The prompt-only draft starts at `origin/main` `9e50dd3e12db6113de5dbd56520f944af4156058`;
+this original worker evidence is retained above. The turn prompt and its mock
+gate are unchanged from `554fc71c`. The standalone gate again passes 148
+checks and 16 intercepted requests, with prompt length 2,792/2,798 characters
+and the original 2,600-token output cap. Existing turn-planner V3 and
+symbolic-turn-plan gates pass. No model-compliance or numeric-authority result
+is inferred from mocked answers. No accepted-topic count changes.

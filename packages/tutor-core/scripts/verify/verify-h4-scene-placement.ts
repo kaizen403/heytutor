@@ -8,7 +8,7 @@ import type { SceneDocument, SceneIssue } from "../../../scene-engine/src/types"
 let checks = 0;
 function check(value: unknown, message: string): asserts value { assert(value, message); checks++; }
 function close(actual: number, expected: number): void { check(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`); }
-const operators = ["point", "space_frame", "space_point", "space_line", "plane", "space_project", "space_intersection", "space_segment", "space_vector", "parametric_curve", "curve_anchor", "complex_point", "linear_half_plane"];
+const operators = ["point", "space_frame", "space_point", "space_line", "plane", "space_project", "space_intersection", "space_segment", "space_vector", "parametric_curve", "curve_anchor", "complex_point"];
 function contract(prompt: string): void {
   check(/coordinate-free 3D.*off-axis/i.test(prompt), "coordinate-free representatives need off-axis placement");
   check(/preserve.*(?:source|numeric).*coordinates.*equations.*axes/i.test(prompt), "off-axis guidance must preserve explicit spatial givens and named axes");

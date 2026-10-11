@@ -28,3 +28,30 @@ git diff --check
 ```
 
 Final results: H4 scene gate 273 checks/21 mock requests/zero network or model calls, with maximum captured initial request 23,624 characters and repair request 24,860 characters. The original scene-planner V2 budget/control gate passes with the unchanged 27,000-character repair cap. The universal linear prompt is 23,256 characters plus its unchanged 800-character reserve, below 24,500. Full/compact/repair linear and composite contracts pass with zero model calls. Coverage passes 33 requests/76 contracts plus the numeric 3D vector-offer gate; the repair pipeline passes 11 mocked scenarios. Root's wired H4 script also passes C's 148-check/16-mock-request gate. Scoped typecheck and whitespace checks pass; ESLint exits zero with one existing unrelated `givenValueIntro.ts` unused-function warning.
+
+## Standalone draft validation on main — 12 October 2026
+
+The prompt-only draft starts at `origin/main` `9e50dd3e12db6113de5dbd56520f944af4156058`;
+this original worker evidence is retained above. The cherry-pick conflict
+retains only the new compact `curve_anchor` contract, preserving main's
+operator contracts without importing region contracts. The new mock gate
+omits `linear_half_plane` from its offered operator list because main does
+not provide that operator. Its other inputs and assertions remain unchanged.
+
+The standalone H4 scene gate passes the same 273 checks and 21 intercepted
+requests, with maximum initial 23,078 and repair 24,314 characters. Initial
+24,500-character and repair 27,000-character gates, the 800-character system
+reserve, 4,000-token scene output cap and two-round repair limit stay unchanged.
+The wiring from `07f30bf8` adds `verify:h4-planner-prompts` after main's existing
+symbolic diagnostics; no region gate or regions comparison report is copied.
+
+`pnpm install --frozen-lockfile` completes without lockfile changes;
+`pnpm exec turbo run build --filter=@heytutor/tutor-core...` completes all
+three package builds (two dependency cache hits, one core build). Existing
+scene-planner V2, turn-planner V3, symbolic-turn-plan, 11-scenario repair and
+coverage gates (33 requests, 76 operator contracts plus numeric 3D vector
+offer) pass. Core typecheck, core lint and ESLint on both new gates pass;
+core lint retains the existing `givenValueIntro.ts` unused-function warning.
+The wired `verify:symbolic-planner` command passes diagnostics and both new
+mock gates. `git diff --check` passes. All model requests are mocked; no paid API calls,
+images, region runtime changes or acceptance-count changes are involved.
