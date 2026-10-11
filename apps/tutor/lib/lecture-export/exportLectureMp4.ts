@@ -292,9 +292,21 @@ export async function exportLectureMp4(options: {
     let drawError: unknown = undefined;
     let syncedTurnIndex = -1;
     let activeDiagram: VerifiedDiagram | null = null;
+    let activeCue: ReplayCue | undefined;
     const drawPromise = drawReplayDiagramTimeline({
       cues: timeline.cues,
-      executeCommand: options.executeCommand,
+      executeCommand: (command, commandOptions) => {
+        // A short recorded DSA sentence can end while its verified opening is
+        // still revealing. Keep every saved mark/FRAME, but settle the
+        // remaining scene instantly once that cue's audio window has passed.
+        // Narrated work retains its own writing schedule and the tail bound.
+        const diagram = options.getDiagram ? options.getDiagram() : activeDiagram;
+        const verifiedSceneMark = commandOptions?.trustedDiagramGeometry === true &&
+          (command.type.startsWith("DRAW_") || ["LABEL", "DIMENSION", "ARROW", "UNDERLINE", "CIRCLE_AROUND", "HIGHLIGHT", "SCRIBBLE"].includes(command.type));
+        const expiredVerifiedScene = activeCue !== undefined && options.clock.now() >= activeCue.endMs &&
+          diagram?.layout === "code_lesson" && (verifiedSceneMark || command.type === "FRAME");
+        return options.executeCommand(command, expiredVerifiedScene ? { ...commandOptions, durationScale: 0 } : commandOptions);
+      },
       getClockMs: options.clock.now,
       waitForAdvance: options.clock.waitForAdvance,
       shouldCancel: drawShouldCancel,
@@ -303,6 +315,7 @@ export async function exportLectureMp4(options: {
       getPageTurns: (turnIndex) => pageTurnsEndingAt(pageTurns, turnIndex),
       getDiagram: () => options.getDiagram ? options.getDiagram() : activeDiagram,
       onCueStart: async (cue) => {
+        activeCue = cue;
         if (cue.turnIndex === syncedTurnIndex) return;
         const turn = pageTurns[cue.turnIndex]!;
         if (!await resetReplayPageAtTurn({
