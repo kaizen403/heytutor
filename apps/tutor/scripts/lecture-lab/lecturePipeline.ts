@@ -12,6 +12,7 @@
  */
 import { renderSceneSvg } from "../../../../packages/scene-engine/scripts/lib/renderSceneSvg";
 import {
+  IncrementalTagParser,
   parseDrawingCommands,
   resolveVerifiedDiagramFocusTargets,
   verifiedDiagramHasDrawableInk,
@@ -145,6 +146,10 @@ export interface LectureRun {
     totalMs: number;
     /** Time from turn start until a verified figure was ready to commit. */
     figureCommitMs?: number | null;
+    /** Complete admitted host setup available to the lab; not acoustic playback. */
+    firstSetupReadyMs?: number;
+    /** First main teaching segment available to the parser; usefulness needs judging. */
+    firstMainStepReadyMs?: number;
     /** The live planner stages, measured on the same orchestration. */
     stages?: LecturePlanningStages;
   };
@@ -444,6 +449,7 @@ export async function runLecture(
   const prefixController = parallelEnabled ? createParallelPrefixController({
     enabled: true,
     question,
+    narrationLanguage: options.narrationLanguage,
     request: async (signal) => {
       prefixEvidence!.prefixRequestMs = Date.now() - startedAt;
       // Same proxy, trace, admission and upstream cap as every normal teaching
@@ -458,6 +464,7 @@ export async function runLecture(
     },
     onAccepted: (prefix) => {
       prefixEvidence!.prefixAcceptedMs = Date.now() - startedAt;
+      run.timings.firstSetupReadyMs = prefixEvidence!.prefixAcceptedMs;
       options.onParallelPrefix?.(prefix);
     },
   }) : null;
@@ -919,6 +926,14 @@ export async function runLecture(
     // Mirrors the live hook: only the retry of the turn's first request is a startup retry.
     let startupRetry: "first_content_timeout" | "reasoning_only" | undefined;
     let incomplete = false;
+    const readinessParser = new IncrementalTagParser({
+      preserveStepSpeech: true,
+      onSegmentReady: (segment) => {
+        if (run.timings.firstMainStepReadyMs === undefined && /[\p{L}\p{N}]/u.test(segment.narration)) {
+          run.timings.firstMainStepReadyMs = Date.now() - startedAt;
+        }
+      },
+    });
     while (continueCount <= MAX_LLM_CONTINUATIONS) {
       const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
       const streamResult = await streamLLMResponse({
@@ -941,7 +956,7 @@ export async function runLecture(
         startupRetry: reasoningOnlyRetry ? startupRetry : undefined,
         traceId,
         question,
-      });
+      }, (delta) => readinessParser.push(delta));
       fullResponse += streamResult.text;
       run.teaching.contentChars += streamResult.streamStats?.contentChars ?? 0;
       run.teaching.reasoningChars += streamResult.streamStats?.reasoningChars ?? 0;
@@ -970,6 +985,7 @@ export async function runLecture(
       incomplete = continueCount > MAX_LLM_CONTINUATIONS;
     }
     run.teaching.continuations = continueCount;
+    readinessParser.flush();
     run.teaching.incomplete = incomplete;
     // The live turn repairs this same text before the pen and the voice, so
     // the grade is the lesson a student would have heard.

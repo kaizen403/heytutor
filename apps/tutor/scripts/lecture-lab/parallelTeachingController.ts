@@ -4,6 +4,7 @@ import { acceptParallelPrefix, type AcceptedParallelPrefix } from "./parallelTea
 export function createParallelPrefixController(input: {
   enabled: boolean;
   question: string;
+  narrationLanguage?: "english" | "hinglish";
   signal?: AbortSignal;
   request: (signal: AbortSignal) => Promise<string>;
   onAccepted?: (prefix: AcceptedParallelPrefix) => void;
@@ -26,7 +27,7 @@ export function createParallelPrefixController(input: {
       catch { reason = "request_failed"; operation = Promise.resolve(); return; }
       operation = response.then(raw => {
         if (frozen || controller.signal.aborted) { reason = "late_or_cancelled"; return; }
-        const result = acceptParallelPrefix(raw, input.question);
+        const result = acceptParallelPrefix(raw, input.question, input.narrationLanguage);
         if (!result.accepted) { reason = result.reason; return; }
         accepted = result;
         try { input.onAccepted?.(result); } catch { /* telemetry cannot affect selection */ }

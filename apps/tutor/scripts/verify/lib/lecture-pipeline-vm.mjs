@@ -45,7 +45,7 @@ export function createLecturePipelineVm(input) {
   const record = (name, data = {}) => events.push({ name, at: input.now(), ...data });
   const observeAcceptedPrefix = result => {
     const drawing = load('packages/drawing/src/index.ts').parseDrawingCommands(result.raw);
-    record('useful-prefix-accepted', { commandCount: drawing.commands.length, raw: result.raw });
+    record('setup-prefix-accepted', { commandCount: drawing.commands.length, raw: result.raw });
   };
   function resolveSource(candidate) {
     const absolute = path.isAbsolute(candidate) ? candidate : path.join(root, candidate);
@@ -56,7 +56,7 @@ export function createLecturePipelineVm(input) {
     return target;
   }
 
-  async function teachingPort(request) {
+  async function teachingPort(request, onDelta) {
     teachingCalls++;
     if (teachingCalls > 4) throw new Error('prototype teaching call budget exceeded');
     const isPrefix = request.systemPrompt.includes('PENDING_FIGURE_PREFIX');
@@ -80,7 +80,11 @@ export function createLecturePipelineVm(input) {
       alreadyTaughtInstruction: /already(?:\s+been)?\s+taught/i.test(sent.systemPrompt),
       verifiedFigureContextPresent: !verifiedPromptAddon || sent.systemPrompt.includes(verifiedPromptAddon),
     });
-    const reply = await input.teachFull(sent, teachingCalls - prefixCalls);
+    const reply = await input.teachFull(sent, teachingCalls - prefixCalls, chunk => {
+      record('main-content-delta', { chars: chunk.length, listenerPresent: typeof onDelta === 'function' });
+      onDelta?.(chunk);
+    });
+    record('teaching-completed', { call: teachingCalls });
     return reply;
   }
 
@@ -159,6 +163,15 @@ export function createLecturePipelineVm(input) {
       if (path.relative(root, filename).startsWith('apps/tutor/scripts/lecture-lab/') &&
         specifier === '@heytutor/tutor-core') return { ...real, ...ports };
       if (path.relative(root, filename) !== pipelinePath) return real;
+      if (specifier === '@heytutor/drawing') return { ...real,
+        IncrementalTagParser: class ObservedIncrementalTagParser extends real.IncrementalTagParser {
+          constructor(options = {}) {
+            super({ ...options, onSegmentReady(segment) {
+              record('main-segment-ready', { hasNarration: /[\p{L}\p{N}]/u.test(segment.narration) });
+              options.onSegmentReady?.(segment);
+            } });
+          }
+        } };
       if (specifier.endsWith('/turnTeachingPrompt')) return { ...real,
         buildTurnTeachingPrompt(promptInput) {
           const prompt = real.buildTurnTeachingPrompt(promptInput);
