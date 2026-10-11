@@ -449,3 +449,48 @@ like the model being down. `docker compose up -d postgres` first.
 - `questionStatesValue` treats a power-of-ten rescaling as stated, because
   0.5 mm and 0.0005 m are the same given. A fixture value that happens to be a
   rescaling of a number in the question will therefore look grounded.
+
+## Experimental parallel teaching (lab only, default off)
+
+`runLecture` accepts the explicit option `parallelTeaching: true`; omitted or
+false keeps the existing request order. This is not a live environment switch
+and the ordinary batch CLI does not enable it. A controlled measurement caller
+must cap **every actual upstream attempt**, including transport retries and TTS,
+and record this option in its immutable round identity.
+
+On a final scene-planner callback, after numeric authority, the experiment asks
+for one complete question-grounded narration-only STEP. It skips held speculative
+planning, authority contradictions, figure-only and DSA runs. It does not add a
+call on deterministic-only paths. Admission rejects commands, figure references
+and promises, newly introduced digit literals, generic acknowledgements and
+incomplete/multiple STEPs. These are structural checks, **not factual proof**;
+an independent reviewer must judge the actual accepted explanations.
+
+`onParallelPrefix` receives only a completely admitted prefix. Until then no
+prefix is delivered or counted as useful. Selection freezes acceptance and
+aborts a pending prefix without waiting. The verified scene request, selector,
+source, validation and reveal/focus presentation are unchanged. Normal teaching
+retains the full generated verified prompt, the exact prefix in history, and an
+instruction not to repeat it; private raw teaching includes it once. At most
+one prefix plus three normal logical teaching calls are made, but transport
+retries can cause more paid upstream attempts. Provider usage must be counted
+at the proxy, not inferred from the planner usage field.
+
+Public `parallelTeaching` evidence records states, reasons, timings and character
+counts, not question or prefix text. Accepted timing is not audible playback;
+the measurement caller must independently detect audio/delivery failure. This
+prototype does not implement live Stop/save/Continue ownership. The existing
+lab's contradiction behavior (teaching continues where live stops) is explicitly
+tested as a mismatch, not claimed as production parity or silently changed.
+
+Free source-integration and protocol gates run in publication checks:
+
+```bash
+pnpm --filter @heytutor/tutor verify:parallel-teaching
+```
+
+The integration gate freezes provider I/O only, loads workspace source rather
+than dist, verifies identical OFF/ON authority and geometry, tests pending/failing
+prefixes and four-call continuations, and checks that the independently observed
+full verified teaching prompt survives. Its history, figure, prompt and stall
+mutation flags must fail. No HTTP, model, TTS or Jev request is made by the gate.

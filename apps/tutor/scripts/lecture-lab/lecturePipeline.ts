@@ -93,6 +93,8 @@ import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
+import { createParallelPrefixController } from "./parallelTeachingController";
+import { parallelPrefixPrompt, parallelContinuationHistory, type AcceptedParallelPrefix } from "./parallelTeachingPrefix";
 
 export interface LectureStep {
   index: number;
@@ -169,6 +171,17 @@ export interface LectureRun {
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
   productionStrategy?: { classifiedSubject: DiagramSubject; strategy: "current" | "strict" };
+  /** Lab-only experiment; no private prefix text in the public timing evidence. */
+  parallelTeaching?: {
+    enabled: boolean;
+    started: boolean;
+    accepted: boolean;
+    frozen: boolean;
+    reason: string | null;
+    prefixRequestMs: number | null;
+    prefixAcceptedMs: number | null;
+    rawPrefixChars: number;
+  };
   diagram: PlannerEvidence & {
     committed: boolean;
     /**
@@ -266,6 +279,10 @@ export interface RunLectureOptions {
   /** Hard-cap accounting hook used by paid lecture-lab runs. */
   onModelCost?: (usd: number) => void;
   spendMode?: LabSpendMode;
+  /** Lab-only prototype flag, default off. Never enables a live lesson switch. */
+  parallelTeaching?: boolean;
+  /** Called only after a complete narration-only prefix passes admission. */
+  onParallelPrefix?: (prefix: AcceptedParallelPrefix) => void;
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
     diagram: VerifiedDiagram | null;
@@ -417,6 +434,33 @@ export async function runLecture(
     },
     promptChars: 0,
   };
+  const parallelEnabled = options.parallelTeaching === true && !options.figureOnly && !dsaClassification.isDsa;
+  let acceptedPrefix: AcceptedParallelPrefix | null = null;
+  const prefixEvidence: NonNullable<LectureRun["parallelTeaching"]> | null = parallelEnabled ? {
+    enabled: true, started: false, accepted: false, frozen: false, reason: null,
+    prefixRequestMs: null, prefixAcceptedMs: null, rawPrefixChars: 0,
+  } : null;
+  if (prefixEvidence) run.parallelTeaching = prefixEvidence;
+  const prefixController = parallelEnabled ? createParallelPrefixController({
+    enabled: true,
+    question,
+    request: async (signal) => {
+      prefixEvidence!.prefixRequestMs = Date.now() - startedAt;
+      // Same proxy, trace, admission and upstream cap as every normal teaching
+      // call. No client hedge/retry/continuation; transport retries still count.
+      const reply = await streamLLMResponse({
+        systemPrompt: parallelPrefixPrompt(), userPrompt: question,
+        conversationHistory: [], proxyUrl: plannerUrl, hasAuthoritativePlan: true,
+        fastMode, traceId, question, signal,
+      });
+      prefixEvidence!.rawPrefixChars = reply.text.length;
+      return reply.text;
+    },
+    onAccepted: (prefix) => {
+      prefixEvidence!.prefixAcceptedMs = Date.now() - startedAt;
+      options.onParallelPrefix?.(prefix);
+    },
+  }) : null;
 
   try {
     const plannerStartedAt = Date.now();
@@ -516,6 +560,7 @@ export async function runLecture(
       validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
 
     type BenchSceneGate = ProductionSceneGate & {
+      authorityBlocked: boolean;
       diagramStrategy: ReturnType<typeof evaluationDecision>;
       examplesUsed: DiagramExemplar[];
       request: ProductionSceneGate["request"] & { workedExamples?: DiagramExemplar[] };
@@ -533,6 +578,7 @@ export async function runLecture(
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
         ...gate, diagramStrategy, examplesUsed,
+        authorityBlocked: authority?.audit.status === "contradiction",
         request: {
           ...gate.request, ...(examplesUsed.length > 0 ? { workedExamples: examplesUsed } : {}),
           ...(options.sceneDeclinePolicy && options.sceneDeclinePolicy !== "unchanged" ? {
@@ -593,8 +639,18 @@ export async function runLecture(
           problemIR: authority?.problemIR ?? null,
           families: gate.sceneCapabilities.families,
         }),
-      planScene: (gate, planningTurnPlan, sceneRun) =>
-        planSceneDocumentWithRepair(
+      planScene: (gate, planningTurnPlan, sceneRun) => {
+        // A held speculative run has no final authority. Do not add a prefix
+        // on deterministic/no-planner paths, or on a numeric contradiction.
+        prefixController?.start({ enabled: parallelEnabled,
+          speculative: Boolean(sceneRun.holdValidationUntil),
+          blocked: gate.authorityBlocked || sceneRun.signal.aborted,
+          // The overlap coordinator already admitted this exact callback,
+          // including planner-first lanes without a known family/archetype.
+          // Re-deriving admission here would drift from that authority.
+          scenePlanned: true,
+        });
+        return planSceneDocumentWithRepair(
           question,
           (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
           {
@@ -611,7 +667,8 @@ export async function runLecture(
             onCandidateValidation: (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "initial"),
             ...gate.request,
           },
-        ).catch(() => null),
+        ).catch(() => null);
+      },
       revalidate: (sceneResult, authoritativeTurnPlan) =>
         revalidateScenePlanWithRepairResult(sceneResult, (candidate) =>
           validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
@@ -700,6 +757,10 @@ export async function runLecture(
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
       },
     });
+    // Never hold the verified path for a slow prefix. Late output is aborted
+    // and cannot enter history, useful-time measurements or the lesson.
+    acceptedPrefix = prefixController?.finishScene() ?? null;
+    if (prefixEvidence && prefixController) Object.assign(prefixEvidence, prefixController.snapshot());
     const selected = sceneSelection.representation;
     const attempted = sceneSelection.attemptedRepresentation;
     const sceneDocument = selected?.sceneDocument ?? null;
@@ -829,6 +890,8 @@ export async function runLecture(
       fastMode,
       narrationLanguage: options.narrationLanguage,
     });
+    const alreadyTaughtAddon = acceptedPrefix ?
+      "\n\nThe exact narration-only STEP in history has already been taught. Continue after it without repeating its explanation or starting the lesson again. Count it as the first step of this same lesson budget. Keep this full verified teaching prompt, its actual figure/focus contract, and the remaining lesson intact." : "";
     run.promptChars = teachingPrompt.systemPrompt.length;
     run.lessonBudget = {
       scope: teachingPrompt.lessonBudget.scope,
@@ -860,12 +923,12 @@ export async function runLecture(
       const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
       const streamResult = await streamLLMResponse({
         systemPrompt: isContinuation
-          ? teachingPrompt.continuationPrompt
-          : teachingPrompt.systemPrompt,
+          ? teachingPrompt.continuationPrompt + alreadyTaughtAddon
+          : teachingPrompt.systemPrompt + alreadyTaughtAddon,
         userPrompt: isContinuation ? "continue" : question,
         conversationHistory: isContinuation
-          ? [{ user: question, assistant: fullResponse }]
-          : [],
+          ? [{ user: question, assistant: (acceptedPrefix?.raw ?? "") + fullResponse }]
+          : parallelContinuationHistory(question, acceptedPrefix),
         proxyUrl: plannerUrl,
         hasAuthoritativePlan: Boolean(
           turnPlan.givens.length > 0 ||
@@ -910,7 +973,7 @@ export async function runLecture(
     run.teaching.incomplete = incomplete;
     // The live turn repairs this same text before the pen and the voice, so
     // the grade is the lesson a student would have heard.
-    fullResponse = repairLectureMarkup(fullResponse);
+    fullResponse = (acceptedPrefix?.raw ?? "") + repairLectureMarkup(fullResponse);
     run.teaching.rawText = fullResponse;
     run.timings.teachMs = Date.now() - teachStartedAt;
 
@@ -965,6 +1028,9 @@ export async function runLecture(
           : "not_attempted";
     }
   }
+
+  prefixController?.finishScene();
+  if (prefixEvidence && prefixController) Object.assign(prefixEvidence, prefixController.snapshot());
 
   run.timings.totalMs = Date.now() - startedAt;
   return run;
