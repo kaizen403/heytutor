@@ -92,6 +92,8 @@ jobs:
         run: pnpm --filter @heytutor/tutor verify:publication
       - name: Storage admission and save feedback regressions
         run: pnpm --filter @heytutor/tutor verify:storage-admission
+      - name: Finished playback and MP4 board fidelity regressions
+        run: pnpm --filter @heytutor/tutor verify:board-playback-export
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

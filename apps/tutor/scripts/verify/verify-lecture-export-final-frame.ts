@@ -10,6 +10,7 @@ const load = createRequire(resolve(app, "package.json"));
 const ts = load("typescript") as typeof import("typescript");
 const { createVirtualWhiteboardClock } = load("@heytutor/whiteboard");
 const realDraw = load(resolve(app, "lib/lecture-export/drawLectureTimeline.ts"));
+const realReplay = load(resolve(app, "features/tutor-session/lib/replay/completeReplayDiagram.ts"));
 
 type Event = { kind: string; value?: number; at?: number };
 type Frame = { value: number; start: number; duration: number };
@@ -88,6 +89,13 @@ async function run(scenario: Scenario, voice: "silent" | "voiced" | "missing" = 
     if (name === "./drawLectureTimeline") return { ...realDraw,
       drawLectureTimeline: (options: unknown) => {
         const promise = realDraw.drawLectureTimeline(options);
+        void promise.then(() => { drawDone = true; events.push({ kind: "draw-settled" }); }, () => { events.push({ kind: "draw-failed" }); });
+        return promise;
+      },
+    };
+    if (name === "@/features/tutor-session/lib/replay/completeReplayDiagram") return { ...realReplay,
+      drawReplayDiagramTimeline: (options: unknown) => {
+        const promise = realReplay.drawReplayDiagramTimeline(options);
         void promise.then(() => { drawDone = true; events.push({ kind: "draw-settled" }); }, () => { events.push({ kind: "draw-failed" }); });
         return promise;
       },
