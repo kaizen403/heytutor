@@ -221,6 +221,8 @@ export function useSegmentRunner({
       let capturedAudio: Uint8Array | null = null;
       let capturedTimings: AudioTimings | null = null;
       let capturedDurationMs: number | null = null;
+      let generatedAudio: Pick<RecordedSegmentPayload, "audioBytes" | "durationMs" | "timings"> | null = null;
+      let terminalSpeechFailure = false;
       const spokenChars = mathToSpeech(narration).length;
       // The dials this sentence is spoken with. The lookahead generated it
       // with the same ones, and the cache is keyed on them, so the peek
@@ -646,6 +648,7 @@ export function useSegmentRunner({
         onStart: markVoiceStarted,
         onAudioCaptured: (audio: { bytes: Uint8Array }) => {
           capturedAudio = audio.bytes;
+          generatedAudio = { audioBytes: audio.bytes, durationMs: capturedDurationMs, timings: capturedTimings };
         },
         onTimings: captureTimings,
         onFirstAudioByte: (info: FirstAudioByteInfo) => {
@@ -909,6 +912,7 @@ export function useSegmentRunner({
           ]));
         } catch (error) {
           speechAborted = true;
+          terminalSpeechFailure = !isCancelled();
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
             index,
@@ -1076,7 +1080,8 @@ export function useSegmentRunner({
         } else {
           // Accepted shown work survives failures as well as cancellation.
           // A synchronously captured Stop/pagehide token is already settled.
-          preparedSave?.interrupt();
+          if (terminalSpeechFailure && generatedAudio && !isCancelled()) preparedSave?.failPlayback(generatedAudio);
+          else preparedSave?.interrupt();
         }
         tutorDebug("segment", "runSegment end", { index, ...segmentMetadata });
         segmentSpan?.end(segmentMetadata);

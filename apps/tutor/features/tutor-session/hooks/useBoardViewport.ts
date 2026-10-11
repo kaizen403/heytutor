@@ -9,16 +9,23 @@ import {
 import { BOARD_HEIGHT, BOARD_WIDTH } from "../constants";
 import type { BoardViewport } from "../types";
 
-export type BoardViewportMode = "fit" | "fixed";
+export type BoardViewportMode = "fit" | "fixed" | "readable-scroll";
 
-const FIXED_VIEWPORT: BoardViewport = { scale: 1, offsetX: 0, offsetY: 0, measured: true };
+const FIXED_VIEWPORT: BoardViewport = {
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  measured: true,
+};
 
 export function useBoardViewport(
   containerRef: RefObject<HTMLDivElement | null>,
   mode: BoardViewportMode = "fit",
 ): BoardViewport {
   const [viewport, setViewport] = useState<BoardViewport>(
-    mode === "fixed" ? FIXED_VIEWPORT : { scale: 0.1, offsetX: 0, offsetY: 0, measured: false },
+    mode === "fixed"
+      ? FIXED_VIEWPORT
+      : { scale: 0.1, offsetX: 0, offsetY: 0, measured: false },
   );
 
   useEffect(() => {
@@ -89,7 +96,9 @@ export function useBoardViewport(
       // A dock or code-panel toggle must not turn that temporary box into the
       // accepted fit. Keep the paper scale until it closes;
       // a genuine width change (rotation/sidebar) still accepts a new fit.
-      const keyboardLocked = measured && keyboardInset >= BOARD_FRAME_KEYBOARD_INSET_PX &&
+      const keyboardLocked =
+        measured &&
+        keyboardInset >= BOARD_FRAME_KEYBOARD_INSET_PX &&
         shouldLockBoardScale({
           widthDelta: width - lastBox.width,
           heightDelta: -keyboardInset,
@@ -99,11 +108,17 @@ export function useBoardViewport(
       const availWidth = Math.max(width - framePadding, 1);
       let deckHeight = deck?.getBoundingClientRect().height ?? 0;
       const codePanel = deck?.querySelector<HTMLElement>('[data-board-code-panel="below"]');
-      if (deck && codePanel && window.matchMedia("(max-width: 767px)").matches) {
+      if (
+        deck &&
+        codePanel &&
+        window.matchMedia("(max-width: 767px)").matches
+      ) {
         // Reserve paper first, then let the real scrollable editor use what
         // remains after transport and margins. A minimum scale alone would
         // push the uncapped panel outside the measured column.
-        const paperHeight = keyboardLocked ? lastScale * BOARD_HEIGHT : Math.min(
+        const paperHeight = keyboardLocked
+          ? lastScale * BOARD_HEIGHT
+          : Math.min(
           (availWidth / BOARD_WIDTH) * BOARD_HEIGHT,
           Math.max(height - framePadding, 1) * 0.45,
         );
@@ -134,8 +149,13 @@ export function useBoardViewport(
       const widthScale = availWidth / BOARD_WIDTH;
       const heightScale = availHeight / BOARD_HEIGHT;
 
-      // Fit the board inside the container without cropping.
-      const nextScale = Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
+      // Ordinary boards fit without cropping. The explicitly scrollable short
+      // viewport keeps 32px work text at least 16px; its region owns the pan,
+      // while transport stays outside that region at natural size.
+      const nextScale =
+        mode === "readable-scroll"
+          ? Math.max(widthScale, 0.5)
+          : Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
       // Avoid sub-pixel thrash from ResizeObserver feedback.
       if (measured && Math.abs(lastScale - nextScale) < 0.001) {
         return;

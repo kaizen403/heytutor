@@ -75,7 +75,7 @@ export interface ScheduledFocusHost extends SpotlightHost {
     kind: "underline" | "circle_around",
     path: string,
     durationMs: number,
-    options: { strokeWidth: number; transient: true },
+    options: { strokeWidth: number; transient: true; shouldCancel?: () => boolean },
   ) => Promise<void>;
 }
 
@@ -86,9 +86,14 @@ export interface ScheduledFocusOptions {
   /** The segment's audio clock, in media ms. */
   getAudioPositionMs: () => number;
   /** Resolves when the audio clock reaches targetMs, or on cancel. */
-  waitUntilAudioMs: (targetMs: number) => Promise<void>;
+  waitUntilAudioMs: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
   /** Converts a remaining media-time window to a safe whiteboard flight budget. */
   flightBudgetMs?: (audioMs: number) => number;
+  /** The next written word releases the pen; only transient gestures shrink. */
+  deadlineMs?: number;
+  /** Runtime alignment refresh; target ids still refer to committed geometry. */
+  getTiming?: () => { targets: readonly FocusTargetWindow[]; deadlineMs: number };
+  isPaused?: () => boolean;
   isCancelled: () => boolean;
   /** Least a target is traced for when its window has already passed. */
   floorMs: number;
@@ -158,6 +163,40 @@ export async function runScheduledFocus(
   options: ScheduledFocusOptions,
 ): Promise<boolean> {
   if (targets.length === 0) return options.isCancelled();
+  const deadlineMs = () => options.getTiming?.().deadlineMs ?? options.deadlineMs;
+  const windowFor = (target: ScheduledFocusTarget) => options.getTiming?.().targets.find(window => window.id === target.id) ?? target;
+  const boundDuration = (durationMs: number, remainingParts = 1): number => {
+    const deadline = deadlineMs();
+    if (deadline === undefined || !Number.isFinite(deadline)) return durationMs;
+    const remainingMs = Math.max(0, deadline - options.getAudioPositionMs());
+    const budgetMs = options.flightBudgetMs?.(remainingMs) ?? remainingMs;
+    return Math.min(durationMs, Math.max(0, budgetMs) / remainingParts);
+  };
+  const deadlineExpired = (): boolean => {
+    const deadline = deadlineMs();
+    return !options.isPaused?.() && deadline !== undefined && Number.isFinite(deadline)
+      && options.getAudioPositionMs() >= deadline;
+  };
+  const motionCancelled = () => options.isCancelled() || deadlineExpired();
+  const flyTo = async (point: FocusPenPoint, durationMs: number): Promise<void> => {
+    await host.flyCursorTo(point.x, point.y, durationMs, undefined, motionCancelled);
+    if (!options.isCancelled() && deadlineExpired() && durationMs > 0) {
+      await host.flyCursorTo(point.x, point.y, 0, undefined, options.isCancelled);
+    }
+  };
+  const trace = async (kind: "underline" | "circle_around", path: string,
+    durationMs: number, strokeWidth: number): Promise<void> => {
+    await host.drawAnnotation(kind, path, durationMs, {
+      strokeWidth, transient: true,
+      shouldCancel: durationMs > 0 ? motionCancelled : options.isCancelled,
+    });
+    // Final alignment can arrive while a tween is already running. Release
+    // that transient motion at the work cue, then settle the same committed
+    // path as a zero-duration catch-up. A cancelled turn never catches up.
+    if (!options.isCancelled() && deadlineExpired() && durationMs > 0) {
+      await host.drawAnnotation(kind, path, 0, { strokeWidth, transient: true });
+    }
+  };
   const spotlight = options.emphasis === "spotlight" && options.veil
     ? {
         veil: options.veil,
@@ -177,11 +216,15 @@ export async function runScheduledFocus(
       // Leave for the part a beat before its name so the pen stands on it,
       // label written, when the word lands rather than arriving a flight
       // and a glyph later.
-      await options.waitUntilAudioMs(target.startMs - FOCUS_FLIGHT_LEAD_MS);
+      const startMs = () => Math.min(windowFor(target).startMs, deadlineMs() ?? Number.POSITIVE_INFINITY);
+      await options.waitUntilAudioMs(startMs() - FOCUS_FLIGHT_LEAD_MS,
+        options.getTiming ? () => startMs() - FOCUS_FLIGHT_LEAD_MS : undefined);
       if (options.isCancelled()) return true;
       if (spotlight) scope.setSpotlight?.({ ...spotlight, hole: paddedHole(target.rects) });
-      const approachMs = focusHopMs(penAt, first, FOCUS_HOP_MAX_MS);
-      if (approachMs > 0) await host.flyCursorTo(first.x, first.y, approachMs, undefined, options.isCancelled);
+      const pulseParts = options.emphasis === "pulse" && target.pulse ? 2 : 0;
+      const traceParts = target.paths.length * 2 + pulseParts;
+      const approachMs = boundDuration(focusHopMs(penAt, first, FOCUS_HOP_MAX_MS), traceParts + 1);
+      if (approachMs > 0) await flyTo(first, approachMs);
       if (options.isCancelled()) return true;
       penAt = first;
 
@@ -195,17 +238,17 @@ export async function runScheduledFocus(
       // Writing a label leaves the pen beyond its trace start. Spend the
       // remaining lead on that return, so the calmer hop does not steal the
       // first word of the explanation from the trace itself.
-      const remainingMs = Math.max(0, target.startMs - options.getAudioPositionMs());
-      const returnMs = focusHopMs(penAt, first, options.flightBudgetMs?.(remainingMs) ?? remainingMs);
+      const remainingMs = Math.max(0, startMs() - options.getAudioPositionMs());
+      const returnMs = boundDuration(focusHopMs(penAt, first, options.flightBudgetMs?.(remainingMs) ?? remainingMs), traceParts + 1);
       if (Math.hypot(penAt.x - first.x, penAt.y - first.y) >= NIB_SETTLE_PX) {
         // An exhausted lead settles the nib immediately; adding a minimum
         // hop after the word would delay the explanation a second time.
-        await host.flyCursorTo(first.x, first.y, returnMs, undefined, options.isCancelled);
+        await flyTo(first, returnMs);
         if (options.isCancelled()) return true;
         penAt = first;
       }
 
-      await options.waitUntilAudioMs(target.startMs);
+      await options.waitUntilAudioMs(startMs(), options.getTiming ? startMs : undefined);
       if (options.isCancelled()) return true;
 
       // The trace gets what is left of the clause, hops included, so the
@@ -214,18 +257,20 @@ export async function runScheduledFocus(
       const pulseMs = options.emphasis === "pulse" && target.pulse ? FOCUS_PULSE_MS : 0;
       // The pulse and the hop to it are reserved out of the clause too.
       const pulseReserveMs = pulseMs > 0 ? pulseMs + FOCUS_HOP_MAX_MS : 0;
-      const budgetMs = Math.max(target.endMs - now - pulseReserveMs, options.floorMs);
+      const endMs = Math.min(windowFor(target).endMs, deadlineMs() ?? Number.POSITIVE_INFINITY);
+      const budgetMs = Math.max(endMs - now - pulseReserveMs, options.floorMs);
       const perPathMs = budgetMs / target.paths.length;
-      for (const candidate of target.paths) {
+      for (const [pathIndex, candidate] of target.paths.entries()) {
         if (options.isCancelled()) return true;
-        const hopMs = focusHopMs(penAt, candidate, perPathMs / 3);
-        if (hopMs > 0) await host.flyCursorTo(candidate.x, candidate.y, hopMs, undefined, options.isCancelled);
+        const remainingParts = (target.paths.length - pathIndex) * 2 + pulseParts;
+        const hopMs = boundDuration(focusHopMs(penAt, candidate, perPathMs / 3), remainingParts);
+        if (hopMs > 0) await flyTo(candidate, hopMs);
         if (options.isCancelled()) return true;
-        await host.drawAnnotation(
+        await trace(
           "underline",
           candidate.path,
-          Math.max(Math.round(perPathMs - hopMs), FOCUS_PATH_MIN_MS),
-          { strokeWidth: 1.25, transient: true },
+          boundDuration(Math.max(Math.round(perPathMs - hopMs), FOCUS_PATH_MIN_MS), remainingParts - 1),
+          1.25,
         );
         // A traced path leaves the pen at its far end, which only the
         // whiteboard knows.
@@ -234,14 +279,11 @@ export async function runScheduledFocus(
 
       if (pulseMs > 0 && target.pulse) {
         if (options.isCancelled()) return true;
-        const leftMs = target.endMs - options.getAudioPositionMs() - pulseMs;
-        const hopMs = focusHopMs(penAt, target.pulse, Math.max(leftMs, FOCUS_HOP_MIN_MS));
-        if (hopMs > 0) await host.flyCursorTo(target.pulse.x, target.pulse.y, hopMs, undefined, options.isCancelled);
+        const leftMs = Math.min(windowFor(target).endMs, deadlineMs() ?? Number.POSITIVE_INFINITY) - options.getAudioPositionMs() - pulseMs;
+        const hopMs = boundDuration(focusHopMs(penAt, target.pulse, Math.max(leftMs, FOCUS_HOP_MIN_MS)), 2);
+        if (hopMs > 0) await flyTo(target.pulse, hopMs);
         if (options.isCancelled()) return true;
-        await host.drawAnnotation("circle_around", target.pulse.path, pulseMs, {
-          strokeWidth: 1.1,
-          transient: true,
-        });
+        await trace("circle_around", target.pulse.path, boundDuration(pulseMs), 1.1);
         penAt = null;
       }
     }

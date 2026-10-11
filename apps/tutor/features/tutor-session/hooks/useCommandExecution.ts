@@ -234,6 +234,10 @@ export function useCommandExecution({
          * lettered and traced when its name is spoken. Needs the audio clock.
          */
         focusSchedule?: FocusTargetSchedule;
+        /** The following work cue bounds only this gesture's transient motion. */
+        focusDeadlineMs?: number;
+        getFocusTiming?: () => { schedule: FocusTargetSchedule; deadlineMs: number };
+        isPaused?: () => boolean;
         /** The segment's audio clock, media ms from its start. */
         getAudioPositionMs?: () => number;
         /** Media ms per wall ms; default 1. Only the waits need it. */
@@ -1149,18 +1153,38 @@ export function useCommandExecution({
                 flyCursorTo: (x, y, durationMs, rotation, shouldCancel) =>
                   wb.flyCursorTo(x, y, durationMs, rotation, shouldCancel),
                 drawAnnotation: (kind, path, durationMs, annotationOptions) =>
-                  drawAnnotation(kind, path, durationMs, annotationOptions),
+                  wb.drawAnnotation(kind, path, durationMs, {
+                    ...annotationOptions,
+                    inkSettings,
+                    shouldCancel: () => commandCancelled() || Boolean(annotationOptions.shouldCancel?.()),
+                  }),
               },
               scheduled,
               {
                 emphasis,
                 veil: DIAGRAM_ZONE,
                 getAudioPositionMs: focusAudioClock,
-                waitUntilAudioMs: (targetMs) =>
-                  waitUntilDrawClock(focusAudioClock, targetMs, {
-                    shouldCancel: commandCancelled,
-                    getPlaybackRate: options.getPlaybackRate,
-                  }),
+                deadlineMs: options.focusDeadlineMs,
+                isPaused: options.isPaused,
+                getTiming: options.getFocusTiming ? () => {
+                  const timing = options.getFocusTiming!();
+                  return { targets: timing.schedule.targets, deadlineMs: timing.deadlineMs };
+                } : undefined,
+                waitUntilAudioMs: async (targetMs, getTargetMs) => {
+                  let nextTarget = targetMs;
+                  while (!commandCancelled()) {
+                    const waitingFor = nextTarget;
+                    await waitUntilDrawClock(focusAudioClock, waitingFor, {
+                      shouldCancel: () => commandCancelled() || Boolean(getTargetMs && getTargetMs() !== waitingFor),
+                      getPlaybackRate: options.getPlaybackRate,
+                      isPaused: options.isPaused,
+                    });
+                    const freshTarget = getTargetMs?.() ?? waitingFor;
+                    // An unchanged clock wait keeps its existing stall bound.
+                    if (freshTarget === waitingFor || focusAudioClock() + 10 >= freshTarget) return;
+                    nextTarget = freshTarget;
+                  }
+                },
                 flightBudgetMs: (audioMs) => {
                   // Lettering can leave the board at scene pace while the
                   // voice keeps its playback rate. Budget against the slowest

@@ -2,6 +2,10 @@ import type { ReplayCue } from "./replayTimeline";
 import { buildReplayTimeline } from "./replayTimeline";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import {
+  recordedLectureWorkPages,
+  type LectureWorkPage,
+} from "./lectureWorkPages";
 
 /**
  * The finished-lecture player: one stitched audio track is the clock, and the
@@ -27,6 +31,7 @@ export interface LecturePlayerTimeline {
    * on the lesson's page points back at the lesson; a question points at itself.
    */
   pageStartTurnIndex: number[];
+  workPages: LectureWorkPage[];
 }
 
 export interface LecturePlayerSeekPlan {
@@ -59,6 +64,9 @@ export interface LecturePlayerSnapshot {
   loadedMs: number;
   rate: number;
   chapters: LecturePlayerChapter[];
+  workPages?: LectureWorkPage[];
+  /** Set only while inspecting a completed stored page, with audio paused. */
+  reviewPageIndex?: number | null;
   /** Set when the audio track failed to load. */
   error: string | null;
 }
@@ -77,6 +85,7 @@ export interface LecturePlayerControls {
   seek: (ms: number) => void;
   skip: (deltaMs: number) => void;
   setRate: (rate: number) => void;
+  reviewPage?: (index: number) => void;
 }
 
 export type LecturePlayerKeyAction = "toggle" | "back" | "forward" | "start" | "end";
@@ -163,7 +172,9 @@ function chapterTitle(question: string, chapterNumber: number): string {
   return normalized;
 }
 
-export function buildLecturePlayerTimeline(turns: StoredTurn[]): LecturePlayerTimeline {
+export function buildLecturePlayerTimeline(
+  turns: StoredTurn[],
+): LecturePlayerTimeline {
   const { cues, totalMs } = buildReplayTimeline(turns);
 
   const firstCueStartByTurn = new Map<number, number>();
@@ -194,11 +205,18 @@ export function buildLecturePlayerTimeline(turns: StoredTurn[]): LecturePlayerTi
   const pageStartTurnIndex: number[] = [];
   turns.forEach((turn, turnIndex) => {
     const keepsPage =
-      turnIndex > 0 && (storedTurnContinuesBoard(turn) || !firstCueStartByTurn.has(turnIndex));
+      turnIndex > 0 &&
+      (storedTurnContinuesBoard(turn) || !firstCueStartByTurn.has(turnIndex));
     pageStartTurnIndex.push(keepsPage ? pageStartTurnIndex[turnIndex - 1]! : turnIndex);
   });
 
-  return { cues, totalMs, chapters, pageStartTurnIndex };
+  return {
+    cues,
+    totalMs,
+    chapters,
+    pageStartTurnIndex,
+    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex),
+  };
 }
 
 function segmentHasNarration(segment: StoredTurn["segments"][number]): boolean {
@@ -268,7 +286,9 @@ export function planLectureSeek(
 
   const pageStart = timeline.pageStartTurnIndex[targetCue.turnIndex];
   let epochCueIndex =
-    pageStart === undefined ? -1 : cues.findIndex((cue) => cue.turnIndex === pageStart);
+    pageStart === undefined
+      ? -1
+      : cues.findIndex((cue) => cue.turnIndex === pageStart);
   if (epochCueIndex === -1) {
     epochCueIndex = cues.findIndex((cue) => cue.turnIndex === targetCue.turnIndex);
   }
@@ -392,7 +412,10 @@ const DEFAULT_LECTURE_PLAYER_SNAPSHOT: LecturePlayerSnapshot = {
 export function createLecturePlayerStore(
   initial?: Partial<LecturePlayerSnapshot>,
 ): LecturePlayerStore {
-  let snapshot: LecturePlayerSnapshot = { ...DEFAULT_LECTURE_PLAYER_SNAPSHOT, ...initial };
+  let snapshot: LecturePlayerSnapshot = {
+    ...DEFAULT_LECTURE_PLAYER_SNAPSHOT,
+    ...initial,
+  };
   const listeners = new Set<() => void>();
   return {
     getSnapshot: () => snapshot,

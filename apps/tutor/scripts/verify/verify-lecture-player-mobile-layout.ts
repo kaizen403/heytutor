@@ -196,7 +196,7 @@ check("actual DSA below-panel consumes the measured cap and board overlay keeps 
   controller.revealPanel();
   const below = renderToStaticMarkup(createElement(panel, { controller, variant: "below" }));
   assert.match(below, /data-board-code-panel="below"/);
-  assert.match(below, /height:min\(42vh, 340px, var\(--board-panel-max-height, 340px\)\)/, "actual editor height participates in the viewport's bounded budget");
+  assert.match(below, /height:var\(--board-panel-height, min\(42vh, 340px, var\(--board-panel-max-height, 340px\)\)\)/, "actual editor height participates in the viewport's bounded budget");
   const board = renderToStaticMarkup(createElement(panel, { controller, variant: "board" }));
   assert.match(board, /data-board-code-panel="board"/);
   assert.ok(!board.includes("--board-panel-max-height"), "desktop board-coordinate panel is unchanged");

@@ -103,6 +103,7 @@ interface SegmentJob {
   contextFinal: boolean;
   timings: AudioTimings;
   capturedChunks: Uint8Array[];
+  capturedAudioEmitted?: boolean;
   pendingAudioBuffers: AudioBuffer[];
   sourceDonePromises: Promise<void>[];
   pendingAudioIngestPromises: Promise<void>[];
@@ -117,6 +118,15 @@ interface SegmentJob {
   /** Created by the lookahead, before the runner asked for it. */
   lookahead?: boolean;
 }
+
+/** Complete provider bytes exist, but the output clock stopped advancing. */
+class NativePlaybackError extends Error {}
+class NativePlaybackStalledError extends NativePlaybackError {
+  constructor(readonly positionSec: number) {
+    super("Native audio playback clock did not advance");
+  }
+}
+const NATIVE_PLAYBACK_STALL_MS = 1_500;
 
 /**
  * Cache identity for one generated sentence.
@@ -836,8 +846,9 @@ export class StreamingSpeechClient implements TTSClient {
             await this.playPrefetchedHttp(prefetch, options, generation);
             return;
           }
-        } catch {
+        } catch (error) {
           prefetch.controller.abort();
+          if (error instanceof NativePlaybackError) throw error;
         }
       }
     }
@@ -890,10 +901,11 @@ export class StreamingSpeechClient implements TTSClient {
           error: error instanceof Error ? error.message : String(error),
           playback_started: wsPlaybackStarted,
         });
+        if (error instanceof NativePlaybackError) throw error;
         if (wsPlaybackStarted) {
-          // Student already heard this segment; do not replay it.
-          options.onEnd?.();
-          return;
+          // A partially heard sentence is a failure, not a completed beat.
+          // Do not generate/replay it through another provider transport.
+          throw error;
         }
         // Empty/failed WS audio was retrying every sentence (~500–800ms pause).
         this.wsDisabledUntil = Date.now() + TTS_WS_DISABLE_AFTER_FAIL_MS;
@@ -937,6 +949,7 @@ export class StreamingSpeechClient implements TTSClient {
         return;
       }
       this.stopActiveAudio("http-segment-failed");
+      if (error instanceof NativePlaybackError) throw error;
       tutorDebug("tts", "HTTP segment failed, trying speechSynthesis", {
         error: error instanceof Error ? error.message : String(error),
       });
@@ -1194,6 +1207,15 @@ export class StreamingSpeechClient implements TTSClient {
     }
   }
 
+  private emitCapturedAudio(job: SegmentJob): void {
+    if (!job.claimed || job.settled || !job.contextFinal || job.capturedAudioEmitted || job.capturedChunks.length === 0) return;
+    job.capturedAudioEmitted = true;
+    job.options.onAudioCaptured?.({
+      bytes: concatUint8Arrays(job.capturedChunks),
+      mimeType: speechAudioMimeType(job.capturedChunks[0]),
+    });
+  }
+
   private emitTimings(job: SegmentJob): void {
     if (job.timings.totalDuration <= 0) {
       return;
@@ -1208,13 +1230,6 @@ export class StreamingSpeechClient implements TTSClient {
 
   private finalizeJob(job: SegmentJob): void {
     this.emitTimings(job);
-
-    if (job.capturedChunks.length > 0) {
-      job.options.onAudioCaptured?.({
-        bytes: concatUint8Arrays(job.capturedChunks),
-        mimeType: speechAudioMimeType(job.capturedChunks[0]),
-      });
-    }
 
     tutorDebug("tts", "segment complete", {
       duration_ms: Math.round(performance.now() - job.startedAt),
@@ -1505,6 +1520,7 @@ export class StreamingSpeechClient implements TTSClient {
           if (job.settled) return;
           fillDurationFromWav(job.timings, job.capturedChunks);
           this.emitTimings(job);
+          this.emitCapturedAudio(job);
           if (!job.playbackStarted) await this.tryStartJobPlayback(job);
           if (job === this.currentJob) await this.completeCurrentJob();
         }
@@ -1554,6 +1570,8 @@ export class StreamingSpeechClient implements TTSClient {
 
   private async startJobPlayback(job: SegmentJob): Promise<void> {
     if (this.paused || !this.canSchedulePlayback(job) || job.playbackStarted) return;
+    this.emitCapturedAudio(job);
+    if (job.settled || !this.canSchedulePlayback(job)) return;
     const notifyStart = () => {
       if (job.started || job.settled || this.currentJob !== job) return;
       job.started = true;
@@ -1894,6 +1912,15 @@ export class StreamingSpeechClient implements TTSClient {
     if (entry.timings.totalDuration > 0) {
       options.onTimings?.(toSegmentRelativeAudioTimings(entry.timings));
     }
+    if (entry.chunks.length > 0) {
+      options.onAudioCaptured?.({
+        bytes: concatUint8Arrays(entry.chunks),
+        mimeType: speechAudioMimeType(entry.chunks[0]),
+      });
+    }
+    // Complete synthesis belongs to the claimed row even if output fails.
+    // Callbacks may Stop/switch the lesson; recheck before creating output.
+    if (!(await this.waitWhileUnpaused(generation)) || this.halted) return;
     const htmlDone = this.tryPlayHtmlAudio(entry.chunks, options.onStart);
     if (htmlDone) {
       sourceDonePromises.push(htmlDone);
@@ -1912,12 +1939,6 @@ export class StreamingSpeechClient implements TTSClient {
       }
       this.notePlaybackStart("audio-context-scheduled", (this.httpPlaybackOriginCtxTime ?? ctx.currentTime) - ctx.currentTime);
       options.onStart?.();
-    }
-    if (entry.chunks.length > 0) {
-      options.onAudioCaptured?.({
-        bytes: concatUint8Arrays(entry.chunks),
-        mimeType: speechAudioMimeType(entry.chunks[0]),
-      });
     }
     await Promise.all(sourceDonePromises);
     if (this.speakGeneration === generation) {
@@ -2173,14 +2194,15 @@ export class StreamingSpeechClient implements TTSClient {
         for (const line of lines) await playLine(line);
       }
       if (sseBuffer.trim()) await playLine(sseBuffer);
-      await startPlayback();
-      if (!started) throw new Error("TTS stream returned no audio");
       if (capturedChunks.length > 0 && isCurrentSpeak()) {
         options.onAudioCaptured?.({
           bytes: concatUint8Arrays(capturedChunks),
           mimeType: speechAudioMimeType(capturedChunks[0]),
         });
       }
+      throwIfStopped();
+      await startPlayback();
+      if (!started) throw new Error("TTS stream returned no audio");
       // The ElevenLabs request is done; do not hold the slot through playback.
       this.httpGate.release();
       httpSlotHeld = false;
@@ -2266,6 +2288,25 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   private tryPlayHtmlAudio(chunks: Uint8Array[], onStart?: () => void): Promise<void> | null {
+    const generation = this.speakGeneration;
+    let announced = false;
+    const announce = () => { if (!announced) { announced = true; onStart?.(); } };
+    const first = this.tryPlayHtmlAudioOnce(chunks, announce);
+    if (!first) return null;
+    return first.catch(async (error: unknown) => {
+      if (!(error instanceof NativePlaybackStalledError) || this.speakGeneration !== generation || this.halted) throw error;
+      if (!(await this.waitWhileUnpaused(generation)) || this.speakGeneration !== generation || this.halted) {
+        throw new DOMException("audio stopped", "AbortError");
+      }
+      // Retry complete local bytes on a fresh output, not another synthesis
+      // request. A partially heard clip continues from its last media position.
+      const retry = this.tryPlayHtmlAudioOnce(chunks, announce, error.positionSec);
+      if (!retry) throw error;
+      await retry;
+    });
+  }
+
+  private tryPlayHtmlAudioOnce(chunks: Uint8Array[], onStart?: () => void, resumeAtSec = 0): Promise<void> | null {
     if (typeof Audio !== "function" || typeof Blob === "undefined" || chunks.length === 0) {
       return null;
     }
@@ -2289,6 +2330,10 @@ export class StreamingSpeechClient implements TTSClient {
     return new Promise<void>((resolve, reject) => {
       let settled = false;
       let announced = false;
+      let watching = false;
+      let lastPosition = resumeAtSec;
+      let lastProgressAt = performance.now();
+      let progressTimer: ReturnType<typeof setTimeout> | null = null;
       const unload = () => {
         audio.pause();
         audio.removeAttribute("src");
@@ -2297,16 +2342,18 @@ export class StreamingSpeechClient implements TTSClient {
       const announceStart = () => {
         if (settled || this.currentHtmlAudio !== audio) { unload(); return; }
         if (this.paused) { audio.pause(); return; }
+        const position = audio.currentTime;
+        if (!Number.isFinite(position) || position <= resumeAtSec) return;
         if (announced) return;
         announced = true;
         this.notePlaybackStart("html-audio-playing", 0);
         onStart?.();
         playbackBlockedCallback?.(null);
       };
-      this.currentHtmlOnStart = announceStart;
       const finish = (error?: unknown) => {
         if (settled) return;
         settled = true;
+        if (progressTimer !== null) clearTimeout(progressTimer);
         playbackBlockedCallback?.(null);
         audio.onended = null;
         audio.onerror = null;
@@ -2327,13 +2374,42 @@ export class StreamingSpeechClient implements TTSClient {
       };
       this.cancelHtmlAudio = () => finish(new DOMException("audio stopped", "AbortError"));
       this.failHtmlAudio = (error) => finish(error);
-      audio.onended = () => finish();
-      audio.onerror = () => finish(new Error("HTML audio playback failed"));
-      audio.onplaying = announceStart;
+      audio.onended = () => {
+        const position = audio.currentTime;
+        if (!Number.isFinite(position) || position <= resumeAtSec) {
+          finish(new NativePlaybackStalledError(Math.max(lastPosition, 0)));
+          return;
+        }
+        announceStart();
+        finish();
+      };
+      audio.onerror = () => finish(new NativePlaybackError("HTML audio playback failed"));
+      const checkProgress = () => {
+        if (settled || this.currentHtmlAudio !== audio) return;
+        const now = performance.now();
+        const position = audio.currentTime;
+        if (this.paused || audio.paused) lastProgressAt = now;
+        else if (Number.isFinite(position) && position > lastPosition + 0.005) {
+          lastPosition = position;
+          lastProgressAt = now;
+          announceStart();
+        } else if (now - lastProgressAt >= NATIVE_PLAYBACK_STALL_MS) {
+          finish(new NativePlaybackStalledError(Math.max(lastPosition, 0)));
+          return;
+        }
+        progressTimer = setTimeout(checkProgress, 100);
+      };
+      const observePlaying = () => {
+        announceStart();
+        if (!watching && !settled) { watching = true; progressTimer = setTimeout(checkProgress, 100); }
+      };
+      this.currentHtmlOnStart = observePlaying;
+      audio.onplaying = observePlaying;
       this.playing = true;
       const playPauseEpoch = this.pauseEpoch;
       try {
-        void audio.play().then(announceStart, (error: unknown) => {
+        if (resumeAtSec > 0) audio.currentTime = resumeAtSec;
+        void audio.play().then(observePlaying, (error: unknown) => {
           // A pause while the clip is still loading rejects play() with
           // AbortError. The same clip is resumed later; it has not ended.
           if (this.currentHtmlAudio === audio && this.pauseEpoch !== playPauseEpoch) return;

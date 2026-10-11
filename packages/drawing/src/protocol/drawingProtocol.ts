@@ -132,7 +132,8 @@ export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
 const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
-const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE)\b/i;
+const TEXT_BODY_BOUNDARY = String.raw`\[(?:${DRAW_COMMAND_TYPES.join('|')}|STEP|\/STEP)\b`;
+const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'i');
 
 /**
  * `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`.
@@ -144,11 +145,12 @@ const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASI
  * two one one" and watched a blank column. The intent is unambiguous, so the
  * body is repaired back into the tag rather than spoken.
  *
- * Deliberately conservative: the coordinates must close the line, so a line
- * that carries another tag after the body is left alone.
+ * The coordinates must close the line or the teaching STEP. A body cannot
+ * cross another protocol tag and borrow that later tag's coordinates.
  */
-const HEADER_ONLY_TEXT_TAG_PATTERN =
-  /\[(WRITE|LABEL|DIMENSION)\]\s*([^\r\n]*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|$)/gi;
+const HEADER_ONLY_TEXT_TAG_PATTERN = new RegExp(
+  String.raw`\[(WRITE|LABEL|DIMENSION)\]\s*((?:(?!${TEXT_BODY_BOUNDARY})[^\r\n])*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|\[\/STEP\]|$)`, 'gi',
+);
 
 /** The same shape with nothing after the name yet, for the streaming parser. */
 export const HEADER_ONLY_TEXT_TAG_EXACT = /^\[(WRITE|LABEL|DIMENSION)\]$/i;

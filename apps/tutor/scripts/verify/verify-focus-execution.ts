@@ -365,8 +365,8 @@ async function main(): Promise<void> {
       "the FOCUS branch must run a schedule through runScheduledFocus, and never on a code lesson",
     );
     assert(
-      /waitUntilAudioMs: \(targetMs\) =>\s*waitUntilDrawClock\(focusAudioClock, targetMs, \{\s*shouldCancel: commandCancelled,\s*getPlaybackRate: options\.getPlaybackRate,/.test(executor),
-      "the schedule's waits must run on the audio clock with the playback rate, as the runner's do",
+      /waitUntilAudioMs: async \(targetMs, getTargetMs\) =>[\s\S]{0,250}?const waitingFor = nextTarget;\s*await waitUntilDrawClock\(focusAudioClock, waitingFor, \{\s*shouldCancel: \(\) => commandCancelled\(\) \|\| Boolean\(getTargetMs && getTargetMs\(\) !== waitingFor\),\s*getPlaybackRate: options\.getPlaybackRate,/.test(executor),
+      "the schedule's changing target waits retain the audio clock, cancellation and playback rate",
     );
     assert(
       /entityIds: \[\.\.\.spec\.targetIds, \.\.\.targets\.map\(\(target\) => target\.id\)\]/.test(executor),
