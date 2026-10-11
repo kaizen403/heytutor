@@ -268,6 +268,13 @@ This uses the existing turn planner's actual subject consensus, the live subject
 policy and the live four-second `/api/chat` picker without word fallback. Rows
 classified as unknown or non-maths stay current, recorded in
 `productionStrategy`; corpus subject labels never override that decision.
+`--production-strict-subjects maths,physics` puts physics on the same strict
+path (a candidate production setting); `maths` keeps physics on the current
+production path. The list is recorded in the run's execution config.
+Like the live client, the picker request carries the classified subject, so the
+server's catalogue holds only that subject's library entries and an ID of
+another subject is never admitted. A turn classified `other` (and an old client
+that sends no subject) sees the whole library, as every turn did before.
 Picked IDs must also survive the lab's full-sample exemplar exclusions. The
 picker is pinned to the configured lab origin's `/api/chat`, even if a public
 API origin is set, so it cannot bypass authentication or hard-cap accounting.

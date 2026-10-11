@@ -793,7 +793,7 @@ async function main(): Promise<void> {
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
     ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
-      examplePickerProfile: "live-client-4000ms/v1", subjectClassification: "existing-turn-plan" } : {}),
+      examplePickerProfile: "live-client-4000ms-subject-shelf/v2", subjectClassification: "existing-turn-plan" } : {}),
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
       ...labResponseUsagePricing(providerConfig.deployment),
       plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
