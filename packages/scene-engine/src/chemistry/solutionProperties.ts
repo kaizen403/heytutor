@@ -9,7 +9,7 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, convertChemistryReading, chemistryPlanBindingsValid, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
 
 const FAMILY = "chem_solutions" as const;
 
@@ -43,6 +43,25 @@ function take(match: RegExpMatchArray | null, group = 1): number | null {
   if (!match) return null;
   if (match[group] === undefined) group = match.findIndex((part, index) => index > 0 && part !== undefined);
   return matchedChemistryScalar(match.input!, match, group);
+}
+/** A declared factor must be read before a default or a derived factor exists. */
+function suppliedVanthoffFactor(question: string): {value:number|null} | null {
+  const cue = /\bvan['’]?t[\s-]+hoff\s+factor(?:\s*\(\s*i\s*\)|\s+i\b)?|\bi\b(?=\s*(?:[=:]|\b(?:is|was|equals|equal\s+to|unknown|unspecified|undefined|not|NaN)\b))/ig;
+  const owners = [...question.matchAll(cue)];
+  let value: number | null = null;
+  for (let index = 0; index < owners.length; index += 1) {
+    const owner = owners[index]!;
+    const start = owner.index! + owner[0].length;
+    const end = owners[index + 1]?.index ?? question.length;
+    if (start >= end) return null;
+    // Read this original declaration alone: a later good i cannot hide an
+    // earlier unknown, and a supplied unit cannot disappear in a scalar match.
+    const read = readChemistryQuantity({question,after:/^/,within:{start,end},dimension:"dimensionless"});
+    if (!read.ok || read.reading.rawUnit !== null || !(read.reading.value > 0)) return null;
+    if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return null;
+    value = read.reading.value;
+  }
+  return {value};
 }
 function literal(question: string, dimension: ChemistryDimension, targetUnit?: ChemistryUnit): number | null {
   const result = findChemistryQuantities({question, dimension, targetUnit});
@@ -300,7 +319,9 @@ function nonvolatileScene(question: string, stem: string): SceneDocument | null 
 function colligativeScene(question: string, stem: string): SceneDocument | null {
   if (/molar mass|molecular mass|van'?t hoff|vant hoff|degree of dissociation|degree of association/.test(stem)) return null;
   const dissociating = /dissociat|associat|electrolyte/.test(stem);
-  const factor = take(new RegExp(String.raw`\bi\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
+  const supplied = suppliedVanthoffFactor(question);
+  if (!supplied) return null;
+  const factor = supplied.value;
   if (dissociating && factor === null) return null;
   const i = factor ?? 1;
   if (!(i > 0)) return null;
@@ -382,7 +403,9 @@ function molarMassScene(question: string, stem: string): SceneDocument | null {
   if (alpha !== null && (alpha < 0 || alpha > 1)) return null;
   if (dissociation && (nu === null || nu < 2)) return null;
   if (association && (monomers === null || monomers < 2)) return null;
-  let factor: number | null = take(new RegExp(String.raw`\bi\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
+  const supplied = suppliedVanthoffFactor(question);
+  if (!supplied) return null;
+  let factor: number | null = supplied.value;
   if (dissociation && alpha !== null && nu !== null) {
     const predicted = 1 + (nu - 1) * alpha;
     if (factor !== null && Math.abs(factor - predicted) > 1e-6) return null;
