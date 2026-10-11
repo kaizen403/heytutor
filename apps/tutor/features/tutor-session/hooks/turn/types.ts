@@ -19,6 +19,8 @@ import type { IntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoin
 
 /** A question opens a fresh page unless it carries a doubt or resumes this one. */
 export type HandleQuestionOptions = {
+  /** Private unchanged lesson source. Never inferred from a scene or continuation prompt. */
+  originalQuestion?: string;
   /** Exactly one receipt for the pending attempt, separate from lesson completion. */
   onAdmission?: (admitted: boolean) => void;
   doubt?: DoubtTurnRequest;

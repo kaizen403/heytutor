@@ -32,6 +32,7 @@ import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeech
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import type { UseSegmentRunnerParams } from "./types";
 import { recordFirstAudible, recordTtsFirstByte } from "../../../../lib/obs/turnTelemetry";
+import { createSpeechPlaybackTracker } from "../../../../lib/obs/speechPlayback";
 
 /**
  * Sentences asked for ahead of the one being spoken. The TTS client caps how
@@ -70,6 +71,7 @@ export function useSegmentRunner({
   const speechRateRef = useRef(createSpeechRateState());
   /** The sentence being spoken. Recorded segments omit it until the beat ends. */
   const speakingNarrationRef = useRef("");
+  const speechPlaybackRef = useRef<ReturnType<typeof createSpeechPlaybackTracker> | null>(null);
   const browserSpeechRef = useRef<SpeechSynthesisTTSClient | null>(null);
   const browserFallbackOwnerRef = useRef<symbol | null>(null);
   const fallbackPauseGenerationRef = useRef(0);
@@ -81,6 +83,7 @@ export function useSegmentRunner({
   // Turn controls own both transports. Browser pause() cancels its current
   // utterance; the fallback loop retries that sentence after resume.
   const pauseFallbackSpeech = () => {
+    speechPlaybackRef.current?.pause();
     speechClockRef.current?.pause();
     timingWaitClockRef.current?.pause();
     fallbackPauseGenerationRef.current++;
@@ -141,6 +144,10 @@ export function useSegmentRunner({
       });
 
       const tel = turnTelemetryRef.current;
+      const playback = createSpeechPlaybackTracker({
+        telemetry: tel, segmentIndex: index,
+        isCurrent: () => !isCancelled() && turnActiveRef.current,
+      });
       const segmentName = `segment-${index}`;
       // One `tts-first-byte` per segment, even across a provider recovery.
       let firstAudioByteRecorded = false;
@@ -293,6 +300,8 @@ export function useSegmentRunner({
       let initialTimingWait: { release: InitialTimingWaitRelease; waitedMs: number } | null = null;
 
       const markSpeechComplete = () => {
+        playback.end("complete", "on-end");
+        if (speechPlaybackRef.current === playback) speechPlaybackRef.current = null;
         speechComplete = true;
         notifyTimingWaiters();
       };
@@ -604,6 +613,13 @@ export function useSegmentRunner({
         // signal is unknown with no lead, never the previous segment's.
         const startSignal = usingBrowserFallback ? null : tts.getLastPlaybackStart?.() ?? null;
         const browserVoice = usingBrowserFallback || startSignal?.signal === "speech-synthesis-start";
+        playback.start({
+          transport: browserVoice ? "browser" : "provider",
+          signal: browserVoice ? "speech-synthesis-start" : startSignal?.signal ?? "unknown",
+          leadMs: startSignal?.signal === "audio-context-scheduled" ? startSignal.leadMs : 0,
+          muted: tts.isMuted?.() ?? false,
+        });
+        speechPlaybackRef.current = playback;
         recordFirstAudible(tel, {
           segmentIndex: index,
           transport: browserVoice ? "browser" : "provider",
@@ -751,6 +767,7 @@ export function useSegmentRunner({
           primaryGeneration++;
           if (tts.abandonSpeaking) tts.abandonSpeaking();
           else tts.stop();
+          playback.end("failed", "abandoned");
         };
 
         try {
@@ -800,6 +817,7 @@ export function useSegmentRunner({
                         onError,
                       });
                     } finally {
+                      playback.end(isCancelled() || isPausedRef.current ? "cancelled" : "failed", "speech-promise");
                       activeAttempt = false;
                     }
                   },
@@ -934,7 +952,12 @@ export function useSegmentRunner({
             window.clearTimeout(playbackWatchId);
           }
           if (speechClockRef.current === clock) speechClockRef.current = null;
-          markSpeechComplete();
+          // A speech promise ends independently of paired ink. Its terminal
+          // cleanup is not a fabricated successful onEnd callback.
+          playback.end(isCancelled() ? "cancelled" : speechAborted ? "failed" : "complete", "speech-promise");
+          if (speechPlaybackRef.current === playback) speechPlaybackRef.current = null;
+          speechComplete = true;
+          notifyTimingWaiters();
         }
       };
 

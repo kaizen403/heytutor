@@ -4,6 +4,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { SpeechSynthesisTTSClient } from "../../../../packages/tutor-core/src/tts/speechClient";
 import { haltAllLectureAudio } from "../../../../packages/tutor-core/src/tts/audioContext";
+import * as figureOutcome from "../../lib/obs/figureOutcome";
 
 type Voice = { onstart?: () => void; onend?: () => void; text: string };
 let active: Voice | null = null;
@@ -22,8 +23,8 @@ Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
   value: class { onstart = null; onend = null; onerror = null; volume = 1; rate = 1; pitch = 1; constructor(readonly text: string) {} },
 });
 
-// Execute the actual useTurnControl hook with inert render hooks. All of its
-// imports except useSegmentRunner are irrelevant until an actual turn starts.
+// Execute the actual Stop path with inert render hooks and observable owners.
+// Keep the pure diagnostics lookup real rather than mocking its new exports.
 const source = readFileSync(new URL("../../features/tutor-session/hooks/turn/useTurnControl.ts", import.meta.url), "utf8");
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const exports: Record<string, unknown> = {};
@@ -45,6 +46,7 @@ runInNewContext(js, {
     if (id === "@/lib/replay/replayAudio") return { stopReplayAudio() {} };
     if (id === "../../lib/board/spotlight") return { clearSpotlight() {} };
     if (id === "@heytutor/tutor-core") return { tutorDebug() {} };
+    if (id === "@/lib/obs/figureOutcome") return figureOutcome;
     // The progressive save: Stop closes the stopped lesson's save at once.
     if (id === "../../lib/turn/liveTurnSave") return {
       liveTurnSave: () => ({

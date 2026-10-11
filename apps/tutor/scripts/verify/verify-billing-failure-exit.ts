@@ -8,15 +8,16 @@
  * the real beginTurn sends a billing request. This script copies fragments out
  * of the source and runs them:
  *   - the await beginTurn region, against a fake beginTurn that returns or rejects
- *   - the ownership return after that await, when the source has one
+ *   - the admission-only trace setup and ownership return after that await
  *   - the `if (!billed.ok)` statement in handleQuestion
  *   - finishLectureUi's callback body, which is the release those paths must call
  *   - the submit gate that returns while turnActiveRef is set
  * shouldFlushPendingQuestion is the exported flush predicate and is called
  * directly. rememberBillingFailure is the real function. A marker assigned
  * immediately after the extracted region is the runtime evidence that execution
- * continued. liveSave (the save handle minted once billing passed), beginBoardEpoch, and the liveQuestionRef write
- * are not executed; their position is AST-only. No network call.
+ * continued. The liveSave begin call executes against an in-process no-write
+ * port, proving denial/stale paths never mint a handle. beginBoardEpoch and the
+ * liveQuestionRef write remain AST-only. No network or persistence call.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -60,6 +61,10 @@ type Snapshot = {
   rememberBillingFailureCalls: number;
   entitlementRemainingPct: number | null;
   continuedPastBilling: boolean;
+  telemetryCalls: number;
+  figureTrackerCalls: number;
+  liveSaveCalls: number;
+  admissionEvents: string[];
 };
 
 type ArmInput = {
@@ -127,6 +132,11 @@ function declaresBilled(statement: ts.Statement, source: ts.SourceFile): boolean
   return statement.declarationList.declarations.some((decl) => decl.name.getText(source) === "billed");
 }
 
+function declaresName(statement: ts.Statement, source: ts.SourceFile, name: string): boolean {
+  return ts.isVariableStatement(statement) && statement.declarationList.declarations
+    .some((declaration) => declaration.name.getText(source) === name);
+}
+
 function statementInBlock(node: ts.Node): ts.Statement | undefined {
   let current: ts.Node = node;
   while (current.parent && !ts.isBlock(current.parent) && !ts.isSourceFile(current.parent)) {
@@ -191,22 +201,13 @@ function beginTurnRegion(root: ts.Node, source: ts.SourceFile): string {
   const parts: ts.Statement[] = [];
   const previous = block.statements[index - 1];
   if (previous && declaresBilled(previous, source)) parts.push(previous);
-  parts.push(statement);
-  let cursor = index + 1;
-  while (cursor < block.statements.length) {
-    const next = block.statements[cursor];
-    if (!next) break;
-    if (ts.isIfStatement(next) && next.expression.getText(source).replace(/\s+/g, "") === "!billed.ok") {
-      parts.push(next);
-      break;
-    }
-    if (isStaleTurnReturn(next, source)) {
-      parts.push(next);
-      cursor += 1;
-      continue;
-    }
-    break;
-  }
+  const saveIndex = block.statements.findIndex((next, position) =>
+    position > index && declaresName(next, source, "liveSave"));
+  assert.ok(saveIndex > index, "beginTurn region must reach the real liveSave declaration");
+  const adoptSave = block.statements[saveIndex + 1];
+  assert.equal(adoptSave?.getText(source).replace(/\s+/g, ""), "saveExit.handle=liveSave;",
+    "the extracted success path must adopt the handle actually minted after billing");
+  parts.push(...block.statements.slice(index, saveIndex + 2));
   return parts.map((part) => part.getText(source)).join("\n");
 }
 
@@ -259,6 +260,18 @@ function loadHarness(
       let usageDepleted = false;
       let rememberBillingFailureCalls = 0;
       let continuedPastBilling = false;
+      let telemetryCalls = 0;
+      let figureTrackerCalls = 0;
+      let liveSaveCalls = 0;
+      const admissionEvents = [];
+      const saveExit = {};
+      const turnTelemetryRef = { current: null };
+      const sessionId = "billing-exit-offline-board";
+      const askOrigin = 1000;
+      const retainedFigure = null;
+      const speedRef = { current: 1 };
+      const cancelRef = { current: false };
+      const onSpeechStartupStatus = undefined;
       let beginMode = "return";
       let abortController = new AbortController();
       const clearSpotlight = deps.clearSpotlight;
@@ -268,12 +281,31 @@ function loadHarness(
       function setInputInteracted() {}
       function beginTurn() {
         beginTurnCalls += 1;
+        admissionEvents.push("billing");
         if (beginMode === "reject") return Promise.reject(new TypeError("Failed to fetch"));
         if (beginMode === "reject-billing-shaped") {
           return Promise.reject(new Error(deps.billingShapedRejection));
         }
         return Promise.resolve(billed);
       }
+      function createTurnTelemetry() {
+        telemetryCalls += 1;
+        admissionEvents.push("telemetry");
+        return {
+          setTrace() { admissionEvents.push("trace"); },
+          watchPageLifecycle() { admissionEvents.push("lifecycle"); },
+        };
+      }
+      function createFigureOutcomeTracker() {
+        figureTrackerCalls += 1;
+        admissionEvents.push("figure");
+        return { decision() { admissionEvents.push("retained-figure"); } };
+      }
+      function liveTurnSave() { return { begin() {
+        liveSaveCalls += 1;
+        admissionEvents.push("save");
+        return { offlineHandle: true };
+      } }; }
       function emitError(error) {
         errors.push(error);
         const billing = error && error.billing;
@@ -301,7 +333,9 @@ function loadHarness(
       async function settleBeginTurn() {
         const doubt = null;
         const currentTraceIdRef = { current: "trace-local" };
+        const turnTraceId = "trace-local";
         const previousTraceId = undefined;
+        const doubtPage = null;
         ${beginRegion}
         continuedPastBilling = true;
       }
@@ -325,6 +359,12 @@ function loadHarness(
         usageDepleted = false;
         rememberBillingFailureCalls = 0;
         continuedPastBilling = false;
+        telemetryCalls = 0;
+        figureTrackerCalls = 0;
+        liveSaveCalls = 0;
+        admissionEvents.length = 0;
+        Object.keys(saveExit).forEach(key => delete saveExit[key]);
+        turnTelemetryRef.current = null;
         beginMode = input.beginMode || "return";
         abortController = new AbortController();
         if (input.aborted) abortController.abort();
@@ -351,6 +391,8 @@ function loadHarness(
           rememberBillingFailureCalls,
           entitlementRemainingPct: (deps.getEntitlementSnapshot() || {}).remainingPct ?? null,
           continuedPastBilling,
+          telemetryCalls, figureTrackerCalls, liveSaveCalls,
+          admissionEvents: admissionEvents.slice(),
         };
       }
       return { arm, applyBillingExit, settleBeginTurn, laterSubmit, snapshot };
@@ -402,10 +444,10 @@ function isTutorPhase(phase: string): phase is TutorPhase {
 
 async function main(): Promise<void> {
   console.log(
-    "evidence: extracted-source execution of the beginTurn await, the ownership return when the source has one, the billing-failure if, finishLectureUi, and the submit gate. The fake beginTurn returns or rejects in-process. Hooks were not mounted. No network call.",
+    "evidence: extracted-source execution of beginTurn, admission-only trace/tracker creation, ownership return, billing refusal, liveSave begin against a no-write port, finishLectureUi, and the submit gate. Hooks were not mounted. No network or persistence call.",
   );
   console.log(
-    "success follow-through: runtime marker continuedPastBilling is assigned immediately after the extracted region. AST-only: the next source statement is liveSave, then beginBoardEpoch and liveQuestionRef. The harness does not call them.",
+    "success follow-through: runtime marker continuedPastBilling follows adoption of the in-process save handle. beginBoardEpoch and liveQuestionRef remain AST-only. Denied/stale attempts must never call the save port.",
   );
 
   const handler = readSource("../../features/tutor-session/hooks/turn/useQuestionHandler.ts");
@@ -504,16 +546,16 @@ async function main(): Promise<void> {
 
   const parent = billingIf.parent;
   if (!parent || !ts.isBlock(parent)) throw new Error("billing if has no parent block");
-  const next = parent.statements[parent.statements.indexOf(billingIf) + 1];
-  const nextName = next && ts.isVariableStatement(next)
-    ? next.declarationList.declarations[0]?.name.getText(handler)
-    : undefined;
-  check(
-    nextName === "liveSave",
-    `the statement after a billing refusal must stay the success fall-through, found ${String(nextName)}`,
-  );
-  const afterBillingText = parent.statements
-    .slice(parent.statements.indexOf(billingIf) + 1)
+  const afterBilling = parent.statements.slice(parent.statements.indexOf(billingIf) + 1);
+  const saveIndex = afterBilling.findIndex(statement => declaresName(statement, handler, "liveSave"));
+  check(saveIndex >= 0, "success fall-through must still mint liveSave after refusal returns");
+  const traceIndex = afterBilling.findIndex(statement => declaresName(statement, handler, "tel"));
+  const figureIndex = afterBilling.findIndex(statement => declaresName(statement, handler, "figureOutcome"));
+  check(traceIndex >= 0 && figureIndex > traceIndex && saveIndex > figureIndex,
+    "success must adopt its admission trace and figure tracker before minting liveSave");
+  const preSave = afterBilling.slice(0, saveIndex).map(statement => statement.getText(handler)).join("\n");
+  check(!preSave.includes("liveTurnSave("), "diagnostic adoption before liveSave must not mint an earlier save handle");
+  const afterBillingText = afterBilling
     .map((statement) => statement.getText(handler))
     .join("\n");
   check(afterBillingText.includes("beginBoardEpoch("), "success continuation must still open the board epoch");
@@ -543,17 +585,31 @@ async function main(): Promise<void> {
   const beginRegion = beginTurnRegion(handleQuestion, handler);
   assert.match(beginRegion, /await beginTurn\(/);
   assert.match(beginRegion, /!billed\.ok/);
-  assert.equal(beginRegion.includes("liveSave"), false);
+  assert.match(beginRegion, /const liveSave =/);
+  assert.match(beginRegion, /liveTurnSave\(\)\.begin\(/);
   assert.equal(beginRegion.includes("beginBoardEpoch"), false);
   assert.equal(beginRegion.includes("liveQuestionRef"), false);
   assert.equal(beginRegion.includes("${"), false);
   assert.equal(beginRegion.includes("`"), false);
   const betweenTryAndBilling = statementsBetween(beginTry, billingIf);
   const ownershipGuard = betweenTryAndBilling.find((statement) => isStaleTurnReturn(statement, handler));
+  const admissionTraceGuard = betweenTryAndBilling.find(statement => ts.isIfStatement(statement) &&
+    statement.expression.getText(handler).replace(/\s+/g, "") === "billed.ok");
   check(
-    betweenTryAndBilling.length === 1 && ownershipGuard !== undefined,
-    `a returned beginTurn must return on a stale generation or abort before the billing branch, found ${betweenTryAndBilling.length} statement(s)`,
+    betweenTryAndBilling.length === 2 && admissionTraceGuard !== undefined && ownershipGuard !== undefined &&
+      betweenTryAndBilling.indexOf(admissionTraceGuard) < betweenTryAndBilling.indexOf(ownershipGuard),
+    `a returned beginTurn must create diagnostics only on admission, then return on a stale generation or abort before billing refusal; found ${betweenTryAndBilling.length} statement(s)`,
   );
+  if (admissionTraceGuard) {
+    check(callsNamed(admissionTraceGuard, handler, "createTurnTelemetry").length === 1,
+      "admission must create one attempt-local telemetry instance");
+    check(callsNamed(admissionTraceGuard, handler, "createFigureOutcomeTracker").length === 1,
+      "admission must create one attempt-local figure tracker");
+    check(callsNamed(admissionTraceGuard, handler, "liveTurnSave").length === 0,
+      "admission diagnostics cannot mint a save before stale/refusal checks");
+    check(beginRegion.includes(admissionTraceGuard.getText(handler)),
+      "the runtime extraction must execute the actual admission-only diagnostics block");
+  }
   const guardText = ownershipGuard?.getText(handler) ?? "";
   check(
     guardText.length > 0 && beginRegion.includes(guardText),
@@ -712,8 +768,13 @@ async function main(): Promise<void> {
   );
   check(
     settledOk.continuedPastBilling === true,
-    "runtime: a current success falls through to the continuation marker. AST-only: liveSave is the next source statement and is not called",
+    "runtime: a current success adopts the in-process save handle before the continuation marker",
   );
+  check(settledOk.telemetryCalls === 1 && settledOk.figureTrackerCalls === 1,
+    "a current admission must create its trace and tracker once");
+  check(settledOk.liveSaveCalls === 1, "a current admission must mint its save handle once");
+  check(JSON.stringify(settledOk.admissionEvents) === JSON.stringify(["billing", "telemetry", "figure", "trace", "lifecycle", "save"]),
+    `admission/tracker/save order was ${JSON.stringify(settledOk.admissionEvents)}`);
   check(settledOk.spotlight === "dimmed", "a resolved beginTurn must not clear the spotlight");
   check(settledOk.ttsStops === 0, "a resolved beginTurn must not stop speech");
 
@@ -737,6 +798,9 @@ async function main(): Promise<void> {
     `a returned refusal must show idle once, got ${JSON.stringify(settledRefusal.phaseSets)}`,
   );
   check(settledRefusal.continuedPastBilling === false, "a returned refusal must return before the success continuation");
+  check(settledRefusal.telemetryCalls === 0 && settledRefusal.figureTrackerCalls === 0,
+    "a denied admission must not create an admitted-turn trace or tracker");
+  check(settledRefusal.liveSaveCalls === 0, "a denied admission must never mint a save handle");
   check(harness.laterSubmit() === "accepted", "a later submit must follow a returned refusal");
 
   harness.arm({ ...owned, billed: TIMEOUT, beginMode: "return" });
@@ -760,6 +824,8 @@ async function main(): Promise<void> {
   check(settledTimeout.turnActive === false, "a returned timeout must clear the latch");
   check(settledTimeout.phase === "idle", "a returned timeout must idle phaseRef");
   check(settledTimeout.continuedPastBilling === false, "a returned timeout must return before the success continuation");
+  check(settledTimeout.telemetryCalls === 0 && settledTimeout.figureTrackerCalls === 0 && settledTimeout.liveSaveCalls === 0,
+    "a returned timeout must not create admission diagnostics or a save handle");
 
   const expectConnectionRelease = async (label: string, beginMode: BeginMode): Promise<void> => {
     harness.arm({ ...owned, billed: { ok: true }, beginMode, aborted: false });
@@ -780,6 +846,8 @@ async function main(): Promise<void> {
       `${label}: must leave the entitlement baseline, remaining ${String(snap.entitlementRemainingPct)}`,
     );
     check(snap.continuedPastBilling === false, `${label}: must return before the success continuation`);
+    check(snap.telemetryCalls === 0 && snap.figureTrackerCalls === 0 && snap.liveSaveCalls === 0,
+      `${label}: rejected admission must create neither admitted diagnostics nor a save handle`);
     check(snap.releaseCalls === 1, `${label}: must release the current generation`);
     check(
       snap.releaseGenerations.length === 1 && snap.releaseGenerations[0] === 4,
@@ -839,6 +907,8 @@ async function main(): Promise<void> {
       `${label}: entitlement remaining was ${String(snap.entitlementRemainingPct)}`,
     );
     check(snap.continuedPastBilling === false, `${label}: must return before the success continuation`);
+    check(snap.telemetryCalls === 0 && snap.figureTrackerCalls === 0 && snap.liveSaveCalls === 0,
+      `${label}: rejected stale admission must create neither diagnostics nor a save handle`);
     check(harness.laterSubmit() !== "accepted", `${label}: the active turn must still hold the submit gate`);
   };
 
@@ -885,8 +955,11 @@ async function main(): Promise<void> {
     check(snap.ttsStops === 0, `${label}: must not stop speech`);
     check(
       snap.continuedPastBilling === false,
-      `${label}: runtime returned before the success continuation. AST-only: that continuation starts at liveSave, which this harness does not call`,
+      `${label}: runtime must return before save admission and the success continuation`,
     );
+    check(snap.liveSaveCalls === 0, `${label}: a stale returned attempt must never mint a save handle`);
+    check(snap.telemetryCalls === Number(billed.ok) && snap.figureTrackerCalls === Number(billed.ok),
+      `${label}: only an issued admission may retain attempt-local terminal diagnostics`);
     check(harness.laterSubmit() !== "accepted", `${label}: the active turn must still hold the submit gate`);
   };
 

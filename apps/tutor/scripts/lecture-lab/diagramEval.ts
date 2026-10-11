@@ -23,6 +23,7 @@ export type DiagramEmptyCause =
   | "candidates_invalid"
   | "declined_unreadable"
   | "fallback_suppressed"
+  | "presentation_refused"
   | "deadline";
 
 export interface DiagramEvalRow {
