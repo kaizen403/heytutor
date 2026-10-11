@@ -360,6 +360,13 @@ gate("G14 the view is deterministic and shared by every frame", () => {
     const angle = lineAngle(lineDirection(render, `frame_${index}`), lineDirection(render, `frame_b_${index}`));
     if (angle > 0.05) return `axis ${index} of the two frames differs by ${angle.toFixed(2)} degrees`;
   }
+  if (spaceView) {
+    // The plan memo must not outlive an in-place edit of the same document.
+    const edited = structuredClone(meetingDocument);
+    const before = JSON.stringify(spaceView.planSpaceView(edited)?.planes.get("plane"));
+    edited.constructions.find((construction) => construction.id === "make_plane")!.inputs = { frame: "frame", a: 1, b: -2, c: 2, d: 9 };
+    if (JSON.stringify(spaceView.planSpaceView(edited)?.planes.get("plane")) === before) return "an in-place edit kept the stale plane drawing";
+  }
   return null;
 });
 
