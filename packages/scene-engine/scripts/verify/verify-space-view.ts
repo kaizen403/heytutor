@@ -11,7 +11,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compileSceneDocument, synthesizeFamilyScene, validateSceneDocument, type SceneDocument } from "../../src/index";
+import { compileSceneDocument, synthesizeFamilyScene, validateSceneDocument, type RenderPoint, type RenderPrimitive, type RenderScene, type SceneAssertion, type SceneConstruction, type SceneDocument, type SceneEntity } from "../../src/index";
 import { EVALUATION_COMPILE_PROBES } from "../probes/evaluationCompileProbes";
 import { PHYSICS_EVALUATION_COMPILE_PROBES } from "../probes/evaluationPhysicsProbes";
 
@@ -26,6 +26,356 @@ function gate(name: string, run: () => string | null): void {
   try { failure = run(); } catch (error) { failure = `threw ${error instanceof Error ? error.message : String(error)}`; }
   if (failure) { failures += 1; results.push(`FAIL ${name}: ${failure}`); } else results.push(`ok   ${name}`);
 }
+
+// New modules load lazily so the gate also runs, and fails, on the base engine.
+type SpaceViewModule = typeof import("../../src/compile/spaceView");
+type SpaceCameraModule = typeof import("../../src/math/spaceCamera");
+const spaceView: SpaceViewModule | null = await import("../../src/compile/spaceView").catch(() => null);
+const spaceCamera: SpaceCameraModule | null = await import("../../src/math/spaceCamera").catch(() => null);
+
+// ---------- Synthetic documents ----------
+interface V3 { x: number; y: number; z: number }
+type Part = [SceneEntity, SceneConstruction];
+const v3 = (x: number, y: number, z: number): V3 => ({ x, y, z });
+const entity = (id: string, kind: string, label?: string): SceneEntity => ({ id, kind, role: `${kind} in the world figure`, ...(label ? { label } : {}) });
+const make = (operator: string, inputs: Record<string, unknown>, outputs: string[], id = `make_${outputs.join("_")}`): SceneConstruction => ({ id, operator, inputs, outputs });
+const sp = (id: string, p: V3, label?: string): Part => [entity(id, "point", label), make("space_point", { frame: "frame", x: p.x, y: p.y, z: p.z }, [id])];
+const part = (id: string, kind: string, operator: string, inputs: Record<string, unknown>, label?: string): Part => [entity(id, kind, label), make(operator, { frame: "frame", ...inputs }, [id])];
+function spaceDocument(title: string, parts: Part[], options: { axisLength?: number; assertions?: SceneAssertion[]; frames?: Part[] } = {}): SceneDocument {
+  const all: Part[] = [
+    [{ id: "origin", kind: "point", role: "construction helper point" }, make("point", { x: 0, y: 0 }, ["origin"])],
+    [entity("frame", "polyline"), make("space_frame", { origin: "origin", scale: 1, ...(options.axisLength ? { axisLength: options.axisLength } : {}) }, ["frame"])],
+    ...(options.frames ?? []),
+    ...parts,
+  ];
+  const required = all.map(([item]) => item.id).filter((id) => id !== "origin" && !id.startsWith("origin_"));
+  return {
+    schemaVersion: "scene-document/v2", visualDecision: { mode: "scene", reason: "synthetic space view figure" },
+    source: { question: title }, quantities: [], entities: all.map(([item]) => item), constructions: all.map(([, construction]) => construction),
+    relations: [], assertions: options.assertions ?? [], annotations: [], requiredEntityIds: required,
+    revealGroups: [{ id: "scene", entityIds: required, dependsOn: [], narrationCue: title }],
+    teachingTimeline: [{ id: "show", action: "reveal", targetId: "scene", dependsOn: [], narrationIntent: title }],
+  } as SceneDocument;
+}
+interface Compiled { validated: SceneDocument | null; render: RenderScene | null; issues: string }
+function compile(document: SceneDocument): Compiled {
+  const validation = validateSceneDocument(structuredClone(document));
+  const fatal = (issues: Array<{ severity: string; code: string; message: string }>) => issues.filter((issue) => issue.severity === "fatal").map((issue) => `${issue.code}: ${issue.message}`).join("; ");
+  if (!validation.document) return { validated: null, render: null, issues: fatal(validation.report.issues) };
+  const compiled = compileSceneDocument(validation.document);
+  return { validated: validation.document, render: compiled.ok ? compiled.renderScene : null, issues: fatal(compiled.report.issues) };
+}
+function rendered(document: SceneDocument): RenderScene {
+  const result = compile(document);
+  if (!result.render) throw new Error(`does not compile: ${result.issues}`);
+  return result.render;
+}
+
+// ---------- Canvas helpers ----------
+const sub2 = (a: RenderPoint, b: RenderPoint): RenderPoint => ({ x: a.x - b.x, y: a.y - b.y });
+const len2 = (a: RenderPoint): number => Math.hypot(a.x, a.y);
+/** Unsigned angle between two canvas lines, 0 to 90 degrees. */
+function lineAngle(a: RenderPoint, b: RenderPoint): number {
+  const cosine = Math.abs(a.x * b.x + a.y * b.y) / (len2(a) * len2(b));
+  return Math.acos(Math.min(1, cosine)) * 180 / Math.PI;
+}
+function segmentDistance(p: RenderPoint, a: RenderPoint, b: RenderPoint): number {
+  const ab = sub2(b, a);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / Math.max(1e-12, ab.x * ab.x + ab.y * ab.y)));
+  return len2(sub2(p, { x: a.x + ab.x * t, y: a.y + ab.y * t }));
+}
+function primitive(render: RenderScene, id: string): RenderPrimitive {
+  const found = render.primitives.find((item) => item.id === id);
+  if (!found) throw new Error(`no primitive ${id}`);
+  return found;
+}
+function polygon(render: RenderScene, entityId: string): RenderPoint[] {
+  const points = primitive(render, `primitive_${entityId}`).points;
+  const last = points.at(-1)!;
+  return points.length > 3 && len2(sub2(points[0]!, last)) < 1e-6 ? points.slice(0, -1) : points;
+}
+/** Smallest distance to an edge, positive inside a convex polygon and negative outside. */
+function insideMargin(point: RenderPoint, ring: RenderPoint[]): number {
+  const area = ring.reduce((sum, a, index) => { const b = ring[(index + 1) % ring.length]!; return sum + a.x * b.y - b.x * a.y; }, 0);
+  const sign = Math.sign(area) || 1;
+  return Math.min(...ring.map((a, index) => {
+    const b = ring[(index + 1) % ring.length]!;
+    const edge = sub2(b, a);
+    return sign * (edge.x * (point.y - a.y) - edge.y * (point.x - a.x)) / len2(edge);
+  }));
+}
+function pointCanvas(render: RenderScene, entityId: string): RenderPoint {
+  const own = render.primitives.find((item) => item.entityId === entityId && item.kind === "point");
+  if (own) return own.points[0]!;
+  const bounds = render.entityBounds[entityId];
+  if (!bounds) throw new Error(`no canvas point for ${entityId}`);
+  return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+}
+interface AxisInk { origin: RenderPoint; tips: RenderPoint[]; paths: Array<Array<[RenderPoint, RenderPoint]>> }
+/** The frame's three positive half-axes and any appended negative halves, grouped by axis. */
+function axisInk(render: RenderScene, frameId = "frame"): AxisInk {
+  const paths = render.primitives.filter((item) => item.entityId === frameId && item.kind !== "label" && new RegExp(`^primitive_${frameId}_\\d+$`).test(item.id));
+  const positive = [0, 1, 2].map((index) => primitive(render, `primitive_${frameId}_${index}`).points);
+  const origin = positive[0]![0]!;
+  const grouped = positive.map((path) => [[path[0]!, path[1]!] as [RenderPoint, RenderPoint]]);
+  for (const path of paths.slice(3)) {
+    const direction = sub2(path.points[1]!, path.points[0]!);
+    const axis = positive.findIndex((tip) => { const own = sub2(tip[1]!, tip[0]!); return lineAngle(own, direction) < 0.5 && own.x * direction.x + own.y * direction.y < 0; });
+    if (axis >= 0) grouped[axis]!.push([path.points[0]!, path.points[1]!]);
+  }
+  return { origin, tips: positive.map((path) => path[1]!), paths: grouped };
+}
+function axisDistance(ink: AxisInk, axis: number, point: RenderPoint): number {
+  return Math.min(...ink.paths[axis]!.map(([a, b]) => segmentDistance(point, a, b)));
+}
+/** World to canvas through the drawn axes: linear, with the drawn positive tips at the planned axis lengths. */
+function worldToCanvas(render: RenderScene, document: SceneDocument, axisLength = 2): (p: V3) => RenderPoint {
+  const ink = axisInk(render);
+  const plan = spaceView?.planSpaceView(document) ?? null;
+  const reach = plan?.frames.get("frame")?.axisMax ?? v3(axisLength, axisLength, axisLength);
+  const unit = [reach.x, reach.y, reach.z].map((length, index) => { const tip = sub2(ink.tips[index]!, ink.origin); return { x: tip.x / length, y: tip.y / length }; });
+  return (p) => ({ x: ink.origin.x + p.x * unit[0]!.x + p.y * unit[1]!.x + p.z * unit[2]!.x, y: ink.origin.y + p.x * unit[0]!.y + p.y * unit[1]!.y + p.z * unit[2]!.y });
+}
+function lineDirection(render: RenderScene, entityId: string): RenderPoint {
+  const points = primitive(render, `primitive_${entityId}`).points;
+  return sub2(points.at(-1)!, points[0]!);
+}
+function rho(document: SceneDocument, direction: V3): number {
+  const plan = spaceView?.planSpaceView(document);
+  if (!plan) throw new Error("planSpaceView is absent or returned null");
+  const length = Math.hypot(direction.x, direction.y, direction.z);
+  const { right, up } = plan.projection;
+  const dot = (a: V3, b: V3) => a.x * b.x + a.y * b.y + a.z * b.z;
+  return Math.hypot(dot(right, direction), dot(up, direction)) / length;
+}
+
+// ---------- G1 to G14, G16 ----------
+const frameOnly = spaceDocument("coordinate axes", []);
+gate("G1 z is drawn straight up", () => {
+  const [origin, tip] = primitive(rendered(frameOnly), "primitive_frame_2").points;
+  const dx = tip!.x - origin!.x;
+  const dy = tip!.y - origin!.y;
+  return Math.abs(dx) <= 0.5 && dy < -20 ? null : `z axis runs (${dx.toFixed(2)}, ${dy.toFixed(2)}) px`;
+});
+
+const xyPlane = spaceDocument("the plane z = 0", [part("plane", "polygon", "plane", { a: 0, b: 0, c: 1, d: 0 })]);
+gate("G2 the xy-plane lies flat", () => {
+  const ring = polygon(rendered(xyPlane), "plane");
+  const fromVertical = ring.map((a, index) => lineAngle(sub2(ring[(index + 1) % ring.length]!, a), { x: 0, y: 1 }));
+  const width = Math.max(...ring.map((p) => p.x)) - Math.min(...ring.map((p) => p.x));
+  const height = Math.max(...ring.map((p) => p.y)) - Math.min(...ring.map((p) => p.y));
+  if (fromVertical.some((angle) => angle < 15)) return `an edge is ${Math.min(...fromVertical).toFixed(1)} degrees from vertical`;
+  return height < width ? null : `polygon is ${width.toFixed(1)} wide and ${height.toFixed(1)} tall`;
+});
+
+const kernelSegment: Part[] = [sp("O", v3(0, 0, 0), "O"), sp("A", v3(1, -1, 1), "A"), part("OA", "segment", "space_segment", { a: "O", b: "A" })];
+const kernelDocument = spaceDocument("segment OA along (1, -1, 1)", kernelSegment);
+gate("G3 a segment along (1, -1, 1) does not collapse", () => {
+  const result = compile(kernelDocument);
+  if (!result.validated || !result.render) return `rejected: ${result.issues}`;
+  const measured = rho(result.validated, v3(1, -1, 1));
+  return measured >= 0.45 ? null : `rho(1,-1,1) is ${measured.toFixed(3)}`;
+});
+
+const lineThroughOrigin = (direction: V3, title: string) => spaceDocument(title, [sp("O", v3(0, 0, 0), "O"), part("L", "line", "space_line", { point: "O", direction: [direction.x, direction.y, direction.z] })]);
+gate("G4 a line along (1, 1, 1) is drawn apart from every axis", () => {
+  const render = rendered(lineThroughOrigin(v3(1, 1, 1), "the line x = y = z"));
+  const line = lineDirection(render, "L");
+  const angles = [0, 1, 2].map((index) => lineAngle(line, lineDirection(render, `frame_${index}`)));
+  return Math.min(...angles) >= 15 ? null : `angles to x, y, z axes ${angles.map((angle) => angle.toFixed(1)).join(", ")}`;
+});
+gate("G5 a line along (2, 1, 2) is not drawn vertical", () => {
+  const render = rendered(lineThroughOrigin(v3(2, 1, 2), "the line x/2 = y = z/2"));
+  const line = lineDirection(render, "L");
+  const toZ = lineAngle(line, lineDirection(render, "frame_2"));
+  const toVertical = lineAngle(line, { x: 0, y: 1 });
+  return Math.min(toZ, toVertical) >= 15 ? null : `angle to z ${toZ.toFixed(1)}, to vertical ${toVertical.toFixed(1)}`;
+});
+
+const meetingParts: Part[] = [
+  part("plane", "polygon", "plane", { a: 1, b: -2, c: 2, d: 6 }, "Π"),
+  sp("P", v3(2.5, -0.75, -0.5), "P"),
+  part("L", "line", "space_line", { point: "P", direction: [2, 1, 2] }, "L"),
+  [entity("Q", "point", "Q"), make("space_intersection", { frame: "frame", first: "L", second: "plane" }, ["Q"])],
+];
+const meetingDocument = spaceDocument("line through P meets the plane x - 2y + 2z = 6 at Q", meetingParts);
+gate("G6 the plane patch holds the meeting point", () => {
+  const render = rendered(meetingDocument);
+  const ring = polygon(render, "plane");
+  const q = pointCanvas(render, "Q");
+  const shortest = Math.min(...ring.map((a, index) => len2(sub2(ring[(index + 1) % ring.length]!, a))));
+  const margin = insideMargin(q, ring);
+  if (margin < 0.05 * shortest) return `Q is ${margin.toFixed(1)} px inside, needs ${(0.05 * shortest).toFixed(1)}`;
+  const [a, b] = [primitive(render, "primitive_L").points[0]!, primitive(render, "primitive_L").points.at(-1)!];
+  if (segmentDistance(q, a, b) > 1) return "Q is not on the drawn line";
+  const crosses = Array.from({ length: 401 }, (_, index) => ({ x: a.x + (b.x - a.x) * index / 400, y: a.y + (b.y - a.y) * index / 400 })).some((point) => insideMargin(point, ring) > 1);
+  return crosses ? null : "the line never crosses the plane's interior";
+});
+const footDocument = spaceDocument("foot N of P on the plane", [...meetingParts, [entity("N", "point", "N"), make("space_project", { frame: "frame", point: "P", onto: "plane" }, ["N"])]]);
+gate("G7 the plane patch holds the foot of the perpendicular", () => {
+  const render = rendered(footDocument);
+  const ring = polygon(render, "plane");
+  const margins = ["Q", "N"].map((id) => insideMargin(pointCanvas(render, id), ring));
+  return margins.every((margin) => margin > 0) ? null : `Q and N margins ${margins.map((margin) => margin.toFixed(1)).join(", ")} px`;
+});
+
+const normalDocument = spaceDocument("normal ON to the plane z = 1", [
+  part("plane", "polygon", "plane", { a: 0, b: 0, c: 1, d: 1, span: 2 }),
+  sp("O", v3(0, 0, 0), "O"), sp("N", v3(0, 0, 1), "N"), sp("T", v3(0, 0, 2), "T"),
+  part("ON", "segment", "space_segment", { a: "O", b: "N" }),
+  part("n", "vector", "space_vector", { start: "N", end: "T" }, "n"),
+]);
+gate("G8 a plane in normal form keeps its corners off O", () => {
+  const render = rendered(normalDocument);
+  const ring = polygon(render, "plane");
+  const o = pointCanvas(render, "O");
+  const diagonal = Math.max(...ring.flatMap((a) => ring.map((b) => len2(sub2(a, b)))));
+  const nearest = Math.min(...ring.map((corner) => len2(sub2(corner, o))));
+  if (nearest < 0.1 * diagonal) return `a corner is ${nearest.toFixed(1)} px from O (diagonal ${diagonal.toFixed(1)})`;
+  return insideMargin(pointCanvas(render, "N"), ring) > 0 ? null : "N is outside the plane";
+});
+
+const interceptCoefficient = spaceDocument("the plane 6x + 3y - 2z = 6", [part("plane", "polygon", "plane", { a: 6, b: 3, c: -2, d: 6 })]);
+const interceptBasis = spaceDocument("the plane through A, B and C", [
+  sp("A", v3(1, 0, 0), "A"), sp("B", v3(0, 2, 0), "B"), sp("C", v3(0, 0, -3), "C"),
+  part("plane", "polygon", "plane", { point: "A", u: [-1, 2, 0], v: [-1, 0, -3] }),
+]);
+const interceptsOf = [v3(1, 0, 0), v3(0, 2, 0), v3(0, 0, -3)];
+gate("G9 an intercept plane is drawn as its intercept triangle", () => {
+  for (const [name, document] of [["coefficient form", interceptCoefficient], ["point/u/v form", interceptBasis]] as const) {
+    const render = rendered(document);
+    const ring = polygon(render, "plane");
+    if (primitive(render, "primitive_plane").points.length !== 3 || ring.length !== 3) return `${name}: plane has ${ring.length} vertices`;
+    const canvas = worldToCanvas(render, document);
+    const ink = axisInk(render);
+    for (const [axis, intercept] of interceptsOf.entries()) {
+      const image = canvas(intercept);
+      const vertex = ring.reduce((best, point) => len2(sub2(point, image)) < len2(sub2(best, image)) ? point : best);
+      if (len2(sub2(vertex, image)) > 0.5) return `${name}: no vertex within 0.5 px of intercept ${axis}`;
+      if (axisDistance(ink, axis, vertex) > 0.5) return `${name}: vertex ${axis} is ${axisDistance(ink, axis, vertex).toFixed(2)} px off its axis`;
+    }
+  }
+  return null;
+});
+const farIntercept = spaceDocument("the plane x/2 + y/3 + z/5 = 1", [part("plane", "polygon", "plane", { a: 15, b: 10, c: 6, d: 30 })]);
+gate("G10 axes reach their intercepts", () => {
+  const below = rendered(interceptCoefficient);
+  const belowInk = axisInk(below);
+  if (belowInk.paths[2]!.length < 2) return "no negative z half-axis";
+  const minusThree = worldToCanvas(below, interceptCoefficient)(v3(0, 0, -3));
+  if (axisDistance(belowInk, 2, minusThree) > 0.5) return `(0, 0, -3) is ${axisDistance(belowInk, 2, minusThree).toFixed(2)} px off the z axis`;
+  const above = rendered(farIntercept);
+  const aboveInk = axisInk(above);
+  const five = worldToCanvas(above, farIntercept)(v3(0, 0, 5));
+  const offset = segmentDistance(five, aboveInk.origin, aboveInk.tips[2]!);
+  return offset <= 0.5 ? null : `(0, 0, 5) is ${offset.toFixed(2)} px beyond the positive z axis`;
+});
+
+const throughOrigin = spaceDocument("the plane x + y + z = 0", [part("plane", "polygon", "plane", { a: 1, b: 1, c: 1, d: 0 })]);
+const parallelToZ = spaceDocument("the plane x + y = 2", [part("plane", "polygon", "plane", { a: 1, b: 1, c: 0, d: 2 })]);
+const pointOutside = spaceDocument("the plane x + y + z = 2 through P", [part("plane", "polygon", "plane", { a: 1, b: 1, c: 1, d: 2 }), sp("P", v3(2, 2, -2), "P")]);
+gate("G11 control planes are patches that hold what lies on them", () => {
+  const checks: Array<[string, SceneDocument, V3[], string[]]> = [
+    ["x + y + z = 0", throughOrigin, [v3(0, 0, 0)], []],
+    ["x + y = 2", parallelToZ, [v3(2, 0, 0), v3(0, 2, 0)], []],
+    ["x + y + z = 2 with P outside its triangle", pointOutside, [v3(2, 0, 0), v3(0, 2, 0), v3(0, 0, 2)], ["P"]],
+  ];
+  for (const [name, document, worlds, points] of checks) {
+    const render = rendered(document);
+    const ring = polygon(render, "plane");
+    if (ring.length !== 4) return `${name}: ${ring.length} vertices`;
+    const canvas = worldToCanvas(render, document);
+    const margins = [...worlds.map((p) => insideMargin(canvas(p), ring)), ...points.map((id) => insideMargin(pointCanvas(render, id), ring))];
+    if (margins.some((margin) => margin < 1)) return `${name}: margins ${margins.map((margin) => margin.toFixed(1)).join(", ")} px`;
+  }
+  return null;
+});
+
+const edgeOnDocument = spaceDocument("right angle between OA and OB", [
+  ...kernelSegment.slice(1),
+  sp("O", v3(0, 0, 0), "O"), sp("B", v3(1, 0, 0), "B"), sp("C", v3(0, 1, -1), "C"),
+  part("angle", "angle_mark", "space_angle_mark", { vertex: "O", a: "B", b: "C" }),
+]);
+gate("G12 validation and compile agree on the view", () => {
+  for (const document of [kernelDocument, edgeOnDocument]) {
+    const validation = validateSceneDocument(structuredClone(document));
+    const fatal = validation.report.issues.filter((issue) => issue.severity === "fatal");
+    if (!validation.document || fatal.length) return `validation rejects ${document.source.question}: ${fatal.map((issue) => issue.code).join(", ")}`;
+  }
+  const render = rendered(edgeOnDocument);
+  const o = pointCanvas(render, "O");
+  const b = sub2(pointCanvas(render, "B"), o);
+  const c = sub2(pointCanvas(render, "C"), o);
+  const sine = Math.abs(b.x * c.y - b.y * c.x) / (len2(b) * len2(c));
+  return sine >= 0.15 ? null : `projected arm sine ${sine.toFixed(3)}`;
+});
+
+gate("G13 the camera rule reproduces the design numbers", () => {
+  if (!spaceCamera || !spaceView) return "spaceCamera or spaceView is absent";
+  const bad = spaceCamera.SPACE_PROJECTION_CANDIDATES.filter((candidate) => candidate.right.z !== 0 || !(candidate.up.z > 0));
+  if (bad.length) return `${bad.length} candidates do not keep z up`;
+  const separation = (projection: { right: V3; up: V3 }, a: V3, b: V3) => {
+    const image = (p: V3) => ({ x: projection.right.x * p.x + projection.right.y * p.y + projection.right.z * p.z, y: projection.up.x * p.x + projection.up.y * p.y + projection.up.z * p.z });
+    return lineAngle(image(a), image(b));
+  };
+  const axes = [v3(1, 0, 0), v3(0, 1, 0), v3(0, 0, 1)];
+  const cases: Array<[V3, string, (projection: { right: V3; up: V3 }) => string | null]> = [
+    [v3(1, 1, 1), "book 0.5 60", (projection) => { const worst = Math.min(...axes.map((axis) => separation(projection, v3(1, 1, 1), axis))); return worst >= 22.8 ? null : `axis separation ${worst.toFixed(1)}`; }],
+    [v3(2, 1, 2), "book 0.5 52.5", (projection) => {
+      const worst = Math.min(...axes.map((axis) => separation(projection, v3(2, 1, 2), axis)));
+      const image = { x: projection.right.x * 2 + projection.right.y + projection.right.z * 2, y: projection.up.x * 2 + projection.up.y + projection.up.z * 2 };
+      const measured = len2(image) / 3;
+      return worst >= 17.9 && measured >= 0.42 ? null : `separation ${worst.toFixed(1)}, rho ${measured.toFixed(3)}`;
+    }],
+    [v3(1, -1, 1), "book 0.5 45", () => null],
+  ];
+  for (const [direction, expected, extra] of cases) {
+    const plan = spaceView.planSpaceView(lineThroughOrigin(direction, "line through O"));
+    if (!plan) return "no plan";
+    const name = `${plan.projection.family} ${plan.projection.params[0]} ${plan.projection.params[1]}`;
+    if (name !== expected) return `(${direction.x}, ${direction.y}, ${direction.z}) chose ${name}, expected ${expected}`;
+    const failure = extra(plan.projection);
+    if (failure) return `(${direction.x}, ${direction.y}, ${direction.z}): ${failure}`;
+  }
+  return null;
+});
+
+const angleOnPlane: Part[] = [...meetingParts, [entity("N", "point", "N"), make("space_project", { frame: "frame", point: "P", onto: "plane" }, ["N"])],
+  part("PN", "segment", "space_segment", { a: "P", b: "N" }), part("NQ", "segment", "space_segment", { a: "N", b: "Q" }),
+  part("foot", "right_angle_mark", "space_right_angle_mark", { vertex: "N", a: "P", b: "Q" })];
+gate("G14 the view is deterministic and shared by every frame", () => {
+  const document = spaceDocument("foot of the perpendicular and the meeting point", angleOnPlane);
+  const first = JSON.stringify(rendered(document));
+  if (JSON.stringify(rendered(document)) !== first) return "two compiles differ";
+  const reversed = structuredClone(document);
+  reversed.constructions.reverse();
+  if (JSON.stringify(rendered(reversed)) !== first) return "reversed construction order renders differently";
+  const twoFrames = spaceDocument("two frames", [sp("A", v3(1, 1, 1), "A")], { frames: [
+    [{ id: "origin_2", kind: "point", role: "construction helper point" }, make("point", { x: 9, y: 0 }, ["origin_2"])],
+    [entity("frame_b", "polyline"), make("space_frame", { origin: "origin_2", scale: 1 }, ["frame_b"])],
+    [entity("B", "point", "B"), make("space_point", { frame: "frame_b", x: 1, y: -1, z: 1 }, ["B"])],
+  ] });
+  const render = rendered(twoFrames);
+  for (const index of [0, 1, 2]) {
+    const angle = lineAngle(lineDirection(render, `frame_${index}`), lineDirection(render, `frame_b_${index}`));
+    if (angle > 0.05) return `axis ${index} of the two frames differs by ${angle.toFixed(2)} degrees`;
+  }
+  return null;
+});
+
+gate("G16 the axes carry their letters", () => {
+  for (const document of [frameOnly, footDocument]) {
+    const render = rendered(document);
+    const ink = axisInk(render);
+    for (const [index, letter] of ["x", "y", "z"].entries()) {
+      const label = render.primitives.find((item) => item.kind === "label" && item.entityId === "frame" && item.text === letter);
+      if (!label) return `${document.source.question}: no ${letter} label`;
+      const nearest = ink.tips.map((tip) => len2(sub2(tip, label.points[0]!)));
+      if (nearest.indexOf(Math.min(...nearest)) !== index) return `${document.source.question}: ${letter} sits nearest another tip`;
+    }
+  }
+  return null;
+});
 
 // ---------- G15: byte identity of every document without a space_frame ----------
 interface IdentityFixture { schema: "space-view-byte-identity/v1"; baseCommit: string; documents: Record<string, unknown>; hashes: Record<string, string> }

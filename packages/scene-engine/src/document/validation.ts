@@ -21,6 +21,7 @@ import { STATISTICS_OPERATORS, validateStatisticsConstruction } from "../compile
 import { TRIANGLE_OPERATORS, validateTriangleConstruction } from "../compile/triangleGeometry";
 import { CONIC_OPERATORS, validateConicConstruction } from "../compile/conicGeometry";
 import { SPACE_DERIVATION_OPERATORS, validateSpaceDerivationConstruction } from "../compile/spaceDerivations";
+import { planSpaceView } from "../compile/spaceView";
 import { PROBABILITY_OPERATORS, validateProbabilityConstruction } from "../compile/probabilityGeometry";
 import { FIELD_OPERATORS, validateFieldConstruction } from "../compile/fieldGeometry";
 import { DIPOLE_FIELD_OPERATORS, validateDipoleFieldConstruction } from "../compile/dipoleFieldGeometry";
@@ -4355,7 +4356,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (STATISTICAL_CONSTRUCTIONS.has(construction.operator)) validateStatisticsConstruction(construction, index, document, constructionByOutput, issues);
       if (TRIANGLE_CONSTRUCTIONS.has(construction.operator)) validateTriangleConstruction(construction, index, document, constructionByOutput, issues);
       if (CONIC_CONSTRUCTIONS.has(construction.operator)) validateConicConstruction(construction, index, document, constructionByOutput, issues);
-      if (SPACE_DERIVATION_CONSTRUCTIONS.has(construction.operator)) validateSpaceDerivationConstruction(construction, index, document, constructionByOutput, issues);
+      if (SPACE_DERIVATION_CONSTRUCTIONS.has(construction.operator)) validateSpaceDerivationConstruction(construction, index, document, constructionByOutput, issues, planSpaceView(document)?.projection);
       if (PROBABILITY_CONSTRUCTIONS.has(construction.operator)) validateProbabilityConstruction(construction, index, document, constructionByOutput, issues);
       if (FIELD_CONSTRUCTIONS.has(construction.operator)) validateFieldConstruction(construction, index, document, constructionByOutput, issues);
       if (DIPOLE_FIELD_CONSTRUCTIONS.has(construction.operator)) validateDipoleFieldConstruction(construction, index, document, constructionByOutput, issues);
