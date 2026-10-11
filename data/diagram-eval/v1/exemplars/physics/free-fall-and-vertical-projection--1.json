@@ -1,0 +1,411 @@
+{
+  "topic_id": "physics|2|free-fall-and-vertical-projection",
+  "question": "A ball is thrown straight up from the ground at 14 m/s. Draw its path up to the highest point, marking the initial velocity and the maximum height it reaches.",
+  "figure_kind": "motion_path",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "ball thrown vertically upward from the ground to its highest point"
+    },
+    "source": {
+      "question": "A ball is thrown straight up from the ground at 14 m/s. Draw its path up to the highest point, marking the initial velocity and the maximum height it reaches.",
+      "archetype": "free_fall"
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": 14,
+        "unit": "m/s"
+      }
+    ],
+    "entities": [
+      {
+        "id": "ground_a",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "ground_b",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "ground",
+        "label": "ground"
+      },
+      {
+        "id": "start",
+        "kind": "point",
+        "role": "ball centre at launch"
+      },
+      {
+        "id": "ball",
+        "kind": "circle",
+        "role": "body: ball at launch",
+        "label": "ball"
+      },
+      {
+        "id": "top",
+        "kind": "point",
+        "role": "highest point",
+        "label": "v = 0"
+      },
+      {
+        "id": "ball_top",
+        "kind": "circle",
+        "role": "body: ball at the top"
+      },
+      {
+        "id": "path",
+        "kind": "segment",
+        "role": "vertical path"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "initial velocity, up",
+        "label": "u = 14 m/s"
+      },
+      {
+        "id": "g_tail",
+        "kind": "point",
+        "role": "gravity arrow tail"
+      },
+      {
+        "id": "gravity",
+        "kind": "vector",
+        "role": "acceleration due to gravity, down",
+        "label": "g"
+      },
+      {
+        "id": "h0",
+        "kind": "point",
+        "role": "height foot"
+      },
+      {
+        "id": "h1",
+        "kind": "point",
+        "role": "height top"
+      },
+      {
+        "id": "height",
+        "kind": "dimension",
+        "role": "maximum height",
+        "label": "H"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_ground_a",
+        "operator": "point",
+        "inputs": {
+          "x": -5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ground_a"
+        ]
+      },
+      {
+        "id": "make_ground_b",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ground_b"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "ground_a",
+          "end": "ground_b"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_start",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "start"
+        ]
+      },
+      {
+        "id": "make_ball",
+        "operator": "circle",
+        "inputs": {
+          "center": "start",
+          "radius": 0.45
+        },
+        "outputs": [
+          "ball"
+        ]
+      },
+      {
+        "id": "make_top",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 10,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "top"
+        ]
+      },
+      {
+        "id": "make_ball_top",
+        "operator": "circle",
+        "inputs": {
+          "center": "top",
+          "radius": 0.45
+        },
+        "outputs": [
+          "ball_top"
+        ]
+      },
+      {
+        "id": "make_path",
+        "operator": "segment",
+        "inputs": {
+          "start": "start",
+          "end": "top"
+        },
+        "outputs": [
+          "path"
+        ]
+      },
+      {
+        "id": "make_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": "start",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 3.6
+        },
+        "outputs": [
+          "velocity"
+        ]
+      },
+      {
+        "id": "make_g_tail",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 7.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "g_tail"
+        ]
+      },
+      {
+        "id": "make_gravity",
+        "operator": "vector",
+        "inputs": {
+          "start": "g_tail",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 2.4
+        },
+        "outputs": [
+          "gravity"
+        ]
+      },
+      {
+        "id": "make_h0",
+        "operator": "point",
+        "inputs": {
+          "x": -2.2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "h0"
+        ]
+      },
+      {
+        "id": "make_h1",
+        "operator": "point",
+        "inputs": {
+          "x": -2.2,
+          "y": 10,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "h1"
+        ]
+      },
+      {
+        "id": "make_height",
+        "operator": "dimension",
+        "inputs": {
+          "start": "h0",
+          "end": "h1"
+        },
+        "outputs": [
+          "height"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "path_vertical",
+        "predicate": "perpendicular",
+        "entities": [
+          "path",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "velocity_along_path",
+        "predicate": "parallel",
+        "entities": [
+          "velocity",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "top_on_path",
+        "predicate": "on",
+        "entities": [
+          "top",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_velocity",
+        "predicate": "label_attached",
+        "entities": [
+          "velocity"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_top",
+        "predicate": "label_attached",
+        "entities": [
+          "top"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "ground_a",
+      "ground_b",
+      "ground",
+      "start",
+      "ball",
+      "top",
+      "ball_top",
+      "path",
+      "velocity",
+      "g_tail",
+      "gravity",
+      "h0",
+      "h1",
+      "height"
+    ],
+    "revealGroups": [
+      {
+        "id": "launch",
+        "entityIds": [
+          "ground_a",
+          "ground_b",
+          "ground",
+          "start",
+          "ball",
+          "velocity"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the ball leaves the ground with velocity u"
+      },
+      {
+        "id": "rise",
+        "entityIds": [
+          "path",
+          "top",
+          "ball_top",
+          "g_tail",
+          "gravity"
+        ],
+        "dependsOn": [
+          "launch"
+        ],
+        "narrationCue": "g slows it on a vertical line until v = 0 at the top"
+      },
+      {
+        "id": "height_group",
+        "entityIds": [
+          "h0",
+          "h1",
+          "height"
+        ],
+        "dependsOn": [
+          "rise"
+        ],
+        "narrationCue": "the maximum height H"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_launch",
+        "action": "reveal",
+        "targetId": "launch",
+        "dependsOn": [],
+        "narrationIntent": "the ball leaves the ground with velocity u"
+      },
+      {
+        "id": "reveal_rise",
+        "action": "reveal",
+        "targetId": "rise",
+        "dependsOn": [
+          "reveal_launch"
+        ],
+        "narrationIntent": "g slows it on a vertical line until v = 0 at the top"
+      },
+      {
+        "id": "reveal_height_group",
+        "action": "reveal",
+        "targetId": "height_group",
+        "dependsOn": [
+          "reveal_rise"
+        ],
+        "narrationIntent": "the maximum height H"
+      }
+    ]
+  },
+  "engineCommit": "3f4aeaf3beae281a084b9e25e97a3f502c5b535c",
+  "validatedOn": "2026-10-12"
+}

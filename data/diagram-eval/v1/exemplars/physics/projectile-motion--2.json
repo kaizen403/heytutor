@@ -1,0 +1,436 @@
+{
+  "topic_id": "physics|2|projectile-motion",
+  "question": "A football is kicked from level ground at 18 m/s at 50° above the horizontal. Show the horizontal and vertical components of its velocity at launch and at the highest point, and mark the range and the maximum height.",
+  "figure_kind": "motion_path",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "projectile velocity components"
+    },
+    "source": {
+      "question": "A football is kicked from level ground at 18 m/s at 50° above the horizontal. Show the horizontal and vertical components of its velocity at launch and at the highest point, and mark the range and the maximum height."
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": 18,
+        "unit": "m/s"
+      },
+      {
+        "id": "theta",
+        "symbol": "theta",
+        "value": 50,
+        "unit": "degree"
+      }
+    ],
+    "entities": [
+      {
+        "id": "ux",
+        "kind": "vector",
+        "role": "horizontal component at launch",
+        "label": "u_x = u cosθ"
+      },
+      {
+        "id": "uy",
+        "kind": "vector",
+        "role": "vertical component at launch",
+        "label": "u_y = u sinθ"
+      },
+      {
+        "id": "v_top",
+        "kind": "vector",
+        "role": "top velocity, horizontal only",
+        "label": "v = u cosθ"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "launch point",
+        "label": "O"
+      },
+      {
+        "id": "ground_b",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "ground"
+      },
+      {
+        "id": "trajectory",
+        "kind": "polyline",
+        "role": "parabolic trajectory"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "launch velocity",
+        "label": "u = 18 m/s"
+      },
+      {
+        "id": "angle",
+        "kind": "angle_mark",
+        "role": "launch angle",
+        "label": "θ = 50°"
+      },
+      {
+        "id": "apex",
+        "kind": "point",
+        "role": "highest point",
+        "label": "v_y = 0"
+      },
+      {
+        "id": "landing",
+        "kind": "point",
+        "role": "landing point",
+        "label": "B"
+      },
+      {
+        "id": "apex_foot",
+        "kind": "point",
+        "role": "apex foot"
+      },
+      {
+        "id": "dim_H",
+        "kind": "dimension",
+        "role": "maximum height",
+        "label": "H"
+      },
+      {
+        "id": "dim_R",
+        "kind": "dimension",
+        "role": "range",
+        "label": "R"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_ground_b",
+        "operator": "point",
+        "inputs": {
+          "x": 35.8148,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ground_b"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "ground_b"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_trajectory",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "1.19175359259421*x-0.03660294896530836*x^2",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 32.559,
+          "samples": 81
+        },
+        "outputs": [
+          "trajectory"
+        ]
+      },
+      {
+        "id": "make_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0.6428,
+            0.766
+          ],
+          "length": 8
+        },
+        "outputs": [
+          "velocity"
+        ]
+      },
+      {
+        "id": "make_ux",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 5.1423
+        },
+        "outputs": [
+          "ux"
+        ]
+      },
+      {
+        "id": "make_uy",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 6.1284
+        },
+        "outputs": [
+          "uy"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "velocity",
+          "b": "ux"
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "make_apex",
+        "operator": "point",
+        "inputs": {
+          "x": 16.2795,
+          "y": 9.7006,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "apex"
+        ]
+      },
+      {
+        "id": "make_v_top",
+        "operator": "vector",
+        "inputs": {
+          "start": "apex",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 5.1423
+        },
+        "outputs": [
+          "v_top"
+        ]
+      },
+      {
+        "id": "make_landing",
+        "operator": "point",
+        "inputs": {
+          "x": 32.559,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "landing"
+        ]
+      },
+      {
+        "id": "make_apex_foot",
+        "operator": "point",
+        "inputs": {
+          "x": 16.2795,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "apex_foot"
+        ]
+      },
+      {
+        "id": "make_dim_H",
+        "operator": "dimension",
+        "inputs": {
+          "start": "apex_foot",
+          "end": "apex"
+        },
+        "outputs": [
+          "dim_H"
+        ]
+      },
+      {
+        "id": "make_dim_R",
+        "operator": "dimension",
+        "inputs": {
+          "start": "O",
+          "end": "landing"
+        },
+        "outputs": [
+          "dim_R"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "launch_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "velocity",
+          "ux"
+        ],
+        "expected": {
+          "value": 50,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "top_horizontal",
+        "predicate": "parallel",
+        "entities": [
+          "v_top",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "top_equals_ux",
+        "predicate": "equal_length",
+        "entities": [
+          "v_top",
+          "ux"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "apex_on_path",
+        "predicate": "function_value",
+        "entities": [
+          "trajectory"
+        ],
+        "expected": {
+          "x": 16.2795,
+          "y": 9.7006
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "label_v_top",
+        "predicate": "label_attached",
+        "entities": [
+          "v_top"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "ground_b",
+      "ground",
+      "trajectory",
+      "velocity",
+      "ux",
+      "uy",
+      "angle",
+      "apex",
+      "v_top",
+      "landing",
+      "apex_foot",
+      "dim_H",
+      "dim_R"
+    ],
+    "revealGroups": [
+      {
+        "id": "launch",
+        "entityIds": [
+          "ground_b",
+          "ground",
+          "O",
+          "velocity",
+          "ux",
+          "uy",
+          "angle"
+        ],
+        "dependsOn": [],
+        "narrationCue": "u splits into u cosθ and u sinθ"
+      },
+      {
+        "id": "path",
+        "entityIds": [
+          "trajectory",
+          "apex",
+          "v_top",
+          "landing"
+        ],
+        "dependsOn": [
+          "launch"
+        ],
+        "narrationCue": "at the top only u cosθ remains"
+      },
+      {
+        "id": "measures",
+        "entityIds": [
+          "apex_foot",
+          "dim_H",
+          "dim_R"
+        ],
+        "dependsOn": [
+          "path"
+        ],
+        "narrationCue": "height H and range R"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_launch",
+        "action": "reveal",
+        "targetId": "launch",
+        "dependsOn": [],
+        "narrationIntent": "u splits into u cosθ and u sinθ"
+      },
+      {
+        "id": "reveal_path",
+        "action": "reveal",
+        "targetId": "path",
+        "dependsOn": [
+          "reveal_launch"
+        ],
+        "narrationIntent": "at the top only u cosθ remains"
+      },
+      {
+        "id": "reveal_measures",
+        "action": "reveal",
+        "targetId": "measures",
+        "dependsOn": [
+          "reveal_path"
+        ],
+        "narrationIntent": "height H and range R"
+      }
+    ]
+  },
+  "engineCommit": "3f4aeaf3beae281a084b9e25e97a3f502c5b535c",
+  "validatedOn": "2026-10-12"
+}
