@@ -25,6 +25,43 @@ export interface TurnPlannerV3Options {
   fastMode?: boolean;
   /** Optional policy metadata on the existing call; off preserves prompt bytes. */
   classifySubject?: boolean;
+  /** Content-free, completion-only diagnostics; observer failures never affect admission. */
+  onRequestOutcome?: (outcome: TurnPlanRequestOutcome) => void;
+}
+
+export type TurnPlanOutcomeCode =
+  | "accepted" | "http_error" | "response_json_failed" | "content_missing"
+  | "plan_json_missing" | "plan_json_invalid" | "plan_validation_failed"
+  | "optics_law_mismatch" | "plan_processing_failed" | "timeout"
+  | "cancelled" | "transport_failed";
+
+const TURN_PLAN_DIAGNOSTIC_ISSUE_CODES = [
+  "claim_quantity_mismatch", "cyclic_dependency", "duplicate_claim_id",
+  "duplicate_quantity_id", "duplicate_unknown_id", "given_trig_stipulation_conflict",
+  "invalid_assumption", "invalid_claim", "invalid_claim_entity_hints",
+  "invalid_claim_expected", "invalid_claim_quantity_ids", "invalid_dependencies",
+  "invalid_law_id", "invalid_plan", "invalid_provenance", "invalid_quantity",
+  "invalid_quantity_id", "invalid_quantity_value", "invalid_question", "invalid_sign",
+  "invalid_symbol", "invalid_unit", "invalid_unknown", "invalid_visual_requirement",
+  "missing_array", "question_mismatch", "schema_version", "sign_mismatch",
+  "source_text_arithmetic_conflict", "source_text_arithmetic_invalid",
+  "source_text_value_mismatch", "unknown_claim_quantity", "unknown_dependency",
+  "unresolved_numeric_unknown", "optics_law_mismatch",
+] as const;
+export type TurnPlanDiagnosticIssueCode = typeof TURN_PLAN_DIAGNOSTIC_ISSUE_CODES[number];
+const diagnosticIssueCodes: ReadonlySet<string> = new Set(TURN_PLAN_DIAGNOSTIC_ISSUE_CODES);
+
+export interface TurnPlanRequestOutcome {
+  phase: "plan" | "audit";
+  lane: "primary" | "alternate";
+  requestKind: "initial" | "retry" | "audit";
+  httpStatus: number | null;
+  code: TurnPlanOutcomeCode;
+  /** Only explicitly allowlisted source-owned codes; never paths/messages/quantity IDs. */
+  issueCodes: TurnPlanDiagnosticIssueCode[];
+  unrecognizedIssueCount: number;
+  /** Unknown diagnostic clock readings remain null, never fabricated zero. */
+  elapsedMs: number | null;
 }
 
 export interface TurnPlanV3Response {
@@ -110,6 +147,7 @@ export async function planTurnV3(
       `${conversation}QUESTION\n${question}\n\nReturn a complete corrected plan. Missing requested numeric answers are fatal.`,
       "plan",
       "alternate",
+      "retry",
     );
   }
   const selectedPlan = selectTurnPlanV3Consensus(
@@ -148,6 +186,7 @@ export async function auditTurnPlanV3(
     `QUESTION\n${question}\n\nCANDIDATE TURN PLAN\n${JSON.stringify(candidate)}`,
     "audit",
     "alternate",
+    "audit",
   );
 }
 
@@ -158,8 +197,14 @@ async function requestTurnPlanV3(
   userContent: string,
   phase: "plan" | "audit",
   lane: "primary" | "alternate",
+  requestKind: TurnPlanRequestOutcome["requestKind"] = "initial",
 ): Promise<TurnPlanV3Response | null> {
   const startedAt = Date.now();
+  let httpStatus: number | null = null;
+  let outcomeCode: TurnPlanOutcomeCode = "transport_failed";
+  const parseOutcome: TurnPlanParseOutcome = {
+    code: "plan_processing_failed", issueCodes: [], unrecognizedIssueCount: 0,
+  };
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), Math.max(1, options.timeoutMs));
   const signal = options.signal
@@ -209,15 +254,27 @@ async function requestTurnPlanV3(
         ],
       }),
     });
-    if (!response.ok) return null;
+    try {
+      const status = response.status;
+      if (Number.isInteger(status) && status >= 100 && status <= 599) httpStatus = status;
+    } catch { /* Diagnostic getters must not change planning behavior. */ }
+    if (!response.ok) {
+      outcomeCode = "http_error";
+      return null;
+    }
 
+    outcomeCode = "response_json_failed";
     const payload = (await response.json()) as {
       choices?: Array<{ message?: { content?: unknown } }>;
     };
+    outcomeCode = "content_missing";
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string") return null;
-    const turnPlan = parseTurnPlanV3Content(content, question);
+    outcomeCode = "plan_processing_failed";
+    const turnPlan = parseTurnPlanV3ContentObserved(content, question, undefined, parseOutcome);
+    outcomeCode = parseOutcome.code;
     if (!turnPlan) return null;
+    outcomeCode = "accepted";
 
     return {
       turnPlan,
@@ -227,6 +284,9 @@ async function requestTurnPlanV3(
       ...(options.classifySubject ? { subject: subjectFromTurnPlanContent(content) } : {}),
     };
   } catch (error) {
+    if (options.signal?.aborted) outcomeCode = "cancelled";
+    else if (timeoutController.signal.aborted) outcomeCode = "timeout";
+    else if (outcomeCode === "accepted") outcomeCode = "plan_processing_failed";
     tutorDebug("planner", `turn plan v3 ${phase} failed`, {
       reason: error instanceof Error ? error.message : String(error),
       elapsed_ms: Date.now() - startedAt,
@@ -234,6 +294,23 @@ async function requestTurnPlanV3(
     return null;
   } finally {
     clearTimeout(timeoutId);
+    // This notification is not awaited and never receives the plan or model text.
+    try {
+      const observer = options.onRequestOutcome;
+      if (observer) {
+        let elapsedMs: number | null = null;
+        try {
+          const elapsed = Date.now() - startedAt;
+          if (Number.isFinite(elapsed) && elapsed >= 0) elapsedMs = elapsed;
+        } catch { /* Keep an unreadable diagnostic clock unknown. */ }
+        // TypeScript void callbacks can still return a Promise; suppress rejection without awaiting.
+        void Promise.resolve(observer({
+          phase, lane, requestKind, httpStatus, code: outcomeCode,
+          issueCodes: [...parseOutcome.issueCodes],
+          unrecognizedIssueCount: parseOutcome.unrecognizedIssueCount, elapsedMs,
+        })).catch(() => {});
+      }
+    } catch { /* Diagnostics must never change planning behavior. */ }
   }
 }
 
@@ -410,14 +487,34 @@ export function parseTurnPlanV3Content(
   question: string,
   trace?: TurnPlanV3ParseTrace,
 ): TurnPlanV3 | null {
-  const parsed = parseTurnPlan(content, question, trace);
+  return parseTurnPlanV3ContentObserved(content, question, trace);
+}
+
+interface TurnPlanParseOutcome {
+  code: TurnPlanOutcomeCode;
+  issueCodes: TurnPlanDiagnosticIssueCode[];
+  unrecognizedIssueCount: number;
+}
+
+function parseTurnPlanV3ContentObserved(
+  content: string,
+  question: string,
+  trace?: TurnPlanV3ParseTrace,
+  outcome?: TurnPlanParseOutcome,
+): TurnPlanV3 | null {
+  const parsed = parseTurnPlan(content, question, trace, outcome);
   return parsed ? enforceMinimumVisualRequirement(parsed, question) : null;
 }
 
-function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3ParseTrace): TurnPlanV3 | null {
+function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3ParseTrace, outcome?: TurnPlanParseOutcome): TurnPlanV3 | null {
+  let jsonParsed = false;
   try {
     const parsed = parseTurnPlanJsonObject(content);
-    if (parsed === null) return null;
+    if (parsed === null) {
+      if (outcome) outcome.code = "plan_json_missing";
+      return null;
+    }
+    jsonParsed = true;
     const normalized = normalizePlannerTurnPlan(parsed, question);
     if (trace) trace.normalized = normalized;
     const reconciled = reconcileTurnPlanV3ExplicitArithmetic(normalized);
@@ -472,6 +569,16 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
       }
     }
     if (trace) trace.issues = result.issues;
+    if (outcome) {
+      outcome.code = result.valid ? "accepted" : result.issues.some((issue) => issue.code === "optics_law_mismatch")
+        ? "optics_law_mismatch" : "plan_validation_failed";
+      // A regex would permit model-shaped strings. Only source-owned fixed codes leave this module.
+      for (const issue of result.issues) {
+        if (isDiagnosticIssueCode(issue.code)) {
+          if (outcome.issueCodes.length < 16 && !outcome.issueCodes.includes(issue.code)) outcome.issueCodes.push(issue.code);
+        } else outcome.unrecognizedIssueCount = Math.min(65_535, outcome.unrecognizedIssueCount + 1);
+      }
+    }
     if (!result.valid) {
       tutorDebug("planner", "turn plan v3 validation failed", {
         issue_codes: result.issues.map((issue) => issue.code),
@@ -487,6 +594,7 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
     }
     return result.plan;
   } catch (error) {
+    if (outcome) outcome.code = jsonParsed ? "plan_processing_failed" : "plan_json_invalid";
     if (trace) trace.parseError = error instanceof Error ? error.message : String(error);
     tutorDebug("planner", "turn plan v3 parse failed", {
       reason: error instanceof Error ? error.message : String(error),
@@ -494,6 +602,10 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
     });
     return null;
   }
+}
+
+function isDiagnosticIssueCode(code: string): code is TurnPlanDiagnosticIssueCode {
+  return diagnosticIssueCodes.has(code);
 }
 
 /** One fatal issue per plan value that disagrees with an unambiguously evaluated optics law. */
