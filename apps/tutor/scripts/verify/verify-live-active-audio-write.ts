@@ -73,7 +73,7 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
   const intro = mode.startsWith("intro-");
   const introCommands = probabilityIntroFixture.commands.filter(row => row.type.startsWith("DRAW_")).slice(0, 2);
   const segment: TutorSegment = intro
-    ? { narration, commands: structuredClone(introCommands), verifiedDiagramIntro: true }
+    ? { narration, command: null, commands: structuredClone(introCommands), verifiedDiagramIntro: true }
     : { narration, command };
   const board = intro ? mountTestWhiteboard() : null;
   const transaction = board?.beginDrawTransaction();
