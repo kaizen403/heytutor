@@ -201,6 +201,8 @@ export async function exportLectureMp4(options: {
   tailLimitMs?: number;
   /** Keep the hidden command executor on the same verified page as replay. */
   onTurnStart?: (turn: StoredTurn, diagram: VerifiedDiagram | null) => void;
+  /** FRAME can replace the figure after turn start; completion follows it. */
+  getDiagram?: () => VerifiedDiagram | null;
   resetBoardLayout?: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
 }): Promise<LectureExportResult> {
   const pageTurns = options.pageTurns && options.pageTurns.length > 0
@@ -299,7 +301,7 @@ export async function exportLectureMp4(options: {
       setAnimationSpeed: (rate) => options.whiteboard.setAnimationSpeed(rate),
       getTurn: (turnIndex) => pageTurns[turnIndex],
       getPageTurns: (turnIndex) => pageTurnsEndingAt(pageTurns, turnIndex),
-      getDiagram: () => activeDiagram,
+      getDiagram: () => options.getDiagram ? options.getDiagram() : activeDiagram,
       onCueStart: async (cue) => {
         if (cue.turnIndex === syncedTurnIndex) return;
         const turn = pageTurns[cue.turnIndex]!;
