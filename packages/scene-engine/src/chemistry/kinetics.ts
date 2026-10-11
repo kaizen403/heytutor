@@ -265,7 +265,34 @@ function readOrders(stem: string): ReactionOrder[] {
 
 // The optional subject is bounded grammar, never an arbitrary clause leading
 // to a later "is". An asked half-life cannot consume a completion-time given.
-const HALF_LIFE_CUE = /(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)(?![A-Za-z0-9_])(?:\s+(?:of|for)\s+(?:(?:the|this|an?)\s+)?(?:(?:pseudo[ -]?)?(?:zero|zeroth|first|second|0th|1st|2nd)[ -]?order\s+)?reaction(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?\s+is\b)?/;
+const HALF_LIFE_NAME = String.raw`(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)(?![A-Za-z0-9_])`;
+const HALF_LIFE_SUBJECT = String.raw`\s+(?:of|for)\s+(?:(?:the|this|an?)\s+)?(?:(?:pseudo[ -]?)?(?:zero|zeroth|first|second|0th|1st|2nd)[ -]?order\s+)?reaction\b`;
+// Subject notation consumes whole bounded participants; coefficients are syntax,
+// not quantity evidence. Unsupported or incomplete source notation must refuse.
+const HALF_REACTION_TERM = String.raw`(?!(?:unknown|unreadable|is|was|when|with|find|calculate|time)\b)(?:[1-9][0-9]{0,2}\s+)?[A-Za-z][A-Za-z0-9_₀-₉]{0,23}(?:\s*\((?:aq|s|l|g)\))?`;
+const HALF_REACTION_SIDE = String.raw`${HALF_REACTION_TERM}(?:\s*\+\s*${HALF_REACTION_TERM}){0,5}`;
+const HALF_REACTION = String.raw`${HALF_REACTION_SIDE}\s*(?:->|→|⟶)\s*${HALF_REACTION_SIDE}`;
+const HALF_LIFE_CUE = new RegExp(String.raw`${HALF_LIFE_NAME}(?:${HALF_LIFE_SUBJECT}(?:\s+${HALF_REACTION})?(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?\s+is\b)?`);
+function halfLifeSourceOwnersValid(question: string): boolean {
+  const body = questionBody(question);
+  for (const owner of body.matchAll(new RegExp(HALF_LIFE_NAME + HALF_LIFE_SUBJECT, "ig"))) {
+    const tail = body.slice(owner.index! + owner[0].length);
+    const temperature = String.raw`(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?`;
+    const boundary = String.raw`(?=\s*(?:is\b|[.,;?]|$))`;
+    if (!new RegExp(String.raw`^${temperature}${boundary}`, "i").test(tail)
+      && !new RegExp(String.raw`^\s+${HALF_REACTION}${temperature}${boundary}`, "i").test(tail)) return false;
+  }
+  for (const owner of body.matchAll(new RegExp(HALF_LIFE_CUE.source, "ig"))) {
+    const end = owner.index! + owner[0].length;
+    const tail = body.slice(end);
+    const supplied = /\bis$/i.test(owner[0]) || /^\s*(?:[=:]|(?:is|was|equals|equal to|unknown|unreadable)\b)/i.test(tail)
+      || new RegExp(String.raw`^\s*${SCALAR}`).test(tail);
+    if (!supplied) continue; // A genuinely requested half-life supplies no value.
+    const read = readChemistryQuantity({question, after: /^/, within: {start:end, end:body.length}, dimension:"time"});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+  }
+  return true;
+}
 const ACTIVATION_CUE = /(?:activation energy|\be_?a\b)(?:\s+(?:of|for)\s+(?:the|this|a)\s+reaction)?/;
 function readHalfLife(stem: string): Reading | null {
   return readAfter(stem, HALF_LIFE_CUE, true);
@@ -477,6 +504,7 @@ const EQUILIBRIUM_PLOT = /(?:variation (?:of|in) (?:the )?concentrations?[^.]{0,
 /** Everything the stem (and the plan) says about the kinetics, or null when nothing is readable. */
 export function kineticsFromStem(question: string, quantities: readonly ChemPlanQuantity[] = []): KineticsSpec | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  if (!halfLifeSourceOwnersValid(question)) return null;
   // This adapter does not yet bind plural constants to their corresponding
   // temperatures. Refuse that scope rather than treating "two" as a ratio.
   if (/rate constants\b[^.;]{0,100}\b(?:two|2) temperatures\b/i.test(question)) return null;

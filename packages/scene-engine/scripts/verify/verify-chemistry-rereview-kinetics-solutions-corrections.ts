@@ -281,5 +281,253 @@ for(const c of cases)try {
  }
  results.push({id:c.id,passed:true});
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+
+// BEGIN ADDITIVE HALF-LIFE REACTION-SUBJECT GATES
+interface HalfSubjectCase { id:string; question:string; order?:0|1|2; half?:number; unit?:string; initial?:number; k?:number; interval?:number; labels?:string[]; requested?:boolean; refuse?:boolean }
+const halfSubjectCases:HalfSubjectCase[] = [
+  {
+    "id": "legacy-zero-order-reaction-subject",
+    "question": "Half life of a zero order reaction A -> product is 1 hour when the initial concentration of the reactant is 2.0 mol L^-1. Draw the plot of [A] vs t and find the time required to decrease the concentration of A from 0.50 to 0.25 mol L^-1.",
+    "order": 0,
+    "half": 1,
+    "unit": "h",
+    "initial": 2,
+    "k": 1,
+    "interval": 0.25,
+    "labels": [
+      "t_1/2 = 1 h",
+      "[A]_0 = 2 M",
+      "slope = -k",
+      "t = 2 h"
+    ]
+  },
+  {
+    "id": "own-zero-order-subject-1",
+    "question": "The half life of a zero order reaction X -> Y is 30 min. Initial concentration is 2 M. Draw [A] vs t.",
+    "order": 0,
+    "half": 30,
+    "unit": "min",
+    "initial": 2,
+    "k": 0.03333333333333333
+  },
+  {
+    "id": "own-zero-order-subject-2",
+    "question": "Half-life for the zeroth order reaction R → S is 2 hours. Initial concentration is 4 mol/L. Draw the concentration against time.",
+    "order": 0,
+    "half": 2,
+    "unit": "h",
+    "initial": 4,
+    "k": 1
+  },
+  {
+    "id": "own-zero-order-subject-3",
+    "question": "Half life of a zero order reaction 2 H2O2 -> 2 H2O + O2 is 60 s. Initial concentration is 0.6 M. Draw [A] versus time.",
+    "order": 0,
+    "half": 60,
+    "unit": "s",
+    "initial": 0.6,
+    "k": 0.005
+  },
+  {
+    "id": "own-zero-order-subject-4",
+    "question": "The half life for a 0th order reaction 2 R -> S is 4 min. Initial concentration is 0.8 M. Draw [A] against t.",
+    "order": 0,
+    "half": 4,
+    "unit": "min",
+    "initial": 0.8,
+    "k": 0.1
+  },
+  {
+    "id": "own-zero-order-subject-5",
+    "question": "Half life of the zero-order reaction X(aq) ⟶ Y(aq) at 310 K is 0.5 hour. Initial concentration is 1 M. Draw [A] vs t.",
+    "order": 0,
+    "half": 0.5,
+    "unit": "h",
+    "initial": 1,
+    "k": 1
+  },
+  {
+    "id": "own-first-order-subject",
+    "question": "Half life of a first order reaction 2 N2O5 -> 4 NO2 + O2 is 20 min. Draw [A]/[A]0 against time.",
+    "order": 1,
+    "half": 20,
+    "unit": "min",
+    "k": 0.03465735902799726
+  },
+  {
+    "id": "own-second-order-subject",
+    "question": "Half life of a second order reaction X + Y -> Z is 10 min. Initial concentration is 2 M. Draw 1/[A] vs t.",
+    "order": 2,
+    "half": 10,
+    "unit": "min",
+    "initial": 2,
+    "k": 0.05
+  },
+  {
+    "id": "own-requested-half-rate-subject",
+    "question": "For a first order reaction, rate constant k = 0.0231 min^-1. Find the half life of the reaction X -> Y. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "k": 0.0231,
+    "requested": true
+  },
+  {
+    "id": "own-requested-half-completion-subject",
+    "question": "Find the half life of a first order reaction X -> Y. Time for 75 % completion is 60 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-1",
+    "question": "Half life of a first order reaction X -> is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-2",
+    "question": "Half life of a first order reaction -> Y is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-3",
+    "question": "Half life of a first order reaction X --> Y is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-4",
+    "question": "Half life of a first order reaction X -> unknown is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-5",
+    "question": "Half life of a first order reaction unreadable -> Y is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-6",
+    "question": "Half life of a first order reaction X -> Y(plasma) is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-7",
+    "question": "Half life of a first order reaction 0 X -> Y is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-8",
+    "question": "Half life of a first order reaction -1 X -> Y is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-9",
+    "question": "Half life of a first order reaction 1.5 X -> Y is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-10",
+    "question": "Half life of a first order reaction 1e2 X -> Y is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-incomplete-or-damaged-subject-11",
+    "question": "Half life of a first order reaction X -> Y[solid] is 20 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-completion-1",
+    "question": "Half life of a first order reaction X -> Y is unknown. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-completion-2",
+    "question": "Half life of a first order reaction X -> Y is unreadable. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-completion-3",
+    "question": "Half life of a first order reaction X -> Y is 1e- min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-completion-4",
+    "question": "Half life of a first order reaction X -> Y is 20 kg. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-completion-5",
+    "question": "Half life of a first order reaction X -> Y is 0 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-completion-6",
+    "question": "Half life of a first order reaction X -> Y is -1 min. Time for 75 % completion is 60 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-valid-owner-1",
+    "question": "Half life of a first order reaction X -> Y is unknown. Half life is 20 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-valid-owner-2",
+    "question": "Half life of a first order reaction X -> Y is unreadable. Half life is 20 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-valid-owner-3",
+    "question": "Half life of a first order reaction X -> Y is 1e- min. Half life is 20 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-before-valid-owner-4",
+    "question": "Half life of a first order reaction X -> Y is 20 kg. Half life is 20 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-conflicting-reaction-half-owners",
+    "question": "Half life of a first order reaction X -> Y is 20 min. Half life is 30 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-conflicting-plain-first-owner",
+    "question": "Half life is 30 min. Half life of a first order reaction R -> S is 20 min. Draw [A] vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-unread-half-target-with-given-rate",
+    "question": "For a first order reaction, rate constant k = 0.0231 min^-1. Find the half life of the reaction X -> Y is unknown. Draw [A] vs t.",
+    "refuse": true
+  }
+];
+for(const c of halfSubjectCases)try {
+ const spec=kineticsFromStem(c.question);
+ const direct=buildKineticsScene(c.question,[],false);
+ const schematic=buildKineticsScene(c.question,[],true);
+ const ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null,"stated unread/conflicting half-life or incomplete reaction subject must refuse");assert.equal(direct,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.order,c.order);assert.equal(spec.timeUnit,c.unit);
+  assert.equal(spec.tHalf,c.requested?null:c.half,"only the stated half-life owns its number");
+  if(c.initial!==undefined)assert.equal(spec.a0,c.initial);
+  const solved=solveKinetics(spec);assert.ok(solved.k!==null && solved.tHalf!==null);
+  assert.ok(Math.abs(solved.k-c.k!)<=Math.abs(c.k!)*1e-12,"independent order-law k");
+  assert.ok(Math.abs(solved.tHalf-c.half!)<=Math.abs(c.half!)*1e-12,"independent half-life, not a later completion time");
+  if(c.interval!==undefined)assert.equal((0.50-0.25)/solved.k,c.interval,"independent zero-order concentration interval is0.25h (15min)");
+  assert.ok(direct && schematic && ordinary,"complete original subject must reach all actual figure seams");
+  for(const doc of [direct,schematic,ordinary.document]){
+   assert.equal(doc.source.question,c.question,"complete original source identity retained");
+   assert.equal(doc.quantities.find(q=>q.id==="t_half")?.value,Number(c.half!.toFixed(6)));
+   assert.equal(doc.quantities.find(q=>q.id==="t_half")?.unit,c.unit);
+   assert.equal(doc.quantities.find(q=>q.id==="k")?.value,Number(c.k!.toFixed(6)));
+   const displayed=labels(doc);for(const text of c.labels??[])assert.ok(displayed.includes(text),JSON.stringify(displayed));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE HALF-LIFE REACTION-SUBJECT GATES
+
 console.log(JSON.stringify({total:results.length,passed:results.filter(r=>r.passed).length,rows:results},null,2));
 if(results.some(r=>!r.passed))process.exitCode=1;
