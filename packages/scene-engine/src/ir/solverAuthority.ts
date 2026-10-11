@@ -110,6 +110,7 @@ export function verifyTurnPlanAgainstSolver(
       selectionsByRequest.set(request.id, selected.selection);
     }
   }
+  retainCompleteBoundaryProjections(validatedProblem, validatedPlan, solverValidation.result, valuesByRequest, selectionsByRequest);
   const seenQuantityIds = new Set<string>();
   const bindings: SolverAuthorityBinding[] = [];
   const issues: SolverAuthorityIssue[] = [];
@@ -259,7 +260,8 @@ export function verifyTurnPlanAgainstSolver(
     const tolerance = Math.max(
       1e-9 * Math.max(1, Math.abs(value.approximate)),
       value.errorBound,
-      derived.uncertainty ?? 0,
+      // An exact source boundary cannot be widened by planner uncertainty.
+      selectionsByRequest.get(request.id)?.kind === "unique_source_linear_boundary" ? 0 : derived.uncertainty ?? 0,
     );
     if (Math.abs(derived.value - value.approximate) > tolerance) {
       issues.push({
@@ -316,11 +318,18 @@ export function reconcileTurnPlanWithSolver(
   // correction source merely because its array happens to have one element.
   const validatedProblem = validateProblemIR(problem, plan.question).problem;
   const validatedResult = validatedProblem ? validateSolverResult(result, validatedProblem).result : null;
+  const selections = new Map<string, SourceLinearScalarSelection>();
   if (validatedProblem && validatedResult?.status === "solved") for (const request of validatedProblem.solveRequests) {
     const value = valuesByRequest.get(request.id);
     if (!value) continue;
     const selected = selectSourceLinearScalar(validatedProblem, request, value, plan.question);
-    if (selected) valuesByRequest.set(request.id, selected.value);
+    if (selected) {
+      valuesByRequest.set(request.id, selected.value);
+      selections.set(request.id, selected.selection);
+    }
+  }
+  if (validatedProblem && validatedResult?.status === "solved") {
+    retainCompleteBoundaryProjections(validatedProblem, plan, validatedResult, valuesByRequest, selections);
   }
   const unknownsById = new Map(plan.unknowns.map((unknown) => [unknown.id, unknown]));
   let changed = false;
@@ -359,6 +368,42 @@ function normalizeSymbol(value: string): string {
     .replace(/\\(?:mathrm|text|operatorname)\s*/g, "")
     .replace(/[{}]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/**
+ * A boundary certificate proves that boundary only. It cannot certify a
+ * finite scalar attached to the whole solution set (or another unproved
+ * requested answer), even when an unrelated evaluate request shares its id.
+ * Symbolic set unknowns have no derived finite value and need no scalar proof.
+ * Coordinate projections retain their existing independent native guard.
+ */
+function retainCompleteBoundaryProjections(
+  problem: ProblemIR,
+  plan: TurnPlanV3,
+  result: SolverResult,
+  values: Map<string, SolverValue>,
+  selections: Map<string, SourceLinearScalarSelection>,
+): void {
+  const boundaryRequests = [...selections].filter(([, selection]) => selection.kind === "unique_source_linear_boundary");
+  if (!boundaryRequests.length) return;
+  const complete = plan.unknowns.every(unknown => {
+    const derived = plan.derived.find(quantity => quantity.id === unknown.id);
+    if (!derived) return true;
+    const requests = problem.solveRequests.filter(request => request.resultBinding?.turnPlanQuantityId === unknown.id);
+    if (requests.length !== 1) return false;
+    const request = requests[0]!, binding = request.resultBinding!, value = values.get(request.id);
+    return selections.get(request.id)?.kind === "unique_source_linear_boundary"
+      && normalizeSymbol(binding.symbol) === normalizeSymbol(unknown.symbol)
+      && normalizeSymbol(derived.symbol) === normalizeSymbol(unknown.symbol)
+      && normalizeUnit(binding.unit) === normalizeUnit(unknown.unit)
+      && normalizeUnit(derived.unit) === normalizeUnit(unknown.unit)
+      && value?.valueType === "scalar" && typeof value.approximate === "number";
+  });
+  if (complete) return;
+  for (const [requestId] of boundaryRequests) {
+    values.set(requestId, result.values.find(value => value.requestId === requestId)!);
+    selections.delete(requestId);
+  }
 }
 
 function normalizeUnit(value: string | undefined): string {
