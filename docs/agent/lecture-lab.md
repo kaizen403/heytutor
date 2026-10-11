@@ -496,7 +496,10 @@ port ignores abort. It freezes an incomplete artifact with no committed figure,
 no decline cause and a private `pendingFigureCheckpoint`. The checkpoint carries
 the exact original question (at most 8 KiB), execution policy, selector version,
 host-renderer SHA-256 and admitted setup operation IDs only; total JSON is bounded
-to 16 KiB. It contains no plan, IR, scene or model prose. Keep it ignored.
+to 16 KiB. Identity admission checks the fully JSON-escaped checkpoint size,
+reserving room for the largest legal two-action payload before provider I/O,
+so a raw input inside 8 KiB cannot make Stop lose its checkpoint. It contains
+no plan, IR, scene or model prose. Keep it ignored.
 
 After persisting that checkpoint in private local JSON, pass it back via
 `reopenPendingFigure` with the same execution options. Validation rejects unknown

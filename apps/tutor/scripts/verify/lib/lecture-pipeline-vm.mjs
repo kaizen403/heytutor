@@ -160,6 +160,10 @@ export function createLecturePipelineVm(input) {
         input.pendingFigureMutation === '--mutate-skip-identity-check') mutate(
       'if (JSON.stringify(value.identity[key]) !== JSON.stringify(identity[key])) throw invalid();',
       'void key;');
+    if (path.relative(root, filename) === 'apps/tutor/scripts/lecture-lab/parallelPendingFigure.ts' &&
+        input.pendingFigureMutation === '--mutate-skip-checkpoint-room') mutate(
+      'if (bytes(JSON.stringify(largestCheckpoint)) > MAX_PENDING_FIGURE_BYTES) throw invalid();',
+      'void largestCheckpoint;');
     const compilationKey = `${filename}:${hash(source)}`;
     if (!transpiled.has(compilationKey)) transpiled.set(compilationKey, ts.transpileModule(source, { fileName: filename,
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },

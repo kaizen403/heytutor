@@ -34,11 +34,20 @@ const exactKeys = (value: Record<string, unknown>, keys: readonly string[]): boo
 
 export function pendingFigureIdentity(input: Omit<PendingFigureIdentity, "rendererSHA256">): PendingFigureIdentity {
   if (!input.question.trim() || bytes(input.question) > MAX_PENDING_QUESTION_BYTES) throw invalid();
-  return {
+  const renderer = parallelPrefixRendererSignature();
+  const identity = {
     ...input,
     productionStrictSubjects: input.productionStrictSubjects ? [...input.productionStrictSubjects] : null,
-    rendererSHA256: createHash("sha256").update(parallelPrefixRendererSignature()).digest("hex"),
+    rendererSHA256: createHash("sha256").update(renderer).digest("hex"),
   };
+  // Raw UTF-8 size does not bound JSON escaping. Reserve the largest legal
+  // two-action receipt before any provider IO so Stop can always serialize it.
+  const actions = Object.keys(JSON.parse(renderer)).sort((a, b) =>
+    bytes(JSON.stringify(b)) - bytes(JSON.stringify(a)),
+  ).slice(0, 2);
+  const largestCheckpoint = { schemaVersion: "lab-pending-figure/v1", identity, setup: { v: 1, actions } };
+  if (bytes(JSON.stringify(largestCheckpoint)) > MAX_PENDING_FIGURE_BYTES) throw invalid();
+  return identity;
 }
 
 /** Only actions that reconstruct the exact admitted host STEP may be saved. */

@@ -72,7 +72,7 @@ function assertClosedSources(vm) {
     'ignored helper code cannot replace the tracked implementation');
 }
 
-function assertCheckpoint(checkpoint, hasSetup) {
+function assertCheckpoint(checkpoint, hasSetup, inputQuestion = rawQuestion, setupSelection = setup) {
   assert.deepEqual(Object.keys(checkpoint).sort(), ['schemaVersion', 'identity', 'setup'].sort(),
     'checkpoint has no authority, scene, render or narration payload');
   assert.equal(checkpoint.schemaVersion, 'lab-pending-figure/v1');
@@ -80,7 +80,7 @@ function assertCheckpoint(checkpoint, hasSetup) {
     'question', 'language', 'arm', 'familiarity', 'fastMode', 'productionStrictSubjects',
     'scenePlannerDeadlineMs', 'sceneDeclinePolicy', 'selectionVersion', 'rendererSHA256',
   ].sort(), 'execution identity contains only the agreed bounded fields');
-  assert.equal(checkpoint.identity.question, rawQuestion, 'checkpoint preserves the exact original question including its newlines');
+  assert.equal(checkpoint.identity.question, inputQuestion, 'checkpoint preserves the exact original question including its newlines');
   assert.equal(checkpoint.identity.language, 'english');
   assert.equal(checkpoint.identity.arm, 'planner_first');
   assert.equal(checkpoint.identity.familiarity, 'normal');
@@ -91,15 +91,16 @@ function assertCheckpoint(checkpoint, hasSetup) {
   assert.equal(typeof checkpoint.identity.selectionVersion, 'string');
   assert(checkpoint.identity.selectionVersion.length > 0);
   assert.match(checkpoint.identity.rendererSHA256, /^[a-f0-9]{64}$/);
-  assert.deepEqual(checkpoint.setup, hasSetup ? setup : null);
+  assert.deepEqual(checkpoint.setup, hasSetup ? setupSelection : null);
   assert(Buffer.byteLength(JSON.stringify(checkpoint), 'utf8') <= 16 * 1024);
   assert(!JSON.stringify(checkpoint).includes(setupRaw), 'only admitted operation IDs, not host/model prose, are stored');
 }
 
-async function stoppedScenario(name, { acceptSetup = false, alreadyStopped = false } = {}) {
+async function stoppedScenario(name, { acceptSetup = false, alreadyStopped = false,
+  inputQuestion = rawQuestion, setupSelection = setup, expectedSetupRaw = setupRaw } = {}) {
   const controller = new AbortController();
   if (alreadyStopped) controller.abort();
-  const f = fixture({ stopSignal: controller.signal });
+  const f = fixture({ stopSignal: controller.signal, rawQuestion: inputQuestion });
   let completed = false;
   let stoppedRun;
   const pending = f.vm.run().then(run => { completed = true; stoppedRun = run; return run; });
@@ -107,7 +108,7 @@ async function stoppedScenario(name, { acceptSetup = false, alreadyStopped = fal
   const reachedScene = count(f.vm, 'scene-dispatched') > 0;
   if (acceptSetup) {
     f.advance(40);
-    f.prefix.resolve(reply(JSON.stringify(setup)));
+    f.prefix.resolve(reply(JSON.stringify(setupSelection)));
     await flush();
   }
   const setupBeforeStop = count(f.vm, 'setup-prefix-accepted');
@@ -117,7 +118,7 @@ async function stoppedScenario(name, { acceptSetup = false, alreadyStopped = fal
   const stoppedSnapshot = completed ? JSON.stringify(stoppedRun) : null;
   // Always release fake ports so a RED does not leave patched globals pending.
   f.advance(90);
-  f.prefix.resolve(reply(JSON.stringify(setup)));
+  f.prefix.resolve(reply(JSON.stringify(setupSelection)));
   f.scene.resolve();
   const run = await pending;
   await f.vm.settlePrefix();
@@ -130,8 +131,8 @@ async function stoppedScenario(name, { acceptSetup = false, alreadyStopped = fal
   assert.equal(run.teaching.incomplete, true);
   assert.equal(run.diagram.committed, false);
   assert.equal(run.diagram.emptyCause, null, 'an interruption is not a decline, invalid candidate or deadline');
-  assertCheckpoint(run.pendingFigureCheckpoint, acceptSetup);
-  assert.equal(run.teaching.rawText, acceptSetup ? setupRaw : '', 'stopped artifact preserves only its admitted host STEP');
+  assertCheckpoint(run.pendingFigureCheckpoint, acceptSetup, inputQuestion, setupSelection);
+  assert.equal(run.teaching.rawText, acceptSetup ? expectedSetupRaw : '', 'stopped artifact preserves only its admitted host STEP');
   assert.equal(run.timings.firstSetupReadyMs ?? null, acceptSetup ? 40 : null);
   assert.equal(run.timings.firstMainStepReadyMs ?? null, null);
   assert.equal(count(f.vm, 'setup-prefix-accepted'), acceptSetup ? 1 : 0, 'late prefix never becomes newly delivered narration');
@@ -150,8 +151,8 @@ async function stoppedScenario(name, { acceptSetup = false, alreadyStopped = fal
   return run.pendingFigureCheckpoint;
 }
 
-async function reopenScenario(name, checkpoint) {
-  const f = fixture({ reopenPendingFigure: checkpoint });
+async function reopenScenario(name, checkpoint, { inputQuestion = rawQuestion, expectedSetupRaw = setupRaw } = {}) {
+  const f = fixture({ reopenPendingFigure: checkpoint, rawQuestion: inputQuestion });
   f.scene.resolve();
   f.prefix.resolve(reply(JSON.stringify(setup)));
   const run = await f.vm.run();
@@ -173,16 +174,16 @@ async function reopenScenario(name, checkpoint) {
     assert.equal(count(f.vm, 'setup-prefix-accepted'), 0, 'reopen never replays its setup callback');
     assert.equal(run.timings.firstSetupReadyMs ?? null, null, 'restored history never manufactures a new setup readiness clock');
     const firstMain = f.vm.events.find(event => event.name === 'teaching-dispatched');
-    assert.deepEqual(firstMain.history, [{ user: question, assistant: setupRaw }]);
+    assert.deepEqual(firstMain.history, [{ user: question, assistant: expectedSetupRaw }]);
     assert.equal(firstMain.alreadyTaughtInstruction, true);
     assert.equal(firstMain.verifiedPromptPreserved, true);
     assert.equal(firstMain.verifiedFigureContextPresent, true);
     for (const event of f.vm.events.filter(event => event.name === 'teaching-dispatched')) {
-      assert.equal(event.history[0].assistant.split(setupRaw).length - 1, 1,
+      assert.equal(event.history[0].assistant.split(expectedSetupRaw).length - 1, 1,
         'every continuation retains the already-taught host STEP exactly once');
     }
-    assert.equal(run.teaching.rawText.split(setupRaw).length - 1, 1);
-    assert.equal(run.teaching.steps[0].speech, setupRaw.slice(6, -7));
+    assert.equal(run.teaching.rawText.split(expectedSetupRaw).length - 1, 1);
+    assert.equal(run.teaching.steps[0].speech, expectedSetupRaw.slice(6, -7));
     assert.deepEqual(run.teaching.steps[0].tags, [], 'restored setup owns no ink or focus');
   } else {
     assert.equal(f.vm.stats().prefixCalls, 1, 'a checkpoint with no admitted setup may request setup freshly');
@@ -205,6 +206,21 @@ async function rejectsBeforeIo(name, checkpoint, options = {}) {
   }
   assert.equal(f.vm.stats().teachingCalls, 0);
   assert.equal(run.diagram.committed, false);
+  assertClosedSources(f.vm);
+  cases.push(name);
+}
+
+async function rejectsFreshIdentityBeforeIo(name, inputQuestion) {
+  const f = fixture({ rawQuestion: inputQuestion, stopSignal: new AbortController().signal });
+  f.scene.resolve(); f.prefix.resolve(reply(JSON.stringify(setup)));
+  const run = await f.vm.run();
+  await flush();
+  assert.equal(typeof run.error, 'string', `${name}: identity must reserve serialized checkpoint room before provider IO`);
+  assert(run.error.length > 0);
+  for (const event of ['plan-reply', 'authority-dispatched', 'scene-dispatched', 'scene-selected', 'verified-presentation', 'teaching-dispatched', 'setup-prefix-accepted']) {
+    assert.equal(count(f.vm, event), 0, `${name}: ${event} cannot run for an identity that cannot fit a checkpoint`);
+  }
+  assert.equal(f.vm.stats().teachingCalls, 0);
   assertClosedSources(f.vm);
   cases.push(name);
 }
@@ -245,6 +261,13 @@ try {
 }
 await reopenScenario('Empty-setup checkpoint permits fresh host setup', withoutSetup);
 
+const escapedQuestion = question + '\n'.repeat(8191 - Buffer.byteLength(question, 'utf8'));
+assert.equal(Buffer.byteLength(escapedQuestion, 'utf8'), 8191, 'raw input alone remains below its 8 KiB cap');
+assert(Buffer.byteLength(JSON.stringify({ ...withSetup, identity: { ...withSetup.identity, question: escapedQuestion } }), 'utf8') > 16 * 1024,
+  'JSON escaping can overflow the whole checkpoint even when raw bytes fit');
+await rejectsFreshIdentityBeforeIo('Newline escaping rejected before IO', escapedQuestion);
+await rejectsFreshIdentityBeforeIo('Control-byte escaping rejected before IO', question + '\u0001'.repeat(4000));
+
 // Public checkpoint helper seam: bounds must fail independently of an
 // execution-identity mismatch or an unknown-key rejection.
 const helperVm = fixture().vm;
@@ -260,10 +283,57 @@ assert.throws(() => checkpointApi.createPendingFigureCheckpoint(withSetup.identi
 }), 'a constructor cannot preserve prose that differs from the canonical host action rendering');
 const identityInput = { ...withSetup.identity };
 delete identityInput.rendererSHA256;
+const largestSetup = { v: 1, actions: ['separate_magnitude_direction', 'separate_constraints'] };
+const largestSetupRaw = '[STEP]When direction matters, track it separately from magnitude rather than treating them as interchangeable. Keep each stated condition separate, so that no unstated condition is introduced.[/STEP]';
+const largestPrefix = prefixApi.acceptParallelPrefix(JSON.stringify(largestSetup), question, 'english');
+assert.equal(largestPrefix.accepted, true);
+assert.equal(largestPrefix.raw, largestSetupRaw, 'largest legal two-ID payload still renders only its finite host sentences');
+const checkpointBytes = inputQuestion => Buffer.byteLength(JSON.stringify({
+  schemaVersion: 'lab-pending-figure/v1', identity: { ...withSetup.identity, question: inputQuestion }, setup: largestSetup,
+}), 'utf8');
+const nearBoundaryNewlines = Math.floor((16 * 1024 - checkpointBytes(question)) / 2);
+const boundaryQuestion = question + '\n'.repeat(nearBoundaryNewlines);
+assert(Buffer.byteLength(boundaryQuestion, 'utf8') < 8192);
+assert(checkpointBytes(boundaryQuestion) <= 16 * 1024);
+assert(checkpointBytes(boundaryQuestion + '\n') > 16 * 1024,
+  'independent JSON oracle identifies the last admissible two-action escaped boundary');
+for (const offset of [0, 1, 2]) {
+  const nearbyQuestion = question + '\n'.repeat(nearBoundaryNewlines - offset);
+  const nearbyIdentity = checkpointApi.pendingFigureIdentity({ ...identityInput, question: nearbyQuestion });
+  const nearbyCheckpoint = checkpointApi.createPendingFigureCheckpoint(nearbyIdentity, largestPrefix);
+  assert(Buffer.byteLength(JSON.stringify(nearbyCheckpoint), 'utf8') <= 16 * 1024);
+  const nearbyParsed = JSON.parse(JSON.stringify(nearbyCheckpoint));
+  assert.equal(checkpointApi.restorePendingFigureCheckpoint(nearbyParsed, nearbyIdentity).raw, largestSetupRaw,
+    'the boundary and two nearby valid identities roundtrip with the complete largest two-action receipt');
+}
+cases.push('Worst two-action escaped boundary and two nearby JSON roundtrips');
+await rejectsFreshIdentityBeforeIo('Next escaped boundary rejected before IO', boundaryQuestion + '\n');
+const boundaryCheckpoint = await stoppedScenario('Worst two-action escaped boundary Stops safely', {
+  acceptSetup: true, inputQuestion: boundaryQuestion, setupSelection: largestSetup, expectedSetupRaw: largestSetupRaw,
+});
+const boundaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'heytutor-pending-boundary-gate-'));
+try {
+  const filename = path.join(boundaryDirectory, 'pending-figure.json');
+  fs.writeFileSync(filename, JSON.stringify(boundaryCheckpoint), { mode: 0o600 });
+  const parsed = JSON.parse(fs.readFileSync(filename, 'utf8'));
+  assert.deepEqual(parsed, boundaryCheckpoint);
+  await reopenScenario('Worst two-action escaped boundary disk reopen', parsed, {
+    inputQuestion: boundaryQuestion, expectedSetupRaw: largestSetupRaw,
+  });
+} finally {
+  fs.rmSync(boundaryDirectory, { recursive: true });
+}
 assert.throws(() => checkpointApi.pendingFigureIdentity({ ...identityInput, question: 'é'.repeat(4097) }),
   '8 KiB original-question bound is measured in UTF-8 bytes, not string characters');
 assert.doesNotThrow(() => checkpointApi.pendingFigureIdentity({ ...identityInput, question: 'x'.repeat(8192) }),
   'the exact question byte boundary remains admitted');
+for (const ordinaryQuestion of ['x'.repeat(8192), 'é'.repeat(4096)]) {
+  const ordinaryIdentity = checkpointApi.pendingFigureIdentity({ ...identityInput, question: ordinaryQuestion });
+  const ordinaryCheckpoint = checkpointApi.createPendingFigureCheckpoint(ordinaryIdentity, largestPrefix);
+  assert.equal(checkpointApi.restorePendingFigureCheckpoint(JSON.parse(JSON.stringify(ordinaryCheckpoint)), ordinaryIdentity).raw,
+    largestSetupRaw, 'ordinary ASCII and UTF-8 questions at the raw byte boundary still roundtrip with the largest two-action receipt');
+}
+cases.push('Ordinary 8 KiB ASCII and UTF-8 two-action roundtrips');
 const largeIdentity = { ...withSetup.identity, selectionVersion: 'x'.repeat(17 * 1024) };
 const largeCheckpoint = { schemaVersion: 'lab-pending-figure/v1', identity: largeIdentity, setup: null };
 assert.throws(() => checkpointApi.createPendingFigureCheckpoint(largeIdentity, null),
