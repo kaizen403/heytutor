@@ -35,6 +35,7 @@ import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 
 import type { PausedLessonRequest, PersistedTurnScene } from "./doubtTurn";
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
+import { classifyEarlyLessonProgress } from "./earlyLessonOpening";
 
 /** `resumeState` is opaque to the server; this is the shape this client writes. */
 export const LESSON_RESUME_STATE_VERSION = 1;
@@ -176,6 +177,13 @@ export function pausedLessonFromStoredTurns(
   const figureDrawn = page.some((turn) =>
     turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)),
   );
+  // Only the explicit marker and exact command-free acknowledgement are
+  // restart-only. Legacy speech and actual taught work keep Continue.
+  if (!turnPlan && !figureDrawn && isRecord(planSource.resumeState) &&
+    planSource.resumeState.v === LESSON_RESUME_STATE_VERSION && planSource.resumeState.earlyOpeningOnly === true &&
+    classifyEarlyLessonProgress({ earlyOpeningStarted: true,
+      spokenSegments: chain.flatMap(orderedSegments), figureDrawn,
+    }) === "opening_only") return null;
 
   // The step Stop cut off is the last thing the chain saved (decision 12),
   // with its board line. The resume finishes it in words and never rewrites it.

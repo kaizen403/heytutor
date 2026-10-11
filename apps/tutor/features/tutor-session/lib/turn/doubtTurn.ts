@@ -34,6 +34,7 @@ import {
 
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
+import { classifyEarlyLessonProgress } from "./earlyLessonOpening";
 
 /** A lesson opens a page; a doubt answers on it; a resume continues after that. */
 export type PageTurnKind = "lesson" | "doubt" | "resume";
@@ -59,6 +60,8 @@ export interface BoardPageRecord {
   boardId: string;
   /** The question the page belongs to: the lesson, never a doubt about it. */
   lessonQuestion: string;
+  /** Runtime-only: a pre-authority acknowledgement is not taught work. */
+  earlyOpeningStarted?: boolean;
   /** Teaching context a doubt on this page reuses instead of planning again. */
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
@@ -277,6 +280,12 @@ export function pausedLessonFromLive(input: {
   parentTurnId?: string;
   remainingIntro?: readonly TutorSegment[];
 }): PausedLessonRequest | null {
+  if (input.record?.earlyOpeningStarted && !input.record.turnPlan &&
+    !input.codeLesson && !input.record.figureDrawn && !input.figureDrawn &&
+    classifyEarlyLessonProgress({
+      earlyOpeningStarted: true, spokenSegments: [],
+      activeNarration: input.interruptedStep, figureDrawn: false,
+    }) !== "substantive") return null;
   const reason = input.reason ?? "doubt";
   const fromPage = pausedLessonFromPage(input.record, input.codeLesson, reason);
   if (fromPage) {

@@ -44,6 +44,7 @@ import {
   type PausedLessonRequest,
 } from "../../lib/turn/doubtTurn";
 import { pausedLessonFromStoredTurns } from "../../lib/turn/pausedLessonRestore";
+import { classifyEarlyLessonProgress } from "../../lib/turn/earlyLessonOpening";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { useSegmentRunner } from "./useSegmentRunner";
@@ -789,7 +790,14 @@ export function useTurnControl(
     const stoppedStep = lessonStop
       ? (speakingNarrationRef.current || recordedSegmentsRef.current.at(-1)?.narration || "").trim()
       : "";
-    const taught = lessonStop && (
+    const openingOnly = stopPage?.earlyOpeningStarted === true && !stopPage.turnPlan &&
+      classifyEarlyLessonProgress({
+        earlyOpeningStarted: true,
+        spokenSegments: recordedSegmentsRef.current,
+        activeNarration: speakingNarrationRef.current,
+        figureDrawn: stopPage.figureDrawn,
+      }) !== "substantive";
+    const taught = lessonStop && !openingOnly && (
       recordedSegmentsRef.current.length > 0 ||
       speakingNarrationRef.current.trim().length > 0 ||
       Boolean(stoppedProgress && (stoppedProgress.completed > 0 || stoppedProgress.inBeat)));
