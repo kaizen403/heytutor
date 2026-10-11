@@ -28,7 +28,7 @@ export interface SessionBoardCanvasProps {
   currentSegmentText: string;
   lastError: { message: string; question: string; billing?: BillingFailure } | null;
   /** A lesson that did not save: Try again resends it, it never asks again. */
-  saveFailure?: { onRetrySave: () => void; onDismiss: () => void } | null;
+  saveFailure?: { message: string; onRetrySave: () => void; onDismiss: () => void } | null;
   isReplaying: boolean;
   /** Overlay board the past is drawn on while the live lecture stays frozen. */
   rewindBoardRef: RefObject<WhiteboardHandle | null>;
@@ -341,17 +341,24 @@ export function SessionBoardCanvas({
           />
         ) : null}
 
-        {phase === "idle" && lastError && !(lastError.billing && isOutOfUsageLock(lastError.billing)) && (
-          <BoardErrorBanner
-            message={lastError.message}
-            onRetry={() => onRetryError(lastError.question)}
-            onDismiss={onDismissError}
-          />
-        )}
-
-        {phase === "idle" && saveFailure && !lastError && (
-          <SaveFailureBanner onRetrySave={saveFailure.onRetrySave} onDismiss={saveFailure.onDismiss} />
-        )}
+        <div className="pointer-events-none absolute bottom-20 left-1/2 z-30 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 flex-col items-center gap-3">
+          {saveFailure && (
+            <SaveFailureBanner
+              message={saveFailure.message}
+              onRetrySave={saveFailure.onRetrySave}
+              onDismiss={saveFailure.onDismiss}
+              className="relative bottom-auto left-auto max-w-full translate-x-0"
+            />
+          )}
+          {phase === "idle" && lastError && !(lastError.billing && isOutOfUsageLock(lastError.billing)) && (
+            <BoardErrorBanner
+              message={lastError.message}
+              onRetry={() => onRetryError(lastError.question)}
+              onDismiss={onDismissError}
+              className="relative bottom-auto left-auto max-w-full translate-x-0"
+            />
+          )}
+        </div>
 
       </div>
       {exportBoardMounted ? (

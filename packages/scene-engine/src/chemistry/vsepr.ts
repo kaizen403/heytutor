@@ -29,6 +29,7 @@ import {
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
 import { isMonovalent, valenceElectrons, type ElementRecord } from "./elements";
+import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
 
@@ -234,7 +235,7 @@ const CENTRAL_EXCEPTIONS: Record<string, string> = { "N2O|0": "N" };
  */
 export function vseprGeometry(formulaText: string): VseprResult | null {
   const parsed = parseFormula(formulaText);
-  if (!parsed) return null;
+  if (!parsed || !isDiscreteVseprCandidate(parsed)) return null;
   if (parsed.totalAtoms < 3 || parsed.totalAtoms > 9) return null;
   if (parsed.atoms.some((atom) => atom.element.block === "d" || atom.element.block === "f")) return null;
   const key = compositionKey(parsed);
