@@ -28,6 +28,9 @@ export function useTurnLifecycle(params: UseTurnLifecycleParams) {
     pausedLessonOffer: turnControl.pausedLessonOffer,
     /** "stop" or "doubt": which words the paused lesson bar shows. */
     pausedLessonReason: turnControl.pausedLessonReason,
+    earlyLessonRestartOffer: turnControl.earlyLessonRestartOffer,
+    earlyLessonRestartReason: turnControl.earlyLessonRestartReason,
+    restartEarlyLesson: turnControl.restartEarlyLesson,
     /** Offer the stopped lesson a restored board's saved turns leave (never continues). */
     restorePausedLesson: turnControl.restorePausedLesson,
   };

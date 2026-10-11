@@ -21,6 +21,7 @@ import {
   MAX_TURN_TELEMETRY_EVENTS,
   STARTUP_PRIORITY_EVENTS,
   createTurnTelemetry,
+  measureSceneCandidateValidation,
   recordFirstAudible,
   recordTtsFirstByte,
   type TurnTelemetry,
@@ -71,6 +72,186 @@ function harness(start = 0) {
 }
 
 const settle = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+
+type BoardCommitOutcome = "created" | "not_created" | "failed" | "not_called";
+interface MeasuredBoardCommit {
+  committed: boolean;
+  metadata: {
+    board_commit_ms: number;
+    board_commit_total_ms: number | null;
+    board_commit_called: boolean;
+    board_commit_result: BoardCommitOutcome;
+  };
+}
+
+/** Execute the production measurement and payload expressions, not a test copy. */
+function loadBoardCommitMeasurement(source: string) {
+  const file = ts.createSourceFile("useQuestionHandler.ts", source, ts.ScriptTarget.Latest, true);
+  const declarations = new Map<string, ts.VariableStatement>();
+  let wait: ts.ExpressionStatement | undefined;
+  let payload: ts.ObjectLiteralExpression | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableStatement(node)) {
+      for (const declaration of node.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name)) declarations.set(declaration.name.text, node);
+      }
+    }
+    if (ts.isExpressionStatement(node) && ts.isAwaitExpression(node.expression) &&
+      node.expression.expression.getText(file) === "boardCommitted") wait = node;
+    if (ts.isCallExpression(node) && node.expression.getText(file) === "tel.mark" &&
+      node.arguments[0]?.getText(file) === '"startup-ask"' &&
+      node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) payload = node.arguments[1];
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  const declaration = (name: string) => {
+    const node = declarations.get(name);
+    assert(node, `the actual handler owns the ${name} measurement`);
+    return node;
+  };
+  const start = declaration("boardCommitStartedAt");
+  const commit = declaration("boardCommitted");
+  const waitStart = declaration("boardCommitWaitStartedAt");
+  const waitEnd = declaration("beginTurnStartedAt");
+  assert(wait && payload, "execute the actual board await and startup-ask payload");
+  assert(start.pos < commit.pos && commit.pos < waitStart.pos && waitStart.pos < wait.pos && wait.pos < waitEnd.pos,
+    "callback starts before setup work; remaining wait is measured only around its await");
+  const startupPayload = payload;
+  const properties = ["board_commit_ms", "board_commit_total_ms", "board_commit_called", "board_commit_result"].map((name) => {
+    const property = startupPayload.properties.find((node) => ts.isPropertyAssignment(node) && node.name.getText(file) === name);
+    assert(property, `the production payload must expose ${name}`);
+    return property.getText(file);
+  });
+  const compiled = ts.transpileModule(`return (async () => {
+    ${source.slice(start.getStart(file), commit.end)}
+    workBeforeAwait();
+    ${waitStart.getText(file)}
+    ${wait.getText(file)}
+    ${waitEnd.getText(file)}
+    return { metadata: { ${properties.join(",")} }, committed: await boardCommitted };
+  })();`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  return new Function("commitDraftBoard", "performance", "workBeforeAwait", compiled) as (
+    commitDraftBoard: (() => Promise<boolean>) | undefined,
+    performance: { now(): number },
+    workBeforeAwait: () => void,
+  ) => Promise<MeasuredBoardCommit>;
+}
+
+async function checkBoardCommitOutcome(source: string, outcome: BoardCommitOutcome) {
+  const measure = loadBoardCommitMeasurement(source);
+  const clock = { now: 1_000 };
+  let resolve!: (created: boolean) => void;
+  let reject!: (error: unknown) => void;
+  const callbackPromise = new Promise<boolean>((yes, no) => { resolve = yes; reject = no; });
+  const originalError = new Error(STUDENT_TEXT);
+  let called = 0;
+  let work = 0;
+  const callback = outcome === "not_called" ? undefined : () => {
+    called++;
+    assert.equal(work, 0, "the actual callback starts immediately, before setup work or await");
+    return callbackPromise;
+  };
+  const pending = measure(callback, { now: () => clock.now }, () => {
+    work++;
+    clock.now += 350; // UI/title/ref setup overlaps the already-running callback.
+  });
+  assert.equal(called, outcome === "not_called" ? 0 : 1, "measurement never repeats the callback");
+  assert.equal(work, 1, "setup work happens before the commit await");
+  if (outcome !== "not_called") {
+    clock.now += 300;
+    if (outcome === "failed") reject(originalError);
+    else resolve(outcome === "created");
+  }
+  const result = await pending;
+  assert.equal(result.committed, outcome === "created", "true/false and the existing rejection-to-false behavior remain unchanged");
+  assert.deepEqual(result.metadata, {
+    board_commit_ms: outcome === "not_called" ? 0 : 300,
+    board_commit_total_ms: outcome === "not_called" ? null : 650,
+    board_commit_called: outcome !== "not_called",
+    board_commit_result: outcome,
+  }, `${outcome}: actual callback total includes work before await; remaining wait does not`);
+  assert(!JSON.stringify(result.metadata).includes(STUDENT_TEXT), "callback failures expose only the allowlisted outcome, never error text");
+  return result;
+}
+
+async function verifyBoardCommitMeasurement() {
+  const source = readFileSync(path.resolve(import.meta.dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+  for (const outcome of ["created", "not_created", "failed", "not_called"] as const) {
+    await checkBoardCommitOutcome(source, outcome);
+  }
+  const originalError = new Error(STUDENT_TEXT);
+  await assert.rejects(loadBoardCommitMeasurement(source)(() => { throw originalError; }, { now: () => 0 }, () => {}),
+    (error: unknown) => error === originalError, "a synchronous callback throw retains its exact original error identity");
+
+  // These mutants passed the old hardcoded report tests. Execute the same
+  // production seam to prove the new callback/payload assertions reject them.
+  const mutants: Array<[string, string, string, BoardCommitOutcome]> = [
+    ["remaining wait as total", "board_commit_total_ms: boardCommitTotalMs", "board_commit_total_ms: Math.round(beginTurnStartedAt - boardCommitWaitStartedAt)", "created"],
+    ["swapped boolean outcomes", 'created ? "created" : "not_created"', 'created ? "not_created" : "created"', "created"],
+    ["mislabelled rejection", 'boardCommitResult = "failed"', 'boardCommitResult = "not_created"', "failed"],
+    ["mislabelled absent callback", '= "not_called";', '= "not_created";', "not_called"],
+    ["absent callback counted as called", "board_commit_called: Boolean(commitDraftBoard)", "board_commit_called: true", "not_called"],
+  ];
+  for (const [name, before, after, outcome] of mutants) {
+    assert(source.includes(before), `${name}: the mutation must target the real production expression`);
+    await assert.rejects(checkBoardCommitOutcome(source.replace(before, after), outcome), assert.AssertionError,
+      `${name}: the measurement gate must fail, not accept a fabricated callback duration/outcome`);
+  }
+}
+
+/** Completion diagnostics never become a candidate or student-text authority. */
+async function verifyCandidateValidationTiming() {
+  assert.equal(typeof measureSceneCandidateValidation, "function", "candidate timing helper must exist before instrumentation can claim this stage");
+  const h = harness(2_000);
+  const tel = createTurnTelemetry({ originPerf: 1_000, env: h.env });
+  tel.setTrace("trace-candidate-timing", "board-1");
+  const result = { valid: true, value: { sourceText: STUDENT_TEXT }, errors: [] };
+  let validations = 0;
+  const measured = measureSceneCandidateValidation(tel, { candidateIndex: 1, context: "search" }, () => {
+    validations++;
+    h.clock.now += 35;
+    return result;
+  }, () => h.clock.now);
+  assert.equal(measured, result, "diagnostics return the exact validator result, not a reconstructed candidate");
+  assert.equal(validations, 1, "measuring must not repeat validation or compile");
+  const invalid = { valid: false, errors: [{ message: STUDENT_TEXT }] };
+  h.clock.now = 2_100;
+  assert.equal(measureSceneCandidateValidation(tel, { candidateIndex: 2, context: "revalidate" }, () => {
+    h.clock.now += 12;
+    return invalid;
+  }, () => h.clock.now), invalid, "invalid result identity and errors also remain untouched");
+  const originalError = new Error(STUDENT_TEXT);
+  h.clock.now = 2_200;
+  assert.throws(() => measureSceneCandidateValidation(tel, { candidateIndex: 3, context: "recovery" }, () => {
+    h.clock.now += 9;
+    throw originalError;
+  }, () => h.clock.now), (error: unknown) => error === originalError,
+  "the exact validator error must propagate, never a diagnostic replacement");
+  await tel.flush();
+  const completion = h.batches.flatMap((batch) => batch.events).filter((event) => event.name === "scene-candidate-validation");
+  assert.equal(completion.length, 3, "each actual validation reports one fixed-name completion, including a throw");
+  assert.deepEqual(completion.map((event) => event.metadata), [
+    { candidate_index: 1, context: "search", start_since_ask_ms: 1_000, duration_ms: 35, valid: true, completed: true, clock_domain: "browser_monotonic" },
+    { candidate_index: 2, context: "revalidate", start_since_ask_ms: 1_100, duration_ms: 12, valid: false, completed: true, clock_domain: "browser_monotonic" },
+    { candidate_index: 3, context: "recovery", start_since_ask_ms: 1_200, duration_ms: 9, valid: null, completed: false, clock_domain: "browser_monotonic" },
+  ]);
+  assert(!JSON.stringify(h.batches).includes(STUDENT_TEXT), "candidate results, raw errors, questions and source text never enter timing payloads");
+
+  const brokenMark = { ...tel, mark: () => { throw new Error("diagnostic sink failed"); } };
+  assert.equal(measureSceneCandidateValidation(brokenMark, { candidateIndex: 4, context: "search" }, () => result, () => 2_500), result,
+    "a throwing completion sink cannot discard a valid candidate");
+  assert.throws(() => measureSceneCandidateValidation(brokenMark, { candidateIndex: 5, context: "search" }, () => { throw originalError; }, () => 2_500),
+    (error: unknown) => error === originalError, "a throwing sink cannot replace a genuine validator failure");
+  const brokenOrigin = { ...tel, durationMs: () => { throw new Error("diagnostic origin failed"); } };
+  assert.equal(measureSceneCandidateValidation(brokenOrigin, { candidateIndex: 6, context: "search" }, () => result, () => 2_500), result,
+    "a throwing telemetry origin does not stop validation");
+  assert.equal(measureSceneCandidateValidation(tel, { candidateIndex: 7, context: "search" }, () => result,
+    () => { throw new Error("diagnostic clock failed"); }), result, "a throwing measurement clock does not stop validation");
+  assert.equal(measureSceneCandidateValidation(null, { candidateIndex: 8, context: "recovery" }, () => result, () => 2_500), result,
+    "no telemetry is a supported diagnostic no-op, not a refused candidate");
+  assert.throws(() => measureSceneCandidateValidation(null, { candidateIndex: 9, context: "recovery" }, () => { throw originalError; }, () => 2_500),
+    (error: unknown) => error === originalError, "no telemetry preserves the original validator failure");
+}
 
 async function verifyOriginAtAsk() {
   const h = harness(1_000);
@@ -246,6 +427,8 @@ async function verifyPageLifecycleCheckpoint() {
 }
 
 async function verifyPriorityRetention() {
+  assert(STARTUP_PRIORITY_EVENTS.some((name) => String(name) === "scene-candidate-validation"),
+    "candidate completion is a protected startup stage, not evictable drawing noise");
   const h = harness();
   const tel = createTurnTelemetry({ originPerf: 0, env: h.env });
   tel.setTrace("trace-pressure");
@@ -601,13 +784,23 @@ function verifyReportParsing() {
   const trace = {
     id: "lf-trace-1",
     observations: [
-      observation("startup-ask", 2_900, 2_900, { pre_telemetry_ms: 2_900, board_commit_ms: 300, begin_turn_ms: 2_100, board_epoch_ms: 400, queued_for_board_ms: 0 }),
+      observation("startup-ask", 2_900, 2_900, { pre_telemetry_ms: 2_900, board_commit_ms: 300,
+        board_commit_total_ms: 650, board_commit_called: true, board_commit_result: "created",
+        begin_turn_ms: 2_100, board_epoch_ms: 400, queued_for_board_ms: 0 }),
       observation("thinking", 2_900, 47_000),
       observation("websocket-connect", 2_901, 3_300),
       observation("planner", 2_905, 2_905 + STAGE_CAPS_MS.planner!),
       observation("turn-plan", 2_910, 2_910 + STAGE_CAPS_MS["turn-plan"]! - 100),
       observation("problem-ir", 23_000, 30_000, { outcome: "deadline" }),
       observation("scene-planner", 30_000, 41_000),
+      // These are completion marks. Their zero wall duration/mark time is
+      // not the interval measured inside the deterministic validator.
+      observation("scene-candidate-validation", 40_000, 40_000, { candidate_index: 1, context: "search",
+        start_since_ask_ms: 38_000, duration_ms: 1_250, valid: true, completed: true, clock_domain: "browser_monotonic" }),
+      observation("scene-candidate-validation", 40_700, 40_700, { candidate_index: 2, context: "search",
+        start_since_ask_ms: 39_400, duration_ms: 1_100, valid: false, completed: true, clock_domain: "browser_monotonic" }),
+      observation("scene-candidate-validation", 41_000, 41_000, { candidate_index: 3, context: "revalidate",
+        start_since_ask_ms: 40_500, duration_ms: 350, valid: true, completed: true, clock_domain: "browser_monotonic" }),
       observation("teaching-request", 63_000),
       observation("teaching-hedge-start", 66_000),
       observation("teaching-first-token", 66_500),
@@ -624,12 +817,20 @@ function verifyReportParsing() {
   assert.equal(turn.origin, "startup-ask");
   assert.equal(turn.askToFirstAudibleMs, 68_340);
   const stage = (name: string) => turn.stages.find((row) => row.name === name)!;
+  assert.equal(stage("board-commit").durationMs, 300);
+  assert.equal(stage("board-commit-total").durationMs, 650,
+    "full commit callback elapsed is separate from remaining critical-path wait, not a replacement or a sum");
   assert.equal(stage("begin-turn").durationMs, 2_100);
   assert.equal(stage("thinking").startMs, 2_900);
   assert.equal(stage("planner").hitCap, true, "a stage at its deadline hit the cap");
   assert.equal(stage("turn-plan").hitCap, true, "within the jitter slack still counts");
   assert.equal(stage("problem-ir").hitCap, true, "a deadline outcome counts even under the cap");
   assert.equal(stage("scene-planner").hitCap, false);
+  assert.deepEqual(turn.stages.filter((row) => row.name.startsWith("scene-candidate-validation:")), [
+    { name: "scene-candidate-validation:1:search", startMs: 38_000, durationMs: 1_250, capMs: null, hitCap: false },
+    { name: "scene-candidate-validation:2:search", startMs: 39_400, durationMs: 1_100, capMs: null, hitCap: false },
+    { name: "scene-candidate-validation:3:revalidate", startMs: 40_500, durationMs: 350, capMs: null, hitCap: false },
+  ], "each candidate interval survives repeated completion names and reads its local measured interval, not the wall marker");
   assert.equal(stage("teaching-first-token").startMs, 66_500);
   assert.equal(stage("tts-first-byte").durationMs, 640, "the first segment's first byte is reported");
   assert.deepEqual(turn.retries, ["teaching-hedge-start x1", "teaching-hedge-winner x1 (hedge)", "tts-browser-recovery x1"]);
@@ -637,6 +838,25 @@ function verifyReportParsing() {
   const legacy = parseLangfuseTrace({ id: "legacy", observations: [observation("planner", 5_000, 9_000), observation("first-audible", 12_000)] })!;
   assert.equal(legacy.origin, "earliest-event");
   assert.equal(legacy.askToFirstAudibleMs, null, "without startup-ask there is no Ask origin to measure from");
+  const oldStartup = parseLangfuseTrace({ id: "old-startup", observations: [
+    observation("startup-ask", 1_000, 1_000, { pre_telemetry_ms: 1_000, board_commit_ms: 200 }),
+    observation("scene-candidate-validation", 5_000),
+    observation("first-audible", 8_000),
+  ] })!;
+  assert.equal(oldStartup.stages.find((row) => row.name === "board-commit")!.durationMs, 200);
+  assert.equal(oldStartup.stages.find((row) => row.name === "board-commit-total")?.durationMs ?? null, null,
+    "old traces without a full callback duration stay unknown, not inferred from remaining wait");
+  assert.equal(oldStartup.stages.find((row) => row.name.startsWith("scene-candidate-validation"))?.durationMs ?? null, null,
+    "an old completion mark without measured interval metadata is unknown, never zero compiler time");
+  const brokenClock = parseLangfuseTrace({ id: "broken-clock", observations: [
+    observation("startup-ask", 1_000, 1_000, { pre_telemetry_ms: 1_000 }),
+    observation("scene-candidate-validation", 8_000, 8_000, {
+      candidate_index: 1, context: "search", start_since_ask_ms: 7_500, duration_ms: null,
+    }),
+  ] })!;
+  assert.deepEqual(summarizeTurns([brokenClock]).stages.find((row) => row.name.startsWith("scene-candidate-validation:")), {
+    name: "scene-candidate-validation:1:search", count: 0, p50: null, p90: null, capHits: 0,
+  }, "a missing validation duration cannot become its Ask-offset in the aggregate");
 
   const labRuns = [
     { probeId: "physics|3|impulse|hard", question: STUDENT_TEXT, timings: { planMs: 30_000, teachMs: 40_000, totalMs: 70_000 } },
@@ -696,6 +916,8 @@ function verifyHandlerPrivacy() {
 }
 
 async function main() {
+  await verifyBoardCommitMeasurement();
+  await verifyCandidateValidationTiming();
   await verifyOriginAtAsk();
   await verifyCheckpointOnce();
   await verifyPageLifecycleCheckpoint();
@@ -707,7 +929,7 @@ async function main() {
   await verifyStreamingClientSeam();
   verifyReportParsing();
   verifyHandlerPrivacy();
-  console.log("verified Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, report parsing, and no question text");
+  console.log("verified actual board callback true/false/reject/absent and five rejected measurement mutants, candidate timing identity/error/privacy, full versus remaining board commit, repeated measured intervals, Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, report parsing, and no question text");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

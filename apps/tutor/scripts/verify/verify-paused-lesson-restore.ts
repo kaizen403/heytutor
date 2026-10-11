@@ -786,8 +786,8 @@ async function main() {
     const control = "features/tutor-session/hooks/turn/useTurnControl.ts";
     const stop = between(control, "const stopTurn = useCallback(", "liveTurnSave().closeOwner(cancelRef);");
     assert(stop.includes("pausedLessonOnStop("), "Stop takes the snapshot before its save closes");
-    const restore = between(control, "const restorePausedLesson = useCallback(", "const flushPausedLesson = useCallback(");
-    assert(restore.includes("pausedLessonFromStoredTurns(") && !restore.includes("handleQuestionRef"),
+    const restore = between(control, "const restorePausedLesson = useCallback(", "const restartEarlyLesson = useCallback(");
+    assert(restore.includes("lessonRecoveryFromStoredTurns(") && !restore.includes("handleQuestionRef"),
       "restore derives the offer and never starts the lesson");
   }
 

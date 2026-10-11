@@ -55,7 +55,7 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
+import { createTurnTelemetry, measureSceneCandidateValidation } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
@@ -94,6 +94,7 @@ import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
+import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
@@ -439,10 +440,23 @@ export function useQuestionHandler(
       // the thinking overlay is not waiting on a round trip.
       // A network failure here must not escape as an unhandled rejection: the
       // billing call just below fails on the same network and tells the student.
+      const boardCommitStartedAt = performance.now();
+      let boardCommitTotalMs: number | null = null;
+      let boardCommitResult: "created" | "not_created" | "failed" | "not_called" = "not_called";
       const boardCommitted = (commitDraftBoard
         ? commitDraftBoard()
         : Promise.resolve(false)
-      ).catch(() => false);
+      ).then((created) => {
+        if (commitDraftBoard) {
+          boardCommitTotalMs = Math.round(performance.now() - boardCommitStartedAt);
+          boardCommitResult = created ? "created" : "not_created";
+        }
+        return created;
+      }).catch(() => {
+        boardCommitTotalMs = Math.round(performance.now() - boardCommitStartedAt);
+        boardCommitResult = "failed";
+        return false;
+      });
 
       const boardIdForName = sessionId;
       if (boardIdForName) {
@@ -659,6 +673,11 @@ export function useQuestionHandler(
         pre_telemetry_ms: tel.durationMs(),
         queued_for_board_ms: queuedAsk ? Math.round(askStartedAt - queuedAsk.startedAt) : 0,
         board_commit_ms: Math.round(beginTurnStartedAt - boardCommitWaitStartedAt),
+        // Full callback and remaining await overlap; never add these durations.
+        // This is not a server-only POST/create duration. False may mean no draft.
+        board_commit_total_ms: boardCommitTotalMs,
+        board_commit_called: Boolean(commitDraftBoard),
+        board_commit_result: boardCommitResult,
         begin_turn_ms: Math.round(beginTurnMs),
         board_epoch_ms: boardEpochMs === null ? null : Math.round(boardEpochMs),
         turn_kind: doubt ? "doubt" : resume ? "resume" : "lesson",
@@ -746,6 +765,22 @@ export function useQuestionHandler(
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
       const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
+      const earlyOpeningStarted = STREAM_SEGMENTS_LIVE && shouldStartEarlyLessonOpening({
+        kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+        isDsa: dsaClassification.isDsa,
+        admitted: true,
+        current: isCurrentTurn(),
+        paused: isPausedRef.current,
+      });
+      if (earlyOpeningStarted) {
+        // Fixed acknowledgement only: figure selection and useful teaching
+        // below still receive the same original inputs and authority gates.
+        page.earlyOpeningStarted = true;
+        liveTurnSave().setResumeState(cancelRef, turnGeneration, { v: 1, earlyOpeningOnly: true });
+        tel.mark("early-lesson-opening-queued", { early_opening: true });
+        tel.meta({ early_lesson_opening: true });
+        enqueueSegment(buildEarlyLessonOpeningSegment(turnNarrationLanguage), turnGeneration);
+      }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
@@ -1110,10 +1145,13 @@ export function useQuestionHandler(
           diagramStrategy: ReturnType<typeof liveDiagramStrategyDecision>;
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
+        let validationIndex = 0;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+          context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
-          validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+          measureSceneCandidateValidation(tel, { candidateIndex: ++validationIndex, context }, () =>
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1222,6 +1260,7 @@ export function useQuestionHandler(
             const validation = validateCandidateAgainstPlan(
               recovery.document as unknown as Record<string, unknown>,
               planningTurnPlan,
+              "recovery",
             );
             if (!validation.valid) {
               tutorDebug("planner", "verified scene recovery rejected by current engine", {
@@ -1285,7 +1324,7 @@ export function useQuestionHandler(
           },
           revalidate: (sceneResult, authoritativeTurnPlan) => revalidateScenePlanWithRepairResult(
             sceneResult,
-            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, "revalidate"),
           ),
         });
         turnPlan = planning.turnPlan;
@@ -1783,7 +1822,7 @@ export function useQuestionHandler(
       throwIfTurnCancelled();
       setPhaseIfCurrent("thinking");
       if (!isPausedRef.current) tts.unlockAudio?.();
-      if (STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
+      if (!earlyOpeningStarted && STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
         tts.prefetchSegment?.(openingSegment.narration, {
           traceId: turnTraceId ?? undefined,
           sessionId: sessionId ?? undefined,
@@ -1875,7 +1914,7 @@ export function useQuestionHandler(
           // First, before any row and before the figure: what this question is
           // and what we are about to do with it. A lesson that opens on
           // "Given... u equals twenty" has started in the middle of itself.
-          if (openingSegment) {
+          if (openingSegment && !earlyOpeningStarted) {
             enqueueSegment(openingSegment, turnGeneration);
           }
           for (const segment of givenSegments) {

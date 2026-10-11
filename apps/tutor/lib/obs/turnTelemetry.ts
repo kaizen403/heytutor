@@ -57,6 +57,7 @@ export const STARTUP_PRIORITY_EVENTS = [
   "problem-ir",
   "deterministic-figure",
   "scene-planner",
+  "scene-candidate-validation",
   "revalidate",
   "teaching-request",
   "teaching-first-token",
@@ -484,6 +485,52 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
 }
 
 type FirstByteTransport = "ws" | "http";
+
+function diagnosticMilliseconds(read: () => number | undefined): number | null {
+  try {
+    const value = read();
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Combined proof/validation/compile interval; diagnostics never change admission. */
+export function measureSceneCandidateValidation<T extends { valid: boolean }>(
+  tel: TurnTelemetry | null,
+  input: { candidateIndex: number; context: "search" | "revalidate" | "recovery" },
+  validate: () => T,
+  now: () => number = () => performance.now(),
+): T {
+  if (!tel) return validate();
+  const startedSinceAsk = diagnosticMilliseconds(() => tel.durationMs());
+  const startedAt = diagnosticMilliseconds(now);
+  let valid: boolean | null = null;
+  let completed = false;
+  try {
+    const result = validate();
+    valid = result.valid;
+    completed = true;
+    return result;
+  } finally {
+    const endedAt = diagnosticMilliseconds(now);
+    const duration = startedAt !== null && endedAt !== null && endedAt >= startedAt
+      ? Math.round(endedAt - startedAt) : null;
+    try {
+      tel.mark("scene-candidate-validation", {
+        candidate_index: input.candidateIndex,
+        context: input.context,
+        start_since_ask_ms: startedSinceAsk === null ? null : Math.round(startedSinceAsk),
+        duration_ms: duration,
+        valid,
+        completed,
+        clock_domain: "browser_monotonic",
+      });
+    } catch {
+      // A diagnostic sink cannot reject a candidate or replace its error.
+    }
+  }
+}
 
 /**
  * `tts-first-byte` for one segment. Takes an unknown telemetry shape because

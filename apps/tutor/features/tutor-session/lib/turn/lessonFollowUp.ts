@@ -25,6 +25,18 @@ export const STOPPED_LESSON_ASK_LABEL = "Ask a doubt";
 
 export type PausedLessonCopyReason = "stop" | "doubt";
 
+/** Restart is a fresh attempt, so it never promises to pick up unfinished work. */
+export function earlyLessonRestartCopy(reason: PausedLessonCopyReason) {
+  return {
+    title: "Lesson stopped before teaching started",
+    body: reason === "doubt"
+      ? "Your doubt is answered. Start the original question again when you're ready."
+      : "Start the original question again when you're ready.",
+    continueLabel: "Teach it again",
+    askLabel: reason === "doubt" ? "Ask another doubt" : "Ask a question",
+  };
+}
+
 /** The bar's words for why the lesson is paused. */
 export function pausedLessonCopy(reason: PausedLessonCopyReason): {
   title: string;
