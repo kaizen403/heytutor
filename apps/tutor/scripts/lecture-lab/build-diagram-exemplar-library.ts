@@ -110,9 +110,11 @@ interface SynthesizedReview {
   verdicts: Readonly<Record<string, string>>;
 }
 
-/** Audit verdicts for synthesized physics and maths entries; absent file keeps every entry. */
-function synthesizedReview(path: string): SynthesizedReview | null {
-  if (!existsSync(path)) return null;
+/** Audit verdicts for synthesized physics and maths entries; a missing file fails the build. */
+function synthesizedReview(path: string): SynthesizedReview {
+  if (!existsSync(path)) {
+    throw new Error(`${path}: missing; synthesized physics and maths entries are admitted only with a kept audit verdict`);
+  }
   const value = JSON.parse(readFileSync(path, "utf8")) as { keep?: unknown; verdicts?: unknown };
   if (!Array.isArray(value.keep) || typeof value.verdicts !== "object" || value.verdicts === null) {
     throw new Error(`${path}: expected keep[] and verdicts{}`);
@@ -174,7 +176,7 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
     // kind does): chemistry output filed under a physics or maths archetype reaches
     // those pickers as that kind, so it is audited; chemistry-filed entries are untouched.
     const reviewScope = archetype ?? synthesized.family;
-    if (review && !reviewScope.startsWith("chem_") && !review.keep.has(review.verdicts[id] ?? "")) continue;
+    if (!reviewScope.startsWith("chem_") && !review.keep.has(review.verdicts[id] ?? "")) continue;
     const family = synthesized.family;
     const figureKind = figureKindForDiagramGroup(family, archetype);
     if (!figureKind) throw new Error(`${group}: missing figure_kind mapping`);
