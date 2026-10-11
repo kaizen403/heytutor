@@ -79,8 +79,13 @@
         "label": "0.45 kg"
       },
       {
+        "id": "X",
+        "kind": "point",
+        "role": "block position"
+      },
+      {
         "id": "x",
-        "kind": "vector",
+        "kind": "dimension",
         "role": "displacement",
         "label": "x = 3.9 cm"
       },
@@ -139,11 +144,6 @@
         "id": "c",
         "kind": "point",
         "role": "block centre"
-      },
-      {
-        "id": "vS",
-        "kind": "point",
-        "role": "velocity tail"
       }
     ],
     "constructions": [
@@ -303,15 +303,23 @@
         ]
       },
       {
+        "id": "cX",
+        "operator": "point",
+        "inputs": {
+          "x": 2.4,
+          "y": -1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "X"
+        ]
+      },
+      {
         "id": "cx",
-        "operator": "vector",
+        "operator": "dimension",
         "inputs": {
           "start": "O",
-          "direction": [
-            1,
-            0
-          ],
-          "length": 2.4
+          "end": "X"
         },
         "outputs": [
           "x"
@@ -319,14 +327,17 @@
       },
       {
         "id": "cF",
-        "operator": "vector_scale",
+        "operator": "vector",
         "inputs": {
-          "vector": "x",
-          "factor": -0.5,
-          "origin": [
+          "start": [
             2.4,
             2.4
-          ]
+          ],
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 1.2
         },
         "outputs": [
           "F"
@@ -348,22 +359,13 @@
         ]
       },
       {
-        "id": "cvS",
-        "operator": "point",
-        "inputs": {
-          "x": 2.4,
-          "y": 4.4,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "vS"
-        ]
-      },
-      {
         "id": "cv",
         "operator": "vector",
         "inputs": {
-          "start": "vS",
+          "start": [
+            2.4,
+            4.4
+          ],
           "direction": [
             -1,
             0
@@ -388,23 +390,18 @@
         "severity": "fatal"
       },
       {
-        "id": "rF",
-        "predicate": "opposite_direction",
+        "id": "order",
+        "predicate": "ordered_along",
         "entities": [
-          "F",
-          "x"
+          "mA",
+          "O",
+          "X",
+          "pA"
         ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "rv",
-        "predicate": "opposite_direction",
-        "entities": [
-          "v",
-          "x"
-        ],
-        "expected": true,
+        "expected": {
+          "axis": "x",
+          "direction": "increasing"
+        },
         "severity": "fatal"
       }
     ],
@@ -466,6 +463,7 @@
           "J",
           "s2",
           "B",
+          "X",
           "x",
           "mA",
           "O",
@@ -476,8 +474,7 @@
           "w1",
           "w0",
           "t1",
-          "c",
-          "vS"
+          "c"
         ],
         "dependsOn": [],
         "narrationCue": "block returning to O"

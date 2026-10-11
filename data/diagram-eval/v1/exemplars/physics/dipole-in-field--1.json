@@ -1,15 +1,15 @@
 {
   "topic_id": "physics|11|torque-on-electric-dipole",
-  "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts parallel to a uniform 45 kN/C field and is turned slowly about its centre through a quarter turn until it is perpendicular to the field. In the final position show the forces on the charges and the torque, then find the torque and the external work done.",
+  "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts aligned with a uniform 45 kN/C field and is turned slowly about its centre until its axis makes 50° with the field. In the final position show the forces on the charges, the angle θ between p and E, and the torque, then find the torque and the external work done.",
   "figure_kind": "vectors_fbd",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "dipole couple after a quarter turn"
+      "reason": "dipole couple at 50° to the field"
     },
     "source": {
-      "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts parallel to a uniform 45 kN/C field and is turned slowly about its centre through a quarter turn until it is perpendicular to the field. In the final position show the forces on the charges and the torque, then find the torque and the external work done.",
+      "question": "A rigid electric dipole has charges +3.2 nC and −3.2 nC held 7.5 mm apart. It starts aligned with a uniform 45 kN/C field and is turned slowly about its centre until its axis makes 50° with the field. In the final position show the forces on the charges, the angle θ between p and E, and the torque, then find the torque and the external work done.",
       "archetype": "dipole_in_field"
     },
     "quantities": [
@@ -30,25 +30,31 @@
         "symbol": "E",
         "value": 45,
         "unit": "kN/C"
+      },
+      {
+        "id": "theta",
+        "symbol": "θ",
+        "value": 50,
+        "unit": "degree"
       }
     ],
     "entities": [
       {
         "id": "O",
         "kind": "point",
-        "role": "pivot"
+        "role": "pivot, centre of the dipole"
       },
       {
         "id": "A",
         "kind": "point",
         "role": "−q",
-        "label": "−q = −3.2 nC"
+        "label": "−q"
       },
       {
         "id": "B",
         "kind": "point",
         "role": "+q",
-        "label": "+q = +3.2 nC"
+        "label": "+q"
       },
       {
         "id": "A0",
@@ -69,8 +75,8 @@
       {
         "id": "p0",
         "kind": "vector",
-        "role": "moment at start",
-        "label": "p parallel to E"
+        "role": "moment at start, along E",
+        "label": "p₀"
       },
       {
         "id": "E1",
@@ -112,15 +118,10 @@
         "label": "tau"
       },
       {
-        "id": "ra",
-        "kind": "right_angle_mark",
-        "role": "p ⊥ E mark"
-      },
-      {
-        "id": "turn",
-        "kind": "arc",
-        "role": "rotation",
-        "label": "quarter turn"
+        "id": "th",
+        "kind": "angle_mark",
+        "role": "angle θ turned from E to p",
+        "label": "θ = 50°"
       }
     ],
     "constructions": [
@@ -137,37 +138,12 @@
         ]
       },
       {
-        "id": "cA",
-        "operator": "point",
-        "inputs": {
-          "x": 3.75,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "A"
-        ]
-      },
-      {
-        "id": "cB",
-        "operator": "point",
-        "inputs": {
-          "x": -3.75,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "B"
-        ]
-      },
-      {
         "id": "cA0",
-        "operator": "rotate",
+        "operator": "point",
         "inputs": {
-          "point": "A",
-          "center": "O",
-          "angle": -90,
-          "angleUnit": "degrees"
+          "x": 0,
+          "y": -3.75,
+          "coordinateSpace": "world"
         },
         "outputs": [
           "A0"
@@ -175,15 +151,40 @@
       },
       {
         "id": "cB0",
-        "operator": "rotate",
+        "operator": "point",
         "inputs": {
-          "point": "B",
-          "center": "O",
-          "angle": -90,
-          "angleUnit": "degrees"
+          "x": 0,
+          "y": 3.75,
+          "coordinateSpace": "world"
         },
         "outputs": [
           "B0"
+        ]
+      },
+      {
+        "id": "cA",
+        "operator": "rotate",
+        "inputs": {
+          "point": "A0",
+          "center": "O",
+          "angle": 50,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "cB",
+        "operator": "rotate",
+        "inputs": {
+          "point": "B0",
+          "center": "O",
+          "angle": 50,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "B"
         ]
       },
       {
@@ -309,8 +310,8 @@
         "operator": "planar_torque",
         "inputs": {
           "leverArm": [
-            -7.5,
-            0
+            -5.7453,
+            4.8209
           ],
           "force": [
             0,
@@ -325,30 +326,16 @@
         ]
       },
       {
-        "id": "cra",
-        "operator": "right_angle_mark",
+        "id": "cth",
+        "operator": "angle_mark",
         "inputs": {
           "vertex": "O",
-          "a": "B",
-          "b": "B0",
-          "size": 1.2
+          "a": "B0",
+          "b": "B",
+          "radius": 1.6
         },
         "outputs": [
-          "ra"
-        ]
-      },
-      {
-        "id": "cturn",
-        "operator": "arc",
-        "inputs": {
-          "center": "O",
-          "radius": 2.4,
-          "startAngle": 90,
-          "endAngle": 180,
-          "angleUnit": "degrees"
-        },
-        "outputs": [
-          "turn"
+          "th"
         ]
       }
     ],
@@ -356,12 +343,15 @@
     "assertions": [
       {
         "id": "a1",
-        "predicate": "perpendicular",
+        "predicate": "angle_between",
         "entities": [
-          "p",
-          "E1"
+          "p0",
+          "p"
         ],
-        "expected": true,
+        "expected": {
+          "value": 50,
+          "unit": "degrees"
+        },
         "severity": "fatal"
       },
       {
@@ -385,7 +375,16 @@
         "severity": "fatal"
       }
     ],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "qcap",
+        "kind": "callout",
+        "targetIds": [
+          "B"
+        ],
+        "text": "q = 3.2 nC"
+      }
+    ],
     "requiredEntityIds": [
       "A",
       "B",
@@ -395,8 +394,7 @@
       "FA",
       "FB",
       "tau",
-      "ra",
-      "turn"
+      "th"
     ],
     "revealGroups": [
       {
@@ -416,11 +414,10 @@
           "FB",
           "FA",
           "tau",
-          "ra",
-          "turn"
+          "th"
         ],
         "dependsOn": [],
-        "narrationCue": "field, turn, couple, torque"
+        "narrationCue": "field, angle θ, couple, torque"
       }
     ],
     "teachingTimeline": [
@@ -429,7 +426,7 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "field, turn, couple, torque"
+        "narrationIntent": "field, angle θ, couple, torque"
       }
     ]
   }

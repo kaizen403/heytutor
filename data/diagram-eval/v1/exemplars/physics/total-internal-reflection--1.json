@@ -1,0 +1,499 @@
+{
+  "topic_id": "physics|16|total-internal-reflection",
+  "question": "A small lamp S is set inside a glass block of refractive index 1.50, below its flat top face, which is in contact with air. Find the critical angle C for the glass-air face. One ray from S meets the face at exactly C and another meets it at 65° to the normal. Draw the face, the normal at each point of incidence, the ray that leaves grazing along the face and the ray that is totally internally reflected, and mark C and the equal angles of incidence and reflection.",
+  "figure_kind": "ray_optics",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "critical angle and total internal reflection"
+    },
+    "source": {
+      "question": "A small lamp S is set inside a glass block of refractive index 1.50, below its flat top face, which is in contact with air. Find the critical angle C for the glass-air face. One ray from S meets the face at exactly C and another meets it at 65° to the normal. Draw the face, the normal at each point of incidence, the ray that leaves grazing along the face and the ray that is totally internally reflected, and mark C and the equal angles of incidence and reflection.",
+      "archetype": "total_internal_reflection"
+    },
+    "quantities": [
+      {
+        "id": "n",
+        "symbol": "n",
+        "value": 1.5,
+        "unit": ""
+      },
+      {
+        "id": "i",
+        "symbol": "i",
+        "value": 65,
+        "unit": "degree"
+      }
+    ],
+    "entities": [
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "face end"
+      },
+      {
+        "id": "surf",
+        "kind": "line",
+        "role": "glass-air face"
+      },
+      {
+        "id": "S",
+        "kind": "point",
+        "role": "lamp",
+        "label": "S"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "at C",
+        "label": "A"
+      },
+      {
+        "id": "inc1",
+        "kind": "vector",
+        "role": "ray at C"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "beyond C",
+        "label": "B"
+      },
+      {
+        "id": "inc2",
+        "kind": "vector",
+        "role": "ray at 65°"
+      },
+      {
+        "id": "NAt",
+        "kind": "point",
+        "role": "normal end"
+      },
+      {
+        "id": "NAb",
+        "kind": "point",
+        "role": "normal end"
+      },
+      {
+        "id": "nA",
+        "kind": "segment",
+        "role": "normal at A"
+      },
+      {
+        "id": "NBt",
+        "kind": "point",
+        "role": "normal end"
+      },
+      {
+        "id": "NBb",
+        "kind": "point",
+        "role": "normal end"
+      },
+      {
+        "id": "nB",
+        "kind": "segment",
+        "role": "normal at B"
+      },
+      {
+        "id": "graze",
+        "kind": "ray",
+        "role": "grazing ray"
+      },
+      {
+        "id": "refl",
+        "kind": "ray",
+        "role": "reflected ray"
+      },
+      {
+        "id": "aC",
+        "kind": "angle_mark",
+        "role": "critical angle",
+        "label": "C"
+      },
+      {
+        "id": "r90",
+        "kind": "right_angle_mark",
+        "role": "r = 90°"
+      },
+      {
+        "id": "ai",
+        "kind": "angle_mark",
+        "role": "incidence",
+        "label": "i = 65°"
+      },
+      {
+        "id": "ai2",
+        "kind": "angle_mark",
+        "role": "reflection",
+        "label": "i′"
+      },
+      {
+        "id": "air",
+        "kind": "label",
+        "role": "medium",
+        "label": "air"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kL",
+        "operator": "point",
+        "inputs": {
+          "x": -5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "c_surf",
+        "operator": "line",
+        "inputs": {
+          "start": "L",
+          "direction": [
+            1,
+            0
+          ]
+        },
+        "outputs": [
+          "surf"
+        ]
+      },
+      {
+        "id": "kS",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "c_hitA",
+        "operator": "surface_contact",
+        "inputs": {
+          "origin": "S",
+          "surface": "surf",
+          "direction": [
+            -0.666667,
+            0.745356
+          ]
+        },
+        "outputs": [
+          "A",
+          "inc1"
+        ]
+      },
+      {
+        "id": "c_hitB",
+        "operator": "surface_contact",
+        "inputs": {
+          "origin": "S",
+          "surface": "surf",
+          "direction": [
+            0.906308,
+            0.422618
+          ]
+        },
+        "outputs": [
+          "B",
+          "inc2"
+        ]
+      },
+      {
+        "id": "c_uB",
+        "operator": "normal_at",
+        "inputs": {
+          "point": "B",
+          "surface": "surf"
+        },
+        "outputs": [
+          "uB"
+        ]
+      },
+      {
+        "id": "c_NAt",
+        "operator": "translate",
+        "inputs": {
+          "point": "A",
+          "vector": [
+            0,
+            1.4
+          ]
+        },
+        "outputs": [
+          "NAt"
+        ]
+      },
+      {
+        "id": "c_NAb",
+        "operator": "translate",
+        "inputs": {
+          "point": "A",
+          "vector": [
+            0,
+            -1.4
+          ]
+        },
+        "outputs": [
+          "NAb"
+        ]
+      },
+      {
+        "id": "c_nA",
+        "operator": "segment",
+        "inputs": {
+          "start": "NAt",
+          "end": "NAb"
+        },
+        "outputs": [
+          "nA"
+        ]
+      },
+      {
+        "id": "c_NBt",
+        "operator": "translate",
+        "inputs": {
+          "point": "B",
+          "vector": [
+            0,
+            1.4
+          ]
+        },
+        "outputs": [
+          "NBt"
+        ]
+      },
+      {
+        "id": "c_NBb",
+        "operator": "translate",
+        "inputs": {
+          "point": "B",
+          "vector": [
+            0,
+            -1.4
+          ]
+        },
+        "outputs": [
+          "NBb"
+        ]
+      },
+      {
+        "id": "c_nB",
+        "operator": "segment",
+        "inputs": {
+          "start": "NBt",
+          "end": "NBb"
+        },
+        "outputs": [
+          "nB"
+        ]
+      },
+      {
+        "id": "c_graze",
+        "operator": "ray",
+        "inputs": {
+          "start": "A",
+          "direction": [
+            -1,
+            0
+          ]
+        },
+        "outputs": [
+          "graze"
+        ]
+      },
+      {
+        "id": "c_refl",
+        "operator": "reflect_direction",
+        "inputs": {
+          "origin": "B",
+          "incoming": "inc2",
+          "normal": "uB"
+        },
+        "outputs": [
+          "refl"
+        ]
+      },
+      {
+        "id": "c_aC",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "A",
+          "a": "inc1",
+          "b": "NAb",
+          "radius": 0.6
+        },
+        "outputs": [
+          "aC"
+        ]
+      },
+      {
+        "id": "c_r90",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "A",
+          "a": "NAt",
+          "b": "graze",
+          "size": 0.3
+        },
+        "outputs": [
+          "r90"
+        ]
+      },
+      {
+        "id": "c_ai",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "inc2",
+          "b": "NBb",
+          "radius": 0.6
+        },
+        "outputs": [
+          "ai"
+        ]
+      },
+      {
+        "id": "c_ai2",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "NBb",
+          "b": "refl",
+          "radius": 0.8
+        },
+        "outputs": [
+          "ai2"
+        ]
+      },
+      {
+        "id": "c_air",
+        "operator": "label",
+        "inputs": {
+          "target": "surf",
+          "text": "air"
+        },
+        "outputs": [
+          "air"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "critical",
+        "predicate": "angle_between",
+        "entities": [
+          "aC"
+        ],
+        "expected": {
+          "value": 41.81,
+          "unit": "degrees"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "incidence",
+        "predicate": "angle_between",
+        "entities": [
+          "ai"
+        ],
+        "expected": {
+          "value": 65,
+          "unit": "degrees"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "reflection",
+        "predicate": "angle_between",
+        "entities": [
+          "ai2"
+        ],
+        "expected": {
+          "value": 65,
+          "unit": "degrees"
+        },
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "glass",
+        "kind": "label",
+        "targetIds": [
+          "surf"
+        ],
+        "text": "glass n = 1.50",
+        "placementIntent": "below"
+      }
+    ],
+    "requiredEntityIds": [
+      "L",
+      "surf",
+      "S",
+      "air",
+      "A",
+      "inc1",
+      "NAt",
+      "NAb",
+      "nA",
+      "graze",
+      "aC",
+      "r90",
+      "B",
+      "inc2",
+      "NBt",
+      "NBb",
+      "nB",
+      "refl",
+      "ai",
+      "ai2"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "L",
+          "surf",
+          "S",
+          "air",
+          "A",
+          "inc1",
+          "NAt",
+          "NAb",
+          "nA",
+          "graze",
+          "aC",
+          "r90",
+          "B",
+          "inc2",
+          "NBt",
+          "NBb",
+          "nB",
+          "refl",
+          "ai",
+          "ai2"
+        ],
+        "dependsOn": [],
+        "narrationCue": "grazing at C, total reflection beyond C"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "grazing at C, total reflection beyond C"
+      }
+    ]
+  }
+}

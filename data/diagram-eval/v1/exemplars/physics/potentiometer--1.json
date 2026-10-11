@@ -40,13 +40,13 @@
       },
       {
         "id": "wAJ",
-        "kind": "connector",
-        "role": "potentiometer wire"
+        "kind": "component",
+        "role": "potentiometer wire, A to the jockey"
       },
       {
         "id": "wJB",
-        "kind": "connector",
-        "role": "potentiometer wire"
+        "kind": "component",
+        "role": "potentiometer wire, jockey to B"
       },
       {
         "id": "w1",
@@ -196,8 +196,9 @@
       },
       {
         "id": "kwAJ",
-        "operator": "connect",
+        "operator": "symbol",
         "inputs": {
+          "symbol": "resistor",
           "start": "A",
           "end": "J"
         },
@@ -207,8 +208,9 @@
       },
       {
         "id": "kwJB",
-        "operator": "connect",
+        "operator": "symbol",
         "inputs": {
+          "symbol": "resistor",
           "start": "J",
           "end": "B"
         },
@@ -344,6 +346,16 @@
           "J",
           "A",
           "B"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "wirePath",
+        "predicate": "path",
+        "entities": [
+          "wAJ",
+          "wJB"
         ],
         "expected": true,
         "severity": "fatal"

@@ -302,8 +302,16 @@
         "targetIds": [
           "A"
         ],
-        "text": "qA=−1.5 μC",
+        "text": "qA",
         "placementIntent": "below"
+      },
+      {
+        "id": "cqA",
+        "kind": "callout",
+        "targetIds": [
+          "A"
+        ],
+        "text": "qA = −1.5 μC"
       },
       {
         "id": "lB",
@@ -311,8 +319,16 @@
         "targetIds": [
           "B"
         ],
-        "text": "qB=+1.5 μC",
+        "text": "qB",
         "placementIntent": "right"
+      },
+      {
+        "id": "cqB",
+        "kind": "callout",
+        "targetIds": [
+          "B"
+        ],
+        "text": "qB = +1.5 μC"
       },
       {
         "id": "lP",

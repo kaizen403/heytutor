@@ -20,8 +20,18 @@
         "role": "plate centre"
       },
       {
+        "id": "ppT",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
+        "id": "ppB",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
         "id": "pp",
-        "kind": "rectangle",
+        "kind": "segment",
         "role": "positive plate",
         "label": "+σ"
       },
@@ -31,8 +41,18 @@
         "role": "plate centre"
       },
       {
+        "id": "pnT",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
+        "id": "pnB",
+        "kind": "point",
+        "role": "plate end"
+      },
+      {
         "id": "pn",
-        "kind": "rectangle",
+        "kind": "segment",
         "role": "negative plate",
         "label": "−σ"
       },
@@ -103,12 +123,35 @@
         ]
       },
       {
-        "id": "kpp",
-        "operator": "rectangle",
+        "id": "kppT",
+        "operator": "point",
         "inputs": {
-          "center": "cA",
-          "width": 0.16,
-          "height": 4
+          "x": -3,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ppT"
+        ]
+      },
+      {
+        "id": "kppB",
+        "operator": "point",
+        "inputs": {
+          "x": -3,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ppB"
+        ]
+      },
+      {
+        "id": "kpp",
+        "operator": "segment",
+        "inputs": {
+          "start": "ppT",
+          "end": "ppB"
         },
         "outputs": [
           "pp"
@@ -127,12 +170,35 @@
         ]
       },
       {
-        "id": "kpn",
-        "operator": "rectangle",
+        "id": "kpnT",
+        "operator": "point",
         "inputs": {
-          "center": "cB",
-          "width": 0.16,
-          "height": 4
+          "x": 3,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pnT"
+        ]
+      },
+      {
+        "id": "kpnB",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pnB"
+        ]
+      },
+      {
+        "id": "kpn",
+        "operator": "segment",
+        "inputs": {
+          "start": "pnT",
+          "end": "pnB"
         },
         "outputs": [
           "pn"
@@ -301,6 +367,36 @@
         ],
         "expected": true,
         "severity": "fatal"
+      },
+      {
+        "id": "platesParallel",
+        "predicate": "parallel",
+        "entities": [
+          "pp",
+          "pn"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onA",
+        "predicate": "on",
+        "entities": [
+          "cA",
+          "pp"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onB",
+        "predicate": "on",
+        "entities": [
+          "cB",
+          "pn"
+        ],
+        "expected": true,
+        "severity": "fatal"
       }
     ],
     "annotations": [],
@@ -324,8 +420,12 @@
         "id": "setup",
         "entityIds": [
           "cA",
+          "ppT",
+          "ppB",
           "pp",
           "cB",
+          "pnT",
+          "pnB",
           "pn",
           "cS",
           "sl",
