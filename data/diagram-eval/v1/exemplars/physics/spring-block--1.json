@@ -1,0 +1,496 @@
+{
+  "topic_id": "physics|10|series-and-parallel-springs",
+  "question": "Two light springs, of force constants 240 N/m and 720 N/m, are joined end to end. The first is fixed to a wall and the second is attached to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
+  "figure_kind": "apparatus",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "series spring oscillator"
+    },
+    "source": {
+      "question": "Two light springs, of force constants 240 N/m and 720 N/m, are joined end to end. The first is fixed to a wall and the second is attached to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
+      "archetype": "spring_mass"
+    },
+    "quantities": [
+      {
+        "id": "k1",
+        "symbol": "k1",
+        "value": 240,
+        "unit": "N/m"
+      },
+      {
+        "id": "k2",
+        "symbol": "k2",
+        "value": 720,
+        "unit": "N/m"
+      },
+      {
+        "id": "m",
+        "symbol": "m",
+        "value": 0.45,
+        "unit": "kg"
+      },
+      {
+        "id": "A",
+        "symbol": "A",
+        "value": 6.5,
+        "unit": "cm"
+      },
+      {
+        "id": "x0",
+        "symbol": "x",
+        "value": 3.9,
+        "unit": "cm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "W",
+        "kind": "segment",
+        "role": "fixed wall"
+      },
+      {
+        "id": "T",
+        "kind": "segment",
+        "role": "smooth table"
+      },
+      {
+        "id": "s1",
+        "kind": "polyline",
+        "role": "series spring k1",
+        "label": "k₁ = 240 N/m"
+      },
+      {
+        "id": "J",
+        "kind": "point",
+        "role": "spring junction"
+      },
+      {
+        "id": "s2",
+        "kind": "polyline",
+        "role": "series spring k2",
+        "label": "k₂ = 720 N/m"
+      },
+      {
+        "id": "B",
+        "kind": "rectangle",
+        "role": "block",
+        "label": "0.45 kg"
+      },
+      {
+        "id": "x",
+        "kind": "vector",
+        "role": "displacement",
+        "label": "x = 3.9 cm"
+      },
+      {
+        "id": "mA",
+        "kind": "point",
+        "role": "turning point",
+        "label": "−A"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "equilibrium",
+        "label": "O"
+      },
+      {
+        "id": "pA",
+        "kind": "point",
+        "role": "turning point",
+        "label": "+A = 6.5 cm"
+      },
+      {
+        "id": "F",
+        "kind": "vector",
+        "role": "restoring force",
+        "label": "F"
+      },
+      {
+        "id": "a",
+        "kind": "vector",
+        "role": "acceleration",
+        "label": "a"
+      },
+      {
+        "id": "v",
+        "kind": "vector",
+        "role": "velocity",
+        "label": "v"
+      },
+      {
+        "id": "w1",
+        "kind": "point",
+        "role": "wall top"
+      },
+      {
+        "id": "w0",
+        "kind": "point",
+        "role": "wall foot"
+      },
+      {
+        "id": "t1",
+        "kind": "point",
+        "role": "table end"
+      },
+      {
+        "id": "c",
+        "kind": "point",
+        "role": "block centre"
+      },
+      {
+        "id": "vS",
+        "kind": "point",
+        "role": "velocity tail"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "cw1",
+        "operator": "point",
+        "inputs": {
+          "x": -9,
+          "y": 3.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "w1"
+        ]
+      },
+      {
+        "id": "cw0",
+        "operator": "point",
+        "inputs": {
+          "x": -9,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "w0"
+        ]
+      },
+      {
+        "id": "ct1",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "t1"
+        ]
+      },
+      {
+        "id": "cW",
+        "operator": "segment",
+        "inputs": {
+          "start": "w1",
+          "end": "w0"
+        },
+        "outputs": [
+          "W"
+        ]
+      },
+      {
+        "id": "cT",
+        "operator": "segment",
+        "inputs": {
+          "start": "w0",
+          "end": "t1"
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "cs1",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "-9+4.5*t",
+          "yExpression": "0.8+0.16*asin(sin(8*pi*t))",
+          "tMin": 0,
+          "tMax": 1
+        },
+        "outputs": [
+          "s1"
+        ]
+      },
+      {
+        "id": "cJ",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "s1",
+          "at": 1
+        },
+        "outputs": [
+          "J"
+        ]
+      },
+      {
+        "id": "cs2",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "-4.5+6.1*t",
+          "yExpression": "0.8+0.16*asin(sin(16*pi*t))",
+          "tMin": 0,
+          "tMax": 1
+        },
+        "outputs": [
+          "s2"
+        ]
+      },
+      {
+        "id": "cc",
+        "operator": "point",
+        "inputs": {
+          "x": 2.4,
+          "y": 0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "c"
+        ]
+      },
+      {
+        "id": "cB",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "c",
+          "width": 1.6,
+          "height": 1.6
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "cmA",
+        "operator": "point",
+        "inputs": {
+          "x": -4,
+          "y": -1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mA"
+        ]
+      },
+      {
+        "id": "cO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "cpA",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": -1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pA"
+        ]
+      },
+      {
+        "id": "cx",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 2.4
+        },
+        "outputs": [
+          "x"
+        ]
+      },
+      {
+        "id": "cF",
+        "operator": "vector_scale",
+        "inputs": {
+          "vector": "x",
+          "factor": -0.5,
+          "origin": [
+            2.4,
+            2.4
+          ]
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "ca",
+        "operator": "vector_scale",
+        "inputs": {
+          "vector": "F",
+          "factor": 1,
+          "origin": [
+            2.4,
+            3.4
+          ]
+        },
+        "outputs": [
+          "a"
+        ]
+      },
+      {
+        "id": "cvS",
+        "operator": "point",
+        "inputs": {
+          "x": 2.4,
+          "y": 4.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "vS"
+        ]
+      },
+      {
+        "id": "cv",
+        "operator": "vector",
+        "inputs": {
+          "start": "vS",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 1.0
+        },
+        "outputs": [
+          "v"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "j",
+        "predicate": "on",
+        "entities": [
+          "J",
+          "s2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "rF",
+        "predicate": "opposite_direction",
+        "entities": [
+          "F",
+          "x"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "rv",
+        "predicate": "opposite_direction",
+        "entities": [
+          "v",
+          "x"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "hw",
+        "kind": "hatch",
+        "targetIds": [
+          "W"
+        ]
+      },
+      {
+        "id": "dm",
+        "kind": "drop",
+        "targetIds": [
+          "mA",
+          "T"
+        ]
+      },
+      {
+        "id": "dO",
+        "kind": "drop",
+        "targetIds": [
+          "O",
+          "T"
+        ]
+      },
+      {
+        "id": "dp",
+        "kind": "drop",
+        "targetIds": [
+          "pA",
+          "T"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "W",
+      "T",
+      "s1",
+      "J",
+      "s2",
+      "B",
+      "x",
+      "mA",
+      "O",
+      "pA",
+      "F",
+      "a",
+      "v"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "W",
+          "T",
+          "s1",
+          "J",
+          "s2",
+          "B",
+          "x",
+          "mA",
+          "O",
+          "pA",
+          "F",
+          "a",
+          "v",
+          "w1",
+          "w0",
+          "t1",
+          "c",
+          "vS"
+        ],
+        "dependsOn": [],
+        "narrationCue": "block returning to O"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "block returning to O"
+      }
+    ]
+  }
+}

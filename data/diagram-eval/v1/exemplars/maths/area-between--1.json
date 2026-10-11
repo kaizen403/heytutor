@@ -1,0 +1,374 @@
+{
+  "topic_id": "maths|8|area-between-two-curves",
+  "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "exact curves and enclosed region"
+    },
+    "source": {
+      "question": "Sketch the curve y = 2 − x² and the line y = x, mark the points where they meet, and find the area of the region enclosed between them.",
+      "archetype": "area_between_curves"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      },
+      {
+        "id": "xEnd",
+        "kind": "point",
+        "role": "x axis end"
+      },
+      {
+        "id": "xName",
+        "kind": "label",
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point",
+        "role": "y axis end"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "parab",
+        "kind": "polyline",
+        "role": "upper curve, parabola"
+      },
+      {
+        "id": "line",
+        "kind": "polyline",
+        "role": "lower curve, line"
+      },
+      {
+        "id": "pTag",
+        "kind": "point",
+        "role": "parabola label anchor"
+      },
+      {
+        "id": "pEq",
+        "kind": "label",
+        "role": "parabola equation",
+        "label": "y = 2 − x²"
+      },
+      {
+        "id": "lTag",
+        "kind": "point",
+        "role": "line label anchor"
+      },
+      {
+        "id": "lEq",
+        "kind": "label",
+        "role": "line equation",
+        "label": "y = x"
+      },
+      {
+        "id": "R",
+        "kind": "polygon",
+        "role": "enclosed region"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "left intersection",
+        "label": "(−2, −2)"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "right intersection",
+        "label": "(1, 1)"
+      },
+      {
+        "id": "a",
+        "kind": "point",
+        "role": "lower limit on x axis",
+        "label": "x = −2"
+      },
+      {
+        "id": "b",
+        "kind": "point",
+        "role": "upper limit on x axis",
+        "label": "x = 1"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -3.1,
+          "xMax": 2.9,
+          "yMin": -3.3,
+          "yMax": 2.8
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kxEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 2.9,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "xEnd"
+        ]
+      },
+      {
+        "id": "kxName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "kyEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "kyName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "kparab",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "2-x^2",
+          "xMin": -2.25,
+          "xMax": 1.8
+        },
+        "outputs": [
+          "parab"
+        ]
+      },
+      {
+        "id": "kline",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "x",
+          "xMin": -2.7,
+          "xMax": 2.3
+        },
+        "outputs": [
+          "line"
+        ]
+      },
+      {
+        "id": "kpTag",
+        "operator": "point",
+        "inputs": {
+          "x": 1.7,
+          "y": -0.89,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pTag"
+        ]
+      },
+      {
+        "id": "kpEq",
+        "operator": "label",
+        "inputs": {
+          "target": "pTag",
+          "text": "y = 2 − x²"
+        },
+        "outputs": [
+          "pEq"
+        ]
+      },
+      {
+        "id": "klTag",
+        "operator": "point",
+        "inputs": {
+          "x": 2.2,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "lTag"
+        ]
+      },
+      {
+        "id": "klEq",
+        "operator": "label",
+        "inputs": {
+          "target": "lTag",
+          "text": "y = x"
+        },
+        "outputs": [
+          "lEq"
+        ]
+      },
+      {
+        "id": "kR",
+        "operator": "function_region",
+        "inputs": {
+          "upper": "parab",
+          "lower": "line",
+          "xMin": -2,
+          "xMax": 1
+        },
+        "outputs": [
+          "R"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "parab",
+          "at": -2
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "parab",
+          "at": 1
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "ka",
+        "operator": "point",
+        "inputs": {
+          "x": -2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "a"
+        ]
+      },
+      {
+        "id": "kb",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "b"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "P_on_line",
+        "predicate": "incident",
+        "entities": [
+          "P",
+          "line"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "Q_on_line",
+        "predicate": "incident",
+        "entities": [
+          "Q",
+          "line"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "drop_P",
+        "kind": "drop",
+        "targetIds": [
+          "P",
+          "ax"
+        ]
+      },
+      {
+        "id": "drop_Q",
+        "kind": "drop",
+        "targetIds": [
+          "Q",
+          "ax"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "ax",
+      "xName",
+      "yName",
+      "parab",
+      "line",
+      "pEq",
+      "lEq",
+      "R",
+      "P",
+      "Q",
+      "a",
+      "b"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ax",
+          "xName",
+          "yName",
+          "parab",
+          "line",
+          "pEq",
+          "lEq",
+          "R",
+          "P",
+          "Q",
+          "a",
+          "b"
+        ],
+        "dependsOn": [],
+        "narrationCue": "both curves, where they meet, the region between"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}
