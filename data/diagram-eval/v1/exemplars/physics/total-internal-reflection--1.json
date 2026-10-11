@@ -392,11 +392,12 @@
         "id": "critical",
         "predicate": "angle_between",
         "entities": [
-          "aC"
+          "inc1",
+          "nA"
         ],
         "expected": {
           "value": 41.81,
-          "unit": "degrees"
+          "unit": "degree"
         },
         "severity": "fatal"
       },
@@ -404,11 +405,12 @@
         "id": "incidence",
         "predicate": "angle_between",
         "entities": [
-          "ai"
+          "inc2",
+          "nB"
         ],
         "expected": {
           "value": 65,
-          "unit": "degrees"
+          "unit": "degree"
         },
         "severity": "fatal"
       },
@@ -416,11 +418,12 @@
         "id": "reflection",
         "predicate": "angle_between",
         "entities": [
-          "ai2"
+          "refl",
+          "nB"
         ],
         "expected": {
           "value": 65,
-          "unit": "degrees"
+          "unit": "degree"
         },
         "severity": "fatal"
       },
