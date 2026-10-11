@@ -740,7 +740,7 @@ const curatedMathsQuestions = readdirSync(resolve(exemplarRoot, "maths"))
   .filter((file) => file.endsWith(".json"))
   .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "maths", file), "utf8")) as { question: string })
   .map((entry) => entry.question);
-assert.equal(curatedMathsQuestions.length, 10);
+assert.equal(curatedMathsQuestions.length, 21);
 for (const question of curatedMathsQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
 }
@@ -748,7 +748,7 @@ const curatedPhysicsQuestions = readdirSync(resolve(exemplarRoot, "physics"))
   .filter((file) => file.endsWith(".json"))
   .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "physics", file), "utf8")) as { question: string })
   .map((entry) => entry.question);
-assert.equal(curatedPhysicsQuestions.length, 9);
+assert.equal(curatedPhysicsQuestions.length, 24);
 for (const question of curatedPhysicsQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
 }

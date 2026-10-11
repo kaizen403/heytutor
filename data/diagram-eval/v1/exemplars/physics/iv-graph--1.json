@@ -1,0 +1,322 @@
+{
+  "topic_id": "physics|12|iv-characteristics",
+  "question": "A metal wire of resistance R is kept at constant temperature. Sketch its current–voltage (I–V) characteristic for both directions of the applied potential difference, and show on the graph how R is found from the gradient.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "ohmic I-V line through origin with slope triangle"
+    },
+    "source": {
+      "question": "A metal wire of resistance R is kept at constant temperature. Sketch its current–voltage (I–V) characteristic for both directions of the applied potential difference, and show on the graph how R is found from the gradient.",
+      "family": "characteristic_graph"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "voltage-current axes"
+      },
+      {
+        "id": "v_end",
+        "kind": "point",
+        "role": "voltage axis name anchor"
+      },
+      {
+        "id": "i_end",
+        "kind": "point",
+        "role": "current axis name anchor"
+      },
+      {
+        "id": "v_name",
+        "kind": "label",
+        "role": "voltage axis name",
+        "label": "V"
+      },
+      {
+        "id": "i_name",
+        "kind": "label",
+        "role": "current axis name",
+        "label": "I"
+      },
+      {
+        "id": "iv",
+        "kind": "polyline",
+        "role": "ohmic I-V characteristic"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "origin, zero p.d. zero current",
+        "label": "O"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "slope triangle start on line"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "slope triangle end on line"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "slope triangle corner"
+      },
+      {
+        "id": "run",
+        "kind": "segment",
+        "role": "voltage step"
+      },
+      {
+        "id": "rise",
+        "kind": "segment",
+        "role": "current step",
+        "label": "ΔI"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "mk_ax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -4.4,
+          "xMax": 4.4,
+          "yMin": -3,
+          "yMax": 3
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "mk_v_end",
+        "operator": "point",
+        "inputs": {
+          "x": 4.4,
+          "y": -0.35,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "v_end"
+        ]
+      },
+      {
+        "id": "mk_i_end",
+        "operator": "point",
+        "inputs": {
+          "x": -0.4,
+          "y": 2.7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "i_end"
+        ]
+      },
+      {
+        "id": "mk_v_name",
+        "operator": "label",
+        "inputs": {
+          "target": "v_end",
+          "text": "V"
+        },
+        "outputs": [
+          "v_name"
+        ]
+      },
+      {
+        "id": "mk_i_name",
+        "operator": "label",
+        "inputs": {
+          "target": "i_end",
+          "text": "I"
+        },
+        "outputs": [
+          "i_name"
+        ]
+      },
+      {
+        "id": "mk_iv",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.6*x",
+          "xMin": -4,
+          "xMax": 4
+        },
+        "outputs": [
+          "iv"
+        ]
+      },
+      {
+        "id": "mk_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "mk_A",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "iv",
+          "at": 1.5
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "mk_B",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "iv",
+          "at": 3.8
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "mk_C",
+        "operator": "point",
+        "inputs": {
+          "x": 3.8,
+          "y": 0.9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "mk_run",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "C"
+        },
+        "outputs": [
+          "run"
+        ]
+      },
+      {
+        "id": "mk_rise",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "B"
+        },
+        "outputs": [
+          "rise"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "zero_at_zero",
+        "predicate": "function_value",
+        "entities": [
+          "iv"
+        ],
+        "expected": {
+          "x": 0,
+          "y": 0
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "o_on_line",
+        "predicate": "on",
+        "entities": [
+          "O",
+          "iv"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "a_on_line",
+        "predicate": "on",
+        "entities": [
+          "A",
+          "iv"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "b_on_line",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "iv"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "legs_square",
+        "predicate": "perpendicular",
+        "entities": [
+          "run",
+          "rise"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "run_name",
+        "kind": "label",
+        "targetIds": [
+          "run"
+        ],
+        "text": "ΔV",
+        "placementIntent": "below"
+      }
+    ],
+    "requiredEntityIds": [
+      "ax",
+      "v_name",
+      "i_name",
+      "iv",
+      "O",
+      "A",
+      "B",
+      "C",
+      "run",
+      "rise"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ax",
+          "v_name",
+          "i_name",
+          "iv",
+          "O",
+          "A",
+          "B",
+          "C",
+          "run",
+          "rise"
+        ],
+        "dependsOn": [],
+        "narrationCue": "I against V: straight line through O, same gradient both ways"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}

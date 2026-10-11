@@ -1,0 +1,341 @@
+{
+  "topic_id": "maths|14|heights-and-distances",
+  "question": "A vertical tower PQ stands on level ground with its foot at Q. From a point A on the ground, the angle of elevation of the top P is 35°. After walking 25 m straight towards the foot to a point B, the angle of elevation of P is 50°. Find the height h of the tower and the distance x from B to the foot.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "ASA triangle ABP with angle B = 180° − β"
+    },
+    "source": {
+      "question": "A vertical tower PQ stands on level ground with its foot at Q. From a point A on the ground, the angle of elevation of the top P is 35°. After walking 25 m straight towards the foot to a point B, the angle of elevation of P is 50°. Find the height h of the tower and the distance x from B to the foot.",
+      "family": "right_triangle_trig"
+    },
+    "quantities": [
+      {
+        "id": "al",
+        "symbol": "α",
+        "value": 35,
+        "unit": "degree"
+      },
+      {
+        "id": "be",
+        "symbol": "β",
+        "value": 50,
+        "unit": "degree"
+      },
+      {
+        "id": "d",
+        "symbol": "d",
+        "value": 25,
+        "unit": "m"
+      }
+    ],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "first observer",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "second observer",
+        "label": "B"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "top of tower",
+        "label": "P"
+      },
+      {
+        "id": "tri",
+        "kind": "polygon",
+        "role": "sight lines AP and BP"
+      },
+      {
+        "id": "G0",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "G1",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "level ground"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "foot of tower",
+        "label": "Q"
+      },
+      {
+        "id": "tower",
+        "kind": "segment",
+        "role": "vertical tower PQ",
+        "label": "h"
+      },
+      {
+        "id": "rQ",
+        "kind": "right_angle_mark",
+        "role": "right angle at foot"
+      },
+      {
+        "id": "mA",
+        "kind": "angle_mark",
+        "role": "elevation angle at A",
+        "label": "α = 35°"
+      },
+      {
+        "id": "mB",
+        "kind": "angle_mark",
+        "role": "elevation angle at B",
+        "label": "β = 50°"
+      },
+      {
+        "id": "dAB",
+        "kind": "dimension",
+        "role": "distance walked AB",
+        "label": "d = 25 m"
+      },
+      {
+        "id": "dBQ",
+        "kind": "dimension",
+        "role": "distance BQ",
+        "label": "x"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kT",
+        "operator": "triangle_from_asa",
+        "inputs": {
+          "sideAB": "d",
+          "angleADeg": "al",
+          "angleBDeg": 130,
+          "origin": [
+            0,
+            0
+          ],
+          "headingDeg": 0,
+          "orientation": 1
+        },
+        "outputs": [
+          "A",
+          "B",
+          "P",
+          "tri"
+        ]
+      },
+      {
+        "id": "kG0",
+        "operator": "point",
+        "inputs": {
+          "x": -6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G0"
+        ]
+      },
+      {
+        "id": "kG1",
+        "operator": "point",
+        "inputs": {
+          "x": 70,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G1"
+        ]
+      },
+      {
+        "id": "kground",
+        "operator": "segment",
+        "inputs": {
+          "start": "G0",
+          "end": "G1"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "project",
+        "inputs": {
+          "point": "P",
+          "line": "ground"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "ktower",
+        "operator": "segment",
+        "inputs": {
+          "start": "Q",
+          "end": "P"
+        },
+        "outputs": [
+          "tower"
+        ]
+      },
+      {
+        "id": "krQ",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "Q",
+          "a": "P",
+          "b": "B",
+          "size": 3
+        },
+        "outputs": [
+          "rQ"
+        ]
+      },
+      {
+        "id": "kmA",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "A",
+          "a": "B",
+          "b": "P",
+          "radius": 9
+        },
+        "outputs": [
+          "mA"
+        ]
+      },
+      {
+        "id": "kmB",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "Q",
+          "b": "P",
+          "radius": 6
+        },
+        "outputs": [
+          "mB"
+        ]
+      },
+      {
+        "id": "kdAB",
+        "operator": "dimension",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "dAB"
+        ]
+      },
+      {
+        "id": "kdBQ",
+        "operator": "dimension",
+        "inputs": {
+          "start": "B",
+          "end": "Q"
+        },
+        "outputs": [
+          "dBQ"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "vert",
+        "predicate": "perpendicular",
+        "entities": [
+          "tower",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "Bmid",
+        "predicate": "between",
+        "entities": [
+          "B",
+          "A",
+          "Q"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onA",
+        "predicate": "on",
+        "entities": [
+          "A",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onB",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "ground",
+      "A",
+      "B",
+      "P",
+      "tri",
+      "Q",
+      "tower",
+      "rQ",
+      "mA",
+      "mB",
+      "dAB",
+      "dBQ"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "G0",
+          "G1",
+          "ground",
+          "A",
+          "B",
+          "P",
+          "tri",
+          "Q",
+          "tower",
+          "rQ",
+          "mA",
+          "mB",
+          "dAB",
+          "dBQ"
+        ],
+        "dependsOn": [],
+        "narrationCue": "tower, ground, both sight lines, elevation angles"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}
