@@ -96,5 +96,54 @@ for (const value of ["4e- kJ", "1e999 kJ", "unknown", "20 kg", "20 kJ/mol"])
     const question = `Using Hess's law, step 1 has ΔH=-394 kJ. Step 2 has ΔH=${value} and is reversed. Draw the enthalpy sum.`;
     assert.equal(buildThermoGraphScene(question, [], false), null);
   });
+const atomicLaneRows = [
+  {
+    "id": "M13-4",
+    "question": "Calculate the energy of a photon of wavelength 500 nm (h = 6.626 × 10^-34 J s, c = 3 × 10^8 m/s).",
+    "expectedK": null,
+    "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
+  },
+  {
+    "id": "M13-5",
+    "question": "Calculate the energy of a photon of wavelength 500 nm.",
+    "expectedK": null,
+    "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
+  },
+  {
+    "id": "M13-6",
+    "question": "The work function of potassium is 2.25 eV. Light of wavelength 300 nm falls on it. Find the kinetic energy of the emitted electrons.",
+    "expectedK": "K=1.88 eV",
+    "reason": "Source wavelength and work function, no declared conflicting reference constants"
+  },
+  {
+    "id": "M13-7",
+    "question": "Calculate the de Broglie wavelength of an electron moving with a velocity of 2 × 10^6 m/s (h = 6.626 × 10^-34 J s, mass 9.1 × 10^-31 kg).",
+    "expectedK": null,
+    "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
+  },
+  {
+    "id": "M13-a",
+    "question": "The work function of potassium is 2.25 eV. Light of wavelength 300 nm falls on it (h = 6.626 × 10^-34 J s, c = 3 × 10^8 m/s). Find the kinetic energy of the photoelectrons.",
+    "expectedK": null,
+    "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
+  },
+  {
+    "id": "M13-b",
+    "question": "The work function of potassium is 2.25 eV. Light of wavelength 300 nm falls on it (h = 6.626 × 10^-34 J s). Find the kinetic energy of the photoelectrons.",
+    "expectedK": null,
+    "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
+  },
+  {
+    "id": "M13-c",
+    "question": "The work function of potassium is 2.25 eV. Light of wavelength 300 nm falls on it. Find the kinetic energy of the photoelectrons.",
+    "expectedK": "K=1.88 eV",
+    "reason": "Source wavelength and work function, no declared conflicting reference constants"
+  }
+] as const;
+for (const row of atomicLaneRows) check("coordinator atomic lane: " + row.id, () => {
+  const document = buildAtomicRadiationScene(row.question, [], false);
+  if (row.expectedK) assert.ok(labels(document).includes(row.expectedK));
+  else assert.equal(document, null, row.reason);
+});
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
