@@ -175,5 +175,24 @@ for(const [id,question] of requestedFactorRejects)check(id,question,()=>{
   assert.equal(synthesizeFamilyScene({question}),null);
 });
 // END requested factor owners: original44 cases and assertions remain whole.
+// BEGIN supplied connector owners: original60 cases and assertions remain whole.
+const suppliedConnectorRejects = [
+  ["reviewer-request-connector-1",`${dissociationSource} Find the apparent molar mass using van't Hoff factor of unknown.`],
+  ["reviewer-request-connector-2",`${dissociationSource} Find the apparent molar mass using van't Hoff factor with value unknown.`],
+  ["reviewer-request-connector-3",`${dissociationSource} Find the apparent molar mass using van't Hoff factor of 2.`],
+  ["reviewer-request-connector-4",`${dissociationSource} Find the apparent molar mass using van't Hoff factor with value 2.`],
+  ["reviewer-request-connector-5",`${dissociationSource} Find the apparent molar mass using van't Hoff factor at unknown.`],
+  ["own-request-connector-1",`${dissociationSource} Find the van't Hoff factor of unreadable and the apparent molar mass.`],
+  ["own-request-connector-2",`${dissociationSource} Find the van't Hoff factor with value 2 and the apparent molar mass.`],
+  ["own-request-connector-3",`${dissociationSource} Determine the apparent molar mass using van’t Hoff factor at 2.`],
+  ["own-request-connector-4",`${dissociationSource} Calculate apparent molar mass with van't Hoff factor of unknown; i = 1.5.`],
+  ["own-request-connector-5",`${dissociationSource} Find the van't Hoff factor from unknown and the apparent molar mass; i = 1.5.`],
+] as const;
+for(const [id,question] of suppliedConnectorRejects)check(id,question,()=>{
+  assert.equal(buildSolutionLessonScene(question,[],false),null);
+  assert.equal(buildSolutionLessonScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+});
+// END supplied connector owners: original60 cases and assertions remain whole.
 console.log(JSON.stringify({total:rows.length,passed:rows.filter(r=>r.passed).length,rows},null,2));
 process.exitCode=rows.every(r=>r.passed)?0:1;

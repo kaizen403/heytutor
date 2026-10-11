@@ -55,10 +55,12 @@ function suppliedVanthoffFactor(question: string): {value:number|null} | null {
     const end = owners[index + 1]?.index ?? question.length;
     const tail = question.slice(start,end);
     const clause = question.slice(0,owner.index!).split(/[.;?!\n]/).at(-1) ?? "";
-    const requested = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\b/i.test(clause);
+    const directRequest = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their|both)\s+)*$/i.test(clause);
+    const listRequest = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\b([^;.!?]*\b(?:and|together\s+with)\s+(?:(?:the|a|an|its|their)\s+)*)$/i.exec(clause);
+    const requested = directRequest || !!listRequest && !/\b(?:using|given|where|with|from|at|in|of)\b/i.test(listRequest[1]!.replace(/\btogether\s+with\b/ig,"and"));
     const requestBoundary = /^\s*(?:$|[.;?!]\s*(?:$|(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\b))/i.test(tail);
     const suppliedMaterial = !requestBoundary && /^\s*(?:[=:]|[+\-−.\d]|\\(?:frac|dfrac|tfrac)\b|\b(?:is|was|equals|equal\s+to|unknown|unreadable|unspecified|undefined|not|NaN|given|stated|measured|taken)\b)/i.test(tail);
-    const requestContinuation = /^\s*(?:$|[;?!]|\.(?!\d)|(?:and|for|from|using|with|of|in|at|based\s+on)\b)/i.test(tail);
+    const requestContinuation = /^\s*(?:$|[;?!]|\.(?!\d)|and\s+(?:(?:the|a|an|its|their)\s+)*(?:apparent\s+(?:molar|molecular)\s+mass|van['’]?t[\s-]+hoff\s+factor)\b)/i.test(tail);
     // A requested quantity with no supplied material has no source value.
     // An assignment, scalar, damaged value or unread declaration remains an
     // owner even inside the same imperative clause as a genuine request.
