@@ -1,10 +1,19 @@
 import { readFileSync } from "node:fs";
-import { compactSceneExampleDocument } from "@heytutor/tutor-core";
+import { compactSceneExampleDocument, type DiagramSubject } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
+
+/** The library shelves: every entry belongs to exactly one. */
+export type DiagramExemplarSubject = Exclude<DiagramSubject, "other">;
 
 export interface DiagramExemplar {
   id: string;
   sourceKind: "curated" | "synthesized";
+  /**
+   * Recorded at build time: curated entries by their directory, synthesized
+   * entries by where their stem came from. An entry without one (a library
+   * built before subjects) is never shown to a turn of a known subject.
+   */
+  subject?: DiagramExemplarSubject | null;
   question: string | null;
   depicts: string;
   figureKind: string | null;
@@ -105,6 +114,27 @@ const GROUP_PLAIN_NAMES: Record<string, string> = {
   vt_graph: "velocity time graph",
   xt_graph: "position time graph",
 };
+
+export function parseDiagramExemplarSubject(value: unknown): DiagramExemplarSubject | null {
+  return value === "maths" || value === "physics" || value === "chemistry" ? value : null;
+}
+
+/** Curated exemplars are filed under their subject: `curated:physics/...`. */
+export function curatedDiagramExemplarSubject(id: string): DiagramExemplarSubject | null {
+  return parseDiagramExemplarSubject(/^curated:([^/]+)\//.exec(id)?.[1]);
+}
+
+/**
+ * One turn's shelf. A known subject sees only its own entries. No subject
+ * (null: an old client that sends none, or a turn classified `other`) keeps
+ * the whole library, which is what every turn saw before subjects existed.
+ */
+export function filterDiagramExemplarsForSubject(
+  exemplars: readonly DiagramExemplar[],
+  subject: DiagramExemplarSubject | null,
+): DiagramExemplar[] {
+  return subject === null ? [...exemplars] : exemplars.filter((exemplar) => exemplar.subject === subject);
+}
 
 /** Stable scoring taxonomy; evaluation labels never enter runtime retrieval. */
 export function figureKindForDiagramGroup(family: string | null, archetype: string | null): string | null {
@@ -356,6 +386,8 @@ export function loadDiagramExemplarLibrary(
       return {
         id: value.id,
         sourceKind,
+        subject: parseDiagramExemplarSubject(value.subject) ??
+          (sourceKind === "curated" ? curatedDiagramExemplarSubject(value.id) : null),
         question: sourceKind === "curated" ? value.question : null,
         depicts: typeof value.depicts === "string" && value.depicts.trim()
           ? value.depicts
