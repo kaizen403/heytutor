@@ -273,20 +273,67 @@ const HALF_REACTION_TERM = String.raw`(?!(?:unknown|unreadable|is|was|when|with|
 const HALF_REACTION_SIDE = String.raw`${HALF_REACTION_TERM}(?:\s*\+\s*${HALF_REACTION_TERM}){0,5}`;
 const HALF_REACTION = String.raw`${HALF_REACTION_SIDE}\s*(?:->|→|⟶)\s*${HALF_REACTION_SIDE}`;
 const HALF_LIFE_CUE = new RegExp(String.raw`${HALF_LIFE_NAME}(?:${HALF_LIFE_SUBJECT}(?:\s+${HALF_REACTION})?(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?\s+is\b)?`);
+/** A conditional input belongs to the requested half-life, not a later copula. */
+function requestedHalfLifeConditionValid(question: string, ownerStart: number, conditionStart: number, predicateRequest = false): boolean {
+  const body = questionBody(question);
+  const tail = body.slice(conditionStart);
+  const connector = /^\s*(?:if|when|whose|with|given|for which|from|using)\s+/i.exec(tail);
+  if (!connector) return false;
+  const inputStart = conditionStart + connector[0].length;
+  const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(inputStart));
+  const inputEnd = clause ? inputStart + clause.index : body.length;
+  const input = body.slice(inputStart, inputEnd);
+  let valueEnd: number | null = null;
+  if (/^\s*(?:(?:the|a)\s+)?(?:rate constant\b|k\s*=)/i.test(input)) {
+    const orders = readOrders(chemStem(body));
+    if (orders.length !== 1) return false;
+    const order = orders[0]!;
+    const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
+    const read = readChemistryQuantity({question, after: RATE_CUE, within: {start:inputStart, end:inputEnd}, dimension, cueCaseSensitive:true});
+    if (!read.ok) return false;
+    valueEnd = read.reading.source.span.end;
+  } else if (/^\s*(?:(?:the|a)\s+)?time\b/.test(input.toLowerCase())
+    || new RegExp(String.raw`^\s*${SCALAR}\s*%`).test(input)) {
+    const given = readCompletionGiven(body);
+    if (!given || given.span[0] < inputStart || given.span[1] > inputEnd) return false;
+    valueEnd = given.span[1];
+  }
+  if (valueEnd === null) return false;
+  const remainder = body.slice(valueEnd, inputEnd).trim();
+  const passive = /^is\s+(?:to\s+be\s+(?:found|calculated|determined)|required|asked)$/i.test(remainder);
+  const target = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|a)\s+)?$/i.test(body.slice(0, ownerStart));
+  return passive || ((predicateRequest || target) && remainder === "");
+}
 function halfLifeSourceOwnersValid(question: string): boolean {
   const body = questionBody(question);
   for (const owner of body.matchAll(new RegExp(HALF_LIFE_NAME + HALF_LIFE_SUBJECT, "ig"))) {
-    const tail = body.slice(owner.index! + owner[0].length);
+    const subjectStart = owner.index! + owner[0].length;
+    const tail = body.slice(subjectStart);
     const temperature = String.raw`(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?`;
-    const boundary = String.raw`(?=\s*(?:is\b|[.,;?]|$))`;
-    if (!new RegExp(String.raw`^${temperature}${boundary}`, "i").test(tail)
-      && !new RegExp(String.raw`^\s+${HALF_REACTION}${temperature}${boundary}`, "i").test(tail)) return false;
+    const boundary = String.raw`(?=\s*(?:is\b|[.,;?]|$|(?:if|when|whose|with|given|for which)\b))`;
+    const subject = new RegExp(String.raw`^${temperature}${boundary}`, "i").exec(tail)
+      ?? new RegExp(String.raw`^\s+${HALF_REACTION}${temperature}${boundary}`, "i").exec(tail);
+    if (!subject) return false;
+    const end = subjectStart + subject[0].length;
+    if (/^\s*(?:if|when|whose|with|given|for which)\b/i.test(body.slice(end))
+      && !requestedHalfLifeConditionValid(question, owner.index!, end)) return false;
   }
   for (const owner of body.matchAll(new RegExp(HALF_LIFE_CUE.source, "ig"))) {
     const end = owner.index! + owner[0].length;
     const tail = body.slice(end);
-    const supplied = /\bis$/i.test(owner[0]) || /^\s*(?:[=:]|(?:is|was|equals|equal to|unknown|unreadable)\b)/i.test(tail)
-      || new RegExp(String.raw`^\s*${SCALAR}`).test(tail);
+    const predicate = /^\s*(?:is\s+)?(?:to\s+be\s+(?:found|calculated|determined)|required|asked)\b/i.exec(tail);
+    if (predicate) {
+      const rest = tail.slice(predicate[0].length);
+      if (/^\s*(?:[.;?]|$)/.test(rest)
+        || requestedHalfLifeConditionValid(question, owner.index!, end + predicate[0].length, true)) continue;
+      return false;
+    }
+    if (/^\s*(?:if|when|whose|with|given|for which|from|using)\b/i.test(tail)) {
+      if (requestedHalfLifeConditionValid(question, owner.index!, end)) continue;
+      return false;
+    }
+    const supplied = /\bis$/i.test(owner[0]) || /^\s*(?:[=:]|(?:is|was|equals|equal to|unknown|unreadable|has|takes|with|at|value|given|stated|measured|assumed|supplied|provided)\b)/i.test(tail)
+      || new RegExp(String.raw`^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b)`, "i").test(tail);
     if (!supplied) continue; // A genuinely requested half-life supplies no value.
     const read = readChemistryQuantity({question, after: /^/, within: {start:end, end:body.length}, dimension:"time"});
     if (!read.ok || !(read.reading.value > 0)) return false;

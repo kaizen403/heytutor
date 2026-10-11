@@ -502,6 +502,340 @@ const halfSubjectCases:HalfSubjectCase[] = [
     "refuse": true
   }
 ];
+
+// BEGIN ADDITIVE HALF-LIFE REQUEST-ROLE CONTROLS
+const additionalHalfSubjectCases:HalfSubjectCase[] = [
+  {
+    "id": "review-request-condition-1",
+    "question": "Find the half life of a first order reaction if the time for 75% completion is 60 min.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "review-request-condition-2",
+    "question": "Determine the half life for a first order reaction X -> Y if the time for 87.5 % completion is 90 s. Draw the decay curve.",
+    "order": 1,
+    "half": 30,
+    "unit": "s",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "review-request-condition-3",
+    "question": "What is the half life of a first order reaction R -> S whose rate constant is 0.0231 min^-1? Draw [A]/[A]0 versus time.",
+    "order": 1,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "k": 0.0231,
+    "requested": true
+  },
+  {
+    "id": "review-request-condition-4",
+    "question": "Calculate the half life of a first order reaction with rate constant k = 0.0231 min^-1. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "k": 0.0231,
+    "requested": true
+  },
+  {
+    "id": "review-request-condition-5",
+    "question": "The half life of a first order reaction X -> Y when the time for 50% completion is 18 min is required. Draw the decay curve.",
+    "order": 1,
+    "half": 18,
+    "unit": "min",
+    "k": 0.03850817669777474,
+    "requested": true
+  },
+  {
+    "id": "review-request-predicate-1",
+    "question": "For a first order reaction, rate constant k = 0.0231 min^-1. The half life is to be found. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "k": 0.0231,
+    "requested": true
+  },
+  {
+    "id": "review-request-predicate-2",
+    "question": "For a first order reaction, rate constant k = 0.0231 min^-1. The half life of the reaction X -> Y is required. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "k": 0.0231,
+    "requested": true
+  },
+  {
+    "id": "review-strict-request-owner-1",
+    "question": "Find the half life of a first order reaction X -> Y is unknown. Time for 75 % completion is 60 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "review-strict-request-owner-2",
+    "question": "The half life of a first order reaction X -> Y is unreadable. Time for 75 % completion is 60 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "review-strict-request-owner-3",
+    "question": "Find the half life of a first order reaction X -> Y = 20 kg. Time for 75 % completion is 60 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "review-strict-request-owner-4",
+    "question": "For a first order reaction, rate constant k = 0.0231 min^-1. The half life is to be found but is given as unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "review-strict-request-owner-5",
+    "question": "Half life of a first order reaction X -> Y is unknown. Half life is 20 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "protected218-F7-75given",
+    "question": "Find the half life of a first order reaction if the time for 75% completion is 60 min.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "protected218-F7-whoseK",
+    "question": "What is the half life of a first order reaction whose rate constant is 1.155 × 10^-3 s^-1?",
+    "order": 1,
+    "half": 600.1274290562297,
+    "unit": "s",
+    "k": 0.001155,
+    "requested": true
+  },
+  {
+    "id": "protected218-X-hl-when-is",
+    "question": "The half life of a first order reaction when the time for 75% completion is 60 min is to be found. Draw the decay curve.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "protected218-OWN-half-if-time",
+    "question": "Find the half life of a first order reaction if the time for 93.75% completion is 80 min.",
+    "order": 1,
+    "half": 20,
+    "unit": "min",
+    "k": 0.03465735902799726,
+    "requested": true
+  },
+  {
+    "id": "protected218-OWN-half-for-time",
+    "question": "Calculate the half life for a first order reaction if the time taken for 87.5 % completion is 90 s.",
+    "order": 1,
+    "half": 30,
+    "unit": "s",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "protected218-OWN-half-when-time",
+    "question": "The half life of this first order reaction when the time for 50% completion is 18 min is required.",
+    "order": 1,
+    "half": 18,
+    "unit": "min",
+    "k": 0.03850817669777474,
+    "requested": true
+  },
+  {
+    "id": "protected218-independent-half-life-no-cross-owner-1",
+    "question": "Find the half life for a first order reaction whose time for 75% completion is 60 min.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "protected218-independent-half-life-no-cross-owner-3",
+    "question": "Determine the half life of a first order reaction if 90 % completion takes 46.06 min.",
+    "refuse": true
+  },
+  {
+    "id": "own-request-condition-1",
+    "question": "Find the half life of a first order reaction if the time for 50 % completion is 12 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 12,
+    "unit": "min",
+    "k": 0.057762265046662105,
+    "requested": true
+  },
+  {
+    "id": "own-request-condition-2",
+    "question": "Determine the half life for a first order reaction X -> Y when the time taken for 87.5 % completion is 90 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "own-request-condition-3",
+    "question": "Calculate the half life of a first order reaction with rate constant k = 0.0231 min^-1. Draw the decay curve.",
+    "order": 1,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "k": 0.0231,
+    "requested": true
+  },
+  {
+    "id": "own-request-condition-4",
+    "question": "What is the half life of a first order reaction X → Y at 310 K whose rate constant is 0.0231 min^-1? Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "k": 0.0231,
+    "requested": true
+  },
+  {
+    "id": "own-request-condition-5",
+    "question": "The half life of a first order reaction R -> S when the time for 75 % completion is 60 min is to be found. Draw the decay curve.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "own-request-condition-6",
+    "question": "Find the half life for a first order reaction given the time for 75 % completion is 60 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 30,
+    "unit": "min",
+    "k": 0.023104906018664842,
+    "requested": true
+  },
+  {
+    "id": "own-request-predicate-supplied-1",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life is required 20 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-request-predicate-supplied-2",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life is to be found unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-request-predicate-supplied-3",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life is required = unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-request-predicate-supplied-4",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life is to be found but is given as unreadable. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-complete-half-alias-1",
+    "question": "A first order reaction has t1/2 = 20 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 20,
+    "unit": "min",
+    "k": 0.03465735902799726
+  },
+  {
+    "id": "own-unread-half-alias-1",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. t1/2 is unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-repeated-unread-half-alias-1",
+    "question": "A first order reaction has t1/2 is unreadable. Half life is 20 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-complete-half-alias-2",
+    "question": "A first order reaction has t½ = 20 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 20,
+    "unit": "min",
+    "k": 0.03465735902799726
+  },
+  {
+    "id": "own-unread-half-alias-2",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. t½ is unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-repeated-unread-half-alias-2",
+    "question": "A first order reaction has t½ is unreadable. Half life is 20 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-complete-half-alias-3",
+    "question": "A first order reaction has t_(1/2) = 20 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 20,
+    "unit": "min",
+    "k": 0.03465735902799726
+  },
+  {
+    "id": "own-unread-half-alias-3",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. t_(1/2) is unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-repeated-unread-half-alias-3",
+    "question": "A first order reaction has t_(1/2) is unreadable. Half life is 20 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-complete-half-alias-4",
+    "question": "A first order reaction has t_half = 20 min. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "half": 20,
+    "unit": "min",
+    "k": 0.03465735902799726
+  },
+  {
+    "id": "own-unread-half-alias-4",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. t_half is unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-repeated-unread-half-alias-4",
+    "question": "A first order reaction has t_half is unreadable. Half life is 20 min. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-original-half-input-marker-1",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life has value unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-original-half-input-marker-2",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life takes the value unreadable. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-original-half-input-marker-3",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life with value unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-original-half-input-marker-4",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life of unknown. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-original-half-input-marker-5",
+    "question": "A first order reaction has rate constant k = 0.0231 min^-1. The half life approximately unreadable. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  }
+];
+halfSubjectCases.push(...additionalHalfSubjectCases);
+// END ADDITIVE HALF-LIFE REQUEST-ROLE CONTROLS
+
 for(const c of halfSubjectCases)try {
  const spec=kineticsFromStem(c.question);
  const direct=buildKineticsScene(c.question,[],false);
