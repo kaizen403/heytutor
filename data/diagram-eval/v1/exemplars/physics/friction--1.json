@@ -97,7 +97,7 @@
       {
         "id": "normal",
         "kind": "vector",
-        "role": "normal reaction, perpendicular to the incline",
+        "role": "normal reaction, perpendicular to incline",
         "label": "N"
       },
       {
@@ -124,8 +124,8 @@
         "id": "make_T",
         "operator": "point",
         "inputs": {
-          "x": 5.2977,
-          "y": 2.8168,
+          "x": 6.18063,
+          "y": 3.2863,
           "coordinateSpace": "world"
         },
         "outputs": [
@@ -136,7 +136,7 @@
         "id": "make_F",
         "operator": "point",
         "inputs": {
-          "x": 5.2977,
+          "x": 6.18063,
           "y": 0,
           "coordinateSpace": "world"
         },
@@ -191,11 +191,13 @@
       },
       {
         "id": "make_b0",
-        "operator": "point",
+        "operator": "translate",
         "inputs": {
-          "x": 2.9844,
-          "y": 1.5868,
-          "coordinateSpace": "world"
+          "point": "B",
+          "vector": [
+            2.64884,
+            1.40841
+          ]
         },
         "outputs": [
           "b0"
@@ -205,8 +207,8 @@
         "id": "make_b1",
         "operator": "point",
         "inputs": {
-          "x": 3.726,
-          "y": 1.9812,
+          "x": 3.3552,
+          "y": 1.78399,
           "coordinateSpace": "world"
         },
         "outputs": [
@@ -217,8 +219,8 @@
         "id": "make_b2",
         "operator": "point",
         "inputs": {
-          "x": 3.4631,
-          "y": 2.4756,
+          "x": 3.12047,
+          "y": 2.22547,
           "coordinateSpace": "world"
         },
         "outputs": [
@@ -229,8 +231,8 @@
         "id": "make_b3",
         "operator": "point",
         "inputs": {
-          "x": 2.7215,
-          "y": 2.0813,
+          "x": 2.41411,
+          "y": 1.84989,
           "coordinateSpace": "world"
         },
         "outputs": [
@@ -254,11 +256,10 @@
       },
       {
         "id": "make_G",
-        "operator": "point",
+        "operator": "midpoint",
         "inputs": {
-          "x": 3.2237,
-          "y": 2.0312,
-          "coordinateSpace": "world"
+          "a": "b0",
+          "b": "b2"
         },
         "outputs": [
           "G"
@@ -273,7 +274,7 @@
             0,
             -1
           ],
-          "length": 1.8
+          "length": 1.6
         },
         "outputs": [
           "weight"
@@ -288,7 +289,7 @@
             -0.4695,
             0.8829
           ],
-          "length": 1.5893
+          "length": 1.4127
         },
         "outputs": [
           "normal"
@@ -303,7 +304,7 @@
             0.8829,
             0.4695
           ],
-          "length": 0.845
+          "length": 0.7512
         },
         "outputs": [
           "friction"

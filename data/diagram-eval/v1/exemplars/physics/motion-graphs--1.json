@@ -30,14 +30,19 @@
         "symbol": "t",
         "value": 3.5,
         "unit": "s"
+      },
+      {
+        "id": "q_v",
+        "symbol": "v",
+        "value": 34.3,
+        "unit": "m/s"
       }
     ],
     "entities": [
       {
         "id": "axes",
         "kind": "axes",
-        "role": "v-t axes",
-        "label": "v-t"
+        "role": "v-t axes"
       },
       {
         "id": "v_end",
@@ -86,8 +91,8 @@
       {
         "id": "end",
         "kind": "point",
-        "role": "velocity at the end",
-        "label": "v = gt"
+        "role": "velocity at the end, gt",
+        "label": "v = 34.3 m/s"
       },
       {
         "id": "foot",
@@ -103,13 +108,18 @@
       {
         "id": "s_at",
         "kind": "point",
-        "role": "inside the area"
+        "role": "area label anchor"
       },
       {
         "id": "s_label",
         "kind": "label",
         "role": "distance fallen = area",
-        "label": "area = s"
+        "label": "area = s",
+        "provenance": {
+          "pinLabel": true,
+          "requireLabelLeader": false,
+          "leaderGeometrySafe": false
+        }
       }
     ],
     "constructions": [

@@ -6,7 +6,7 @@
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "stone thrown horizontally from a cliff, a half parabola to the ground"
+      "reason": "stone thrown horizontally off a cliff"
     },
     "source": {
       "question": "A stone is thrown horizontally at 7 m/s from the edge of a cliff 44.1 m high. Draw its path to the ground below, marking the cliff height, the launch velocity, the landing point and the horizontal distance travelled.",
@@ -24,14 +24,15 @@
         "symbol": "h",
         "value": 44.1,
         "unit": "m"
+      },
+      {
+        "id": "R",
+        "symbol": "R",
+        "value": 21,
+        "unit": "m"
       }
     ],
     "entities": [
-      {
-        "id": "c0",
-        "kind": "point",
-        "role": "cliff back corner"
-      },
       {
         "id": "foot",
         "kind": "point",
@@ -40,18 +41,23 @@
       {
         "id": "O",
         "kind": "point",
-        "role": "launch point at the cliff edge",
+        "role": "launch point, cliff edge",
         "label": "O"
       },
       {
         "id": "c3",
         "kind": "point",
-        "role": "cliff back corner"
+        "role": "cliff top end"
       },
       {
         "id": "cliff",
-        "kind": "polygon",
-        "role": "cliff"
+        "kind": "segment",
+        "role": "cliff face"
+      },
+      {
+        "id": "top",
+        "kind": "segment",
+        "role": "cliff top"
       },
       {
         "id": "ground_end",
@@ -61,7 +67,7 @@
       {
         "id": "ground",
         "kind": "segment",
-        "role": "ground below the cliff",
+        "role": "ground",
         "label": "ground"
       },
       {
@@ -78,7 +84,7 @@
       {
         "id": "trajectory",
         "kind": "polyline",
-        "role": "half-parabola trajectory"
+        "role": "half-parabola path"
       },
       {
         "id": "landing",
@@ -106,22 +112,10 @@
         "id": "dim_R",
         "kind": "dimension",
         "role": "horizontal distance",
-        "label": "R"
+        "label": "R = 21 m"
       }
     ],
     "constructions": [
-      {
-        "id": "make_c0",
-        "operator": "point",
-        "inputs": {
-          "x": -6,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "c0"
-        ]
-      },
       {
         "id": "make_foot",
         "operator": "point",
@@ -150,7 +144,7 @@
         "id": "make_c3",
         "operator": "point",
         "inputs": {
-          "x": -6,
+          "x": -10,
           "y": 44.1,
           "coordinateSpace": "world"
         },
@@ -160,24 +154,31 @@
       },
       {
         "id": "make_cliff",
-        "operator": "polygon",
+        "operator": "segment",
         "inputs": {
-          "points": [
-            "c0",
-            "foot",
-            "O",
-            "c3"
-          ]
+          "start": "O",
+          "end": "foot"
         },
         "outputs": [
           "cliff"
         ]
       },
       {
+        "id": "make_top",
+        "operator": "segment",
+        "inputs": {
+          "start": "c3",
+          "end": "O"
+        },
+        "outputs": [
+          "top"
+        ]
+      },
+      {
         "id": "make_ground_end",
         "operator": "point",
         "inputs": {
-          "x": 25.2,
+          "x": 30,
           "y": 0,
           "coordinateSpace": "world"
         },
@@ -249,7 +250,7 @@
         "id": "make_d0",
         "operator": "point",
         "inputs": {
-          "x": -7.5,
+          "x": -11.5,
           "y": 0,
           "coordinateSpace": "world"
         },
@@ -261,7 +262,7 @@
         "id": "make_d1",
         "operator": "point",
         "inputs": {
-          "x": -7.5,
+          "x": -11.5,
           "y": 44.1,
           "coordinateSpace": "world"
         },
@@ -343,13 +344,21 @@
         "severity": "fatal"
       }
     ],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "rock",
+        "kind": "hatch",
+        "targetIds": [
+          "cliff"
+        ]
+      }
+    ],
     "requiredEntityIds": [
-      "c0",
       "foot",
       "O",
       "c3",
       "cliff",
+      "top",
       "ground_end",
       "ground",
       "aim",
@@ -365,11 +374,11 @@
       {
         "id": "setup",
         "entityIds": [
-          "c0",
           "foot",
           "O",
           "c3",
           "cliff",
+          "top",
           "ground_end",
           "ground",
           "d0",
@@ -377,7 +386,7 @@
           "dim_h"
         ],
         "dependsOn": [],
-        "narrationCue": "the cliff of height h above level ground"
+        "narrationCue": "the cliff of height h"
       },
       {
         "id": "launch",
@@ -400,7 +409,7 @@
         "dependsOn": [
           "launch"
         ],
-        "narrationCue": "a half parabola to the landing point, a distance R out from the foot"
+        "narrationCue": "a half parabola to B, a distance R from the foot"
       }
     ],
     "teachingTimeline": [
@@ -409,7 +418,7 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "the cliff of height h above level ground"
+        "narrationIntent": "the cliff of height h"
       },
       {
         "id": "reveal_launch",
@@ -427,7 +436,7 @@
         "dependsOn": [
           "reveal_launch"
         ],
-        "narrationIntent": "a half parabola to the landing point, a distance R out from the foot"
+        "narrationIntent": "a half parabola to B, a distance R from the foot"
       }
     ]
   },
