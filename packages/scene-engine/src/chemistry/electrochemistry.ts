@@ -762,15 +762,23 @@ function readTemperature(text: string): number | undefined | null {
 }
 
 function readStatedCellPotentials(text: string): { e0?: number; e?: number } | null {
+  const electrodes = statedPotentials(text);
+  if (!electrodes) return null;
+  const standardValueSpans: ChemistrySpan[] = [...electrodes.values()].map(value => value.sourceSpan);
   const out: { e0?: number; e?: number } = {};
   const standard = new RegExp(`${E_NAUGHT}\\s*_?\\s*\\(?\\s*cell\\s*\\)?\\s*(?:=|is|:|of)?\\s*(?:the\\s+cell\\s+)?(?:=|is)?\\s*${VALUE}`, "id").exec(text)
     ?? new RegExp(`standard\\s+(?:emf|cell\\s+potential|electrode\\s+potential\\s+of\\s+the\\s+cell)[^.\\n]{0,30}?(?:=|is|:)\\s*${VALUE}`, "id").exec(text);
-  if (standard) out.e0 = (matchedChemistryQuantity(text, standard, 1, "potential", "V") ?? NaN);
+  if (standard) {
+    out.e0 = (matchedChemistryQuantity(text, standard, 1, "potential", "V") ?? NaN);
+    const span = standard.indices![1]!;
+    standardValueSpans.push({start: span[0], end: span[1]});
+  }
   const standardAssignments = new RegExp(`(?:${E_NAUGHT}\\s*_?\\s*\\(?\\s*cell\\s*\\)?\\s*|standard\\s+(?:emf|cell\\s+potential|electrode\\s+potential\\s+of\\s+the\\s+cell)[^.\\n]{0,30}?)(?:=|is|:)`, "gi");
   for (const match of text.matchAll(standardAssignments)) {
     const read = readChemistryQuantity({question: text, after: /^/, within: {start: match.index! + match[0].length, end: text.length}, dimension: "potential", targetUnit: "V"});
     if (!read.ok || (out.e0 !== undefined && !chemistryCanonicalValuesAgree(out.e0, read.reading.value))) return null;
     out.e0 = read.reading.value;
+    standardValueSpans.push(read.reading.source.span);
   }
   const role = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
   for (const match of text.matchAll(role)) {
@@ -799,6 +807,9 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
     const implicit = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "gid");
     const bare = new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
     for (const observed of [...text.matchAll(implicit), ...(bare ? [bare] : [])]) {
+      const scalar = observed.indices![1]!;
+      // A shortened fallback match cannot discard its original E° owner.
+      if (standardValueSpans.some(span => scalar[0] >= span.start && scalar[1] <= span.end)) continue;
       if (new RegExp(`${E_NAUGHT}|/`, "i").test(observed[0])
         || /\bstandard\s+(?:emf|cell\s+potential|electrode\s+potential)\b/i.test(observed[0])
         || /\bstandard\s+(?:electrode\s+)?$/i.test(text.slice(0, observed.index!))
