@@ -1,12 +1,12 @@
 {
   "topic_id": "physics|16|lens-formulas",
-  "question": "A 3.5 cm tall LED stands upright 24 cm from a thin convex lens of focal length 16 cm. Draw a ray diagram with two principal rays, then find the image distance, its height and its nature.",
+  "question": "A 7 cm tall toy stands upright 24 cm from a thin convex lens of focal length 16 cm. Draw a ray diagram with two principal rays, then find the image distance, its height and its nature.",
   "figure_kind": "ray_optics",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": { "mode": "scene", "reason": "convex lens rays" },
     "source": {
-      "question": "A 3.5 cm tall LED stands upright 24 cm from a thin convex lens of focal length 16 cm. Draw a ray diagram with two principal rays, then find the image distance, its height and its nature.",
+      "question": "A 7 cm tall toy stands upright 24 cm from a thin convex lens of focal length 16 cm. Draw a ray diagram with two principal rays, then find the image distance, its height and its nature.",
       "archetype": "thin_lens"
     },
     "quantities": [
@@ -20,8 +20,6 @@
       { "id": "L", "kind": "polygon", "role": "convex lens" },
       { "id": "F1", "kind": "point", "role": "first focus", "label": "F1" },
       { "id": "F2", "kind": "point", "role": "second focus", "label": "F2" },
-      { "id": "D1", "kind": "point", "role": "point at 2F", "label": "2F₁" },
-      { "id": "D2", "kind": "point", "role": "point at 2F", "label": "2F₂" },
       { "id": "ob", "kind": "point", "role": "object foot" },
       { "id": "ot", "kind": "point", "role": "object tip" },
       { "id": "ib", "kind": "point", "role": "image foot" },
@@ -30,43 +28,38 @@
       { "id": "L1", "kind": "point", "role": "construction helper" },
       { "id": "obj", "kind": "vector", "role": "object" },
       { "id": "img", "kind": "vector", "role": "real inverted image" },
-      { "id": "r1", "kind": "segment", "role": "parallel ray" },
+      { "id": "r1", "kind": "vector", "role": "parallel ray" },
       { "id": "r1o", "kind": "ray", "role": "refracted through F2" },
-      { "id": "r2", "kind": "ray", "role": "undeviated ray through O" },
-      { "id": "du", "kind": "dimension", "role": "object distance", "label": "u=24 cm" },
-      { "id": "dv", "kind": "dimension", "role": "image distance", "label": "v=48 cm" }
+      { "id": "r2", "kind": "ray", "role": "undeviated ray through O" }
     ],
     "constructions": [
       { "id": "cO", "operator": "point", "inputs": { "x": 0, "y": 0 }, "outputs": ["O"] },
       { "id": "cA", "operator": "point", "inputs": { "x": -34, "y": 0 }, "outputs": ["A"] },
       { "id": "cAx", "operator": "line", "inputs": { "start": "A", "end": "O" }, "outputs": ["axis"] },
-      { "id": "cI", "operator": "gaussian_image", "inputs": { "kind": "lens", "center": "O", "axis": "axis", "objectDistance": -24, "focalLength": 16, "objectHeight": 3.5, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["ob", "ot", "ib", "it"] },
+      { "id": "cI", "operator": "gaussian_image", "inputs": { "kind": "lens", "center": "O", "axis": "axis", "objectDistance": -24, "focalLength": 16, "objectHeight": 7, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["ob", "ot", "ib", "it"] },
       { "id": "cF", "operator": "optical_focus", "inputs": { "kind": "lens", "center": "O", "axis": "axis", "focalLength": 16, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["F1", "F2"] },
-      { "id": "cD1", "operator": "rotate", "inputs": { "point": "O", "center": "F1", "angle": 180, "angleUnit": "degrees" }, "outputs": ["D1"] },
-      { "id": "cD2", "operator": "rotate", "inputs": { "point": "O", "center": "F2", "angle": 180, "angleUnit": "degrees" }, "outputs": ["D2"] },
       { "id": "cL", "operator": "lens_section", "inputs": { "center": "O", "axis": "axis", "radius1": 19, "radius2": -19, "halfHeight": 8 }, "outputs": ["L"] },
       { "id": "cLp", "operator": "perpendicular_through", "inputs": { "through": "O", "line": "axis" }, "outputs": ["lp"] },
       { "id": "cL1", "operator": "project", "inputs": { "point": "ot", "line": "lp" }, "outputs": ["L1"] },
       { "id": "cOb", "operator": "vector", "inputs": { "start": "ob", "end": "ot" }, "outputs": ["obj"] },
       { "id": "cIm", "operator": "vector", "inputs": { "start": "ib", "end": "it" }, "outputs": ["img"] },
-      { "id": "cR1", "operator": "segment", "inputs": { "start": "ot", "end": "L1" }, "outputs": ["r1"] },
+      { "id": "cR1", "operator": "vector", "inputs": { "start": "ot", "end": "L1" }, "outputs": ["r1"] },
       { "id": "cR1o", "operator": "ray", "inputs": { "start": "L1", "end": "F2", "approximation": "paraxial" }, "outputs": ["r1o"] },
-      { "id": "cR2", "operator": "ray", "inputs": { "start": "ot", "end": "O" }, "outputs": ["r2"] },
-      { "id": "cDu", "operator": "dimension", "inputs": { "start": [-24, 0], "end": "O" }, "outputs": ["du"] },
-      { "id": "cDv", "operator": "dimension", "inputs": { "start": "O", "end": [48, 0] }, "outputs": ["dv"] }
+      { "id": "cR2", "operator": "ray", "inputs": { "start": "ot", "end": "O" }, "outputs": ["r2"] }
     ],
     "relations": [],
     "assertions": [
       { "id": "meet", "predicate": "converges", "entities": ["r1o", "r2", "it"], "expected": true, "severity": "fatal" },
-      { "id": "par1", "predicate": "parallel", "entities": ["r1", "axis"], "expected": true, "severity": "fatal" },
-      { "id": "place", "predicate": "between", "entities": ["ob", "F1", "D1"], "expected": true, "severity": "fatal" }
+      { "id": "par1", "predicate": "parallel", "entities": ["r1", "axis"], "expected": true, "severity": "fatal" }
     ],
-    "annotations": [],
-    "requiredEntityIds": ["axis", "L", "O", "F1", "F2", "D1", "D2", "ob", "ot", "obj", "ib", "it", "img", "r1", "r1o", "r2", "du", "dv"],
+    "annotations": [
+      { "id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=-14 cm" }
+    ],
+    "requiredEntityIds": ["axis", "L", "O", "F1", "F2", "ob", "ot", "obj", "ib", "it", "img", "r1", "r1o", "r2"],
     "revealGroups": [
-      { "id": "setup", "entityIds": ["axis", "L", "O", "F1", "F2", "D1", "D2", "ob", "ot", "obj", "du"], "dependsOn": [], "narrationCue": "lens, foci, object" },
+      { "id": "setup", "entityIds": ["axis", "L", "O", "F1", "F2", "ob", "ot", "obj"], "dependsOn": [], "narrationCue": "lens, foci, object" },
       { "id": "rays", "entityIds": ["r1", "r1o", "r2"], "dependsOn": ["setup"], "narrationCue": "two principal rays" },
-      { "id": "image", "entityIds": ["ib", "it", "img", "dv"], "dependsOn": ["rays"], "narrationCue": "real inverted image" }
+      { "id": "image", "entityIds": ["ib", "it", "img"], "dependsOn": ["rays"], "narrationCue": "real inverted image" }
     ],
     "teachingTimeline": [
       { "id": "t_setup", "action": "reveal", "targetId": "setup", "dependsOn": [], "narrationIntent": "lens, foci, object" },

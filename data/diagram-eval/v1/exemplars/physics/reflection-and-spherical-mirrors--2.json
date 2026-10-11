@@ -1,12 +1,12 @@
 {
   "topic_id": "physics|16|reflection-and-spherical-mirrors",
-  "question": "A lorry's convex rear-view mirror has a radius of curvature of 52 cm. A cyclist's lamp 6.5 cm tall is 39 cm in front of it on the axis. Find where the image forms and how tall it is, and draw the ray diagram.",
+  "question": "A lorry's convex rear-view mirror has a radius of curvature of 52 cm. A cyclist's lamp 13 cm tall is 39 cm in front of it on the axis. Find where the image forms and how tall it is, and draw the ray diagram.",
   "figure_kind": "ray_optics",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": { "mode": "scene", "reason": "ray diagram" },
     "source": {
-      "question": "A lorry's convex rear-view mirror has a radius of curvature of 52 cm. A cyclist's lamp 6.5 cm tall is 39 cm in front of it on the axis. Find where the image forms and how tall it is, and draw the ray diagram.",
+      "question": "A lorry's convex rear-view mirror has a radius of curvature of 52 cm. A cyclist's lamp 13 cm tall is 39 cm in front of it on the axis. Find where the image forms and how tall it is, and draw the ray diagram.",
       "archetype": "spherical_mirror"
     },
     "quantities": [
@@ -14,7 +14,7 @@
       { "id": "f", "symbol": "f", "value": 26, "unit": "cm" }
     ],
     "entities": [
-      { "id": "P", "kind": "point", "role": "pole", "label": "P" },
+      { "id": "P", "kind": "point", "role": "pole" },
       { "id": "A", "kind": "point" },
       { "id": "ax", "kind": "line", "role": "principal axis" },
       { "id": "M", "kind": "arc", "role": "convex mirror" },
@@ -30,23 +30,22 @@
       { "id": "lc", "kind": "line" },
       { "id": "H2", "kind": "point" },
       { "id": "obj", "kind": "vector", "role": "object" },
-      { "id": "img", "kind": "vector", "role": "virtual image" },
-      { "id": "r1", "kind": "segment", "role": "parallel ray" },
-      { "id": "r1o", "kind": "ray", "role": "reflected ray" },
-      { "id": "r2", "kind": "segment", "role": "ray toward C" },
+      { "id": "img", "kind": "vector", "role": "virtual image", "provenance": { "dashed": true } },
+      { "id": "r1", "kind": "vector", "role": "parallel ray" },
+      { "id": "r1o", "kind": "vector", "role": "returns as if from F" },
+      { "id": "r2", "kind": "vector", "role": "ray toward C" },
       { "id": "e1", "kind": "segment", "role": "virtual extension", "provenance": { "dashed": true, "strokeRole": "construction" } },
       { "id": "e2", "kind": "segment", "role": "virtual extension", "provenance": { "dashed": true, "strokeRole": "construction" } },
-      { "id": "du", "kind": "dimension", "role": "object distance", "label": "u=39 cm" },
-      { "id": "df", "kind": "dimension", "role": "focal length", "label": "f=26 cm" }
+      { "id": "dv", "kind": "dimension", "role": "image distance", "label": "v=15.6 cm" }
     ],
     "constructions": [
       { "id": "k0", "operator": "point", "inputs": { "x": 0, "y": 0 }, "outputs": ["P"] },
       { "id": "k1", "operator": "point", "inputs": { "x": -46, "y": 0 }, "outputs": ["A"] },
       { "id": "k2", "operator": "line", "inputs": { "start": "A", "end": "P" }, "outputs": ["ax"] },
-      { "id": "k3", "operator": "gaussian_image", "inputs": { "kind": "mirror", "center": "P", "axis": "ax", "objectDistance": -39, "focalLength": 26, "objectHeight": 6.5, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["ob", "ot", "ib", "it"] },
+      { "id": "k3", "operator": "gaussian_image", "inputs": { "kind": "mirror", "center": "P", "axis": "ax", "objectDistance": -39, "focalLength": 26, "objectHeight": 13, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["ob", "ot", "ib", "it"] },
       { "id": "k4", "operator": "optical_focus", "inputs": { "kind": "mirror", "center": "P", "axis": "ax", "focalLength": 26, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["F"] },
       { "id": "k5", "operator": "rotate", "inputs": { "point": "P", "center": "F", "angle": 180 }, "outputs": ["C"] },
-      { "id": "k6", "operator": "spherical_surface", "inputs": { "vertex": "P", "axis": "ax", "halfHeight": 9, "signedRadius": 52 }, "outputs": ["M"] },
+      { "id": "k6", "operator": "spherical_surface", "inputs": { "vertex": "P", "axis": "ax", "halfHeight": 15, "signedRadius": 52 }, "outputs": ["M"] },
       { "id": "k7", "operator": "perpendicular_through", "inputs": { "through": "P", "line": "ax" }, "outputs": ["lp"] },
       { "id": "k8", "operator": "project", "inputs": { "point": "ot", "line": "lp" }, "outputs": ["H1"] },
       { "id": "k9", "operator": "rotate", "inputs": { "point": "F", "center": "H1", "angle": 180 }, "outputs": ["Q1"] },
@@ -54,27 +53,29 @@
       { "id": "kb", "operator": "intersection", "inputs": { "first": "lc", "second": "lp" }, "outputs": ["H2"] },
       { "id": "kc", "operator": "vector", "inputs": { "start": "ob", "end": "ot" }, "outputs": ["obj"] },
       { "id": "kd", "operator": "vector", "inputs": { "start": "ib", "end": "it" }, "outputs": ["img"] },
-      { "id": "ke", "operator": "segment", "inputs": { "start": "ot", "end": "H1" }, "outputs": ["r1"] },
-      { "id": "kf", "operator": "ray", "inputs": { "start": "H1", "end": "Q1", "approximation": "paraxial" }, "outputs": ["r1o"] },
-      { "id": "kg", "operator": "segment", "inputs": { "start": "ot", "end": "H2" }, "outputs": ["r2"] },
+      { "id": "ke", "operator": "vector", "inputs": { "start": "ot", "end": "H1" }, "outputs": ["r1"] },
+      { "id": "kf", "operator": "vector", "inputs": { "start": "H1", "end": "Q1" }, "outputs": ["r1o"] },
+      { "id": "kg", "operator": "vector", "inputs": { "start": "ot", "end": "H2" }, "outputs": ["r2"] },
       { "id": "kh", "operator": "segment", "inputs": { "start": "H1", "end": "F" }, "outputs": ["e1"] },
       { "id": "ki", "operator": "segment", "inputs": { "start": "H2", "end": "C" }, "outputs": ["e2"] },
-      { "id": "kj", "operator": "dimension", "inputs": { "start": [-39, 0], "end": "P" }, "outputs": ["du"] },
-      { "id": "kk", "operator": "dimension", "inputs": { "start": "P", "end": [26, 0] }, "outputs": ["df"] }
+      { "id": "kj", "operator": "dimension", "inputs": { "start": "P", "end": [15.6, 0] }, "outputs": ["dv"] }
     ],
     "relations": [],
     "assertions": [
       { "id": "meet", "predicate": "converges", "entities": ["e1", "e2", "it"], "expected": true, "severity": "fatal" }
     ],
-    "annotations": [],
-    "requiredEntityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "H2", "r1", "r1o", "r2", "e1", "e2", "du", "df"],
+    "annotations": [
+      { "id": "aI", "kind": "label", "targetIds": ["ib"], "text": "I", "placementIntent": "below-left" },
+      { "id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=5.2 cm" }
+    ],
+    "requiredEntityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "H2", "r1", "r1o", "r2", "e1", "e2", "dv"],
     "revealGroups": [
-      { "id": "setup", "entityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj", "du", "df"], "dependsOn": [], "narrationCue": "mirror and object" },
-      { "id": "rays", "entityIds": ["H2", "r1", "r1o", "r2", "e1", "e2", "ib", "it", "img"], "dependsOn": ["setup"], "narrationCue": "rays and image" }
+      { "id": "setup", "entityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj"], "dependsOn": [], "narrationCue": "mirror and object" },
+      { "id": "rays", "entityIds": ["H2", "r1", "r1o", "r2", "e1", "e2", "ib", "it", "img", "dv"], "dependsOn": ["setup"], "narrationCue": "rays and virtual image" }
     ],
     "teachingTimeline": [
       { "id": "t_setup", "action": "reveal", "targetId": "setup", "dependsOn": [], "narrationIntent": "mirror and object" },
-      { "id": "t_rays", "action": "reveal", "targetId": "rays", "dependsOn": ["t_setup"], "narrationIntent": "rays and image" }
+      { "id": "t_rays", "action": "reveal", "targetId": "rays", "dependsOn": ["t_setup"], "narrationIntent": "rays and virtual image" }
     ]
   }
 }
