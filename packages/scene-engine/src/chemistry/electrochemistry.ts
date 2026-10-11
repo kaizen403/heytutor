@@ -630,8 +630,22 @@ function readNernstFactor(text: string): number | undefined {
   return factor.length === 1 ? factor[0]!.value : undefined;
 }
 
-function readTemperature(text: string): number | undefined {
-  return literalValue(text, "temperature", "K") ?? undefined;
+function readTemperature(text: string): number | undefined | null {
+  const found = findChemistryQuantities({question: text, dimension: "temperature", targetUnit: "K"});
+  if (!found.ok) return null;
+  const temperature = found.reading[0]?.value;
+  if (found.reading.some(reading => !(reading.value > 0)
+    || !chemistryCanonicalValuesAgree(reading.value, temperature!))) return null;
+  // Validate each owner in the original source separately. Repeated wording
+  // can corroborate one temperature, but damage must not become a 298 K default.
+  for (const cue of text.matchAll(/\bat\b|\b(?:temperature|T)\s*(?:=|is|:)/gi)) {
+    const read = readChemistryQuantity({question: text, after: /^/,
+      within: {start: cue.index! + cue[0].length, end: text.length}, dimension: "temperature", targetUnit: "K"});
+    if (!read.ok) {
+      if (read.code !== "missing" || !/^at$/i.test(cue[0])) return null;
+    } else if (temperature === undefined || !chemistryCanonicalValuesAgree(read.reading.value, temperature)) return null;
+  }
+  return temperature;
 }
 
 function readStatedCellPotentials(text: string): { e0?: number; e?: number } | null {
@@ -721,14 +735,15 @@ export function parseCellNotation(text: string): CellSpec | null {
   for (const phase of text.matchAll(/\(\s*(aq|g)\s*,[^)]*\)/g)) {
     if (!chemistryQuantityCuesValid(phase[0], [{after: /\b(?:aq|g)\s*,/, dimensions: [phase[1] === "aq" ? "concentration" : "pressure"]}])) return null;
   }
-  if (!chemistryQuantityCuesValid(text, [{after: /\bat/, dimensions: ["temperature"]}])) return null;
+  const temperatureK = readTemperature(source);
+  if (temperatureK === null) return null;
   const overrides = statedPotentials(source);
   if (!overrides) return null;
   const statedCell = readStatedCellPotentials(source);
   if (!statedCell || Object.values(statedCell).some(value => !Number.isFinite(value))) return null;
   const extras = {
     nernstFactor: readNernstFactor(source),
-    temperatureK: readTemperature(source),
+    temperatureK,
     ...statedCell,
   };
   const finish = (anode: HalfCell | null, cathode: HalfCell | null, kind: CellSpec["source"]): CellSpec | null => {

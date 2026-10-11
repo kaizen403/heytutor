@@ -308,13 +308,13 @@ function readCompletionGiven(stem: string): { fraction: number; time: number; un
 }
 
 const WORD_FRACTIONS: Array<[RegExp, number]> = [
-  [/\bone[ -]?fourth\b|\bquarter\b/g, 1 / 4],
-  [/\bone[ -]?eighth\b/g, 1 / 8],
-  [/\bone[ -]?tenth\b/g, 1 / 10],
-  [/\bone[ -]?third\b/g, 1 / 3],
-  [/\bone[ -]?sixteenth\b/g, 1 / 16],
-  [/\bthree[ -]?fourths?\b/g, 3 / 4],
-  [/\btwo[ -]?thirds?\b/g, 2 / 3],
+  [/\bone[ -]?fourth\b|\bquarter\b/gi, 1 / 4],
+  [/\bone[ -]?eighth\b/gi, 1 / 8],
+  [/\bone[ -]?tenth\b/gi, 1 / 10],
+  [/\bone[ -]?third\b/gi, 1 / 3],
+  [/\bone[ -]?sixteenth\b/gi, 1 / 16],
+  [/\bthree[ -]?fourths?\b/gi, 3 / 4],
+  [/\btwo[ -]?thirds?\b/gi, 2 / 3],
 ];
 
 /** Completions asked for (as fractions complete) and remaining fractions asked for, excluding the given completion. */
@@ -332,9 +332,9 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
     const percent = matchedChemistryScalar(stem, match) ?? NaN;
     if (!(percent > 0 && percent < 100)) continue;
     // A rise in temperature or a yield is not a completion.
-    if (/\b(?:temperature|yield|error|efficiency|purity|dissociat)\w*\s*$/.test(before) || /^\d+(?:\.\d+)?\s*%\s*(?:rise|increase|error)/.test(after)) continue;
-    const asksRemaining = /\b(?:remain|left|unreacted|falls? to|reduced? to|decreases? to|drops? to|decays? to|reach)/.test(before + after.slice(0, 40)) && !/\b(?:decompos|complet|consum|convert|react)/.test(after.slice(0, 30));
-    const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react|disappear|over|conversion|dissociat|time)/.test(before + after);
+    if (/\b(?:temperature|yield|error|efficiency|purity|dissociat)\w*\s*$/i.test(before) || /^\d+(?:\.\d+)?\s*%\s*(?:rise|increase|error)/i.test(after)) continue;
+    const asksRemaining = /\b(?:remain|left|unreacted|falls? to|reduced? to|decreases? to|drops? to|decays? to|reach)/i.test(before + after.slice(0, 40)) && !/\b(?:decompos|complet|consum|convert|react)/i.test(after.slice(0, 30));
+    const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react|disappear|over|conversion|dissociat|time)/i.test(before + after);
     if (!asksRemaining && !asksCompletion) continue;
     if (asksRemaining) push(remaining, percent / 100);
     else push(completion, percent / 100);
@@ -350,8 +350,8 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
       const index = match.index ?? 0;
       const before = stem.slice(Math.max(0, index - 70), index);
       const after = stem.slice(index, index + 60);
-      const asksRemaining = /\b(?:to|reduce|fall|decrease|remain|left|becomes?)\b[^.]{0,30}$/.test(before) || /^[^.]{0,20}(?:of (?:its|the) (?:initial|original)|remain|left)/.test(after.slice(match[0].length));
-      const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react)/.test(after) || /\b(?:for|of)\s*$/.test(before);
+      const asksRemaining = /\b(?:to|reduce|fall|decrease|remain|left|becomes?)\b[^.]{0,30}$/i.test(before) || /^[^.]{0,20}(?:of (?:its|the) (?:initial|original)|remain|left)/i.test(after.slice(match[0].length));
+      const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react)/i.test(after) || /\b(?:for|of)\s*$/i.test(before);
       if (asksRemaining) push(remaining, fraction);
       else if (asksCompletion) push(completion, fraction);
     }

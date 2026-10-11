@@ -704,6 +704,48 @@ for(const metadata of ["E°(Sn2+/Sn) = 1e- V and E°(Pb2+/Pb) = −0.10 V","E°(
 });
 // END PR137 V9 REPAIR6: complete anode separates preceding potential metadata.
 
+// BEGIN PR137 temperature/fraction follow-up: duplicate physical givens and original-word case.
+const repeatTemperatureCell="Zn | Zn2+(0.1 M) || Cu2+(0.01 M) | Cu at 310 K.";
+for(const declaration of ["Temperature is 310 K.","At 310 K.","Temperature is 36.85 °C.","T = 310 K."])check("Agreeing repeated cell temperature retains numeric Nernst authority: "+declaration,()=>{
+ const question=repeatTemperatureCell+" "+declaration;
+ const single=parseCellNotation(repeatTemperatureCell);const spec=parseCellNotation(question);assert.ok(single&&spec);
+ near(single.temperatureK,310);near(spec.temperatureK,310);assert.deepEqual(cellEmf(spec),cellEmf(single));near(cellEmf(spec)?.factor,.06151);near(cellEmf(spec)?.e,1.0692);
+ for(const schematic of [false,true]){
+  const direct=compiled(buildElectrochemScene(question,[],schematic));near(direct.document.quantities.find(q=>q.id==="E_cell")?.value,1.0692);assert.equal(direct.document.source?.question,question);
+ }
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_electrochem");near(ordinary.document.quantities.find(q=>q.id==="E_cell")?.value,1.0692);
+});
+for(const declaration of ["At 315 K.","Temperature is 315 K.","Temperature is 42 °C.","Temperature is 1e- K.","Temperature is 310 Kfoo.","Temperature is unknown.","T = . K.","T = 0 K.","T = -1 K."])check("Present conflicting or damaged cell temperature cannot use 298 K: "+declaration,()=>{
+ const question=repeatTemperatureCell+" "+declaration;assert.equal(parseCellNotation(question),null);assert.equal(buildElectrochemScene(question,[],false),null);assert.equal(buildElectrochemScene(question,[],true),null);assert.equal(synthesizeFamilyScene({question}),null);
+});
+check("Absent cell temperature preserves the existing standard-state convention",()=>{
+ const question="Draw the cell Zn | Zn2+(0.1 M) || Cu2+(0.01 M) | Cu.";const spec=parseCellNotation(question);assert.ok(spec);assert.equal(spec.temperatureK,undefined);near(cellEmf(spec)?.factor,.0591);near(cellEmf(spec)?.e,1.0705);compiled(buildElectrochemScene(question,[],false));
+});
+for(const [request,remaining,completion,label] of [
+ ["Find when One Fourth of the initial concentration remains.",.25,null,"t_1/4"],
+ ["Find when ONE FOURTH of the INITIAL concentration REMAINS.",.25,null,"t_1/4"],
+ ["Find when one fOuRtH of the initial concentration ReMaInS.",.25,null,"t_1/4"],
+ ["Find when QUARTER of the original concentration is LEFT.",.25,null,"t_1/4"],
+ ["Find the time for THREE FOURTHS COMPLETE.",null,.75,"t_75"],
+ ["Find the time for three fOuRtHs COMPLETION.",null,.75,"t_75"],
+ ["Find when 25 % REMAINS.",.25,null,"t_1/4"],
+ ["Find the time for 75 % COMPLETION.",null,.75,"t_75"],
+ ["Find the time for 75 % cOmPlEtIoN.",null,.75,"t_75"],
+] as const)check("Original kinetics fraction casing retains requested instant: "+request,()=>{
+ const question="A first order reaction has half life 20 min. "+request;const spec=kineticsFromStem(question);assert.ok(spec);near(spec.tHalf,20);assert.equal(spec.timeUnit,"min");
+ assert.deepEqual(spec.remainingAsked,remaining===null?[]:[remaining]);assert.deepEqual(spec.fractionsAsked,completion===null?[]:[completion]);
+ const solution=solveKinetics(spec);const asked=remaining===null?solution.timesForFractions:solution.timesForRemaining;assert.equal(asked.length,1);near(asked[0]!.time,40);
+ const expected=label+" = 40 min";const direct=compiled(buildKineticsScene(question,[],false));assert.ok(direct.labels.includes(expected),JSON.stringify(direct.labels));assert.equal(direct.document.source?.question,question);
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_kinetics");assert.ok(compiled(ordinary.document).labels.includes(expected));
+});
+for(const word of ["YIELD","ERROR","TEMPERATURE","PURITY","EFFICIENCY"])check("Unrelated uppercase percent cannot become a decay completion: "+word,()=>{
+ const question="A first order reaction has half life 20 min. The "+word+" 75 % is recorded. Draw the concentration curve.";const spec=kineticsFromStem(question);assert.ok(spec);assert.deepEqual(spec.fractionsAsked,[]);assert.deepEqual(spec.remainingAsked,[]);assert.deepEqual(solveKinetics(spec).timesForFractions,[]);compiled(buildKineticsScene(question,[],false));
+});
+for(const given of ["50 % of A is DECOMPOSED IN 20 min.","IN 20 min, the reaction is 50 % COMPLETE."])check("Original given completion spans exclude uppercase stated events: "+given,()=>{
+ const question="A first order reaction has half life 20 min. "+given+" Find when 25 % REMAINS.";const spec=kineticsFromStem(question);assert.ok(spec?.completion);near(spec.completion.fraction,.5);near(spec.completion.time,20);assert.deepEqual(spec.fractionsAsked,[]);assert.deepEqual(spec.remainingAsked,[.25]);assert.deepEqual(spec.timesAsked,[]);near(solveKinetics(spec).timesForRemaining[0]?.time,40);compiled(buildKineticsScene(question,[],false));
+});
+// END PR137 temperature/fraction follow-up: duplicate physical givens and original-word case.
+
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
