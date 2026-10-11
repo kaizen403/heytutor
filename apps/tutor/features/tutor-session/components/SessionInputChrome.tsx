@@ -37,6 +37,10 @@ interface SessionInputChromeProps {
   /** Why it stopped, for the bar's words. */
   pausedLessonReason?: "stop" | "doubt" | null;
   onContinueLecture?: () => void;
+  /** Unplanned opening-only lesson: explicit fresh attempt, never Continue. */
+  earlyLessonRestartOffer?: boolean;
+  earlyLessonRestartReason?: "stop" | "doubt" | null;
+  onRestartEarlyLesson?: () => void;
   /**
    * Text to place in the composer without sending it (Teach it again on an old
    * unsaved board, decision 13). A new `nonce` places it again.
@@ -72,6 +76,9 @@ export function SessionInputChrome({
   pausedLessonOffer = false,
   pausedLessonReason = null,
   onContinueLecture,
+  earlyLessonRestartOffer = false,
+  earlyLessonRestartReason = null,
+  onRestartEarlyLesson,
   prefill = null,
   billingNotice = null,
   onUpgrade,
@@ -87,11 +94,16 @@ export function SessionInputChrome({
         margin: "0 auto",
       }}
     >
-      <PausedLectureBar
+      {earlyLessonRestartOffer ? <PausedLectureBar
+        visible={phase === "idle"}
+        mode="restart"
+        reason={earlyLessonRestartReason ?? "stop"}
+        onRestart={() => onRestartEarlyLesson?.()}
+      /> : <PausedLectureBar
         visible={pausedLessonOffer && phase === "idle"}
         reason={pausedLessonReason ?? "doubt"}
         onContinue={() => onContinueLecture?.()}
-      />
+      />}
       {/* What the board understood, directly above where the doubt is typed —
           so the student reads the resolved line before pressing Ask. */}
       <MarkedDoubtBar

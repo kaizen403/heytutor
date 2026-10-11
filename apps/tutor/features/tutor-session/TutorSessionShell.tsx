@@ -836,6 +836,9 @@ export function TutorSessionShell({
     flushPausedLesson,
     pausedLessonOffer,
     pausedLessonReason,
+    earlyLessonRestartOffer,
+    earlyLessonRestartReason,
+    restartEarlyLesson,
     restorePausedLesson,
   } = useTurnLifecycle({
     sessionId,
@@ -1423,6 +1426,7 @@ export function TutorSessionShell({
     marking.armed ||
     marking.marks.length > 0 ||
     pausedLessonOffer ||
+    earlyLessonRestartOffer ||
     Boolean(lastError) ||
     saveStatus.kind === "failed" ||
     downloadState.kind !== "idle" ||
@@ -1584,6 +1588,9 @@ export function TutorSessionShell({
       onDisarmMarking={marking.disarm}
       pausedLessonOffer={pausedLessonOffer}
       pausedLessonReason={pausedLessonReason}
+      earlyLessonRestartOffer={earlyLessonRestartOffer}
+      earlyLessonRestartReason={earlyLessonRestartReason}
+      onRestartEarlyLesson={restartEarlyLesson}
       prefill={composerPrefill}
       onContinueLecture={flushPausedLesson}
       billingNotice={billingNotice}

@@ -34,6 +34,7 @@ import {
 
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
+import { classifyEarlyLessonProgress, type EarlyLessonSpokenSegment } from "./earlyLessonOpening";
 
 /** A lesson opens a page; a doubt answers on it; a resume continues after that. */
 export type PageTurnKind = "lesson" | "doubt" | "resume";
@@ -59,6 +60,8 @@ export interface BoardPageRecord {
   boardId: string;
   /** The question the page belongs to: the lesson, never a doubt about it. */
   lessonQuestion: string;
+  /** Runtime-only: a pre-authority acknowledgement is not taught work. */
+  earlyOpeningStarted?: boolean;
   /** Teaching context a doubt on this page reuses instead of planning again. */
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
@@ -270,6 +273,7 @@ export function pausedLessonFromLive(input: {
   figureDrawn: boolean;
   lessonBoardRows?: readonly DoubtBoardRow[];
   interruptedStep?: string;
+  spokenSegments?: readonly EarlyLessonSpokenSegment[];
   /** Defaults to "doubt": the doubt that stopped the lesson is answered first. */
   reason?: PausedLessonReason;
   parentTraceId?: string | null;
@@ -277,6 +281,12 @@ export function pausedLessonFromLive(input: {
   parentTurnId?: string;
   remainingIntro?: readonly TutorSegment[];
 }): PausedLessonRequest | null {
+  if (input.record?.earlyOpeningStarted && !input.record.turnPlan &&
+    !input.codeLesson && !input.record.figureDrawn && !input.figureDrawn &&
+    classifyEarlyLessonProgress({
+      earlyOpeningStarted: true, spokenSegments: input.spokenSegments ?? [],
+      activeNarration: input.interruptedStep, figureDrawn: false,
+    }) !== "substantive") return null;
   const reason = input.reason ?? "doubt";
   const fromPage = pausedLessonFromPage(input.record, input.codeLesson, reason);
   if (fromPage) {
@@ -333,6 +343,7 @@ export function pausedLessonOnStop(input: {
   codeLesson: boolean;
   lessonBoardRows: readonly DoubtBoardRow[];
   interruptedStep: string;
+  spokenSegments?: readonly EarlyLessonSpokenSegment[];
   parentTraceId: string | null;
   /** Figure beats still to draw: undefined when unknown, [] when none. */
   remainingIntro?: readonly TutorSegment[];
@@ -367,6 +378,7 @@ export function pausedLessonOnStop(input: {
       figureDrawn: false,
       lessonBoardRows: input.lessonBoardRows,
       interruptedStep: input.interruptedStep.trim() || resume.request.interruptedStep,
+      spokenSegments: input.spokenSegments,
       reason: "stop",
       parentTraceId: input.parentTraceId ?? resume.request.parentTraceId ?? null,
       remainingIntro: input.remainingIntro,
@@ -382,6 +394,7 @@ export function pausedLessonOnStop(input: {
     figureDrawn: false,
     lessonBoardRows: input.lessonBoardRows,
     interruptedStep: input.interruptedStep.trim() || undefined,
+    spokenSegments: input.spokenSegments,
     reason: "stop",
     parentTraceId: input.parentTraceId,
     remainingIntro: input.remainingIntro,

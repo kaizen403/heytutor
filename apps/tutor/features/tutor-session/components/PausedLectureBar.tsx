@@ -2,20 +2,25 @@
 
 import {
   focusQuestionField,
+  earlyLessonRestartCopy,
   pausedLessonCopy,
   type PausedLessonCopyReason,
 } from "../lib/turn/lessonFollowUp";
 
-export interface PausedLectureBarProps {
+export type PausedLectureBarProps = {
   visible: boolean;
-  onContinue: () => void;
   /** "stop": the student stopped it (or reloaded); "doubt": a doubt was answered. */
   reason?: PausedLessonCopyReason;
-}
+} & (
+  | { mode?: "continue"; onContinue: () => void }
+  | { mode: "restart"; onRestart: () => void }
+);
 
-export function PausedLectureBar({ visible, onContinue, reason = "doubt" }: PausedLectureBarProps) {
+export function PausedLectureBar(props: PausedLectureBarProps) {
+  const { visible, reason = "doubt" } = props;
   if (!visible) return null;
-  const copy = pausedLessonCopy(reason);
+  const copy = props.mode === "restart" ? earlyLessonRestartCopy(reason) : pausedLessonCopy(reason);
+  const onAction = props.mode === "restart" ? props.onRestart : props.onContinue;
 
   return (
     <div
@@ -48,7 +53,7 @@ export function PausedLectureBar({ visible, onContinue, reason = "doubt" }: Paus
         </button>
         <button
           type="button"
-          onClick={onContinue}
+          onClick={onAction}
           className="btn btn-sky btn-sm"
         >
           {copy.continueLabel}
