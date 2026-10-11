@@ -57,6 +57,9 @@ export const STARTUP_PRIORITY_EVENTS = [
   "problem-ir",
   "deterministic-figure",
   "scene-planner",
+  "scene-candidate-validation",
+  "scene-fast-selection",
+  "scene-final-selection",
   "revalidate",
   "teaching-request",
   "teaching-first-token",
@@ -484,6 +487,84 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
 }
 
 type FirstByteTransport = "ws" | "http";
+
+function diagnosticMilliseconds(read: () => number | undefined): number | null {
+  try {
+    const value = read();
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Combined proof/validation/compile interval; diagnostics never change admission. */
+export function measureSceneCandidateValidation<T extends { valid: boolean }>(
+  tel: TurnTelemetry | null,
+  input: { validationCallIndex: number; context: "search" | "revalidate" | "recovery" },
+  validate: () => T,
+  now: () => number = () => performance.now(),
+): T {
+  if (!tel) return validate();
+  const startedSinceAsk = diagnosticMilliseconds(() => tel.durationMs());
+  const startedAt = diagnosticMilliseconds(now);
+  let valid: boolean | null = null;
+  let completed = false;
+  try {
+    const result = validate();
+    valid = result.valid;
+    completed = true;
+    return result;
+  } finally {
+    const endedAt = diagnosticMilliseconds(now);
+    const duration = startedAt !== null && endedAt !== null && endedAt >= startedAt
+      ? Math.round(endedAt - startedAt) : null;
+    try {
+      tel.mark("scene-candidate-validation", {
+        validation_call_index: input.validationCallIndex,
+        context: input.context,
+        start_since_ask_ms: startedSinceAsk === null ? null : Math.round(startedSinceAsk),
+        duration_ms: duration,
+        valid,
+        completed,
+        clock_domain: "browser_monotonic",
+      });
+    } catch {
+      // A diagnostic sink cannot reject a candidate or replace its error.
+    }
+  }
+}
+
+/** Full synchronous selection callback, including its compile/admission work. */
+export function measureSceneSelection<T>(
+  tel: TurnTelemetry | null,
+  stage: "fast" | "final",
+  select: () => T,
+  now: () => number = () => performance.now(),
+): T {
+  if (!tel) return select();
+  const startedSinceAsk = diagnosticMilliseconds(() => tel.durationMs());
+  const startedAt = diagnosticMilliseconds(now);
+  let completed = false;
+  try {
+    const result = select();
+    completed = true;
+    return result;
+  } finally {
+    const endedAt = diagnosticMilliseconds(now);
+    const duration = startedAt !== null && endedAt !== null && endedAt >= startedAt
+      ? Math.round(endedAt - startedAt) : null;
+    try {
+      tel.mark(stage === "fast" ? "scene-fast-selection" : "scene-final-selection", {
+        start_since_ask_ms: startedSinceAsk === null ? null : Math.round(startedSinceAsk),
+        duration_ms: duration,
+        completed,
+        clock_domain: "browser_monotonic",
+      });
+    } catch {
+      // Diagnostics cannot replace the original selection result or error.
+    }
+  }
+}
 
 /**
  * `tts-first-byte` for one segment. Takes an unknown telemetry shape because

@@ -752,6 +752,21 @@ assert.equal(curatedPhysicsQuestions.length, 24);
 for (const question of curatedPhysicsQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
 }
+// Every synthesized physics and maths entry needs a kept audit verdict, so neither a rebuild
+// without the review file nor a library conflict resolution can bring audited-out figures back.
+const synthesizedReview = JSON.parse(readFileSync(resolve(exemplarRoot, "_synthesized-review.json"), "utf8")) as {
+  keep: string[];
+  verdicts: Record<string, string>;
+};
+const unkeptSynthesized = builtLibrary.filter((entry) =>
+  entry.sourceKind === "synthesized" &&
+  !(entry.archetype ?? entry.family ?? "").startsWith("chem_") &&
+  !synthesizedReview.keep.includes(synthesizedReview.verdicts[entry.id] ?? ""));
+assert.deepEqual(
+  unkeptSynthesized.map((entry) => entry.id),
+  [],
+  "synthesized physics and maths library entries must carry a kept audit verdict",
+);
 const builtCatalogue = buildDiagramExampleCatalogue(builtLibrary);
 assert.ok(builtCatalogue.estimatedTokens < 6_000);
 assert.ok(builtCatalogue.entries.length < builtLibrary.length, "catalogue must merge near-duplicate examples");

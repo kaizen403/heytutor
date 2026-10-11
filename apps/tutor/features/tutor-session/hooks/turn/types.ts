@@ -311,6 +311,10 @@ export type TurnControlApi = {
   pausedLessonOffer: boolean;
   /** Why it stopped ("stop" or "doubt"), for the bar's copy; null with no offer. */
   pausedLessonReason: PausedLessonReason | null;
+  /** This opening had no completed authority; the action starts a fresh lesson. */
+  earlyLessonRestartOffer: boolean;
+  earlyLessonRestartReason: PausedLessonReason | null;
+  restartEarlyLesson: () => void;
   /**
    * After a board is restored, offer the stopped lesson its saved turns leave
    * (`pausedLessonFromStoredTurns`). Never continues on its own. Runs once per
