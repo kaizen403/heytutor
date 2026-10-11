@@ -264,6 +264,23 @@ export async function runBudgetedLabRows<T>(
   return done;
 }
 
+/**
+ * Which subjects the lab puts on the production strict path. Production runs
+ * maths strict, so maths is always in; `maths,physics` adds physics while a
+ * `maths` run keeps physics on the current production path. Recorded in the
+ * run's execution config.
+ */
+function parseProductionStrictSubjects(flags: ReadonlyMap<string, string>): DiagramSubject[] | null {
+  if (!flags.has("production-strict-subjects")) return null;
+  const listed = (flags.get("production-strict-subjects") ?? "").split(",").map((entry) => entry.trim());
+  const allowed: readonly DiagramSubject[] = ["maths", "physics"];
+  if (!listed.includes("maths") || new Set(listed).size !== listed.length ||
+      listed.some((entry) => !allowed.includes(entry as DiagramSubject))) {
+    throw new Error("--production-strict-subjects takes maths or maths,physics");
+  }
+  return allowed.filter((subject) => listed.includes(subject));
+}
+
 export function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
   const evalFiles: string[] = [];
@@ -355,9 +372,9 @@ export function parseOptions(argv: string[]): Options {
   const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
-  const productionStrictSubjects = flags.get("production-strict-subjects");
-  if (flags.has("production-strict-subjects") && (productionStrictSubjects !== "maths" || evalFiles.length === 0 || arm !== "planner_examples_strict")) {
-    throw new Error("--production-strict-subjects maths requires a strict maths evaluation");
+  const productionStrictSubjects = parseProductionStrictSubjects(flags);
+  if (productionStrictSubjects && (evalFiles.length === 0 || arm !== "planner_examples_strict")) {
+    throw new Error("--production-strict-subjects requires a strict maths evaluation: --eval with --arm planner_examples_strict");
   }
   let parsedOrigin: URL;
   try {
@@ -399,7 +416,7 @@ export function parseOptions(argv: string[]): Options {
     sceneDeclinePolicy,
     visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
-    productionStrictSubjects: productionStrictSubjects ? ["maths"] : null,
+    productionStrictSubjects,
   };
 }
 
