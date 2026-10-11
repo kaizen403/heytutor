@@ -9,6 +9,7 @@ export * from "./compile/sceneAnnotations";
 export { directedCurveInk, type DirectedCurveInk } from "./compile/directedCurve";
 export * from "./contracts/contractsV3";
 export * from "./ir/coordinateDistanceSource";
+export * from "./ir/complexDistanceSource";
 export * from "./ir/pointLineSource";
 export * from "./ir/sectionFormulaSource";
 export * from "./topology/topology";
