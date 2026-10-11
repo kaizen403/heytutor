@@ -2,9 +2,12 @@
 import assert from "node:assert/strict";
 import { buildLecturePlayerTimeline } from "../../lib/replay/lecturePlayer";
 import type { DrawCommand } from "@heytutor/drawing";
-import { getSegmentCommands, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
+import Konva from "konva";
+import { captureCommandInk, textToStrokePaths, textToStrokePathsSync, getSegmentCommands, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import { compileSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
+import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
+import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 const turn: StoredTurn = {
@@ -93,6 +96,19 @@ import type { LecturePlayerApi } from "../../features/tutor-session/hooks/useLec
 import type { LecturePlayerBarProps } from "../../features/tutor-session/components/LecturePlayerBar";
 const app = path.resolve(import.meta.dirname, "../..");
 const requireApp = createRequire(path.join(app, "package.json"));
+function recordedWriter() {
+  const source = process.env.WORK_PAGE_WRITER_SOURCE;
+  if (!source) return textToStrokePaths;
+  const file = path.resolve(app, "../../packages/drawing/src/handwriting/handwriting.ts");
+  const code = ts.transpileModule(readFileSync(source, "utf8"), { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true,
+  } }).outputText;
+  const mod = { exports: {} as { textToStrokePaths?: typeof textToStrokePaths } };
+  new Function("require", "module", "exports", code)(createRequire(file), mod, mod.exports);
+  assert.ok(mod.exports.textToStrokePaths);
+  return mod.exports.textToStrokePaths;
+}
+
 const executedCommands: DrawCommand[] = [];
 type Slot = {
   value?: unknown;
@@ -180,7 +196,11 @@ function load(
         ? (process.env.WORK_PAGE_EXECUTOR_SOURCE ?? file)
         : file.endsWith("useBoardLayout.ts")
           ? (process.env.WORK_PAGE_LAYOUT_SOURCE ?? file)
-      : file;
+      : file.endsWith("lectureWorkPages.ts")
+        ? (process.env.WORK_PAGE_INDEX_SOURCE ?? file)
+        : file.endsWith("lecturePlayer.ts")
+          ? (process.env.WORK_PAGE_TIMELINE_SOURCE ?? file)
+          : file;
   const code = ts.transpileModule(readFileSync(source, "utf8"), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -193,11 +213,13 @@ function load(
     (name: string) => {
       if (name in overrides) return overrides[name];
       if (name === "react") return mount.react;
+      if (name === "@/lib/replay/lecturePlayer")
+        return load(path.join(app, "lib/replay/lecturePlayer.ts"), mount, overrides);
       if (name.startsWith("@/"))
         return requireApp(path.join(app, name.slice(2)));
       if (name.startsWith(".")) {
         const p = path.resolve(path.dirname(file), name);
-        return p.startsWith(path.join(app, "features/tutor-session/hooks"))
+        return p.startsWith(path.join(app, "features/tutor-session/hooks")) || p.endsWith("lectureWorkPages")
           ? load(`${p}.ts`, mount, overrides)
           : requireApp(p);
       }
@@ -326,7 +348,7 @@ async function main() {
   }
   // The actual Whiteboard fallback-glyph path makes permanent text and its
   // placement observable; only the font/path lookup is inert.
-  const board = mountTestWhiteboard(undefined, async (text, x, y, fontSize) =>
+  let board = mountTestWhiteboard(undefined, async (text, x, y, fontSize) =>
     Array.from(text, (char, index) => ({
       char,
       x: x + index * 16,
@@ -334,8 +356,8 @@ async function main() {
       width: 16,
       fontSize,
       strokes: [],
-    }))),
-    mount = new Mount(), sceneMount = new Mount();
+    })));
+  const mount = new Mount(), sceneMount = new Mount(), eraseMount = new Mount();
   const boardRows = () => {
     const rows = new Map<number, Array<{ x: number; text: string }>>();
     for (const node of board.getDrawLayer()!.getChildren()) {
@@ -350,6 +372,8 @@ async function main() {
       text: glyphs.sort((a, b) => a.x - b.x).map((glyph) => glyph.text).join(""),
     }));
   };
+  const extraMounts: Mount[] = [];
+  const extraBoards: typeof board[] = [];
   let api: LecturePlayerApi | undefined;
   const wait = async (predicate: () => boolean) => {
     const end = Date.now() + 5000;
@@ -596,11 +620,229 @@ async function main() {
     await wait(() => api!.store.getSnapshot().status === "ended");
     assert.deepEqual(sceneInk(), figure, "ordinary End preserves the same compiled figure geometry and style");
     console.log("PASS canonical verified permanent figure unchanged across recorded page erase and ordinary End");
+    sceneMount.close();
+    const correctionCommands: DrawCommand[] = [
+      { type: "WRITE", params: [90, 142, 32], text: "Answer = 9", charPosition: 0, narrationBefore: "" },
+      { type: "EMPHASIZE", params: [], text: "last", charPosition: 0, narrationBefore: "" },
+      { type: "ERASE", params: [70, 126, 320, 100], charPosition: 0, narrationBefore: "" },
+      { type: "WRITE", params: [90, 142, 32], text: "Answer = 8", charPosition: 0, narrationBefore: "" },
+    ];
+    const correctionTurn: StoredTurn = { ...turn, id: "erase-correction", segments: correctionCommands.map((command, orderIndex) => ({
+      id: `erase-${orderIndex}`, orderIndex, narration: "Recorded correction", spokenText: "Recorded correction", durationMs: 1000, audioUrl: "/stored/audio", timings: null, command: serializeSegmentCommands([command]),
+    })) };
+    const correctionSnapshot = JSON.stringify(correctionTurn);
+    const eraseHooks = load(path.join(app, "features/tutor-session/hooks/useLecturePlayer.ts"), eraseMount, {
+      "./useBoardViewport": { useBoardViewport: () => ({ scale: 1, offsetX: 0, offsetY: 0, measured: true }) },
+      "@/lib/replay/lecturePlayerAudio": { lecturePlayerTrackKey: () => "erase-correction", getLecturePlayerTrack: async (_key: unknown, make: () => unknown) => make(), buildLecturePlayerTrack: async () => ({ url: "local:erase-correction" }) },
+    }) as unknown as { useLecturePlayer: typeof import("../../features/tutor-session/hooks/useLecturePlayer").useLecturePlayer };
+    api = eraseMount.render(() => eraseHooks.useLecturePlayer({ sessionId: "erase-correction", storedTurnsRef: { current: [correctionTurn] }, storedTurnsCount: 1, available: true, rate: 1, onRateChange: () => {}, enableKeyboard: false }));
+    api.playerBoardRef.current = board;
+    await wait(() => api!.store.getSnapshot().status === "ready");
+    api.controls.reviewPage?.(0);
+    await wait(() => api!.store.getSnapshot().status === "paused" && api!.store.getSnapshot().reviewPageIndex === 0);
+    assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Answer = 8" }],
+      "actual recorded erase/correction must expose its corrected ink, never a blank first page");
+    assert.equal(api.store.getSnapshot().workPages?.length, 1,
+      "an executed recorded erase releases its occupied row instead of inventing a page break");
+    assert.equal(JSON.stringify(correctionTurn), correctionSnapshot);
+    console.log("PASS actual recorded ERASE correction retains one nonblank immutable work page");
+    eraseMount.close();
+    const command = (type: DrawCommand["type"], params: number[], text?: string): DrawCommand =>
+      ({ type, params, text, charPosition: 0, narrationBefore: "" });
+    const stored = (id: string, entries: Array<DrawCommand | { command: DrawCommand; trusted: boolean }>, base: StoredTurn = turn): StoredTurn => ({
+      ...base, id, segments: entries.map((entry, orderIndex) => {
+        const c = captureCommandInk(structuredClone("command" in entry ? entry.command : entry), board.getInkSettings());
+        return { id: `${id}-${orderIndex}`, orderIndex, narration: "Recorded work", spokenText: "Recorded work", durationMs: 1000, audioUrl: "/stored/audio", timings: null,
+          command: serializeSegmentCommands([c], { trustedDiagramGeometry: "command" in entry && entry.trusted }) };
+      }),
+    });
+    const reviewCase = async (id: string, turns: StoredTurn[], check: (player: LecturePlayerApi, totalMs: number) => Promise<void>) => {
+      const state = new Mount(); extraMounts.push(state);
+      const untouched = JSON.stringify(turns);
+      const hooks = load(path.join(app, "features/tutor-session/hooks/useLecturePlayer.ts"), state, {
+        "./useBoardViewport": { useBoardViewport: () => ({ scale: 1, offsetX: 0, offsetY: 0, measured: true }) },
+        "@/lib/replay/lecturePlayerAudio": { lecturePlayerTrackKey: () => id, getLecturePlayerTrack: async (_key: unknown, make: () => unknown) => make(), buildLecturePlayerTrack: async () => ({ url: `local:${id}` }) },
+      }) as unknown as { useLecturePlayer: typeof import("../../features/tutor-session/hooks/useLecturePlayer").useLecturePlayer };
+      api = state.render(() => hooks.useLecturePlayer({ sessionId: id, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, available: true, rate: 1, onRateChange: () => {}, enableKeyboard: false }));
+      api.playerBoardRef.current = board;
+      await wait(() => api!.store.getSnapshot().status === "ready");
+      await check(api, api.store.getSnapshot().durationMs);
+      assert.equal(JSON.stringify(turns), untouched, `${id} leaves recorded commands immutable`);
+      api.close(); state.close();
+    };
+    const review = async (player: LecturePlayerApi, index: number) => {
+      const speechStarts = AudioBoundary.all.reduce((sum, audio) => sum + audio.playCalls, 0);
+      player.controls.reviewPage?.(index);
+      await wait(() => player.store.getSnapshot().status === "paused" && player.store.getSnapshot().reviewPageIndex === index);
+      assert.equal(AudioBoundary.all.reduce((sum, audio) => sum + audio.playCalls, 0), speechStarts, "recorded page selection never starts speech");
+    };
+    const end = async (player: LecturePlayerApi, ms: number) => {
+      player.controls.seek(ms); await wait(() => player.store.getSnapshot().status === "ended");
+      assert.equal(player.store.getSnapshot().reviewPageIndex, null);
+    };
+    const ink = () => board.getDrawLayer()!.getChildren().map((node) => node.toObject());
+    // Partial glyph erase must not become a synthetic whole-column wipe.
+    await reviewCase("partial-glyph", [stored("partial-glyph", [command("WRITE", [90, 64, 32], "ABCD"), command("ERASE", [90, 64, 16, 47])])], async (player, ms) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 1);
+      await review(player, 0);
+      assert.deepEqual(boardRows(), [{ x: 106, y: 64, text: "BCD" }], "only the actually intersecting glyph is erased");
+      const partial = ink(); await end(player, ms); assert.deepEqual(ink(), partial, "partial erase review equals the ordinary End's actual remaining ink");
+    });
+    for (const [id, erase] of [
+      ["missed-erase", [1000, 900, 100, 100]],
+      ["boundary-touch", [70, 16, 20, 47]],
+    ] as const) {
+      await reviewCase(id, [stored(id, [command("WRITE", [90, 64, 32], "ABCD"), command("ERASE", [...erase]), command("WRITE", [90, 64, 32], "New")])], async (player) => {
+        assert.equal(player.store.getSnapshot().workPages?.length, 2, `${id} cannot forget an untouched occupied row`);
+        await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 64, text: "ABCD" }]);
+        await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 64, text: "New" }]);
+      });
+    }
+    await reviewCase("erase-all-tail", [stored("erase-all-tail", [command("WRITE", [90, 64, 32], "ABCD"), command("EMPHASIZE", [], "last"), command("ERASE", [0, 0, 1200, 700])])], async (player, ms) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 0, "fully erased tail has no blank work page");
+      await end(player, ms); assert.deepEqual(ink(), [], "original full erase still removes all glyphs and decoration at End");
+    });
+    console.log("PASS actual partial, missed, strict-edge and full-tail ERASE preserve renderer ink and valid pages");
+
+    const intro = figureTurn.segments.filter((segment) => isStoredCommandTrustedGeometry(segment.command));
+    const withIntro = (id: string, entries: Array<DrawCommand | { command: DrawCommand; trusted: boolean }>, base = figureTurn): StoredTurn => {
+      const value = stored(id, entries, base);
+      return { ...value, segments: [...intro, ...value.segments].map((segment, orderIndex) => ({ ...segment, orderIndex })) };
+    };
+    const oldRow = command("WRITE", [90, 142, 32], "Old");
+    const newRow = command("WRITE", [90, 142, 32], "New");
+    const eraseRow = command("ERASE", [70, 126, 320, 100]);
+    await reviewCase("figure-blocked-erase", [withIntro("figure-blocked-erase", [oldRow, eraseRow, newRow])], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 2, "untrusted ERASE blocked by installed authority cannot forget a row");
+      await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Old" }]);
+      const figureNodes = board.getDrawLayer()!.getChildren().filter(node => node.getAttrs().htInk === "scene").map(node => node.toObject());
+      await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+      assert.deepEqual(board.getDrawLayer()!.getChildren().filter(node => node.getAttrs().htInk === "scene").map(node => node.toObject()), figureNodes);
+    });
+    await reviewCase("figure-trusted-erase", [withIntro("figure-trusted-erase", [oldRow, { command: eraseRow, trusted: true }, newRow])], async (player, ms) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 1);
+      await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+      assert.ok(board.getDrawLayer()!.getChildren().some(node => node.getAttrs().htInk === "scene"));
+      await end(player, ms); assert.ok(board.getDrawLayer()!.getChildren().some(node => node.getAttrs().htInk === "scene"));
+    });
+    // The same compiled intro can occur in a legacy recording with no installed
+    // metadata. It starts fbd clipping while leaving the authority guard null.
+    const legacy = { ...figureTurn, sceneDocument: null, sceneArtifacts: null, visualStatus: "text_only" as const };
+    await reviewCase("legacy-trusted-clip", [withIntro("legacy-trusted-clip", [command("WRITE", [395, 142, 32], "A"), { command: command("ERASE", [90, 126, 400, 100]), trusted: true }, command("WRITE", [395, 142, 32], "B")], legacy)], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 2, "effective clipped bounds leave the edge row occupied");
+      await review(player, 0); assert.deepEqual(boardRows(), [{ x: 395, y: 142, text: "A" }]);
+      await review(player, 1); assert.deepEqual(boardRows(), [{ x: 395, y: 142, text: "B" }]);
+    });
+    const continued = { ...figureTurn, kind: "resume" as const, sceneArtifacts: { ...figureTurn.sceneArtifacts as object, ...boardContinuationArtifacts(figureTurn.question) } };
+    await reviewCase("first-continued", [withIntro("first-continued", [oldRow, eraseRow, newRow], continued)], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 1, "first continued turn has no installed diagram owner");
+      await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+    });
+    await reviewCase("continued-retains-owner", [withIntro("opening", [oldRow]), stored("continued", [eraseRow, newRow], { ...turn, sceneArtifacts: boardContinuationArtifacts(figureTurn.question), kind: "resume" })], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 2, "continued metadata cannot drop the prior installed owner");
+      await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Old" }]);
+      await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+    });
+    const codeQuestion = "Explain binary search. nums = [2, 5, 8, 12, 16, 23, 38], target = 16.";
+    const codeTurn = { ...turn, question: codeQuestion, sceneArtifacts: { codeLesson: getMockCodeLessonPlan(codeQuestion) } };
+    await reviewCase("code-installed-owner", [stored("code-installed-owner", [oldRow, eraseRow, newRow], codeTurn)], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 2, "actual compiled code frames install authority with no sceneDocument");
+      await review(player, 0); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Old" }]);
+      await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+    });
+    console.log("PASS actual installed authority, trusted clip, standalone/retained continuation and compiled code frames govern ERASE");
+
+    // The fallback oracle above declares its inert glyph lookup. This group
+    // uses the real writer and real Konva nodes, with only pixel painting inert.
+    const fallbackBoard = board;
+    extraBoards.push(fallbackBoard);
+    board = mountTestWhiteboard(undefined, recordedWriter());
+    for (const text of ["-", "/", "xy", "क", "🙂", "x² + 1"]) {
+      for (const markerThickness of [0.6, 1, 1.6]) {
+        const settings = { ...board.getInkSettings(), markerThickness };
+        await board.clearBoard(0);
+        await board.writeText(text, 90, 64, 0, undefined, 32, undefined, settings);
+        const beforeNodes = board.getDrawLayer()!.getChildren().filter(node => node.getAttrs().htInk);
+        assert.ok(beforeNodes.length > 0, `${text} has actual permanent glyph nodes`);
+        const first = beforeNodes[0]!.getClientRect();
+        const erase = { x: first.x + first.width / 2 - 0.25, y: first.y + first.height / 2 - 0.25, width: 0.5, height: 0.5 };
+        await board.eraseRegion(erase.x, erase.y, erase.width, erase.height, 0);
+        const expected = ink();
+        const write = { ...command("WRITE", [90, 64, 32], text), inkSettings: settings };
+        const id = `real-node-${text}-${markerThickness}`;
+        await reviewCase(id, [stored(id, [write, command("ERASE", [erase.x, erase.y, erase.width, erase.height])])], async (player, ms) => {
+          assert.equal(player.store.getSnapshot().workPages?.length, expected.length ? 1 : 0,
+            `${text}/${markerThickness} page visibility follows actual individual-node erasure`);
+          if (expected.length) {
+            await review(player, 0);
+            assert.deepEqual(ink(), expected, `${text}/${markerThickness} retains only actual surviving nodes`);
+          }
+          await end(player, ms);
+          assert.deepEqual(ink(), expected, `${text}/${markerThickness} leaves ordinary End ink unchanged`);
+        });
+      }
+    }
+    await board.clearBoard(0);
+    await board.writeText("-\u00a0-", 90, 64, 0, undefined, 32);
+    const visiblePaths = board.getDrawLayer()!.getChildren().filter(node => node.getClassName() === "Path");
+    assert.equal(visiblePaths.length, 2, "two real dash paths surround a whitespace fallback node");
+    const eraseCommands = visiblePaths.map(node => {
+      const rect = node.getClientRect();
+      return command("ERASE", [rect.x + rect.width / 2 - 0.25, rect.y + rect.height / 2 - 0.25, 0.5, 0.5]);
+    });
+    for (const erase of eraseCommands) await board.eraseRegion(...erase.params.slice(0, 4) as [number, number, number, number], 0);
+    const whitespaceOnly = ink();
+    assert.equal(whitespaceOnly.length, 1, "an actual nonbreaking-space fallback Text node survives both dash erases");
+    assert.ok(whitespaceOnly.every(node => node.className === "Text" && !String(node.attrs.text).trim()), "only non-ink whitespace survives");
+    await reviewCase("whitespace-survivor", [stored("whitespace-survivor", [command("WRITE", [90, 64, 32], "-\u00a0-"), ...eraseCommands])], async (player, ms) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 0, "whitespace-only tail does not publish a blank work page");
+      await end(player, ms); assert.deepEqual(ink(), whitespaceOnly);
+    });
+    // Warm a neighboring fractional coordinate before the actual recorded row.
+    // The old rounded async cache returned different ink than the sync index.
+    await board.clearBoard(0);
+    await board.writeText("Given", 90, 64, 0, undefined, 32);
+    const expectedHeading = ink();
+    await board.clearBoard(0);
+    await board.writeText("-", 90.2, 142, 0, undefined, 32);
+    await board.clearBoard(0);
+    const exactStroke = textToStrokePathsSync("-", 90.4, 142, 32)[0]!.strokes[0]!;
+    const exactNode = new Konva.Path({ data: exactStroke.pathData, stroke: "#1B2A4A", strokeWidth: exactStroke.width,
+      fillEnabled: false, lineCap: "round", lineJoin: "round", shadowForStrokeEnabled: false, hitStrokeWidth: 0 });
+    const exactRect = exactNode.getClientRect(); exactNode.destroy();
+    const cacheErase = command("ERASE", [exactRect.x + exactRect.width - 0.1, exactRect.y + exactRect.height / 2 - 0.05, 0.05, 0.1]);
+    await reviewCase("fractional-cache-key", [stored("fractional-cache-key", [command("WRITE", [90, 64, 32], "Given"), command("WRITE", [90.4, 142, 32], "-"), cacheErase])], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 1);
+      await review(player, 0);
+      assert.deepEqual(ink(), expectedHeading, "fractional recorded coordinates must not reuse a neighboring cached stroke and hide surviving ink");
+    });
+    console.log("PASS real single/multi-stroke, fallback/Devanagari/math glyph erasure, whitespace, fractional cache identity and captured pen thickness match actual node visibility");
+
+    const realBoard = board;
+    const resetTurns = [withIntro("owned-opening", [oldRow]), stored("new-independent", [oldRow, eraseRow, newRow])];
+    board = fallbackBoard;
+    await reviewCase("new-independent-owner-reset", resetTurns, async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 2, "new independent opening resets old verified authority");
+      await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+    });
+    // A no-cue turn never installs its metadata. The continued turn still uses
+    // the preceding actual opening and its verified owner.
+    await reviewCase("no-cue-does-not-reset", [withIntro("owned-opening", [oldRow]), { ...turn, id: "empty", segments: [] }, stored("continued", [eraseRow, newRow], { ...turn, kind: "resume", sceneArtifacts: boardContinuationArtifacts(figureTurn.question) })], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 2);
+      await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
+    });
+    console.log("PASS independent and no-cue turn transitions preserve the actual replay authority owner");
+    board = realBoard;
+
+
   } finally {
     api?.close();
     mount.close();
     sceneMount.close();
+    eraseMount.close();
+    for (const state of extraMounts) state.close();
     unmountTestWhiteboard(board);
+    for (const extra of extraBoards) unmountTestWhiteboard(extra);
     for (const [key, value] of original) {
       if (value) Object.defineProperty(globalThis, key, value);
       else Reflect.deleteProperty(globalThis, key);

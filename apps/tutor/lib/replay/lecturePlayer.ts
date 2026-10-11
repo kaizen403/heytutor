@@ -2,6 +2,9 @@ import type { ReplayCue } from "./replayTimeline";
 import { buildReplayTimeline } from "./replayTimeline";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { DsaFrameController, restoreDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
+import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import {
   recordedLectureWorkPages,
   type LectureWorkPage,
@@ -9,8 +12,9 @@ import {
 
 /**
  * The finished-lecture player: one stitched audio track is the clock, and the
- * board is drawn as a function of that clock. Everything here is pure so the
- * seek rules, the gate and the store can be checked without a browser.
+ * board is drawn as a function of that clock. Seek arithmetic and the store
+ * remain browser-independent; ERASE page discovery also measures writer nodes
+ * and uses browser-font metrics for unsupported fallback glyphs when available.
  */
 
 /** One question or doubt on the board, as a stretch of the timeline. */
@@ -210,12 +214,33 @@ export function buildLecturePlayerTimeline(
     pageStartTurnIndex.push(keepsPage ? pageStartTurnIndex[turnIndex - 1]! : turnIndex);
   });
 
+  // Only ERASE discovery needs installed authority. Match syncTurn: turns
+  // without cues never install anything, and a continuation keeps the prior
+  // owner (including null for a first standalone continued turn).
+  const installedDiagramByTurn = new Map<number, boolean>();
+  if (cues.some((cue) => cue.commands.some((command) => command.type === "ERASE"))) {
+    const controller = { frames: new DsaFrameController() };
+    let installedDiagram = false;
+    let previousTurn = -1;
+    for (const cue of cues) {
+      if (cue.turnIndex !== previousTurn) {
+        const turn = turns[cue.turnIndex];
+        if (turn && !storedTurnContinuesBoard(turn)) {
+          restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
+          installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
+            restoreVerifiedDiagramFromTurn(turn));
+        }
+        previousTurn = cue.turnIndex;
+      }
+      installedDiagramByTurn.set(cue.turnIndex, installedDiagram);
+    }
+  }
   return {
     cues,
     totalMs,
     chapters,
     pageStartTurnIndex,
-    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex),
+    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex, installedDiagramByTurn),
   };
 }
 
