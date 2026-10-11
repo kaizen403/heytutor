@@ -55,7 +55,7 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
+import { createTurnTelemetry, measureSceneCandidateValidation } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
@@ -440,10 +440,23 @@ export function useQuestionHandler(
       // the thinking overlay is not waiting on a round trip.
       // A network failure here must not escape as an unhandled rejection: the
       // billing call just below fails on the same network and tells the student.
+      const boardCommitStartedAt = performance.now();
+      let boardCommitTotalMs: number | null = null;
+      let boardCommitResult: "created" | "not_created" | "failed" | "not_called" = "not_called";
       const boardCommitted = (commitDraftBoard
         ? commitDraftBoard()
         : Promise.resolve(false)
-      ).catch(() => false);
+      ).then((created) => {
+        if (commitDraftBoard) {
+          boardCommitTotalMs = Math.round(performance.now() - boardCommitStartedAt);
+          boardCommitResult = created ? "created" : "not_created";
+        }
+        return created;
+      }).catch(() => {
+        boardCommitTotalMs = Math.round(performance.now() - boardCommitStartedAt);
+        boardCommitResult = "failed";
+        return false;
+      });
 
       const boardIdForName = sessionId;
       if (boardIdForName) {
@@ -660,6 +673,11 @@ export function useQuestionHandler(
         pre_telemetry_ms: tel.durationMs(),
         queued_for_board_ms: queuedAsk ? Math.round(askStartedAt - queuedAsk.startedAt) : 0,
         board_commit_ms: Math.round(beginTurnStartedAt - boardCommitWaitStartedAt),
+        // Full callback and remaining await overlap; never add these durations.
+        // This is not a server-only POST/create duration. False may mean no draft.
+        board_commit_total_ms: boardCommitTotalMs,
+        board_commit_called: Boolean(commitDraftBoard),
+        board_commit_result: boardCommitResult,
         begin_turn_ms: Math.round(beginTurnMs),
         board_epoch_ms: boardEpochMs === null ? null : Math.round(boardEpochMs),
         turn_kind: doubt ? "doubt" : resume ? "resume" : "lesson",
@@ -1127,10 +1145,13 @@ export function useQuestionHandler(
           diagramStrategy: ReturnType<typeof liveDiagramStrategyDecision>;
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
+        let validationIndex = 0;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+          context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
-          validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+          measureSceneCandidateValidation(tel, { candidateIndex: ++validationIndex, context }, () =>
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1239,6 +1260,7 @@ export function useQuestionHandler(
             const validation = validateCandidateAgainstPlan(
               recovery.document as unknown as Record<string, unknown>,
               planningTurnPlan,
+              "recovery",
             );
             if (!validation.valid) {
               tutorDebug("planner", "verified scene recovery rejected by current engine", {
@@ -1302,7 +1324,7 @@ export function useQuestionHandler(
           },
           revalidate: (sceneResult, authoritativeTurnPlan) => revalidateScenePlanWithRepairResult(
             sceneResult,
-            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, "revalidate"),
           ),
         });
         turnPlan = planning.turnPlan;
