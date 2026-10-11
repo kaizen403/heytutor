@@ -22,6 +22,7 @@ import {
   STARTUP_PRIORITY_EVENTS,
   createTurnTelemetry,
   measureSceneCandidateValidation,
+  measureSceneSelection,
   recordFirstAudible,
   recordTtsFirstByte,
   type TurnTelemetry,
@@ -207,7 +208,7 @@ async function verifyCandidateValidationTiming() {
   tel.setTrace("trace-candidate-timing", "board-1");
   const result = { valid: true, value: { sourceText: STUDENT_TEXT }, errors: [] };
   let validations = 0;
-  const measured = measureSceneCandidateValidation(tel, { candidateIndex: 1, context: "search" }, () => {
+  const measured = measureSceneCandidateValidation(tel, { validationCallIndex: 1, context: "search" }, () => {
     validations++;
     h.clock.now += 35;
     return result;
@@ -216,13 +217,13 @@ async function verifyCandidateValidationTiming() {
   assert.equal(validations, 1, "measuring must not repeat validation or compile");
   const invalid = { valid: false, errors: [{ message: STUDENT_TEXT }] };
   h.clock.now = 2_100;
-  assert.equal(measureSceneCandidateValidation(tel, { candidateIndex: 2, context: "revalidate" }, () => {
+  assert.equal(measureSceneCandidateValidation(tel, { validationCallIndex: 2, context: "revalidate" }, () => {
     h.clock.now += 12;
     return invalid;
   }, () => h.clock.now), invalid, "invalid result identity and errors also remain untouched");
   const originalError = new Error(STUDENT_TEXT);
   h.clock.now = 2_200;
-  assert.throws(() => measureSceneCandidateValidation(tel, { candidateIndex: 3, context: "recovery" }, () => {
+  assert.throws(() => measureSceneCandidateValidation(tel, { validationCallIndex: 3, context: "recovery" }, () => {
     h.clock.now += 9;
     throw originalError;
   }, () => h.clock.now), (error: unknown) => error === originalError,
@@ -231,26 +232,116 @@ async function verifyCandidateValidationTiming() {
   const completion = h.batches.flatMap((batch) => batch.events).filter((event) => event.name === "scene-candidate-validation");
   assert.equal(completion.length, 3, "each actual validation reports one fixed-name completion, including a throw");
   assert.deepEqual(completion.map((event) => event.metadata), [
-    { candidate_index: 1, context: "search", start_since_ask_ms: 1_000, duration_ms: 35, valid: true, completed: true, clock_domain: "browser_monotonic" },
-    { candidate_index: 2, context: "revalidate", start_since_ask_ms: 1_100, duration_ms: 12, valid: false, completed: true, clock_domain: "browser_monotonic" },
-    { candidate_index: 3, context: "recovery", start_since_ask_ms: 1_200, duration_ms: 9, valid: null, completed: false, clock_domain: "browser_monotonic" },
+    { validation_call_index: 1, context: "search", start_since_ask_ms: 1_000, duration_ms: 35, valid: true, completed: true, clock_domain: "browser_monotonic" },
+    { validation_call_index: 2, context: "revalidate", start_since_ask_ms: 1_100, duration_ms: 12, valid: false, completed: true, clock_domain: "browser_monotonic" },
+    { validation_call_index: 3, context: "recovery", start_since_ask_ms: 1_200, duration_ms: 9, valid: null, completed: false, clock_domain: "browser_monotonic" },
   ]);
   assert(!JSON.stringify(h.batches).includes(STUDENT_TEXT), "candidate results, raw errors, questions and source text never enter timing payloads");
 
   const brokenMark = { ...tel, mark: () => { throw new Error("diagnostic sink failed"); } };
-  assert.equal(measureSceneCandidateValidation(brokenMark, { candidateIndex: 4, context: "search" }, () => result, () => 2_500), result,
+  assert.equal(measureSceneCandidateValidation(brokenMark, { validationCallIndex: 4, context: "search" }, () => result, () => 2_500), result,
     "a throwing completion sink cannot discard a valid candidate");
-  assert.throws(() => measureSceneCandidateValidation(brokenMark, { candidateIndex: 5, context: "search" }, () => { throw originalError; }, () => 2_500),
+  assert.throws(() => measureSceneCandidateValidation(brokenMark, { validationCallIndex: 5, context: "search" }, () => { throw originalError; }, () => 2_500),
     (error: unknown) => error === originalError, "a throwing sink cannot replace a genuine validator failure");
   const brokenOrigin = { ...tel, durationMs: () => { throw new Error("diagnostic origin failed"); } };
-  assert.equal(measureSceneCandidateValidation(brokenOrigin, { candidateIndex: 6, context: "search" }, () => result, () => 2_500), result,
+  assert.equal(measureSceneCandidateValidation(brokenOrigin, { validationCallIndex: 6, context: "search" }, () => result, () => 2_500), result,
     "a throwing telemetry origin does not stop validation");
-  assert.equal(measureSceneCandidateValidation(tel, { candidateIndex: 7, context: "search" }, () => result,
+  assert.equal(measureSceneCandidateValidation(tel, { validationCallIndex: 7, context: "search" }, () => result,
     () => { throw new Error("diagnostic clock failed"); }), result, "a throwing measurement clock does not stop validation");
-  assert.equal(measureSceneCandidateValidation(null, { candidateIndex: 8, context: "recovery" }, () => result, () => 2_500), result,
+  assert.equal(measureSceneCandidateValidation(null, { validationCallIndex: 8, context: "recovery" }, () => result, () => 2_500), result,
     "no telemetry is a supported diagnostic no-op, not a refused candidate");
-  assert.throws(() => measureSceneCandidateValidation(null, { candidateIndex: 9, context: "recovery" }, () => { throw originalError; }, () => 2_500),
+  assert.throws(() => measureSceneCandidateValidation(null, { validationCallIndex: 9, context: "recovery" }, () => { throw originalError; }, () => 2_500),
     (error: unknown) => error === originalError, "no telemetry preserves the original validator failure");
+}
+
+/** Pin the real live call, not a detached helper test that can stay green unwired. */
+function timedHandlerCall(source: string, operation: string, helper: string, stage?: string) {
+  const file = ts.createSourceFile("useQuestionHandler.ts", source, ts.ScriptTarget.Latest, true);
+  const calls: ts.CallExpression[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && node.expression.getText(file) === operation) calls.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  assert.equal(calls.length, 1, `one actual live ${operation} call remains in request order`);
+  const operationCall = calls[0]!;
+  let node: ts.Node | undefined = operationCall.parent;
+  while (node && !(ts.isCallExpression(node) && node.expression.getText(file) === helper)) node = node.parent;
+  assert(node && ts.isCallExpression(node), `the actual ${operation} call must remain inside ${helper}`);
+  const wrapper = node;
+  assert.equal(wrapper.arguments[0]?.getText(file), "tel", "the live turn telemetry receives the measured interval");
+  assert(wrapper.arguments[2] && ts.isArrowFunction(wrapper.arguments[2]) &&
+    !wrapper.arguments[2].modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword),
+  "the timing callback stays synchronous, with no new await or request");
+  assert.equal((wrapper.arguments[2] as ts.ArrowFunction).body, operationCall, "the callback only runs the unchanged selection/validation operation");
+  if (stage) assert.equal(wrapper.arguments[1]?.getText(file), JSON.stringify(stage), "a fixed selection stage carries no student text");
+  else assert.equal(wrapper.arguments[1]?.getText(file), "{ validationCallIndex: ++validationCallIndex, context }",
+    "the index is honestly a validation call index, not a candidate identity");
+  return { operationCall, wrapper, file };
+}
+
+function verifyHandlerTimingWiring() {
+  const source = readFileSync(path.resolve(import.meta.dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+  for (const [operation, helper, stage] of [
+    ["validateProductionSceneCandidate", "measureSceneCandidateValidation", undefined],
+    ["selectFastVerifiedRepresentation", "measureSceneSelection", "fast"],
+    ["selectProductionScene", "measureSceneSelection", "final"],
+  ] as const) {
+    const { operationCall, wrapper, file } = timedHandlerCall(source, operation, helper, stage);
+    const passthrough = source.replace(wrapper.getText(file), operationCall.getText(file));
+    assert.notEqual(passthrough, source, "the mutation replaces the real handler wrapper");
+    assert.throws(() => timedHandlerCall(passthrough, operation, helper, stage),
+      new RegExp(`must remain inside ${helper}`), `removing live ${operation} timing must make this gate RED`);
+  }
+}
+
+async function verifySelectionTiming() {
+  const h = harness(2_000);
+  const tel = createTurnTelemetry({ originPerf: 1_000, env: h.env });
+  tel.setTrace("trace-selection-timing");
+  const result = { representation: { sourceText: STUDENT_TEXT } };
+  const originalError = new Error(STUDENT_TEXT);
+  const order: string[] = [];
+  assert.equal(measureSceneSelection(tel, "fast", () => { order.push("fast"); h.clock.now += 30; return result; }, () => h.clock.now), result,
+    "timing returns the exact fast selection without copying or inspecting it");
+  assert.throws(() => measureSceneSelection(tel, "final", () => { order.push("final"); h.clock.now += 9; throw originalError; }, () => h.clock.now),
+    (error: unknown) => error === originalError, "timing preserves the exact final selection error");
+  assert.deepEqual(order, ["fast", "final"], "no selection repeats, defers, awaits or changes operation order");
+  await tel.flush();
+  assert.deepEqual(h.batches.flatMap((batch) => batch.events).map((event) => [event.name, event.metadata]), [
+    ["scene-fast-selection", { start_since_ask_ms: 1_000, duration_ms: 30, completed: true, clock_domain: "browser_monotonic" }],
+    ["scene-final-selection", { start_since_ask_ms: 1_030, duration_ms: 9, completed: false, clock_domain: "browser_monotonic" }],
+  ], "combined callback time has a fixed stage and no result/error/scene metadata");
+  assert(!JSON.stringify(h.batches).includes(STUDENT_TEXT), "selection results and errors stay out of telemetry");
+  const parsed = parseLangfuseTrace({ id: "trace-selection-timing", observations: h.batches.flatMap((batch) => batch.events) });
+  assert(parsed, "a trace of selection callback timings remains reportable");
+  assert.deepEqual(parsed.stages, [
+    { name: "scene-fast-selection", startMs: 1_000, durationMs: 30, capMs: null, hitCap: false },
+    { name: "scene-final-selection", startMs: 1_030, durationMs: 9, capMs: null, hitCap: false },
+  ], "the report reads the measured callback clocks, not completion mark offsets");
+  const unknown = parseLangfuseTrace({ id: "selection-unknown", observations: [
+    observation("scene-fast-selection", 5_000, 5_000, { start_since_ask_ms: 4_000, duration_ms: null }),
+    observation("scene-final-selection", 8_000, 8_000, { start_since_ask_ms: 7_000 }),
+  ] })!;
+  assert(summarizeTurns([unknown]).stages.every((stage) => stage.count === 0 && stage.p50 === null),
+    "a missing selection duration never becomes the known Ask-offset");
+  const repeated = parseLangfuseTrace({ id: "selection-repeated", observations: [
+    observation("scene-fast-selection", 500, 500, { start_since_ask_ms: 100, duration_ms: 30 }),
+    observation("scene-fast-selection", 900, 900, { start_since_ask_ms: 800, duration_ms: 10 }),
+  ] })!;
+  assert.equal(repeated.stages[0]?.durationMs, 40, "repeated selection callbacks contribute recorded work once per turn");
+  const brokenMark = { ...tel, mark: () => { throw new Error("diagnostic sink failed"); } };
+  assert.equal(measureSceneSelection(brokenMark, "fast", () => result, () => h.clock.now), result);
+  assert.throws(() => measureSceneSelection(brokenMark, "final", () => { throw originalError; }, () => h.clock.now),
+    (error: unknown) => error === originalError, "a broken sink cannot replace the selection error");
+  assert.equal(measureSceneSelection({ ...tel, durationMs: () => { throw new Error("bad origin"); } }, "fast", () => result), result);
+  assert.equal(measureSceneSelection(tel, "final", () => null, () => { throw new Error("bad clock"); }), null,
+    "a failed clock cannot turn text-only selection into a scene or a refusal");
+  assert.equal(measureSceneSelection(null, "fast", () => result, () => { throw new Error("unused clock"); }), result);
+  assert.throws(() => measureSceneSelection(null, "final", () => { throw originalError; }), (error: unknown) => error === originalError);
+  for (const name of ["scene-fast-selection", "scene-final-selection"]) {
+    assert(STARTUP_PRIORITY_EVENTS.some((stage) => String(stage) === name), "selection callback timings survive a noisy startup buffer");
+  }
 }
 
 async function verifyOriginAtAsk() {
@@ -779,6 +870,41 @@ function observation(name: string, startMs: number, endMs = startMs, metadata: R
   };
 }
 
+function verifyValidationTotals() {
+  const turn = parseLangfuseTrace({ id: "validation-total", observations: [
+    observation("scene-candidate-validation", 100, 100, { validation_call_index: 1, context: "search", duration_ms: 10 }),
+    observation("scene-candidate-validation", 200, 200, { validation_call_index: 2, context: "revalidate", duration_ms: 20 }),
+    observation("scene-candidate-validation", 300, 300, { validation_call_index: 3, context: "search", duration_ms: 30 }),
+  ] })!;
+  const durations = (value: typeof turn) => Object.fromEntries(value.stages.map((stage) => [stage.name, stage.durationMs]));
+  assert.equal(durations(turn)["scene-candidate-validation-total"], 60, "per-turn validation total includes every recorded call once");
+  assert.equal(durations(turn)["scene-candidate-validation-total:search"], 40, "search total includes repeated validations, not distinct candidates");
+  assert.equal(durations(turn)["scene-candidate-validation-total:revalidate"], 20);
+  assert(turn.stages.some((stage) => stage.name === "scene-candidate-validation:call-3:search"), "detail names honestly identify calls");
+  const second = parseLangfuseTrace({ id: "second-total", observations: [
+    observation("scene-candidate-validation", 100, 100, { validation_call_index: 1, context: "search", duration_ms: 100 }),
+  ] })!;
+  const summary = summarizeTurns([turn, second]).stages;
+  assert.deepEqual(summary.find((stage) => stage.name === "scene-candidate-validation-total"),
+    { name: "scene-candidate-validation-total", count: 2, p50: 60, p90: 100, capHits: 0 }, "aggregate validation samples are turn totals");
+  assert(!summary.some((stage) => stage.name.startsWith("scene-candidate-validation:")), "call-position percentiles are not comparable across turns");
+  const missing = parseLangfuseTrace({ id: "missing-total", observations: [
+    observation("scene-candidate-validation", 100, 100, { validation_call_index: 1, context: "search", duration_ms: 10 }),
+    observation("scene-candidate-validation", 200, 200, { validation_call_index: 2, context: "recovery", duration_ms: null }),
+  ] })!;
+  assert.equal(durations(missing)["scene-candidate-validation-total"], null, "one unknown call keeps the whole-turn total unknown");
+  assert.equal(durations(missing)["scene-candidate-validation-total:search"], 10, "known context remains measurable");
+  assert.equal(durations(missing)["scene-candidate-validation-total:recovery"], null);
+  assert.equal(summarizeTurns([missing]).stages.find((stage) => stage.name === "scene-candidate-validation-total")?.count, 0,
+    "unknown totals cannot become completion offsets or partial sums");
+  assert(!missing.stages.some((stage) => stage.name === "scene-candidate-validation-total:revalidate"), "an absent context is not reported as zero work");
+  const empty = parseLangfuseTrace({ id: "no-validation-events", observations: [observation("planner", 100, 500)] })!;
+  assert(!empty.stages.some((stage) => stage.name.startsWith("scene-candidate-validation")), "no recorded validations cannot prove zero validation work");
+  const printed = `${formatTurn(turn)}\n${formatSummary([turn])}`;
+  assert(printed.includes("recorded call intervals") && printed.includes("not additive wall time"), "reports disclose partial capture and overlapping callback work");
+  assert(printed.includes("first useful teaching audio is not measured"), "parser STEP time is never a useful-audio proxy");
+}
+
 function verifyReportParsing() {
   // Ask at 0; telemetry created 2.9 s later after commit, billing and the epoch.
   const trace = {
@@ -827,10 +953,10 @@ function verifyReportParsing() {
   assert.equal(stage("problem-ir").hitCap, true, "a deadline outcome counts even under the cap");
   assert.equal(stage("scene-planner").hitCap, false);
   assert.deepEqual(turn.stages.filter((row) => row.name.startsWith("scene-candidate-validation:")), [
-    { name: "scene-candidate-validation:1:search", startMs: 38_000, durationMs: 1_250, capMs: null, hitCap: false },
-    { name: "scene-candidate-validation:2:search", startMs: 39_400, durationMs: 1_100, capMs: null, hitCap: false },
-    { name: "scene-candidate-validation:3:revalidate", startMs: 40_500, durationMs: 350, capMs: null, hitCap: false },
-  ], "each candidate interval survives repeated completion names and reads its local measured interval, not the wall marker");
+    { name: "scene-candidate-validation:call-1:search", startMs: 38_000, durationMs: 1_250, capMs: null, hitCap: false },
+    { name: "scene-candidate-validation:call-2:search", startMs: 39_400, durationMs: 1_100, capMs: null, hitCap: false },
+    { name: "scene-candidate-validation:call-3:revalidate", startMs: 40_500, durationMs: 350, capMs: null, hitCap: false },
+  ], "each validation call interval survives repeated completion names and reads its local measured interval, not the wall marker");
   assert.equal(stage("teaching-first-token").startMs, 66_500);
   assert.equal(stage("tts-first-byte").durationMs, 640, "the first segment's first byte is reported");
   assert.deepEqual(turn.retries, ["teaching-hedge-start x1", "teaching-hedge-winner x1 (hedge)", "tts-browser-recovery x1"]);
@@ -854,8 +980,8 @@ function verifyReportParsing() {
       candidate_index: 1, context: "search", start_since_ask_ms: 7_500, duration_ms: null,
     }),
   ] })!;
-  assert.deepEqual(summarizeTurns([brokenClock]).stages.find((row) => row.name.startsWith("scene-candidate-validation:")), {
-    name: "scene-candidate-validation:1:search", count: 0, p50: null, p90: null, capHits: 0,
+  assert.deepEqual(summarizeTurns([brokenClock]).stages.find((row) => row.name === "scene-candidate-validation-total"), {
+    name: "scene-candidate-validation-total", count: 0, p50: null, p90: null, capHits: 0,
   }, "a missing validation duration cannot become its Ask-offset in the aggregate");
 
   const labRuns = [
@@ -916,8 +1042,10 @@ function verifyHandlerPrivacy() {
 }
 
 async function main() {
+  verifyHandlerTimingWiring();
   await verifyBoardCommitMeasurement();
   await verifyCandidateValidationTiming();
+  await verifySelectionTiming();
   await verifyOriginAtAsk();
   await verifyCheckpointOnce();
   await verifyPageLifecycleCheckpoint();
@@ -928,8 +1056,9 @@ async function main() {
   await verifyRunnerSeam();
   await verifyStreamingClientSeam();
   verifyReportParsing();
+  verifyValidationTotals();
   verifyHandlerPrivacy();
-  console.log("verified actual board callback true/false/reject/absent and five rejected measurement mutants, candidate timing identity/error/privacy, full versus remaining board commit, repeated measured intervals, Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, report parsing, and no question text");
+  console.log("verified actual board callback true/false/reject/absent and five rejected measurement mutants; all three actual handler timing-wrapper removal mutants rejected; validation call index, recorded per-turn/context totals, fast/final combined callback identity/error/clock/sink/privacy, unknown clocks and non-additive report limits, full versus remaining board commit, Ask origin, checkpoint once, pagehide and hidden checkpoints, startup priority under pressure, split bodies, first audible once, page load clock, runner and client seams, and no question text");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
