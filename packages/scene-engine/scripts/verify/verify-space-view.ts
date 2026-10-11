@@ -1,7 +1,8 @@
 /**
  * Space view gate (G1 to G16 of .context/h4/3d/DESIGN.md section 8; G17 to G21
  * from fix pass 1: two planes and their line, patch size, element labels,
- * room inside triangles, face-on planes).
+ * room inside triangles, face-on planes; G22 to G25 from fix pass 2: room for
+ * point names at their real size inside and on the corners of planes).
  *
  * G15 guards byte identity: every frozen document without a space_frame
  * (golden and regression fixtures, the evaluation compile probes, the physics
@@ -454,6 +455,91 @@ const facingPlane = spaceDocument("the plane x = 1", [part("plane", "polygon", "
 gate("G21 a plane seen face on is drawn as a plane, not a box", () => {
   const kind = primitive(rendered(facingPlane), "primitive_plane").kind;
   return kind === "polygon" ? null : `plane primitive is a ${kind}`;
+});
+
+// ---------- Fix pass 2: G22 to G25, names at their real size ----------
+const coordinateText = (p: V3): string => `(${[p.x, p.y, p.z].map((value) => String(Math.round(value * 100) / 100)).join(",")})`;
+/** A line through P along d meets n·r = k at I, named by its coordinates, with the angle marked there. */
+function meetingLookAlike(P: V3, d: V3, n: V3, k: number): { document: SceneDocument; I: V3 } {
+  const t = (k - (n.x * P.x + n.y * P.y + n.z * P.z)) / (n.x * d.x + n.y * d.y + n.z * d.z);
+  const I = v3(P.x + t * d.x, P.y + t * d.y, P.z + t * d.z);
+  const document = spaceDocument(`line through P along d meets the plane at ${coordinateText(I)}`, [
+    sp("P", P, `P${coordinateText(P)}`),
+    part("plane", "polygon", "plane", { a: n.x, b: n.y, c: n.z, d: k }, "Π"),
+    part("L", "line", "space_line", { point: "P", direction: [d.x, d.y, d.z], tMin: -0.4, tMax: 1.5 }, "ℓ"),
+    part("I", "point", "space_intersection", { first: "L", second: "plane" }, "I"),
+    part("theta", "angle_mark", "space_angle_mark", { vertex: "I", a: "L", b: "plane" }, "θ"),
+  ], { axisLength: 3 });
+  document.annotations = [{ id: "meeting_value", kind: "callout", targetIds: ["I"], text: coordinateText(I) }];
+  return { document, I };
+}
+/** The centroid G of the triangle cut from the axes, named with its coordinates; the plane by coefficients or through A. */
+function centroidLookAlike(G: V3, form: "coefficients" | "basis"): SceneDocument {
+  const [a, b, c] = [3 * G.x, 3 * G.y, 3 * G.z];
+  const plane: Part = form === "coefficients"
+    ? part("plane", "polygon", "plane", { a: b * c, b: a * c, c: a * b, d: a * b * c })
+    : part("plane", "polygon", "plane", { point: "A", u: [-a, b, 0], v: [-a, 0, c] });
+  return spaceDocument(`centroid ${coordinateText(G)} of the triangle the plane cuts from the axes`, [
+    sp("G", G, `G${coordinateText(G)}`), sp("A", v3(a, 0, 0), "A"), sp("B", v3(0, b, 0), "B"), sp("C", v3(0, 0, c), "C"), plane,
+  ]);
+}
+function namesPlaced(render: RenderScene, labelIds: string[]): string | null {
+  const missing = labelIds.filter((id) => !render.primitives.some((item) => item.kind === "label" && item.id === id));
+  return missing.length ? `no label ${missing.join(", ")}` : null;
+}
+
+gate("G22 a meeting point named by its coordinates has room in its plane", () => {
+  for (const [P, d, n, k] of [
+    [v3(0, 2, -1), v3(3, 1, -1), v3(3, 1, 1), 4],
+    [v3(-1, 1, 3), v3(1, -2, 2), v3(3, 1, 1), 4],
+    [v3(0, 2, -1), v3(1, 1, 1), v3(1, 2, -2), 3],
+  ] as Array<[V3, V3, V3, number]>) {
+    const { document, I } = meetingLookAlike(P, d, n, k);
+    const result = compile(document);
+    if (!result.render) return `meeting at ${coordinateText(I)} does not compile: ${result.issues}`;
+    const missing = namesPlaced(result.render, ["meeting_value"]);
+    if (missing) return `meeting at ${coordinateText(I)}: ${missing}`;
+    // The name sits beside its point: within its tether plus half its own width.
+    const gap = len2(sub2(primitive(result.render, "meeting_value").points[0]!, pointCanvas(result.render, "I")));
+    if (gap > 130) return `meeting at ${coordinateText(I)}: name ${gap.toFixed(1)} px from the point`;
+  }
+  if (spaceView) {
+    // Names size the view, so the plan memo must not outlive an in-place edit of a name.
+    const edited = meetingLookAlike(v3(0, 2, -1), v3(3, 1, -1), v3(3, 1, 1), 4).document;
+    const before = spaceView.planSpaceView(edited)?.report.candidate;
+    edited.annotations = [];
+    const after = spaceView.planSpaceView(edited)?.report.candidate;
+    if (before === after) return `dropping the coordinate name kept the view ${before}`;
+  }
+  return null;
+});
+
+gate("G23 a centroid named by its coordinates has room inside the intercept triangle", () => {
+  for (const [G, form] of [[v3(1, -2, 3), "coefficients"], [v3(-1, 1, 2), "basis"], [v3(2, -2, 4), "basis"], [v3(1, 1, -1), "coefficients"]] as Array<[V3, "coefficients" | "basis"]>) {
+    const result = compile(centroidLookAlike(G, form));
+    if (!result.render) return `centroid ${coordinateText(G)} (${form}) does not compile: ${result.issues}`;
+    const missing = namesPlaced(result.render, ["primitive_G_label", "primitive_A_label", "primitive_B_label", "primitive_C_label"]);
+    if (missing) return `centroid ${coordinateText(G)}: ${missing}`;
+  }
+  return null;
+});
+
+gate("G24 fix pass 1 look-alike: a named centroid keeps room once triangles are drawn", () => {
+  for (const [G, form] of [[v3(1, 1, 3), "basis"], [v3(3, -1, 4), "coefficients"], [v3(-1, 2, 1), "coefficients"]] as Array<[V3, "coefficients" | "basis"]>) {
+    const result = compile(centroidLookAlike(G, form));
+    if (!result.render) return `centroid ${coordinateText(G)} (${form}) does not compile: ${result.issues}`;
+  }
+  return null;
+});
+
+const cornerNames = spaceDocument("the plane cutting the axes at (p,0,0), (0,q,0), (0,0,r)", [
+  part("plane", "polygon", "plane", { a: 2, b: -2, c: -1, d: -2 }),
+  sp("X", v3(-1, 0, 0), "(p,0,0)"), sp("Y", v3(0, 1, 0), "(0,q,0)"), sp("Z", v3(0, 0, 2), "(0,0,r)"),
+]);
+gate("G25 points named at the corners of an intercept triangle keep room for their names", () => {
+  const result = compile(cornerNames);
+  if (!result.render) return `does not compile: ${result.issues}`;
+  return namesPlaced(result.render, ["primitive_X_label", "primitive_Y_label", "primitive_Z_label"]);
 });
 
 // ---------- G15: byte identity of every document without a space_frame ----------

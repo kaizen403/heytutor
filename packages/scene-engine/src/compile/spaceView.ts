@@ -11,6 +11,7 @@
 import { chooseSpaceProjection, DEFAULT_SPACE_PROJECTION, projectionMetrics, projectionName, SPACE_PROJECTION_CANDIDATES, type SpaceViewConstraints } from "../math/spaceCamera";
 import { planeFromCartesian, type SpaceProjection, type Vec3 } from "../math/space";
 import type { SceneConstruction, SceneDocument } from "../types";
+import { pointLabelText, type PointLabelText } from "./pointLabelText";
 import {
   deriveSpaceWorld,
   SPACE_DERIVATION_OPERATORS,
@@ -64,13 +65,25 @@ const FIGURE_SPAN_SHARE = 0.5;
 /** The board room a figure is fitted into: the diagram zone less its label reserve. */
 const FIT_WIDTH_PX = 740 - 2 * 64;
 const FIT_HEIGHT_PX = 555 - 2 * 64;
-/** Screen room a point drawn inside a plane needs from its edges and the axes, for its name. */
-const POINT_ROOM_PX = 44;
+/**
+ * The label solver's box: the glyph run plus 4 px padding on each side, 24 px
+ * text, and the 6 px it keeps clear of ink. A label with a leader lands at
+ * most its tether from the point.
+ */
+const LABEL_PADDING_PX = 4;
+const LABEL_HEIGHT_PX = 24 + 2 * LABEL_PADDING_PX;
+const LABEL_GAP_PX = 6;
+const SLOT_GAPS_PX = [14, 10, 6];
+/** The board scale here is an estimate, so a name should fit with this much to spare. */
+const LABEL_SLACK_PX = 4;
+/** A patch holding a point whose name has no room may grow by these factors, smallest first. */
+const PATCH_GROWTH = [1.25, 1.5, 2];
 const MAX_DEPTH = 64;
 
 /**
- * Memo by document identity. The stored signature of the constructions and
- * quantities guards a caller that edits a document in place between compiles.
+ * Memo by document identity. The stored signature of the constructions,
+ * quantities, entities and annotations (point names size the room the view
+ * leaves) guards a caller that edits a document in place between compiles.
  */
 const plans = new WeakMap<SceneDocument, { signature: string; plan: SpaceViewPlan }>();
 
@@ -87,7 +100,7 @@ export function planSpaceView(document: SceneDocument): SpaceViewPlan | null {
 
 /** Null when the document cannot be serialised; the plan is then recomputed each time. */
 function planSignature(document: SceneDocument): string | null {
-  try { return JSON.stringify([document.constructions, document.quantities]); } catch { return null; }
+  try { return JSON.stringify([document.constructions, document.quantities, document.entities, document.annotations]); } catch { return null; }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -141,7 +154,7 @@ interface PlaneInfo {
 }
 interface SegmentInfo { frameId: string; a: Vec3; b: Vec3 }
 interface AngleInfo { frameId: string; vertex: Vec3; u: Vec3; v: Vec3 }
-interface MarkedPoint { frameId: string; point: Vec3 }
+interface MarkedPoint { frameId: string; point: Vec3; id?: string }
 
 interface World {
   frames: Map<string, FrameInfo>;
@@ -231,7 +244,7 @@ function evaluateWorld(document: SceneDocument): World {
         const frame = frameOf(inputs.frame);
         const space = { x: number(inputs.x), y: number(inputs.y), z: number(inputs.z) };
         if (!finite(space)) throw new Error("space point must be finite");
-        world.points.push({ frameId: frame.id, point: space });
+        world.points.push({ frameId: frame.id, point: space, id: output });
         return [{ kind: "point", point: { x: 0, y: 0 }, space, spaceFrameId: frame.id }];
       }
       case "space_line": {
@@ -290,7 +303,7 @@ function evaluateWorld(document: SceneDocument): World {
   }
   function recordGeometry(record: SpaceWorldRecord, frameId: string, output: string, planes?: [string, string]): unknown {
     if (record.kind === "point") {
-      world.points.push({ frameId, point: record.space });
+      world.points.push({ frameId, point: record.space, id: output });
       return { kind: "point", point: { x: 0, y: 0 }, space: record.space, spaceFrameId: frameId, ...(record.spaceCross ? { spaceCross: record.spaceCross } : {}) };
     }
     if (record.kind === "line") {
@@ -369,6 +382,8 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
 
   // Planes: the intercept triangle when it holds everything on the plane, else a patch that does.
   const planeResults = new Map<string, PlaneDrawingResult>();
+  /** The patch a plane drawn as its intercept triangle would get instead. */
+  const patchAlternatives = new Map<string, SpacePlaneDrawing>();
   for (const plane of world.planes) {
     try {
       // Both planes of an intersection line hold its drawn stretch, so the
@@ -378,12 +393,14 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
         if (!line.planes?.includes(plane.id) || !extent) return [];
         return [add(line.point, scale(line.direction, extent.tMin)), add(line.point, scale(line.direction, extent.tMax))];
       });
-      const result = planeDrawing(plane, frameOf(plane.frameId), figureExtent(plane.frameId), [
+      const held = [
         ...candidates(plane.frameId),
         ...world.lines.filter((line) => line.frameId === plane.frameId).flatMap((line) => { const hit = meeting(line, plane); return hit ? [hit.point] : []; }),
-      ], stretches);
+      ];
+      const result = planeDrawing(plane, frameOf(plane.frameId), figureExtent(plane.frameId), held, stretches);
       planes.set(plane.id, result.drawing);
       planeResults.set(plane.id, result);
+      if (result.drawing.kind === "triangle") patchAlternatives.set(plane.id, planeDrawing(plane, frameOf(plane.frameId), figureExtent(plane.frameId), held, stretches, false).drawing);
     } catch { /* compile keeps its own drawing */ }
   }
 
@@ -409,8 +426,12 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
     frames.set(frame.id, { axisMin: { x: axisMin[0]!, y: axisMin[1]!, z: axisMin[2]! }, axisMax: { x: axisMax[0]!, y: axisMax[1]!, z: axisMax[2]! } });
   }
 
-  const choice = withRoomInsidePlanes(chooseProjection(world, planeResults, frameOf), world, frames, lines, planes);
-  return { projection: choice.projection, frames, lines, planes, report: choice.report };
+  const named = world.points.flatMap((item) => {
+    const label = item.id ? pointLabelText(document, item.id) : null;
+    return label ? [{ ...item, label }] : [];
+  });
+  const roomy = withLabelRoom(chooseProjection(world, planeResults, frameOf), world, named, frames, lines, planes, patchAlternatives, frameOf);
+  return { projection: roomy.choice.projection, frames, lines, planes: roomy.planes, report: roomy.choice.report };
 }
 
 type ProjectionChoice = { projection: SpaceProjection; report: SpaceViewPlan["report"]; constraints?: SpaceViewConstraints };
@@ -442,65 +463,202 @@ function figureScale(projection: SpaceProjection, world: World, frames: SpaceVie
   return Math.min(FIT_WIDTH_PX / Math.max(width, 1e-9), FIT_HEIGHT_PX / Math.max(height, 1e-9));
 }
 
-/**
- * The least screen room any marked point drawn inside a plane's drawing has
- * from its edges and the axes, in pixels; Infinity when none is inside.
- * Points at a triangle's vertex are its own corners.
- */
-function planeRoom(projection: SpaceProjection, world: World, frames: SpaceViewPlan["frames"], lines: SpaceViewPlan["lines"], planes: SpaceViewPlan["planes"]): number {
-  const pixels = figureScale(projection, world, frames, lines, planes);
-  const axisSegments: Array<[Screen, Screen]> = [];
-  for (const range of frames.values()) {
-    for (let axis = 0; axis < 3; axis += 1) axisSegments.push([onScreen(projection, scale(AXES[axis]!, component(range.axisMin, axis))), onScreen(projection, scale(AXES[axis]!, component(range.axisMax, axis)))]);
+interface NamedPoint extends MarkedPoint { label: PointLabelText }
+interface LabelRoom { missing: number; slack: number }
+type Ink = [Screen, Screen];
+
+const SLOT_DIRECTIONS: readonly Screen[] = [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 }, { x: 1, y: 1 }, { x: -1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: -1 }];
+const LEADER_DIRECTIONS: readonly Screen[] = Array.from({ length: 16 }, (_, index) => ({ x: Math.cos((index * Math.PI) / 8), y: Math.sin((index * Math.PI) / 8) }));
+
+/** Whether segment a-b meets the box centred at c with half sizes hx, hy. */
+function segmentMeetsBox(a: Screen, b: Screen, c: Screen, hx: number, hy: number): boolean {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  for (const [p, q] of [[-dx, a.x - (c.x - hx)], [dx, c.x + hx - a.x], [-dy, a.y - (c.y - hy)], [dy, c.y + hy - a.y]] as const) {
+    if (Math.abs(p) < 1e-12) { if (q < 0) return false; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; }
   }
-  const segmentDistance = (q: Screen, [a, b]: [Screen, Screen]): number => {
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const t = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / Math.max(1e-12, dx * dx + dy * dy)));
-    return Math.hypot(q.x - a.x - dx * t, q.y - a.y - dy * t) * pixels;
-  };
-  let room = Infinity;
-  for (const [id, drawing] of planes) {
-    const frameId = world.planes.find((plane) => plane.id === id)?.frameId;
-    const ring = drawingCorners(drawing).map((vertex) => onScreen(projection, vertex));
-    const area = ring.reduce((sum, a, index) => { const b = ring[(index + 1) % ring.length]!; return sum + a.x * b.y - b.x * a.y; }, 0);
-    if (!(Math.abs(area) > 1e-12)) continue;
-    for (const item of world.points) {
-      if (item.frameId !== frameId) continue;
-      const q = onScreen(projection, item.point);
-      if (drawing.kind === "triangle" && ring.some((vertex) => Math.hypot(vertex.x - q.x, vertex.y - q.y) * pixels < POINT_ROOM_PX / 4)) continue;
-      const distances = ring.map((a, index) => {
-        const b = ring[(index + 1) % ring.length]!;
-        return Math.sign(area) * ((b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x)) / Math.hypot(b.x - a.x, b.y - a.y) * pixels;
-      });
-      if (distances.every((distance) => distance > 1)) room = Math.min(room, ...distances, ...axisSegments.map((segment) => segmentDistance(q, segment)));
-    }
-  }
-  return room;
+  return true;
+}
+function segmentsCross(a: Screen, b: Screen, c: Screen, d: Screen): boolean {
+  const orient = (p: Screen, q: Screen, r: Screen) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const o1 = orient(a, b, c); const o2 = orient(a, b, d); const o3 = orient(c, d, a); const o4 = orient(c, d, b);
+  return o1 * o2 < 0 && o3 * o4 < 0;
 }
 
 /**
- * A point drawn inside a plane needs room for its name. When the chosen
- * view leaves less, take the first acceptable view (floors met, score at
- * least 0.85) that gives the most room, up to what a name needs.
+ * Room for the names of points drawn inside a plane or on its outline (a
+ * triangle's corners), in board pixels under this view. Each such point's
+ * label is the text compile will place, at its real width, tried where the
+ * label solver tries it: compass slots next to the point, and spots along a
+ * leader within the label's tether. A spot must keep the solver's gap from
+ * the axes, plane edges, lines, segments, points and the names already given
+ * a spot, and a leader may not cross any ink. `missing` counts points with no
+ * spot; `slack` is the extra clearance the worst of the others has.
  */
-function withRoomInsidePlanes(choice: ProjectionChoice, world: World, frames: SpaceViewPlan["frames"], lines: SpaceViewPlan["lines"], planes: SpaceViewPlan["planes"]): ProjectionChoice {
+function labelRoom(projection: SpaceProjection, world: World, named: NamedPoint[], frames: SpaceViewPlan["frames"], lines: SpaceViewPlan["lines"], planes: SpaceViewPlan["planes"]): LabelRoom {
+  const pixels = figureScale(projection, world, frames, lines, planes);
+  const toPx = (point: Vec3): Screen => { const screen = onScreen(projection, point); return { x: screen.x * pixels, y: screen.y * pixels }; };
+  const ink: Ink[] = [];
+  for (const range of frames.values()) {
+    for (let axis = 0; axis < 3; axis += 1) ink.push([toPx(scale(AXES[axis]!, component(range.axisMin, axis))), toPx(scale(AXES[axis]!, component(range.axisMax, axis)))]);
+  }
+  const rings: Screen[][] = [];
+  for (const drawing of planes.values()) {
+    const ring = drawingCorners(drawing).map(toPx);
+    rings.push(ring);
+    ring.forEach((a, index) => ink.push([a, ring[(index + 1) % ring.length]!]));
+  }
+  for (const line of world.lines) {
+    const extent = lines.get(line.id);
+    if (extent) ink.push([toPx(add(line.point, scale(line.direction, extent.tMin))), toPx(add(line.point, scale(line.direction, extent.tMax)))]);
+  }
+  for (const segment of world.segments) ink.push([toPx(segment.a), toPx(segment.b)]);
+  const dots = [...world.points, ...world.endpoints].map((item) => toPx(item.point));
+  const finiteInk = ink.filter(([a, b]) => Number.isFinite(a.x + a.y + b.x + b.y));
+  /** Inside the ring by more than `margin` pixels from every edge (negative: on or near it). */
+  const insideBy = (q: Screen, ring: Screen[], margin: number): boolean => {
+    const area = ring.reduce((sum, a, index) => { const b = ring[(index + 1) % ring.length]!; return sum + a.x * b.y - b.x * a.y; }, 0);
+    if (!(Math.abs(area) > 1e-9)) return false;
+    return ring.every((a, index) => {
+      const b = ring[(index + 1) % ring.length]!;
+      return Math.sign(area) * ((b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x)) / Math.hypot(b.x - a.x, b.y - a.y) > margin;
+    });
+  };
+  // Names already given a spot; later names keep the solver's gap from them.
+  const placed: Array<{ c: Screen; hx: number; hy: number }> = [];
+  const fits = (q: Screen, label: PointLabelText, extra: number): { c: Screen; hx: number; hy: number } | null => {
+    const width = label.widthPx + 2 * LABEL_PADDING_PX;
+    const hx = width / 2 + LABEL_GAP_PX + extra;
+    const hy = LABEL_HEIGHT_PX / 2 + LABEL_GAP_PX + extra;
+    const clear = (c: Screen) =>
+      finiteInk.every(([a, b]) => !segmentMeetsBox(a, b, c, hx, hy)) &&
+      // Every dot, the point's own included, is a 4 px box the label keeps its gap from.
+      dots.every((dot) => Math.abs(dot.x - c.x) > hx + 4 || Math.abs(dot.y - c.y) > hy + 4) &&
+      placed.every((box) => Math.abs(box.c.x - c.x) >= hx + box.hx || Math.abs(box.c.y - c.y) >= hy + box.hy);
+    const spot = (c: Screen) => ({ c, hx: width / 2, hy: LABEL_HEIGHT_PX / 2 });
+    for (const gap of SLOT_GAPS_PX) {
+      for (const direction of SLOT_DIRECTIONS) {
+        const c = { x: q.x + direction.x * (gap + width / 2), y: q.y + direction.y * (gap + LABEL_HEIGHT_PX / 2) };
+        if (clear(c)) return spot(c);
+      }
+    }
+    const distances: number[] = [];
+    for (let distance = 24; distance <= label.tetherPx; distance += 8) distances.push(distance);
+    if (distances.at(-1) !== label.tetherPx) distances.push(label.tetherPx);
+    for (const distance of distances) {
+      for (const direction of LEADER_DIRECTIONS) {
+        const c = { x: q.x + direction.x * distance, y: q.y + direction.y * distance };
+        if (!clear(c)) continue;
+        if (!label.allowLeader) return spot(c);
+        // The leader runs from just off the point to the box edge.
+        const reach = Math.min(Math.abs(direction.x) > 1e-9 ? (width / 2) / Math.abs(direction.x) : Infinity, Math.abs(direction.y) > 1e-9 ? (LABEL_HEIGHT_PX / 2) / Math.abs(direction.y) : Infinity);
+        const from = { x: q.x + direction.x * 3, y: q.y + direction.y * 3 };
+        const to = { x: q.x + direction.x * Math.max(3, distance - reach), y: q.y + direction.y * Math.max(3, distance - reach) };
+        if (finiteInk.every(([a, b]) => !segmentsCross(from, to, a, b))) return spot(c);
+      }
+    }
+    return null;
+  };
+  let missing = 0;
+  let slack = Infinity;
+  for (const item of named) {
+    const q = toPx(item.point);
+    if (!Number.isFinite(q.x + q.y) || !rings.some((ring) => insideBy(q, ring, -1))) continue;
+    let found = false;
+    for (const extra of [2 * LABEL_SLACK_PX, LABEL_SLACK_PX, 0]) {
+      const box = fits(q, item.label, extra);
+      if (!box) continue;
+      placed.push(box);
+      slack = Math.min(slack, extra);
+      found = true;
+      break;
+    }
+    if (!found) missing += 1;
+  }
+  return { missing, slack: Number.isFinite(slack) ? slack : 2 * LABEL_SLACK_PX };
+}
+
+/** Each patch that holds a point with a name grows about its centre by this factor; null when none does. */
+function grownPatches(planes: SpaceViewPlan["planes"], world: World, named: NamedPoint[], factor: number, frameOf: (id: string) => FrameInfo): SpaceViewPlan["planes"] | null {
+  const grown = new Map(planes);
+  let changed = false;
+  for (const plane of world.planes) {
+    const drawing = planes.get(plane.id);
+    if (drawing?.kind !== "patch") continue;
+    const unitNormal = unitOf(plane.normal);
+    const offset = plane.delta / norm(plane.normal);
+    const holds = named.some((item) => item.frameId === plane.frameId && Math.abs(dot(unitNormal, item.point) - offset) <= frameOf(plane.frameId).tolerance);
+    if (holds) { grown.set(plane.id, { ...drawing, uSpan: drawing.uSpan * factor, vSpan: drawing.vSpan * factor }); changed = true; }
+  }
+  return changed ? grown : null;
+}
+
+/**
+ * An intercept triangle holding a named point well inside it, drawn instead
+ * as the patch the plane would otherwise get; null when there is none.
+ */
+function openedTriangles(planes: SpaceViewPlan["planes"], world: World, named: NamedPoint[], patchAlternatives: Map<string, SpacePlaneDrawing>, frameOf: (id: string) => FrameInfo): SpaceViewPlan["planes"] | null {
+  const opened = new Map(planes);
+  let changed = false;
+  for (const plane of world.planes) {
+    const drawing = planes.get(plane.id);
+    const patch = patchAlternatives.get(plane.id);
+    if (drawing?.kind !== "triangle" || !patch) continue;
+    const [A, B, C] = drawing.vertices;
+    const tolerance = frameOf(plane.frameId).tolerance;
+    const holds = named.some((item) => item.frameId === plane.frameId && ![A, B, C].some((vertex) => norm(sub(item.point, vertex)) <= tolerance) && insideTriangle(item.point, A, B, C, tolerance));
+    if (holds) { opened.set(plane.id, patch); changed = true; }
+  }
+  return changed ? opened : null;
+}
+
+/**
+ * A point drawn inside a plane needs room for its name at its real size.
+ * When the camera's view leaves too little, take the first acceptable view
+ * (floors met, score at least 0.85) that gives every such name room with
+ * slack; failing that, grow the patches holding named points, smallest step
+ * first; failing that, draw an intercept triangle holding a named point as a
+ * patch (it holds the triangle's corners), then grow that. Without any, keep
+ * the view and drawings that leave the fewest names without room.
+ */
+function withLabelRoom(choice: ProjectionChoice, world: World, named: NamedPoint[], frames: SpaceViewPlan["frames"], lines: SpaceViewPlan["lines"], planes: SpaceViewPlan["planes"], patchAlternatives: Map<string, SpacePlaneDrawing>, frameOf: (id: string) => FrameInfo): { choice: ProjectionChoice; planes: SpaceViewPlan["planes"] } {
   const constraints = choice.constraints;
-  if (!constraints || planes.size === 0) return choice;
-  const roomFor = (projection: SpaceProjection) => Math.min(POINT_ROOM_PX, planeRoom(projection, world, frames, lines, planes));
-  let bestRoom = roomFor(choice.projection);
-  if (bestRoom >= POINT_ROOM_PX) return choice;
-  let best: ProjectionChoice | null = null;
-  for (const projection of SPACE_PROJECTION_CANDIDATES) {
+  if (!constraints || planes.size === 0 || named.length === 0) return { choice, planes };
+  const enough = (room: LabelRoom) => room.missing === 0 && room.slack >= LABEL_SLACK_PX;
+  const better = (a: LabelRoom, b: LabelRoom) => a.missing < b.missing || (a.missing === b.missing && a.slack > b.slack);
+  const first = labelRoom(choice.projection, world, named, frames, lines, planes);
+  if (enough(first)) return { choice, planes };
+  let best = { choice, planes, room: first };
+  const acceptable = SPACE_PROJECTION_CANDIDATES.flatMap((projection) => {
     const metrics = projectionMetrics(projection, constraints);
-    if (!metrics.passesFloors || metrics.score < 0.85) continue;
-    const room = roomFor(projection);
-    if (room > bestRoom + 0.5) {
-      bestRoom = room;
-      best = { projection, report: { candidate: projectionName(projection), score: metrics.score, passesFloors: metrics.passesFloors, worst: `${metrics.worst}; room inside a plane` } };
+    return metrics.passesFloors && metrics.score >= 0.85 && projection !== choice.projection ? [{ projection, metrics }] : [];
+  });
+  const options: ProjectionChoice[] = [choice, ...acceptable.map(({ projection, metrics }): ProjectionChoice => ({
+    projection,
+    report: { candidate: projectionName(projection), score: metrics.score, passesFloors: metrics.passesFloors, worst: `${metrics.worst}; room for names inside a plane` },
+    constraints,
+  }))];
+  const variants: Array<SpaceViewPlan["planes"]> = [];
+  for (const base of [planes, openedTriangles(planes, world, named, patchAlternatives, frameOf)]) {
+    if (!base) continue;
+    variants.push(base);
+    for (const factor of PATCH_GROWTH) {
+      const grown = grownPatches(base, world, named, factor, frameOf);
+      if (grown) variants.push(grown);
     }
   }
-  return best ?? choice;
+  for (const drawn of variants) {
+    for (const option of options) {
+      const room = drawn === planes && option === choice ? first : labelRoom(option.projection, world, named, frames, lines, drawn);
+      if (enough(room)) return { choice: option, planes: drawn };
+      if (better(room, best.room)) best = { choice: option, planes: drawn, room };
+    }
+  }
+  return { choice: best.choice, planes: best.planes };
 }
 
 /**
@@ -519,7 +677,7 @@ function drawnLineRange(line: LineInfo, held: number[], length: number, axisLeng
   return Number.isFinite(tMin) && Number.isFinite(tMax) && tMin < tMax ? { tMin, tMax } : null;
 }
 
-function planeDrawing(plane: PlaneInfo, frame: FrameInfo, extent: number, candidates: Vec3[], stretches: Vec3[] = []): PlaneDrawingResult {
+function planeDrawing(plane: PlaneInfo, frame: FrameInfo, extent: number, candidates: Vec3[], stretches: Vec3[] = [], allowTriangle = true): PlaneDrawingResult {
   const L0 = frame.axisLength;
   const tolerance = frame.tolerance;
   const length = norm(plane.normal);
@@ -536,7 +694,7 @@ function planeDrawing(plane: PlaneInfo, frame: FrameInfo, extent: number, candid
     return scale(AXES[axis]!, value);
   });
   const interceptPlane = intercepts.every((point) => point !== null);
-  if (interceptPlane) {
+  if (interceptPlane && allowTriangle) {
     const [A, B, C] = intercepts as [Vec3, Vec3, Vec3];
     if (incident.every((point) => insideTriangle(point, A, B, C, tolerance))) {
       return { drawing: { kind: "triangle", vertices: [A, B, C] }, axisPoints: [A, B, C], edges: [sub(B, A), sub(C, B), sub(A, C)], vertices: [A, B, C] };
