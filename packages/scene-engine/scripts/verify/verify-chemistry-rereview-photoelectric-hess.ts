@@ -40,14 +40,12 @@ for (const hc of ["4e- eV nm", "1e999 eV nm", "unknown", "-1240 eV nm", "0 eV nm
   check("supplied damaged hc never becomes a fixed product: " + hc, () => {
     const question = `Light of wavelength 300 nm falls on a metal. Its work function is 2.0 eV. Take hc=${hc}. Find photoelectron kinetic energy.`;
     assert.equal(buildAtomicRadiationScene(question, [], false), null);
-  assert.equal(synthesizeFamilyScene({ question }), null);
     assert.equal(synthesizeFamilyScene({ question }), null);
   });
 for (const declaration of ["hc=unknown; hc=1240 eV nm", "hc=1240 eV nm; hc=unknown", "hc=; hc=1240 eV nm", "hc=1240 eV nm; hc=", "hc=1240 eV nm; hc=1240 eV nm"])
   check("each explicit hc owner must be resolved: " + declaration, () => {
     const question = `For the photoelectric effect wavelength is 300 nm and work function is 2 eV. ${declaration}. Find kinetic energy.`;
     assert.equal(buildAtomicRadiationScene(question, [], false), null);
-  assert.equal(synthesizeFamilyScene({ question }), null);
     assert.equal(synthesizeFamilyScene({ question }), null);
   });
 for (const [wavelength, expected] of [[300, "K=2.00 eV"], [400, "K=1.00 eV"]] as const)
