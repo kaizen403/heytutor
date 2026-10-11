@@ -6,7 +6,7 @@ import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { SceneDocument } from "../../src/types";
-interface Case {id:string;question:string;family:string;refuse?:boolean;half?:number;askTime?:number;k?:number;labels?:string[];mass?:number}
+interface Case {id:string;question:string;family:string;refuse?:boolean;half?:number;askTime?:number;k?:number;labels?:string[];mass?:number;askUnit?:string;physicalValues?:Array<{value:string;unit:string}>}
 const cases: Case[] = [
   {
     "id": "OWN-sequential-rise-1",
@@ -44,7 +44,8 @@ const cases: Case[] = [
     "family": "kinetics",
     "half": 30.006371452811486,
     "askTime": 60,
-    "k": 0.0231
+    "k": 0.0231,
+    "askUnit": "min"
   },
   {
     "id": "OWN-close-reference-tick-2",
@@ -52,7 +53,8 @@ const cases: Case[] = [
     "family": "kinetics",
     "half": 30.006371452811486,
     "askTime": 60,
-    "k": 0.0231
+    "k": 0.0231,
+    "askUnit": "min"
   },
   {
     "id": "OWN-close-reference-tick-3",
@@ -60,7 +62,8 @@ const cases: Case[] = [
     "family": "kinetics",
     "half": 30.006371452811486,
     "askTime": 60,
-    "k": 0.0231
+    "k": 0.0231,
+    "askUnit": "min"
   },
   {
     "id": "OWN-close-reference-tick-4",
@@ -68,7 +71,8 @@ const cases: Case[] = [
     "family": "kinetics",
     "half": 15.003185726405743,
     "askTime": 30,
-    "k": 0.0462
+    "k": 0.0462,
+    "askUnit": "min"
   },
   {
     "id": "OWN-close-reference-tick-5",
@@ -76,62 +80,83 @@ const cases: Case[] = [
     "family": "kinetics",
     "half": 100.02123817603828,
     "askTime": 200,
-    "k": 0.00693
+    "k": 0.00693,
+    "askUnit": "s"
   },
   {
     "id": "OWN-complete-mass-unit-1",
     "question": "A solute has true molar mass 1e+06 g/mol and dissociates into 2 particles with alpha = 0.5. Find the apparent molar mass.",
     "family": "solution",
     "labels": [
-      "i=1.5",
-      "M'=666666.667",
-      "g/mol"
+      "i=1.5"
     ],
-    "mass": 666666.6666666666
+    "mass": 666666.6666666666,
+    "physicalValues": [
+      {
+        "value": "M'=666666.667",
+        "unit": "g/mol"
+      }
+    ]
   },
   {
     "id": "OWN-complete-mass-unit-2",
     "question": "A solute has true molar mass 1e+07 g/mol and dissociates into 2 particles with alpha = 0.5. Find the apparent molar mass.",
     "family": "solution",
     "labels": [
-      "i=1.5",
-      "M'=6666666.667",
-      "g/mol"
+      "i=1.5"
     ],
-    "mass": 6666666.666666667
+    "mass": 6666666.666666667,
+    "physicalValues": [
+      {
+        "value": "M'=6666666.667",
+        "unit": "g/mol"
+      }
+    ]
   },
   {
     "id": "OWN-complete-mass-unit-3",
     "question": "A solute has true molar mass 1e+08 g/mol and dissociates into 2 particles with alpha = 0.5. Find the apparent molar mass.",
     "family": "solution",
     "labels": [
-      "i=1.5",
-      "M'=66666666.667",
-      "g/mol"
+      "i=1.5"
     ],
-    "mass": 66666666.666666664
+    "mass": 66666666.666666664,
+    "physicalValues": [
+      {
+        "value": "M'=66666666.667",
+        "unit": "g/mol"
+      }
+    ]
   },
   {
     "id": "OWN-complete-mass-unit-4",
     "question": "A solute has true molar mass 1e+09 g/mol and dissociates into 2 particles with alpha = 0.5. Find the apparent molar mass.",
     "family": "solution",
     "labels": [
-      "i=1.5",
-      "M'=666666666.667",
-      "g/mol"
+      "i=1.5"
     ],
-    "mass": 666666666.6666666
+    "mass": 666666666.6666666,
+    "physicalValues": [
+      {
+        "value": "M'=666666666.667",
+        "unit": "g/mol"
+      }
+    ]
   },
   {
     "id": "OWN-complete-mass-unit-5",
     "question": "A solute has true molar mass 1e+10 g/mol and dissociates into 2 particles with alpha = 0.5. Find the apparent molar mass.",
     "family": "solution",
     "labels": [
-      "i=1.5",
-      "M'=6.667e9",
-      "g/mol"
+      "i=1.5"
     ],
-    "mass": 6666666666.666667
+    "mass": 6666666666.666667,
+    "physicalValues": [
+      {
+        "value": "M'=6.667e9",
+        "unit": "g/mol"
+      }
+    ]
   },
   {
     "id": "OWN-declared-Henry-intent-1",
@@ -235,8 +260,16 @@ function check(c:Case,document:SceneDocument):void {
  const displayed=labels(document);
  for(const expected of c.labels??[])assert.ok(displayed.includes(expected),JSON.stringify(displayed));
  if(c.half!==undefined)assert.equal(document.quantities.find(q=>q.id==="t_half")?.value,Number(c.half.toFixed(6)));
- if(c.askTime!==undefined)assert.ok(displayed.some(s=>s.startsWith(`t=${c.askTime} `)),JSON.stringify(displayed));
- if(c.mass!==undefined)assert.ok(document.annotations.some(a=>a.id==="figure_caption" && a.text.includes(String(c.mass))),JSON.stringify(document.annotations));
+ if(c.askTime!==undefined) {
+  const exactTime=new RegExp(`^t\\s*=\\s*${c.askTime}\\s+${c.askUnit}$`);
+  assert.ok(displayed.some(s=>exactTime.test(s)),JSON.stringify(displayed));
+ }
+ for(const physical of c.physicalValues??[]) {
+  const compact=displayed.map(s=>s.replace(/\s+/g,""));
+  const value=physical.value.replace(/\s+/g,""),unit=physical.unit.replace(/\s+/g,"");
+  assert.ok(compact.includes(value+unit) || (compact.includes(value) && compact.includes(unit)),JSON.stringify(displayed));
+ }
+ if(c.mass!==undefined)assert.ok(document.annotations.some(a=>a.id==="figure_caption" && typeof a.text==="string" && a.text.includes(String(c.mass))),JSON.stringify(document.annotations));
 }
 const results:Array<{id:string;passed:boolean;error?:string}>=[];
 for(const c of cases)try {
