@@ -2420,7 +2420,14 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
           : "line";
   const transformedPoints = value.points.map(transform);
   let renderPoints = drawsFiniteSpaceLine(value) && !forceFinite && transformedPoints.length >= 2
-    ? clipSegmentToView(transformedPoints[0]!, transformedPoints.at(-1)!, viewport)
+    // A finite space line that misses the view falls back to the clipped infinite line drawn before
+    // the view plan, so a required line can never sit off the board while compile reports ok.
+    ? clipSegmentToView(transformedPoints[0]!, transformedPoints.at(-1)!, viewport) ?? clipInfinitePath(
+        transform(value.points[0]!),
+        transform(infinitePathFarPoint(value.points[0]!, value.points.at(-1)!)),
+        value.directed === true,
+        viewport,
+      )
     : value.infinite && !forceFinite && value.points.length >= 2
     ? clipInfinitePath(
         transform(value.points[0]!),
@@ -2692,7 +2699,8 @@ function clipInfinitePath(start:RenderPoint,next:RenderPoint,directed:boolean,vi
  * Lines stay out of the fit: a long planner range would otherwise shrink
  * every point and label of the figure.
  */
-function clipSegmentToView(start: RenderPoint, end: RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }): RenderPoint[] {
+/** The part of a segment inside the view, or null when the segment misses the view. */
+function clipSegmentToView(start: RenderPoint, end: RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }): RenderPoint[] | null {
   const padding = viewport.padding ?? 0;
   const bounds = { left: viewport.x + padding, right: viewport.x + viewport.width - padding, top: viewport.y + padding, bottom: viewport.y + viewport.height - padding };
   const dx = end.x - start.x;
@@ -2700,11 +2708,11 @@ function clipSegmentToView(start: RenderPoint, end: RenderPoint, viewport: { x: 
   let low = 0;
   let high = 1;
   for (const [p, q] of [[-dx, start.x - bounds.left], [dx, bounds.right - start.x], [-dy, start.y - bounds.top], [dy, bounds.bottom - start.y]] as const) {
-    if (Math.abs(p) < EPSILON) { if (q < 0) return [start, end]; continue; }
+    if (Math.abs(p) < EPSILON) { if (q < 0) return null; continue; }
     const t = q / p;
     if (p < 0) low = Math.max(low, t); else high = Math.min(high, t);
   }
-  if (!(high - low > EPSILON)) return [start, end];
+  if (!(high - low > EPSILON)) return null;
   return [
     { x: round(start.x + dx * low), y: round(start.y + dy * low) },
     { x: round(start.x + dx * high), y: round(start.y + dy * high) },

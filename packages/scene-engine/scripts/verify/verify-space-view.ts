@@ -665,6 +665,19 @@ gate("G29 a document cannot supply its own parallel lane", () => {
   return renderHash(forged) === renderHash(circuit) ? null : "a forged __parallelLane moved the symbol";
 });
 
+gate("G30 a required space line stays on the board when its stretch misses the view", () => {
+  // Greptile's example: a line through (0, 0, 10) along z with t from -1 to 1 holds no marked point.
+  // Unlabelled, it compiled with the line off the board; labelled, its name had no slot and the figure failed.
+  for (const label of [undefined, "L"]) {
+    const document = spaceDocument("a line far up the z axis", [part("L", "line", "space_line", { point: [0, 0, 10], direction: [0, 0, 1], tMin: -1, tMax: 1 }, label)]);
+    const line = primitive(rendered(document), "primitive_L").points;
+    if (line.length < 2) return "the line has no ink";
+    const off = line.filter((point) => !inZone(point, -1));
+    if (off.length) return `the ${label ? "labelled" : "unlabelled"} line is drawn off the board at ${off.map((point) => `(${point.x.toFixed(0)}, ${point.y.toFixed(0)})`).join(" ")}`;
+  }
+  return null;
+});
+
 gate("G15 byte identity of documents without a space_frame", () => {
   const fixture = JSON.parse(readFileSync(identityFixture, "utf8")) as IdentityFixture;
   const ids = Object.keys(fixture.hashes);
